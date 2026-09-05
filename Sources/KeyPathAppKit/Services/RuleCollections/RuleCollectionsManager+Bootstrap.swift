@@ -8,7 +8,7 @@ extension RuleCollectionsManager {
 
     /// Load rule collections and custom rules from persistent storage
     func bootstrap() async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             do {
                 try await configurationService.recoverPendingRuleWrite(
                     collectionStore: ruleCollectionStore, customStore: customRulesStore
@@ -61,7 +61,7 @@ extension RuleCollectionsManager {
             let collectionsSnapshot = ruleCollections
             let didReconcileLeader = reconcileLeaderKeyFromCollection()
 
-            let applied = await regenerateConfigFromCollections()
+            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
             if didReconcileLeader, !applied {
                 rollbackLeaderReconcile(preference: leaderSnapshot, collections: collectionsSnapshot)
             }

@@ -13,7 +13,7 @@ extension RuleCollectionsManager {
 
     /// Replace all rule collections
     func replaceCollections(_ collections: [RuleCollection]) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
@@ -22,7 +22,7 @@ extension RuleCollectionsManager {
             let collectionsSnapshot = ruleCollections
             let didReconcileLeader = reconcileLeaderKeyFromCollection()
 
-            let applied = await regenerateConfigFromCollections()
+            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
             if didReconcileLeader, !applied {
                 rollbackLeaderReconcile(preference: leaderSnapshot, collections: collectionsSnapshot)
             }
@@ -53,7 +53,7 @@ extension RuleCollectionsManager {
         skipReload: Bool = false,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> Bool {
-        await withRuleMutation(using: mutationPermit, failure: false) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
             AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
             if !bypassOwnershipCheck {
@@ -167,13 +167,13 @@ extension RuleCollectionsManager {
             }
 
             AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
-            let applied = await regenerateConfigFromCollections(skipReload: skipReload)
+            let applied = await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit)
             guard applied else {
                 if id == RuleCollectionIdentifier.leaderKey {
                     PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
                 }
                 AppLogger.shared.log("↩️ [RuleCollections] Toggle apply failed; rolling back to previous state")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
                 return false
             }
 
@@ -189,7 +189,7 @@ extension RuleCollectionsManager {
     /// Used when a mode switch (e.g., home row mods → layers) needs to enable several
     /// layer collections at once without 4 separate save/validate/reload cycles.
     func batchEnableCollections(ids: [UUID]) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             let catalog = RuleCollectionCatalog().defaultCollections()
 
             for id in ids {
@@ -206,13 +206,13 @@ extension RuleCollectionsManager {
 
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Add or update a rule collection
     func addCollection(_ collection: RuleCollection, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
-        await withRuleMutation(using: mutationPermit, failure: ()) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
             let snapshot = snapshotRuleState()
 
             if collection.isEnabled, let conflict = conflictInfo(for: collection) {
@@ -253,27 +253,27 @@ extension RuleCollectionsManager {
             }
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            let applied = await regenerateConfigFromCollections()
+            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
             if !applied {
                 AppLogger.shared.log("↩️ [RuleCollections] Add collection failed; rolling back to previous state")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
             }
         }
     }
 
     /// Remove a rule collection by ID
     func removeCollection(id: UUID) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             ruleCollections.removeAll { $0.id == id }
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
             AppLogger.shared.log("🗑️ [RuleCollections] Removed collection: \(id)")
         }
     }
 
     /// Remove all collections and custom rules for a specific layer
     func removeLayer(_ layerName: String) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             let normalizedName = layerName.lowercased()
 
             // Remove collections targeting this layer
@@ -298,7 +298,7 @@ extension RuleCollectionsManager {
             }
 
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
 
             AppLogger.shared.log("🗑️ [RuleCollections] Removed layer '\(layerName)': \(removedCollections) collections, \(removedRules) rules")
         }
@@ -370,7 +370,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                 }
                 return
             }
@@ -396,13 +396,13 @@ extension RuleCollectionsManager {
             }
 
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Update a tap-hold picker collection's tap output
     func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -412,7 +412,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                 }
                 return
             }
@@ -421,13 +421,13 @@ extension RuleCollectionsManager {
             ruleCollections[index].isEnabled = true
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Update a tap-hold picker collection's hold output
     func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -437,7 +437,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                 }
                 return
             }
@@ -446,13 +446,13 @@ extension RuleCollectionsManager {
             ruleCollections[index].isEnabled = true
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Update a layer preset picker collection's selected preset
     func updateCollectionLayerPreset(id: UUID, presetId: String) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -462,7 +462,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                 }
                 return
             }
@@ -471,13 +471,13 @@ extension RuleCollectionsManager {
             ruleCollections[index].isEnabled = true
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Update window snapping key convention (Standard vs Vim)
     func updateWindowKeyConvention(id: UUID, convention: WindowKeyConvention) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -488,7 +488,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                 }
                 return
             }
@@ -498,13 +498,13 @@ extension RuleCollectionsManager {
             ruleCollections[index].isEnabled = true
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Update function key mode (Media Keys vs Function Keys)
     func updateFunctionKeyMode(id: UUID, mode: FunctionKeyMode) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -515,7 +515,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                 }
                 return
             }
@@ -525,7 +525,7 @@ extension RuleCollectionsManager {
             ruleCollections[index].isEnabled = true
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
@@ -533,7 +533,7 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(failure: false) { [self] permit in
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -547,7 +547,8 @@ extension RuleCollectionsManager {
             let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
                 candidate,
                 rollbackMessage:
-                "Could not save Home Row Mods. Your previous rule state was restored."
+                "Could not save Home Row Mods. Your previous rule state was restored.",
+                mutationPermit: permit
             )
             return appliedProviderIDs != nil && wasNewlyEnabled
         }
@@ -557,7 +558,7 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(failure: false) { [self] permit in
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -571,7 +572,8 @@ extension RuleCollectionsManager {
             let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
                 candidate,
                 rollbackMessage:
-                "Could not save Home Row Layer Toggles. Your previous rule state was restored."
+                "Could not save Home Row Layer Toggles. Your previous rule state was restored.",
+                mutationPermit: permit
             )
             return appliedProviderIDs != nil && wasNewlyEnabled
         }
@@ -581,7 +583,7 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(failure: false) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -591,7 +593,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                     return true
                 }
                 return false
@@ -603,7 +605,7 @@ extension RuleCollectionsManager {
 
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
             return wasNewlyEnabled
         }
     }
@@ -612,7 +614,7 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateSequencesConfig(id: UUID, config: SequencesConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(failure: false) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 // Try to find in catalog and add it
                 let catalog = RuleCollectionCatalog()
@@ -622,7 +624,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                     return true
                 }
                 return false
@@ -634,7 +636,7 @@ extension RuleCollectionsManager {
 
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
             return wasNewlyEnabled
         }
     }
@@ -666,7 +668,7 @@ extension RuleCollectionsManager {
         skipReload: Bool = false,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> Bool {
-        await withRuleMutation(using: mutationPermit, failure: false) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -683,7 +685,8 @@ extension RuleCollectionsManager {
                 candidate,
                 rollbackMessage:
                 "Could not save Launcher. Your previous rule state was restored.",
-                skipReload: skipReload
+                skipReload: skipReload,
+                mutationPermit: permit
             )
             guard appliedProviderIDs != nil else {
                 return false
@@ -698,7 +701,7 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateAutoShiftSymbolsConfig(id: UUID, config: AutoShiftSymbolsConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(failure: false) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 let catalog = RuleCollectionCatalog()
                 if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
@@ -707,7 +710,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                     return true
                 }
                 return false
@@ -719,7 +722,7 @@ extension RuleCollectionsManager {
 
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
             return wasNewlyEnabled
         }
     }
@@ -728,7 +731,7 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateKeyRepeatControlConfig(id: UUID, config: KeyRepeatControlConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] _ in
+        await withRuleMutation(failure: false) { [self] permit in
             guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
                 let catalog = RuleCollectionCatalog()
                 if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
@@ -737,7 +740,7 @@ extension RuleCollectionsManager {
                     ruleCollections.append(catalogCollection)
                     dedupeRuleCollectionsInPlace()
                     refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections()
+                    await regenerateConfigFromCollections(mutationPermit: permit)
                     return true
                 }
                 return false
@@ -748,7 +751,7 @@ extension RuleCollectionsManager {
 
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
             return wasNewlyEnabled
         }
     }
@@ -756,7 +759,7 @@ extension RuleCollectionsManager {
     /// Update window snapping activation mode
     /// - Returns: name of auto-enabled dependency, or nil
     func updateWindowSnappingActivationMode(id: UUID, mode: WindowSnappingActivationMode) async -> String? {
-        await withRuleMutation(failure: nil) { [self] _ in
+        await withRuleMutation(failure: nil) { [self] permit in
             guard var candidate = ruleCollections.first(where: { $0.id == id }) else {
                 return nil
             }
@@ -769,7 +772,8 @@ extension RuleCollectionsManager {
                 candidate,
                 rollbackMessage:
                 "Could not save Window Snapping. Your previous rule state was restored.",
-                nonInteractiveChoice: .enableRequiredProvidersAndApply
+                nonInteractiveChoice: .enableRequiredProvidersAndApply,
+                mutationPermit: permit
             ) else {
                 return nil
             }
@@ -813,7 +817,7 @@ extension RuleCollectionsManager {
 
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
-        await withRuleMutation(using: mutationPermit, failure: ()) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
             AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
             let snapshot = snapshotRuleState()
             let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
@@ -822,10 +826,10 @@ extension RuleCollectionsManager {
             syncLeaderKeyPreference(key: newKey, enabled: true)
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            let applied = await regenerateConfigFromCollections()
+            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
             guard applied else {
                 PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this leader key change. Your previous rule state was restored.")
+                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this leader key change. Your previous rule state was restored.", mutationPermit: permit)
                 return
             }
         }
@@ -954,7 +958,7 @@ extension RuleCollectionsManager {
     ///   - autoResolveConflicts: When true, automatically wins over conflicting rules without prompting.
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> Bool {
-        await withRuleMutation(using: mutationPermit, failure: false) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
             AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', action='\(rule.action.displayName)'")
             let snapshot = snapshotRuleState()
 
@@ -1000,13 +1004,13 @@ extension RuleCollectionsManager {
                 customRules.append(rule)
             }
 
-            let success = await regenerateConfigFromCollections(skipReload: skipReload)
+            let success = await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit)
 
             if success {
                 AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
             } else {
                 AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back to snapshot")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
                 AppLogger.shared.log("💾 [CustomRules] Rollback complete, customRules.count = \(customRules.count)")
             }
 
@@ -1016,7 +1020,7 @@ extension RuleCollectionsManager {
 
     /// Toggle a custom rule on/off
     func toggleCustomRule(id: UUID, isEnabled: Bool) async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             let snapshot = snapshotRuleState()
             guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
@@ -1061,33 +1065,33 @@ extension RuleCollectionsManager {
             if let index = customRules.firstIndex(where: { $0.id == id }) {
                 customRules[index].isEnabled = isEnabled
             }
-            let applied = await regenerateConfigFromCollections()
+            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
             if !applied {
                 AppLogger.shared.log("↩️ [CustomRules] Toggle apply failed; rolling back to previous state")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.")
+                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
             }
         }
     }
 
     /// Remove a custom rule
     func removeCustomRule(id: UUID, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
-        await withRuleMutation(using: mutationPermit, failure: ()) { [self] _ in
+        await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
             let beforeCount = customRules.count
             AppLogger.shared.log("🗑️ [CustomRules] removeCustomRule called: id=\(id), beforeCount=\(beforeCount)")
             customRules.removeAll { $0.id == id }
             let afterCount = customRules.count
             AppLogger.shared.log("🗑️ [CustomRules] After removal: afterCount=\(afterCount), removed=\(beforeCount - afterCount)")
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
         }
     }
 
     /// Clear all custom rules (without affecting rule collections)
     func clearAllCustomRules() async {
-        await withRuleMutation(failure: ()) { [self] _ in
+        await withRuleMutation(failure: ()) { [self] permit in
             let count = customRules.count
             AppLogger.shared.log("🧹 [CustomRules] Clearing all \(count) custom rules")
             customRules.removeAll()
-            await regenerateConfigFromCollections()
+            await regenerateConfigFromCollections(mutationPermit: permit)
             AppLogger.shared.log("✅ [CustomRules] All custom rules cleared")
         }
     }

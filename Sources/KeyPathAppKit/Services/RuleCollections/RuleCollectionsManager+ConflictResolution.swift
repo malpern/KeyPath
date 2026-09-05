@@ -45,46 +45,48 @@ extension RuleCollectionsManager {
     /// real collections, prompt the user to disable one and retry the save (#460).
     /// - Returns: the retry result, or nil when the failure wasn't a resolvable
     ///   mapping conflict or the user cancelled (caller falls back to its error path).
-    func tryResolveMappingConflict(_ error: Error, skipReload: Bool, depth: Int) async -> RulePersistenceResult? {
-        // Bound retries: each resolution disables one collection (strictly shrinking
-        // the enabled set), so this terminates, but the guard prevents pathological loops.
-        guard depth < 5,
-              let keyPathError = error as? KeyPathError,
-              case let .configuration(configError) = keyPathError,
-              case let .mappingConflicts(conflicts) = configError,
-              let callback = onMappingConflictResolution,
-              let resolvable = Self.resolvableCollectionConflict(
-                  conflicts: conflicts, collections: ruleCollections
-              )
-        else { return nil }
+    func tryResolveMappingConflict(_ error: Error, skipReload: Bool, depth: Int, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> RulePersistenceResult? {
+        await withRuleMutation(using: mutationPermit, failure: nil) { [self] permit in
+            // Bound retries: each resolution disables one collection (strictly shrinking
+            // the enabled set), so this terminates, but the guard prevents pathological loops.
+            guard depth < 5,
+                  let keyPathError = error as? KeyPathError,
+                  case let .configuration(configError) = keyPathError,
+                  case let .mappingConflicts(conflicts) = configError,
+                  let callback = onMappingConflictResolution,
+                  let resolvable = Self.resolvableCollectionConflict(
+                      conflicts: conflicts, collections: ruleCollections
+                  )
+            else { return nil }
 
-        let context = MappingConflictContext(
-            explanation: conflicts.map(\.userExplanation).joined(separator: "\n\n"),
-            options: resolvable.map {
-                MappingConflictOption(id: $0.id, name: $0.name, icon: $0.icon ?? "square.stack.3d.up")
-            }
-        )
+            let context = MappingConflictContext(
+                explanation: conflicts.map(\.userExplanation).joined(separator: "\n\n"),
+                options: resolvable.map {
+                    MappingConflictOption(id: $0.id, name: $0.name, icon: $0.icon ?? "square.stack.3d.up")
+                }
+            )
 
-        guard let chosenID = await callback(context),
-              let index = ruleCollections.firstIndex(where: { $0.id == chosenID })
-        else { return nil } // cancelled → fall back to explanation
+            guard let chosenID = await callback(context),
+                  let index = ruleCollections.firstIndex(where: { $0.id == chosenID })
+            else { return nil } // cancelled → fall back to explanation
 
-        AppLogger.shared.log(
-            "🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)"
-        )
-        // Make the disable atomic: snapshot first, disable in-memory, retry the full
-        // save. If the retry still fails (another conflict, depth guard, validation),
-        // restore so in-memory state never diverges from what was actually persisted —
-        // callers that ignore the `false` return must not see an unsaved disable.
-        let snapshot = ruleCollections
-        ruleCollections[index].isEnabled = false
-        refreshLayerIndicatorState()
-        let saved = await persistRules(skipReload: skipReload, conflictResolutionDepth: depth + 1)
-        if !saved.didPersist {
-            ruleCollections = snapshot
+            AppLogger.shared.log(
+                "🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)"
+            )
+            // Make the disable atomic: snapshot first, disable in-memory, retry the full
+            // save. If the retry still fails (another conflict, depth guard, validation),
+            // restore so in-memory state never diverges from what was actually persisted —
+            // callers that ignore the `false` return must not see an unsaved disable.
+            let snapshot = ruleCollections
+            ruleCollections[index].isEnabled = false
             refreshLayerIndicatorState()
+            let saved = await persistRules(skipReload: skipReload, conflictResolutionDepth: depth + 1, mutationPermit: permit)
+            if !saved.didPersist {
+                ruleCollections = snapshot
+                refreshLayerIndicatorState()
+            }
+            return saved
         }
-        return saved
     }
 
     // MARK: - Conflict Resolution
@@ -98,19 +100,21 @@ extension RuleCollectionsManager {
 
     /// Restore state snapshot and attempt to re-apply previous config.
     @discardableResult
-    func rollbackToSnapshot(_ snapshot: RuleStateSnapshot, userMessage: String) async -> Bool {
-        ruleCollections = snapshot.collections
-        customRules = snapshot.customRules
-        refreshLayerIndicatorState()
+    func rollbackToSnapshot(_ snapshot: RuleStateSnapshot, userMessage: String, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> Bool {
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
+            ruleCollections = snapshot.collections
+            customRules = snapshot.customRules
+            refreshLayerIndicatorState()
 
-        let rollbackApplied = await regenerateConfigFromCollections()
-        if rollbackApplied {
-            onError?(userMessage)
-        } else {
-            onError?("\(userMessage) Automatic rollback failed. Please review your configuration.")
+            let rollbackApplied = await regenerateConfigFromCollections(mutationPermit: permit)
+            if rollbackApplied {
+                onError?(userMessage)
+            } else {
+                onError?("\(userMessage) Automatic rollback failed. Please review your configuration.")
+            }
+
+            return rollbackApplied
         }
-
-        return rollbackApplied
     }
 
     /// Disable a conflicting rule source (collection or custom rule)

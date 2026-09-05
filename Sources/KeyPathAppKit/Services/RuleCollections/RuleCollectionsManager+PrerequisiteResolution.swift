@@ -121,31 +121,34 @@ extension RuleCollectionsManager {
         _ candidate: RuleCollection,
         rollbackMessage: String,
         nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders,
-        skipReload: Bool = false
+        skipReload: Bool = false,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> [UUID]? {
-        let snapshot = snapshotRuleState()
-        guard let providerIDs = await confirmedPrerequisiteProviderIDs(
-            for: candidate,
-            operation: .save,
-            nonInteractiveChoice: nonInteractiveChoice
-        ) else {
-            return nil
-        }
+        await withRuleMutation(using: mutationPermit, failure: nil) { [self] permit in
+            let snapshot = snapshotRuleState()
+            guard let providerIDs = await confirmedPrerequisiteProviderIDs(
+                for: candidate,
+                operation: .save,
+                nonInteractiveChoice: nonInteractiveChoice
+            ) else {
+                return nil
+            }
 
-        applyPrerequisiteChangeInMemory(
-            candidate: candidate,
-            providerIDs: providerIDs
-        )
-
-        guard await regenerateConfigFromCollections(skipReload: skipReload) else {
-            AppLogger.shared.log(
-                "↩️ [RuleCollections] Prerequisite-aware save failed; rolling back"
+            applyPrerequisiteChangeInMemory(
+                candidate: candidate,
+                providerIDs: providerIDs
             )
-            await rollbackToSnapshot(snapshot, userMessage: rollbackMessage)
-            return nil
-        }
 
-        return providerIDs
+            guard await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit) else {
+                AppLogger.shared.log(
+                    "↩️ [RuleCollections] Prerequisite-aware save failed; rolling back"
+                )
+                await rollbackToSnapshot(snapshot, userMessage: rollbackMessage, mutationPermit: permit)
+                return nil
+            }
+
+            return providerIDs
+        }
     }
 
     private func prerequisiteResolutionContext(

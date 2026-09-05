@@ -215,6 +215,73 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
         }
     }
 
+    func testReloadCallbackCannotRegenerateConfigurationDirectly() async throws {
+        try await withFixture { service, manager, coordinator in
+            let content = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+            var extraReloads = 0
+            manager.onRulesChanged = {
+                extraReloads += 1
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            let result = await coordinator.saveGeneratedConfig(content: content) {
+                let regenerated = await manager.regenerateConfigFromCollections()
+                XCTAssertFalse(regenerated)
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(result.success)
+            XCTAssertEqual(extraReloads, 0)
+            XCTAssertEqual(try String(contentsOfFile: service.configurationPath, encoding: .utf8), content)
+        }
+    }
+
+    func testReloadCallbackCannotRestoreAnUnrelatedRuleSnapshot() async throws {
+        try await withFixture { _, manager, coordinator in
+            let rule = manager.makeCustomRule(input: "a", output: "c")
+            let result = await coordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
+                let restored = await manager.rollbackToSnapshot((collections: [], customRules: [rule]), userMessage: "Restored")
+                XCTAssertFalse(restored)
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(result.success)
+            XCTAssertTrue(manager.customRules.isEmpty)
+        }
+    }
+
+    func testStandalonePersistenceHoldsAdmissionThroughReload() async throws {
+        try await withFixture { _, manager, _ in
+            let entered = self.expectation(description: "standalone reload entered")
+            let started = self.expectation(description: "collection edit requested")
+            var resume: CheckedContinuation<Void, Never>?
+            var reloads = 0
+            manager.onRulesChanged = {
+                reloads += 1
+                if reloads == 1 {
+                    await withCheckedContinuation { continuation in
+                        resume = continuation
+                        entered.fulfill()
+                    }
+                }
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            let first = Task { @MainActor in await manager.persistRules() }
+            await self.fulfillment(of: [entered], timeout: 5)
+            let rule = manager.makeCustomRule(input: "a", output: "c")
+            let second = Task { @MainActor in
+                started.fulfill()
+                return await manager.saveCustomRule(rule)
+            }
+            await self.fulfillment(of: [started], timeout: 5)
+            XCTAssertTrue(manager.customRules.isEmpty)
+            resume?.resume()
+            let persisted = await first.value
+            let saved = await second.value
+            XCTAssertTrue(persisted.didPersist)
+            XCTAssertTrue(saved)
+            XCTAssertEqual(manager.customRules.map(\.id), [rule.id])
+            XCTAssertEqual(reloads, 2)
+        }
+    }
+
     private func withFixture(
         _ body: @MainActor (ConfigurationService, RuleCollectionsManager, SaveCoordinator) async throws -> Void
     ) async throws {
