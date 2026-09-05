@@ -159,7 +159,8 @@ public final class PackInstaller {
                         manager: manager,
                         policy: managedDefaultPolicy,
                         associatedCollectionConfiguration: collectionConfiguration,
-                        skipReload: skipFinalReload
+                        skipReload: skipFinalReload,
+                        mutationPermit: permit
                     )
                 } catch {
                     AppLogger.shared.errorUnlessQuietTest(
@@ -176,7 +177,8 @@ public final class PackInstaller {
                     )
                     let rollbackApplied = await manager.rollbackToSnapshot(
                         ruleStateSnapshot,
-                        userMessage: "Could not apply this system pack. Your previous rule state was restored."
+                        userMessage: "Could not apply this system pack. Your previous rule state was restored.",
+                        mutationPermit: permit
                     )
                     guard rollbackApplied, collectionSnapshotRestored, installRecordRestored else {
                         throw InstallError.saveFailed(
@@ -202,7 +204,8 @@ public final class PackInstaller {
                     )
                     let rollbackApplied = await manager.rollbackToSnapshot(
                         ruleStateSnapshot,
-                        userMessage: "Could not record this system pack installation. Your previous rule state was restored."
+                        userMessage: "Could not record this system pack installation. Your previous rule state was restored.",
+                        mutationPermit: permit
                     )
                     guard rollbackApplied, collectionSnapshotRestored, installRecordRestored else {
                         throw InstallError.saveFailed(
@@ -255,7 +258,8 @@ public final class PackInstaller {
                     )
                     let rollbackApplied = await manager.rollbackToSnapshot(
                         ruleStateSnapshot,
-                        userMessage: "Could not record this pack installation. Your previous rule state was restored."
+                        userMessage: "Could not record this pack installation. Your previous rule state was restored.",
+                        mutationPermit: permit
                     )
                     guard rollbackApplied, installRecordRestored else {
                         throw InstallError.saveFailed(
@@ -315,7 +319,8 @@ public final class PackInstaller {
                 )
                 let rollbackApplied = await manager.rollbackToSnapshot(
                     ruleStateSnapshot,
-                    userMessage: "Could not record this pack installation. Your previous rule state was restored."
+                    userMessage: "Could not record this pack installation. Your previous rule state was restored.",
+                    mutationPermit: permit
                 )
                 guard rollbackApplied, installRecordRestored else {
                     throw InstallError.saveFailed(
@@ -361,12 +366,12 @@ public final class PackInstaller {
                     manager.ruleCollections[i].isEnabled = false
                 }
 
-                var applied = await manager.regenerateConfigFromCollections()
+                var applied = await manager.regenerateConfigFromCollections(mutationPermit: permit)
                 if !applied, didRestore, disableRestoreConflictCollections(for: pack, manager: manager) {
                     AppLogger.shared.log(
                         "⚠️ [PackInstaller] Retrying managed restore for '\(packID)' after disabling install-conflict collections"
                     )
-                    applied = await manager.regenerateConfigFromCollections()
+                    applied = await manager.regenerateConfigFromCollections(mutationPermit: permit)
                 }
 
                 guard applied else {
@@ -551,7 +556,7 @@ public final class PackInstaller {
                         config.timing.tapWindow = holdTimeout
                         config.timing.holdDelay = holdTimeout
                         manager.ruleCollections[index].configuration = .homeRowMods(config)
-                        await manager.regenerateConfigFromCollections()
+                        await manager.regenerateConfigFromCollections(mutationPermit: permit)
                     }
                 }
             } else if !pack.bindings.isEmpty {
@@ -782,7 +787,8 @@ public final class PackInstaller {
         manager: RuleCollectionsManager,
         policy: ManagedDefaultInstallPolicy,
         associatedCollectionConfiguration: RuleCollectionConfiguration?,
-        skipReload: Bool
+        skipReload: Bool,
+        mutationPermit: ConfigurationOperationGate.Permit
     ) async throws {
         let snapshot = snapshotManagedCollections(pack: pack, manager: manager)
         let catalog = RuleCollectionCatalog().defaultCollections()
@@ -826,7 +832,7 @@ public final class PackInstaller {
 
         try PackCollectionSnapshot.save(snapshot)
 
-        let applied = await manager.regenerateConfigFromCollections(skipReload: skipReload)
+        let applied = await manager.regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: mutationPermit)
         guard applied else {
             throw InstallError.saveFailed("could not apply managed collection defaults")
         }

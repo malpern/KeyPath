@@ -254,19 +254,22 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | PR | Result | Remaining boundary |
 | --- | --- | --- |
 | #1260 | Mutation inventory and retained save reload results; unused alternative writer methods removed. | Other mutation surfaces still need migration. |
-| #1262 | FIFO coordinator saves, operation-local file snapshots, queued cancellation and recursive callback protection. | Admission is coordinator-local, not shared by every collection/pack mutation. |
+| #1262 | FIFO coordinator saves, operation-local file snapshots, queued cancellation and recursive callback protection. | Admission was extended to collection/pack/bootstrap paths by #1267–#1268; full runtime recovery still needs migration. |
 | #1263 | Explicit previous-file, minimal-safe-file, and failed recovery outcomes retaining both errors. | File recovery does not assert source-store or engine restoration. |
 | #1264 | Collection persistence and retry callbacks retain applied/pending/rejected/failed outcomes. | Compatibility Boolean continues to mean persisted. |
-| #1265 | Durable journal for config plus both rule stores, startup recovery, external-change checks, and observers after file-set commit. | Preferences, pack metadata, in-memory mutation ordering and runtime rollback remain outside this file transaction. |
-| #1266 | Failed keymap writes restore the prior collection, manager preferences and attempted overlay selection, preserving unrelated layout preferences and newer display choices. | UserDefaults is not crash-atomic with the journal; admission still needs to precede every mutation. |
-| #1267 | Shared service admission before public collection/keymap mutation and across coordinator save/recovery, with explicit nested permits and callback rejection. | Direct service, pack, bootstrap, CLI and external writers require migration; file admission is not whole-operation rollback. |
+| #1265 | Durable journal for config plus both rule stores, startup recovery, external-change checks, and observers after file-set commit. | Preferences, pack metadata and runtime rollback remain outside this file transaction. |
+| #1266 | Failed keymap writes restore the prior collection, manager preferences and attempted overlay selection, preserving unrelated layout preferences and newer display choices. | UserDefaults is not crash-atomic with the journal. |
+| #1267 | Shared service admission before public collection/keymap mutation and across coordinator save/recovery, with explicit nested permits and callback rejection. | Pack/bootstrap admission was added by #1268; direct service, CLI and external writers remain. |
+| #1268 | Pack install/uninstall/settings and bootstrap hold shared admission across nested mutations, metadata and recovery. | Direct service, CLI and external writers still require migration; pack commits remain separate. |
 
+Standalone regeneration, conflict retries, prerequisite application and snapshot
+restoration now participate in shared admission with explicit nested permits.
 The first migrated persistence journey now has interruption and failure tests.
 This is a useful foundation, not completion of Phase 1 or the program.
 
 Next implementation sequence:
 
-1. Complete admission of pack and bootstrap operations, then direct writers, before in-memory mutation;
+1. Complete direct service and CLI writer admission before mutation;
    preserve explicit ownership through trusted nested calls, and reject recursive
    callback writes rather than allowing stale rollback or deadlock.
 2. Keep the prior source revision through runtime classification and restore

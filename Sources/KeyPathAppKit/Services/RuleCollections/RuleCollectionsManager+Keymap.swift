@@ -17,7 +17,7 @@ extension RuleCollectionsManager {
     /// - Returns: Array of conflicting custom rules, if any
     @discardableResult
     func setActiveKeymap(_ keymapId: String, includePunctuation: Bool) async -> [RuleConflictInfo] {
-        await withRuleMutation(failure: []) { [self] _ in
+        await withRuleMutation(failure: []) { [self] permit in
             AppLogger.shared.log("⌨️ [RuleCollections] Setting active keymap to '\(keymapId)' (punctuation: \(includePunctuation))")
 
             let previousKeymapId = activeKeymapId
@@ -54,7 +54,7 @@ extension RuleCollectionsManager {
             }
 
             // Persist preferences only after the config/source-store write succeeds.
-            let success = await regenerateConfigFromCollections()
+            let success = await regenerateConfigFromCollections(mutationPermit: permit)
             if success {
                 await persistKeymapState()
             } else {

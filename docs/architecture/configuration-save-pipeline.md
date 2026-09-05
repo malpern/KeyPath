@@ -66,7 +66,9 @@ they were reused later.
 `ConfigurationService.operationGate` provides FIFO admission for generated and
 mapping saves, explicit restoration, and the collection manager's public async
 mutation APIs (including keymap selection), bootstrap reconciliation, and pack
-install/uninstall/settings operations. Admission happens before staging
+install/uninstall/settings operations. Standalone regeneration, persistence,
+prerequisite application, conflict retries and snapshot restoration also acquire
+admission; their trusted nested callers pass the active permit. Admission happens before staging
 in-memory collection state and remains held through persistence, reload and
 recovery. Two coordinators using the same service share that admission queue.
 Each save snapshots the file itself rather than using the parsed cache or a
@@ -81,8 +83,7 @@ existing completion/recovery behavior remains unchanged.
 
 This is admission for one service instance, not a global or cross-process lock.
 Callers that compose a coordinator and collection manager must share the same
-service. Direct service writes, standalone regeneration entry points, CLI writers and
-external edits still need migration. Pack operations hold admission while staging
+service. Direct service writes, CLI writers and external edits still need migration. Pack operations hold admission while staging
 arrays, making nested collection calls, updating metadata and running their
 existing recovery paths; their multiple writes are still separate durable commits.
 The collection journal below provides a separate durable file recovery boundary;

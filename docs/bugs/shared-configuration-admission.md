@@ -23,7 +23,12 @@ queue before staging state. Their nested toggle/save/remove calls pass the
 active permit explicitly. Regression tests cover callback attempts to install
 visual-only metadata or bootstrap, and cancellation before pack metadata writes.
 
-This does not make every writer exclusive: direct service, standalone
-regeneration and CLI paths still require migration. The durable journal and runtime
+Standalone regeneration and persistence now acquire admission as well. Conflict
+retries, prerequisite application and snapshot restoration accept explicit nested
+permits, so normal recovery does not reacquire its own queue. Tests hold a
+standalone reload open while another edit queues, and verify that callbacks
+cannot regenerate or restore a snapshot inside the active save.
+
+Direct service and CLI paths still require migration. The durable journal and runtime
 rollback also remain distinct boundaries. Do not treat this queue as proof of
 whole-operation rollback or protection against external editors.
