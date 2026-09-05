@@ -29,6 +29,12 @@ permits, so normal recovery does not reacquire its own queue. Tests hold a
 standalone reload open while another edit queues, and verify that callbacks
 cannot regenerate or restore a snapshot inside the active save.
 
-Direct service and CLI paths still require migration. The durable journal and runtime
+Direct service writers, backups and journal recovery now acquire admission.
+Trusted restore and missing-file self-healing calls forward the permit. Tests
+exercise direct writer attempts from reload callbacks, observer-held saves and
+restoring persisted rules after a rejected save with a missing initial file.
+
+CLI operation ownership and cross-instance/process concurrency still require
+migration. The durable journal and runtime
 rollback also remain distinct boundaries. Do not treat this queue as proof of
 whole-operation rollback or protection against external editors.

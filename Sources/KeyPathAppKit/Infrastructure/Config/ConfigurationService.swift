@@ -70,12 +70,16 @@ public final class ConfigurationService: FileConfigurationProviding {
     // MARK: - ConfigurationProviding Protocol
 
     public func current() async -> KanataConfiguration {
+        await current(mutationPermit: nil)
+    }
+
+    func current(mutationPermit: ConfigurationOperationGate.Permit?) async -> KanataConfiguration {
         // Fast path: return cached config if available
         if let cached = withLockedCurrentConfig() { return cached }
 
         // Try to load existing configuration, fallback to empty if not found
         do {
-            return try await reload()
+            return try await reload(mutationPermit: mutationPermit)
         } catch {
             AppLogger.shared.log("⚠️ [ConfigService] Failed to load current config, using empty: \(error)")
             let emptyConfig = KanataConfiguration(
@@ -90,6 +94,10 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func reload() async throws -> KanataConfiguration {
+        try await reload(mutationPermit: nil)
+    }
+
+    func reload(mutationPermit: ConfigurationOperationGate.Permit?) async throws -> KanataConfiguration {
         var exists = await fileExistsAsync(path: configurationPath)
         // Same semantics as createInitialConfigIfNeeded: a truncated/empty
         // config is as unparseable as a missing one, so let the self-heal
@@ -105,7 +113,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                 "⚠️ [ConfigService] Config missing or empty at \(configurationPath) – creating default before reload"
             )
             do {
-                try await createInitialConfigIfNeeded()
+                try await createInitialConfigIfNeeded(mutationPermit: mutationPermit)
                 exists = await fileExistsAsync(path: configurationPath)
             } catch {
                 AppLogger.shared.log(
@@ -225,49 +233,56 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Create the configuration directory and initial config if needed
     public func createInitialConfigIfNeeded() async throws {
-        // Create config directory if it doesn't exist (off-main)
-        try await createDirectoryAsync(path: configDirectory)
-        AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
+        try await createInitialConfigIfNeeded(mutationPermit: nil)
+    }
 
-        // Check if config file exists. A 0-byte/whitespace-only file counts as
-        // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
-        // (#929), which kanata can't parse and which blocked this path from ever
-        // writing the default template.
-        let exists = await fileExistsAsync(path: configurationPath)
-        let effectivelyEmpty: Bool = if exists {
-            await fileIsEffectivelyEmptyAsync(path: configurationPath)
-        } else {
-            false
-        }
-        if !exists || effectivelyEmpty {
-            if effectivelyEmpty {
+    func createInitialConfigIfNeeded(mutationPermit: ConfigurationOperationGate.Permit?) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            // Create config directory if it doesn't exist (off-main)
+            try await createDirectoryAsync(path: configDirectory)
+            AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
+
+            // Check if config file exists. A 0-byte/whitespace-only file counts as
+            // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
+            // (#929), which kanata can't parse and which blocked this path from ever
+            // writing the default template.
+            let exists = await fileExistsAsync(path: configurationPath)
+            let effectivelyEmpty: Bool = if exists {
+                await fileIsEffectivelyEmptyAsync(path: configurationPath)
+            } else {
+                false
+            }
+            if !exists || effectivelyEmpty {
+                if effectivelyEmpty {
+                    AppLogger.shared.log(
+                        "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                    )
+                } else {
+                    AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+                }
+
+                // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
+                let storedCollections = await ruleCollectionStore.loadCollections()
+                let storedCustomRules = await customRulesStore.loadRules()
+                let collectionsToSave = storedCollections.isEmpty
+                    ? RuleCollectionCatalog().defaultCollections()
+                    : storedCollections
+
                 AppLogger.shared.log(
-                    "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                    "🆕 [ConfigService] Creating initial config from stores: \(collectionsToSave.count) collections, \(storedCustomRules.count) custom rules"
+                )
+
+                try await saveConfiguration(
+                    ruleCollections: collectionsToSave,
+                    customRules: storedCustomRules,
+                    mutationPermit: permit
+                )
+                AppLogger.shared.log(
+                    "✅ [ConfigService] Created initial configuration with \(collectionsToSave.count) collections"
                 )
             } else {
-                AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+                AppLogger.shared.log("✅ [ConfigService] Existing config found at \(configurationPath)")
             }
-
-            // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
-            let storedCollections = await ruleCollectionStore.loadCollections()
-            let storedCustomRules = await customRulesStore.loadRules()
-            let collectionsToSave = storedCollections.isEmpty
-                ? RuleCollectionCatalog().defaultCollections()
-                : storedCollections
-
-            AppLogger.shared.log(
-                "🆕 [ConfigService] Creating initial config from stores: \(collectionsToSave.count) collections, \(storedCustomRules.count) custom rules"
-            )
-
-            try await saveConfiguration(
-                ruleCollections: collectionsToSave,
-                customRules: storedCustomRules
-            )
-            AppLogger.shared.log(
-                "✅ [ConfigService] Created initial configuration with \(collectionsToSave.count) collections"
-            )
-        } else {
-            AppLogger.shared.log("✅ [ConfigService] Existing config found at \(configurationPath)")
         }
     }
 
@@ -277,9 +292,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws {
-        let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
-        try await writeFileAsync(string: newConfig.content, to: configurationPath)
-        await publishSavedConfiguration(newConfig)
+        try await saveConfiguration(ruleCollections: ruleCollections, customRules: customRules, mutationPermit: nil)
+    }
+
+    func saveConfiguration(
+        ruleCollections: [RuleCollection],
+        customRules: [CustomRule] = [],
+        mutationPermit: ConfigurationOperationGate.Permit?
+    ) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+            try await writeFileAsync(string: newConfig.content, to: configurationPath)
+            await publishSavedConfiguration(newConfig)
+        }
     }
 
     /// Persist the generated file and its two source stores as one recoverable
@@ -287,34 +312,39 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// this service's defaults in tests and isolated CLI workflows.
     func saveRuleState(
         ruleCollections: [RuleCollection], customRules: [CustomRule],
-        collectionStore: RuleCollectionStore, customStore: CustomRulesStore
+        collectionStore: RuleCollectionStore, customStore: CustomRulesStore,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore)
-        let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
-        let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
-        let contents = try await [
-            "config": Data(newConfig.content.utf8),
-            "collections": collectionStore.encodedCollections(ruleCollections),
-            "customRules": customStore.encodedRules(customRules)
-        ]
-        try Task.checkCancellation()
-        let directory = URL(fileURLWithPath: configDirectory)
-        try await performRuleFileOperation {
-            try RecoverableRuleWrite.apply(files: files, contents: contents, directory: directory)
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore, mutationPermit: permit)
+            let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+            let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            let contents = try await [
+                "config": Data(newConfig.content.utf8),
+                "collections": collectionStore.encodedCollections(ruleCollections),
+                "customRules": customStore.encodedRules(customRules)
+            ]
+            try Task.checkCancellation()
+            let directory = URL(fileURLWithPath: configDirectory)
+            try await performRuleFileOperation {
+                try RecoverableRuleWrite.apply(files: files, contents: contents, directory: directory)
+            }
+            await publishSavedConfiguration(newConfig)
         }
-        await publishSavedConfiguration(newConfig)
     }
 
     /// Run before loading source stores on startup. Refuse further rule writes
     /// when recovery detects a corrupt journal or an unrelated external edit.
-    func recoverPendingRuleWrite(collectionStore: RuleCollectionStore, customStore: CustomRulesStore) async throws {
-        let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
-        let directory = URL(fileURLWithPath: configDirectory)
-        let recovered = try await performRuleFileOperation {
-            try RecoverableRuleWrite.recover(files: files, directory: directory)
-        }
-        if recovered {
-            stateLock.withLock { currentConfiguration = nil }
+    func recoverPendingRuleWrite(collectionStore: RuleCollectionStore, customStore: CustomRulesStore, mutationPermit: ConfigurationOperationGate.Permit? = nil) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            let directory = URL(fileURLWithPath: configDirectory)
+            let recovered = try await performRuleFileOperation {
+                try RecoverableRuleWrite.recover(files: files, directory: directory)
+            }
+            if recovered {
+                stateLock.withLock { currentConfiguration = nil }
+            }
         }
     }
 
@@ -473,10 +503,16 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Write raw configuration content to file (for restoration/repair)
     public func writeConfigurationContent(_ content: String) async throws {
-        try await writeFileAsync(string: content, to: configurationPath)
-        // Update current configuration
-        let newConfig = try validate(content: content)
-        setCurrentConfiguration(newConfig)
+        try await writeConfigurationContent(content, mutationPermit: nil)
+    }
+
+    func writeConfigurationContent(_ content: String, mutationPermit: ConfigurationOperationGate.Permit?) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await writeFileAsync(string: content, to: configurationPath)
+            // Update current configuration
+            let newConfig = try validate(content: content)
+            setCurrentConfiguration(newConfig)
+        }
     }
 
     // MARK: - Backup and Recovery
@@ -486,52 +522,54 @@ public final class ConfigurationService: FileConfigurationProviding {
         async throws
         -> String
     {
-        AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
+        try await operationGate.withOperation { @MainActor [self] _ in
+            AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
-        // Create backup directory if it doesn't exist
-        let backupDir = "\(configDirectory)/backups"
-        let backupDirURL = URL(fileURLWithPath: backupDir)
-        try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+            // Create backup directory if it doesn't exist
+            let backupDir = "\(configDirectory)/backups"
+            let backupDirURL = URL(fileURLWithPath: backupDir)
+            try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
 
-        // Create timestamped backup filename
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = formatter.string(from: Date())
+            // Create timestamped backup filename
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+            let timestamp = formatter.string(from: Date())
 
-        let backupPath = "\(backupDir)/failed_config_\(timestamp).kbd"
-        let backupURL = URL(fileURLWithPath: backupPath)
+            let backupPath = "\(backupDir)/failed_config_\(timestamp).kbd"
+            let backupURL = URL(fileURLWithPath: backupPath)
 
-        // Write the failed config to backup
-        let backupContent = """
-        ;; FAILED CONFIG - AUTOMATICALLY BACKED UP
-        ;; Timestamp: \(timestamp)
-        ;; Errors: \(mappings.count) mapping(s) could not be applied
+            // Write the failed config to backup
+            let backupContent = """
+            ;; FAILED CONFIG - AUTOMATICALLY BACKED UP
+            ;; Timestamp: \(timestamp)
+            ;; Errors: \(mappings.count) mapping(s) could not be applied
 
-        \(failedConfig)
-        """
-        try await writeFileURLAsync(string: backupContent, to: backupURL)
+            \(failedConfig)
+            """
+            try await writeFileURLAsync(string: backupContent, to: backupURL)
 
-        AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
+            AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
 
-        // Apply safe default config using the standard generator
-        let safeConfig = KanataConfiguration.generateFromMappings(mappings)
+            // Apply safe default config using the standard generator
+            let safeConfig = KanataConfiguration.generateFromMappings(mappings)
 
-        let configURL = URL(fileURLWithPath: configurationPath)
-        try await writeFileURLAsync(string: safeConfig, to: configURL)
+            let configURL = URL(fileURLWithPath: configurationPath)
+            try await writeFileURLAsync(string: safeConfig, to: configURL)
 
-        AppLogger.shared.log("✅ [Config] Safe default config applied")
+            AppLogger.shared.log("✅ [Config] Safe default config applied")
 
-        // Update current configuration
-        setCurrentConfiguration(
-            KanataConfiguration(
-                content: safeConfig,
-                keyMappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
-                lastModified: Date(),
-                path: configurationPath
+            // Update current configuration
+            setCurrentConfiguration(
+                KanataConfiguration(
+                    content: safeConfig,
+                    keyMappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
+                    lastModified: Date(),
+                    path: configurationPath
+                )
             )
-        )
 
-        return backupPath
+            return backupPath
+        }
     }
 
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
@@ -580,35 +618,37 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Create a timestamped backup of the current config before AI repair
     /// Returns the backup file path for user reference
     public func backupConfigBeforeAIRepair() async throws -> String {
-        AppLogger.shared.log("📦 [Config] Creating pre-AI-repair backup")
+        try await operationGate.withOperation { @MainActor [self] _ in
+            AppLogger.shared.log("📦 [Config] Creating pre-AI-repair backup")
 
-        // Create backup directory if it doesn't exist
-        let backupDir = "\(configDirectory)/backups"
-        let backupDirURL = URL(fileURLWithPath: backupDir)
-        try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+            // Create backup directory if it doesn't exist
+            let backupDir = "\(configDirectory)/backups"
+            let backupDirURL = URL(fileURLWithPath: backupDir)
+            try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
 
-        // Create timestamped backup filename
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = formatter.string(from: Date())
+            // Create timestamped backup filename
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+            let timestamp = formatter.string(from: Date())
 
-        let backupPath = "\(backupDir)/pre-repair_\(timestamp).kbd"
-        let backupURL = URL(fileURLWithPath: backupPath)
+            let backupPath = "\(backupDir)/pre-repair_\(timestamp).kbd"
+            let backupURL = URL(fileURLWithPath: backupPath)
 
-        // Read current config and write to backup
-        let currentContent = try await readFileAsync(path: configurationPath)
-        let backupContent = """
-        ;; PRE-AI-REPAIR BACKUP
-        ;; Original config before AI repair attempt
-        ;; Timestamp: \(timestamp)
-        ;; Original path: \(configurationPath)
+            // Read current config and write to backup
+            let currentContent = try await readFileAsync(path: configurationPath)
+            let backupContent = """
+            ;; PRE-AI-REPAIR BACKUP
+            ;; Original config before AI repair attempt
+            ;; Timestamp: \(timestamp)
+            ;; Original path: \(configurationPath)
 
-        \(currentContent)
-        """
-        try await writeFileURLAsync(string: backupContent, to: backupURL)
+            \(currentContent)
+            """
+            try await writeFileURLAsync(string: backupContent, to: backupURL)
 
-        AppLogger.shared.log("💾 [Config] Pre-repair backup created: \(backupPath)")
-        return backupPath
+            AppLogger.shared.log("💾 [Config] Pre-repair backup created: \(backupPath)")
+            return backupPath
+        }
     }
 
     /// Save a repaired config (from AI repair)
@@ -622,22 +662,24 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// was removed with the policy. The repair prompt also instructs the model
     /// not to emit the header.
     public func saveRepairedConfig(_ repairedContent: String) async throws {
-        AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
+        try await operationGate.withOperation { @MainActor [self] _ in
+            AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
 
-        let configURL = URL(fileURLWithPath: configurationPath)
-        try await writeFileURLAsync(string: repairedContent, to: configURL)
+            let configURL = URL(fileURLWithPath: configurationPath)
+            try await writeFileURLAsync(string: repairedContent, to: configURL)
 
-        // Update current configuration
-        setCurrentConfiguration(
-            KanataConfiguration(
-                content: repairedContent,
-                keyMappings: [], // Will be re-parsed on next reload
-                lastModified: Date(),
-                path: configurationPath
+            // Update current configuration
+            setCurrentConfiguration(
+                KanataConfiguration(
+                    content: repairedContent,
+                    keyMappings: [], // Will be re-parsed on next reload
+                    lastModified: Date(),
+                    path: configurationPath
+                )
             )
-        )
 
-        AppLogger.shared.log("✅ [Config] AI-repaired config saved")
+            AppLogger.shared.log("✅ [Config] AI-repaired config saved")
+        }
     }
 
     // MARK: - Private Methods

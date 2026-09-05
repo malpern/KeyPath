@@ -259,17 +259,18 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1264 | Collection persistence and retry callbacks retain applied/pending/rejected/failed outcomes. | Compatibility Boolean continues to mean persisted. |
 | #1265 | Durable journal for config plus both rule stores, startup recovery, external-change checks, and observers after file-set commit. | Preferences, pack metadata and runtime rollback remain outside this file transaction. |
 | #1266 | Failed keymap writes restore the prior collection, manager preferences and attempted overlay selection, preserving unrelated layout preferences and newer display choices. | UserDefaults is not crash-atomic with the journal. |
-| #1267 | Shared service admission before public collection/keymap mutation and across coordinator save/recovery, with explicit nested permits and callback rejection. | Pack/bootstrap admission was added by #1268; direct service, CLI and external writers remain. |
-| #1268 | Pack install/uninstall/settings and bootstrap hold shared admission across nested mutations, metadata and recovery. | Direct service, CLI and external writers still require migration; pack commits remain separate. |
+| #1267 | Shared service admission before public collection/keymap mutation and across coordinator save/recovery, with explicit nested permits and callback rejection. | Pack/bootstrap admission was added by #1268; CLI operation ownership and external writers remain. |
+| #1268 | Pack install/uninstall/settings and bootstrap hold shared admission across nested mutations, metadata and recovery. | CLI operation ownership and external writers still require migration; pack commits remain separate. |
+| #1269 | Standalone regeneration, conflict retries, prerequisite application and snapshot restoration share admission with explicit nested permits. | Cross-instance/process ownership and whole-operation recovery remain. |
 
-Standalone regeneration, conflict retries, prerequisite application and snapshot
-restoration now participate in shared admission with explicit nested permits.
+Direct service writers and trusted self-healing/restore paths now participate
+in shared admission as well.
 The first migrated persistence journey now has interruption and failure tests.
 This is a useful foundation, not completion of Phase 1 or the program.
 
 Next implementation sequence:
 
-1. Complete direct service and CLI writer admission before mutation;
+1. Complete feature-specific writers, CLI operation ownership and cross-instance/process admission before mutation;
    preserve explicit ownership through trusted nested calls, and reject recursive
    callback writes rather than allowing stale rollback or deadlock.
 2. Keep the prior source revision through runtime classification and restore

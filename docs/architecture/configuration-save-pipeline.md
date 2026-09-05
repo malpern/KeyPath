@@ -83,7 +83,15 @@ existing completion/recovery behavior remains unchanged.
 
 This is admission for one service instance, not a global or cross-process lock.
 Callers that compose a coordinator and collection manager must share the same
-service. Direct service writes, CLI writers and external edits still need migration. Pack operations hold admission while staging
+service. Direct service writers now acquire this gate too: collection/raw/repaired saves,
+initial creation, backup/fallback and journal recovery. Public signatures remain
+unchanged; trusted coordinator restoration and collection persistence forward
+permits through internal overloads. Missing-file backup reads carry the permit
+through self-healing creation so the backup retains stored rules. CLI operation
+ownership, separate service instances, external edits and feature-specific writers
+(such as SimpleModsService and AppConfigGenerator include-file saves) still need
+migration. Those callers using this service only for validation do not acquire
+write admission merely by validating. Pack operations hold admission while staging
 arrays, making nested collection calls, updating metadata and running their
 existing recovery paths; their multiple writes are still separate durable commits.
 The collection journal below provides a separate durable file recovery boundary;

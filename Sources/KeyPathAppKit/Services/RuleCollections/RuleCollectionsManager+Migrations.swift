@@ -77,7 +77,8 @@ extension RuleCollectionsManager {
                         ruleCollections: ruleCollections,
                         customRules: customRules,
                         collectionStore: ruleCollectionStore,
-                        customStore: customRulesStore
+                        customStore: customRulesStore,
+                        mutationPermit: permit
                     )
                     AppLogger.shared.log("✅ [RuleCollections] configurationService.saveRuleState succeeded")
 

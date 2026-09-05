@@ -11,7 +11,7 @@ extension RuleCollectionsManager {
         await withRuleMutation(failure: ()) { [self] permit in
             do {
                 try await configurationService.recoverPendingRuleWrite(
-                    collectionStore: ruleCollectionStore, customStore: customRulesStore
+                    collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: permit
                 )
             } catch {
                 onError?("Could not recover the previous rule edit: \(error.localizedDescription)")
