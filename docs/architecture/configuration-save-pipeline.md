@@ -5,7 +5,7 @@ the dispositions introduced by #732: `applied`, `pending`, `rejected`, and
 `failed`. Propagation is currently uneven: `SaveCoordinator` preserves the reload
 result. Collection persistence now retains that same `ReloadResult` through
 its runtime callback, while its compatibility Boolean still means persistence
-completed. CLI apply/restore remain separate paths.
+completed. CLI apply/restore also participate in directory admission; see below.
 
 | Responsibility | Owner | Notes |
 | --- | --- | --- |
@@ -19,8 +19,8 @@ completed. CLI apply/restore remain separate paths.
 
 ## Invariants
 
-These describe the target ownership and save contract; collection and CLI paths
-still need migration to enforce the same reload/recovery behavior end to end.
+These describe the target ownership and save contract; complete multi-store
+runtime recovery remains incomplete for global collection and pack operations.
 
 - Validate generated content before replacing the active file.
 - Suppress the file watcher before an internal write to avoid a second reload.
@@ -89,10 +89,10 @@ initial creation, backup/fallback and journal recovery. Public signatures remain
 unchanged; trusted coordinator restoration and collection persistence forward
 permits through internal overloads. Missing-file backup reads carry the permit
 through self-healing creation so the backup retains stored rules. CLI operation
-ownership, source/cache freshness, external edits and feature-specific writers
-(such as SimpleModsService and AppConfigGenerator include-file saves) still need
-migration. Those callers using this service only for validation do not acquire
-write admission merely by validating. Pack operations hold admission while staging
+ownership is described below. App-specific edits and Simple Modifications now
+use SaveCoordinator; startup app-include creation uses the same directory gate.
+Source/cache freshness and external edits remain separate work. Merely using
+this service for validation does not acquire write admission. Pack operations hold admission while staging
 arrays, making nested collection calls, updating metadata and running their
 existing recovery paths; their multiple writes are still separate durable commits.
 The collection journal below provides a separate durable file recovery boundary;
@@ -207,3 +207,31 @@ Pack install/uninstall/configure and CLI collection ownership decisions perform 
 strict metadata read under admission before staging source edits. Display-only
 fallback state is never sufficient to authorize these mutations. Each CLI command
 retains one tracker instance for its scope.
+
+## App-specific and Simple Modifications edits
+
+App-specific edits use a three-file staged journal through runtime classification:
+AppKeymaps.json, keypath-apps.kbd and keypath.kbd. Applied/pending commits publish
+the cache; rejection/failure/cancellation rolls back the prior file set and attempts
+a compensating reload. Recovery refuses to overwrite an external revision. The
+recovery result retains the compensating reload outcome. App-context refresh runs
+under admission after immediate or deferred application, including recovery.
+
+App edits require the main/include pair to be reproducible from stored rules.
+Hand-written or divergent content remains untouched with an editing-limit error;
+explicit backed-up conversion is separate future work. Startup include creation
+also preserves existing differing content.
+
+SimpleModsService calls RuntimeCoordinator.editConfiguration, which delegates to
+SaveCoordinator.editConfiguration. Admission precedes file capture and a pure
+SimpleModsWriter transform. Validation checks the proposed content; the captured
+revision is compared again before writing. The editor's loaded revision must also
+match, preventing stale editor state from overwriting an external edit. Debounced
+edits retain a settlement chain even when queued work is cancelled.
+
+Simple Modifications retains the complete SaveResult, including pending reloads,
+and reloads editor state after a failed save. It uses existing raw-file rollback;
+it does not yet provide the app-specific journal or compensating reload. The old
+opt-in smoke test that mutated the user's real file without restoration is replaced
+by temporary-directory save/reload tests. Physical engine acceptance remains a
+separate installed-app QA obligation.

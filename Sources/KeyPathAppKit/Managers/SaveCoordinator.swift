@@ -266,6 +266,22 @@ final class SaveCoordinator {
         }
     }
 
+    /// Capture and transform raw content under the same admission as its save.
+    func editConfiguration(
+        transform: @escaping @MainActor @Sendable (String) throws -> String,
+        runtimeDidApply: @escaping @MainActor @Sendable () async -> Void = {},
+        reloadHandler: @escaping @MainActor @Sendable () async -> ReloadResult
+    ) async -> SaveResult {
+        do {
+            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+                let original = try await snapshotCurrentConfig(mutationPermit: permit)
+                let content = try transform(original)
+                return await saveGeneratedConfig(content: content, mutationPermit: permit, expectedContent: original,
+                                                 runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
+            }
+        } catch { return .failure(error) }
+    }
+
     /// Save a complete generated configuration (e.g., from AI)
     ///
     /// - Parameters:
@@ -274,10 +290,13 @@ final class SaveCoordinator {
     /// - Returns: SaveResult indicating success or failure
     func saveGeneratedConfig(
         content: String,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        expectedContent: String? = nil,
+        runtimeDidApply: @escaping @MainActor @Sendable () async -> Void = {},
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         do {
-            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+            return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
                 // Suppress file watcher to prevent double reload
                 configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
                 saveStatus = .saving
@@ -305,6 +324,9 @@ final class SaveCoordinator {
 
                     // Step 2: Backup current config
                     let previousContent = try await snapshotCurrentConfig(mutationPermit: permit)
+                    if let expectedContent, previousContent != expectedContent {
+                        throw KeyPathError.configuration(.loadFailed(reason: "The configuration changed while this edit was being prepared. Reload mappings and try again."))
+                    }
                     try Task.checkCancellation()
                     backupCurrentConfig(previousContent)
 
@@ -342,6 +364,10 @@ final class SaveCoordinator {
                             AppLogger.shared.info(
                                 "ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")"
                             )
+                        }
+                        if reloadResult.disposition == .applied {
+                            // Settle applied runtime state even if a newer edit cancelled this task.
+                            await Task { @MainActor in await runtimeDidApply() }.value
                         }
                         playSuccessSound()
                         saveStatus = .success

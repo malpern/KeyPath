@@ -1482,12 +1482,34 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
     }
 
+    func editConfiguration(at path: String, transform: @escaping @MainActor @Sendable (String) throws -> String) async -> SaveResult {
+        guard URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
+            == URL(fileURLWithPath: configurationService.configurationPath).standardizedFileURL.resolvingSymlinksInPath()
+        else {
+            return .failure(KeyPathError.configuration(.loadFailed(reason: "This editor is not connected to the requested configuration file.")))
+        }
+        let result = await saveCoordinator.editConfiguration(transform: transform, runtimeDidApply: {
+            await AppContextService.shared.reloadMappings(afterRuntimeReload: true)
+        }) { [weak self] in
+            guard let self else { return ReloadResult(success: false, response: nil, errorMessage: "Coordinator unavailable", protocol: nil, disposition: .failed) }
+            return await triggerConfigReload()
+        }
+        saveStatus = saveCoordinator.saveStatus
+        if result.success, let mappings = result.mappings {
+            applyKeyMappings(mappings, persistCollections: false)
+            lastConfigUpdate = Date()
+            notifyStateChanged()
+        }
+        return result
+    }
+
     /// Save a complete generated configuration (for Claude API generated configs)
     func saveGeneratedConfiguration(_ configContent: String) async throws {
         AppLogger.shared.log("💾 [RuntimeCoordinator] Saving generated configuration")
 
         let result = await saveCoordinator.saveGeneratedConfig(
             content: configContent,
+            runtimeDidApply: { await AppContextService.shared.reloadMappings(afterRuntimeReload: true) },
             reloadHandler: { [weak self] in
                 guard let self else {
                     return ReloadResult(success: false, response: nil, errorMessage: "Coordinator deallocated", protocol: nil, disposition: .failed)

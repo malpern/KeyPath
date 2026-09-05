@@ -21,6 +21,51 @@ final class SimpleModsWriterTests: XCTestCase {
         try await super.tearDown()
     }
 
+    private func writeFixture(_ writer: SimpleModsWriter, mappings: [SimpleMapping]) throws {
+        let content = try String(contentsOfFile: configPath, encoding: .utf8)
+        let rendered = try writer.renderBlock(mappings: mappings, in: content)
+        try rendered.write(toFile: configPath, atomically: true, encoding: .utf8)
+    }
+
+    func testLayoutRowsAreNotSimpleMappings() throws {
+        let content = """
+        (defsrc
+          q w e r
+          a b
+        )
+        (deflayer base
+          q w e r
+          a b
+        )
+        (deflayermap (navigation)
+          f3 f4
+        )
+        (deflayermap
+          ;; layer header on the next line
+          (base)
+          caps esc ;; a comment with unmatched (
+        )
+        (defsrc
+          f1 f2
+        )
+        """
+        let parsed = try SimpleModsParser(configPath: configPath).parse(content: content)
+        XCTAssertEqual(parsed.allMappings.map(\.fromKey), ["caps"])
+        XCTAssertEqual(parsed.allMappings.map(\.toKey), ["esc"])
+    }
+
+    func testRenderingUsesCapturedContentWithoutWritingFile() throws {
+        let disk = "(defsrc a)\n(deflayer base a)\n"
+        try disk.write(toFile: configPath, atomically: true, encoding: .utf8)
+        let captured = "(defsrc f1)\n(deflayer base f1)\n"
+        let rendered = try SimpleModsWriter(configPath: configPath).renderBlock(
+            mappings: [SimpleMapping(fromKey: "f1", toKey: "f2", filePath: configPath)], in: captured
+        )
+        XCTAssertTrue(rendered.contains("(defsrc f1)"))
+        XCTAssertTrue(rendered.contains("f1 f2"))
+        XCTAssertEqual(try String(contentsOfFile: configPath, encoding: .utf8), disk)
+    }
+
     // MARK: - Safety Guard Tests
 
     /// Test that writeBlock refuses to write an empty/invalid config when clearing all mappings
@@ -43,7 +88,7 @@ final class SimpleModsWriterTests: XCTestCase {
         // Try to write an empty mapping list - this should fail because
         // removing the sentinel block would leave an invalid config
         do {
-            try writer.writeBlock(mappings: [])
+            try writeFixture(writer, mappings: [])
             // If no sentinel block was detected, the writer just returns early without error
             // Let's check if the file still has content
             let content = try String(contentsOfFile: configPath, encoding: .utf8)
@@ -87,7 +132,7 @@ final class SimpleModsWriterTests: XCTestCase {
 
         // Clear mappings - this should succeed because the remaining config is valid
         do {
-            try writer.writeBlock(mappings: [])
+            try writeFixture(writer, mappings: [])
         } catch {
             XCTFail("writeBlock should succeed when remaining config is valid: \(error)")
         }
@@ -112,7 +157,7 @@ final class SimpleModsWriterTests: XCTestCase {
             SimpleMapping(fromKey: "c", toKey: "d", enabled: false, filePath: configPath)
         ]
 
-        try writer.writeBlock(mappings: mappings)
+        try writeFixture(writer, mappings: mappings)
 
         let content = try String(contentsOfFile: configPath, encoding: .utf8)
 
@@ -124,8 +169,12 @@ final class SimpleModsWriterTests: XCTestCase {
         XCTAssertTrue(content.contains("  a b"), "Enabled mapping should be active")
 
         // Verify disabled mapping is commented
-        XCTAssertTrue(content.contains("; c d") && content.contains("KP:DISABLED"),
+        XCTAssertTrue(content.contains(";; c d") && content.contains("KP:DISABLED"),
                       "Disabled mapping should be commented with KP:DISABLED marker")
+        let roundTrip = try SimpleModsParser(configPath: configPath).parse(content: content)
+        let disabled = try XCTUnwrap(roundTrip.block?.mappings.first { $0.fromKey == "c" })
+        XCTAssertEqual(disabled.toKey, "d")
+        XCTAssertFalse(disabled.enabled)
     }
 
     /// Test that writeBlock deduplicates mappings (keeps last per fromKey)
@@ -141,7 +190,7 @@ final class SimpleModsWriterTests: XCTestCase {
             SimpleMapping(fromKey: "a", toKey: "z", enabled: true, filePath: configPath)
         ]
 
-        try writer.writeBlock(mappings: mappings)
+        try writeFixture(writer, mappings: mappings)
 
         let content = try String(contentsOfFile: configPath, encoding: .utf8)
 
@@ -177,6 +226,13 @@ final class SimpleModsWriterTests: XCTestCase {
         try configWithMixed.write(toFile: configPath, atomically: true, encoding: .utf8)
 
         let writer = SimpleModsWriter(configPath: configPath)
+        let legacy = try SimpleModsParser(configPath: configPath).parse(content: configWithMixed)
+        let disabled = try XCTUnwrap(legacy.block?.mappings.first { $0.fromKey == "c" })
+        XCTAssertEqual(disabled.toKey, "d")
+        XCTAssertFalse(disabled.enabled)
+        let rewritten = try writer.renderBlock(mappings: legacy.allMappings, in: configWithMixed)
+        let upgraded = try SimpleModsParser(configPath: configPath).parse(content: rewritten)
+        XCTAssertFalse(try XCTUnwrap(upgraded.block?.mappings.first { $0.fromKey == "c" }).enabled)
         let effectiveConfig = try writer.generateEffectiveConfig()
 
         // Should include enabled mapping
