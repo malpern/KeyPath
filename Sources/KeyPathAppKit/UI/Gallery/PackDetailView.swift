@@ -109,6 +109,10 @@ struct PackDetailView: View {
             await refreshInstallState()
             loadDefaultQuickSettings()
         }
+        .onDisappear {
+            refreshTask?.cancel()
+            refreshTask = nil
+        }
         .onReceive(NotificationCenter.default.publisher(for: .installedPacksChanged)) { _ in
             debouncedRefresh()
         }

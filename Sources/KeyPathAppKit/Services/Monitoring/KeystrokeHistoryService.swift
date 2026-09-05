@@ -398,6 +398,12 @@ final class KeystrokeHistoryService {
 
     // MARK: - Public API
 
+    /// Apply the committed activation/deactivation of the app's pack.
+    func applyPackState(_ installed: Bool) {
+        isRecording = installed
+        if !installed { clearEvents() }
+    }
+
     func clearEvents() {
         rawEvents.removeAll()
         pendingEvents.removeAll()

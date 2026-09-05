@@ -5,24 +5,20 @@ import SwiftUI
 
 extension PackDetailView {
     func refreshInstallState() async {
-        var installed = await PackInstaller.shared.isInstalled(packID: pack.id)
-        let saved = await PackInstaller.shared.quickSettings(for: pack.id)
-
-        // Resilience: if collection is enabled but tracker has no record, backfill
-        if !installed, let collectionID = pack.associatedCollectionID {
-            let collections = kanataManager.underlyingManager
-                .ruleCollectionsManager.ruleCollections
-            if let match = collections.first(where: { $0.id == collectionID }), match.isEnabled {
-                let record = InstalledPackRecord(
-                    packID: pack.id,
-                    version: pack.version,
-                    installedAt: Date(),
-                    quickSettingValues: [:]
-                )
-                try? await InstalledPackTracker.shared.upsert(record)
-                installed = true
-            }
+        let record: InstalledPackRecord?
+        do {
+            record = try await PackInstaller.shared.reconcileInstallRecord(
+                for: pack, manager: kanataManager.underlyingManager.ruleCollectionsManager
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = "Could not refresh pack state: \(error.localizedDescription)"
+            return
         }
+        var installed = record != nil
+        let saved = record?.quickSettingValues ?? [:]
 
         // Check if this pack's collection is managed by a different installed
         // pack (e.g. Home Row Mods managed by Vallack). If so, lock the
@@ -45,6 +41,7 @@ extension PackDetailView {
         let liveSingleKey = await liveSingleKeySelection()
         let liveHomeRow = await liveHomeRowModsConfig()
         await MainActor.run {
+            guard !Task.isCancelled else { return }
             isInstalled = installed
             managingPackName = managedBy?.packName
             managingPackID = managedBy?.packID

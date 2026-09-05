@@ -267,6 +267,7 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1272 | CLI apply admits before source loading through reload; backup/restore share admission; custom-directory source loading is corrected. | CLI collection/pack commands, cached state and complete recovery remain. |
 | #1273 | CLI rule, collection and pack commands hold admission through optional apply; pack sources refresh after admission and strict metadata reads precede mutations. | Direct UI metadata writers, feature-specific writes and complete recovery remain. |
 | #1274 | App-specific edits retain a three-file journal through runtime apply/recovery, preserve hand-written files, and refresh app context after immediate/deferred reload. | Global/pack recovery, mixed app/global operations and revision-aware watching remain. |
+| #1275 | Simple Modifications transforms captured revisions through SaveCoordinator, preserves external edits, retains reload/recovery outcomes and serializes debounce settlement. | Legacy raw syntax/ownership limitations and full runtime recovery remain. |
 
 Admission now also holds a cooperative OS lease across service instances and
 processes for the same directory. CLI configuration apply now holds admission
@@ -337,7 +338,7 @@ work. Startup include generation also preserves existing differing content.
 Review, supported-runner CI, merge and signed/notarized installed-app verification completed for #1274.
 Global rule/source/preferences/pack recovery and revision-aware watching remain.
 
-### Simple Modifications save consolidation
+### Simple Modifications save consolidation merged in #1275
 
 The editor now transforms a captured file revision through SaveCoordinator under
 the directory lease. It validates the proposed content, retains the reload
@@ -349,3 +350,18 @@ base deflayermap entries rather than mistaking positional layout rows for remaps
 Raw-file recovery still has the existing file-only boundary. External deflayermap
 ownership, status presentation, full runtime recovery and crash recovery remain
 separate work; this slice does not claim those are complete.
+
+### Pack metadata consolidation
+
+The remaining Rules-toggle and detail-view repair writes now enter PackInstaller
+under the directory operation gate. Repair reads persisted collection state,
+refuses incomplete source reads, and returns an installed record only after a
+successful write. Visual-only state changes cannot be used to install nonvisual
+packs. Existing Rules-vs-catalog dependency/conflict policy is retained pending
+the separate product discussion. Keystroke History settlement is removed from
+the UI mutation closures. Full pack transaction/recovery and ownership policy
+remain separate work.
+
+CI maintenance: #1276 increased the review action's turn allowance after repeated
+`error_max_turns` failures. It was merged separately; #1275 then passed actual
+review under that workflow. Both are included in the signed/notarized #1275 deploy.

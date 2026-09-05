@@ -5,11 +5,16 @@ import SwiftUI
 extension PackDetailView {
     func debouncedRefresh() {
         refreshTask?.cancel()
-        refreshTask = Task {
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            guard !Task.isCancelled else { return }
-            await refreshInstallState()
-        }
+        // Notifications may arrive inside an active save. Do not inherit its
+        // operation lease: this refresh must queue after the owner finishes.
+        refreshTask = Task.detached { await runDeferredRefresh() }
+    }
+
+    @MainActor
+    private func runDeferredRefresh() async {
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        guard !Task.isCancelled else { return }
+        await refreshInstallState()
     }
 
     func displayLabel(for kanataKey: String) -> String {

@@ -59,6 +59,68 @@ public final class PackInstaller {
 
     // MARK: - Public API
 
+    /// Change only a visual capability's installed record. Legacy Rules toggles
+    /// use this narrower operation; catalog installation still enforces its
+    /// dependency/conflict gates before entering here. Nonvisual packs must use install/uninstall.
+    @discardableResult
+    func setVisualPackEnabled(
+        _ pack: Pack, enabled: Bool, quickSettingValues: [String: Int]? = nil,
+        manager: RuleCollectionsManager, installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
+    ) async throws -> InstalledPackRecord? {
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            guard pack.visualOnly else { throw InstallError.saveFailed("This operation requires a visual-only pack") }
+            try await installedPackTracker.validateForMutation()
+            let previous = await installedPackTracker.record(for: pack.id)
+            let record: InstalledPackRecord?
+            if enabled {
+                let next = InstalledPackRecord(packID: pack.id, version: pack.version, installedAt: Date(),
+                                               quickSettingValues: quickSettingValues ?? previous?.quickSettingValues ?? [:])
+                do { try await installedPackTracker.upsert(next) }
+                catch {
+                    guard await restoreInstallRecord(previous, packID: pack.id, installedPackTracker: installedPackTracker) else {
+                        throw InstallError.saveFailed("visual-only installed-pack record could not be saved and the previous state could not be fully restored")
+                    }
+                    throw error
+                }
+                record = next
+            } else {
+                try await installedPackTracker.remove(packID: pack.id)
+                record = nil
+            }
+            // Settle the capability only after its record commits, before releasing admission.
+            if installedPackTracker === InstalledPackTracker.shared, pack.id == PackRegistry.keystrokeHistory.id {
+                KeystrokeHistoryService.shared.applyPackState(enabled)
+            }
+            return record
+        }
+    }
+
+    /// Repair the existing enabled-collection/missing-record case using persisted
+    /// sources under admission. Never turn a failed write into an installed result.
+    func reconcileInstallRecord(
+        for pack: Pack, manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker = .shared
+    ) async throws -> InstalledPackRecord? {
+        try await manager.configurationService.operationGate.withOperation { @MainActor permit in
+            try await installedPackTracker.validateForMutation()
+            if let existing = await installedPackTracker.record(for: pack.id) { return existing }
+            guard let collectionID = pack.associatedCollectionID else { return nil }
+            try await manager.configurationService.recoverPendingRuleWrite(
+                collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
+                mutationPermit: permit
+            )
+            let loaded = await manager.ruleCollectionStore.loadCollectionsDetailed()
+            guard !loaded.wasFullReset, loaded.failedCollectionNames.isEmpty else {
+                throw InstallError.saveFailed("Rule collections could not be read completely")
+            }
+            guard loaded.collections.contains(where: { $0.id == collectionID && $0.isEnabled }) else { return nil }
+            let record = InstalledPackRecord(packID: pack.id, version: pack.version, installedAt: Date(), quickSettingValues: [:])
+            try await installedPackTracker.upsert(record)
+            return record
+        }
+    }
+
     /// Install a pack. Expands its binding templates into `CustomRule`s
     /// tagged with the pack's id, adds them to the user's rules, and
     /// regenerates the kanata config (which hot-reloads kanata).
@@ -113,34 +175,10 @@ public final class PackInstaller {
             // so other parts of the app (overlay, mode monitor) can react to
             // "this pack is active". No collection toggle, no reload.
             if pack.visualOnly {
-                let previousInstallRecord = await installedPackTracker.record(for: pack.id)
-                let record = InstalledPackRecord(
-                    packID: pack.id,
-                    version: pack.version,
-                    installedAt: Date(),
-                    quickSettingValues: resolvedSettings
-                )
-                do {
-                    try await installedPackTracker.upsert(record)
-                } catch {
-                    AppLogger.shared.errorUnlessQuietTest(
-                        "❌ [PackInstaller] Could not persist visual-only install record for '\(pack.name)'; restoring previous state"
-                    )
-                    let installRecordRestored = await restoreInstallRecord(
-                        previousInstallRecord,
-                        packID: pack.id,
-                        installedPackTracker: installedPackTracker
-                    )
-                    guard installRecordRestored else {
-                        throw InstallError.saveFailed(
-                            "visual-only installed-pack record could not be saved and the previous state could not be fully restored"
-                        )
-                    }
-                    throw error
-                }
-                AppLogger.shared.log(
-                    "✅ [PackInstaller] Installed visual-only pack '\(pack.name)' (no kanata side effects)"
-                )
+                guard let record = try await setVisualPackEnabled(pack, enabled: true, quickSettingValues: resolvedSettings,
+                                                                  manager: manager, installedPackTracker: installedPackTracker,
+                                                                  mutationPermit: permit)
+                else { throw InstallError.saveFailed("Visual pack activation returned no installed record") }
                 return record
             }
 
@@ -354,10 +392,8 @@ public final class PackInstaller {
             // Visual-only packs just clear the tracker record; no kanata
             // changes to revert.
             if let pack = PackRegistry.pack(id: packID), pack.visualOnly {
-                try await installedPackTracker.remove(packID: packID)
-                AppLogger.shared.log(
-                    "✅ [PackInstaller] Uninstalled visual-only pack '\(packID)'"
-                )
+                try await setVisualPackEnabled(pack, enabled: false, manager: manager,
+                                               installedPackTracker: installedPackTracker, mutationPermit: permit)
                 return
             }
 
