@@ -49,6 +49,22 @@ Source anchors: `Managers/RuntimeCoordinator.swift` callback and
 `Services/Packs/PackInstaller.swift`; `CLI/ConfigFacade.swift`;
 `Services/Configuration/ConfigHotReloadService.swift`.
 
+## Additional writer inventory — September 5
+
+The original matrix above records the starting behavior. The execution plan's
+checkpoint records merged changes; these additional paths remain migration work:
+
+| Entry | Current owner / behavior | Remaining boundary |
+| --- | --- | --- |
+| Catalog detail state refresh | `UI/Gallery/PackDetailView+LiveState.swift` backfills InstalledPackTracker directly when an associated collection is enabled; the write error is discarded. | A read-like UI refresh mutates metadata outside installer admission and can mark installed after a failed write. |
+| Rules visual-only toggles | `UI/Rules/RulesSummaryView+Packs.swift` directly upserts/removes KindaVim and keystroke-history metadata; history recording effects are handled in the view. | Move operation ownership while preserving current dependency checks and recording behavior; do not silently substitute different catalog install policy. |
+| App-specific rule deletion | The same summary extension changes AppKeymapStore, regenerates the include file, reloads app mappings and restarts the runtime. | Source/include/reload recovery is separate from the main rule journal. |
+| App-specific include generation | `Services/Configuration/AppConfigGenerator.swift` validates through ConfigurationService, then writes the include file itself. | Validation alone does not acquire write admission. |
+| Simple modifications | `Services/SimpleMods/SimpleModsService.swift` has its own write/reload/restoration path and uses ConfigurationService for validation. | Migrate operation ownership and recovery explicitly. |
+
+InstalledPackTracker's one-time cache also requires freshness handling before
+pack decisions and writes; a directory lease does not refresh cached records.
+
 ## First bounded implementation
 
 Preserve the existing reload outcome at the `SaveCoordinator` result boundary

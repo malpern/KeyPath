@@ -144,9 +144,9 @@ on release, allowing a child that outlives its operation to write later.
 
 This is cooperation between migrated writers running as the same macOS user,
 not protection against external editors or custom-directory writes from another
-UID. Privileged helper callers do not use this gate. It also does not refresh cached source/pack state or hold admission over
-CLI work performed outside service calls. Those remaining ownership/freshness
-changes are necessary before claiming whole-operation cross-process safety.
+UID. Privileged helper callers do not use this gate. The gate alone does not
+refresh cached app source state or coordinate unmigrated feature writers. Those
+remaining changes are necessary before claiming whole-operation safety.
 
 ## CLI configuration ownership
 
@@ -163,7 +163,47 @@ the CLI command syntax and output are unchanged. A callback attempting another
 apply, backup or restore is rejected before copying or staging preferences.
 
 This does not yet change reload-result semantics, make directory restore atomic,
-or include preference restoration in rejected-apply recovery. CLI pack/collection
-commands and feature-specific writers remain separate migration work. Backups
-remain copies of current disk state; this scope does not recover pending journals
+or include preference restoration in rejected-apply recovery. Feature-specific
+writers remain separate migration work. Backups remain copies of current disk state; this scope does not recover pending journals
 or refresh the app's cached state following a CLI restore.
+
+## CLI pack ownership
+
+`PacksFacade` admits install, uninstall and configure before inspecting installed
+state. A facade manager factory constructs its dependencies only. Immediately
+before an actual mutation, the admitted command reads the manager's collection
+and custom-rule stores and hydrates the manager; dry-run and no-op paths skip
+that source hydration. Nested installer calls receive the existing permit.
+
+This closes the pre-admission source snapshot window for CLI pack mutations.
+Some gallery/summary paths still write metadata directly. Writer consolidation
+and whole-operation recovery remain necessary; the operation lease alone does
+not solve those gaps.
+
+### CLI command scope
+
+`CLIConfigurationOperation.run` adapts the existing service gate to the CLI module.
+Its scoped rule, collection, pack, and config facades carry an explicit active permit.
+Commands compose source edits and optional `--apply` sequentially inside that scope;
+batch ensure holds ownership across all its items. Scoped mutation after return is
+rejected as an expired permit. A fresh facade in a callback still cannot reenter.
+The scope is for sequential command composition, not concurrent child mutations.
+
+Standalone rule and collection mutations also acquire directory admission before
+loading their source stores. Read-modify-write operations therefore see the last
+cooperating writer's committed data. Scoped stores and pack metadata resolve from
+the command's configuration directory. Default standalone stores preserve their
+existing test isolation. This is ownership, not rollback: failed apply retains the
+existing persistence behavior until the whole-operation recovery work is complete.
+
+Installed-pack queries refresh from the current file; only an unreadable file
+falls back to the last successfully read/persisted snapshot. A missing file clears
+that fallback. Mutations read strictly and persist before notification; malformed metadata
+is preserved with an error. Pack operations hold directory ownership around those
+reads and writes. Direct UI metadata writers still need consolidation under the
+same operation boundary; the tracker actor alone is not a cross-process lock.
+
+Pack install/uninstall/configure and CLI collection ownership decisions perform a
+strict metadata read under admission before staging source edits. Display-only
+fallback state is never sufficient to authorize these mutations. Each CLI command
+retains one tracker instance for its scope.

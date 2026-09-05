@@ -20,6 +20,13 @@ struct PackInstall: AsyncParsableCommand {
     var apply: Bool = false
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
 
         var settingValues: [String: Int] = [:]
@@ -36,7 +43,7 @@ struct PackInstall: AsyncParsableCommand {
             settingValues[String(parts[0])] = value
         }
 
-        let facade = PacksFacade()
+        let facade = operation.packs
         let spinner = CLISpinner(context: ctx)
 
         do {
@@ -87,7 +94,7 @@ struct PackInstall: AsyncParsableCommand {
             }
 
             if result.action == "installed" {
-                try await applyConfigurationOrHint(apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
             }
         } catch let notFound as CLIPackNotFound {
             spinner.fail("Pack not found: '\(notFound.query)'")

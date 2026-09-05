@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 @preconcurrency import XCTest
 
 @MainActor
@@ -33,16 +34,11 @@ final class CLIPackCRUDTests: XCTestCase {
             fileURL: dir.appendingPathComponent("CustomRules.json")
         )
         facade = PacksFacade(managerFactory: {
-            let manager = RuleCollectionsManager(
+            RuleCollectionsManager(
                 ruleCollectionStore: collectionStore,
                 customRulesStore: customStore,
                 configurationService: ConfigurationService(configDirectory: dir.path)
             )
-            manager.ruleCollections = await RuleCollectionDeduplicator.dedupe(
-                collectionStore.loadCollections()
-            )
-            manager.customRules = await customStore.loadRules()
-            return manager
         })
 
         originalInstalledPacks = await InstalledPackTracker.shared.allInstalled()
@@ -65,6 +61,68 @@ final class CLIPackCRUDTests: XCTestCase {
         }
         TestEnvironment.forceTestMode = false
         try await super.tearDown()
+    }
+
+    func testInstallHydratesSourcesAfterThePreviousWriterCommits() async throws {
+        try await ensureUninstalled(testPackID)
+        let directory = try XCTUnwrap(tempDir)
+        let facade = try XCTUnwrap(facade)
+        let gate = ConfigurationOperationGate(configurationDirectory: directory)
+        let store = CustomRulesStore(fileURL: directory.appendingPathComponent("CustomRules.json"))
+        let entered = expectation(description: "previous writer admitted")
+        let earlyInstall = expectation(description: "install waits")
+        earlyInstall.isInverted = true
+        let phase = AdmissionPhase()
+        var resume: CheckedContinuation<Void, Never>?
+        let first = Task { @MainActor in
+            try await gate.withOperation { @MainActor _ in
+                await withCheckedContinuation { continuation in
+                    resume = continuation
+                    entered.fulfill()
+                }
+                try await store.saveRules([CustomRule(input: "f13", action: .keystroke(key: "f14"))])
+            }
+        }
+        await fulfillment(of: [entered], timeout: 5)
+        let install = Task { @MainActor in
+            let result = try await facade.installPack(nameOrId: testPackSlug)
+            if phase.waiting { earlyInstall.fulfill() }
+            return result
+        }
+        await fulfillment(of: [earlyInstall], timeout: 0.15)
+        phase.waiting = false
+        resume?.resume()
+        try await first.value
+        let result = try await install.value
+        XCTAssertEqual(result.action, "installed")
+        let rules = await store.loadRules()
+        XCTAssertEqual(rules.first(where: { $0.input == "f13" })?.action.outputString, "f14",
+                       "Pack install must preserve the source committed while it waited")
+    }
+
+    func testCallbackCannotReenterAnyPackCommand() async throws {
+        let directory = try XCTUnwrap(tempDir)
+        let facade = try XCTUnwrap(facade)
+        let gate = ConfigurationOperationGate(configurationDirectory: directory)
+        let operations: [@MainActor @Sendable () async throws -> CLIPackInstallResult] = [
+            { try await facade.installPack(nameOrId: "chord-groups", dryRun: true) },
+            { try await facade.uninstallPack(nameOrId: "chord-groups", dryRun: true) },
+            { try await facade.configurePack(nameOrId: "home-row-mods", settingValues: ["holdTimeout": 200], dryRun: true) }
+        ]
+        try await gate.withOperation { @MainActor _ in
+            for operation in operations {
+                do {
+                    _ = try await operation()
+                    XCTFail("Pack commands must reject callback reentry before reading or staging state")
+                } catch ConfigurationOperationGate.Failure.recursiveOperation {
+                    // Expected before early exits as well as actual mutations.
+                }
+            }
+        }
+    }
+
+    private final class AdmissionPhase {
+        var waiting = true
     }
 
     private func ensureUninstalled(_ packID: String) async throws {

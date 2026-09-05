@@ -20,6 +20,13 @@ struct PackConfigure: AsyncParsableCommand {
     var apply: Bool = false
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
 
         guard !settings.isEmpty else {
@@ -45,7 +52,7 @@ struct PackConfigure: AsyncParsableCommand {
             settingValues[String(parts[0])] = value
         }
 
-        let facade = PacksFacade()
+        let facade = operation.packs
 
         do {
             let result = try await facade.configurePack(
@@ -68,7 +75,7 @@ struct PackConfigure: AsyncParsableCommand {
             }
 
             if result.action == "configured" {
-                try await applyConfigurationOrHint(apply: apply, context: ctx)
+                try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
             }
         } catch let notFound as CLIPackNotFound {
             let allPacks = await facade.listPacks()

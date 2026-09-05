@@ -61,9 +61,16 @@ struct RuleAdd: AsyncParsableCommand {
     }
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
         let validator = SimulatorFacade()
-        let rules = RulesFacade()
+        let rules = operation.rules
 
         guard validator.validateKey(input) != nil else {
             let error = CLIError.invalidKey(input, label: "input")
@@ -171,7 +178,7 @@ struct RuleAdd: AsyncParsableCommand {
             throw CLIExitCode.conflict.exitCode
         }
 
-        try await applyConfigurationOrHint(apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
     }
 
     private func decodeAction(_ json: String, context: OutputContext) throws -> KeyAction {

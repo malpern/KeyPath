@@ -529,19 +529,16 @@ final class GenericPackConfigTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let trackerURL = tempDir.appendingPathComponent("visual-installed-packs.json")
-        let failingTracker = InstalledPackTracker(fileURL: trackerURL)
         let previousRecord = InstalledPackRecord(
             packID: PackRegistry.keystrokeHistory.id,
             version: "0.9.0",
             installedAt: Date(timeIntervalSince1970: 21),
             quickSettingValues: [:]
         )
-        try await failingTracker.upsert(previousRecord)
-        try FileManager.default.removeItem(at: trackerURL)
-        try FileManager.default.createDirectory(
-            at: trackerURL,
-            withIntermediateDirectories: true
-        )
+        try await InstalledPackTracker(fileURL: trackerURL).upsert(previousRecord)
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL) { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
 
         do {
             _ = try await PackInstaller.shared.install(
@@ -613,19 +610,16 @@ final class GenericPackConfigTests: XCTestCase {
         )
 
         let trackerURL = tempDir.appendingPathComponent("plain-installed-packs.json")
-        let failingTracker = InstalledPackTracker(fileURL: trackerURL)
         let previousRecord = InstalledPackRecord(
             packID: pack.id,
             version: "0.9.0",
             installedAt: Date(timeIntervalSince1970: 42),
             quickSettingValues: [:]
         )
-        try await failingTracker.upsert(previousRecord)
-        try FileManager.default.removeItem(at: trackerURL)
-        try FileManager.default.createDirectory(
-            at: trackerURL,
-            withIntermediateDirectories: true
-        )
+        try await InstalledPackTracker(fileURL: trackerURL).upsert(previousRecord)
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL) { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
 
         do {
             _ = try await PackInstaller.shared.install(
@@ -682,12 +676,10 @@ final class GenericPackConfigTests: XCTestCase {
         var regenerationCount = 0
         manager.onBeforeSave = { regenerationCount += 1 }
 
-        let unwritableTrackerURL = tempDir.appendingPathComponent("installed-packs-is-a-directory")
-        try FileManager.default.createDirectory(
-            at: unwritableTrackerURL,
-            withIntermediateDirectories: true
-        )
-        let failingTracker = InstalledPackTracker(fileURL: unwritableTrackerURL)
+        let trackerURL = tempDir.appendingPathComponent("installed-packs.json")
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL) { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
 
         var configuration = capsLock.configuration
         configuration.updateSelectedTapOutput("esc")
@@ -768,19 +760,16 @@ final class GenericPackConfigTests: XCTestCase {
         try PackCollectionSnapshot.save(previousSnapshot)
 
         let trackerURL = tempDir.appendingPathComponent("system-installed-packs.json")
-        let failingTracker = InstalledPackTracker(fileURL: trackerURL)
         let previousRecord = InstalledPackRecord(
             packID: PackRegistry.launcher.id,
             version: "0.9.0",
             installedAt: Date(timeIntervalSince1970: 42),
             quickSettingValues: [:]
         )
-        try await failingTracker.upsert(previousRecord)
-        try FileManager.default.removeItem(at: trackerURL)
-        try FileManager.default.createDirectory(
-            at: trackerURL,
-            withIntermediateDirectories: true
-        )
+        try await InstalledPackTracker(fileURL: trackerURL).upsert(previousRecord)
+        let failingTracker = InstalledPackTracker(fileURL: trackerURL) { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
 
         do {
             _ = try await PackInstaller.shared.install(

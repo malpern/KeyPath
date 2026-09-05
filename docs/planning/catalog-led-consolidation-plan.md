@@ -264,6 +264,7 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1269 | Standalone regeneration, conflict retries, prerequisite application and snapshot restoration share admission with explicit nested permits. | Cross-instance/process ownership and whole-operation recovery remain. |
 | #1270 | Direct service writes, journal recovery, trusted restoration and missing-file self-healing share admission. | CLI ownership, feature-specific writers, source/cache freshness and complete recovery remain. |
 | #1271 | Per-user directory leases exclude cooperating services/processes, with cancellation, alias reentry protection and off-actor sentinel I/O. | CLI operation scope, cached state, external editors and cross-UID writers remain distinct boundaries. |
+| #1272 | CLI apply admits before source loading through reload; backup/restore share admission; custom-directory source loading is corrected. | CLI collection/pack commands, cached state and complete recovery remain. |
 
 Admission now also holds a cooperative OS lease across service instances and
 processes for the same directory. CLI configuration apply now holds admission
@@ -275,7 +276,10 @@ This is a useful foundation, not completion of Phase 1 or the program.
 
 Next implementation sequence:
 
-1. Complete feature-specific writers and CLI operation ownership, loading/reconciling current source and metadata state after admission;
+1. Complete feature-specific writers and direct UI installed-pack metadata
+   writer consolidation. CLI rule/collection commands now hold ownership through
+   optional apply, and pack metadata reads refresh from disk. CLI pack commands hydrate
+   source rules after admission and forward their permit into the installer;
    preserve explicit ownership through trusted nested calls, and reject recursive
    callback writes rather than allowing stale rollback or deadlock.
 2. Keep the prior source revision through runtime classification and restore
