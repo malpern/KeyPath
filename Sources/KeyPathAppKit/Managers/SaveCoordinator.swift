@@ -133,7 +133,7 @@ final class SaveCoordinator {
                     )
 
                     // Step 2: Backup current config
-                    let previousContent = try await snapshotCurrentConfig()
+                    let previousContent = try await snapshotCurrentConfig(mutationPermit: permit)
                     try Task.checkCancellation()
                     backupCurrentConfig(previousContent)
 
@@ -176,7 +176,7 @@ final class SaveCoordinator {
                         AppLogger.shared.error("❌ [SaveCoordinator] Restoring backup")
 
                         playErrorSound()
-                        let recoveryResult = await restoreConfig(previousContent)
+                        let recoveryResult = await restoreConfig(previousContent, mutationPermit: permit)
 
                         saveStatus = .failed("TCP server reload failed: \(errorMessage)")
                         return .failure(
@@ -212,7 +212,7 @@ final class SaveCoordinator {
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         do {
-            return try await configurationService.operationGate.withOperation { @MainActor [self] _ in
+            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
                 // Suppress file watcher to prevent double reload
                 configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
                 saveStatus = .saving
@@ -239,7 +239,7 @@ final class SaveCoordinator {
                     AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
 
                     // Step 2: Backup current config
-                    let previousContent = try await snapshotCurrentConfig()
+                    let previousContent = try await snapshotCurrentConfig(mutationPermit: permit)
                     try Task.checkCancellation()
                     backupCurrentConfig(previousContent)
 
@@ -288,7 +288,7 @@ final class SaveCoordinator {
                         AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
 
                         playErrorSound()
-                        let recoveryResult = await restoreConfig(previousContent)
+                        let recoveryResult = await restoreConfig(previousContent, mutationPermit: permit)
 
                         saveStatus = .failed("Config reload failed: \(errorMessage)")
                         return .failure(
@@ -332,8 +332,8 @@ final class SaveCoordinator {
 
     @discardableResult
     func restoreLastGoodConfig() async throws -> SaveRecoveryResult {
-        try await configurationService.operationGate.withOperation { @MainActor [self] _ in
-            let result = await restoreConfig(lastGoodConfig)
+        try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+            let result = await restoreConfig(lastGoodConfig, mutationPermit: permit)
             // Preserve the throwing contract for existing explicit-restore callers.
             if case let .failed(backupError, fallbackError) = result {
                 throw SaveRecoveryError(backupError: backupError, fallbackError: fallbackError)
@@ -342,12 +342,12 @@ final class SaveCoordinator {
         }
     }
 
-    private func restoreConfig(_ content: String?) async -> SaveRecoveryResult {
+    private func restoreConfig(_ content: String?, mutationPermit: ConfigurationOperationGate.Permit) async -> SaveRecoveryResult {
         var backupError: Error?
         if let backup = content {
             AppLogger.shared.info("🔄 [SaveCoordinator] Restoring last good config")
             do {
-                try await configurationService.writeConfigurationContent(backup)
+                try await configurationService.writeConfigurationContent(backup, mutationPermit: mutationPermit)
                 return .restoredPreviousConfig
             } catch {
                 backupError = error
@@ -443,10 +443,10 @@ final class SaveCoordinator {
 
     // MARK: - Private Helpers
 
-    private func snapshotCurrentConfig() async throws -> String {
+    private func snapshotCurrentConfig(mutationPermit: ConfigurationOperationGate.Permit) async throws -> String {
         let path = configurationService.configurationPath
         if await !(configurationService.fileExistsAsync(path: path)) {
-            return await configurationService.current().content
+            return await configurationService.current(mutationPermit: mutationPermit).content
         }
         // Generated saves write raw content without refreshing the parsed cache.
         // Back up the actual file, never a possibly older cached configuration.

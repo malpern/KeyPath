@@ -282,6 +282,91 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
         }
     }
 
+    func testReloadCallbackCannotUseDirectServiceWriters() async throws {
+        try await withFixture { service, manager, coordinator in
+            let content = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+            let replacement = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+            let attempts: [(String, @MainActor () async throws -> Void)] = [
+                ("collections", { try await service.saveConfiguration(ruleCollections: []) }),
+                ("legacy mapping", { try await service.saveConfiguration(input: "a", output: "c") }),
+                ("raw restore", { try await service.writeConfigurationContent(replacement) }),
+                ("repair", { try await service.saveRepairedConfig(replacement) }),
+                ("safe fallback", { _ = try await service.backupFailedConfigAndApplySafe(failedConfig: content, mappings: []) }),
+                ("backup", { _ = try await service.backupConfigBeforeAIRepair() }),
+                ("initial creation", { try await service.createInitialConfigIfNeeded() }),
+                ("journal recovery", {
+                    try await service.recoverPendingRuleWrite(collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
+                }),
+                ("rule write", {
+                    try await service.saveRuleState(ruleCollections: [], customRules: [], collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
+                }),
+            ]
+            let result = await coordinator.saveGeneratedConfig(content: content) {
+                for (name, attempt) in attempts {
+                    do {
+                        try await attempt()
+                        XCTFail("Callback writer entered: \(name)")
+                    } catch ConfigurationOperationGate.Failure.recursiveOperation {
+                        // Each public entry refuses before writing or notifying.
+                    } catch {
+                        XCTFail("Unexpected \(name) failure: \(error)")
+                    }
+                }
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(result.success)
+            XCTAssertEqual(try String(contentsOfFile: service.configurationPath, encoding: .utf8), content)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: service.configDirectory + "/backups"))
+        }
+    }
+
+    func testDirectServiceSaveRetainsAdmissionThroughObserverCallbacks() async throws {
+        try await withFixture { service, _, coordinator in
+            let entered = self.expectation(description: "service observer entered")
+            let started = self.expectation(description: "coordinator save requested")
+            var resume: CheckedContinuation<Void, Never>?
+            let observation = service.observe { @MainActor _ in
+                await withCheckedContinuation { continuation in
+                    resume = continuation
+                    entered.fulfill()
+                }
+            }
+            defer { observation.cancel() }
+            let first = Task { @MainActor in try await service.saveConfiguration(ruleCollections: []) }
+            await self.fulfillment(of: [entered], timeout: 5)
+            let firstContent = try String(contentsOfFile: service.configurationPath, encoding: .utf8)
+            let content = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+            let second = Task { @MainActor in
+                started.fulfill()
+                return await coordinator.saveGeneratedConfig(content: content) {
+                    ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+                }
+            }
+            await self.fulfillment(of: [started], timeout: 5)
+            XCTAssertEqual(try String(contentsOfFile: service.configurationPath, encoding: .utf8), firstContent)
+            resume?.resume()
+            try await first.value
+            let result = await second.value
+            XCTAssertTrue(result.success)
+            XCTAssertEqual(try String(contentsOfFile: service.configurationPath, encoding: .utf8), content)
+        }
+    }
+
+    func testMissingFileSaveBacksUpRehydratedStoredRules() async throws {
+        try await withFixture { service, manager, coordinator in
+            let rule = manager.makeCustomRule(input: "f13", output: "f14")
+            try await manager.customRulesStore.saveRules([rule])
+            try FileManager.default.removeItem(atPath: service.configurationPath)
+            let result = await coordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
+                ReloadResult(success: false, response: nil, errorMessage: "reject", protocol: nil, disposition: .rejected)
+            }
+            XCTAssertFalse(result.success)
+            let restored = try String(contentsOfFile: service.configurationPath, encoding: .utf8)
+            let parsed = try service.parseConfigurationFromString(restored)
+            XCTAssertEqual(parsed.keyMappings.first { $0.input == "f13" }?.action.outputString, "f14")
+        }
+    }
+
     private func withFixture(
         _ body: @MainActor (ConfigurationService, RuleCollectionsManager, SaveCoordinator) async throws -> Void
     ) async throws {
