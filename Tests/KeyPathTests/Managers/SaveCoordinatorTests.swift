@@ -99,6 +99,15 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(reloadCount, 1, file: file, line: line)
         let saved = disposition == .applied || disposition == .pending
         XCTAssertEqual(result.success, saved, file: file, line: line)
+        if saved {
+            guard case .notAttempted = result.recoveryResult else {
+                return XCTFail("Successful saves must not claim recovery", file: file, line: line)
+            }
+        } else {
+            guard case .restoredPreviousConfig = result.recoveryResult else {
+                return XCTFail("Rejected/failed reload must report restored file", file: file, line: line)
+            }
+        }
         let content = try String(contentsOf: url, encoding: .utf8)
         if saved {
             XCTAssertNotEqual(content, original, file: file, line: line)
@@ -121,6 +130,9 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertFalse(result.success)
         XCTAssertNotNil(result.error)
         XCTAssertNil(result.reloadResult)
+        guard case .notAttempted = result.recoveryResult else {
+            return XCTFail("Validation rejection must not attempt recovery")
+        }
         XCTAssertEqual(reloadCount, 0)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
     }
@@ -151,6 +163,15 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
         let saved = disposition == .applied || disposition == .pending
         XCTAssertEqual(result.success, saved, file: file, line: line)
+        if saved {
+            guard case .notAttempted = result.recoveryResult else {
+                return XCTFail("Successful saves must not claim recovery", file: file, line: line)
+            }
+        } else {
+            guard case .restoredPreviousConfig = result.recoveryResult else {
+                return XCTFail("Rejected/failed reload must report restored file", file: file, line: line)
+            }
+        }
         XCTAssertEqual(result.error == nil, saved, file: file, line: line)
         XCTAssertEqual(result.reloadResult?.disposition, disposition, file: file, line: line)
         XCTAssertEqual(result.reloadResult?.success, expected.success, file: file, line: line)
@@ -317,12 +338,117 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
     // MARK: - Rollback Fallback Tests
 
+    func testGeneratedSaveReportsMinimalFallbackWhenPreviousFileIsEmpty() async throws {
+        try await assertRecoveryOutcome(mapping: false, blockWrites: false)
+    }
+
+    func testMappingSaveReportsMinimalFallbackWhenPreviousFileIsEmpty() async throws {
+        try await assertRecoveryOutcome(mapping: true, blockWrites: false)
+    }
+
+    func testGeneratedSavePreservesBothRecoveryErrorsAndReleasesOperation() async throws {
+        try await assertRecoveryOutcome(mapping: false, blockWrites: true)
+    }
+
+    func testMappingSavePreservesBothRecoveryErrorsAndReleasesOperation() async throws {
+        try await assertRecoveryOutcome(mapping: true, blockWrites: true)
+    }
+
+    private func assertRecoveryOutcome(mapping: Bool, blockWrites: Bool) async throws {
+        let original = blockWrites ? "(defcfg)\n(defsrc a)\n(deflayer base b)" : ""
+        let updated = "(defcfg)\n(defsrc a)\n(deflayer base c)"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        try original.write(to: url, atomically: true, encoding: .utf8)
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
+            customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json")),
+            configurationService: configService
+        )
+        var reloadCount = 0
+        let reload: () async -> ReloadResult = {
+            reloadCount += 1
+            if blockWrites {
+                // Replace this test's directory with a regular file. Both recovery
+                // writes must fail, without relying on permissions or real services.
+                do {
+                    try FileManager.default.removeItem(at: self.tempDir)
+                    try "blocked".write(to: self.tempDir, atomically: true, encoding: .utf8)
+                } catch {
+                    XCTFail("Could not inject write failure: \(error)")
+                }
+            }
+            return ReloadResult(success: false, response: nil, errorMessage: "injected rejection", protocol: nil, disposition: .rejected)
+        }
+        let result: KeyPathAppKit.SaveResult = if mapping {
+            await coordinator.saveMapping(input: "a", output: "c", ruleCollectionsManager: manager, reloadHandler: reload)
+        } else {
+            await coordinator.saveGeneratedConfig(content: updated, reloadHandler: reload)
+        }
+        XCTAssertFalse(result.success)
+        XCTAssertNotNil(result.error)
+        XCTAssertEqual(result.reloadResult?.errorMessage, "injected rejection")
+        XCTAssertEqual(result.reloadResult?.disposition, .rejected)
+        XCTAssertEqual(reloadCount, 1, "Recovery must not issue a second reload")
+        if blockWrites {
+            guard case let .failed(backupError, fallbackError) = result.recoveryResult else {
+                return XCTFail("Both recovery failures must be returned")
+            }
+            XCTAssertNotNil(backupError)
+            XCTAssertFalse(fallbackError.localizedDescription.isEmpty)
+            XCTAssertEqual(try String(contentsOf: tempDir, encoding: .utf8), "blocked")
+            try FileManager.default.removeItem(at: tempDir)
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            try original.write(to: url, atomically: true, encoding: .utf8)
+            let next = await coordinator.saveGeneratedConfig(content: updated) {
+                ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+            }
+            XCTAssertTrue(next.success, "Failed recovery must release the save operation")
+            XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), updated)
+        } else {
+            guard case let .wroteMinimalSafeConfig(backupError) = result.recoveryResult else {
+                return XCTFail("An empty prior file must report minimal fallback, not restoration")
+            }
+            XCTAssertNotNil(backupError)
+            let content = try String(contentsOf: url, encoding: .utf8)
+            XCTAssertTrue(content.contains("(deflayer base)"))
+            XCTAssertNotEqual(content, original)
+            XCTAssertNotEqual(content, updated)
+        }
+    }
+
+    func testExplicitRestorePreservesBothFailuresWhenFallbackCannotBeWritten() async throws {
+        coordinator.backupCurrentConfig("(defcfg)\n(defsrc a)\n(deflayer base b)")
+        try await assertExplicitRestoreFailure(hasBackup: true)
+    }
+
+    func testExplicitRestorePreservesMissingBackupWhenFallbackCannotBeWritten() async throws {
+        try await assertExplicitRestoreFailure(hasBackup: false)
+    }
+
+    private func assertExplicitRestoreFailure(hasBackup: Bool) async throws {
+        try FileManager.default.removeItem(at: tempDir)
+        try "blocked".write(to: tempDir, atomically: true, encoding: .utf8)
+        do {
+            try await coordinator.restoreLastGoodConfig()
+            XCTFail("Explicit restore must continue to throw on total recovery failure")
+        } catch {
+            let recoveryError = try XCTUnwrap(error as? SaveRecoveryError)
+            XCTAssertEqual(recoveryError.backupError != nil, hasBackup)
+            XCTAssertFalse(recoveryError.fallbackError.localizedDescription.isEmpty)
+            XCTAssertEqual(recoveryError.localizedDescription, recoveryError.fallbackError.localizedDescription)
+        }
+    }
+
     func testRestoreLastGoodConfig_WritesMinimalSafeConfig_WhenNoBackupExists() async throws {
         // No backup has been set (lastGoodConfig is nil).
         // restoreLastGoodConfig should fall back to writing a minimal safe config.
         XCTAssertFalse(coordinator.hasBackup(), "Should have no backup initially")
 
-        try await coordinator.restoreLastGoodConfig()
+        let recovery = try await coordinator.restoreLastGoodConfig()
+        guard case let .wroteMinimalSafeConfig(backupError) = recovery else {
+            return XCTFail("No backup must report minimal config fallback")
+        }
+        XCTAssertNil(backupError, "A missing backup is distinct from a failed backup write")
 
         // Verify the safe config was written
         let configPath = configService.configurationPath

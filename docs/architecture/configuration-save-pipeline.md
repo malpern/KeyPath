@@ -36,8 +36,20 @@ the operation failed before that attempt. Existing `success` consumers retain
 their behavior: applied and pending are successful saves. `success` alone does
 not mean the runtime applied the configuration.
 
-The retained reload result describes the application attempt, not whether backup
-restoration succeeded. File rollback/fallback still exists, but source stores,
+The retained reload result describes the application attempt. The separate
+`SaveResult.recoveryResult` describes file recovery: `notAttempted`,
+`restoredPreviousConfig`, `wroteMinimalSafeConfig(backupError:)`, or
+`failed(backupError:fallbackError:)`. A minimal safe file is not restoration of
+the prior revision. Both recovery errors are retained if neither write succeeds;
+the original reload result and save error remain available. Applied/pending saves
+and failures before reload report no recovery attempt.
+
+Explicit restoration returns the same successful recovery outcomes and retains
+its throwing contract when even the fallback cannot be written. These outcomes
+assert only file recovery, not a second engine reload or a multi-store rollback.
+Existing presentation and Boolean success semantics are unchanged.
+
+File rollback/fallback still exists, but source stores,
 preferences, and installed-pack records do not yet share one transaction.
 See the [consolidation baseline](../planning/consolidation-baseline.md) for paths
 and remaining gaps. UI presentation changes require discussion before implementation.
@@ -60,3 +72,6 @@ existing completion/recovery path runs to completion.
 This gate covers this coordinator only. Collection/pack/CLI writers, source-store
 transactions, external edits, and durable crash recovery still need migration.
 See [the reproduced rollback race](../bugs/save-coordinator-overlapping-rollback.md).
+
+Explicit-restore failure throws `SaveRecoveryError`, retaining both causes while
+preserving the fallback error description used by existing presentation.
