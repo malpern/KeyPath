@@ -102,7 +102,10 @@ final class GenericPackConfigTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
         var reloadCallbackCount = 0
-        manager.onRulesChanged = { reloadCallbackCount += 1 }
+        manager.onRulesChanged = {
+            reloadCallbackCount += 1
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
 
         guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
             .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
@@ -932,7 +935,10 @@ final class GenericPackConfigTests: XCTestCase {
         }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
         var reloadCallbackCount = 0
-        manager.onRulesChanged = { reloadCallbackCount += 1 }
+        manager.onRulesChanged = {
+            reloadCallbackCount += 1
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
 
         guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
             .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?

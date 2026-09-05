@@ -417,8 +417,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Wire up RuleCollectionsManager callbacks
         ruleCollectionsManager.onRulesChanged = { [weak self] in
-            guard let self else { return }
-            _ = await applyPersistedRuleChanges()
+            guard let self else {
+                return ReloadResult(success: false, response: nil, errorMessage: "Runtime coordinator unavailable", protocol: nil, disposition: .failed)
+            }
+            return await applyPersistedRuleChanges()
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
             self?.currentLayerName = layerName

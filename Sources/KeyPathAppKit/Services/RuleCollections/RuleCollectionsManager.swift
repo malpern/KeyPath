@@ -28,6 +28,19 @@ struct RuleConflictInfo {
     }
 }
 
+/// Collection persistence and runtime application are separate stages until the
+/// multi-store transaction migration. A failed stage may have partially written
+/// files; this result does not promise rollback.
+enum RulePersistenceResult {
+    case persisted(reloadResult: ReloadResult?)
+    case failed(Error)
+
+    var didPersist: Bool {
+        if case .persisted = self { return true }
+        return false
+    }
+}
+
 // MARK: - RuleCollectionsManager
 
 /// Manages rule collections and custom rules with conflict detection.
@@ -64,8 +77,8 @@ final class RuleCollectionsManager {
     let configurationService: ConfigurationService
     let eventListener: KanataEventListener
 
-    /// Callback invoked when rules change (for config regeneration)
-    var onRulesChanged: (() async -> Void)?
+    /// Apply already-persisted rules and retain the runtime disposition.
+    var onRulesChanged: (() async -> ReloadResult)?
 
     /// Callback invoked when layer changes (for UI updates)
     var onLayerChanged: ((String) -> Void)?
