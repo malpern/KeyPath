@@ -47,3 +47,16 @@ The removed `ConfigurationManager.writeGeneratedConfig`,
 sites. They performed direct file writes outside the supported ownership model,
 which could bypass current-configuration updates and rollback classification if
 they were reused later.
+
+## Coordinator-local operation isolation
+
+Mapping saves, generated saves, and explicit backup restoration now share a FIFO
+admission gate in `SaveCoordinator`. The slot is held across async reload and file
+recovery. Each save snapshots the file itself; it does not use the possibly stale
+parsed cache or read a mutable shared backup at rollback time. Queued cancellation
+is observed at admission without a write or reload; after mutation begins the
+existing completion/recovery path runs to completion.
+
+This gate covers this coordinator only. Collection/pack/CLI writers, source-store
+transactions, external edits, and durable crash recovery still need migration.
+See [the reproduced rollback race](../bugs/save-coordinator-overlapping-rollback.md).

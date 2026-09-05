@@ -2,6 +2,13 @@ import Foundation
 import KeyPathCore
 import KeyPathRulesCore
 
+/// Task-local scope is intentionally shared: nested callbacks can cross coordinator
+/// instances. Unique rotating operation tokens distinguish their ownership, while
+/// carrying the full set lets an A -> B -> A callback cycle fail instead of hang.
+private enum SaveOperationContext {
+    @TaskLocal static var activeOperations: Set<UUID> = []
+}
+
 /// Callback interface for save status updates
 @MainActor
 protocol SaveCoordinatorDelegate: AnyObject {
@@ -58,6 +65,12 @@ final class SaveCoordinator {
     /// In-memory backup of last known good config
     private var lastGoodConfig: String?
 
+    // MainActor methods can interleave at every await. Keep the entire save,
+    // including reload and recovery, exclusive within this coordinator.
+    private var operationInProgress = false
+    private var operationID = UUID()
+    private var operationWaiters: [CheckedContinuation<Void, Never>] = []
+
     // MARK: - Initialization
 
     init(
@@ -94,6 +107,13 @@ final class SaveCoordinator {
         ruleCollectionsManager: RuleCollectionsManager,
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
+        do {
+            try await beginOperation()
+        } catch {
+            return .failure(error)
+        }
+        defer { endOperation() }
+
         // Suppress file watcher to prevent double reload
         configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
         saveStatus = .saving
@@ -105,8 +125,9 @@ final class SaveCoordinator {
             )
 
             // Step 2: Backup current config
-            let currentConfig = await configurationService.current()
-            backupCurrentConfig(currentConfig.content)
+            let previousContent = try await snapshotCurrentConfig()
+            try Task.checkCancellation()
+            backupCurrentConfig(previousContent)
 
             // Step 3: Create and save custom rule
             let rule = ruleCollectionsManager.makeCustomRule(
@@ -125,7 +146,7 @@ final class SaveCoordinator {
 
             // Step 5: Trigger reload for validation
             AppLogger.shared.debug("📡 [SaveCoordinator] Triggering TCP reload for validation")
-            let reloadResult = await reloadHandler()
+            let reloadResult = await reloadWithinOperation(reloadHandler)
 
             if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
                 // Success!
@@ -148,7 +169,7 @@ final class SaveCoordinator {
 
                 playErrorSound()
                 do {
-                    try await restoreLastGoodConfig()
+                    try await restoreConfig(previousContent)
                 } catch {
                     AppLogger.shared.error("❌ [SaveCoordinator] Rollback also failed: \(error)")
                 }
@@ -181,6 +202,13 @@ final class SaveCoordinator {
         content: String,
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
+        do {
+            try await beginOperation()
+        } catch {
+            return .failure(error)
+        }
+        defer { endOperation() }
+
         // Suppress file watcher to prevent double reload
         configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
         saveStatus = .saving
@@ -207,8 +235,9 @@ final class SaveCoordinator {
             AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
 
             // Step 2: Backup current config
-            let currentConfig = await configurationService.current()
-            backupCurrentConfig(currentConfig.content)
+            let previousContent = try await snapshotCurrentConfig()
+            try Task.checkCancellation()
+            backupCurrentConfig(previousContent)
 
             // Step 3: Write the configuration file
             let configPath = configurationService.configurationPath
@@ -233,7 +262,7 @@ final class SaveCoordinator {
             playWriteSound()
 
             // Step 6: Trigger reload for validation
-            let reloadResult = await reloadHandler()
+            let reloadResult = await reloadWithinOperation(reloadHandler)
 
             if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
                 if reloadResult.disposition == .applied {
@@ -256,7 +285,7 @@ final class SaveCoordinator {
 
                 playErrorSound()
                 do {
-                    try await restoreLastGoodConfig()
+                    try await restoreConfig(previousContent)
                 } catch {
                     AppLogger.shared.error("❌ [SaveCoordinator] Rollback also failed: \(error)")
                 }
@@ -297,7 +326,13 @@ final class SaveCoordinator {
     }
 
     func restoreLastGoodConfig() async throws {
-        guard let backup = lastGoodConfig else {
+        try await beginOperation()
+        defer { endOperation() }
+        try await restoreConfig(lastGoodConfig)
+    }
+
+    private func restoreConfig(_ content: String?) async throws {
+        guard let backup = content else {
             AppLogger.shared.warnUnlessQuietTest("⚠️ [SaveCoordinator] No backup available - writing minimal safe config")
             try await writeMinimalSafeConfig()
             return
@@ -388,6 +423,60 @@ final class SaveCoordinator {
     }
 
     // MARK: - Private Helpers
+
+    /// Cancellation before admission never writes or changes the active status.
+    /// A queued cancellation is observed when its FIFO turn arrives. Once a write
+    /// starts, finish reload/recovery rather than abandoning a half-applied edit.
+    private func beginOperation() async throws {
+        try Task.checkCancellation()
+        if operationInProgress, SaveOperationContext.activeOperations.contains(operationID) {
+            throw KeyPathError.configuration(.loadFailed(
+                reason: "A reload callback cannot recursively save or restore through the same coordinator."
+            ))
+        }
+        if operationInProgress {
+            await withCheckedContinuation { operationWaiters.append($0) }
+        } else {
+            operationInProgress = true
+        }
+        do {
+            try Task.checkCancellation()
+        } catch {
+            endOperation()
+            throw error
+        }
+    }
+
+    private func endOperation() {
+        // Inherited task-local context from a finished reload must not reject
+        // a later independent operation (including child tasks that outlive it).
+        operationID = UUID()
+        if operationWaiters.isEmpty {
+            operationInProgress = false
+        } else {
+            // Transfer ownership directly; do not leave a gap for a new caller
+            // to overtake an already queued save.
+            operationWaiters.removeFirst().resume()
+        }
+    }
+
+    private func reloadWithinOperation(_ reloadHandler: () async -> ReloadResult) async -> ReloadResult {
+        var activeOperations = SaveOperationContext.activeOperations
+        activeOperations.insert(operationID)
+        return await SaveOperationContext.$activeOperations.withValue(activeOperations) {
+            await reloadHandler()
+        }
+    }
+
+    private func snapshotCurrentConfig() async throws -> String {
+        let path = configurationService.configurationPath
+        if await !(configurationService.fileExistsAsync(path: path)) {
+            return await configurationService.current().content
+        }
+        // Generated saves write raw content without refreshing the parsed cache.
+        // Back up the actual file, never a possibly older cached configuration.
+        return try await configurationService.readCurrentConfig()
+    }
 
     private func scheduleStatusReset() {
         Task { @MainActor [weak self] in
