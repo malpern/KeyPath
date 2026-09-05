@@ -16,6 +16,26 @@ protocol SaveCoordinatorDelegate: AnyObject {
     func configDidUpdate(mappings: [KeyMapping])
 }
 
+/// File recovery only: this does not claim that source stores or the running
+/// engine were restored. Preserve both failures when fallback also fails.
+enum SaveRecoveryResult {
+    case notAttempted
+    case restoredPreviousConfig
+    case wroteMinimalSafeConfig(backupError: Error?)
+    case failed(backupError: Error?, fallbackError: Error)
+}
+
+/// Keeps both causes available to explicit-restore callers while retaining the
+/// fallback error's existing user-facing description.
+struct SaveRecoveryError: LocalizedError {
+    let backupError: Error?
+    let fallbackError: Error
+
+    var errorDescription: String? {
+        fallbackError.localizedDescription
+    }
+}
+
 /// Result of a save operation
 struct SaveResult {
     /// A pending application is still a successful save. Consult `reloadResult`
@@ -26,12 +46,18 @@ struct SaveResult {
     /// Nil when validation or persistence failed before the reload was attempted.
     let reloadResult: ReloadResult?
 
+    let recoveryResult: SaveRecoveryResult
+
     static func success(mappings: [KeyMapping], reloadResult: ReloadResult) -> SaveResult {
-        SaveResult(success: true, error: nil, mappings: mappings, reloadResult: reloadResult)
+        SaveResult(success: true, error: nil, mappings: mappings, reloadResult: reloadResult, recoveryResult: .notAttempted)
     }
 
-    static func failure(_ error: Error, reloadResult: ReloadResult? = nil) -> SaveResult {
-        SaveResult(success: false, error: error, mappings: nil, reloadResult: reloadResult)
+    static func failure(
+        _ error: Error,
+        reloadResult: ReloadResult? = nil,
+        recoveryResult: SaveRecoveryResult = .notAttempted
+    ) -> SaveResult {
+        SaveResult(success: false, error: error, mappings: nil, reloadResult: reloadResult, recoveryResult: recoveryResult)
     }
 }
 
@@ -168,11 +194,7 @@ final class SaveCoordinator {
                 AppLogger.shared.error("❌ [SaveCoordinator] Restoring backup")
 
                 playErrorSound()
-                do {
-                    try await restoreConfig(previousContent)
-                } catch {
-                    AppLogger.shared.error("❌ [SaveCoordinator] Rollback also failed: \(error)")
-                }
+                let recoveryResult = await restoreConfig(previousContent)
 
                 saveStatus = .failed("TCP server reload failed: \(errorMessage)")
                 return .failure(
@@ -182,7 +204,8 @@ final class SaveCoordinator {
                             "TCP server required for validation-on-demand failed: \(errorMessage)"
                         )
                     ),
-                    reloadResult: reloadResult
+                    reloadResult: reloadResult,
+                    recoveryResult: recoveryResult
                 )
             }
 
@@ -284,18 +307,15 @@ final class SaveCoordinator {
                 AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
 
                 playErrorSound()
-                do {
-                    try await restoreConfig(previousContent)
-                } catch {
-                    AppLogger.shared.error("❌ [SaveCoordinator] Rollback also failed: \(error)")
-                }
+                let recoveryResult = await restoreConfig(previousContent)
 
                 saveStatus = .failed("Config reload failed: \(errorMessage)")
                 return .failure(
                     KeyPathError.configuration(
                         .loadFailed(reason: "Hot reload failed: \(errorMessage)")
                     ),
-                    reloadResult: reloadResult
+                    reloadResult: reloadResult,
+                    recoveryResult: recoveryResult
                 )
             }
 
@@ -325,24 +345,38 @@ final class SaveCoordinator {
         }
     }
 
-    func restoreLastGoodConfig() async throws {
+    @discardableResult
+    func restoreLastGoodConfig() async throws -> SaveRecoveryResult {
         try await beginOperation()
         defer { endOperation() }
-        try await restoreConfig(lastGoodConfig)
+        let result = await restoreConfig(lastGoodConfig)
+        // Preserve the throwing contract for existing explicit-restore callers.
+        if case let .failed(backupError, fallbackError) = result {
+            throw SaveRecoveryError(backupError: backupError, fallbackError: fallbackError)
+        }
+        return result
     }
 
-    private func restoreConfig(_ content: String?) async throws {
-        guard let backup = content else {
+    private func restoreConfig(_ content: String?) async -> SaveRecoveryResult {
+        var backupError: Error?
+        if let backup = content {
+            AppLogger.shared.info("🔄 [SaveCoordinator] Restoring last good config")
+            do {
+                try await configurationService.writeConfigurationContent(backup)
+                return .restoredPreviousConfig
+            } catch {
+                backupError = error
+                AppLogger.shared.error("❌ [SaveCoordinator] Failed to restore backup: \(error) - writing minimal safe config")
+            }
+        } else {
             AppLogger.shared.warnUnlessQuietTest("⚠️ [SaveCoordinator] No backup available - writing minimal safe config")
-            try await writeMinimalSafeConfig()
-            return
         }
-        AppLogger.shared.info("🔄 [SaveCoordinator] Restoring last good config")
         do {
-            try await configurationService.writeConfigurationContent(backup)
-        } catch {
-            AppLogger.shared.error("❌ [SaveCoordinator] Failed to restore backup: \(error) - writing minimal safe config")
             try await writeMinimalSafeConfig()
+            return .wroteMinimalSafeConfig(backupError: backupError)
+        } catch {
+            AppLogger.shared.error("❌ [SaveCoordinator] Minimal safe config recovery failed: \(error)")
+            return .failed(backupError: backupError, fallbackError: error)
         }
     }
 

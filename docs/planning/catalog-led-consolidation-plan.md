@@ -1,7 +1,7 @@
 # KeyPath: catalog-led consolidation execution plan
 
 Date: 2026-09-04
-Status: approved direction; Phase 0 and the first internal result-contract step in progress.
+Status: approved direction; Phase 0 inventory recorded, Phase 1 internal save/recovery contract in progress.
 Baseline: `master` at `a12bb07d5`; recheck code, branches, and issues before implementation.
 
 ## Outcome
@@ -248,8 +248,14 @@ them. Suggested mappings, not automatic closure instructions:
 - #213, #212, #211: conversion expansion remains deferred; no parity commitment.
 - #204: inventory Insights and decide disposition, not an automatic completion task.
 
-Next work packet: Phase 0 matrices plus the proposed Phase 1 result contract and
-failure fixtures. Stop for assessment after the first migrated configuration
+Completed internal slices: #1260 retains reload dispositions; #1262 serializes
+coordinator saves and uses operation-local file snapshots. The next slice exposes
+file recovery outcomes and failure fixtures. These do not yet migrate collection
+source stores into the same transaction.
+
+Next work packet: carry collection regeneration results through the callback
+boundary, then design multi-store commit/recovery before changing its Boolean
+callers or presenting new status in the UI. Stop for assessment after the first migrated configuration
 journey: verify that ownership and failure behavior improved before extending the
 pattern. Estimate remaining work from that evidence; this plan makes no calendar
 commitment based on source-line counts.
