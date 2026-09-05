@@ -11,16 +11,20 @@ protocol SaveCoordinatorDelegate: AnyObject {
 
 /// Result of a save operation
 struct SaveResult {
+    /// A pending application is still a successful save. Consult `reloadResult`
+    /// when the caller needs to distinguish persisted content from active content.
     let success: Bool
     let error: Error?
     let mappings: [KeyMapping]?
+    /// Nil when validation or persistence failed before the reload was attempted.
+    let reloadResult: ReloadResult?
 
-    static func success(mappings: [KeyMapping]) -> SaveResult {
-        SaveResult(success: true, error: nil, mappings: mappings)
+    static func success(mappings: [KeyMapping], reloadResult: ReloadResult) -> SaveResult {
+        SaveResult(success: true, error: nil, mappings: mappings, reloadResult: reloadResult)
     }
 
-    static func failure(_ error: Error) -> SaveResult {
-        SaveResult(success: false, error: error, mappings: nil)
+    static func failure(_ error: Error, reloadResult: ReloadResult? = nil) -> SaveResult {
+        SaveResult(success: false, error: error, mappings: nil, reloadResult: reloadResult)
     }
 }
 
@@ -135,7 +139,7 @@ final class SaveCoordinator {
                 scheduleStatusReset()
 
                 let mappings = ruleCollectionsManager.enabledMappings()
-                return .success(mappings: mappings)
+                return .success(mappings: mappings, reloadResult: reloadResult)
             } else {
                 // Reload failed - restore backup
                 let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
@@ -156,7 +160,8 @@ final class SaveCoordinator {
                             reason:
                             "TCP server required for validation-on-demand failed: \(errorMessage)"
                         )
-                    )
+                    ),
+                    reloadResult: reloadResult
                 )
             }
 
@@ -243,7 +248,7 @@ final class SaveCoordinator {
                 playSuccessSound()
                 saveStatus = .success
                 scheduleStatusReset()
-                return .success(mappings: parsedMappings)
+                return .success(mappings: parsedMappings, reloadResult: reloadResult)
             } else {
                 // TCP reload failed - restore backup
                 let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
@@ -260,7 +265,8 @@ final class SaveCoordinator {
                 return .failure(
                     KeyPathError.configuration(
                         .loadFailed(reason: "Hot reload failed: \(errorMessage)")
-                    )
+                    ),
+                    reloadResult: reloadResult
                 )
             }
 
