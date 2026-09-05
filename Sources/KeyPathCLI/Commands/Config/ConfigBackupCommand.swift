@@ -18,7 +18,7 @@ struct ConfigBackup: AsyncParsableCommand {
         let facade = ConfigFacade()
 
         do {
-            let result = try facade.backupConfig(outputPath: outputPath)
+            let result = try await facade.backupConfig(outputPath: outputPath)
             CLIOutput.write(result, context: ctx) {
                 """
                 Backup created: \(result.backupPath)

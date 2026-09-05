@@ -10,8 +10,11 @@ public struct ConfigFacade: Sendable {
 
     public init(configDirectory: String = KeyPathConstants.Config.directory) {
         self.configDirectory = configDirectory
-        ruleCollectionLoader = { await RuleCollectionStore.shared.loadCollections() }
-        customRuleLoader = { await CustomRulesStore.shared.loadRules() }
+        let directory = URL(fileURLWithPath: configDirectory, isDirectory: true)
+        let collectionStore = RuleCollectionStore(fileURL: directory.appendingPathComponent("RuleCollections.json"))
+        let customStore = CustomRulesStore(fileURL: directory.appendingPathComponent("CustomRules.json"))
+        ruleCollectionLoader = { await collectionStore.loadCollections() }
+        customRuleLoader = { await customStore.loadRules() }
         reloadHandler = nil
     }
 
@@ -55,6 +58,15 @@ public struct ConfigFacade: Sendable {
     // MARK: - Apply
 
     public func applyConfiguration(dryRun: Bool = false) async throws -> CLIApplyResult {
+        let service = await MainActor.run { ConfigurationService(configDirectory: configDirectory) }
+        return try await service.operationGate.withOperation { permit in
+            try await applyConfiguration(dryRun: dryRun, service: service, permit: permit)
+        }
+    }
+
+    private func applyConfiguration(
+        dryRun: Bool, service: ConfigurationService, permit: ConfigurationOperationGate.Permit
+    ) async throws -> CLIApplyResult {
         let collections = await ruleCollectionLoader()
         let customRules = await customRuleLoader()
         let enabledCount = collections.filter(\.isEnabled).count
@@ -75,8 +87,6 @@ public struct ConfigFacade: Sendable {
             )
         } ?? collections
         let leaderSnapshot = reconcile?.previous
-
-        let service = await MainActor.run { ConfigurationService(configDirectory: configDirectory) }
 
         if dryRun {
             // A dry run must not persist the reconciled preference. Generation reads the live
@@ -107,7 +117,8 @@ public struct ConfigFacade: Sendable {
 
         try await service.saveConfiguration(
             ruleCollections: reconciledCollections,
-            customRules: customRules
+            customRules: customRules,
+            mutationPermit: permit
         )
 
         let reloadSuccess = if let reloadHandler {
@@ -158,7 +169,14 @@ public struct ConfigFacade: Sendable {
 
     // MARK: - Backup / Restore
 
-    public func backupConfig(outputPath: String? = nil) throws -> CLIConfigBackupResult {
+    public func backupConfig(outputPath: String? = nil) async throws -> CLIConfigBackupResult {
+        let gate = ConfigurationOperationGate(configurationDirectory: URL(fileURLWithPath: configDirectory, isDirectory: true))
+        return try await gate.withOperation { _ in
+            try copyConfigBackup(outputPath: outputPath)
+        }
+    }
+
+    private func copyConfigBackup(outputPath: String?) throws -> CLIConfigBackupResult {
         let fileManager = FileManager.default
         let sourceURL = URL(fileURLWithPath: configDirectory, isDirectory: true)
         let sourceCopyURL = try resolvedExistingDirectory(sourceURL, fileManager: fileManager)
@@ -189,6 +207,13 @@ public struct ConfigFacade: Sendable {
     }
 
     public func restoreConfig(from backupPath: String, reload: Bool) async throws -> CLIConfigRestoreResult {
+        let gate = ConfigurationOperationGate(configurationDirectory: URL(fileURLWithPath: configDirectory, isDirectory: true))
+        return try await gate.withOperation { _ in
+            try await restoreConfigContents(from: backupPath, reload: reload)
+        }
+    }
+
+    private func restoreConfigContents(from backupPath: String, reload: Bool) async throws -> CLIConfigRestoreResult {
         let fileManager = FileManager.default
         let sourceURL = URL(fileURLWithPath: (backupPath as NSString).expandingTildeInPath, isDirectory: true)
         var isDirectory: ObjCBool = false

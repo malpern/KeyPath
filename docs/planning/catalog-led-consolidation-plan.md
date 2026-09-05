@@ -263,10 +263,13 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1268 | Pack install/uninstall/settings and bootstrap hold shared admission across nested mutations, metadata and recovery. | CLI operation ownership and external writers still require migration; pack commits remain separate. |
 | #1269 | Standalone regeneration, conflict retries, prerequisite application and snapshot restoration share admission with explicit nested permits. | Cross-instance/process ownership and whole-operation recovery remain. |
 | #1270 | Direct service writes, journal recovery, trusted restoration and missing-file self-healing share admission. | CLI ownership, feature-specific writers, source/cache freshness and complete recovery remain. |
+| #1271 | Per-user directory leases exclude cooperating services/processes, with cancellation, alias reentry protection and off-actor sentinel I/O. | CLI operation scope, cached state, external editors and cross-UID writers remain distinct boundaries. |
 
 Admission now also holds a cooperative OS lease across service instances and
-processes for the same directory; external edits and stale cached state remain
-separate boundaries.
+processes for the same directory. CLI configuration apply now holds admission
+from source loading through reload; backup/restore also participate. CLI pack and
+collection operations, external edits and stale cached app state remain separate
+boundaries.
 The first migrated persistence journey now has interruption and failure tests.
 This is a useful foundation, not completion of Phase 1 or the program.
 

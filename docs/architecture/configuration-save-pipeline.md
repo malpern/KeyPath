@@ -81,8 +81,8 @@ same service fail instead of deadlocking. Permits expire with their operation.
 Queued cancellation is observed at admission before mutation. Once admitted,
 existing completion/recovery behavior remains unchanged.
 
-Each service retains its FIFO queue. Services targeting the same configuration
-directory also acquire a cooperative OS file lock, held through the admitted
+Each service retains its FIFO queue. Services running as the same macOS user
+and targeting the same configuration directory acquire a cooperative OS file lock, held through the admitted
 operation. Cross-process ordering is exclusive but not globally FIFO. Callers
 that compose trusted nested work still share the same service/permit owner. Direct service writers now acquire this gate too: collection/raw/repaired saves,
 initial creation, backup/fallback and journal recovery. Public signatures remain
@@ -142,7 +142,28 @@ the OS lock. File identity detects recursive callbacks through another service
 or a directory alias. Inherited contexts carry a lease that becomes inactive
 on release, allowing a child that outlives its operation to write later.
 
-This is cooperation between migrated writers, not protection against external
-editors. It also does not refresh cached source/pack state or hold admission over
+This is cooperation between migrated writers running as the same macOS user,
+not protection against external editors or custom-directory writes from another
+UID. Privileged helper callers do not use this gate. It also does not refresh cached source/pack state or hold admission over
 CLI work performed outside service calls. Those remaining ownership/freshness
 changes are necessary before claiming whole-operation cross-process safety.
+
+## CLI configuration ownership
+
+`ConfigFacade.applyConfiguration` admits before loading collections/custom rules
+and reconciling the leader preference, then retains admission through generation,
+validation, save and the reload callback. The nested service save receives the
+explicit permit. Dry-run generation also participates because it temporarily
+reconciles a shared preference. The default loaders read the facade's requested
+configuration directory rather than the singleton stores' default directory.
+
+CLI backup and restore hold the same directory lease through copying and optional
+reload. Backup is now an async API so lock contention does not block an actor;
+the CLI command syntax and output are unchanged. A callback attempting another
+apply, backup or restore is rejected before copying or staging preferences.
+
+This does not yet change reload-result semantics, make directory restore atomic,
+or include preference restoration in rejected-apply recovery. CLI pack/collection
+commands and feature-specific writers remain separate migration work. Backups
+remain copies of current disk state; this scope does not recover pending journals
+or refresh the app's cached state following a CLI restore.
