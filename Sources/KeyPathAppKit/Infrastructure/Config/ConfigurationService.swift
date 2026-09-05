@@ -275,37 +275,82 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws {
-        let newConfig = try await generateConfiguration(
-            ruleCollections: ruleCollections,
-            customRules: customRules
-        )
+        let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+        try await writeFileAsync(string: newConfig.content, to: configurationPath)
+        await publishSavedConfiguration(newConfig)
+    }
 
-        // VALIDATE BEFORE SAVING - prevent writing broken configs
-        AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
+    /// Persist the generated file and its two source stores as one recoverable
+    /// write set. The manager supplies its actual stores, which can differ from
+    /// this service's defaults in tests and isolated CLI workflows.
+    func saveRuleState(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        collectionStore: RuleCollectionStore, customStore: CustomRulesStore
+    ) async throws {
+        try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore)
+        let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+        let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+        let contents = try await [
+            "config": Data(newConfig.content.utf8),
+            "collections": collectionStore.encodedCollections(ruleCollections),
+            "customRules": customStore.encodedRules(customRules)
+        ]
+        try Task.checkCancellation()
+        let directory = URL(fileURLWithPath: configDirectory)
+        try await performRuleFileOperation {
+            try RecoverableRuleWrite.apply(files: files, contents: contents, directory: directory)
+        }
+        await publishSavedConfiguration(newConfig)
+    }
+
+    /// Run before loading source stores on startup. Refuse further rule writes
+    /// when recovery detects a corrupt journal or an unrelated external edit.
+    func recoverPendingRuleWrite(collectionStore: RuleCollectionStore, customStore: CustomRulesStore) async throws {
+        let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+        let directory = URL(fileURLWithPath: configDirectory)
+        let recovered = try await performRuleFileOperation {
+            try RecoverableRuleWrite.recover(files: files, directory: directory)
+        }
+        if recovered {
+            stateLock.withLock { currentConfiguration = nil }
+        }
+    }
+
+    private func ruleWriteFiles(collectionStore: RuleCollectionStore, customStore: CustomRulesStore) async -> [String: URL] {
+        await [
+            "config": URL(fileURLWithPath: configurationPath),
+            "collections": collectionStore.persistenceURL,
+            "customRules": customStore.persistenceURL
+        ]
+    }
+
+    private func performRuleFileOperation<T: Sendable>(_ operation: @escaping @Sendable () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            ioQueue.async {
+                do { try continuation.resume(returning: operation()) }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+
+    private func preparedConfiguration(ruleCollections: [RuleCollection], customRules: [CustomRule]) async throws -> KanataConfiguration {
+        let newConfig = try await generateConfiguration(ruleCollections: ruleCollections, customRules: customRules)
         let validation = await validateConfiguration(newConfig.content)
-
-        if !validation.isValid {
-            AppLogger.shared.log(
-                "❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))"
-            )
+        guard validation.isValid else {
             throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
         }
+        return newConfig
+    }
 
-        AppLogger.shared.log("✅ [ConfigService] Config validation passed")
-
-        try await writeFileAsync(string: newConfig.content, to: configurationPath)
-
+    private func publishSavedConfiguration(_ newConfig: KanataConfiguration) async {
         setCurrentConfiguration(newConfig)
-
-        // Notify observers on main actor
         let snapshot = observersSnapshot()
         let tasks = snapshot.map { observer in
             Task { @MainActor in await observer(newConfig) }
         }
-        for t in tasks {
-            await t.value
+        for task in tasks {
+            await task.value
         }
-
         AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(newConfig.keyMappings.count) mappings")
     }
 

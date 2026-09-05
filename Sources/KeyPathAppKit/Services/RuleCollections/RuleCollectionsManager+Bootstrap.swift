@@ -8,6 +8,14 @@ extension RuleCollectionsManager {
 
     /// Load rule collections and custom rules from persistent storage
     func bootstrap() async {
+        do {
+            try await configurationService.recoverPendingRuleWrite(
+                collectionStore: ruleCollectionStore, customStore: customRulesStore
+            )
+        } catch {
+            onError?("Could not recover the previous rule edit: \(error.localizedDescription)")
+            return
+        }
         // Restore keymap state first (before loading collections)
         restoreKeymapState()
 

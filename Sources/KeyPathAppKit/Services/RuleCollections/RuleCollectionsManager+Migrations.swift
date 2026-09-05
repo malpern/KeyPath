@@ -67,20 +67,19 @@ extension RuleCollectionsManager {
             // which can race with onRulesChanged reload and cause an error beep
             onBeforeSave?()
 
-            AppLogger.shared.log("🔄 [RuleCollections] Calling configurationService.saveConfiguration...")
+            AppLogger.shared.log("🔄 [RuleCollections] Calling configurationService.saveRuleState...")
             AppLogger.shared.log("🔄 [RuleCollections] Custom rules to save: \(customRules.map { "'\($0.input)' → '\($0.action.displayName)'" }.joined(separator: ", "))")
-            // IMPORTANT: Save config FIRST (validates before writing)
-            // Only persist to stores AFTER config is successfully written
-            // This prevents store/config mismatch if validation fails
-            try await configurationService.saveConfiguration(
+            // Validate before replacing the generated file and both source stores.
+            // The write journal restores the prior set if a persistence stage fails.
+            try await configurationService.saveRuleState(
                 ruleCollections: ruleCollections,
-                customRules: customRules
+                customRules: customRules,
+                collectionStore: ruleCollectionStore,
+                customStore: customRulesStore
             )
-            AppLogger.shared.log("✅ [RuleCollections] configurationService.saveConfiguration succeeded")
+            AppLogger.shared.log("✅ [RuleCollections] configurationService.saveRuleState succeeded")
 
-            // Config write succeeded - now persist to stores
-            try await ruleCollectionStore.saveCollections(ruleCollections)
-            try await customRulesStore.saveRules(customRules)
+            // The generated file and both stores are committed before notification.
             AppLogger.shared.log("✅ [RuleCollections] Stores persisted")
 
             // Notify observers and play success sound

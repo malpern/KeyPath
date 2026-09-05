@@ -11,7 +11,7 @@ completed. CLI apply/restore remain separate paths.
 | --- | --- | --- |
 | Generate and validate collection-backed configuration | `ConfigurationService` | `saveConfiguration` validates before its atomic write and updates the in-memory configuration and observers. |
 | Coordinate generated/raw configuration saves | `SaveCoordinator` | Suppresses the watcher, validates, snapshots the last good file, writes, classifies reload, and rolls the file back after rejection or failure. |
-| Persist rule and custom-rule source data | `RuleCollectionsManager` | Mutates in-memory state, generates/validates/writes config, then persists collection and custom-rule stores. Notifications precede its reload callback. These are separate writes, not an atomic multi-store transaction. |
+| Persist rule and custom-rule source data | `RuleCollectionsManager` | Mutates in-memory state and requests a recoverable config/source-store write from `ConfigurationService`. Notifications follow the file-set commit and precede reload. Runtime rollback and preferences remain separate. |
 | Reload the running engine | `ConfigReloadCoordinator` | Produces the four reload dispositions; `pending` means the write succeeded but the runtime is unavailable. |
 | Handle external file edits | `ConfigHotReloadService` | Validates and reloads changes that were not suppressed as internal writes. |
 | Create durable pre-edit backups | `ConfigBackupManager` | Used by explicit backup/recovery flows, not as an alternate writer. |
@@ -91,3 +91,9 @@ back to the original caller without another reload.
 their own partial rollback on false, so changing it on reload rejection before
 migrating multi-store recovery would create inconsistent state. This stage does
 not change notification timing or claim recovery after a partial store write.
+
+Collection file persistence now uses [recoverable rule writes](recoverable-rule-writes.md).
+It journals the generated file and both source stores, recovers before bootstrap
+loads them, and defers configuration observers until the file set commits. This
+does not yet change the collection Boolean's persistence-only meaning or couple
+engine rejection to source-store recovery.

@@ -206,12 +206,15 @@ actor RuleCollectionStore {
     func saveCollections(_ collections: [RuleCollection]) throws {
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let versioned = VersionedCollections(
-            schemaVersion: Self.currentSchemaVersion,
-            collections: collections
-        )
-        let data = try encoder.encode(versioned)
-        try data.write(to: fileURL, options: .atomic)
+        try encodedCollections(collections).write(to: fileURL, options: .atomic)
+    }
+
+    func encodedCollections(_ collections: [RuleCollection]) throws -> Data {
+        try encoder.encode(VersionedCollections(schemaVersion: Self.currentSchemaVersion, collections: collections))
+    }
+
+    var persistenceURL: URL {
+        fileURL
     }
 
     // MARK: - Helper Types
