@@ -214,7 +214,7 @@ public final class SimpleModsService {
                 lastError = "\(cause) Configuration recovery failed: \(backupError?.localizedDescription ?? "") \(fallbackError.localizedDescription)"
             case .notAttempted:
                 lastError = cause
-            case .restoredPreviousAppKeymapState, .appKeymapRecoveryFailed:
+            case .restoredPreviousAppKeymapState, .appKeymapRecoveryFailed, .restoredPreviousRuleState, .ruleStateRecoveryFailed:
                 // This editor uses raw-file saves, not the app-keymap transaction.
                 lastError = cause
             }

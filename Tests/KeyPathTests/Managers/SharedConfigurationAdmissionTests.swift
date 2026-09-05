@@ -90,7 +90,7 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
 
     func testTwoCoordinatorsShareAdmissionAcrossRejectedReload() async throws {
         try await withFixture { service, _, firstCoordinator in
-            let secondCoordinator = SaveCoordinator(configurationService: service, engineClient: TCPEngineClient())
+            let secondCoordinator = SaveCoordinator(configurationService: service)
             let entered = self.expectation(description: "first reload entered")
             let started = self.expectation(description: "second save requested")
             var resume: CheckedContinuation<Void, Never>?
@@ -382,7 +382,7 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
         try "(defcfg)\n(defsrc a)\n(deflayer base a)".write(toFile: service.configurationPath, atomically: true, encoding: .utf8)
         let manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service, keymapPreferences: preferences)
         manager.onRulesChanged = { ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil) }
-        let coordinator = SaveCoordinator(configurationService: service, engineClient: TCPEngineClient())
+        let coordinator = SaveCoordinator(configurationService: service)
         try await body(service, manager, coordinator)
     }
 }

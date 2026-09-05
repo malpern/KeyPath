@@ -317,9 +317,40 @@ public final class ConfigurationService: FileConfigurationProviding {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            let write = try await stageRuleState(
+                ruleCollections: ruleCollections, customRules: customRules,
+                collectionStore: collectionStore, customStore: customStore, mutationPermit: permit
+            )
+            do {
+                try Task.checkCancellation()
+                try await settleRuleWrite(write, commit: true, mutationPermit: permit)
+            } catch {
+                let cause = error
+                do { try await settleRuleWrite(write, commit: false, mutationPermit: permit) }
+                catch { throw RecoverableRuleWrite.WriteFailure(cause: cause, recoveryError: error) }
+                throw cause
+            }
+        }
+    }
+
+    struct RuleWrite: Sendable {
+        let pending: RecoverableRuleWrite.PendingWrite
+        let configuration: KanataConfiguration
+    }
+
+    /// Stage the generated configuration and both source stores without notifying
+    /// observers. The caller must retain admission through commit or recovery.
+    func stageRuleState(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        collectionStore: RuleCollectionStore, customStore: CustomRulesStore,
+        mutationPermit: ConfigurationOperationGate.Permit
+    ) async throws -> RuleWrite {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore, mutationPermit: permit)
-            let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+            try await recoverPendingAppKeymapWrite(mutationPermit: permit)
             let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            let before = try await snapshotRuleFiles(files)
+            let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
             let contents = try await [
                 "config": Data(newConfig.content.utf8),
                 "collections": collectionStore.encodedCollections(ruleCollections),
@@ -327,10 +358,33 @@ public final class ConfigurationService: FileConfigurationProviding {
             ]
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
-            try await performRuleFileOperation {
-                try RecoverableRuleWrite.apply(files: files, contents: contents, directory: directory)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory,
+                                               scope: .rules, expectedBefore: before)
             }
-            await publishSavedConfiguration(newConfig)
+            return RuleWrite(pending: pending, configuration: newConfig)
+        }
+    }
+
+    func settleRuleWrite(_ write: RuleWrite, commit: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await performRuleFileOperation {
+                if commit { try RecoverableRuleWrite.commit(write.pending) }
+                else { try RecoverableRuleWrite.rollback(write.pending) }
+            }
+            if commit { await publishSavedConfiguration(write.configuration) }
+            else { stateLock.withLock { currentConfiguration = nil } }
+        }
+    }
+
+    private func snapshotRuleFiles(_ files: [String: URL]) async throws -> [String: Data] {
+        try await performRuleFileOperation {
+            var snapshot: [String: Data] = [:]
+            for (role, url) in files {
+                do { snapshot[role] = try Data(contentsOf: url) }
+                catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {}
+            }
+            return snapshot
         }
     }
 
@@ -368,14 +422,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             try await recoverPendingRuleWrite(collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: permit)
             try await recoverPendingAppKeymapWrite(store: store, mutationPermit: permit)
             let files = await appKeymapWriteFiles(store: store)
-            let before = try await performRuleFileOperation {
-                var snapshot: [String: Data] = [:]
-                for (role, url) in files {
-                    do { snapshot[role] = try Data(contentsOf: url) }
-                    catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {}
-                }
-                return snapshot
-            }
+            let before = try await snapshotRuleFiles(files)
             let previous = try await store.loadForMutation()
             var keymaps = previous
             try mutate(&keymaps)

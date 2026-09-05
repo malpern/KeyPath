@@ -21,10 +21,8 @@ final class SaveCoordinatorTests: KeyPathTestCase {
             ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
             customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json"))
         )
-        let engine = TCPEngineClient()
         coordinator = SaveCoordinator(
             configurationService: configService,
-            engineClient: engine,
             configFileWatcher: nil
         )
     }
@@ -87,6 +85,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         var reloadCount = 0
         let result = await coordinator.saveMapping(input: "a", output: "c", ruleCollectionsManager: manager) {
             reloadCount += 1
+            if reloadCount > 1 { return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil) }
             return ReloadResult(
                 success: disposition == .applied,
                 response: nil,
@@ -96,15 +95,15 @@ final class SaveCoordinatorTests: KeyPathTestCase {
             )
         }
         XCTAssertEqual(result.reloadResult?.disposition, disposition, file: file, line: line)
-        XCTAssertEqual(reloadCount, 1, file: file, line: line)
         let saved = disposition == .applied || disposition == .pending
         XCTAssertEqual(result.success, saved, file: file, line: line)
+        XCTAssertEqual(reloadCount, saved ? 1 : 2, file: file, line: line)
         if saved {
             guard case .notAttempted = result.recoveryResult else {
                 return XCTFail("Successful saves must not claim recovery", file: file, line: line)
             }
         } else {
-            guard case .restoredPreviousConfig = result.recoveryResult else {
+            guard case .restoredPreviousRuleState = result.recoveryResult else {
                 return XCTFail("Rejected/failed reload must report restored file", file: file, line: line)
             }
         }
@@ -113,6 +112,9 @@ final class SaveCoordinatorTests: KeyPathTestCase {
             XCTAssertNotEqual(content, original, file: file, line: line)
         } else {
             XCTAssertEqual(content, original, file: file, line: line)
+            XCTAssertTrue(manager.customRules.isEmpty)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("CustomRules.json").path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("RuleCollections.json").path))
         }
     }
 
@@ -336,13 +338,114 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), backup)
     }
 
+    func testMappingCancellationRestoresSourcesAndRunsUncancelledRecovery() async throws {
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
+            customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json")),
+            configurationService: configService
+        )
+        manager.customRules = [manager.makeCustomRule(input: "a", output: "b")]
+        try await configService.saveRuleState(ruleCollections: [], customRules: manager.customRules,
+                                              collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
+        let before = try ruleFiles()
+        let oldRules = manager.customRules
+        var reloadCount = 0
+        var operation: Task<KeyPathAppKit.SaveResult, Never>?
+        operation = Task { @MainActor in
+            await self.coordinator.saveMapping(input: "c", output: "d", ruleCollectionsManager: manager) {
+                reloadCount += 1
+                if reloadCount == 1 { operation?.cancel() }
+                else {
+                    XCTAssertFalse(Task.isCancelled, "Recovery must survive caller cancellation")
+                    do {
+                        let restored = try self.ruleFiles()
+                        XCTAssertEqual(restored, before)
+                    } catch { XCTFail("Recovery files unavailable: \(error)") }
+                }
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+            }
+        }
+        let result = await operation!.value
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(result.error is CancellationError)
+        XCTAssertEqual(reloadCount, 2)
+        XCTAssertEqual(try ruleFiles(), before)
+        XCTAssertEqual(manager.customRules.map(\.id), oldRules.map(\.id))
+        guard case let .restoredPreviousRuleState(recovery) = result.recoveryResult else { return XCTFail("Missing complete recovery") }
+        XCTAssertEqual(recovery?.disposition, .applied)
+    }
+
+    func testMappingExternalEditPreservesJournalAndDoesNotRegenerateSnapshot() async throws {
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
+            customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json")),
+            configurationService: configService
+        )
+        try await configService.saveRuleState(ruleCollections: [], customRules: [],
+                                              collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
+        var reloads = 0
+        var externalRevision: [String: Data]?
+        let result = await coordinator.saveMapping(input: "a", output: "b", ruleCollectionsManager: manager) {
+            reloads += 1
+            do {
+                try "external edit".write(toFile: self.configService.configurationPath, atomically: true, encoding: .utf8)
+                externalRevision = try self.ruleFiles()
+            } catch { XCTFail("Could not inject external edit: \(error)") }
+            return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
+        }
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(reloads, 1, "Do not reload a conflicted revision as recovery")
+        guard case .ruleStateRecoveryFailed = result.recoveryResult else { return XCTFail("Missing recovery conflict") }
+        XCTAssertEqual(try ruleFiles(), externalRevision)
+        XCTAssertTrue(manager.customRules.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(tempDir).path))
+    }
+
+    func testMappingRetainsExistingCollectionConflictChoiceBeforeSingleReload() async {
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
+            customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json")),
+            configurationService: configService
+        )
+        var first = RuleCollection(name: "First", summary: "First", category: .custom,
+                                   mappings: [KeyMapping(input: "a", action: .keystroke(key: "b")),
+                                              KeyMapping(input: "a", action: .keystroke(key: "b"))], isEnabled: true)
+        first.configuration = .tapHoldPicker(TapHoldPickerConfig(inputKey: "a", tapOptions: [], holdOptions: [], selectedTapOutput: "b", selectedHoldOutput: "lctl"))
+        var second = RuleCollection(name: "Second", summary: "Second", category: .custom, mappings: [], isEnabled: true)
+        second.configuration = .tapHoldPicker(TapHoldPickerConfig(inputKey: "a", tapOptions: [], holdOptions: [], selectedTapOutput: "c", selectedHoldOutput: "lalt"))
+        manager.ruleCollections = [first, second]
+        var choices = 0
+        manager.onMappingConflictResolution = { _ in
+            choices += 1
+            return second.id
+        }
+        var reloads = 0
+        let result = await coordinator.saveMapping(input: "d", output: "e", ruleCollectionsManager: manager) {
+            reloads += 1
+            return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
+        }
+        XCTAssertTrue(result.success)
+        XCTAssertEqual(choices, 1)
+        XCTAssertEqual(manager.ruleCollections.first?.mappings.count, 1, "Keep the existing pre-save mapping deduplication")
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(manager.ruleCollections.first { $0.id == second.id }?.isEnabled, false)
+        let stored = await manager.ruleCollectionStore.loadCollections()
+        XCTAssertEqual(stored.first { $0.id == second.id }?.isEnabled, false)
+    }
+
+    private func ruleFiles() throws -> [String: Data] {
+        try Dictionary(uniqueKeysWithValues: ["keypath.kbd", "RuleCollections.json", "CustomRules.json"].map {
+            try ($0, Data(contentsOf: tempDir.appendingPathComponent($0)))
+        })
+    }
+
     // MARK: - Rollback Fallback Tests
 
     func testGeneratedSaveReportsMinimalFallbackWhenPreviousFileIsEmpty() async throws {
         try await assertRecoveryOutcome(mapping: false, blockWrites: false)
     }
 
-    func testMappingSaveReportsMinimalFallbackWhenPreviousFileIsEmpty() async throws {
+    func testMappingSaveRestoresExactEmptyFileAndSources() async throws {
         try await assertRecoveryOutcome(mapping: true, blockWrites: false)
     }
 
@@ -350,7 +453,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         try await assertRecoveryOutcome(mapping: false, blockWrites: true)
     }
 
-    func testMappingSavePreservesBothRecoveryErrorsAndReleasesOperation() async throws {
+    func testMappingSaveReportsJournalRecoveryFailureAndReleasesOperation() async throws {
         try await assertRecoveryOutcome(mapping: true, blockWrites: true)
     }
 
@@ -388,6 +491,29 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertNotNil(result.error)
         XCTAssertEqual(result.reloadResult?.errorMessage, "injected rejection")
         XCTAssertEqual(result.reloadResult?.disposition, .rejected)
+        if mapping {
+            if blockWrites {
+                XCTAssertEqual(reloadCount, 1)
+                guard case .ruleStateRecoveryFailed = result.recoveryResult else { return XCTFail("Missing journal recovery failure") }
+                XCTAssertTrue(result.error?.localizedDescription.contains("Recovery needs attention") == true)
+                XCTAssertEqual(try String(contentsOf: tempDir, encoding: .utf8), "blocked")
+                try FileManager.default.removeItem(at: tempDir)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                try original.write(to: url, atomically: true, encoding: .utf8)
+                let next = await coordinator.saveGeneratedConfig(content: updated) {
+                    ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+                }
+                XCTAssertTrue(next.success)
+            } else {
+                XCTAssertEqual(reloadCount, 2)
+                guard case let .restoredPreviousRuleState(recoveryReload) = result.recoveryResult else { return XCTFail("Missing exact rule revision recovery") }
+                XCTAssertEqual(recoveryReload?.disposition, .rejected)
+                XCTAssertTrue(result.error?.localizedDescription.contains("Recovery needs attention") == true)
+                XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
+                XCTAssertTrue(manager.customRules.isEmpty)
+            }
+            return
+        }
         XCTAssertEqual(reloadCount, 1, "Recovery must not issue a second reload")
         if blockWrites {
             guard case let .failed(backupError, fallbackError) = result.recoveryResult else {
