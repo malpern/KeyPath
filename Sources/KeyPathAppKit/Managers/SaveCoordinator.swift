@@ -198,16 +198,7 @@ final class SaveCoordinator {
                         saveStatus = .failed(error.localizedDescription)
                         return .failure(error)
                     }
-                    var result: SaveResult
-                    var conflictDepth = 0
-                    while true {
-                        result = await saveRuleState(manager: ruleCollectionsManager, mutationPermit: permit, reloadHandler: reloadHandler)
-                        guard !result.success, result.reloadResult == nil,
-                              let error = result.error,
-                              await ruleCollectionsManager.resolveMappingConflictInMemory(error, depth: conflictDepth, mutationPermit: permit)
-                        else { break }
-                        conflictDepth += 1
-                    }
+                    let result = await saveRuleState(manager: ruleCollectionsManager, mutationPermit: permit, reloadHandler: reloadHandler)
                     if result.success {
                         NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
                         playSuccessSound()
@@ -235,50 +226,63 @@ final class SaveCoordinator {
     func saveRuleState(
         manager: RuleCollectionsManager,
         mutationPermit: ConfigurationOperationGate.Permit,
-        reloadHandler: @escaping () async -> ReloadResult
+        packRecord: InstalledPackTracker.RecordChange? = nil,
+        reloadHandler: (() async -> ReloadResult)?
     ) async -> SaveResult {
         do {
             return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
-                var staged: ConfigurationService.RuleWrite?
-                var reload: ReloadResult?
-                do {
-                    manager.dedupeRuleCollectionsInPlace()
-                    staged = try await configurationService.stageRuleState(
-                        ruleCollections: manager.ruleCollections, customRules: manager.customRules,
-                        collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
-                        mutationPermit: permit
-                    )
-                    try Task.checkCancellation()
-                    playWriteSound()
-                    let result = await reloadHandler()
-                    reload = result
-                    try Task.checkCancellation()
-                    guard result.disposition == .applied || result.disposition == .pending else {
-                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "The rule configuration could not be applied"))
-                    }
-                    guard let staged else { throw AppConfigError.validationUnavailable }
-                    try await configurationService.settleRuleWrite(staged, commit: true, mutationPermit: permit)
-                    saveStatus = .success
-                    scheduleStatusReset()
-                    return .success(mappings: manager.enabledMappings(), reloadResult: result)
-                } catch {
-                    var recovery: SaveRecoveryResult = .notAttempted
-                    var reportedError: Error = error
-                    if let staged {
-                        do {
-                            try await configurationService.settleRuleWrite(staged, commit: false, mutationPermit: permit)
-                            let recoveryReload = reload == nil ? nil : await Task { @MainActor in await reloadHandler() }.value
-                            recovery = .restoredPreviousRuleState(reloadResult: recoveryReload)
-                            if let recoveryReload, recoveryReload.disposition == .failed || recoveryReload.disposition == .rejected {
-                                reportedError = SaveApplicationError(cause: error, recovery: recoveryReload.errorMessage ?? "Prior rule files were restored, but runtime recovery failed")
-                            }
-                        } catch let recoveryError {
-                            recovery = .ruleStateRecoveryFailed(recoveryError)
-                            reportedError = SaveApplicationError(cause: error, recovery: recoveryError.localizedDescription)
+                saveStatus = .saving
+                var conflictDepth = 0
+                while true {
+                    var staged: ConfigurationService.RuleWrite?
+                    var reload: ReloadResult?
+                    do {
+                        manager.dedupeRuleCollectionsInPlace()
+                        manager.onBeforeSave?()
+                        staged = try await configurationService.stageRuleState(
+                            ruleCollections: manager.ruleCollections, customRules: manager.customRules,
+                            collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
+                            mutationPermit: permit, packRecord: packRecord
+                        )
+                        try Task.checkCancellation()
+                        playWriteSound()
+                        let result = await reloadHandler?()
+                        reload = result
+                        try Task.checkCancellation()
+                        if let result, result.disposition != .applied, result.disposition != .pending {
+                            throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "The rule configuration could not be applied"))
                         }
+                        guard let staged else { throw AppConfigError.validationUnavailable }
+                        try await configurationService.settleRuleWrite(staged, commit: true, mutationPermit: permit)
+                        saveStatus = .success
+                        scheduleStatusReset()
+                        return SaveResult(success: true, error: nil, mappings: manager.enabledMappings(),
+                                          reloadResult: result, recoveryResult: .notAttempted)
+                    } catch {
+                        if staged == nil, reload == nil,
+                           await manager.resolveMappingConflictInMemory(error, depth: conflictDepth, mutationPermit: permit)
+                        {
+                            conflictDepth += 1
+                            continue
+                        }
+                        var recovery: SaveRecoveryResult = .notAttempted
+                        var reportedError: Error = error
+                        if let staged {
+                            do {
+                                try await configurationService.settleRuleWrite(staged, commit: false, mutationPermit: permit)
+                                let recoveryReload = reload == nil ? nil : await Task { @MainActor in await reloadHandler?() }.value
+                                recovery = .restoredPreviousRuleState(reloadResult: recoveryReload)
+                                if let recoveryReload, recoveryReload.disposition == .failed || recoveryReload.disposition == .rejected {
+                                    reportedError = SaveApplicationError(cause: error, recovery: recoveryReload.errorMessage ?? "Prior rule files were restored, but runtime recovery failed")
+                                }
+                            } catch let recoveryError {
+                                recovery = .ruleStateRecoveryFailed(recoveryError)
+                                reportedError = SaveApplicationError(cause: error, recovery: recoveryError.localizedDescription)
+                            }
+                        }
+                        saveStatus = .failed(reportedError.localizedDescription)
+                        return .failure(reportedError, reloadResult: reload, recoveryResult: recovery)
                     }
-                    saveStatus = .failed(reportedError.localizedDescription)
-                    return .failure(reportedError, reloadResult: reload, recoveryResult: recovery)
                 }
             }
         } catch { return .failure(error) }

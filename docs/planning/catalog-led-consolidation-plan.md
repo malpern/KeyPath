@@ -269,6 +269,7 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1274 | App-specific edits retain a three-file journal through runtime apply/recovery, preserve hand-written files, and refresh app context after immediate/deferred reload. | Global/pack recovery, mixed app/global operations and revision-aware watching remain. |
 | #1275 | Simple Modifications transforms captured revisions through SaveCoordinator, preserves external edits, retains reload/recovery outcomes and serializes debounce settlement. | Legacy raw syntax/ownership limitations and full runtime recovery remain. |
 | #1277 | Pack metadata writes share PackInstaller admission; deferred repair reads durable state without inheriting a live operation lease. | Full pack transaction/recovery and ownership policy remain. |
+| #1278 | Mapper saves retain config and both source stores through reload/recovery, restoring the manager snapshot without regenerating. | Other collection mutations, pack transactions, preferences and watching remain. |
 
 Admission now also holds a cooperative OS lease across service instances and
 processes for the same directory. CLI configuration apply now holds admission
@@ -367,7 +368,7 @@ CI maintenance: #1276 increased the review action's turn allowance after repeate
 `error_max_turns` failures. It was merged separately; #1275 then passed actual
 review under that workflow. Both are included in the signed/notarized #1275 deploy.
 
-### Mapper rule-state recovery in progress
+### Mapper rule-state recovery merged in #1278
 
 The mapper now keeps the configuration and both source stores recoverable through
 runtime classification in SaveCoordinator. Failure restores the exact file set
@@ -376,3 +377,10 @@ Existing rule and collection conflict choices are shared as in-memory preparatio
 the mapper no longer invokes the legacy immediate-commit save before reloading.
 External revision conflicts preserve files and the journal rather than regenerating
 a snapshot over them. Other collection mutators and pack-wide recovery remain open.
+
+### Custom-rule pack transactions in progress
+
+Custom-rule installs prepare the complete batch before persistence and retain a
+four-file journal including installed-packs.json through runtime classification.
+Startup rule recovery recognizes this scope. System/collection-backed packs,
+removal, quick-setting changes, and preference/snapshot transactions remain open.

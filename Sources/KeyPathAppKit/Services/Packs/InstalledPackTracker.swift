@@ -36,7 +36,7 @@ public actor InstalledPackTracker {
     public static let shared = InstalledPackTracker()
 
     private let fileURL: URL
-    private var writeFile: @Sendable (Data, URL) throws -> Void = { try $0.write(to: $1, options: [.atomic]) }
+    private var writeFile: @Sendable (Data, URL) throws -> Void = { try RecoverableRuleWrite.durableWrite($0, $1) }
     private var lastReadableRecords: [String: InstalledPackRecord] = [:]
 
     public init(fileURL: URL? = nil) {
@@ -69,6 +69,48 @@ public actor InstalledPackTracker {
     /// Call under configuration admission before staging source changes.
     func validateForMutation() throws {
         lastReadableRecords = try readRecords()
+    }
+
+    var persistenceURL: URL {
+        fileURL
+    }
+
+    struct RecordChange: Sendable {
+        let tracker: InstalledPackTracker
+        let record: InstalledPackRecord
+    }
+
+    struct PreparedRecordUpdate: Sendable {
+        let tracker: InstalledPackTracker
+        let fileURL: URL
+        let before: Data?
+        let contents: Data
+        let previousRecords: [String: InstalledPackRecord]
+        let records: [String: InstalledPackRecord]
+        let writeFile: @Sendable (Data, URL) throws -> Void
+    }
+
+    /// Build a metadata revision without writing or notifying. The configuration
+    /// transaction compares this preimage before staging it with the rule files.
+    func prepareUpsert(_ record: InstalledPackRecord) throws -> PreparedRecordUpdate {
+        let before: Data?
+        do { before = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { before = nil }
+        let previous = try decodeRecords(before)
+        var updated = previous
+        updated[record.packID] = record
+        return try PreparedRecordUpdate(tracker: self, fileURL: fileURL, before: before,
+                                        contents: encodedRecords(updated), previousRecords: previous,
+                                        records: updated, writeFile: writeFile)
+    }
+
+    func publishCommittedUpdate(_ update: PreparedRecordUpdate) async {
+        lastReadableRecords = update.records
+        await postChangeNotification()
+    }
+
+    func restorePublishedUpdate(_ update: PreparedRecordUpdate) {
+        lastReadableRecords = update.previousRecords
     }
 
     // MARK: - Public API
@@ -160,9 +202,21 @@ public actor InstalledPackTracker {
         catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
             return [:]
         }
+        return try decodeRecords(data)
+    }
+
+    private func decodeRecords(_ data: Data?) throws -> [String: InstalledPackRecord] {
+        guard let data else { return [:] }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([String: InstalledPackRecord].self, from: data)
+    }
+
+    private func encodedRecords(_ records: [String: InstalledPackRecord]) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(records)
     }
 
     private func persist(_ records: [String: InstalledPackRecord]) throws {
@@ -172,10 +226,7 @@ public actor InstalledPackTracker {
             at: parent, withIntermediateDirectories: true
         )
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(records)
+        let data = try encodedRecords(records)
 
         try writeFile(data, fileURL)
         lastReadableRecords = records

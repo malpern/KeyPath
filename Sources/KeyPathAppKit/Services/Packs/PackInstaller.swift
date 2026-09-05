@@ -59,6 +59,28 @@ public final class PackInstaller {
 
     // MARK: - Public API
 
+    /// Recover before reading installed state, including metadata-only operations
+    /// that would otherwise overwrite the pending transaction's record revision.
+    func recoverAndValidateState(manager: RuleCollectionsManager, tracker: InstalledPackTracker,
+                                 permit: ConfigurationOperationGate.Permit) async throws
+    {
+        let recovered = try await manager.configurationService.recoverPendingRuleWrite(
+            collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
+            mutationPermit: permit, installedPackTracker: tracker
+        )
+        if recovered {
+            let collections = await manager.ruleCollectionStore.loadCollectionsDetailed()
+            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
+                throw InstallError.saveFailed("Recovered rule collections could not be read completely")
+            }
+            let rules = try await manager.customRulesStore.loadForMutation()
+            manager.ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
+            manager.customRules = rules
+            manager.refreshLayerIndicatorState()
+        }
+        try await tracker.validateForMutation()
+    }
+
     /// Change only a visual capability's installed record. Legacy Rules toggles
     /// use this narrower operation; catalog installation still enforces its
     /// dependency/conflict gates before entering here. Nonvisual packs must use install/uninstall.
@@ -68,9 +90,9 @@ public final class PackInstaller {
         manager: RuleCollectionsManager, installedPackTracker: InstalledPackTracker = .shared,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws -> InstalledPackRecord? {
-        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             guard pack.visualOnly else { throw InstallError.saveFailed("This operation requires a visual-only pack") }
-            try await installedPackTracker.validateForMutation()
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             let previous = await installedPackTracker.record(for: pack.id)
             let record: InstalledPackRecord?
             if enabled {
@@ -103,13 +125,9 @@ public final class PackInstaller {
         installedPackTracker: InstalledPackTracker = .shared
     ) async throws -> InstalledPackRecord? {
         try await manager.configurationService.operationGate.withOperation { @MainActor permit in
-            try await installedPackTracker.validateForMutation()
+            try await self.recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             if let existing = await installedPackTracker.record(for: pack.id) { return existing }
             guard let collectionID = pack.associatedCollectionID else { return nil }
-            try await manager.configurationService.recoverPendingRuleWrite(
-                collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
-                mutationPermit: permit
-            )
             let loaded = await manager.ruleCollectionStore.loadCollectionsDetailed()
             guard !loaded.wasFullReset, loaded.failedCollectionNames.isEmpty else {
                 throw InstallError.saveFailed("Rule collections could not be read completely")
@@ -156,7 +174,7 @@ public final class PackInstaller {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws -> InstalledPackRecord {
         try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
-            try await installedPackTracker.validateForMutation()
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             AppLogger.shared.log(
                 "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
             )
@@ -314,61 +332,33 @@ public final class PackInstaller {
                 return record
             }
 
-            // Build CustomRule entries from templates.
+            // Prepare the entire custom-rule pack before writing. The metadata and
+            // all rules remain one recoverable revision through runtime application.
             let ruleStateSnapshot = manager.snapshotRuleState()
-            let previousInstallRecord = await installedPackTracker.record(for: pack.id)
             let rules = renderBindings(for: pack, quickSettings: resolvedSettings)
-
-            // Append rules in one batch: use skipReload=true for all but the
-            // last, so we only regenerate the config file once at the end.
-            // Callers that chain an immediate edit after install can pass
-            // `skipFinalReload: true` to suppress even the last reload, so a
-            // followup `updateTapHold` fires exactly one reload for the
-            // combined result (and doesn't trip the TCP reload cooldown).
             for (index, rule) in rules.enumerated() {
-                let isLast = (index == rules.count - 1)
-                let suppressReload = !isLast || skipFinalReload
-                let ok = await manager.saveCustomRule(rule, skipReload: suppressReload, mutationPermit: permit)
-                if !ok {
-                    AppLogger.shared.log(
-                        "❌ [PackInstaller] Failed to save rule \(index + 1)/\(rules.count) for pack '\(pack.id)'"
-                    )
-                    // Roll back: remove whatever got added so far.
-                    await rollbackPartialInstall(packID: pack.id, manager: manager, mutationPermit: permit)
-                    throw InstallError.saveFailed("rule \(index + 1) of \(rules.count) could not be saved")
+                guard await manager.updateCustomRuleInMemory(rule, mutationPermit: permit) else {
+                    manager.ruleCollections = ruleStateSnapshot.collections
+                    manager.customRules = ruleStateSnapshot.customRules
+                    manager.refreshLayerIndicatorState()
+                    throw InstallError.saveFailed("rule \(index + 1) of \(rules.count) could not be prepared")
                 }
             }
-
-            // Record the install.
-            let record = InstalledPackRecord(
-                packID: pack.id,
-                version: pack.version,
-                installedAt: Date(),
-                quickSettingValues: resolvedSettings
+            let record = InstalledPackRecord(packID: pack.id, version: pack.version,
+                                             installedAt: Date(), quickSettingValues: resolvedSettings)
+            let result = await SaveCoordinator(configurationService: manager.configurationService).saveRuleState(
+                manager: manager, mutationPermit: permit,
+                packRecord: .init(tracker: installedPackTracker, record: record),
+                reloadHandler: skipFinalReload ? nil : manager.onRulesChanged
             )
-            do {
-                try await installedPackTracker.upsert(record)
-            } catch {
-                AppLogger.shared.errorUnlessQuietTest(
-                    "❌ [PackInstaller] Could not persist install record for '\(pack.name)'; restoring previous state"
-                )
-                let installRecordRestored = await restoreInstallRecord(
-                    previousInstallRecord,
-                    packID: pack.id,
-                    installedPackTracker: installedPackTracker
-                )
-                let rollbackApplied = await manager.rollbackToSnapshot(
-                    ruleStateSnapshot,
-                    userMessage: "Could not record this pack installation. Your previous rule state was restored.",
-                    mutationPermit: permit
-                )
-                guard rollbackApplied, installRecordRestored else {
-                    throw InstallError.saveFailed(
-                        "installed-pack record could not be saved and the previous state could not be fully restored"
-                    )
-                }
-                throw error
+            guard result.success else {
+                manager.ruleCollections = ruleStateSnapshot.collections
+                manager.customRules = ruleStateSnapshot.customRules
+                manager.refreshLayerIndicatorState()
+                if result.error is CancellationError { throw CancellationError() }
+                throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack installation could not be committed")
             }
+            NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
@@ -386,7 +376,7 @@ public final class PackInstaller {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
         try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
-            try await installedPackTracker.validateForMutation()
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
 
             // Visual-only packs just clear the tracker record; no kanata
@@ -574,7 +564,7 @@ public final class PackInstaller {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
         try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
-            try await installedPackTracker.validateForMutation()
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             guard let pack = PackRegistry.pack(id: packID) else {
                 throw InstallError.saveFailed("pack not found in registry: \(packID)")
             }
@@ -1134,23 +1124,6 @@ public final class PackInstaller {
         guard !manager.ruleCollections.contains(where: { $0.id == id }) else { return }
         if let catalogCollection = catalog.first(where: { $0.id == id }) {
             manager.ruleCollections.append(catalogCollection)
-        }
-    }
-
-    /// Remove any rules already committed for this pack id. Best-effort —
-    /// used when an install fails partway through.
-    private func rollbackPartialInstall(
-        packID: String,
-        manager: RuleCollectionsManager,
-        mutationPermit: ConfigurationOperationGate.Permit
-    ) async {
-        let current = await manager.snapshotCurrentRules()
-        let partial = current.filter { $0.packSource == packID }
-        AppLogger.shared.log(
-            "↩️ [PackInstaller] Rolling back \(partial.count) rule(s) after failed install of '\(packID)'"
-        )
-        for rule in partial {
-            await manager.removeCustomRule(id: rule.id, mutationPermit: mutationPermit)
         }
     }
 }
