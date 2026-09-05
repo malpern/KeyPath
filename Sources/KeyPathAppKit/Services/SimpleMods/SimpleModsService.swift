@@ -23,8 +23,12 @@ public final class SimpleModsService {
     @ObservationIgnored private var applyDebounceTask: Task<Void, Never>?
     @ObservationIgnored private let debounceDelay: TimeInterval = 0.3
 
-    /// Apply pipeline dependencies (will be injected)
-    @ObservationIgnored private var kanataManager: RuntimeCoordinator?
+    typealias EditTransform = @MainActor @Sendable (String) throws -> String
+    typealias ApplyEdit = @MainActor (@escaping EditTransform) async -> SaveResult
+    @ObservationIgnored private var applyEdit: ApplyEdit?
+    @ObservationIgnored private var loadedContent: String?
+    @ObservationIgnored private var editRevision = 0
+    private(set) var lastSaveResult: SaveResult?
 
     public init(configPath: String) {
         self.configPath = configPath
@@ -32,17 +36,28 @@ public final class SimpleModsService {
         writer = SimpleModsWriter(configPath: configPath)
     }
 
-    /// Set dependencies for apply pipeline
-    func setDependencies(
-        kanataManager: RuntimeCoordinator?
-    ) {
-        self.kanataManager = kanataManager
+    convenience init(configPath: String, applyEdit: @escaping ApplyEdit) {
+        self.init(configPath: configPath)
+        self.applyEdit = applyEdit
+    }
+
+    /// Connect the editor to the existing runtime save owner.
+    func setDependencies(kanataManager: RuntimeCoordinator?) {
+        let path = configPath
+        applyEdit = { [weak kanataManager] transform in
+            guard let kanataManager else {
+                return .failure(KeyPathError.configuration(.loadFailed(reason: "Configuration service unavailable")))
+            }
+            return await kanataManager.editConfiguration(at: path, transform: transform)
+        }
     }
 
     /// Load current mappings from config
     public func load() throws {
         AppLogger.shared.log("📖 [SimpleMods] Loading mappings from config: \(configPath)")
-        let (_, allMappings, detectedConflicts) = try parser.parse()
+        let content = try String(contentsOfFile: configPath, encoding: .utf8)
+        let (_, allMappings, detectedConflicts) = try parser.parse(content: content)
+        loadedContent = content
         conflicts = detectedConflicts
 
         AppLogger.shared.log("📖 [SimpleMods] Found \(allMappings.count) installed mapping(s)")
@@ -90,11 +105,7 @@ public final class SimpleModsService {
         availablePresets.removeAll { $0.fromKey == fromKey && $0.toKey == toKey }
 
         // Apply changes
-        applyDebounceTask?.cancel()
-        applyDebounceTask = Task {
-            try? await Task.sleep(for: .seconds(debounceDelay))
-            await applyChanges()
-        }
+        scheduleApply()
     }
 
     /// Remove a mapping from the config entirely
@@ -112,11 +123,7 @@ public final class SimpleModsService {
         }
 
         // Apply changes
-        applyDebounceTask?.cancel()
-        applyDebounceTask = Task {
-            try? await Task.sleep(for: .seconds(debounceDelay))
-            await applyChanges()
-        }
+        scheduleApply()
     }
 
     /// Toggle a mapping on/off with instant apply
@@ -133,218 +140,85 @@ public final class SimpleModsService {
         isApplying = true
 
         // Debounce apply
-        applyDebounceTask?.cancel()
+        scheduleApply()
+    }
+
+    private func scheduleApply() {
+        editRevision += 1
+        isApplying = true
+        let previous = applyDebounceTask
+        previous?.cancel()
         applyDebounceTask = Task {
             try? await Task.sleep(for: .seconds(debounceDelay))
+            // Cancelled queued edits still preserve the settlement chain.
+            await previous?.value
+            guard !Task.isCancelled else { return }
             await applyChanges()
         }
     }
 
     #if DEBUG
         func flushPendingApplyForTesting() async {
-            applyDebounceTask?.cancel()
-            applyDebounceTask = nil
-            await applyChanges()
+            let previous = applyDebounceTask
+            previous?.cancel()
+            let task = Task {
+                await previous?.value
+                guard !Task.isCancelled else { return }
+                await applyChanges()
+            }
+            applyDebounceTask = task
+            await task.value
         }
     #endif
 
-    /// Apply current mappings to config
     private func applyChanges() async {
         guard !Task.isCancelled else { return }
-        defer {
-            isApplying = false
+        let revision = editRevision
+        let desiredMappings = installedMappings
+        let expectedContent = loadedContent
+        var renderedContent: String?
+        let writer = writer
+        let result: SaveResult = if let applyEdit, let expectedContent {
+            await applyEdit { content in
+                guard content == expectedContent else {
+                    throw KeyPathError.configuration(.loadFailed(reason: "The configuration changed outside this editor. Reload mappings before trying again."))
+                }
+                let rendered = try writer.renderBlock(mappings: desiredMappings, in: content)
+                renderedContent = rendered
+                return rendered
+            }
+        } else {
+            .failure(KeyPathError.configuration(.loadFailed(reason: "Load the configuration and connect its save service before editing mappings.")))
         }
-
-        do {
-            // Generate effective config
-            let effectiveContent = try writer.generateEffectiveConfig()
-
-            // Validate config
-            guard !Task.isCancelled else { return }
-            AppLogger.shared.log("🔍 [SimpleMods] Validating effective config (pre-write)...")
-            let validation = await validateConfig(effectiveContent)
-            guard !Task.isCancelled else { return }
-            if !validation.isValid {
-                AppLogger.shared.log(
-                    "❌ [SimpleMods] Pre-write validation failed with \(validation.errors.count) error(s):"
-                )
-                for (idx, error) in validation.errors.enumerated() {
-                    AppLogger.shared.log("   Error \(idx + 1): \(error)")
-                }
-                // Revert mappings
-                let beforeCount = installedMappings.count
-                try? load()
-                let afterCount = installedMappings.count
-
-                // Format detailed error message
-                let errorDetails = validation.errors.enumerated().map { "\($0.offset + 1). \($0.element)" }
-                    .joined(separator: "\n")
-                lastError = "Configuration validation failed"
-                lastRollbackReason = "Pre-write validation failed"
-                lastRollbackDetails = "\(validation.errors.count) error(s) detected:\n\(errorDetails)"
-
-                if beforeCount != afterCount {
-                    AppLogger.shared.log(
-                        "↩️ [SimpleMods] Rolled back from \(beforeCount) to \(afterCount) mapping(s) due to validation failure"
-                    )
-                }
-                return
-            }
-            AppLogger.shared.log("✅ [SimpleMods] Pre-write validation passed")
-
-            // Snapshot original file for rollback
-            let originalContent: String? = {
-                if Foundation.FileManager().fileExists(atPath: configPath) {
-                    return try? String(contentsOfFile: configPath, encoding: .utf8)
-                }
-                return nil
-            }()
-
-            // Write block with only installed mappings
-            try writer.writeBlock(mappings: installedMappings)
-            AppLogger.shared.log(
-                "✅ [SimpleMods] Wrote \(installedMappings.count) mapping(s) to sentinel block"
-            )
-
-            // Post-write CLI validation on the actual file to catch any syntax issues immediately
-            if let manager = kanataManager {
-                AppLogger.shared.log("🔍 [SimpleMods] Post-write CLI validation on actual file...")
-                let postWriteValidation = await manager.validateConfigFile()
-                if !postWriteValidation.isValid {
-                    AppLogger.shared.log(
-                        "❌ [SimpleMods] Post-write CLI validation failed with \(postWriteValidation.errors.count) error(s):"
-                    )
-                    for (idx, error) in postWriteValidation.errors.enumerated() {
-                        AppLogger.shared.log("   Error \(idx + 1): \(error)")
-                    }
-
-                    // Track mapping count before rollback
-                    let beforeCount = installedMappings.count
-
-                    // Roll back file conten
-                    if let original = originalContent {
-                        try original.write(toFile: configPath, atomically: true, encoding: .utf8)
-                        AppLogger.shared.log("↩️ [SimpleMods] Rolled back config file to original content")
-                    }
-                    try? load()
-                    let afterCount = installedMappings.count
-
-                    // Format detailed error message with diagnostic info
-                    let errorDetails = postWriteValidation.errors.enumerated().map {
-                        "\($0.offset + 1). \($0.element)"
-                    }.joined(separator: "\n")
-                    let diagnosticInfo = """
-                    Config file: \(configPath)
-                    Mappings before: \(beforeCount)
-                    Mappings after rollback: \(afterCount)
-                    Validation errors:
-                    \(errorDetails)
-                    """
-
-                    lastError = "Configuration validation failed"
-                    lastRollbackReason = "Post-write CLI validation failed"
-                    lastRollbackDetails = diagnosticInfo
-
-                    if beforeCount != afterCount {
-                        AppLogger.shared.log(
-                            "↩️ [SimpleMods] Rolled back from \(beforeCount) to \(afterCount) mapping(s) due to validation failure"
-                        )
-                    }
-                    AppLogger.shared.log("❌ [SimpleMods] Post-write validation failed - changes rolled back")
-                    return
-                }
-                AppLogger.shared.log("✅ [SimpleMods] Post-write CLI validation passed")
-            }
-
-            // Reload Kanata via manager
-            if let manager = kanataManager {
-                AppLogger.shared.log("🔄 [SimpleMods] Triggering Kanata config reload...")
-                _ = await manager.triggerConfigReload()
-                AppLogger.shared.log("✅ [SimpleMods] Config reload triggered")
-                // Ensure any previous configuration diagnostics are cleared
-                manager.clearDiagnostics()
-            }
-
-            // Health check
-            if let manager = kanataManager {
-                AppLogger.shared.log("🏥 [SimpleMods] Health check after reload...")
-                try? await Task.sleep(for: .seconds(1)) // 1s
-
-                let context = await manager.inspectSystemContext()
-                let isHealthy = context.services.kanataRunning
-
-                if !isHealthy {
-                    AppLogger.shared.log("⚠️ [SimpleMods] Health check failed - Kanata not running")
-                    // Track mapping count before rollback
-                    let beforeCount = installedMappings.count
-                    // Rollback
-                    try? load()
-                    let afterCount = installedMappings.count
-
-                    lastError = "Service health check failed"
-                    lastRollbackReason = "Kanata service stopped after config reload"
-                    lastRollbackDetails = """
-                    Kanata service is not running after config reload.
-                    This may indicate a configuration issue that caused Kanata to crash.
-                    Mappings before: \(beforeCount)
-                    Mappings after rollback: \(afterCount)
-                    """
-
-                    if beforeCount != afterCount {
-                        AppLogger.shared.log(
-                            "↩️ [SimpleMods] Rolled back from \(beforeCount) to \(afterCount) mapping(s) due to health check failure"
-                        )
-                    }
-                    return
-                }
-                AppLogger.shared.log("✅ [SimpleMods] Health check passed - Kanata running")
-            }
-
-            // Success - reload to get updated state
+        if result.success { loadedContent = renderedContent }
+        // A newer edit owns the optimistic list and status until it is saved.
+        guard revision == editRevision else { return }
+        isApplying = false
+        lastSaveResult = result
+        if result.success {
+            do { try load() }
+            catch { lastError = "Saved, but the configuration could not be refreshed: \(error.localizedDescription)" }
+        } else {
             try? load()
-            lastError = nil
             lastRollbackReason = nil
             lastRollbackDetails = nil
-            AppLogger.shared.log(
-                "✅ [SimpleMods] Apply succeeded - \(installedMappings.count) mapping(s) active"
-            )
-
-        } catch {
-            AppLogger.shared.log("❌ [SimpleMods] Apply error: \(error.localizedDescription)")
-            AppLogger.shared.log("   Error type: \(type(of: error))")
-            if let nsError = error as NSError? {
-                AppLogger.shared.log("   Error domain: \(nsError.domain), code: \(nsError.code)")
-            }
-            // Track mapping count before rollback
-            let beforeCount = installedMappings.count
-            // Rollback on error
-            try? load()
-            let afterCount = installedMappings.count
-
-            lastError = "Unexpected error occurred"
-            lastRollbackReason = "Exception during apply"
-            lastRollbackDetails = """
-            Error: \(error.localizedDescription)
-            Error type: \(type(of: error))
-            Mappings before: \(beforeCount)
-            Mappings after rollback: \(afterCount)
-            """
-
-            if beforeCount != afterCount {
-                AppLogger.shared.log(
-                    "↩️ [SimpleMods] Rolled back from \(beforeCount) to \(afterCount) mapping(s) due to exception"
-                )
+            let cause = result.error?.localizedDescription ?? "The mappings could not be saved."
+            switch result.recoveryResult {
+            case .restoredPreviousConfig:
+                lastRollbackReason = cause
+                lastRollbackDetails = "The previous configuration file was restored. Runtime recovery has not been verified."
+                lastError = cause
+            case let .wroteMinimalSafeConfig(backupError):
+                lastError = "\(cause) The previous configuration could not be restored; a minimal safe file was written. \(backupError?.localizedDescription ?? "")"
+            case let .failed(backupError, fallbackError):
+                lastError = "\(cause) Configuration recovery failed: \(backupError?.localizedDescription ?? "") \(fallbackError.localizedDescription)"
+            case .notAttempted:
+                lastError = cause
+            case .restoredPreviousAppKeymapState, .appKeymapRecoveryFailed:
+                // This editor uses raw-file saves, not the app-keymap transaction.
+                lastError = cause
             }
         }
-    }
-
-    /// Validate config conten
-    private func validateConfig(_ content: String) async -> (isValid: Bool, errors: [String]) {
-        // Use ConfigurationService validation
-        let configService = ConfigurationService(
-            configDirectory: (configPath as NSString).deletingLastPathComponent
-        )
-        return await configService.validateConfiguration(content)
     }
 
     /// Get presets by category

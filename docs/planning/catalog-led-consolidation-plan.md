@@ -266,6 +266,7 @@ Implemented slices (the table describes the merged state of this checkpoint):
 | #1271 | Per-user directory leases exclude cooperating services/processes, with cancellation, alias reentry protection and off-actor sentinel I/O. | CLI operation scope, cached state, external editors and cross-UID writers remain distinct boundaries. |
 | #1272 | CLI apply admits before source loading through reload; backup/restore share admission; custom-directory source loading is corrected. | CLI collection/pack commands, cached state and complete recovery remain. |
 | #1273 | CLI rule, collection and pack commands hold admission through optional apply; pack sources refresh after admission and strict metadata reads precede mutations. | Direct UI metadata writers, feature-specific writes and complete recovery remain. |
+| #1274 | App-specific edits retain a three-file journal through runtime apply/recovery, preserve hand-written files, and refresh app context after immediate/deferred reload. | Global/pack recovery, mixed app/global operations and revision-aware watching remain. |
 
 Admission now also holds a cooperative OS lease across service instances and
 processes for the same directory. CLI configuration apply now holds admission
@@ -315,7 +316,7 @@ process has removable-volume permission and completes validation. Existing CI
 can run above the disk reserve; do not lower that reserve or claim that external
 storage migration is complete.
 
-### App-specific operation under implementation
+### App-specific operation merged in #1274
 
 App edits now use SaveCoordinator to retain a three-file journal (AppKeymaps.json,
 keypath-apps.kbd and keypath.kbd) through runtime classification. Applied or pending
@@ -333,5 +334,18 @@ source/generated pairs, conservatively block the edit before any write. No
 implicit conversion is performed; an explicit backed-up conversion remains future
 work. Startup include generation also preserves existing differing content.
 
-This is work in progress until review, CI, merge and installed-app verification.
+Review, supported-runner CI, merge and signed/notarized installed-app verification completed for #1274.
 Global rule/source/preferences/pack recovery and revision-aware watching remain.
+
+### Simple Modifications save consolidation
+
+The editor now transforms a captured file revision through SaveCoordinator under
+the directory lease. It validates the proposed content, retains the reload
+disposition, and restores editor state after failure. Queued edits wait for the
+previous save to settle; an external revision is preserved and reported instead
+of overwritten. SimpleModsWriter only renders content. The parser indexes actual
+base deflayermap entries rather than mistaking positional layout rows for remaps.
+
+Raw-file recovery still has the existing file-only boundary. External deflayermap
+ownership, status presentation, full runtime recovery and crash recovery remain
+separate work; this slice does not claim those are complete.
