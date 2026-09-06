@@ -346,19 +346,9 @@ public final class PackInstaller {
             }
             let record = InstalledPackRecord(packID: pack.id, version: pack.version,
                                              installedAt: Date(), quickSettingValues: resolvedSettings)
-            let result = await SaveCoordinator(configurationService: manager.configurationService).saveRuleState(
-                manager: manager, mutationPermit: permit,
-                packRecord: .init(tracker: installedPackTracker, record: record),
-                reloadHandler: skipFinalReload ? nil : manager.onRulesChanged
-            )
-            guard result.success else {
-                manager.ruleCollections = ruleStateSnapshot.collections
-                manager.customRules = ruleStateSnapshot.customRules
-                manager.refreshLayerIndicatorState()
-                if result.error is CancellationError { throw CancellationError() }
-                throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack installation could not be committed")
-            }
-            NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+            try await commitPreparedPackRules(manager: manager, snapshot: ruleStateSnapshot,
+                                              record: .init(tracker: installedPackTracker, record: record),
+                                              skipReload: skipFinalReload, permit: permit)
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
@@ -434,30 +424,16 @@ public final class PackInstaller {
                 return
             }
 
-            // Snapshot current rule set, drop those owned by this pack.
-            let before = await manager.snapshotCurrentRules()
-            let packRules = before.filter { $0.packSource == packID }
-
+            let snapshot = manager.snapshotRuleState()
+            let packRules = snapshot.customRules.filter { $0.packSource == packID }
             guard !packRules.isEmpty else {
-                // Nothing to remove from rules, but still clear the tracker
-                // record in case it drifted out of sync.
                 try await installedPackTracker.remove(packID: packID)
-                AppLogger.shared.log(
-                    "ℹ️ [PackInstaller] No rules tagged with pack '\(packID)'; cleared tracker record"
-                )
                 return
             }
-
-            for (index, rule) in packRules.enumerated() {
-                let isLast = (index == packRules.count - 1)
-                // We remove directly — skipReload avoided here since
-                // removeCustomRule regenerates on each call. For M1 we accept
-                // N regenerations; M2 will batch.
-                _ = isLast // reserved for future batching
-                await manager.removeCustomRule(id: rule.id, mutationPermit: permit)
-            }
-
-            try await installedPackTracker.remove(packID: packID)
+            manager.customRules.removeAll { $0.packSource == packID }
+            try await commitPreparedPackRules(manager: manager, snapshot: snapshot,
+                                              record: .init(tracker: installedPackTracker, removing: packID),
+                                              permit: permit)
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Uninstalled pack '\(packID)': removed \(packRules.count) rule(s)"
@@ -581,39 +557,70 @@ public final class PackInstaller {
             // Clamp to valid ranges
             let resolved = resolveQuickSettings(pack: pack, overrides: mergedSettings)
 
+            let snapshot = manager.snapshotRuleState()
+            var hasRuleChanges = false
             if let collectionID = pack.associatedCollectionID {
-                // Collection-backed pack: update timing config
-                if let holdTimeout = resolved["holdTimeout"],
-                   let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
-                {
-                    if case var .homeRowMods(config) = manager.ruleCollections[index].configuration {
-                        config.timing.tapWindow = holdTimeout
-                        config.timing.holdDelay = holdTimeout
-                        manager.ruleCollections[index].configuration = .homeRowMods(config)
-                        await manager.regenerateConfigFromCollections(mutationPermit: permit)
+                if let holdTimeout = resolved["holdTimeout"] {
+                    guard let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID }),
+                          case var .homeRowMods(config) = manager.ruleCollections[index].configuration
+                    else {
+                        throw InstallError.saveFailed("The pack's timing collection is missing or cannot be edited. Your settings were not changed.")
                     }
+                    config.timing.tapWindow = holdTimeout
+                    config.timing.holdDelay = holdTimeout
+                    manager.ruleCollections[index].configuration = .homeRowMods(config)
+                    hasRuleChanges = true
                 }
             } else if !pack.bindings.isEmpty {
-                // Rule-based pack: re-render bindings with new settings
-                let oldRules = await manager.snapshotCurrentRules().filter { $0.packSource == packID }
-                for rule in oldRules {
-                    await manager.removeCustomRule(id: rule.id, mutationPermit: permit)
+                manager.customRules.removeAll { $0.packSource == packID }
+                for rule in renderBindings(for: pack, quickSettings: resolved) {
+                    guard await manager.updateCustomRuleInMemory(rule, mutationPermit: permit) else {
+                        restorePreparedRuleState(snapshot, manager: manager)
+                        throw InstallError.saveFailed("updated pack rules could not be prepared")
+                    }
                 }
-                let newRules = renderBindings(for: pack, quickSettings: resolved)
-                for (index, rule) in newRules.enumerated() {
-                    let isLast = (index == newRules.count - 1)
-                    _ = await manager.saveCustomRule(rule, skipReload: !isLast, mutationPermit: permit)
-                }
+                hasRuleChanges = true
             }
 
-            // Persist updated record
             record.quickSettingValues = resolved
-            try await installedPackTracker.upsert(record)
+            if hasRuleChanges {
+                try await commitPreparedPackRules(manager: manager, snapshot: snapshot,
+                                                  record: .init(tracker: installedPackTracker, record: record),
+                                                  permit: permit)
+            } else {
+                try await installedPackTracker.upsert(record)
+            }
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Updated quick settings for '\(pack.name)': \(resolved)"
             )
         }
+    }
+
+    /// One application/recovery boundary for prepared pack rule mutations.
+    private func commitPreparedPackRules(
+        manager: RuleCollectionsManager, snapshot: RuleCollectionsManager.RuleStateSnapshot,
+        record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
+        permit: ConfigurationOperationGate.Permit
+    ) async throws {
+        let result = await SaveCoordinator(configurationService: manager.configurationService).saveRuleState(
+            manager: manager, mutationPermit: permit, packRecord: record,
+            reloadHandler: skipReload ? nil : manager.onRulesChanged
+        )
+        guard result.success else {
+            restorePreparedRuleState(snapshot, manager: manager)
+            if result.error is CancellationError { throw CancellationError() }
+            throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack change could not be committed")
+        }
+        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+    }
+
+    private func restorePreparedRuleState(_ snapshot: RuleCollectionsManager.RuleStateSnapshot,
+                                          manager: RuleCollectionsManager)
+    {
+        manager.ruleCollections = snapshot.collections
+        manager.customRules = snapshot.customRules
+        manager.refreshLayerIndicatorState()
     }
 
     // MARK: - Rendering

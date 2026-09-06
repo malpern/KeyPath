@@ -378,9 +378,17 @@ the mapper no longer invokes the legacy immediate-commit save before reloading.
 External revision conflicts preserve files and the journal rather than regenerating
 a snapshot over them. Other collection mutators and pack-wide recovery remain open.
 
-### Custom-rule pack transactions in progress
+### Custom-rule pack installation merged in #1279
 
 Custom-rule installs prepare the complete batch before persistence and retain a
 four-file journal including installed-packs.json through runtime classification.
 Startup rule recovery recognizes this scope. System/collection-backed packs,
 removal, quick-setting changes, and preference/snapshot transactions remain open.
+
+### Pack removal and quick-setting recovery in progress
+
+Custom-rule pack removal and quick-setting updates now share the retained pack
+transaction, including collection-backed Home Row Mods timing settings. Tests
+cover single-reload removal, exact rollback on rejection/metadata write failure,
+and pending/rejected timing updates. System/collection-backed install and removal,
+preferences, managed snapshots, and tap/hold picker edits remain open.

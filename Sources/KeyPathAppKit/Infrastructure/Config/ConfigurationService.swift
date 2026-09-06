@@ -356,7 +356,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             let before = try await snapshotRuleFiles(files)
             let packUpdate: InstalledPackTracker.PreparedRecordUpdate?
             if let packRecord {
-                packUpdate = try await packRecord.tracker.prepareUpsert(packRecord.record)
+                packUpdate = try await packRecord.tracker.prepareUpdate(packRecord)
                 guard packUpdate?.before == before["installedPacks"] else { throw RecoverableRuleWrite.Failure.changedFile("installedPacks") }
             } else { packUpdate = nil }
             let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)

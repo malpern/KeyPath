@@ -19,7 +19,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
         manager.ruleCollections = []
-        manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"))]
+        manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42))]
         try await service.saveRuleState(ruleCollections: [], customRules: manager.customRules, collectionStore: collections, customStore: rules)
         tracker = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json"))
         try await tracker.upsert(InstalledPackRecord(packID: "unrelated", version: "1", installedAt: Date(timeIntervalSince1970: 42)))
@@ -214,6 +214,118 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         XCTAssertEqual(stored.count, priorRules.count + pack.bindings.count)
         let interrupted = await tracker.record(for: "interrupted")
         XCTAssertNil(interrupted)
+    }
+
+    func testUninstallCommitsAllRemovalsWithOneReload() async throws {
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            return Self.reload(.applied)
+        }
+        try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager, installedPackTracker: tracker)
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(manager.customRules.map(\.input), ["f20"])
+        let record = await tracker.record(for: pack.id)
+        XCTAssertNil(record)
+        let stored = try await manager.customRulesStore.loadForMutation()
+        XCTAssertEqual(stored, manager.customRules)
+    }
+
+    func testRejectedUninstallRestoresRulesAndInstalledRecord() async throws {
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        let before = try snapshot()
+        let rules = manager.customRules
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            return Self.reload(reloads == 1 ? .rejected : .applied)
+        }
+        do {
+            try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager, installedPackTracker: tracker)
+            XCTFail("Rejected removal must fail")
+        } catch {}
+        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.customRules, rules)
+    }
+
+    func testUninstallMetadataWriteFailureRestoresExactRevisionWithoutReload() async throws {
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        let before = try snapshot()
+        let rules = manager.customRules
+        let failingTracker = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json")) { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        manager.onRulesChanged = { XCTFail("Failed stage must not reload"); return Self.reload(.applied) }
+        do {
+            try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager, installedPackTracker: failingTracker)
+            XCTFail("Metadata failure must fail removal")
+        } catch {}
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.customRules, rules)
+    }
+
+    private func prepareHomeRowSettings() async throws {
+        var collection = try XCTUnwrap(RuleCollectionCatalog().defaultCollections().first { $0.id == RuleCollectionIdentifier.homeRowMods })
+        collection.isEnabled = true
+        manager.ruleCollections = [collection]
+        try await manager.configurationService.saveRuleState(ruleCollections: manager.ruleCollections,
+                                                             customRules: manager.customRules, collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
+        try await tracker.upsert(InstalledPackRecord(packID: PackRegistry.homeRowMods.id, version: "1", quickSettingValues: ["holdTimeout": 180]))
+    }
+
+    func testPendingTimingChangeCommitsSettingAndCollectionWithOneReload() async throws {
+        try await prepareHomeRowSettings()
+        var reloads = 0
+        manager.onRulesChanged = { reloads += 1; return Self.reload(.pending) }
+        try await PackInstaller.shared.updateQuickSettings(packID: PackRegistry.homeRowMods.id, newValues: ["holdTimeout": 280], manager: manager, installedPackTracker: tracker)
+        XCTAssertEqual(reloads, 1)
+        let record = await tracker.record(for: PackRegistry.homeRowMods.id)
+        XCTAssertEqual(record?.quickSettingValues["holdTimeout"], 280)
+        guard case let .homeRowMods(config) = manager.ruleCollections[0].configuration else { return XCTFail("Missing timing configuration") }
+        XCTAssertEqual(config.timing.holdDelay, 280)
+        let stored = await manager.ruleCollectionStore.loadCollections()
+        XCTAssertEqual(stored.first(where: { $0.id == RuleCollectionIdentifier.homeRowMods }), manager.ruleCollections[0])
+    }
+
+    func testMissingTimingCollectionDoesNotWriteMetadata() async throws {
+        try await prepareHomeRowSettings()
+        manager.ruleCollections = []
+        try await assertInvalidTimingTargetDoesNotWrite()
+    }
+
+    func testMalformedTimingCollectionDoesNotWriteMetadata() async throws {
+        try await prepareHomeRowSettings()
+        manager.ruleCollections[0].configuration = .list
+        try await assertInvalidTimingTargetDoesNotWrite()
+    }
+
+    private func assertInvalidTimingTargetDoesNotWrite() async throws {
+        let before = try snapshot()
+        let collections = manager.ruleCollections
+        manager.onRulesChanged = { XCTFail("Invalid target must not reload"); return Self.reload(.applied) }
+        do {
+            try await PackInstaller.shared.updateQuickSettings(packID: PackRegistry.homeRowMods.id, newValues: ["holdTimeout": 280], manager: manager, installedPackTracker: tracker)
+            XCTFail("Invalid timing target must fail")
+        } catch { XCTAssertTrue(error.localizedDescription.contains("timing collection")) }
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, collections)
+    }
+
+    func testRejectedTimingChangeRestoresCollectionAndSetting() async throws {
+        try await prepareHomeRowSettings()
+        let before = try snapshot()
+        let collections = manager.ruleCollections
+        var reloads = 0
+        manager.onRulesChanged = { reloads += 1; return Self.reload(reloads == 1 ? .rejected : .applied) }
+        do {
+            try await PackInstaller.shared.updateQuickSettings(packID: PackRegistry.homeRowMods.id, newValues: ["holdTimeout": 280], manager: manager, installedPackTracker: tracker)
+            XCTFail("Rejected timing must fail")
+        } catch {}
+        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, collections)
     }
 
     func testExternalMetadataEditStopsRecoveryWithoutOverwritingAnyFile() async throws {

@@ -288,3 +288,10 @@ supply their tracker explicitly to recovery, just as custom rule stores must be
 supplied; journal contents cannot select restoration targets. System packs,
 collection-backed packs, settings updates, removal, and pack collection snapshots
 still have their existing separate commit boundaries.
+
+Custom-rule pack removal and quick-setting updates now use that same retained
+pack transaction. Record changes can upsert or remove one pack while preserving
+other records. Preparation performs no per-binding writes; notifications follow
+commit. Settings that affect a collection, such as Home Row Mods timing, restore
+the collection and stored setting together after rejected application. Metadata-only
+operations still skip config generation and runtime reload.
