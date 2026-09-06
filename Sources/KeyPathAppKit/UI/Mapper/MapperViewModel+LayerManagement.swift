@@ -102,17 +102,16 @@ extension MapperViewModel {
             configuration: .list
         )
 
-        // Persist via rulesManager
+        // Select only a committed layer, and preserve navigation made while saving.
         if let rulesManager {
+            let previousLayer = currentLayer
             Task {
-                await rulesManager.addCollection(collection)
+                guard await rulesManager.addCollection(collection) else { return }
                 AppLogger.shared.log("📚 [MapperViewModel] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
                 await refreshAvailableLayers()
+                if currentLayer == previousLayer { setLayer(sanitizedName) }
             }
         }
-
-        // Switch to the new layer
-        setLayer(sanitizedName)
     }
 
     /// Delete a layer and all associated rules (only non-system layers)

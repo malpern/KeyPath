@@ -190,6 +190,7 @@ extension RuleCollectionsManager {
     /// layer collections at once without 4 separate save/validate/reload cycles.
     func batchEnableCollections(ids: [UUID]) async {
         await withRuleMutation(failure: ()) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             let catalog = RuleCollectionCatalog().defaultCollections()
 
             for id in ids {
@@ -206,14 +207,15 @@ extension RuleCollectionsManager {
 
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+            _ = await commitRuleMutation(snapshot: snapshot, mutationPermit: permit)
         }
     }
 
     /// Add or update a rule collection
-    func addCollection(_ collection: RuleCollection, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
-        await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
-            let snapshot = snapshotRuleState()
+    @discardableResult
+    func addCollection(_ collection: RuleCollection, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> Bool {
+        await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
 
             if collection.isEnabled, let conflict = conflictInfo(for: collection) {
                 // Show conflict resolution dialog
@@ -229,7 +231,7 @@ extension RuleCollectionsManager {
 
                 guard let choice = await onConflictResolution?(context) else {
                     // User cancelled - don't add
-                    return
+                    return false
                 }
 
                 switch choice {
@@ -238,7 +240,7 @@ extension RuleCollectionsManager {
                     await disableConflicting(conflict.source, regenerate: false)
                 case .keepExisting:
                     // User chose to keep the existing rule - don't add the new one
-                    return
+                    return false
                 }
             }
 
@@ -253,27 +255,26 @@ extension RuleCollectionsManager {
             }
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
-            if !applied {
-                AppLogger.shared.log("↩️ [RuleCollections] Add collection failed; rolling back to previous state")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
-            }
+            return await commitRuleMutation(snapshot: snapshot, mutationPermit: permit)
         }
     }
 
     /// Remove a rule collection by ID
     func removeCollection(id: UUID) async {
         await withRuleMutation(failure: ()) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             ruleCollections.removeAll { $0.id == id }
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
-            AppLogger.shared.log("🗑️ [RuleCollections] Removed collection: \(id)")
+            if await commitRuleMutation(snapshot: snapshot, mutationPermit: permit) {
+                AppLogger.shared.log("🗑️ [RuleCollections] Removed collection: \(id)")
+            }
         }
     }
 
     /// Remove all collections and custom rules for a specific layer
     func removeLayer(_ layerName: String) async {
         await withRuleMutation(failure: ()) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             let normalizedName = layerName.lowercased()
 
             // Remove collections targeting this layer
@@ -290,15 +291,8 @@ extension RuleCollectionsManager {
             }
             let removedRules = ruleCount - customRules.count
 
-            // Persist custom rules to disk
-            do {
-                try await customRulesStore.saveRules(customRules)
-            } catch {
-                AppLogger.shared.error("❌ [RuleCollections] Failed to persist custom rules after layer removal: \(error)")
-            }
-
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+            guard await commitRuleMutation(snapshot: snapshot, mutationPermit: permit) else { return }
 
             AppLogger.shared.log("🗑️ [RuleCollections] Removed layer '\(layerName)': \(removedCollections) collections, \(removedRules) rules")
         }
@@ -308,6 +302,7 @@ extension RuleCollectionsManager {
     func createLayer(_ name: String) async {
         await withRuleMutation(failure: ()) { [self] permit in
             guard !name.isEmpty else { return }
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return }
 
             // Sanitize the layer name
             let sanitizedName = name.lowercased()
@@ -347,7 +342,7 @@ extension RuleCollectionsManager {
                 configuration: .list
             )
 
-            await addCollection(collection, mutationPermit: permit)
+            guard await addCollection(collection, mutationPermit: permit) else { return }
             AppLogger.shared.log("📚 [RuleCollections] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
         }
     }
@@ -964,7 +959,7 @@ extension RuleCollectionsManager {
 
             guard await updateCustomRuleInMemory(rule, autoResolveConflicts: autoResolveConflicts, mutationPermit: permit) else { return false }
 
-            return await commitCustomRuleMutation(snapshot: snapshot, skipReload: skipReload, mutationPermit: permit)
+            return await commitRuleMutation(snapshot: snapshot, skipReload: skipReload, mutationPermit: permit)
         }
     }
 
@@ -1067,7 +1062,7 @@ extension RuleCollectionsManager {
             if let index = customRules.firstIndex(where: { $0.id == id }) {
                 customRules[index].isEnabled = isEnabled
             }
-            _ = await commitCustomRuleMutation(snapshot: snapshot, mutationPermit: permit)
+            _ = await commitRuleMutation(snapshot: snapshot, mutationPermit: permit)
         }
     }
 
@@ -1080,7 +1075,7 @@ extension RuleCollectionsManager {
             customRules.removeAll { $0.id == id }
             let afterCount = customRules.count
             AppLogger.shared.log("🗑️ [CustomRules] After removal: afterCount=\(afterCount), removed=\(beforeCount - afterCount)")
-            _ = await commitCustomRuleMutation(snapshot: snapshot, mutationPermit: permit)
+            _ = await commitRuleMutation(snapshot: snapshot, mutationPermit: permit)
         }
     }
 
@@ -1091,7 +1086,7 @@ extension RuleCollectionsManager {
             let count = customRules.count
             AppLogger.shared.log("🧹 [CustomRules] Clearing all \(count) custom rules")
             customRules.removeAll()
-            if await commitCustomRuleMutation(snapshot: snapshot, mutationPermit: permit) {
+            if await commitRuleMutation(snapshot: snapshot, mutationPermit: permit) {
                 AppLogger.shared.log("✅ [CustomRules] All custom rules cleared")
             }
         }

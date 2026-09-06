@@ -69,8 +69,9 @@ extension RuleCollectionsManager {
 
     /// The save owner restores files/runtime; the manager restores its in-memory
     /// candidate without regenerating over the recovered or externally edited files.
-    func commitCustomRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false,
-                                  mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
+    @discardableResult
+    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false,
+                            mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
     {
         let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
             manager: self, mutationPermit: mutationPermit, reloadHandler: skipReload ? nil : onRulesChanged

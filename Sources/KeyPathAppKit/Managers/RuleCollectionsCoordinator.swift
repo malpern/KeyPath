@@ -62,10 +62,12 @@ final class RuleCollectionsCoordinator {
     }
 
     /// Add a new rule collection
-    func addRuleCollection(_ collection: RuleCollection) async {
-        await ruleCollectionsManager.addCollection(collection)
+    @discardableResult
+    func addRuleCollection(_ collection: RuleCollection) async -> Bool {
+        let saved = await ruleCollectionsManager.addCollection(collection)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return saved
     }
 
     /// Replace all rule collections

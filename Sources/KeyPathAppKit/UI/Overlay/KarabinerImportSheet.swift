@@ -543,7 +543,9 @@ struct KarabinerImportSheet: View {
 
         // Import selected collections
         for collection in result.collections where selectedCollectionIds.contains(collection.id) {
-            await kanataManager.addRuleCollection(collection)
+            if await !(kanataManager.addRuleCollection(collection)) {
+                errors.append("Collection '\(collection.name)' was not imported.")
+            }
         }
 
         // Import selected app keymaps

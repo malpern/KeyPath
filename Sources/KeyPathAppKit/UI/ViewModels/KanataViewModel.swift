@@ -337,7 +337,8 @@ class KanataViewModel {
         }
     }
 
-    func addRuleCollection(_ collection: RuleCollection) async {
+    @discardableResult
+    func addRuleCollection(_ collection: RuleCollection) async -> Bool {
         await manager.addRuleCollection(collection)
     }
 
