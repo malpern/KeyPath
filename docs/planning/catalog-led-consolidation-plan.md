@@ -457,3 +457,10 @@ including exact rollback, conflict preservation, runtime recovery, and startup/n
 editor recovery. Preserve accepted-save cancellation semantics and explicit-restore
 fallback behavior. Preferences, managed-pack snapshots, cross-instance/process
 cache freshness, and watcher revisions remain open.
+
+### Keymap save recovery in progress
+
+Move logical keymap changes onto retained rule-state settlement. Recover interrupted
+writes before preparing the layout, restore keymap fields and matching optimistic
+display preferences before failure feedback, and preserve newer display choices.
+Preferences remain in-process state; durable preference recovery remains open.

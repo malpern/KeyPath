@@ -91,9 +91,11 @@ extension RuleCollectionsManager {
     /// candidate without regenerating over the recovered or externally edited files.
     @discardableResult
     func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderKeyPreference? = nil,
+                            keymapBefore: (id: String, includePunctuation: Bool)? = nil,
                             mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
     {
         let preparedLeaderPreference = PreferencesService.shared.leaderKeyPreference
+        let preparedKeymap = (id: activeKeymapId, includePunctuation: keymapIncludesPunctuation)
         let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
             manager: self, mutationPermit: mutationPermit, reloadHandler: skipReload ? nil : onRulesChanged
         )
@@ -107,6 +109,15 @@ extension RuleCollectionsManager {
                 } else {
                     preferenceRecoveryDetail = " A newer leader-key preference was preserved."
                 }
+            }
+            if let keymapBefore {
+                activeKeymapId = keymapBefore.id
+                keymapIncludesPunctuation = keymapBefore.includePunctuation
+                KeymapPreferences.restoreFailedSelection(
+                    attemptedID: preparedKeymap.id, attemptedPunctuation: preparedKeymap.includePunctuation,
+                    previousID: keymapBefore.id, previousPunctuation: keymapBefore.includePunctuation,
+                    userDefaults: keymapPreferences
+                )
             }
             refreshLayerIndicatorState()
             if let error = result.error, !(error is CancellationError) {
