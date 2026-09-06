@@ -393,10 +393,25 @@ cover single-reload removal, exact rollback on rejection/metadata write failure,
 and pending/rejected timing updates. System/collection-backed install and removal,
 preferences, managed snapshots, and tap/hold picker edits remain open.
 
-### Custom-rule editor recovery in progress
+### Custom-rule editor recovery merged in #1281
 
 Save, toggle, remove, and clear now use the retained rule transaction and restore
 manager snapshots without another file write. Interrupted source recovery precedes
 the next editor snapshot, including the pack tap/hold picker. Local layer-label refresh no longer supplies false TCP
 heartbeat evidence. Collection/preferences/watcher work and agreed UI decisions
 remain open.
+
+### Collection and layer membership recovery in progress
+
+Collection add/update, remove, batch enable, and layer creation/removal now use
+SaveCoordinator's retained rule transaction. Layer removal no longer writes
+CustomRules.json separately before generation. Failed changes restore manager
+arrays without a second file write, and layer creation recovers before checking
+for duplicate layers. Existing conflict decisions and catalog fallback remain.
+Collection toggles, detailed settings, leader preferences, replace-all, managed
+pack snapshots, and revision-aware watching still require migration.
+
+Review follow-up for membership recovery: add results also propagate through UI
+wrappers. Failed collection imports use the existing partial-import error;
+failed mapper layer creation does not select an unsaved layer. The broader
+saved/pending status design and combined import transaction remain open.

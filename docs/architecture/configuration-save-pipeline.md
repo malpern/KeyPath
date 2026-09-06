@@ -308,3 +308,24 @@ still mean persistence without an application result.
 
 Local layer-label refreshes do not emit TCP heartbeat notifications. Only an
 observed runtime layer update supplies that evidence, including unchanged layers.
+
+### Collection and layer membership
+
+`RuleCollectionsManager.commitRuleMutation` is the shared settlement path for
+custom rules and collection add/update, removal, batch enable, and layer removal.
+It calls `SaveCoordinator.saveRuleState` and restores only the manager snapshot on
+failure. Do not save CustomRules.json separately before deleting a layer: the
+journal must capture both source stores before either changes.
+
+Layer creation recovers interrupted state before its duplicate check, then calls
+`addCollection` under the same permit. `addCollection` returns whether the save
+committed (applied, pending, or explicitly headless); creation logs completion only
+on success. Existing membership/conflict policy is unchanged. Leader preference
+writes and other collection mutators remain separate migration work.
+
+Collection addition's Boolean now propagates through RuleCollectionsCoordinator,
+RuntimeCoordinator and KanataViewModel. Both Karabiner import surfaces include
+unsaved collections in their existing partial-import error instead of completing
+or dismissing. Mapper creation selects the new layer only after a successful
+save and refresh, and preserves navigation made while saving. This corrects
+existing failure handling; no new status UI or import atomicity is introduced.

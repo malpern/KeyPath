@@ -31,7 +31,8 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.batchEnableCollections(ids: ids)
     }
 
-    func addRuleCollection(_ collection: RuleCollection) async {
+    @discardableResult
+    func addRuleCollection(_ collection: RuleCollection) async -> Bool {
         await ruleCollectionsCoordinator.addRuleCollection(collection)
     }
 
