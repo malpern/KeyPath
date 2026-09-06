@@ -121,6 +121,9 @@ final class SaveCoordinator {
                 var reload: ReloadResult?
                 do {
                     configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal app-specific save")
+                    try await recoverBeforeEditing(appStore: store, mutationPermit: permit,
+                                                   runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
+                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal app-specific save after recovery")
                     staged = try await configurationService.stageAppKeymapChange(store: store, mutationPermit: permit, mutate: mutate)
                     try Task.checkCancellation()
                     let result = await reloadHandler()
@@ -159,7 +162,7 @@ final class SaveCoordinator {
                             reportedError = SaveApplicationError(cause: error, recovery: recoveryError.localizedDescription)
                         }
                     }
-                    saveStatus = .failed(reportedError.localizedDescription)
+                    saveStatus = reportedError is CancellationError ? .idle : .failed(reportedError.localizedDescription)
                     return .failure(reportedError, reloadResult: reload, recoveryResult: recovery)
                 }
             }
@@ -189,8 +192,11 @@ final class SaveCoordinator {
                 configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
                 saveStatus = .saving
 
-                let snapshot = ruleCollectionsManager.snapshotRuleState()
                 do {
+                    try await ruleCollectionsManager.recoverRuleState(mutationPermit: permit)
+                    _ = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: permit, reloadHandler: reloadHandler)
+                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal mapping save after recovery")
+                    let snapshot = ruleCollectionsManager.snapshotRuleState()
                     let (sanitizedInput, sanitizedOutput) = try validateInputOutput(input: input, output: output)
                     let rule = ruleCollectionsManager.makeCustomRule(input: sanitizedInput, output: sanitizedOutput)
                     guard await ruleCollectionsManager.updateCustomRuleInMemory(rule, mutationPermit: permit) else {
@@ -211,7 +217,7 @@ final class SaveCoordinator {
                     }
                     return result
                 } catch {
-                    saveStatus = .failed(error.localizedDescription)
+                    saveStatus = error is CancellationError ? .idle : .failed(error.localizedDescription)
                     return .failure(error)
                 }
             }
@@ -232,6 +238,7 @@ final class SaveCoordinator {
         do {
             return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
                 saveStatus = .saving
+                _ = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: permit, reloadHandler: reloadHandler)
                 var conflictDepth = 0
                 while true {
                     var staged: ConfigurationService.RuleWrite?
@@ -280,12 +287,32 @@ final class SaveCoordinator {
                                 reportedError = SaveApplicationError(cause: error, recovery: recoveryError.localizedDescription)
                             }
                         }
-                        saveStatus = .failed(reportedError.localizedDescription)
+                        saveStatus = reportedError is CancellationError ? .idle : .failed(reportedError.localizedDescription)
                         return .failure(reportedError, reloadResult: reload, recoveryResult: recovery)
                     }
                 }
             }
-        } catch { return .failure(error) }
+        } catch {
+            saveStatus = error is CancellationError ? .idle : .failed(error.localizedDescription)
+            return .failure(error)
+        }
+    }
+
+    /// Run before reading a candidate or invoking an editor callback: either can
+    /// exit without staging, but an interrupted prior edit still needs recovery.
+    private func recoverBeforeEditing(
+        appStore: AppKeymapStore? = nil,
+        mutationPermit: ConfigurationOperationGate.Permit,
+        runtimeDidApply: @escaping @MainActor @Sendable () async -> Void,
+        reloadHandler: @escaping () async -> ReloadResult
+    ) async throws {
+        try await configurationService.recoverPendingRuleWrite(mutationPermit: mutationPermit)
+        try await configurationService.recoverPendingAppKeymapWrite(store: appStore, mutationPermit: mutationPermit)
+        let recovery = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: mutationPermit, reloadHandler: reloadHandler)
+        if recovery?.disposition == .applied {
+            await Task { @MainActor in await runtimeDidApply() }.value
+        }
+        try Task.checkCancellation()
     }
 
     /// Capture and transform raw content under the same admission as its save.
@@ -296,12 +323,16 @@ final class SaveCoordinator {
     ) async -> SaveResult {
         do {
             return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+                try await recoverBeforeEditing(mutationPermit: permit, runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
                 let original = try await snapshotCurrentConfig(mutationPermit: permit)
                 let content = try transform(original)
                 return await saveGeneratedConfig(content: content, mutationPermit: permit, expectedContent: original,
                                                  runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
             }
-        } catch { return .failure(error) }
+        } catch {
+            saveStatus = error is CancellationError ? .idle : .failed(error.localizedDescription)
+            return .failure(error)
+        }
     }
 
     /// Save a complete generated configuration (e.g., from AI)
@@ -324,6 +355,7 @@ final class SaveCoordinator {
                 saveStatus = .saving
 
                 do {
+                    try await recoverBeforeEditing(mutationPermit: permit, runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
                     // Step 1: Validate generated config before saving
                     AppLogger.shared.debug(
                         "🔍 [SaveCoordinator] Validating generated config before save..."
@@ -343,6 +375,8 @@ final class SaveCoordinator {
                     }
 
                     AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
+
+                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal generated save after recovery")
 
                     // Step 2: Backup current config
                     let previousContent = try await snapshotCurrentConfig(mutationPermit: permit)

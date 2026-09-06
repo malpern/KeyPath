@@ -64,12 +64,13 @@ public final class PackInstaller {
     func recoverAndValidateState(manager: RuleCollectionsManager, tracker: InstalledPackTracker,
                                  permit: ConfigurationOperationGate.Permit) async throws
     {
+        try await manager.configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
         let recovered = try await manager.configurationService.recoverPendingRuleWrite(
             collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
             mutationPermit: permit, installedPackTracker: tracker
         )
         do {
-            try await manager.refreshRecoveredRuleStateIfNeeded(recovered)
+            try await manager.refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: permit)
         } catch let error as KeyPathError {
             if case let .configuration(.loadFailed(reason)) = error {
                 throw InstallError.saveFailed(reason)

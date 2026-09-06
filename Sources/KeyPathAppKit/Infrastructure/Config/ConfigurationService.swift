@@ -33,6 +33,9 @@ public final class ConfigurationService: FileConfigurationProviding {
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
 
+    @MainActor private var needsRecoveredRuntimeRefresh = false
+    @MainActor private(set) var ruleRecoveryRevision: UInt64 = 0
+
     let operationGate: ConfigurationOperationGate
 
     /// Perform blocking file I/O off the main actor
@@ -412,13 +415,13 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// when recovery detects a corrupt journal or an unrelated external edit.
     @discardableResult
     func recoverPendingRuleWrite(
-        collectionStore: RuleCollectionStore,
-        customStore: CustomRulesStore,
+        collectionStore: RuleCollectionStore? = nil,
+        customStore: CustomRulesStore? = nil,
         mutationPermit: ConfigurationOperationGate.Permit? = nil,
         installedPackTracker: InstalledPackTracker? = nil
     ) async throws -> Bool {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
-            let files = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            let files = await ruleWriteFiles(collectionStore: collectionStore ?? ruleCollectionStore, customStore: customStore ?? customRulesStore)
             let directory = URL(fileURLWithPath: configDirectory)
             var packTargets = files
             if let installedPackTracker {
@@ -434,6 +437,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             if recovered {
                 stateLock.withLock { currentConfiguration = nil }
+                needsRecoveredRuntimeRefresh = true
+                ruleRecoveryRevision &+= 1
             }
             return recovered
         }
@@ -532,11 +537,31 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             if recovered {
                 stateLock.withLock { currentConfiguration = nil }
+                needsRecoveredRuntimeRefresh = true
                 await resolvedStore.invalidateCache()
                 if await AppKeymapStore.shared.persistenceURL.standardizedFileURL == resolvedStore.persistenceURL.standardizedFileURL {
                     await AppKeymapStore.shared.invalidateCache()
                 }
             }
+        }
+    }
+
+    /// Recovery can remove its journal before an editor rejects/cancels its next
+    /// candidate. Keep runtime recovery required until an existing reload owner
+    /// accepts or defers it. A later save owner can retry using this same service.
+    @MainActor
+    func applyRecoveredRuntimeIfNeeded(
+        mutationPermit: ConfigurationOperationGate.Permit,
+        reloadHandler: (() async -> ReloadResult)?
+    ) async throws -> ReloadResult? {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            guard needsRecoveredRuntimeRefresh, let reloadHandler else { return nil }
+            let result = await Task { @MainActor in await reloadHandler() }.value
+            guard result.disposition == .applied || result.disposition == .pending else {
+                throw KeyPathError.configuration(.loadFailed(reason: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")"))
+            }
+            needsRecoveredRuntimeRefresh = false
+            return result
         }
     }
 

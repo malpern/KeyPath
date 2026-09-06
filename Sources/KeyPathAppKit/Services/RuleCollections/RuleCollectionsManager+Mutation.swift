@@ -25,10 +25,7 @@ extension RuleCollectionsManager {
     /// Recover interrupted source writes before taking the next editor snapshot.
     func recoverAndSnapshotRuleState(mutationPermit: ConfigurationOperationGate.Permit) async -> RuleStateSnapshot? {
         do {
-            let recovered = try await configurationService.recoverPendingRuleWrite(
-                collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: mutationPermit
-            )
-            try await refreshRecoveredRuleStateIfNeeded(recovered)
+            try await recoverRuleState(mutationPermit: mutationPermit)
             return snapshotRuleState()
         } catch is CancellationError {
             return nil
@@ -38,11 +35,20 @@ extension RuleCollectionsManager {
         }
     }
 
+    /// Throwing preparation for save owners that report their own failure result.
+    func recoverRuleState(mutationPermit: ConfigurationOperationGate.Permit) async throws {
+        try await configurationService.recoverPendingAppKeymapWrite(mutationPermit: mutationPermit)
+        let recovered = try await configurationService.recoverPendingRuleWrite(
+            collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: mutationPermit
+        )
+        try await refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: mutationPermit)
+    }
+
     /// Do not let a retry use stale arrays after journal recovery succeeded but
     /// source decoding failed. Clear the requirement only after both stores load.
-    func refreshRecoveredRuleStateIfNeeded(_ recovered: Bool) async throws {
+    func refreshRecoveredRuleStateIfNeeded(_ recovered: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
         needsRecoveredRuleStateRefresh = needsRecoveredRuleStateRefresh || recovered
-        needsRecoveredRuleRuntimeRefresh = needsRecoveredRuleRuntimeRefresh || recovered
+            || observedRuleRecoveryRevision != configurationService.ruleRecoveryRevision
         if needsRecoveredRuleStateRefresh {
             let collections = await ruleCollectionStore.loadCollectionsDetailed()
             guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
@@ -52,19 +58,12 @@ extension RuleCollectionsManager {
             ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
             customRules = rules
             needsRecoveredRuleStateRefresh = false
+            observedRuleRecoveryRevision = configurationService.ruleRecoveryRevision
             refreshLayerIndicatorState()
         }
-        // Restore runtime before any caller can cancel a prompt or return for a
-        // missing rule. A failed attempt remains required after the journal is gone.
-        // Headless persistence-only callers may have no runtime callback; retain
-        // the requirement in case one is attached to this manager later.
-        if needsRecoveredRuleRuntimeRefresh, let onRulesChanged {
-            let result = await Task { @MainActor in await onRulesChanged() }.value
-            guard result.disposition == .applied || result.disposition == .pending else {
-                throw KeyPathError.configuration(.loadFailed(reason: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")"))
-            }
-            needsRecoveredRuleRuntimeRefresh = false
-        }
+        // The configuration owner retains this requirement across app/rule/raw
+        // editors sharing it, including failed recovery after journal removal.
+        _ = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: mutationPermit, reloadHandler: onRulesChanged)
     }
 
     /// Preserve the editor's existing enable policy while sharing preparation and

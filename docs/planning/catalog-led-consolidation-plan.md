@@ -425,7 +425,7 @@ keep confirmed providers in the same transaction. Existing enable policies and
 newly-enabled Boolean semantics remain. Leader/single-output settings, collection
 toggles, replace-all, preferences, managed snapshots, and watching remain open.
 
-### Collection toggles and leader recovery in progress
+### Collection toggles and leader recovery merged in #1284
 
 Toggles, replace-all, single-output editing, and direct leader edits now retain
 rule snapshots through application. Leader preference rollback happens before
@@ -441,3 +441,11 @@ backup from the same evening. Startup free space recovered to 112 GiB; the faile
 CI job was retried and passed before merge. Network backups and active updater
 caches were preserved. External scratch routing (#1261) still awaits the runner's
 normal removable-volume permission; this recovery does not complete that migration.
+
+### Interrupted-save runtime admission in progress
+
+Move the runtime recovery retry requirement into ConfigurationService and recover
+before app/raw editor callbacks, candidate validation, and rule/pack early returns.
+Managers observe rule-source recovery performed through another editor sharing the
+service. This closes an in-process cross-editor gap; raw journals, preferences,
+managed snapshots, cross-instance/process caches, and watcher revisions remain open.
