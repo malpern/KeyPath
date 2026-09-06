@@ -32,6 +32,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
+    private let synchronizePreferences: @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool
 
     @MainActor private var needsRecoveredRuntimeRefresh = false
     @MainActor private(set) var ruleRecoveryRevision: UInt64 = 0
@@ -58,10 +59,12 @@ public final class ConfigurationService: FileConfigurationProviding {
     init(
         configDirectory: String?,
         ruleCollectionStore: RuleCollectionStore,
-        customRulesStore: CustomRulesStore
+        customRulesStore: CustomRulesStore,
+        synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
+        self.synchronizePreferences = synchronizePreferences
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
         } else {
@@ -304,9 +307,53 @@ public final class ConfigurationService: FileConfigurationProviding {
         customRules: [CustomRule] = [],
         mutationPermit: ConfigurationOperationGate.Permit?
     ) async throws {
-        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
-            let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(mutationPermit: permit)
+            let newConfig = try await preparedConfiguration(
+                ruleCollections: ruleCollections, customRules: customRules,
+                leaderKeyPreference: persistedLeaderPreference(in: PreferencesService.canonicalDefaults)
+            )
             try await writeFileAsync(string: newConfig.content, to: configurationPath)
+            await publishSavedConfiguration(newConfig)
+        }
+    }
+
+    /// CLI reconciliation retains the generated config and its canonical leader preference
+    /// in one raw-config journal without rewriting the source collection stores.
+    func saveConfiguration(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        leaderKeyPreference: LeaderKeyPreference,
+        preferenceDefaults: UserDefaults,
+        preferenceChanges: [RecoverableRuleWrite.PreferenceChange],
+        mutationPermit: ConfigurationOperationGate.Permit
+    ) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(mutationPermit: permit, preferenceDefaults: preferenceDefaults)
+            let newConfig = try await preparedConfiguration(
+                ruleCollections: ruleCollections,
+                customRules: customRules,
+                leaderKeyPreference: leaderKeyPreference
+            )
+            let files = ["config": URL(fileURLWithPath: configurationPath)]
+            let before = try await snapshotRuleFiles(files)
+            let sendablePreferences = RecoverableRuleWrite.PreferenceDefaults(preferenceDefaults)
+            let directory = URL(fileURLWithPath: configDirectory)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(
+                    files: files, contents: ["config": Data(newConfig.content.utf8)],
+                    directory: directory, scope: .rawConfig, expectedBefore: before,
+                    preferences: sendablePreferences.value, preferenceChanges: preferenceChanges,
+                    synchronizePreferences: self.synchronizePreferences
+                )
+            }
+            do {
+                try await performRuleFileOperation { try RecoverableRuleWrite.commit(pending) }
+            } catch {
+                let cause = error
+                do { try await performRuleFileOperation { try RecoverableRuleWrite.rollback(pending) } }
+                catch { throw RecoverableRuleWrite.WriteFailure(cause: cause, recoveryError: error) }
+                throw cause
+            }
             await publishSavedConfiguration(newConfig)
         }
     }
@@ -348,10 +395,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection], customRules: [CustomRule],
         collectionStore: RuleCollectionStore, customStore: CustomRulesStore,
         mutationPermit: ConfigurationOperationGate.Permit,
-        packRecord: InstalledPackTracker.RecordChange? = nil
+        packRecord: InstalledPackTracker.RecordChange? = nil,
+        preferenceDefaults: UserDefaults? = PreferencesService.canonicalDefaults,
+        preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
+        leaderKeyPreference: LeaderKeyPreference? = nil
     ) async throws -> RuleWrite {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
-            try await recoverPendingRuleWrite(collectionStore: collectionStore, customStore: customStore, mutationPermit: permit, installedPackTracker: packRecord?.tracker)
+            try await recoverPendingRuleWrite(
+                collectionStore: collectionStore,
+                customStore: customStore,
+                mutationPermit: permit,
+                installedPackTracker: packRecord?.tracker,
+                preferenceDefaults: preferenceDefaults
+            )
             try await recoverPendingAppKeymapWrite(mutationPermit: permit)
             var targets = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
             if let packRecord { targets["installedPacks"] = await packRecord.tracker.persistenceURL }
@@ -362,7 +418,10 @@ public final class ConfigurationService: FileConfigurationProviding {
                 packUpdate = try await packRecord.tracker.prepareUpdate(packRecord)
                 guard packUpdate?.before == before["installedPacks"] else { throw RecoverableRuleWrite.Failure.changedFile("installedPacks") }
             } else { packUpdate = nil }
-            let newConfig = try await preparedConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+            let newConfig = try await preparedConfiguration(
+                ruleCollections: ruleCollections, customRules: customRules,
+                leaderKeyPreference: leaderKeyPreference ?? persistedLeaderPreference(in: preferenceDefaults)
+            )
             var payload = try await [
                 "config": Data(newConfig.content.utf8),
                 "collections": collectionStore.encodedCollections(ruleCollections),
@@ -370,11 +429,14 @@ public final class ConfigurationService: FileConfigurationProviding {
             ]
             if let packUpdate { payload["installedPacks"] = packUpdate.contents }
             let contents = payload
+            let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory,
-                                               scope: packUpdate == nil ? .rules : .packRules, expectedBefore: before)
+                                               scope: packUpdate == nil ? .rules : .packRules, expectedBefore: before,
+                                               preferences: sendablePreferences?.value, preferenceChanges: preferenceChanges,
+                                               synchronizePreferences: self.synchronizePreferences)
                 { data, url in
                     if let packUpdate, url == packUpdate.fileURL { try packUpdate.writeFile(data, url) }
                     else { try RecoverableRuleWrite.durableWrite(data, url) }
@@ -418,7 +480,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         collectionStore: RuleCollectionStore? = nil,
         customStore: CustomRulesStore? = nil,
         mutationPermit: ConfigurationOperationGate.Permit? = nil,
-        installedPackTracker: InstalledPackTracker? = nil
+        installedPackTracker: InstalledPackTracker? = nil,
+        preferenceDefaults: UserDefaults? = PreferencesService.canonicalDefaults
     ) async throws -> Bool {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
             let files = await ruleWriteFiles(collectionStore: collectionStore ?? ruleCollectionStore, customStore: customStore ?? customRulesStore)
@@ -431,10 +494,14 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             let packFiles = packTargets
             let rawFiles = ["config": URL(fileURLWithPath: configurationPath)]
+            let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
             let recovered = try await performRuleFileOperation {
-                let rawRecovered = try RecoverableRuleWrite.recover(files: rawFiles, directory: directory, scope: .rawConfig)
-                let packRecovered = try RecoverableRuleWrite.recover(files: packFiles, directory: directory, scope: .packRules)
-                let rulesRecovered = try RecoverableRuleWrite.recover(files: files, directory: directory)
+                let rawRecovered = try RecoverableRuleWrite.recover(
+                    files: rawFiles, directory: directory, scope: .rawConfig,
+                    preferences: sendablePreferences?.value
+                )
+                let packRecovered = try RecoverableRuleWrite.recover(files: packFiles, directory: directory, scope: .packRules, preferences: sendablePreferences?.value)
+                let rulesRecovered = try RecoverableRuleWrite.recover(files: files, directory: directory, preferences: sendablePreferences?.value)
                 return (raw: rawRecovered, rules: packRecovered || rulesRecovered)
             }
             if recovered.raw || recovered.rules {
@@ -515,10 +582,14 @@ public final class ConfigurationService: FileConfigurationProviding {
                 throw AppConfigError.validationFailed(errors: ["Rule collections could not be read completely; repair them before saving app-specific rules"])
             }
             let rules = try await customRulesStore.loadForMutation()
+            let leaderKeyPreference = persistedLeaderPreference(in: PreferencesService.canonicalDefaults)
             // Refuse a lossy regeneration, including manual edits to a generated file.
             // A generated header alone does not prove that the visual editor owns it.
             let previousKeys = Set(previous.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
-            let expected = try await generateConfiguration(ruleCollections: collections.collections, customRules: rules, appSpecificKeys: previousKeys)
+            let expected = try await generateConfiguration(
+                ruleCollections: collections.collections, customRules: rules,
+                appSpecificKeys: previousKeys, leaderKeyPreference: leaderKeyPreference
+            )
             for (name, content) in [("keypath.kbd", expected.content), ("keypath-apps.kbd", AppConfigGenerator.generate(from: previous))] {
                 let url = URL(fileURLWithPath: configDirectory).appendingPathComponent(name)
                 if FileManager.default.fileExists(atPath: url.path), try !AppConfigGenerator.matchesManagedContent(String(contentsOf: url, encoding: .utf8), expected: content) {
@@ -528,7 +599,10 @@ public final class ConfigurationService: FileConfigurationProviding {
                         )
                 }
             }
-            let configuration = try await generateConfiguration(ruleCollections: collections.collections, customRules: rules, appSpecificKeys: appKeys)
+            let configuration = try await generateConfiguration(
+                ruleCollections: collections.collections, customRules: rules,
+                appSpecificKeys: appKeys, leaderKeyPreference: leaderKeyPreference
+            )
             // Validate the exact new include with the new main config before either
             // replaces its committed file. The engine receives the normal include.
             guard appKeys.isEmpty || configuration.content.contains("(include keypath-apps.kbd)") else {
@@ -627,13 +701,28 @@ public final class ConfigurationService: FileConfigurationProviding {
         }
     }
 
-    private func preparedConfiguration(ruleCollections: [RuleCollection], customRules: [CustomRule]) async throws -> KanataConfiguration {
-        let newConfig = try await generateConfiguration(ruleCollections: ruleCollections, customRules: customRules)
+    private func preparedConfiguration(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        leaderKeyPreference: LeaderKeyPreference? = nil
+    ) async throws -> KanataConfiguration {
+        let newConfig = try await generateConfiguration(
+            ruleCollections: ruleCollections, customRules: customRules,
+            leaderKeyPreference: leaderKeyPreference
+        )
         let validation = await validateConfiguration(newConfig.content)
         guard validation.isValid else {
             throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
         }
         return newConfig
+    }
+
+    @MainActor
+    private func persistedLeaderPreference(in defaults: UserDefaults?) -> LeaderKeyPreference? {
+        guard let defaults else { return nil }
+        guard let data = defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey) else {
+            return .default
+        }
+        return (try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)) ?? .default
     }
 
     private func publishSavedConfiguration(_ newConfig: KanataConfiguration) async {
@@ -652,7 +741,8 @@ public final class ConfigurationService: FileConfigurationProviding {
     public func generateConfiguration(
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = [],
-        appSpecificKeys: Set<String>? = nil
+        appSpecificKeys: Set<String>? = nil,
+        leaderKeyPreference: LeaderKeyPreference? = nil
     ) async throws -> KanataConfiguration {
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
@@ -675,11 +765,12 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         // Get leader key preference and trigger mode from PreferencesService on MainActor.
         // Fetched before conflict detection so the leader key participates in it (#463).
-        let (leaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
+        let (storedLeaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
             (PreferencesService.shared.leaderKeyPreference,
              PreferencesService.shared.contextHUDTriggerMode,
              PreferencesService.shared.contextHUDHoldDelayMs)
         }
+        let leaderKeyPref = leaderKeyPreference ?? storedLeaderKeyPref
 
         // DETECT CONFLICTS BEFORE DEDUPLICATION
         // This catches cases where multiple collections map the same key, and where

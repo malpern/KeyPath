@@ -74,6 +74,17 @@ public struct ConfigFacade: Sendable {
     private func applyConfiguration(
         dryRun: Bool, service: ConfigurationService, permit: ConfigurationOperationGate.Permit
     ) async throws -> CLIApplyResult {
+        try await service.recoverPendingRuleWrite(
+            mutationPermit: permit,
+            preferenceDefaults: PreferencesService.canonicalDefaults
+        )
+        _ = try await service.applyRecoveredRuntimeIfNeeded(
+            mutationPermit: permit,
+            reloadHandler: { await reloadResult() }
+        )
+        await MainActor.run {
+            PreferencesService.shared.reloadLeaderKeyPreference()
+        }
         let collections = await ruleCollectionLoader()
         let customRules = await customRuleLoader()
         let enabledCount = collections.filter(\.isEnabled).count
@@ -85,7 +96,7 @@ public struct ConfigFacade: Sendable {
         // neither in sync with the collection, so `keypath collection`/JSON edits to
         // `selectedOutput` were silently ignored by `keypath apply`. Reconcile both, mirroring
         // the in-process reconcile the app does on load (RuleCollectionsManager). See #889.
-        let reconcile = await applyReconciledLeaderKeyPreference(from: collections)
+        let reconcile = await reconciledLeaderKeyPreference(from: collections)
         let reconciledCollections = reconcile.map { r in
             LeaderKeyPreference.reconcileLeaderActivators(
                 in: collections,
@@ -93,24 +104,14 @@ public struct ConfigFacade: Sendable {
                 targetLayer: r.reconciled.targetLayer
             )
         } ?? collections
-        let leaderSnapshot = reconcile?.previous
 
         if dryRun {
-            // A dry run must not persist the reconciled preference. Generation reads the live
-            // shared preference, so we generate/validate against the reconciled value and then
-            // always restore the original — including when generation/validation throws
-            // (e.g. a mapping conflict) so a failed preview never leaves the store mutated.
-            do {
-                let previewConfig = try await service.generateConfiguration(
-                    ruleCollections: reconciledCollections,
-                    customRules: customRules
-                )
-                try await validateDryRunConfig(previewConfig.content)
-            } catch {
-                await restoreLeaderKeyPreference(leaderSnapshot)
-                throw error
-            }
-            await restoreLeaderKeyPreference(leaderSnapshot)
+            let previewConfig = try await service.generateConfiguration(
+                ruleCollections: reconciledCollections,
+                customRules: customRules,
+                leaderKeyPreference: reconcile?.reconciled
+            )
+            try await validateDryRunConfig(previewConfig.content)
 
             return CLIApplyResult(
                 collectionsCount: collections.count,
@@ -122,17 +123,31 @@ public struct ConfigFacade: Sendable {
             )
         }
 
-        try await service.saveConfiguration(
-            ruleCollections: reconciledCollections,
-            customRules: customRules,
-            mutationPermit: permit
-        )
-
-        let reloadSuccess = if let reloadHandler {
-            await reloadHandler()
+        if let reconcile {
+            let preferenceChange = try RecoverableRuleWrite.PreferenceChange.leader(
+                before: reconcile.previousData,
+                after: JSONEncoder().encode(reconcile.reconciled)
+            )
+            try await service.saveConfiguration(
+                ruleCollections: reconciledCollections,
+                customRules: customRules,
+                leaderKeyPreference: reconcile.reconciled,
+                preferenceDefaults: PreferencesService.canonicalDefaults,
+                preferenceChanges: [preferenceChange],
+                mutationPermit: permit
+            )
+            await MainActor.run {
+                PreferencesService.shared.reloadLeaderKeyPreference()
+            }
         } else {
-            await tcpReload()
+            try await service.saveConfiguration(
+                ruleCollections: reconciledCollections,
+                customRules: customRules,
+                mutationPermit: permit
+            )
         }
+
+        let reloadSuccess = await reloadRuntime()
 
         return CLIApplyResult(
             collectionsCount: collections.count,
@@ -143,35 +158,46 @@ public struct ConfigFacade: Sendable {
         )
     }
 
-    private struct LeaderReconcile {
-        let reconciled: LeaderKeyPreference
-        let previous: LeaderKeyPreference
+    private func reloadResult() async -> ReloadResult {
+        let success = await reloadRuntime()
+        return ReloadResult(
+            success: success, response: nil,
+            errorMessage: success ? nil : "CLI reload failed",
+            protocol: nil, disposition: success ? .applied : .failed
+        )
     }
 
-    /// Sync `PreferencesService.leaderKeyPreference` from the enabled Leader Key collection's
-    /// explicit `selectedOutput` (see `LeaderKeyPreference.reconciled`), returning both the
-    /// reconciled value (so the caller can rewrite the matching leader activators without
-    /// re-reading shared state) and the pre-reconcile `previous` (so a dry run can restore it).
-    /// On a real apply the caller keeps the reconciled value in place so it drives the generated
-    /// config and future reads, matching what the app does on load. Returns `nil` when nothing
-    /// changed.
+    private func reloadRuntime() async -> Bool {
+        if let reloadHandler { return await reloadHandler() }
+        return await tcpReload()
+    }
+
+    private struct LeaderReconcile {
+        let reconciled: LeaderKeyPreference
+        let previousData: Data?
+    }
+
+    /// Prepare a leader preference candidate without changing shared defaults. A real apply
+    /// journals this exact preimage with the generated config; a dry run uses only the candidate.
     @MainActor
-    private func applyReconciledLeaderKeyPreference(from collections: [RuleCollection]) -> LeaderReconcile? {
-        let current = PreferencesService.shared.leaderKeyPreference
+    private func reconciledLeaderKeyPreference(from collections: [RuleCollection]) -> LeaderReconcile? {
+        let defaults = PreferencesService.canonicalDefaults
+        let previousData = defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey)
+        let current: LeaderKeyPreference = if let previousData {
+            (try? JSONDecoder().decode(LeaderKeyPreference.self, from: previousData)) ?? .default
+        } else {
+            .default
+        }
         guard let reconciled = LeaderKeyPreference.reconciled(from: collections, current: current) else {
             return nil
         }
         AppLogger.shared.log(
             "🔑 [ConfigFacade] Reconciling leader key from collection selectedOutput: '\(reconciled.key)' (was '\(current.key)')"
         )
-        PreferencesService.shared.leaderKeyPreference = reconciled
-        return LeaderReconcile(reconciled: reconciled, previous: current)
-    }
-
-    @MainActor
-    private func restoreLeaderKeyPreference(_ snapshot: LeaderKeyPreference?) {
-        guard let snapshot else { return }
-        PreferencesService.shared.leaderKeyPreference = snapshot
+        return LeaderReconcile(
+            reconciled: reconciled,
+            previousData: previousData
+        )
     }
 
     // MARK: - Backup / Restore

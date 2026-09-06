@@ -15,7 +15,7 @@ extension RuleCollectionsManager {
     func replaceCollections(_ collections: [RuleCollection]) async {
         await withRuleMutation(failure: ()) { [self] permit in
             guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
-            let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
+            let leaderSnapshot = snapshotLeaderPreference()
             ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
@@ -82,7 +82,7 @@ extension RuleCollectionsManager {
                     }
                 }
 
-                let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
+                let leaderPreferenceSnapshot = snapshotLeaderPreference()
 
                 let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
                 AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
@@ -174,7 +174,7 @@ extension RuleCollectionsManager {
                 // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
                 if id == RuleCollectionIdentifier.leaderKey {
                     if isEnabled {
-                        let key = leaderKeyOutput(from: candidate) ?? leaderPreferenceSnapshot.key
+                        let key = leaderKeyOutput(from: candidate) ?? leaderPreferenceSnapshot.value.key
                         syncLeaderKeyPreference(key: key, enabled: true)
                     } else {
                         syncLeaderKeyPreference(enabled: false)
@@ -368,7 +368,7 @@ extension RuleCollectionsManager {
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else { return }
-            let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
+            let leaderSnapshot = snapshotLeaderPreference()
             candidate.configuration.updateSelectedOutput(output)
             candidate.isEnabled = true
             if let config = candidate.configuration.singleKeyPickerConfig, config.inputKey != "leader" {
@@ -630,7 +630,7 @@ extension RuleCollectionsManager {
         await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
             AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
             guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
-            let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
+            let leaderPreferenceSnapshot = snapshotLeaderPreference()
 
             applyLeaderKeyToMomentaryActivators(newKey)
             syncLeaderKeyPreference(key: newKey, enabled: true)
@@ -690,13 +690,14 @@ extension RuleCollectionsManager {
         return config.selectedOutput ?? config.presetOptions.first?.output
     }
 
-    private func syncLeaderKeyPreference(key: String? = nil, enabled: Bool) {
-        var preference = PreferencesService.shared.leaderKeyPreference
+    private func syncLeaderKeyPreference(key: String? = nil, enabled: Bool, persistImmediately: Bool = false) {
+        var preference = preferencesService.leaderKeyPreference
         if let key {
             preference.key = key
         }
         preference.enabled = enabled
-        PreferencesService.shared.leaderKeyPreference = preference
+        if persistImmediately { preferencesService.leaderKeyPreference = preference }
+        else { pendingLeaderKeyPreference = preference }
     }
 
     /// Reconcile the system `leaderKeyPreference` (and the base→nav leader activator) from
@@ -726,12 +727,11 @@ extension RuleCollectionsManager {
     /// here would clobber a leader configured via the system-preference path while the
     /// collection is off, so full bidirectional reconciliation is deferred to the
     /// single-source-of-truth work in #865/#888.
-    /// - Returns: `true` if it mutated the preference/activators (so the caller must roll
-    ///   back via `rollbackLeaderReconcile` if the subsequent config regen fails), `false`
-    ///   if it was a no-op.
+    /// - Returns: `true` if it staged a preference/activator change for the caller's rule
+    ///   transaction, `false` if it was a no-op.
     @discardableResult
-    func reconcileLeaderKeyFromCollection() -> Bool {
-        let current = PreferencesService.shared.leaderKeyPreference
+    func reconcileLeaderKeyFromCollection(persistImmediately: Bool = false) -> Bool {
+        let current = pendingLeaderKeyPreference ?? preferencesService.leaderKeyPreference
         // Shared, pure reconcile rule — same statement the CLI apply path uses
         // (ConfigFacade), so all headless paths agree. See LeaderKeyPreference.reconciled.
         guard let reconciled = LeaderKeyPreference.reconciled(from: ruleCollections, current: current) else {
@@ -742,21 +742,8 @@ extension RuleCollectionsManager {
             "🔑 [RuleCollections] Reconciling leader key from collection selectedOutput: '\(reconciled.key)' (was '\(current.key)', enabled=\(current.enabled))"
         )
         applyLeaderKeyToLeaderActivators(reconciled.key, targetLayer: current.targetLayer)
-        syncLeaderKeyPreference(key: reconciled.key, enabled: true)
+        syncLeaderKeyPreference(key: reconciled.key, enabled: true, persistImmediately: persistImmediately)
         return true
-    }
-
-    /// Silently undo a reconcile whose config regen failed. `leaderKeyPreference` is
-    /// UserDefaults-persisted via `didSet`, so leaving a reconciled-but-unapplied value in
-    /// place would permanently mask the drift (the idempotency guard in
-    /// `reconcileLeaderKeyFromCollection` would see the preference already matches and skip
-    /// retrying). Restoring both the preference and the in-memory collections lets the next
-    /// load retry cleanly. Unlike `updateLeaderKey`'s rollback this shows no user message —
-    /// it runs on passive `bootstrap`/`replaceCollections` load paths. See issue #889.
-    func rollbackLeaderReconcile(preference: LeaderKeyPreference, collections: [RuleCollection]) {
-        AppLogger.shared.log("↩️ [RuleCollections] Leader reconcile rolled back after failed config regen")
-        ruleCollections = collections
-        PreferencesService.shared.leaderKeyPreference = preference
     }
 
     /// Save or update a custom rule

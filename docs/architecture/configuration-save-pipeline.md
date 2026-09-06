@@ -11,7 +11,7 @@ completed. CLI apply/restore also participate in directory admission; see below.
 | --- | --- | --- |
 | Generate and validate collection-backed configuration | `ConfigurationService` | `saveConfiguration` validates before its atomic write and updates the in-memory configuration and observers. |
 | Coordinate generated/raw configuration saves | `SaveCoordinator` | Suppresses the watcher, validates, snapshots the last good file, writes, classifies reload, and rolls the file back after rejection or failure. |
-| Persist rule and custom-rule source data | `RuleCollectionsManager` | Mutates in-memory state and requests a recoverable config/source-store write from `ConfigurationService`. Notifications follow the file-set commit and precede reload. Runtime rollback and preferences remain separate. |
+| Persist rule and custom-rule source data | `RuleCollectionsManager` | Mutates in-memory state and requests a recoverable config/source-store write from `ConfigurationService`. Notifications follow the file-set commit. Leader-key preference changes join this retained transaction; other preferences remain separate. |
 | Reload the running engine | `ConfigReloadCoordinator` | Produces the four reload dispositions; `pending` means the write succeeded but the runtime is unavailable. |
 | Handle external file edits | `ConfigHotReloadService` | Validates and reloads changes that were not suppressed as internal writes. |
 | Create durable pre-edit backups | `ConfigBackupManager` | Used by explicit backup/recovery flows, not as an alternate writer. |
@@ -50,8 +50,20 @@ its throwing contract when even the fallback cannot be written. These outcomes
 assert only file recovery, not a second engine reload or a multi-store rollback.
 Existing presentation and Boolean success semantics are unchanged.
 
-File rollback/fallback still exists, but source stores,
-preferences, and installed-pack records do not yet share one transaction.
+File rollback/fallback still exists. Rule transactions now retain the leader-key
+preference with their three files until runtime classification. The preference
+candidate remains manager-local until the journal is durable; `UserDefaults`
+is then synchronized and read back before reload. A process interruption before
+commit restores both the files and leader preference. Applied and pending results
+commit both. A third leader preference revision stops recovery before any file is
+rolled back and retains the journal for diagnosis.
+
+This does not yet cover logical keymap selection. Its overlay `@AppStorage`
+selection is written before the manager receives the mutation, so reconstructing
+that preimage would not be a safe transaction. Context HUD trigger/hold settings
+and device selection also regenerate configuration through standalone paths.
+Those workflows need their own bounded migration. Display-only preferences remain
+outside the journal and are preserved.
 See the [consolidation baseline](../planning/consolidation-baseline.md) for paths
 and remaining gaps. UI presentation changes require discussion before implementation.
 
@@ -351,10 +363,10 @@ and settle through `commitRuleMutation`. Single-output editing handles the leade
 preference/activators in the same operation, rather than calling another save
 after changing the selected output. Replace-all snapshots the original arrays.
 
-The commit helper optionally receives the prior leader preference. On failure it
-restores that preference before error feedback only if it still equals the prepared
-value; a newer value is preserved and reported. This is in-process preference
-rollback only. UserDefaults is not yet part of the crash-recovery journal.
+The commit helper optionally receives the prior leader preference. It keeps the
+candidate manager-local, then gives the prior and candidate values to the fixed
+leader role in the durable rule journal. Failure and startup recovery restore the
+preference with the matching files. A third value fails closed before file rollback.
 
 Interrupted-save runtime admission is owned by `ConfigurationService`. Recovering
 rule or app journals marks a runtime refresh requirement; editor callbacks cannot
@@ -372,16 +384,30 @@ separate fallback path; ordinary save rollback does not replace an empty origina
 with generated content. Raw journal recovery participates in editor admission and
 startup recovery without marking unchanged rule source arrays as stale.
 
+CLI leader reconciliation uses the same raw journal with the fixed canonical
+leader preference role. It generates from a local candidate, compares the exact
+defaults preimage before staging, and publishes the shared preference only after
+the config and preference commit together. CLI admission recovers and reloads a
+retained raw revision before deriving another candidate, including for dry runs.
+CLI dry runs never mutate defaults.
+
+Every generation entry reads the leader revision after retained-journal recovery.
+Rule managers reload their injected preference store; pack admission refreshes the
+manager cache; raw and app-specific configuration generation decode the canonical
+durable value directly. Backup/explicit-restore recovery paths do not generate a
+leader-dependent candidate before handing control back to these owners.
+
 A restored raw original that fails validation may be replaced by a separately
 validated raw edit after recovery reload fails. Only an accepted replacement
 clears that recovery requirement; cancellation, invalid candidates, and journal
 conflicts never silently clear it.
 
-Logical keymap changes use the same retained rule-state transaction as collection
-edits. The manager recovers before candidate preparation and restores its layout
-fields plus the matching optimistic display preference on failure. Persistent
-keymap preferences update only after accepted settlement; they are not yet part
-of the durable file journal.
+Logical keymap changes retain rule files through runtime settlement, and the manager
+restores its layout fields plus the matching optimistic display preference on
+ordinary failure. The overlay can persist that display selection before manager
+admission, so the actual prior keymap preference is not yet available to the durable
+rule journal. Process-interruption atomicity for keymap preference and files remains
+a separate transaction-boundary change.
 
 Collection-backed pack install/removal passes its record change through the existing
 collection toggle into the canonical rule save. The pack record and three rule files

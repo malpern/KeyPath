@@ -11,9 +11,11 @@ extension RuleCollectionsManager {
         await withRuleMutation(failure: ()) { [self] permit in
             do {
                 try await configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
-                try await configurationService.recoverPendingRuleWrite(
-                    collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: permit
+                _ = try await configurationService.recoverPendingRuleWrite(
+                    collectionStore: ruleCollectionStore, customStore: customRulesStore,
+                    mutationPermit: permit, preferenceDefaults: preferencesService.persistenceDefaults
                 )
+                preferencesService.reloadLeaderKeyPreference(from: preferencesService.persistenceDefaults)
             } catch {
                 onError?("Could not recover the previous rule edit: \(error.localizedDescription)")
                 return
@@ -58,13 +60,19 @@ extension RuleCollectionsManager {
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
 
-            let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
-            let collectionsSnapshot = ruleCollections
+            let leaderSnapshot = snapshotLeaderPreference()
+            let ruleSnapshot = snapshotRuleState()
             let didReconcileLeader = reconcileLeaderKeyFromCollection()
 
-            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
-            if didReconcileLeader, !applied {
-                rollbackLeaderReconcile(preference: leaderSnapshot, collections: collectionsSnapshot)
+            if didReconcileLeader {
+                await commitRuleMutation(
+                    snapshot: ruleSnapshot,
+                    failureContext: "leader key",
+                    leaderPreferenceBefore: leaderSnapshot,
+                    mutationPermit: permit
+                )
+            } else {
+                await regenerateConfigFromCollections(mutationPermit: permit)
             }
         }
     }

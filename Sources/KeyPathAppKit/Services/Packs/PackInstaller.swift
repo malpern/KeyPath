@@ -67,8 +67,10 @@ public final class PackInstaller {
         try await manager.configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
         let recovered = try await manager.configurationService.recoverPendingRuleWrite(
             collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
-            mutationPermit: permit, installedPackTracker: tracker
+            mutationPermit: permit, installedPackTracker: tracker,
+            preferenceDefaults: manager.preferencesService.persistenceDefaults
         )
+        manager.preferencesService.reloadLeaderKeyPreference(from: manager.preferencesService.persistenceDefaults)
         do {
             try await manager.refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: permit)
         } catch let error as KeyPathError {

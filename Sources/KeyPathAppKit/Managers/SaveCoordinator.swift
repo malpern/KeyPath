@@ -235,6 +235,8 @@ final class SaveCoordinator {
         manager: RuleCollectionsManager,
         mutationPermit: ConfigurationOperationGate.Permit,
         packRecord: InstalledPackTracker.RecordChange? = nil,
+        preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
+        leaderKeyPreference: LeaderKeyPreference? = nil,
         reloadHandler: (() async -> ReloadResult)?
     ) async -> SaveResult {
         do {
@@ -251,7 +253,10 @@ final class SaveCoordinator {
                         staged = try await configurationService.stageRuleState(
                             ruleCollections: manager.ruleCollections, customRules: manager.customRules,
                             collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
-                            mutationPermit: permit, packRecord: packRecord
+                            mutationPermit: permit, packRecord: packRecord,
+                            preferenceDefaults: manager.preferencesService.persistenceDefaults,
+                            preferenceChanges: preferenceChanges,
+                            leaderKeyPreference: leaderKeyPreference
                         )
                         try Task.checkCancellation()
                         playWriteSound()
@@ -312,6 +317,7 @@ final class SaveCoordinator {
     ) async throws -> Error? {
         try await configurationService.recoverPendingRuleWrite(mutationPermit: mutationPermit)
         try await configurationService.recoverPendingAppKeymapWrite(store: appStore, mutationPermit: mutationPermit)
+        PreferencesService.shared.reloadLeaderKeyPreference()
         do {
             let recovery = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: mutationPermit, reloadHandler: reloadHandler)
             if recovery?.disposition == .applied {

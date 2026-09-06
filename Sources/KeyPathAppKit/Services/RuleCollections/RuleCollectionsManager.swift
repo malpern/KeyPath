@@ -80,6 +80,20 @@ final class RuleCollectionsManager {
     let configurationService: ConfigurationService
     let eventListener: KanataEventListener
     let keymapPreferences: UserDefaults
+    let preferencesService: PreferencesService
+    var pendingLeaderKeyPreference: LeaderKeyPreference?
+
+    struct LeaderPreferenceSnapshot: Sendable {
+        let value: LeaderKeyPreference
+        let data: Data?
+    }
+
+    func snapshotLeaderPreference() -> LeaderPreferenceSnapshot {
+        LeaderPreferenceSnapshot(
+            value: preferencesService.leaderKeyPreference,
+            data: preferencesService.persistenceDefaults.data(forKey: PreferencesService.leaderKeyPreferenceKey)
+        )
+    }
 
     /// Apply already-persisted rules and retain the runtime disposition.
     var onRulesChanged: (() async -> ReloadResult)?
@@ -127,13 +141,15 @@ final class RuleCollectionsManager {
         customRulesStore: CustomRulesStore = .shared,
         configurationService: ConfigurationService,
         eventListener: KanataEventListener = KanataEventListener(),
-        keymapPreferences: UserDefaults = .standard
+        keymapPreferences: UserDefaults = .standard,
+        preferencesService: PreferencesService? = nil
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.configurationService = configurationService
         self.eventListener = eventListener
         self.keymapPreferences = keymapPreferences
+        self.preferencesService = preferencesService ?? PreferencesService.shared
     }
 
     deinit {

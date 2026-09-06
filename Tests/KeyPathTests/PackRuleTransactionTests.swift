@@ -312,6 +312,43 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         XCTAssertEqual(try snapshot(), before)
     }
 
+    func testPackRecoveryRefreshesLeaderPreferenceCachedFromStagedRevision() async throws {
+        let defaults = manager.preferencesService.persistenceDefaults
+        manager.preferencesService.leaderKeyPreference = .default
+        let beforeData = try XCTUnwrap(defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey))
+        let attempted = LeaderKeyPreference(key: "tab", targetLayer: .navigation, enabled: true)
+        let service = manager.configurationService
+        try await service.operationGate.withOperation { @MainActor permit in
+            _ = try await service.stageRuleState(
+                ruleCollections: self.manager.ruleCollections,
+                customRules: self.manager.customRules,
+                collectionStore: self.manager.ruleCollectionStore,
+                customStore: self.manager.customRulesStore,
+                mutationPermit: permit,
+                preferenceDefaults: defaults,
+                preferenceChanges: [.leader(before: beforeData, after: JSONEncoder().encode(attempted))],
+                leaderKeyPreference: attempted
+            )
+        }
+        let stagedPreferences = PreferencesService(leaderDefaults: defaults)
+        XCTAssertEqual(stagedPreferences.leaderKeyPreference, attempted)
+        let freshManager = RuleCollectionsManager(
+            ruleCollectionStore: manager.ruleCollectionStore,
+            customRulesStore: manager.customRulesStore,
+            configurationService: service,
+            preferencesService: stagedPreferences
+        )
+        let tracker = tracker!
+
+        try await service.operationGate.withOperation { permit in
+            try await PackInstaller.shared.recoverAndValidateState(
+                manager: freshManager, tracker: tracker, permit: permit
+            )
+        }
+
+        XCTAssertEqual(stagedPreferences.leaderKeyPreference, .default)
+    }
+
     func testMetadataOnlyToggleRecoversInterruptedPackBeforeChangingRecords() async throws {
         let before = try snapshot()
         let service = manager.configurationService
