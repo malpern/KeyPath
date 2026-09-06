@@ -16,14 +16,18 @@ final class SimpleModsSaveTests: KeyPathTestCase {
             let service = SimpleModsService(configPath: fixture.url.path) { transform in
                 await fixture.coordinator.editConfiguration(transform: transform) {
                     reloads += 1
-                    XCTAssertTrue((try? String(contentsOf: fixture.url, encoding: .utf8))?.contains("f1 f2") == true)
-                    return Self.reload(.rejected)
+                    if reloads == 1 {
+                        XCTAssertTrue((try? String(contentsOf: fixture.url, encoding: .utf8))?.contains("f1 f2") == true)
+                    } else {
+                        XCTAssertEqual(try? String(contentsOf: fixture.url, encoding: .utf8), fixture.original)
+                    }
+                    return Self.reload(reloads == 1 ? .rejected : .applied)
                 }
             }
             try service.load()
             service.addMapping(fromKey: "f1", toKey: "f2")
             await service.flushPendingApplyForTesting()
-            XCTAssertEqual(reloads, 1)
+            XCTAssertEqual(reloads, 2)
             XCTAssertEqual(try String(contentsOf: fixture.url, encoding: .utf8), fixture.original)
             XCTAssertFalse(service.installedMappings.contains { $0.fromKey == "f1" })
             XCTAssertNotNil(service.lastError)

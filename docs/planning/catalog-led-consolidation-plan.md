@@ -442,10 +442,18 @@ CI job was retried and passed before merge. Network backups and active updater
 caches were preserved. External scratch routing (#1261) still awaits the runner's
 normal removable-volume permission; this recovery does not complete that migration.
 
-### Interrupted-save runtime admission in progress
+### Interrupted-save runtime admission merged in #1285
 
 Move the runtime recovery retry requirement into ConfigurationService and recover
 before app/raw editor callbacks, candidate validation, and rule/pack early returns.
 Managers observe rule-source recovery performed through another editor sharing the
 service. This closes an in-process cross-editor gap; raw journals, preferences,
 managed snapshots, cross-instance/process caches, and watcher revisions remain open.
+
+### Raw configuration recovery in progress
+
+Move raw/generated/Simple Modifications saves onto a retained config-only journal,
+including exact rollback, conflict preservation, runtime recovery, and startup/next
+editor recovery. Preserve accepted-save cancellation semantics and explicit-restore
+fallback behavior. Preferences, managed-pack snapshots, cross-instance/process
+cache freshness, and watcher revisions remain open.

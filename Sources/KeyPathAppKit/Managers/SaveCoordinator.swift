@@ -9,14 +9,16 @@ protocol SaveCoordinatorDelegate: AnyObject {
     func configDidUpdate(mappings: [KeyMapping])
 }
 
-/// Rule and app-keymap recovery include source files and an explicit reload result.
-/// Legacy config-only recovery does not claim source or runtime restoration.
+/// Retained writes report their recovery scope and runtime outcome.
+/// Legacy explicit restore does not claim source or runtime restoration.
 enum SaveRecoveryResult {
     case notAttempted
     case restoredPreviousAppKeymapState(reloadResult: ReloadResult?)
     case appKeymapRecoveryFailed(Error)
     case restoredPreviousRuleState(reloadResult: ReloadResult?)
     case ruleStateRecoveryFailed(Error)
+    case restoredPreviousRawConfig(reloadResult: ReloadResult?)
+    case rawConfigRecoveryFailed(Error)
     case restoredPreviousConfig
     case wroteMinimalSafeConfig(backupError: Error?)
     case failed(backupError: Error?, fallbackError: Error)
@@ -300,19 +302,36 @@ final class SaveCoordinator {
 
     /// Run before reading a candidate or invoking an editor callback: either can
     /// exit without staging, but an interrupted prior edit still needs recovery.
+    @discardableResult
     private func recoverBeforeEditing(
         appStore: AppKeymapStore? = nil,
+        allowInvalidRawRecovery: Bool = false,
         mutationPermit: ConfigurationOperationGate.Permit,
         runtimeDidApply: @escaping @MainActor @Sendable () async -> Void,
         reloadHandler: @escaping () async -> ReloadResult
-    ) async throws {
+    ) async throws -> Error? {
         try await configurationService.recoverPendingRuleWrite(mutationPermit: mutationPermit)
         try await configurationService.recoverPendingAppKeymapWrite(store: appStore, mutationPermit: mutationPermit)
-        let recovery = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: mutationPermit, reloadHandler: reloadHandler)
-        if recovery?.disposition == .applied {
-            await Task { @MainActor in await runtimeDidApply() }.value
+        do {
+            let recovery = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: mutationPermit, reloadHandler: reloadHandler)
+            if recovery?.disposition == .applied {
+                await Task { @MainActor in await runtimeDidApply() }.value
+            }
+        } catch {
+            // Journal conflicts remain blocking. Only a raw replacement may
+            // supersede restored content that fails validation; the replacement
+            // must independently validate and be accepted before recovery clears.
+            guard allowInvalidRawRecovery else { throw error }
+            let current = try await snapshotCurrentConfig(mutationPermit: mutationPermit)
+            let validation = await configurationService.validateConfiguration(current)
+            guard !validation.isValid else { throw error }
+            if Task.isCancelled {
+                throw SaveApplicationError(cause: CancellationError(), recovery: error.localizedDescription)
+            }
+            return error
         }
         try Task.checkCancellation()
+        return nil
     }
 
     /// Capture and transform raw content under the same admission as its save.
@@ -321,17 +340,19 @@ final class SaveCoordinator {
         runtimeDidApply: @escaping @MainActor @Sendable () async -> Void = {},
         reloadHandler: @escaping @MainActor @Sendable () async -> ReloadResult
     ) async -> SaveResult {
+        var deferredRecovery: Error?
         do {
             return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
-                try await recoverBeforeEditing(mutationPermit: permit, runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
+                deferredRecovery = try await recoverBeforeEditing(allowInvalidRawRecovery: true, mutationPermit: permit, runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
                 let original = try await snapshotCurrentConfig(mutationPermit: permit)
                 let content = try transform(original)
                 return await saveGeneratedConfig(content: content, mutationPermit: permit, expectedContent: original,
                                                  runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
             }
         } catch {
-            saveStatus = error is CancellationError ? .idle : .failed(error.localizedDescription)
-            return .failure(error)
+            let reportedError: Error = deferredRecovery.map { SaveApplicationError(cause: error, recovery: $0.localizedDescription) } ?? error
+            saveStatus = reportedError is CancellationError ? .idle : .failed(reportedError.localizedDescription)
+            return .failure(reportedError)
         }
     }
 
@@ -354,104 +375,60 @@ final class SaveCoordinator {
                 configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
                 saveStatus = .saving
 
+                var staged: ConfigurationService.RawConfigurationWrite?
+                var reload: ReloadResult?
+                var deferredRecovery: Error?
                 do {
-                    try await recoverBeforeEditing(mutationPermit: permit, runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
-                    // Step 1: Validate generated config before saving
-                    AppLogger.shared.debug(
-                        "🔍 [SaveCoordinator] Validating generated config before save..."
-                    )
+                    deferredRecovery = try await recoverBeforeEditing(allowInvalidRawRecovery: true, mutationPermit: permit, runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
                     let validation = await configurationService.validateConfiguration(content)
-
-                    if !validation.isValid {
-                        AppLogger.shared.error(
-                            "❌ [SaveCoordinator] Generated config validation failed: \(validation.errors.joined(separator: ", "))"
-                        )
-                        saveStatus = .failed(
-                            "Invalid config: \(validation.errors.first ?? "Unknown error")"
-                        )
-                        return .failure(
-                            KeyPathError.configuration(.validationFailed(errors: validation.errors))
-                        )
+                    guard validation.isValid else {
+                        throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
                     }
-
-                    AppLogger.shared.info("✅ [SaveCoordinator] Generated config validation passed")
-
-                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal generated save after recovery")
-
-                    // Step 2: Backup current config
                     let previousContent = try await snapshotCurrentConfig(mutationPermit: permit)
                     if let expectedContent, previousContent != expectedContent {
                         throw KeyPathError.configuration(.loadFailed(reason: "The configuration changed while this edit was being prepared. Reload mappings and try again."))
                     }
                     try Task.checkCancellation()
                     backupCurrentConfig(previousContent)
-
-                    // Step 3: Write the configuration file
-                    let configPath = configurationService.configurationPath
-                    let configDir = configurationService.configDirectory
-
-                    let configDirURL = URL(fileURLWithPath: configDir)
-                    try Foundation.FileManager().createDirectory(
-                        at: configDirURL, withIntermediateDirectories: true
-                    )
-
-                    let configURL = URL(fileURLWithPath: configPath)
-                    try content.write(to: configURL, atomically: true, encoding: .utf8)
-
-                    AppLogger.shared.info(
-                        "✅ [SaveCoordinator] Generated configuration saved to \(configPath)"
-                    )
-
-                    // Step 4: Parse saved config to extract mappings
-                    let parsedMappings = parseConfig(content)
-
-                    // Step 5: Play write sound
+                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal raw save after recovery")
+                    staged = try await configurationService.stageRawConfiguration(content: content, expectedContent: previousContent, mutationPermit: permit)
+                    try Task.checkCancellation()
                     playWriteSound()
-
-                    // Step 6: Trigger reload for validation
-                    let reloadResult = await reloadHandler()
-
-                    if reloadResult.disposition == .applied || reloadResult.disposition == .pending {
-                        if reloadResult.disposition == .applied {
-                            AppLogger.shared.info(
-                                "✅ [SaveCoordinator] TCP reload successful, config is active"
-                            )
-                        } else {
-                            AppLogger.shared.info(
-                                "ℹ️ [SaveCoordinator] Config saved; reload pending: \(reloadResult.errorMessage ?? "service unavailable")"
-                            )
-                        }
-                        if reloadResult.disposition == .applied {
-                            // Settle applied runtime state even if a newer edit cancelled this task.
-                            await Task { @MainActor in await runtimeDidApply() }.value
-                        }
-                        playSuccessSound()
-                        saveStatus = .success
-                        scheduleStatusReset()
-                        return .success(mappings: parsedMappings, reloadResult: reloadResult)
-                    } else {
-                        // TCP reload failed - restore backup
-                        let errorMessage = reloadResult.errorMessage ?? "TCP server unresponsive"
-                        AppLogger.shared.error("❌ [SaveCoordinator] TCP reload FAILED: \(errorMessage)")
-
-                        playErrorSound()
-                        let recoveryResult = await restoreConfig(previousContent, mutationPermit: permit)
-
-                        saveStatus = .failed("Config reload failed: \(errorMessage)")
-                        return .failure(
-                            KeyPathError.configuration(
-                                .loadFailed(reason: "Hot reload failed: \(errorMessage)")
-                            ),
-                            reloadResult: reloadResult,
-                            recoveryResult: recoveryResult
-                        )
+                    let result = await reloadHandler()
+                    reload = result
+                    guard result.disposition == .applied || result.disposition == .pending else {
+                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "The configuration could not be applied"))
                     }
-
+                    guard let staged else { throw AppConfigError.validationUnavailable }
+                    // Preserve the existing raw-editor contract: an accepted revision
+                    // settles even if a newer editor task cancelled this one meanwhile.
+                    try await configurationService.settleRawConfiguration(staged, commit: true, mutationPermit: permit)
+                    if result.disposition == .applied {
+                        await Task { @MainActor in await runtimeDidApply() }.value
+                    }
+                    playSuccessSound()
+                    saveStatus = .success
+                    scheduleStatusReset()
+                    return .success(mappings: parseConfig(content), reloadResult: result)
                 } catch {
-                    saveStatus = .failed(
-                        "Failed to save generated configuration: \(error.localizedDescription)"
-                    )
-                    return .failure(error)
+                    var recovery: SaveRecoveryResult = .notAttempted
+                    var reportedError: Error = deferredRecovery.map { SaveApplicationError(cause: error, recovery: $0.localizedDescription) } ?? error
+                    if let staged {
+                        do {
+                            try await configurationService.settleRawConfiguration(staged, commit: false, requireRuntimeRecovery: reload != nil, mutationPermit: permit)
+                            let recovered = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: permit, reloadHandler: reloadHandler)
+                            if recovered?.disposition == .applied {
+                                await Task { @MainActor in await runtimeDidApply() }.value
+                            }
+                            recovery = .restoredPreviousRawConfig(reloadResult: recovered)
+                        } catch let recoveryError {
+                            recovery = .rawConfigRecoveryFailed(recoveryError)
+                            reportedError = SaveApplicationError(cause: error, recovery: recoveryError.localizedDescription)
+                        }
+                    }
+                    if !(reportedError is CancellationError) { playErrorSound() }
+                    saveStatus = reportedError is CancellationError ? .idle : .failed(reportedError.localizedDescription)
+                    return .failure(reportedError, reloadResult: reload, recoveryResult: recovery)
                 }
             }
         } catch {
@@ -469,17 +446,33 @@ final class SaveCoordinator {
     /// Ensure we have a backup by loading the current config if none exists.
     /// Call this early in the app lifecycle so rollback always has a fallback.
     func ensureBackupExists() async {
-        guard lastGoodConfig == nil else { return }
-        let current = await configurationService.current()
-        if !current.content.isEmpty {
-            lastGoodConfig = current.content
-            AppLogger.shared.log("💾 [SaveCoordinator] Initialized backup from current config on disk")
+        do {
+            try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+                guard lastGoodConfig == nil else { return }
+                try await configurationService.recoverPendingRuleWrite(mutationPermit: permit)
+                try await configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
+                let current = await configurationService.current(mutationPermit: permit)
+                if !current.content.isEmpty {
+                    lastGoodConfig = current.content
+                    AppLogger.shared.log("💾 [SaveCoordinator] Initialized backup from recovered config on disk")
+                }
+            }
+        } catch {
+            AppLogger.shared.error("Could not prepare configuration backup: \(error.localizedDescription)")
         }
     }
 
     @discardableResult
     func restoreLastGoodConfig() async throws -> SaveRecoveryResult {
         try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+            // A non-directory cannot contain a journal. Preserve the explicit
+            // restore contract's backup/fallback write errors for that broken path.
+            var isDirectory: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: configurationService.configDirectory, isDirectory: &isDirectory)
+            if !exists || isDirectory.boolValue {
+                try await configurationService.recoverPendingRuleWrite(mutationPermit: permit)
+                try await configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
+            }
             let result = await restoreConfig(lastGoodConfig, mutationPermit: permit)
             // Preserve the throwing contract for existing explicit-restore callers.
             if case let .failed(backupError, fallbackError) = result {

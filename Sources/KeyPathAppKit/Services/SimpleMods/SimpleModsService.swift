@@ -204,6 +204,12 @@ public final class SimpleModsService {
             lastRollbackDetails = nil
             let cause = result.error?.localizedDescription ?? "The mappings could not be saved."
             switch result.recoveryResult {
+            case .restoredPreviousRawConfig:
+                lastRollbackReason = cause
+                lastRollbackDetails = "The previous configuration file was restored."
+                lastError = cause
+            case .rawConfigRecoveryFailed:
+                lastError = cause
             case .restoredPreviousConfig:
                 lastRollbackReason = cause
                 lastRollbackDetails = "The previous configuration file was restored. Runtime recovery has not been verified."

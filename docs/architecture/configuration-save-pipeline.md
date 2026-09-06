@@ -363,3 +363,16 @@ the requirement for later owners sharing the service, even after journal removal
 Rule-source recovery also advances a revision observed by the manager so recovery
 through an app/raw editor cannot leave that manager's arrays stale. This state is
 in-process and does not replace durable raw-save or cross-process cache recovery.
+
+Raw/generated saves retain a `rawConfig` journal for the main file through engine
+classification. They restore exact bytes and recover runtime on rejection, preserve
+external conflicts, and invalidate the parsed cache only after settlement. Accepted
+raw revisions still settle under caller cancellation. Explicit restore keeps its
+separate fallback path; ordinary save rollback does not replace an empty original
+with generated content. Raw journal recovery participates in editor admission and
+startup recovery without marking unchanged rule source arrays as stale.
+
+A restored raw original that fails validation may be replaced by a separately
+validated raw edit after recovery reload fails. Only an accepted replacement
+clears that recovery requirement; cancellation, invalid candidates, and journal
+conflicts never silently clear it.

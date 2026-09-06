@@ -10,12 +10,14 @@ enum RecoverableRuleWrite {
         case rules
         case appKeymaps
         case packRules
+        case rawConfig
 
         var roles: Set<String> {
             switch self {
             case .rules: ["config", "collections", "customRules"]
             case .appKeymaps: ["config", "appKeymaps", "appInclude"]
             case .packRules: ["config", "collections", "customRules", "installedPacks"]
+            case .rawConfig: ["config"]
             }
         }
     }
@@ -234,14 +236,21 @@ enum RecoverableRuleWrite {
         case .rules: ".keypath-rule-write.json"
         case .appKeymaps: ".keypath-app-write.json"
         case .packRules: ".keypath-pack-rule-write.json"
+        case .rawConfig: ".keypath-raw-write.json"
         }
         return directory.appendingPathComponent(name)
     }
 
     private static func validateFiles(_ files: [String: URL], directory: URL, scope: Scope) throws {
         let targets = Set(files.values.map(\.standardizedFileURL))
-        let reserved = Set([journalURL(directory), journalURL(directory, scope: .appKeymaps), journalURL(directory, scope: .packRules), directory.appendingPathComponent(".keypath-rule-write.lock")]
-            .map(\.standardizedFileURL))
+        let reserved = Set([
+            journalURL(directory),
+            journalURL(directory, scope: .appKeymaps),
+            journalURL(directory, scope: .packRules),
+            journalURL(directory, scope: .rawConfig),
+            directory.appendingPathComponent(".keypath-rule-write.lock")
+        ]
+        .map(\.standardizedFileURL))
         guard Set(files.keys) == scope.roles,
               targets.count == files.count, targets.isDisjoint(with: reserved)
         else { throw Failure.invalidJournal }
