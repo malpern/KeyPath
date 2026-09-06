@@ -270,28 +270,21 @@ final class VallackSystemPackTests: XCTestCase {
     }
 
     @MainActor
-    func testVallackInstallCreatesSnapshotFile() async throws {
+    func testVallackInstallEmbedsSnapshotInRecord() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
         let (manager, tempDir) = try makeTestManager()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        _ = try await PackInstaller.shared.install(
+        let installed = try await PackInstaller.shared.install(
             PackRegistry.vallackSystem,
             manager: manager
         )
 
-        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
-        XCTAssertTrue(
-            FileManager.default.fileExists(atPath: snapshotURL.path),
-            "Snapshot file should exist after install"
-        )
-        // Clean up snapshot
-        defer { try? FileManager.default.removeItem(at: snapshotURL) }
-
-        let data = try Data(contentsOf: snapshotURL)
-        XCTAssertFalse(data.isEmpty, "Snapshot file should not be empty")
+        let snapshot = try XCTUnwrap(installed.managedCollectionSnapshot)
+        XCTAssertEqual(snapshot.packID, PackRegistry.vallackSystem.id)
+        XCTAssertFalse(snapshot.entries.isEmpty)
     }
 
     @MainActor
@@ -464,7 +457,7 @@ final class VallackSystemPackTests: XCTestCase {
     }
 
     @MainActor
-    func testVallackFailedInstallRestoresModernSnapshotAndRemovesLegacySnapshot() async throws {
+    func testVallackFailedInstallPreservesModernAndLegacySnapshots() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -559,9 +552,9 @@ final class VallackSystemPackTests: XCTestCase {
 
         XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
         XCTAssertEqual(manager.customRules, originalRuleState.customRules)
-        XCTAssertFalse(
+        XCTAssertTrue(
             FileManager.default.fileExists(atPath: legacySnapshotURL.path),
-            "The legacy Vallack migration snapshot should retain its historical rollback cleanup"
+            "A rejected installation must preserve the legacy restore data"
         )
 
         let restoredSnapshot = try XCTUnwrap(PackCollectionSnapshot.load(for: packID))

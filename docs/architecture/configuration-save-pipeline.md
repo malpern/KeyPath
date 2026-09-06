@@ -392,3 +392,9 @@ managed snapshots join the transaction.
 The collection toggle and rule-mutation settlement expose the canonical SaveResult
 for callers that need its cause and recovery outcome. Existing Boolean editor APIs
 adapt that result; pack callers retain it so metadata failures remain actionable.
+
+System-pack installation records carry an optional managedCollectionSnapshot. New
+system installations and removals settle that restore state with the four-file pack
+transaction. Older records omit the field and retain legacy snapshot-file fallback.
+The record is authoritative for new snapshots; no independent snapshot write must
+succeed between source preparation and runtime acceptance.

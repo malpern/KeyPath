@@ -465,7 +465,7 @@ writes before preparing the layout, restore keymap fields and matching optimisti
 display preferences before failure feedback, and preserve newer display choices.
 Preferences remain in-process state; durable preference recovery remains open.
 
-### Collection-backed pack transactions in progress
+### Collection-backed pack transactions merged in #1288
 
 Commit associated collection toggles and their installed-pack records in one retained
 rule transaction on install and removal. Preserve existing confirmation and ownership
@@ -477,3 +477,14 @@ master `5bf5b09ac8e28125c1d665fbee059d051e35f691`. Signed/notarized/stapled app
 verification passed, including process and TCP readiness; installed and distribution
 executable hashes matched. This is installation/runtime-readiness evidence, not
 clean-VM first-run or physical-keyboard acceptance.
+
+### System-pack transactions in progress
+
+Embed managed-collection restore snapshots in installed-pack records so the existing
+pack journal covers both with the rule revision. Preserve legacy snapshot reading
+and existing restore/default choices. Keep runtime rejection separate from the known
+generation-conflict retry. Validate before retiring the legacy multi-write paths.
+
+Deployment checkpoint: #1288 was installed from merged master
+`f77e2c2ad63dff743a6aba8fb19c31e3704387fe`. Signing, notarization, stapling,
+process, and TCP checks passed; installed/distribution executable hashes matched.
