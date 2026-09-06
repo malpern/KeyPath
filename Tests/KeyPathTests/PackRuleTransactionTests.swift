@@ -328,6 +328,30 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         XCTAssertEqual(manager.ruleCollections, collections)
     }
 
+    func testInstallRefusesRejectedInterruptedRuntimeRecovery() async throws {
+        let before = try snapshot()
+        let service = manager.configurationService
+        try await service.operationGate.withOperation { @MainActor permit in
+            _ = try await service.stageRuleState(ruleCollections: [], customRules: [],
+                                                 collectionStore: self.manager.ruleCollectionStore, customStore: self.manager.customRulesStore,
+                                                 mutationPermit: permit, packRecord: .init(tracker: self.tracker, record: InstalledPackRecord(packID: "interrupted", version: "2")))
+        }
+        manager.customRules = []
+        var reloads = 0
+        manager.onRulesChanged = { reloads += 1; return Self.reload(.rejected) }
+        do {
+            _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+            XCTFail("Install must wait for successful recovery")
+        } catch let PackInstaller.InstallError.saveFailed(reason) {
+            XCTAssertTrue(reason.contains("Recovered files could not be applied"))
+        }
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.customRules.map(\.input), ["f20"])
+        let record = await tracker.record(for: pack.id)
+        XCTAssertNil(record)
+    }
+
     func testExternalMetadataEditStopsRecoveryWithoutOverwritingAnyFile() async throws {
         var externalRevision: [String: Data]?
         var reloads = 0

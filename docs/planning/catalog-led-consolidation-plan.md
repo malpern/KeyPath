@@ -385,10 +385,18 @@ four-file journal including installed-packs.json through runtime classification.
 Startup rule recovery recognizes this scope. System/collection-backed packs,
 removal, quick-setting changes, and preference/snapshot transactions remain open.
 
-### Pack removal and quick-setting recovery in progress
+### Pack removal and quick-setting recovery merged in #1280
 
 Custom-rule pack removal and quick-setting updates now share the retained pack
 transaction, including collection-backed Home Row Mods timing settings. Tests
 cover single-reload removal, exact rollback on rejection/metadata write failure,
 and pending/rejected timing updates. System/collection-backed install and removal,
 preferences, managed snapshots, and tap/hold picker edits remain open.
+
+### Custom-rule editor recovery in progress
+
+Save, toggle, remove, and clear now use the retained rule transaction and restore
+manager snapshots without another file write. Interrupted source recovery precedes
+the next editor snapshot, including the pack tap/hold picker. Local layer-label refresh no longer supplies false TCP
+heartbeat evidence. Collection/preferences/watcher work and agreed UI decisions
+remain open.

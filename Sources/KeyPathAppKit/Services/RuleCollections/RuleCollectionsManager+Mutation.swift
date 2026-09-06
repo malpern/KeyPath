@@ -1,4 +1,6 @@
 import Foundation
+import KeyPathCore
+import KeyPathRulesCore
 
 extension RuleCollectionsManager {
     /// Admission precedes snapshots and mutation. Nested internal calls carry an
@@ -18,5 +20,72 @@ extension RuleCollectionsManager {
             onError?(error.localizedDescription)
             return failure
         }
+    }
+
+    /// Recover interrupted source writes before taking the next editor snapshot.
+    func recoverAndSnapshotRuleState(mutationPermit: ConfigurationOperationGate.Permit) async -> RuleStateSnapshot? {
+        do {
+            let recovered = try await configurationService.recoverPendingRuleWrite(
+                collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: mutationPermit
+            )
+            try await refreshRecoveredRuleStateIfNeeded(recovered)
+            return snapshotRuleState()
+        } catch is CancellationError {
+            return nil
+        } catch {
+            onError?(error.localizedDescription)
+            return nil
+        }
+    }
+
+    /// Do not let a retry use stale arrays after journal recovery succeeded but
+    /// source decoding failed. Clear the requirement only after both stores load.
+    func refreshRecoveredRuleStateIfNeeded(_ recovered: Bool) async throws {
+        needsRecoveredRuleStateRefresh = needsRecoveredRuleStateRefresh || recovered
+        needsRecoveredRuleRuntimeRefresh = needsRecoveredRuleRuntimeRefresh || recovered
+        if needsRecoveredRuleStateRefresh {
+            let collections = await ruleCollectionStore.loadCollectionsDetailed()
+            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
+                throw KeyPathError.configuration(.loadFailed(reason: "Recovered rule collections could not be read completely. No edit was made."))
+            }
+            let rules = try await customRulesStore.loadForMutation()
+            ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
+            customRules = rules
+            needsRecoveredRuleStateRefresh = false
+            refreshLayerIndicatorState()
+        }
+        // Restore runtime before any caller can cancel a prompt or return for a
+        // missing rule. A failed attempt remains required after the journal is gone.
+        // Headless persistence-only callers may have no runtime callback; retain
+        // the requirement in case one is attached to this manager later.
+        if needsRecoveredRuleRuntimeRefresh, let onRulesChanged {
+            let result = await Task { @MainActor in await onRulesChanged() }.value
+            guard result.disposition == .applied || result.disposition == .pending else {
+                throw KeyPathError.configuration(.loadFailed(reason: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")"))
+            }
+            needsRecoveredRuleRuntimeRefresh = false
+        }
+    }
+
+    /// The save owner restores files/runtime; the manager restores its in-memory
+    /// candidate without regenerating over the recovered or externally edited files.
+    func commitCustomRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false,
+                                  mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
+    {
+        let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
+            manager: self, mutationPermit: mutationPermit, reloadHandler: skipReload ? nil : onRulesChanged
+        )
+        guard result.success else {
+            ruleCollections = snapshot.collections
+            customRules = snapshot.customRules
+            refreshLayerIndicatorState()
+            if let error = result.error, !(error is CancellationError) {
+                onError?(error.localizedDescription)
+                SoundManager.shared.playErrorSound()
+            }
+            return false
+        }
+        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+        return true
     }
 }

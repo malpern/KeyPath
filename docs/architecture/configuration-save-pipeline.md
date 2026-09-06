@@ -295,3 +295,16 @@ other records. Preparation performs no per-binding writes; notifications follow
 commit. Settings that affect a collection, such as Home Row Mods timing, restore
 the collection and stored setting together after rejected application. Metadata-only
 operations still skip config generation and runtime reload.
+
+## Custom-rule editor mutations
+
+The manager's save, toggle, remove, and clear custom-rule operations now prepare
+under admission and use SaveCoordinator's retained rule transaction. They recover
+interrupted source writes before capturing the next in-memory snapshot. Rejected
+application restores the prior files/runtime and manager state; the manager does
+not regenerate a second rollback over externally changed files. Existing conflict
+and provider-disable choices remain in place. Explicitly skipped/absent reloads
+still mean persistence without an application result.
+
+Local layer-label refreshes do not emit TCP heartbeat notifications. Only an
+observed runtime layer update supplies that evidence, including unchanged layers.
