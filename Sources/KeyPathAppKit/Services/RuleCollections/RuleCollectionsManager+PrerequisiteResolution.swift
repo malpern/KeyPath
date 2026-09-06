@@ -88,7 +88,7 @@ extension RuleCollectionsManager {
     }
 
     /// Replaces or appends the candidate and enables confirmed providers
-    /// in memory. The caller owns the single regeneration and rollback.
+    /// in memory. The caller owns save settlement and recovery.
     func applyPrerequisiteChangeInMemory(
         candidate: RuleCollection,
         providerIDs: [UUID]
@@ -116,16 +116,15 @@ extension RuleCollectionsManager {
     }
 
     /// Applies one proposed save plus its confirmed provider enables as a
-    /// single mutation and regeneration, restoring the full snapshot on failure.
+    /// single retained transaction, restoring the full snapshot on failure.
     func applyProposedCollectionWithPrerequisites(
         _ candidate: RuleCollection,
-        rollbackMessage: String,
         nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders,
         skipReload: Bool = false,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> [UUID]? {
         await withRuleMutation(using: mutationPermit, failure: nil) { [self] permit in
-            let snapshot = snapshotRuleState()
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return nil }
             guard let providerIDs = await confirmedPrerequisiteProviderIDs(
                 for: candidate,
                 operation: .save,
@@ -139,11 +138,7 @@ extension RuleCollectionsManager {
                 providerIDs: providerIDs
             )
 
-            guard await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit) else {
-                AppLogger.shared.log(
-                    "↩️ [RuleCollections] Prerequisite-aware save failed; rolling back"
-                )
-                await rollbackToSnapshot(snapshot, userMessage: rollbackMessage, mutationPermit: permit)
+            guard await commitRuleMutation(snapshot: snapshot, skipReload: skipReload, failureContext: candidate.name, mutationPermit: permit) else {
                 return nil
             }
 

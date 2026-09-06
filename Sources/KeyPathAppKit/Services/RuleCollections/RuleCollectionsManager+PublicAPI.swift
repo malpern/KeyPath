@@ -397,130 +397,38 @@ extension RuleCollectionsManager {
 
     /// Update a tap-hold picker collection's tap output
     func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
-        await withRuleMutation(failure: ()) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateSelectedTapOutput(tapOutput)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                }
-                return
-            }
-
-            ruleCollections[index].configuration.updateSelectedTapOutput(tapOutput)
-            ruleCollections[index].isEnabled = true
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+        _ = await updateCollectionSettings(id: id) { rule in
+            rule.configuration.updateSelectedTapOutput(tapOutput)
         }
     }
 
     /// Update a tap-hold picker collection's hold output
     func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
-        await withRuleMutation(failure: ()) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateSelectedHoldOutput(holdOutput)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                }
-                return
-            }
-
-            ruleCollections[index].configuration.updateSelectedHoldOutput(holdOutput)
-            ruleCollections[index].isEnabled = true
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+        _ = await updateCollectionSettings(id: id) { rule in
+            rule.configuration.updateSelectedHoldOutput(holdOutput)
         }
     }
 
     /// Update a layer preset picker collection's selected preset
     func updateCollectionLayerPreset(id: UUID, presetId: String) async {
-        await withRuleMutation(failure: ()) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateSelectedPreset(presetId)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                }
-                return
-            }
-
-            ruleCollections[index].configuration.updateSelectedPreset(presetId)
-            ruleCollections[index].isEnabled = true
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+        _ = await updateCollectionSettings(id: id) { rule in
+            rule.configuration.updateSelectedPreset(presetId)
         }
     }
 
     /// Update window snapping key convention (Standard vs Vim)
     func updateWindowKeyConvention(id: UUID, convention: WindowKeyConvention) async {
-        await withRuleMutation(failure: ()) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.windowKeyConvention = convention
-                    catalogCollection.mappings = RuleCollectionCatalog.windowMappings(for: convention)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                }
-                return
-            }
-
-            ruleCollections[index].windowKeyConvention = convention
-            ruleCollections[index].mappings = RuleCollectionCatalog.windowMappings(for: convention)
-            ruleCollections[index].isEnabled = true
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+        _ = await updateCollectionSettings(id: id) { rule in
+            rule.windowKeyConvention = convention
+            rule.mappings = RuleCollectionCatalog.windowMappings(for: convention)
         }
     }
 
     /// Update function key mode (Media Keys vs Function Keys)
     func updateFunctionKeyMode(id: UUID, mode: FunctionKeyMode) async {
-        await withRuleMutation(failure: ()) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.functionKeyMode = mode
-                    catalogCollection.mappings = RuleCollectionCatalog.functionKeyMappings(for: mode)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                }
-                return
-            }
-
-            ruleCollections[index].functionKeyMode = mode
-            ruleCollections[index].mappings = RuleCollectionCatalog.functionKeyMappings(for: mode)
-            ruleCollections[index].isEnabled = true
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+        _ = await updateCollectionSettings(id: id) { rule in
+            rule.functionKeyMode = mode
+            rule.mappings = RuleCollectionCatalog.functionKeyMappings(for: mode)
         }
     }
 
@@ -529,6 +437,7 @@ extension RuleCollectionsManager {
     @discardableResult
     func updateHomeRowModsConfig(id: UUID, config: HomeRowModsConfig) async -> Bool {
         await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -541,8 +450,6 @@ extension RuleCollectionsManager {
 
             let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
                 candidate,
-                rollbackMessage:
-                "Could not save Home Row Mods. Your previous rule state was restored.",
                 mutationPermit: permit
             )
             return appliedProviderIDs != nil && wasNewlyEnabled
@@ -554,6 +461,7 @@ extension RuleCollectionsManager {
     @discardableResult
     func updateHomeRowLayerTogglesConfig(id: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
         await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -566,8 +474,6 @@ extension RuleCollectionsManager {
 
             let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
                 candidate,
-                rollbackMessage:
-                "Could not save Home Row Layer Toggles. Your previous rule state was restored.",
                 mutationPermit: permit
             )
             return appliedProviderIDs != nil && wasNewlyEnabled
@@ -578,30 +484,8 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateChordGroupsConfig(id: UUID, config: ChordGroupsConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateChordGroupsConfig(config)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                    return true
-                }
-                return false
-            }
-
-            let wasNewlyEnabled = !ruleCollections[index].isEnabled
-            ruleCollections[index].configuration.updateChordGroupsConfig(config)
-            ruleCollections[index].isEnabled = true
-
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
-            return wasNewlyEnabled
+        await updateCollectionSettings(id: id) { rule in
+            rule.configuration.updateChordGroupsConfig(config)
         }
     }
 
@@ -609,30 +493,8 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateSequencesConfig(id: UUID, config: SequencesConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateSequencesConfig(config)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                    return true
-                }
-                return false
-            }
-
-            let wasNewlyEnabled = !ruleCollections[index].isEnabled
-            ruleCollections[index].configuration.updateSequencesConfig(config)
-            ruleCollections[index].isEnabled = true
-
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
-            return wasNewlyEnabled
+        await updateCollectionSettings(id: id) { rule in
+            rule.configuration.updateSequencesConfig(config)
         }
     }
 
@@ -641,6 +503,7 @@ extension RuleCollectionsManager {
     @discardableResult
     func updateLauncherConfig(id: UUID, config: LauncherGridConfig) async -> Bool {
         await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
             guard let candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -664,6 +527,7 @@ extension RuleCollectionsManager {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> Bool {
         await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
             guard var candidate = ruleCollections.first(where: { $0.id == id })
                 ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
             else {
@@ -678,8 +542,6 @@ extension RuleCollectionsManager {
 
             let appliedProviderIDs = await applyProposedCollectionWithPrerequisites(
                 candidate,
-                rollbackMessage:
-                "Could not save Launcher. Your previous rule state was restored.",
                 skipReload: skipReload,
                 mutationPermit: permit
             )
@@ -696,29 +558,8 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateAutoShiftSymbolsConfig(id: UUID, config: AutoShiftSymbolsConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateAutoShiftSymbolsConfig(config)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                    return true
-                }
-                return false
-            }
-
-            // Don't force-enable on every config tweak — preserve current toggle state
-            let wasNewlyEnabled = false
-            ruleCollections[index].configuration.updateAutoShiftSymbolsConfig(config)
-
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
-            return wasNewlyEnabled
+        await updateCollectionSettings(id: id, enableExisting: false) { rule in
+            rule.configuration.updateAutoShiftSymbolsConfig(config)
         }
     }
 
@@ -726,28 +567,8 @@ extension RuleCollectionsManager {
     /// - Returns: `true` if the collection was newly enabled (was disabled before this call)
     @discardableResult
     func updateKeyRepeatControlConfig(id: UUID, config: KeyRepeatControlConfig) async -> Bool {
-        await withRuleMutation(failure: false) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateKeyRepeatControlConfig(config)
-                    catalogCollection.isEnabled = true
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                    return true
-                }
-                return false
-            }
-
-            let wasNewlyEnabled = false
-            ruleCollections[index].configuration.updateKeyRepeatControlConfig(config)
-
-            dedupeRuleCollectionsInPlace()
-            refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
-            return wasNewlyEnabled
+        await updateCollectionSettings(id: id, enableExisting: false) { rule in
+            rule.configuration.updateKeyRepeatControlConfig(config)
         }
     }
 
@@ -755,6 +576,7 @@ extension RuleCollectionsManager {
     /// - Returns: name of auto-enabled dependency, or nil
     func updateWindowSnappingActivationMode(id: UUID, mode: WindowSnappingActivationMode) async -> String? {
         await withRuleMutation(failure: nil) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return nil }
             guard var candidate = ruleCollections.first(where: { $0.id == id }) else {
                 return nil
             }
@@ -765,8 +587,6 @@ extension RuleCollectionsManager {
 
             guard let enabledProviderIDs = await applyProposedCollectionWithPrerequisites(
                 candidate,
-                rollbackMessage:
-                "Could not save Window Snapping. Your previous rule state was restored.",
                 nonInteractiveChoice: .enableRequiredProvidersAndApply,
                 mutationPermit: permit
             ) else {
