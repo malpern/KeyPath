@@ -376,3 +376,9 @@ A restored raw original that fails validation may be replaced by a separately
 validated raw edit after recovery reload fails. Only an accepted replacement
 clears that recovery requirement; cancellation, invalid candidates, and journal
 conflicts never silently clear it.
+
+Logical keymap changes use the same retained rule-state transaction as collection
+edits. The manager recovers before candidate preparation and restores its layout
+fields plus the matching optimistic display preference on failure. Persistent
+keymap preferences update only after accepted settlement; they are not yet part
+of the durable file journal.

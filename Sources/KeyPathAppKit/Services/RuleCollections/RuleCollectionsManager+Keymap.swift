@@ -20,10 +20,19 @@ extension RuleCollectionsManager {
         await withRuleMutation(failure: []) { [self] permit in
             AppLogger.shared.log("⌨️ [RuleCollections] Setting active keymap to '\(keymapId)' (punctuation: \(includePunctuation))")
 
-            let previousKeymapId = activeKeymapId
-            let previousPunctuation = keymapIncludesPunctuation
-            let previousKeymapIndex = ruleCollections.firstIndex { $0.id == RuleCollectionIdentifier.keymapLayout }
-            let previousKeymapCollection = previousKeymapIndex.map { ruleCollections[$0] }
+            let keymapBefore = (id: activeKeymapId, includePunctuation: keymapIncludesPunctuation)
+            do {
+                try await recoverRuleState(mutationPermit: permit)
+            } catch {
+                KeymapPreferences.restoreFailedSelection(
+                    attemptedID: keymapId, attemptedPunctuation: includePunctuation,
+                    previousID: keymapBefore.id, previousPunctuation: keymapBefore.includePunctuation,
+                    userDefaults: keymapPreferences
+                )
+                if !(error is CancellationError) { onError?(error.localizedDescription) }
+                return []
+            }
+            let snapshot = snapshotRuleState()
             activeKeymapId = keymapId
             keymapIncludesPunctuation = includePunctuation
 
@@ -53,26 +62,9 @@ extension RuleCollectionsManager {
                 AppLogger.shared.log("⌨️ [RuleCollections] QWERTY selected - no keymap collection needed")
             }
 
-            // Persist preferences only after the config/source-store write succeeds.
-            let success = await regenerateConfigFromCollections(mutationPermit: permit)
-            if success {
+            refreshLayerIndicatorState()
+            if await commitRuleMutation(snapshot: snapshot, failureContext: "keyboard layout", keymapBefore: keymapBefore, mutationPermit: permit) {
                 await persistKeymapState()
-            } else {
-                AppLogger.shared.log("⌨️ [RuleCollections] Keymap change failed - rolling back")
-                activeKeymapId = previousKeymapId
-                keymapIncludesPunctuation = previousPunctuation
-                // The overlay optimistically updates its shared display preferences
-                // before invoking this operation. Revert only this attempted selection;
-                // a newer UI choice must survive an older failed completion.
-                KeymapPreferences.restoreFailedSelection(
-                    attemptedID: keymapId, attemptedPunctuation: includePunctuation,
-                    previousID: previousKeymapId, previousPunctuation: previousPunctuation,
-                    userDefaults: keymapPreferences
-                )
-                ruleCollections.removeAll { $0.id == RuleCollectionIdentifier.keymapLayout }
-                if let previousKeymapCollection, let previousKeymapIndex {
-                    ruleCollections.insert(previousKeymapCollection, at: min(previousKeymapIndex, ruleCollections.count))
-                }
             }
 
             return conflicts
