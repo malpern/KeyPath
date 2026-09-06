@@ -355,3 +355,11 @@ The commit helper optionally receives the prior leader preference. On failure it
 restores that preference before error feedback only if it still equals the prepared
 value; a newer value is preserved and reported. This is in-process preference
 rollback only. UserDefaults is not yet part of the crash-recovery journal.
+
+Interrupted-save runtime admission is owned by `ConfigurationService`. Recovering
+rule or app journals marks a runtime refresh requirement; editor callbacks cannot
+run until the existing reload owner accepts or defers that refresh. Failure retains
+the requirement for later owners sharing the service, even after journal removal.
+Rule-source recovery also advances a revision observed by the manager so recovery
+through an app/raw editor cannot leave that manager's arrays stale. This state is
+in-process and does not replace durable raw-save or cross-process cache recovery.

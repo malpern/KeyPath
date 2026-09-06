@@ -62,6 +62,69 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
         XCTAssertEqual(errors.count, 1)
     }
 
+    func testRawEditorRecoveryRefreshesManagerBeforeItsNextMissingRuleExit() async throws {
+        let originalRules = manager.customRules
+        let before = try files()
+        let service = manager.configurationService
+        try await service.operationGate.withOperation { @MainActor permit in
+            _ = try await service.stageRuleState(ruleCollections: [], customRules: [],
+                                                 collectionStore: self.manager.ruleCollectionStore,
+                                                 customStore: self.manager.customRulesStore, mutationPermit: permit)
+        }
+        manager.customRules = [] // Interrupted candidate still visible to this editor.
+        var reloads = 0
+        let result = await SaveCoordinator(configurationService: service).editConfiguration(transform: { _ in
+            throw CancellationError()
+        }) {
+            reloads += 1
+            return Self.reload(.applied)
+        }
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(try files(), before)
+        manager.onRulesChanged = { XCTFail("Recovery already applied through the raw editor"); return Self.reload(.applied) }
+        await manager.toggleCustomRule(id: UUID(), isEnabled: false)
+        XCTAssertEqual(manager.customRules, originalRules)
+    }
+
+    func testMapperSaveRefreshesRuleStateRecoveredByRawEditor() async throws {
+        let original = manager.customRules[0]
+        let service = manager.configurationService
+        try await service.operationGate.withOperation { @MainActor permit in
+            _ = try await service.stageRuleState(ruleCollections: [], customRules: [],
+                                                 collectionStore: self.manager.ruleCollectionStore,
+                                                 customStore: self.manager.customRulesStore, mutationPermit: permit)
+        }
+        manager.customRules = []
+        let owner = SaveCoordinator(configurationService: service)
+        _ = await owner.editConfiguration(transform: { _ in throw CancellationError() }) { Self.reload(.applied) }
+        let saved = await owner.saveMapping(input: "f13", output: "f14", ruleCollectionsManager: manager) { Self.reload(.applied) }
+        XCTAssertTrue(saved.success)
+        XCTAssertTrue(manager.customRules.contains(original))
+        let stored = try await manager.customRulesStore.loadForMutation()
+        XCTAssertTrue(stored.contains(original))
+        XCTAssertTrue(stored.contains { $0.input == "f13" })
+    }
+
+    func testMapperRecoversRuntimeBeforeInputValidationCanReject() async throws {
+        let service = manager.configurationService
+        let before = try files()
+        try await service.operationGate.withOperation { @MainActor permit in
+            _ = try await service.stageRuleState(ruleCollections: [], customRules: [],
+                                                 collectionStore: self.manager.ruleCollectionStore,
+                                                 customStore: self.manager.customRulesStore, mutationPermit: permit)
+        }
+        var reloads = 0
+        let result = await SaveCoordinator(configurationService: service).saveMapping(input: "", output: "f14", ruleCollectionsManager: manager) {
+            reloads += 1
+            XCTAssertEqual(try? self.files(), before)
+            return Self.reload(.applied)
+        }
+        XCTAssertFalse(result.success)
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(try files(), before)
+    }
+
     func testRejectedSaveRestoresFilesAndReportsFailure() async throws {
         try await assertRejectedMutationRestores {
             let saved = await self.manager.saveCustomRule(CustomRule(input: "f13", action: .keystroke(key: "f14")))

@@ -76,6 +76,180 @@ final class AppKeymapSaveTests: KeyPathTestCase {
         }
     }
 
+    func testInterruptedAppWriteReloadsOriginalBeforeRejectedEditorCallback() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            var reloads = 0
+            var applied = 0
+            let result = await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: { _ in
+                XCTAssertEqual(reloads, 1)
+                XCTAssertEqual(applied, 1)
+                throw CancellationError()
+            }, runtimeDidApply: { applied += 1 }) {
+                reloads += 1
+                do { try self.assertOriginalFiles(fixture) } catch { XCTFail("\(error)") }
+                return Self.reload(.applied)
+            }
+            XCTAssertFalse(result.success)
+            XCTAssertTrue(result.error is CancellationError)
+            if case .idle = fixture.coordinator.saveStatus {} else { XCTFail("Cancellation should leave the editor idle") }
+            XCTAssertEqual(reloads, 1)
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    func testFailedInterruptedRecoveryRetriesWithAnotherSaveOwnerBeforeMutation() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            let failed = await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: { _ in
+                XCTFail("Must not edit while recovery is rejected")
+            }) { Self.reload(.rejected) }
+            XCTAssertFalse(failed.success)
+            XCTAssertTrue(failed.error?.localizedDescription.contains("Recovered files could not be applied") == true)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(fixture.directory, scope: .appKeymaps).path))
+            var reloads = 0
+            let nextOwner = SaveCoordinator(configurationService: fixture.service)
+            let result = await nextOwner.saveAppKeymaps(store: fixture.store, mutate: { _ in
+                XCTAssertEqual(reloads, 1)
+                throw CancellationError()
+            }) {
+                reloads += 1
+                return Self.reload(.pending)
+            }
+            XCTAssertFalse(result.success)
+            XCTAssertTrue(result.error is CancellationError)
+            XCTAssertEqual(reloads, 1)
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    func testRawTransformRecoversAppWriteBeforeReadingOriginal() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            var reloads = 0
+            let result = await fixture.coordinator.editConfiguration(transform: { content in
+                XCTAssertEqual(reloads, 1)
+                XCTAssertEqual(Data(content.utf8), fixture.before["keypath.kbd"])
+                throw CancellationError()
+            }) {
+                reloads += 1
+                return Self.reload(.applied)
+            }
+            XCTAssertFalse(result.success)
+            XCTAssertTrue(result.error is CancellationError)
+            XCTAssertEqual(reloads, 1)
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    func testRawTransformRechecksRecoveryWithoutDuplicateReload() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            var reloads = 0
+            let result = await fixture.coordinator.editConfiguration(transform: { content in
+                XCTAssertEqual(reloads, 1)
+                return content
+            }) {
+                reloads += 1
+                return Self.reload(.applied)
+            }
+            XCTAssertTrue(result.success)
+            XCTAssertEqual(reloads, 2, "One recovery reload and one accepted edit reload")
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    func testGeneratedValidationCannotSkipInterruptedAppRecovery() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            var reloads = 0
+            let result = await fixture.coordinator.saveGeneratedConfig(content: "(invalid") {
+                reloads += 1
+                return Self.reload(.rejected)
+            }
+            XCTAssertFalse(result.success)
+            XCTAssertEqual(reloads, 1)
+            XCTAssertTrue(result.error?.localizedDescription.contains("Recovered files could not be applied") == true)
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    func testHeadlessRecoveryRetainsRuntimeRequirementForLaterOwner() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            try await fixture.service.recoverPendingAppKeymapWrite(store: fixture.store)
+            let headless = try await fixture.service.operationGate.withOperation { @MainActor permit in
+                try await fixture.service.applyRecoveredRuntimeIfNeeded(mutationPermit: permit, reloadHandler: nil)
+            }
+            XCTAssertNil(headless)
+            var reloads = 0
+            let result = await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: { _ in
+                XCTAssertEqual(reloads, 1)
+                throw CancellationError()
+            }) {
+                reloads += 1
+                return Self.reload(.applied)
+            }
+            XCTAssertFalse(result.success)
+            XCTAssertEqual(reloads, 1)
+        }
+    }
+
+    func testRuleEditorRecoversAppWriteBeforeMissingRuleExit() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            let manager = RuleCollectionsManager(
+                ruleCollectionStore: RuleCollectionStore(fileURL: fixture.directory.appendingPathComponent("RuleCollections.json")),
+                customRulesStore: CustomRulesStore(fileURL: fixture.directory.appendingPathComponent("CustomRules.json")),
+                configurationService: fixture.service
+            )
+            var reloads = 0
+            manager.onRulesChanged = {
+                reloads += 1
+                do { try self.assertOriginalFiles(fixture) } catch { XCTFail("\(error)") }
+                return Self.reload(.applied)
+            }
+            await manager.toggleCustomRule(id: UUID(), isEnabled: false)
+            XCTAssertEqual(reloads, 1)
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    func testCancellationDuringRecoveryStillAppliesOriginalBeforeReturning() async throws {
+        try await withFixture { fixture in
+            try await self.interruptAppWrite(fixture)
+            let started = expectation(description: "Recovery started")
+            var resume: CheckedContinuation<Void, Never>?
+            var applied = false
+            let task = Task { @MainActor in
+                await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: { _ in
+                    XCTFail("Cancelled editor must not mutate")
+                }, runtimeDidApply: { applied = true }) {
+                    await withCheckedContinuation { continuation in
+                        resume = continuation
+                        started.fulfill()
+                    }
+                    XCTAssertFalse(Task.isCancelled)
+                    return Self.reload(.applied)
+                }
+            }
+            await fulfillment(of: [started], timeout: 5)
+            task.cancel()
+            resume?.resume()
+            let result = await task.value
+            XCTAssertFalse(result.success)
+            XCTAssertTrue(result.error is CancellationError)
+            XCTAssertTrue(applied)
+            try self.assertOriginalFiles(fixture)
+        }
+    }
+
+    private func interruptAppWrite(_ fixture: Fixture) async throws {
+        try await fixture.service.operationGate.withOperation { @MainActor permit in
+            _ = try await fixture.service.stageAppKeymapChange(store: fixture.store, mutationPermit: permit, mutate: Self.addOverride)
+        }
+    }
+
     func testExternalEditDuringRejectedReloadStopsRecoveryWithoutOverwritingIt() async throws {
         try await withFixture { fixture in
             let config = fixture.directory.appendingPathComponent("keypath.kbd")
