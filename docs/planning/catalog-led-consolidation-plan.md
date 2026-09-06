@@ -416,7 +416,7 @@ wrappers. Failed collection imports use the existing partial-import error;
 failed mapper layer creation does not select an unsaved layer. The broader
 saved/pending status design and combined import transaction remain open.
 
-### Collection settings recovery in progress
+### Collection settings recovery merged in #1283
 
 Tap/hold and preset pickers, window/function key settings, chord/sequence settings,
 Auto Shift, and repeat settings now share recovery before preparation and retained
@@ -424,3 +424,20 @@ rule settlement. Prerequisite-aware Home Row and Launcher/window activation save
 keep confirmed providers in the same transaction. Existing enable policies and
 newly-enabled Boolean semantics remain. Leader/single-output settings, collection
 toggles, replace-all, preferences, managed snapshots, and watching remain open.
+
+### Collection toggles and leader recovery in progress
+
+Toggles, replace-all, single-output editing, and direct leader edits now retain
+rule snapshots through application. Leader preference rollback happens before
+failure feedback and preserves newer preference edits. Replace-all and the leader
+picker no longer capture already-mutated state. Preferences still need durable
+crash recovery; managed-pack snapshots, keymap preferences, raw saves and watching
+remain open. Existing ownership/conflict/disable choices are retained.
+
+Runner follow-up during #1283: CI again stopped at the unchanged 100 GiB reserve
+(94 GiB reported by CI). Cleared the runner account's npm download cache and used
+macOS local-snapshot thinning after verifying a completed network Time Machine
+backup from the same evening. Startup free space recovered to 112 GiB; the failed
+CI job was retried and passed before merge. Network backups and active updater
+caches were preserved. External scratch routing (#1261) still awaits the runner's
+normal removable-volume permission; this recovery does not complete that migration.

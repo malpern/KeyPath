@@ -91,19 +91,28 @@ extension RuleCollectionsManager {
     /// The save owner restores files/runtime; the manager restores its in-memory
     /// candidate without regenerating over the recovered or externally edited files.
     @discardableResult
-    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil,
+    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderKeyPreference? = nil,
                             mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
     {
+        let preparedLeaderPreference = PreferencesService.shared.leaderKeyPreference
         let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
             manager: self, mutationPermit: mutationPermit, reloadHandler: skipReload ? nil : onRulesChanged
         )
         guard result.success else {
             ruleCollections = snapshot.collections
             customRules = snapshot.customRules
+            var preferenceRecoveryDetail = ""
+            if let leaderPreferenceBefore {
+                if PreferencesService.shared.leaderKeyPreference == preparedLeaderPreference {
+                    PreferencesService.shared.leaderKeyPreference = leaderPreferenceBefore
+                } else {
+                    preferenceRecoveryDetail = " A newer leader-key preference was preserved."
+                }
+            }
             refreshLayerIndicatorState()
             if let error = result.error, !(error is CancellationError) {
                 let message = failureContext.map { "Could not save \($0): \(error.localizedDescription)" } ?? error.localizedDescription
-                onError?(message)
+                onError?(message + preferenceRecoveryDetail)
                 SoundManager.shared.playErrorSound()
             }
             return false

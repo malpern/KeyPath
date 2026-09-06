@@ -343,3 +343,15 @@ apply helper then keeps the candidate and confirmed providers in one retained
 transaction, with no separate snapshot-regeneration rollback. Explicit skipReload
 still means persistence-only for higher-level callers. These changes do not
 include leader preferences or alter prerequisite/conflict choices.
+
+### Collection toggles, replacement, and leader edits
+
+These public mutations now take recovered snapshots before any candidate changes
+and settle through `commitRuleMutation`. Single-output editing handles the leader
+preference/activators in the same operation, rather than calling another save
+after changing the selected output. Replace-all snapshots the original arrays.
+
+The commit helper optionally receives the prior leader preference. On failure it
+restores that preference before error feedback only if it still equals the prepared
+value; a newer value is preserved and reported. This is in-process preference
+rollback only. UserDefaults is not yet part of the crash-recovery journal.

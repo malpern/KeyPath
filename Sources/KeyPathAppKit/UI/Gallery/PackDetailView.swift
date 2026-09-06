@@ -47,6 +47,7 @@ struct PackDetailView: View {
     @State var pickerTapSelection: String?
     @State var pickerHoldSelection: String?
     @State var singleKeySelection: String?
+    @State var singleKeyEditID: UUID?
 
     /// Local state for the embedded Home Row Mods editor. Mirrors the
     /// config shape Rules uses so we can drop `HomeRowModsCollectionView`

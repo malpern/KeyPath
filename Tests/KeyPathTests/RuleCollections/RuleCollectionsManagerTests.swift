@@ -761,6 +761,8 @@ final class RuleCollectionsManagerTests: XCTestCase {
             "test premise: an enabled base-layer 'f' activator must exist to collide with"
         )
 
+        let originalCollections = manager.ruleCollections
+        let originalRules = manager.customRules
         await manager.replaceCollections(collections)
 
         // Regen must have failed — this proves the reconcile+collision path executed
@@ -774,21 +776,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
             "leaderKeyPreference must revert to its pre-reconcile value after a failed regen"
         )
 
-        // The in-memory collections revert too: the base → nav leader activator that
-        // reconcile rewrote to "f" is restored to its original "space".
-        let navInputs = manager.ruleCollections
-            .compactMap(\.momentaryActivator)
-            .filter { $0.sourceLayer == .base && $0.targetLayer == .navigation }
-            .map(\.input)
-        XCTAssertFalse(navInputs.isEmpty)
-        XCTAssertTrue(
-            navInputs.allSatisfy { $0 == "space" },
-            "the base → nav activator must be restored to 'space' after rollback (was rewritten to 'f')"
-        )
-        XCTAssertFalse(
-            navInputs.contains("f"),
-            "no base → nav activator should retain the reconciled-then-rolled-back 'f'"
-        )
+        // A failed replacement restores the pre-operation arrays, not the proposed
+        // catalog with only its reconciled activator reverted.
+        XCTAssertEqual(manager.ruleCollections, originalCollections)
+        XCTAssertEqual(manager.customRules, originalRules)
     }
 
     @MainActor
