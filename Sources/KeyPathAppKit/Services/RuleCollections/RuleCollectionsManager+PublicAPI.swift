@@ -960,21 +960,11 @@ extension RuleCollectionsManager {
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> Bool {
         await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
             AppLogger.shared.log("💾 [CustomRules] saveCustomRule called: id=\(rule.id), input='\(rule.input)', action='\(rule.action.displayName)'")
-            let snapshot = snapshotRuleState()
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
 
             guard await updateCustomRuleInMemory(rule, autoResolveConflicts: autoResolveConflicts, mutationPermit: permit) else { return false }
 
-            let success = await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit)
-
-            if success {
-                AppLogger.shared.log("💾 [CustomRules] Save complete, customRules.count = \(customRules.count)")
-            } else {
-                AppLogger.shared.log("💾 [CustomRules] Save failed - rolling back to snapshot")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
-                AppLogger.shared.log("💾 [CustomRules] Rollback complete, customRules.count = \(customRules.count)")
-            }
-
-            return success
+            return await commitCustomRuleMutation(snapshot: snapshot, skipReload: skipReload, mutationPermit: permit)
         }
     }
 
@@ -1033,7 +1023,7 @@ extension RuleCollectionsManager {
     /// Toggle a custom rule on/off
     func toggleCustomRule(id: UUID, isEnabled: Bool) async {
         await withRuleMutation(failure: ()) { [self] permit in
-            let snapshot = snapshotRuleState()
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             guard let existing = customRules.first(where: { $0.id == id }) else { return }
 
             if !isEnabled {
@@ -1077,34 +1067,33 @@ extension RuleCollectionsManager {
             if let index = customRules.firstIndex(where: { $0.id == id }) {
                 customRules[index].isEnabled = isEnabled
             }
-            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
-            if !applied {
-                AppLogger.shared.log("↩️ [CustomRules] Toggle apply failed; rolling back to previous state")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
-            }
+            _ = await commitCustomRuleMutation(snapshot: snapshot, mutationPermit: permit)
         }
     }
 
     /// Remove a custom rule
     func removeCustomRule(id: UUID, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
         await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             let beforeCount = customRules.count
             AppLogger.shared.log("🗑️ [CustomRules] removeCustomRule called: id=\(id), beforeCount=\(beforeCount)")
             customRules.removeAll { $0.id == id }
             let afterCount = customRules.count
             AppLogger.shared.log("🗑️ [CustomRules] After removal: afterCount=\(afterCount), removed=\(beforeCount - afterCount)")
-            await regenerateConfigFromCollections(mutationPermit: permit)
+            _ = await commitCustomRuleMutation(snapshot: snapshot, mutationPermit: permit)
         }
     }
 
     /// Clear all custom rules (without affecting rule collections)
     func clearAllCustomRules() async {
         await withRuleMutation(failure: ()) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             let count = customRules.count
             AppLogger.shared.log("🧹 [CustomRules] Clearing all \(count) custom rules")
             customRules.removeAll()
-            await regenerateConfigFromCollections(mutationPermit: permit)
-            AppLogger.shared.log("✅ [CustomRules] All custom rules cleared")
+            if await commitCustomRuleMutation(snapshot: snapshot, mutationPermit: permit) {
+                AppLogger.shared.log("✅ [CustomRules] All custom rules cleared")
+            }
         }
     }
 

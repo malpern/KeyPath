@@ -89,8 +89,18 @@ final class PackMetadataOperationTests: KeyPathTestCase {
                 "customRules": fixture.directory.appendingPathComponent("CustomRules.json")
             ], contents: ["config": Data("(defsrc)\n(deflayer base)".utf8), "collections": proposed, "customRules": Data("[]".utf8)],
             directory: fixture.directory, scope: .rules)
+            var recoveryReloads = 0
+            fixture.manager.onRulesChanged = {
+                recoveryReloads += 1
+                do {
+                    let restored = try Data(contentsOf: sourceURL)
+                    XCTAssertEqual(restored, original)
+                } catch { XCTFail("Could not read restored source: \(error)") }
+                return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied)
+            }
             let record = try await PackInstaller.shared.reconcileInstallRecord(for: pack, manager: fixture.manager, installedPackTracker: fixture.tracker)
             XCTAssertNil(record)
+            XCTAssertEqual(recoveryReloads, 1)
             XCTAssertEqual(try Data(contentsOf: sourceURL), original)
         }
     }

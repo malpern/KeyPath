@@ -11,16 +11,20 @@ extension RuleCollectionsManager {
     func refreshLayerIndicatorState() {
         let hasLayered = ruleCollections.contains { $0.isEnabled && $0.targetLayer != .base }
         if !hasLayered {
-            updateActiveLayerName(RuleCollectionLayer.base.kanataName)
+            setDisplayedLayerName(RuleCollectionLayer.base.kanataName)
         }
     }
 
     func updateActiveLayerName(_ rawName: String) {
+        // Only runtime observations provide heartbeat evidence, including an
+        // unchanged layer. Local rule edits and rollback refreshes do not.
+        NotificationCenter.default.post(name: .kanataTcpHeartbeat, object: nil)
+        setDisplayedLayerName(rawName)
+    }
+
+    private func setDisplayedLayerName(_ rawName: String) {
         let normalized = rawName.isEmpty ? RuleCollectionLayer.base.kanataName : rawName
         let display = normalized.capitalized
-
-        // Heartbeat: any layer poll result means TCP is alive, even if layer is unchanged.
-        NotificationCenter.default.post(name: .kanataTcpHeartbeat, object: nil)
 
         if currentLayerName == display {
             return

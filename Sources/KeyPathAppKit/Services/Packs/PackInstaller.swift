@@ -68,15 +68,13 @@ public final class PackInstaller {
             collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
             mutationPermit: permit, installedPackTracker: tracker
         )
-        if recovered {
-            let collections = await manager.ruleCollectionStore.loadCollectionsDetailed()
-            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
-                throw InstallError.saveFailed("Recovered rule collections could not be read completely")
+        do {
+            try await manager.refreshRecoveredRuleStateIfNeeded(recovered)
+        } catch let error as KeyPathError {
+            if case let .configuration(.loadFailed(reason)) = error {
+                throw InstallError.saveFailed(reason)
             }
-            let rules = try await manager.customRulesStore.loadForMutation()
-            manager.ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
-            manager.customRules = rules
-            manager.refreshLayerIndicatorState()
+            throw error
         }
         try await tracker.validateForMutation()
     }
@@ -460,7 +458,8 @@ public final class PackInstaller {
         manager: RuleCollectionsManager
     ) async -> Bool {
         await manager.withRuleMutation(failure: false) { @MainActor permit in
-            let snapshot = await manager.snapshotCurrentRules()
+            guard let recovered = await manager.recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
+            let snapshot = recovered.customRules
             let normalizedInput = input.lowercased()
             guard var rule = snapshot.first(where: {
                 $0.packSource == packID && $0.input.lowercased() == normalizedInput

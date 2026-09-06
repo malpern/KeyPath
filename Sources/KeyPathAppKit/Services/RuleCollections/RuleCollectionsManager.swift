@@ -57,6 +57,9 @@ final class RuleCollectionsManager {
 
     var ruleCollections: [RuleCollection] = []
     var customRules: [CustomRule] = []
+    /// Remains set when recovered files cannot yet be read completely.
+    var needsRecoveredRuleStateRefresh = false
+    var needsRecoveredRuleRuntimeRefresh = false
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
     /// Active keymap layout ID (e.g., "colemak-dh", "dvorak")
