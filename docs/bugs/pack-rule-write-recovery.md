@@ -34,3 +34,24 @@ than blocking admission itself, retaining their snapshot rollback coverage.
 Recovery also refreshes the admitted pack manager from the restored source stores
 before preparing another mutation. CLI pack commands recover before installed-state
 shortcuts, so an interrupted installation cannot be reported as already installed.
+
+## Removal and quick-setting mutations
+
+Custom-rule removal now stages all owned-rule removals and deletion of the
+installation record in the same transaction. It reloads once after preparation,
+not once per removed rule. Metadata write failure and runtime rejection restore
+the complete prior revision, including the installed record. The existing
+pack-tag ownership/removal policy is unchanged.
+
+Quick-setting changes stage the updated collection timing or replacement custom
+rules with the new setting values. A rejected timing update restores the old
+collection and metadata together. Metadata-only settings and cleanup of a pack
+with no tagged rules still avoid generating or reloading configuration.
+
+System-pack install/removal, collection-backed install/removal, and tap/hold
+picker edits remain separate migrations. This change does not include preference
+or managed-snapshot recovery or change the catalog's conflict/ownership policy.
+
+Timing settings reject a missing collection or incompatible configuration before
+writing the installed record. Such a target is not a metadata-only setting; treating
+it as one would claim the new timing while leaving the rules unchanged.

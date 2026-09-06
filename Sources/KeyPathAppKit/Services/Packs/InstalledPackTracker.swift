@@ -77,7 +77,20 @@ public actor InstalledPackTracker {
 
     struct RecordChange: Sendable {
         let tracker: InstalledPackTracker
-        let record: InstalledPackRecord
+        let packID: String
+        let record: InstalledPackRecord?
+
+        init(tracker: InstalledPackTracker, record: InstalledPackRecord) {
+            self.tracker = tracker
+            packID = record.packID
+            self.record = record
+        }
+
+        init(tracker: InstalledPackTracker, removing packID: String) {
+            self.tracker = tracker
+            self.packID = packID
+            record = nil
+        }
     }
 
     struct PreparedRecordUpdate: Sendable {
@@ -92,13 +105,13 @@ public actor InstalledPackTracker {
 
     /// Build a metadata revision without writing or notifying. The configuration
     /// transaction compares this preimage before staging it with the rule files.
-    func prepareUpsert(_ record: InstalledPackRecord) throws -> PreparedRecordUpdate {
+    func prepareUpdate(_ change: RecordChange) throws -> PreparedRecordUpdate {
         let before: Data?
         do { before = try Data(contentsOf: fileURL) }
         catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { before = nil }
         let previous = try decodeRecords(before)
         var updated = previous
-        updated[record.packID] = record
+        updated[change.packID] = change.record
         return try PreparedRecordUpdate(tracker: self, fileURL: fileURL, before: before,
                                         contents: encodedRecords(updated), previousRecords: previous,
                                         records: updated, writeFile: writeFile)
