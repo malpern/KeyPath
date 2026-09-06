@@ -159,8 +159,8 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
         let result = await coordinator.saveGeneratedConfig(content: updated) {
             reloadCount += 1
-            XCTAssertEqual(try? String(contentsOf: url, encoding: .utf8), updated, file: file, line: line)
-            return expected
+            XCTAssertEqual(try? String(contentsOf: url, encoding: .utf8), reloadCount == 1 ? updated : original, file: file, line: line)
+            return reloadCount == 1 ? expected : ReloadResult(success: true, response: "recovered", errorMessage: nil, protocol: nil)
         }
 
         let saved = disposition == .applied || disposition == .pending
@@ -170,7 +170,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
                 return XCTFail("Successful saves must not claim recovery", file: file, line: line)
             }
         } else {
-            guard case .restoredPreviousConfig = result.recoveryResult else {
+            guard case .restoredPreviousRawConfig = result.recoveryResult else {
                 return XCTFail("Rejected/failed reload must report restored file", file: file, line: line)
             }
         }
@@ -179,7 +179,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(result.reloadResult?.success, expected.success, file: file, line: line)
         XCTAssertEqual(result.reloadResult?.response, expected.response, file: file, line: line)
         XCTAssertEqual(result.reloadResult?.errorMessage, expected.errorMessage, file: file, line: line)
-        XCTAssertEqual(reloadCount, 1, file: file, line: line)
+        XCTAssertEqual(reloadCount, saved ? 1 : 2, file: file, line: line)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), saved ? updated : original, file: file, line: line)
     }
 
@@ -210,13 +210,18 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         var releaseFirst: CheckedContinuation<Void, Never>?
         let coordinator = try XCTUnwrap(coordinator)
 
+        var firstReloadCount = 0
         let first = Task { @MainActor in
             await coordinator.saveGeneratedConfig(content: firstContent) {
-                await withCheckedContinuation { continuation in
-                    releaseFirst = continuation
-                    firstReloadStarted.fulfill()
+                firstReloadCount += 1
+                if firstReloadCount == 1 {
+                    await withCheckedContinuation { continuation in
+                        releaseFirst = continuation
+                        firstReloadStarted.fulfill()
+                    }
+                    return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
                 }
-                return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
+                return ReloadResult(success: true, response: "recovered", errorMessage: nil, protocol: nil)
             }
         }
         await fulfillment(of: [firstReloadStarted], timeout: 5)
@@ -325,7 +330,10 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         let url = URL(fileURLWithPath: configService.configurationPath)
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
         var initializedContent: String?
+        var reloads = 0
         let result = await coordinator.saveGeneratedConfig(content: updated) {
+            reloads += 1
+            if reloads > 1 { return ReloadResult(success: true, response: "recovered", errorMessage: nil, protocol: nil) }
             initializedContent = await self.configService.current().content
             XCTAssertEqual(try? String(contentsOf: url, encoding: .utf8), updated)
             return ReloadResult(success: false, response: nil, errorMessage: "rejected", protocol: nil, disposition: .rejected)
@@ -441,7 +449,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
     // MARK: - Rollback Fallback Tests
 
-    func testGeneratedSaveReportsMinimalFallbackWhenPreviousFileIsEmpty() async throws {
+    func testGeneratedSaveRestoresExactEmptyFileAndReportsRejectedRecovery() async throws {
         try await assertRecoveryOutcome(mapping: false, blockWrites: false)
     }
 
@@ -449,7 +457,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         try await assertRecoveryOutcome(mapping: true, blockWrites: false)
     }
 
-    func testGeneratedSavePreservesBothRecoveryErrorsAndReleasesOperation() async throws {
+    func testGeneratedSaveReportsJournalRecoveryFailureAndReleasesOperation() async throws {
         try await assertRecoveryOutcome(mapping: false, blockWrites: true)
     }
 
@@ -514,13 +522,12 @@ final class SaveCoordinatorTests: KeyPathTestCase {
             }
             return
         }
-        XCTAssertEqual(reloadCount, 1, "Recovery must not issue a second reload")
         if blockWrites {
-            guard case let .failed(backupError, fallbackError) = result.recoveryResult else {
-                return XCTFail("Both recovery failures must be returned")
+            XCTAssertEqual(reloadCount, 1)
+            guard case .rawConfigRecoveryFailed = result.recoveryResult else {
+                return XCTFail("Raw journal recovery failure must be returned")
             }
-            XCTAssertNotNil(backupError)
-            XCTAssertFalse(fallbackError.localizedDescription.isEmpty)
+            XCTAssertTrue(result.error?.localizedDescription.contains("Recovery needs attention") == true)
             XCTAssertEqual(try String(contentsOf: tempDir, encoding: .utf8), "blocked")
             try FileManager.default.removeItem(at: tempDir)
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -531,14 +538,12 @@ final class SaveCoordinatorTests: KeyPathTestCase {
             XCTAssertTrue(next.success, "Failed recovery must release the save operation")
             XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), updated)
         } else {
-            guard case let .wroteMinimalSafeConfig(backupError) = result.recoveryResult else {
-                return XCTFail("An empty prior file must report minimal fallback, not restoration")
+            XCTAssertEqual(reloadCount, 2)
+            guard case .rawConfigRecoveryFailed = result.recoveryResult else {
+                return XCTFail("Rejected runtime recovery must be reported")
             }
-            XCTAssertNotNil(backupError)
-            let content = try String(contentsOf: url, encoding: .utf8)
-            XCTAssertTrue(content.contains("(deflayer base)"))
-            XCTAssertNotEqual(content, original)
-            XCTAssertNotEqual(content, updated)
+            XCTAssertTrue(result.error?.localizedDescription.contains("Recovered files could not be applied") == true)
+            XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
         }
     }
 

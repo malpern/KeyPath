@@ -11,13 +11,24 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
             let entered = self.expectation(description: "first reload entered")
             let started = self.expectation(description: "collection edit requested")
             var resume: CheckedContinuation<Void, Never>?
+            let recovering = self.expectation(description: "recovery reload entered")
+            var resumeRecovery: CheckedContinuation<Void, Never>?
+            var reloads = 0
             let first = Task { @MainActor in
                 await coordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
-                    await withCheckedContinuation { continuation in
-                        resume = continuation
-                        entered.fulfill()
+                    reloads += 1
+                    if reloads == 1 {
+                        await withCheckedContinuation { continuation in
+                            resume = continuation
+                            entered.fulfill()
+                        }
+                        return ReloadResult(success: false, response: nil, errorMessage: "reject", protocol: nil, disposition: .rejected)
                     }
-                    return ReloadResult(success: false, response: nil, errorMessage: "reject", protocol: nil, disposition: .rejected)
+                    await withCheckedContinuation { continuation in
+                        resumeRecovery = continuation
+                        recovering.fulfill()
+                    }
+                    return ReloadResult(success: true, response: "recovered", errorMessage: nil, protocol: nil)
                 }
             }
             await self.fulfillment(of: [entered], timeout: 5)
@@ -29,9 +40,13 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
             await self.fulfillment(of: [started], timeout: 5)
             XCTAssertTrue(manager.customRules.isEmpty, "Queued edits must not stage state before admission")
             resume?.resume()
+            await self.fulfillment(of: [recovering], timeout: 5)
+            XCTAssertTrue(manager.customRules.isEmpty, "Queued mutation must also wait for runtime recovery")
+            resumeRecovery?.resume()
             let firstResult = await first.value
             let secondResult = await second.value
             XCTAssertFalse(firstResult.success)
+            XCTAssertEqual(reloads, 2)
             XCTAssertTrue(secondResult)
             XCTAssertEqual(manager.customRules.map(\.id), [rule.id])
             let stored = await manager.customRulesStore.loadRules()
@@ -95,13 +110,19 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
             let started = self.expectation(description: "second save requested")
             var resume: CheckedContinuation<Void, Never>?
             var secondReloaded = false
+            var reloads = 0
             let first = Task { @MainActor in
                 await firstCoordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
-                    await withCheckedContinuation { continuation in
-                        resume = continuation
-                        entered.fulfill()
+                    reloads += 1
+                    if reloads == 1 {
+                        await withCheckedContinuation { continuation in
+                            resume = continuation
+                            entered.fulfill()
+                        }
+                        return ReloadResult(success: false, response: nil, errorMessage: "reject", protocol: nil, disposition: .rejected)
                     }
-                    return ReloadResult(success: false, response: nil, errorMessage: "reject", protocol: nil, disposition: .rejected)
+                    XCTAssertFalse(secondReloaded, "The other coordinator must wait through recovery")
+                    return ReloadResult(success: true, response: "recovered", errorMessage: nil, protocol: nil)
                 }
             }
             await self.fulfillment(of: [entered], timeout: 5)
@@ -119,6 +140,7 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
             let rejected = await first.value
             let accepted = await second.value
             XCTAssertFalse(rejected.success)
+            XCTAssertEqual(reloads, 2)
             XCTAssertTrue(accepted.success)
             XCTAssertEqual(try String(contentsOfFile: service.configurationPath, encoding: .utf8), finalContent)
         }

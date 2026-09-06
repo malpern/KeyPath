@@ -430,17 +430,56 @@ public final class ConfigurationService: FileConfigurationProviding {
                 packTargets["installedPacks"] = directory.appendingPathComponent("installed-packs.json")
             }
             let packFiles = packTargets
+            let rawFiles = ["config": URL(fileURLWithPath: configurationPath)]
             let recovered = try await performRuleFileOperation {
+                let rawRecovered = try RecoverableRuleWrite.recover(files: rawFiles, directory: directory, scope: .rawConfig)
                 let packRecovered = try RecoverableRuleWrite.recover(files: packFiles, directory: directory, scope: .packRules)
                 let rulesRecovered = try RecoverableRuleWrite.recover(files: files, directory: directory)
-                return packRecovered || rulesRecovered
+                return (raw: rawRecovered, rules: packRecovered || rulesRecovered)
             }
-            if recovered {
+            if recovered.raw || recovered.rules {
                 stateLock.withLock { currentConfiguration = nil }
                 needsRecoveredRuntimeRefresh = true
-                ruleRecoveryRevision &+= 1
             }
-            return recovered
+            if recovered.rules { ruleRecoveryRevision &+= 1 }
+            return recovered.rules
+        }
+    }
+
+    struct RawConfigurationWrite: Sendable {
+        let pending: RecoverableRuleWrite.PendingWrite
+    }
+
+    /// Raw editing owns only the main file. Sidecars and handwritten syntax are
+    /// preserved; the expected original detects edits during validation/preparation.
+    func stageRawConfiguration(content: String, expectedContent: String,
+                               mutationPermit: ConfigurationOperationGate.Permit) async throws -> RawConfigurationWrite
+    {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            let files = ["config": URL(fileURLWithPath: configurationPath)]
+            let directory = URL(fileURLWithPath: configDirectory)
+            try Task.checkCancellation()
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(files: files, contents: ["config": Data(content.utf8)],
+                                               directory: directory, scope: .rawConfig,
+                                               expectedBefore: ["config": Data(expectedContent.utf8)])
+            }
+            return RawConfigurationWrite(pending: pending)
+        }
+    }
+
+    func settleRawConfiguration(_ write: RawConfigurationWrite, commit: Bool,
+                                requireRuntimeRecovery: Bool = false,
+                                mutationPermit: ConfigurationOperationGate.Permit) async throws
+    {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await performRuleFileOperation {
+                if commit { try RecoverableRuleWrite.commit(write.pending) }
+                else { try RecoverableRuleWrite.rollback(write.pending) }
+            }
+            stateLock.withLock { currentConfiguration = nil }
+            if commit { needsRecoveredRuntimeRefresh = false }
+            else if requireRuntimeRecovery { needsRecoveredRuntimeRefresh = true }
         }
     }
 
