@@ -382,3 +382,13 @@ edits. The manager recovers before candidate preparation and restores its layout
 fields plus the matching optimistic display preference on failure. Persistent
 keymap preferences update only after accepted settlement; they are not yet part
 of the durable file journal.
+
+Collection-backed pack install/removal passes its record change through the existing
+collection toggle into the canonical rule save. The pack record and three rule files
+share the retained pack journal and runtime settlement; there is no second metadata
+write or fallback regeneration. System packs retain a separate path until their
+managed snapshots join the transaction.
+
+The collection toggle and rule-mutation settlement expose the canonical SaveResult
+for callers that need its cause and recovery outcome. Existing Boolean editor APIs
+adapt that result; pack callers retain it so metadata failures remain actionable.

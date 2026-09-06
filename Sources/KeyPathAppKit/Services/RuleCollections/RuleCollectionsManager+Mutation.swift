@@ -87,17 +87,30 @@ extension RuleCollectionsManager {
         }
     }
 
+    /// Compatibility for editor callers that only need committed/not committed.
+    @discardableResult
+    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil,
+                            leaderPreferenceBefore: LeaderKeyPreference? = nil,
+                            keymapBefore: (id: String, includePunctuation: Bool)? = nil,
+                            mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
+    {
+        await commitRuleMutationResult(snapshot: snapshot, skipReload: skipReload, failureContext: failureContext,
+                                       leaderPreferenceBefore: leaderPreferenceBefore, keymapBefore: keymapBefore,
+                                       mutationPermit: mutationPermit).success
+    }
+
     /// The save owner restores files/runtime; the manager restores its in-memory
     /// candidate without regenerating over the recovered or externally edited files.
     @discardableResult
-    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderKeyPreference? = nil,
-                            keymapBefore: (id: String, includePunctuation: Bool)? = nil,
-                            mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
+    func commitRuleMutationResult(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderKeyPreference? = nil,
+                                  keymapBefore: (id: String, includePunctuation: Bool)? = nil,
+                                  packRecord: InstalledPackTracker.RecordChange? = nil,
+                                  mutationPermit: ConfigurationOperationGate.Permit) async -> SaveResult
     {
         let preparedLeaderPreference = PreferencesService.shared.leaderKeyPreference
         let preparedKeymap = (id: activeKeymapId, includePunctuation: keymapIncludesPunctuation)
         let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
-            manager: self, mutationPermit: mutationPermit, reloadHandler: skipReload ? nil : onRulesChanged
+            manager: self, mutationPermit: mutationPermit, packRecord: packRecord, reloadHandler: skipReload ? nil : onRulesChanged
         )
         guard result.success else {
             ruleCollections = snapshot.collections
@@ -125,9 +138,9 @@ extension RuleCollectionsManager {
                 onError?(message + preferenceRecoveryDetail)
                 SoundManager.shared.playErrorSound()
             }
-            return false
+            return result
         }
         NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
-        return true
+        return result
     }
 }

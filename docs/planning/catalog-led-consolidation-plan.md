@@ -450,7 +450,7 @@ Managers observe rule-source recovery performed through another editor sharing t
 service. This closes an in-process cross-editor gap; raw journals, preferences,
 managed snapshots, cross-instance/process caches, and watcher revisions remain open.
 
-### Raw configuration recovery in progress
+### Raw configuration recovery merged in #1286
 
 Move raw/generated/Simple Modifications saves onto a retained config-only journal,
 including exact rollback, conflict preservation, runtime recovery, and startup/next
@@ -458,9 +458,22 @@ editor recovery. Preserve accepted-save cancellation semantics and explicit-rest
 fallback behavior. Preferences, managed-pack snapshots, cross-instance/process
 cache freshness, and watcher revisions remain open.
 
-### Keymap save recovery in progress
+### Keymap save recovery merged in #1287
 
 Move logical keymap changes onto retained rule-state settlement. Recover interrupted
 writes before preparing the layout, restore keymap fields and matching optimistic
 display preferences before failure feedback, and preserve newer display choices.
 Preferences remain in-process state; durable preference recovery remains open.
+
+### Collection-backed pack transactions in progress
+
+Commit associated collection toggles and their installed-pack records in one retained
+rule transaction on install and removal. Preserve existing confirmation and ownership
+policies. System packs, managed snapshots, preferences, and watcher/cache revisions
+remain open.
+
+Deployment checkpoint: #1285, #1286, and #1287 were installed together from merged
+master `5bf5b09ac8e28125c1d665fbee059d051e35f691`. Signed/notarized/stapled app
+verification passed, including process and TCP readiness; installed and distribution
+executable hashes matched. This is installation/runtime-readiness evidence, not
+clean-VM first-run or physical-keyboard acceptance.

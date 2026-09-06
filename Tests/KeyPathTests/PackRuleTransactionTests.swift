@@ -52,6 +52,145 @@ final class PackRuleTransactionTests: KeyPathTestCase {
                      errorMessage: disposition == .applied ? nil : "injected \(disposition)", protocol: nil, disposition: disposition)
     }
 
+    func testMissingCollectionResultExplainsFailureWithoutClaimingCancellation() async throws {
+        let before = try snapshot()
+        let result = await manager.toggleCollectionResult(id: UUID(), isEnabled: true)
+        XCTAssertFalse(result.success)
+        XCTAssertFalse(result.error is CancellationError)
+        XCTAssertTrue(result.error?.localizedDescription.contains("No matching collection") == true)
+        XCTAssertEqual(try snapshot(), before)
+    }
+
+    func testDeclinedCollectionConflictPreservesExistingRuleAndExplainsFailure() async throws {
+        pack = PackRegistry.capsLockToEscape
+        manager.customRules.append(CustomRule(input: "caps", action: .keystroke(key: "f13")))
+        let before = try snapshot()
+        let originalRules = manager.customRules
+        manager.onConflictResolution = { _ in .keepExisting }
+        manager.onRulesChanged = { XCTFail("Declined conflict must not reload"); return Self.reload(.applied) }
+        do {
+            _ = try await PackInstaller.shared.install(pack, autoResolveCollectionConflicts: false, manager: manager, installedPackTracker: tracker)
+            XCTFail("Declined installation must fail")
+        } catch {
+            XCTAssertFalse(error is CancellationError)
+            XCTAssertTrue(error.localizedDescription.contains("existing mapping was kept"))
+        }
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.customRules, originalRules)
+    }
+
+    func testCollectionPackStagesRecordWithCollectionBeforeOneAcceptedReload() async throws {
+        pack = PackRegistry.capsLockToEscape
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            let record = await self.tracker.record(for: self.pack.id)
+            XCTAssertNotNil(record)
+            XCTAssertTrue(self.manager.ruleCollections.contains { $0.id == self.pack.associatedCollectionID && $0.isEnabled })
+            XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(self.directory, scope: .packRules).path))
+            return Self.reload(.applied)
+        }
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        XCTAssertEqual(reloads, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
+    }
+
+    func testCollectionPackMetadataWriteFailureLeavesNoPartialActivation() async throws {
+        pack = PackRegistry.capsLockToEscape
+        let before = try snapshot()
+        let collections = manager.ruleCollections
+        let failing = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json"), writeFile: { _, _ in
+            throw CocoaError(.fileWriteNoPermission)
+        })
+        manager.onRulesChanged = { XCTFail("Failed staging must not reload"); return Self.reload(.applied) }
+        do {
+            _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: failing)
+            XCTFail("Metadata staging failure must fail installation")
+        } catch let error as PackInstaller.InstallError {
+            guard case let .saveFailed(reason) = error else { return XCTFail("Wrong failure: \(error)") }
+            XCTAssertTrue(reason.contains(CocoaError(.fileWriteNoPermission).localizedDescription))
+            XCTAssertTrue(reason.contains("prior files were restored"))
+        }
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, collections)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
+    }
+
+    func testRejectedCollectionPackInstallRestoresFourFiles() async throws {
+        pack = PackRegistry.capsLockToEscape
+        let before = try snapshot()
+        let collections = manager.ruleCollections
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            if reloads == 2 { XCTAssertEqual(try? self.snapshot(), before) }
+            return Self.reload(reloads == 1 ? .rejected : .applied)
+        }
+        do {
+            _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+            XCTFail("Rejected collection installation must fail")
+        } catch {}
+        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, collections)
+    }
+
+    func testRejectedCollectionPackUninstallRestoresRecordAndCollection() async throws {
+        pack = PackRegistry.capsLockToEscape
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        let before = try snapshot()
+        let collections = manager.ruleCollections
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            let record = await self.tracker.record(for: self.pack.id)
+            if reloads == 1 { XCTAssertNil(record) }
+            else { XCTAssertNotNil(record); XCTAssertEqual(try? self.snapshot(), before) }
+            return Self.reload(reloads == 1 ? .rejected : .applied)
+        }
+        do {
+            try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager, installedPackTracker: tracker)
+            XCTFail("Rejected removal must fail")
+        } catch {}
+        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, collections)
+    }
+
+    func testCollectionPackUninstallPendingCommitsRecordRemovalWithOneReload() async throws {
+        pack = PackRegistry.capsLockToEscape
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        var reloads = 0
+        manager.onRulesChanged = { reloads += 1; return Self.reload(.pending) }
+        try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager, installedPackTracker: tracker)
+        XCTAssertEqual(reloads, 1)
+        let record = await tracker.record(for: pack.id)
+        XCTAssertNil(record)
+        XCTAssertFalse(manager.ruleCollections.first { $0.id == pack.associatedCollectionID }?.isEnabled ?? true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
+    }
+
+    func testCollectionPackExternalMetadataEditPreservesConflictingRevision() async throws {
+        pack = PackRegistry.capsLockToEscape
+        var external: [String: Data]?
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            do {
+                try Data("external metadata".utf8).write(to: self.directory.appendingPathComponent("installed-packs.json"))
+                external = try self.snapshot()
+            } catch { XCTFail("\(error)") }
+            return Self.reload(.rejected)
+        }
+        do {
+            _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+            XCTFail("External conflict must fail")
+        } catch {}
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(try snapshot(), external)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
+    }
+
     func testBatchPublishesOnceAfterAllRulesAndRecordCommitWithOneReload() async throws {
         let count = PackCommitCount()
         let token = manager.configurationService.observe { _ in await count.increment() }

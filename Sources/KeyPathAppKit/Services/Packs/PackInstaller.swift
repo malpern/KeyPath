@@ -277,12 +277,13 @@ public final class PackInstaller {
                 return record
             }
 
-            // Collection-backed packs (e.g. Home Row Mods) don't generate custom
-            // rules — they just toggle the built-in RuleCollection on.
+            // Commit the collection and installation record as one revision.
             if let collectionID = pack.associatedCollectionID {
-                let ruleStateSnapshot = manager.snapshotRuleState()
-                let previousInstallRecord = await installedPackTracker.record(for: pack.id)
-                let ok = await manager.toggleCollection(
+                let record = InstalledPackRecord(
+                    packID: pack.id, version: pack.version,
+                    installedAt: Date(), quickSettingValues: resolvedSettings
+                )
+                let result = await manager.toggleCollectionResult(
                     id: collectionID,
                     isEnabled: true,
                     autoResolveConflicts: autoResolveCollectionConflicts,
@@ -290,40 +291,11 @@ public final class PackInstaller {
                     configurationOverride: collectionConfiguration,
                     additionalCollectionIDsToDisable: additionalCollectionIDsToDisable,
                     skipReload: skipFinalReload,
+                    packRecord: .init(tracker: installedPackTracker, record: record),
                     mutationPermit: permit
                 )
-                if !ok {
-                    throw InstallError.saveFailed("could not enable associated rule collection")
-                }
-
-                let record = InstalledPackRecord(
-                    packID: pack.id,
-                    version: pack.version,
-                    installedAt: Date(),
-                    quickSettingValues: resolvedSettings
-                )
-                do {
-                    try await installedPackTracker.upsert(record)
-                } catch {
-                    AppLogger.shared.errorUnlessQuietTest(
-                        "❌ [PackInstaller] Could not persist install record for '\(pack.name)'; restoring previous rule state"
-                    )
-                    let installRecordRestored = await restoreInstallRecord(
-                        previousInstallRecord,
-                        packID: pack.id,
-                        installedPackTracker: installedPackTracker
-                    )
-                    let rollbackApplied = await manager.rollbackToSnapshot(
-                        ruleStateSnapshot,
-                        userMessage: "Could not record this pack installation. Your previous rule state was restored.",
-                        mutationPermit: permit
-                    )
-                    guard rollbackApplied, installRecordRestored else {
-                        throw InstallError.saveFailed(
-                            "installed-pack record could not be saved and the previous state could not be fully restored"
-                        )
-                    }
-                    throw error
+                guard result.success else {
+                    throw InstallError.saveFailed(result.error?.localizedDescription ?? "could not enable associated rule collection")
                 }
                 AppLogger.shared.log(
                     "✅ [PackInstaller] Installed pack '\(pack.name)' via collection toggle (id=\(collectionID))"
@@ -412,11 +384,11 @@ public final class PackInstaller {
             if let pack = PackRegistry.pack(id: packID),
                let collectionID = pack.associatedCollectionID
             {
-                let ok = await manager.toggleCollection(id: collectionID, isEnabled: false, bypassOwnershipCheck: true, mutationPermit: permit)
-                guard ok else {
-                    throw InstallError.saveFailed("could not disable associated rule collection")
+                let result = await manager.toggleCollectionResult(id: collectionID, isEnabled: false, bypassOwnershipCheck: true,
+                                                                  packRecord: .init(tracker: installedPackTracker, removing: packID), mutationPermit: permit)
+                guard result.success else {
+                    throw InstallError.saveFailed(result.error?.localizedDescription ?? "could not disable associated rule collection")
                 }
-                try await installedPackTracker.remove(packID: packID)
                 AppLogger.shared.log(
                     "✅ [PackInstaller] Uninstalled pack '\(packID)' via collection toggle off (id=\(collectionID))"
                 )
