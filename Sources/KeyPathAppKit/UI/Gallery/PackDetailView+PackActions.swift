@@ -159,12 +159,20 @@ extension PackDetailView {
     /// collection's `selectedOutput` is persisted via the same VM API the
     /// Rules tab uses.
     func applySingleKeyEdit(output: String) async {
-        singleKeySelection = output
         guard let collectionID = pack.associatedCollectionID else { return }
+        let editID = UUID()
+        singleKeyEditID = editID
+        singleKeySelection = output
         if !isInstalled {
             await install(skipFinalReload: true)
         }
-        await kanataManager.updateCollectionOutput(collectionID, output: output)
+        if isInstalled {
+            await kanataManager.updateCollectionOutput(collectionID, output: output)
+        }
+        let persistedSelection = await liveSingleKeySelection()
+        guard singleKeyEditID == editID else { return }
+        singleKeyEditID = nil
+        singleKeySelection = persistedSelection
     }
 
     /// Apply a Home Row Mods edit — analogous to the tap-hold `updateTapHold`

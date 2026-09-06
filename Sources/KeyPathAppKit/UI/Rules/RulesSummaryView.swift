@@ -19,6 +19,7 @@ struct RulesTabView: View {
     @State private var createButtonHovered = false
     @State var stableSortOrder: [UUID] = []
     @State var pendingSelections: [UUID: String] = [:]
+    @State var pendingSelectionEdits: [UUID: UUID] = [:]
     @State var pendingToggles: [UUID: Bool] = [:]
     @State var showingHomeRowModsHelp = false
     @State var homeRowModsEditState: HomeRowModsEditState?

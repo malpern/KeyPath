@@ -14,18 +14,14 @@ extension RuleCollectionsManager {
     /// Replace all rule collections
     func replaceCollections(_ collections: [RuleCollection]) async {
         await withRuleMutation(failure: ()) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
+            let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
             ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-
-            let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
-            let collectionsSnapshot = ruleCollections
             let didReconcileLeader = reconcileLeaderKeyFromCollection()
-
-            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
-            if didReconcileLeader, !applied {
-                rollbackLeaderReconcile(preference: leaderSnapshot, collections: collectionsSnapshot)
-            }
+            await commitRuleMutation(snapshot: snapshot, failureContext: "rule collections",
+                                     leaderPreferenceBefore: didReconcileLeader ? leaderSnapshot : nil, mutationPermit: permit)
         }
     }
 
@@ -56,6 +52,7 @@ extension RuleCollectionsManager {
         await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
             AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
             if !bypassOwnershipCheck {
                 if let owner = await InstalledPackTracker.shared.packManagingCollection(id) {
                     AppLogger.shared.log(
@@ -65,7 +62,6 @@ extension RuleCollectionsManager {
                 }
             }
 
-            let snapshot = snapshotRuleState()
             let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
 
             let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
@@ -166,16 +162,10 @@ extension RuleCollectionsManager {
                 }
             }
 
-            AppLogger.shared.log("🔀 [RuleCollections] Calling regenerateConfigFromCollections...")
-            let applied = await regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: permit)
-            guard applied else {
-                if id == RuleCollectionIdentifier.leaderKey {
-                    PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
-                }
-                AppLogger.shared.log("↩️ [RuleCollections] Toggle apply failed; rolling back to previous state")
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this rule change. Your previous rule state was restored.", mutationPermit: permit)
-                return false
-            }
+            guard await commitRuleMutation(snapshot: snapshot, skipReload: skipReload, failureContext: candidate.name,
+                                           leaderPreferenceBefore: id == RuleCollectionIdentifier.leaderKey ? leaderPreferenceSnapshot : nil,
+                                           mutationPermit: permit)
+            else { return false }
 
             // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
             if isEnabled, let collection = ruleCollections.first(where: { $0.id == id }) {
@@ -350,48 +340,29 @@ extension RuleCollectionsManager {
     /// Update a single-key picker collection's selected output and regenerate its mapping
     func updateCollectionOutput(id: UUID, output: String) async {
         await withRuleMutation(failure: ()) { [self] permit in
-            guard let index = ruleCollections.firstIndex(where: { $0.id == id }) else {
-                // Try to find in catalog and add it
-                let catalog = RuleCollectionCatalog()
-                if var catalogCollection = catalog.defaultCollections().first(where: { $0.id == id }) {
-                    catalogCollection.configuration.updateSelectedOutput(output)
-                    catalogCollection.isEnabled = true
-                    // Update the mapping based on selected output
-                    if let config = catalogCollection.configuration.singleKeyPickerConfig {
-                        let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
-                        let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
-                        catalogCollection.mappings = [KeyMapping(input: config.inputKey, action: keyAction, description: description)]
-                    }
-                    ruleCollections.append(catalogCollection)
-                    dedupeRuleCollectionsInPlace()
-                    refreshLayerIndicatorState()
-                    await regenerateConfigFromCollections(mutationPermit: permit)
-                }
-                return
-            }
-
-            ruleCollections[index].configuration.updateSelectedOutput(output)
-            ruleCollections[index].isEnabled = true
-
-            // Update the mapping based on selected output (skip for Leader Key which has no mappings)
-            if let config = ruleCollections[index].configuration.singleKeyPickerConfig,
-               config.inputKey != "leader"
-            {
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
+            guard var candidate = ruleCollections.first(where: { $0.id == id })
+                ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id })
+            else { return }
+            let leaderSnapshot = PreferencesService.shared.leaderKeyPreference
+            candidate.configuration.updateSelectedOutput(output)
+            candidate.isEnabled = true
+            if let config = candidate.configuration.singleKeyPickerConfig, config.inputKey != "leader" {
                 let description = config.presetOptions.first { $0.output == output }?.label ?? "Custom"
-                let keyAction: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
-                ruleCollections[index].mappings = [KeyMapping(input: config.inputKey, action: keyAction, description: description)]
+                let action: KeyAction = output.hasPrefix("(") ? .rawKanata(output) : .keystroke(key: output)
+                candidate.mappings = [KeyMapping(input: config.inputKey, action: action, description: description)]
             }
-
-            dedupeRuleCollectionsInPlace()
-
-            // Special handling: If this is the Leader Key collection, update all momentary activators
+            if let index = ruleCollections.firstIndex(where: { $0.id == id }) { ruleCollections[index] = candidate }
+            else { ruleCollections.append(candidate) }
             if id == RuleCollectionIdentifier.leaderKey {
-                await updateLeaderKey(output, mutationPermit: permit)
-                return
+                applyLeaderKeyToMomentaryActivators(output)
+                syncLeaderKeyPreference(key: output, enabled: true)
             }
-
+            dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await regenerateConfigFromCollections(mutationPermit: permit)
+            await commitRuleMutation(snapshot: snapshot, failureContext: candidate.name,
+                                     leaderPreferenceBefore: id == RuleCollectionIdentifier.leaderKey ? leaderSnapshot : nil,
+                                     mutationPermit: permit)
         }
     }
 
@@ -634,19 +605,15 @@ extension RuleCollectionsManager {
     func updateLeaderKey(_ newKey: String, mutationPermit: ConfigurationOperationGate.Permit? = nil) async {
         await withRuleMutation(using: mutationPermit, failure: ()) { [self] permit in
             AppLogger.shared.log("🔑 [RuleCollections] Updating leader key to '\(newKey)'")
-            let snapshot = snapshotRuleState()
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
             let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
 
             applyLeaderKeyToMomentaryActivators(newKey)
             syncLeaderKeyPreference(key: newKey, enabled: true)
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            let applied = await regenerateConfigFromCollections(mutationPermit: permit)
-            guard applied else {
-                PreferencesService.shared.leaderKeyPreference = leaderPreferenceSnapshot
-                await rollbackToSnapshot(snapshot, userMessage: "Could not apply this leader key change. Your previous rule state was restored.", mutationPermit: permit)
-                return
-            }
+            await commitRuleMutation(snapshot: snapshot, failureContext: "Leader Key",
+                                     leaderPreferenceBefore: leaderPreferenceSnapshot, mutationPermit: permit)
         }
     }
 

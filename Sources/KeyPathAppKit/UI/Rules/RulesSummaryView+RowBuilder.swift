@@ -53,8 +53,15 @@ extension RulesTabView {
             displayStyle: style,
             collection: needsCollection ? collection : nil,
             onSelectOutput: style == .singleKeyPicker ? { output in
+                let editID = UUID()
+                pendingSelectionEdits[collection.id] = editID
                 pendingSelections[collection.id] = output
-                Task { await kanataManager.updateCollectionOutput(collection.id, output: output) }
+                Task {
+                    await kanataManager.updateCollectionOutput(collection.id, output: output)
+                    guard pendingSelectionEdits[collection.id] == editID else { return }
+                    pendingSelectionEdits.removeValue(forKey: collection.id)
+                    pendingSelections.removeValue(forKey: collection.id)
+                }
             } : nil,
             onSelectTapOutput: style == .tapHoldPicker ? { tap in
                 Task { await kanataManager.updateCollectionTapOutput(collection.id, tapOutput: tap) }
