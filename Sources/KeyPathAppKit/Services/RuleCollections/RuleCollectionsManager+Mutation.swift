@@ -39,8 +39,12 @@ extension RuleCollectionsManager {
     func recoverRuleState(mutationPermit: ConfigurationOperationGate.Permit) async throws {
         try await configurationService.recoverPendingAppKeymapWrite(mutationPermit: mutationPermit)
         let recovered = try await configurationService.recoverPendingRuleWrite(
-            collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: mutationPermit
+            collectionStore: ruleCollectionStore, customStore: customRulesStore,
+            mutationPermit: mutationPermit, preferenceDefaults: preferencesService.persistenceDefaults
         )
+        if pendingLeaderKeyPreference == nil {
+            preferencesService.reloadLeaderKeyPreference(from: preferencesService.persistenceDefaults)
+        }
         try await refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: mutationPermit)
     }
 
@@ -90,7 +94,7 @@ extension RuleCollectionsManager {
     /// Compatibility for editor callers that only need committed/not committed.
     @discardableResult
     func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil,
-                            leaderPreferenceBefore: LeaderKeyPreference? = nil,
+                            leaderPreferenceBefore: LeaderPreferenceSnapshot? = nil,
                             keymapBefore: (id: String, includePunctuation: Bool)? = nil,
                             mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
     {
@@ -102,24 +106,38 @@ extension RuleCollectionsManager {
     /// The save owner restores files/runtime; the manager restores its in-memory
     /// candidate without regenerating over the recovered or externally edited files.
     @discardableResult
-    func commitRuleMutationResult(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderKeyPreference? = nil,
+    func commitRuleMutationResult(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderPreferenceSnapshot? = nil,
                                   keymapBefore: (id: String, includePunctuation: Bool)? = nil,
                                   packRecord: InstalledPackTracker.RecordChange? = nil,
                                   mutationPermit: ConfigurationOperationGate.Permit) async -> SaveResult
     {
-        let preparedLeaderPreference = PreferencesService.shared.leaderKeyPreference
+        let preparedLeaderPreference = pendingLeaderKeyPreference ?? preferencesService.leaderKeyPreference
         let preparedKeymap = (id: activeKeymapId, includePunctuation: keymapIncludesPunctuation)
+        var preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = []
+        do {
+            if leaderPreferenceBefore != nil {
+                try preferenceChanges.append(.leader(
+                    before: leaderPreferenceBefore?.data,
+                    after: JSONEncoder().encode(preparedLeaderPreference)
+                ))
+            }
+        } catch {
+            pendingLeaderKeyPreference = nil
+            return .failure(error)
+        }
         let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
-            manager: self, mutationPermit: mutationPermit, packRecord: packRecord, reloadHandler: skipReload ? nil : onRulesChanged
+            manager: self, mutationPermit: mutationPermit, packRecord: packRecord,
+            preferenceChanges: preferenceChanges,
+            leaderKeyPreference: leaderPreferenceBefore == nil ? nil : preparedLeaderPreference,
+            reloadHandler: skipReload ? nil : onRulesChanged
         )
+        pendingLeaderKeyPreference = nil
         guard result.success else {
             ruleCollections = snapshot.collections
             customRules = snapshot.customRules
             var preferenceRecoveryDetail = ""
             if let leaderPreferenceBefore {
-                if PreferencesService.shared.leaderKeyPreference == preparedLeaderPreference {
-                    PreferencesService.shared.leaderKeyPreference = leaderPreferenceBefore
-                } else {
+                if preferencesService.leaderKeyPreference != leaderPreferenceBefore.value {
                     preferenceRecoveryDetail = " A newer leader-key preference was preserved."
                 }
             }
@@ -139,6 +157,9 @@ extension RuleCollectionsManager {
                 SoundManager.shared.playErrorSound()
             }
             return result
+        }
+        if leaderPreferenceBefore != nil {
+            preferencesService.reloadLeaderKeyPreference(from: preferencesService.persistenceDefaults)
         }
         NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
         return result

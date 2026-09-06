@@ -121,7 +121,7 @@ final class CollectionLeaderRecoveryTests: KeyPathTestCase {
         XCTAssertEqual(leader.configuration.singleKeyPickerConfig?.selectedOutput, "f18")
     }
 
-    func testFailedLeaderEditPreservesNewerPreference() async throws {
+    func testFailedLeaderEditWithThirdPreferenceRevisionFailsClosed() async throws {
         let before = try files()
         var reloads = 0
         var errors: [String] = []
@@ -134,9 +134,10 @@ final class CollectionLeaderRecoveryTests: KeyPathTestCase {
             return Self.reload(reloads == 1 ? .rejected : .applied)
         }
         await manager.updateLeaderKey("f18")
-        XCTAssertEqual(reloads, 2)
-        XCTAssertEqual(try files(), before)
+        XCTAssertEqual(reloads, 1, "A preference conflict must not reload a partially recovered revision")
+        XCTAssertNotEqual(try files(), before, "Fail-closed recovery must preserve the attempted files for diagnosis")
         XCTAssertEqual(PreferencesService.shared.leaderKeyPreference.key, "f17")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
         XCTAssertTrue(errors.first?.contains("newer leader-key preference was preserved") == true)
     }
 }

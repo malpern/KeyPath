@@ -163,6 +163,20 @@ final class PreferencesService: @unchecked Sendable {
 
     @MainActor static let shared = PreferencesService()
 
+    static var canonicalDefaults: UserDefaults {
+        TestEnvironment.isRunningTests
+            ? .standard
+            : UserDefaults(suiteName: "com.keypath.KeyPath")!
+    }
+
+    static let leaderKeyPreferenceKey = "KeyPath.LeaderKey.Preference"
+    private let leaderDefaults: UserDefaults
+    var persistenceDefaults: UserDefaults {
+        leaderDefaults
+    }
+
+    private var suppressLeaderPersistence = false
+
     // MARK: - Communication Protocol Configuration
 
     /// Communication protocol preference (always TCP)
@@ -270,11 +284,26 @@ final class PreferencesService: @unchecked Sendable {
     /// This is independent of any collection - collections just target this layer
     var leaderKeyPreference: LeaderKeyPreference {
         didSet {
+            guard !suppressLeaderPersistence else { return }
             if let data = try? JSONEncoder().encode(leaderKeyPreference) {
-                UserDefaults.standard.set(data, forKey: Keys.leaderKeyPreference)
+                leaderDefaults.set(data, forKey: Keys.leaderKeyPreference)
                 AppLogger.shared.log("🎯 [Preferences] Leader key: \(leaderKeyPreference.key) → \(leaderKeyPreference.targetLayer.displayName) (enabled: \(leaderKeyPreference.enabled))")
             }
         }
+    }
+
+    /// Update the generation candidate without creating a crash window before
+    /// ConfigurationService has durably journaled the preference transaction.
+    func stageLeaderKeyPreference(_ preference: LeaderKeyPreference) {
+        suppressLeaderPersistence = true
+        leaderKeyPreference = preference
+        suppressLeaderPersistence = false
+    }
+
+    func reloadLeaderKeyPreference(from defaults: UserDefaults = PreferencesService.canonicalDefaults) {
+        let value = defaults.data(forKey: Self.leaderKeyPreferenceKey)
+            .flatMap { try? JSONDecoder().decode(LeaderKeyPreference.self, from: $0) } ?? .default
+        stageLeaderKeyPreference(value)
     }
 
     // MARK: - Education Hints
@@ -402,7 +431,7 @@ final class PreferencesService: @unchecked Sendable {
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
         static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
         static let accessibilityTestMode = "KeyPath.Testing.AccessibilityTestMode"
-        static let leaderKeyPreference = "KeyPath.LeaderKey.Preference"
+        static let leaderKeyPreference = PreferencesService.leaderKeyPreferenceKey
         static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
         static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
         static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
@@ -452,7 +481,8 @@ final class PreferencesService: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init() {
+    init(leaderDefaults: UserDefaults = PreferencesService.canonicalDefaults) {
+        self.leaderDefaults = leaderDefaults
         // The command-action feature was removed in #879. Clear its retired
         // preference so older installs do not retain a misleading security flag.
         UserDefaults.standard.removeObject(forKey: "KeyPath.Security.ConfigCommandActionsEnabled")
@@ -520,7 +550,7 @@ final class PreferencesService: @unchecked Sendable {
                 ?? Defaults.accessibilityTestMode
 
         // Leader key preference
-        if let data = UserDefaults.standard.data(forKey: Keys.leaderKeyPreference),
+        if let data = leaderDefaults.data(forKey: Keys.leaderKeyPreference),
            let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
         {
             leaderKeyPreference = stored

@@ -1,7 +1,7 @@
 # KeyPath: catalog-led consolidation execution plan
 
 Date: 2026-09-04
-Status: approved direction; Phase 0 inventory recorded; Phase 1 persistence/recovery foundation implemented, operation migration still open.
+Status: approved direction; Phase 0 inventory recorded; Phase 1 operation migration substantially implemented, preferences/revisions and final acceptance still open.
 Baseline: `master` at `a12bb07d5`; recheck code, branches, and issues before implementation.
 
 ## Outcome
@@ -478,13 +478,95 @@ verification passed, including process and TCP readiness; installed and distribu
 executable hashes matched. This is installation/runtime-readiness evidence, not
 clean-VM first-run or physical-keyboard acceptance.
 
-### System-pack transactions in progress
+### System-pack transactions merged in #1289
 
-Embed managed-collection restore snapshots in installed-pack records so the existing
-pack journal covers both with the rule revision. Preserve legacy snapshot reading
-and existing restore/default choices. Keep runtime rejection separate from the known
-generation-conflict retry. Validate before retiring the legacy multi-write paths.
+Managed-collection restore snapshots are embedded in installed-pack records so the
+existing pack journal covers both with the rule revision. Legacy snapshot reading
+and existing restore/default choices are preserved. Runtime rejection remains
+separate from the known generation-conflict retry.
 
 Deployment checkpoint: #1288 was installed from merged master
 `f77e2c2ad63dff743a6aba8fb19c31e3704387fe`. Signing, notarization, stapling,
 process, and TCP checks passed; installed/distribution executable hashes matched.
+
+## Coordination checkpoint — September 6
+
+Live baseline: `origin/master` and integration checkout at
+`5e3e9570099628eb77f21f6f011aad8aa9da988b`. GitHub confirms #1289 and #1290
+merged. #1290 explicitly changes the runner reserve to 90 GiB; the older
+100 GiB incident notes above remain historical evidence, not current policy.
+#1261 external scratch migration is still open and is not implied complete.
+
+The handoff reports the merged release candidate passed tests, signing,
+notarization, stapling and deployment. The coordinator independently reran
+`Scripts/verify-installed-app.sh`: signature, Gatekeeper, stapled ticket,
+process, launchd and TCP readiness passed. Local evidence:
+`/tmp/keypath-catalog-lead-installed-verification.log`. These checks do not
+establish physical input or clean-machine first-remap acceptance.
+
+### Current contracts and sequence
+
+1. **Durable leader/keymap preferences (implementation active).** Journal the
+   affected preference fields before their first durable mutation, retain them
+   through runtime settlement, and recover them with the rule revision. Test
+   interruption before file staging as well as after persistence. Preserve
+   unrelated layout/display preferences and unrelated per-keymap punctuation
+   choices. Keep old journal decoding compatible. No UI change.
+2. **Freshness at mutation admission (implementation active).** Refresh normally
+   committed source revisions before a root editor snapshots its state. A second
+   instance or CLI commit produces no recovery journal, so recovery-only cache
+   invalidation is insufficient. Preserve nested candidates and queued intent.
+3. **Remaining generation inputs.** Explicitly cover shortcut-list trigger mode,
+   hold-delay preset/custom value, and device selection. They currently use
+   notification-driven regeneration; device selection persists separately before
+   an explicit apply/restart. The first preference slice does not close these.
+4. **Global managed-file protection.** App-specific edits have a reproducibility
+   guard; global collection/mapper saves and standalone regeneration do not.
+   Extend preservation to those funnels using the prior generation inputs, before
+   any source or config write. Document CLI apply's explicit overwrite contract
+   separately; serial admission alone does not give it runtime rollback.
+5. **Revision-aware file reconciliation.** Replace `suppressEvents(for:)` in
+   `ConfigFileWatcher` and save/runtime callers with actual internal revisions.
+   Buffer through admitted writes and reconcile afterward. Test atomic replacement,
+   deletion/recreation, same-mtime content changes, overlapping callbacks,
+   cancellation, and stop/restart. Preserve non-config KindaVim watcher consumers.
+   External reload validation and publication must refer to the same revision.
+6. **Catalog consistency (UI decision pending).** Discuss affected-key/layer
+   conflict preview, reversible switches, pack ownership, and applied/pending/
+   recovery feedback before implementation. Preserve explicit CLI policy choices.
+7. **Pure generation boundary.** Supply app-specific keys, device selection,
+   physical layout, and preference values as immutable inputs; remove generator
+   reads of disk, caches and UserDefaults. Reuse existing golden outputs. Leave
+   live adapters and transaction ownership with their canonical owners.
+8. **CLI and consumer boundaries.** Inventory actual commands, then remove broad
+   dependencies where complete command groups can compile independently. There
+   are 58 direct `KeyPathAppKit` imports in CLI sources at this checkpoint;
+   removing imports alone does not remove the target dependency.
+9. **Advanced support and acceptance.** Preserve hand-written files and explain
+   conversion requirements. Retain existing features unless Micah approves a
+   specific retirement/migration proposal. Complete the final journey matrix
+   above, collecting clean-VM and physical-input evidence separately.
+
+The existing `codex/module-split-spike` remains untouched. Its inspected diff is
+only a Window Snapping target declaration in `Package.swift` (17 additions,
+1 deletion); it is not a generation extraction or tested CLI boundary.
+
+### Progress accounting
+
+Since `a12bb07d5`, first-parent history contains 28 merged implementation PRs
+for this program plus two supporting review/runner PRs (#1276 and #1290).
+Count this as delivered implementation evidence, not a percentage: remaining
+slices differ substantially in size and require product decisions.
+
+Formal phase acceptance is currently **0 of 5 phase exit gates (0%) signed off**.
+This measures completed acceptance gates, not the fraction of code written.
+Phase 0 still has live core-journey evidence gaps; Phase 1 has the concrete
+boundaries above; Phases 2–4 have not passed their exit gates. Update each phase
+only against its stated exit evidence, and report implementation milestones
+alongside this conservative acceptance measure.
+
+Coordination uses a flat hierarchy: Sol implements substantive changes; Terra
+handles bounded refactors/audits; Luna collects mechanical inventories. One local
+Swift build slot is assigned explicitly. The lead owns invariant review, final
+acceptance, UI escalation, merge and deploy verification. Existing merge
+authorization applies; no public release is authorized.
