@@ -199,81 +199,27 @@ public final class PackInstaller {
                 return record
             }
 
-            // System packs batch all collection changes into a single config regen.
+            // The pre-install snapshot travels inside the journaled record.
             if pack.isSystemPack {
-                let ruleStateSnapshot = manager.snapshotRuleState()
-                let previousInstallRecord = await installedPackTracker.record(for: pack.id)
-                let previousCollectionSnapshot = PackCollectionSnapshot.load(for: pack.id)
-                let record = InstalledPackRecord(
-                    packID: pack.id,
-                    version: pack.version,
-                    installedAt: Date(),
-                    quickSettingValues: resolvedSettings
-                )
+                let before = manager.snapshotRuleState()
+                let managedSnapshot: PackCollectionSnapshot
                 do {
-                    try await applyManagedDefaults(
-                        pack: pack,
-                        manager: manager,
-                        policy: managedDefaultPolicy,
-                        associatedCollectionConfiguration: collectionConfiguration,
-                        skipReload: skipFinalReload,
-                        mutationPermit: permit
+                    managedSnapshot = try await prepareManagedDefaults(
+                        pack: pack, manager: manager, policy: managedDefaultPolicy,
+                        associatedCollectionConfiguration: collectionConfiguration
                     )
                 } catch {
-                    AppLogger.shared.errorUnlessQuietTest(
-                        "❌ [PackInstaller] Could not apply system-pack defaults for '\(pack.name)'; restoring previous state"
-                    )
-                    let installRecordRestored = await restoreInstallRecord(
-                        previousInstallRecord,
-                        packID: pack.id,
-                        installedPackTracker: installedPackTracker
-                    )
-                    let collectionSnapshotRestored = restoreManagedCollectionSnapshot(
-                        previousCollectionSnapshot,
-                        packID: pack.id
-                    )
-                    let rollbackApplied = await manager.rollbackToSnapshot(
-                        ruleStateSnapshot,
-                        userMessage: "Could not apply this system pack. Your previous rule state was restored.",
-                        mutationPermit: permit
-                    )
-                    guard rollbackApplied, collectionSnapshotRestored, installRecordRestored else {
-                        throw InstallError.saveFailed(
-                            "system-pack defaults could not be applied and the previous state could not be fully restored"
-                        )
-                    }
+                    restorePreparedRuleState(before, manager: manager)
                     throw error
                 }
-                do {
-                    try await installedPackTracker.upsert(record)
-                } catch {
-                    AppLogger.shared.errorUnlessQuietTest(
-                        "❌ [PackInstaller] Could not persist system-pack record for '\(pack.name)'; restoring previous state"
-                    )
-                    let installRecordRestored = await restoreInstallRecord(
-                        previousInstallRecord,
-                        packID: pack.id,
-                        installedPackTracker: installedPackTracker
-                    )
-                    let collectionSnapshotRestored = restoreManagedCollectionSnapshot(
-                        previousCollectionSnapshot,
-                        packID: pack.id
-                    )
-                    let rollbackApplied = await manager.rollbackToSnapshot(
-                        ruleStateSnapshot,
-                        userMessage: "Could not record this system pack installation. Your previous rule state was restored.",
-                        mutationPermit: permit
-                    )
-                    guard rollbackApplied, collectionSnapshotRestored, installRecordRestored else {
-                        throw InstallError.saveFailed(
-                            "installed-pack record could not be saved and the previous system-pack state could not be fully restored"
-                        )
-                    }
-                    throw error
-                }
-                AppLogger.shared.log(
-                    "✅ [PackInstaller] Installed system pack '\(pack.name)'"
-                )
+                let record = InstalledPackRecord(packID: pack.id, version: pack.version,
+                                                 installedAt: Date(), quickSettingValues: resolvedSettings,
+                                                 managedCollectionSnapshot: managedSnapshot)
+                manager.refreshLayerIndicatorState()
+                try await commitPreparedPackRules(manager: manager, snapshot: before,
+                                                  record: .init(tracker: installedPackTracker, record: record),
+                                                  skipReload: skipFinalReload, permit: permit)
+                AppLogger.shared.log("✅ [PackInstaller] Installed system pack '\(pack.name)'")
                 return record
             }
 
@@ -348,33 +294,41 @@ public final class PackInstaller {
                 return
             }
 
-            // System packs batch all collection changes into a single config regen.
             if let pack = PackRegistry.pack(id: packID), pack.isSystemPack {
-                let originalCollections = manager.ruleCollections
-                let didRestore = await restoreOrKeepOnUninstall(pack: pack, manager: manager)
-                if let collectionID = pack.associatedCollectionID,
-                   let i = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
-                {
-                    manager.ruleCollections[i].isEnabled = false
+                let before = manager.snapshotRuleState()
+                let installed = await installedPackTracker.record(for: packID)
+                do {
+                    let didRestore = try await restoreOrKeepOnUninstall(pack: pack, manager: manager,
+                                                                        installedSnapshot: installed?.managedCollectionSnapshot)
+                    if let collectionID = pack.associatedCollectionID,
+                       let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
+                    {
+                        manager.ruleCollections[index].isEnabled = false
+                    }
+                    manager.refreshLayerIndicatorState()
+                    let candidate = manager.snapshotRuleState()
+                    let removal = InstalledPackTracker.RecordChange(tracker: installedPackTracker, removing: packID)
+                    var result = await savePreparedPackRules(manager: manager, snapshot: before, record: removal, permit: permit)
+                    // Preserve the existing known-conflict fallback, but only for
+                    // generation conflicts, never for runtime or file failures.
+                    if !result.success, didRestore,
+                       let error = result.error as? KeyPathError,
+                       case .configuration(.mappingConflicts) = error
+                    {
+                        restorePreparedRuleState(candidate, manager: manager)
+                        if disableRestoreConflictCollections(for: pack, manager: manager) {
+                            result = await savePreparedPackRules(manager: manager, snapshot: before, record: removal, permit: permit)
+                        }
+                    }
+                    guard result.success else {
+                        throw InstallError.saveFailed(result.error?.localizedDescription ?? "could not apply managed collection restore")
+                    }
+                    removeManagedSnapshot(for: pack)
+                    AppLogger.shared.log("✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(didRestore))")
+                } catch {
+                    restorePreparedRuleState(before, manager: manager)
+                    throw error
                 }
-
-                var applied = await manager.regenerateConfigFromCollections(mutationPermit: permit)
-                if !applied, didRestore, disableRestoreConflictCollections(for: pack, manager: manager) {
-                    AppLogger.shared.log(
-                        "⚠️ [PackInstaller] Retrying managed restore for '\(packID)' after disabling install-conflict collections"
-                    )
-                    applied = await manager.regenerateConfigFromCollections(mutationPermit: permit)
-                }
-
-                guard applied else {
-                    manager.ruleCollections = originalCollections
-                    throw InstallError.saveFailed("could not apply managed collection restore")
-                }
-                removeManagedSnapshot(for: pack)
-                try await installedPackTracker.remove(packID: packID)
-                AppLogger.shared.log(
-                    "✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(didRestore))"
-                )
                 return
             }
 
@@ -575,16 +529,26 @@ public final class PackInstaller {
         record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
         permit: ConfigurationOperationGate.Permit
     ) async throws {
+        let result = await savePreparedPackRules(manager: manager, snapshot: snapshot, record: record,
+                                                 skipReload: skipReload, permit: permit)
+        guard result.success else {
+            if result.error is CancellationError { throw CancellationError() }
+            throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack change could not be committed")
+        }
+    }
+
+    private func savePreparedPackRules(
+        manager: RuleCollectionsManager, snapshot: RuleCollectionsManager.RuleStateSnapshot,
+        record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
+        permit: ConfigurationOperationGate.Permit
+    ) async -> SaveResult {
         let result = await SaveCoordinator(configurationService: manager.configurationService).saveRuleState(
             manager: manager, mutationPermit: permit, packRecord: record,
             reloadHandler: skipReload ? nil : manager.onRulesChanged
         )
-        guard result.success else {
-            restorePreparedRuleState(snapshot, manager: manager)
-            if result.error is CancellationError { throw CancellationError() }
-            throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack change could not be committed")
-        }
-        NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+        if result.success { NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil) }
+        else { restorePreparedRuleState(snapshot, manager: manager) }
+        return result
     }
 
     private func restorePreparedRuleState(_ snapshot: RuleCollectionsManager.RuleStateSnapshot,
@@ -718,35 +682,6 @@ public final class PackInstaller {
         }
     }
 
-    private func restoreManagedCollectionSnapshot(
-        _ previousSnapshot: PackCollectionSnapshot?,
-        packID: String
-    ) -> Bool {
-        do {
-            if let previousSnapshot {
-                try PackCollectionSnapshot.save(previousSnapshot)
-            } else {
-                let snapshotURL = PackCollectionSnapshot.snapshotURL(for: packID)
-                if FileManager.default.fileExists(atPath: snapshotURL.path) {
-                    try FileManager.default.removeItem(at: snapshotURL)
-                }
-            }
-            // Preserve the Vallack rollback contract from the original managed
-            // install path: a failed modern install supersedes and removes the
-            // legacy migration file. Any modern snapshot that predated this
-            // attempt has already been restored above.
-            if packID == PackRegistry.vallackSystem.id {
-                try PackCollectionSnapshot.removeLegacyVallackIfPresent()
-            }
-            return true
-        } catch {
-            AppLogger.shared.errorUnlessQuietTest(
-                "❌ [PackInstaller] Could not restore managed-collection snapshot for '\(packID)': \(error)"
-            )
-            return false
-        }
-    }
-
     private func resolveQuickSettings(
         pack: Pack,
         overrides: [String: Int]
@@ -777,13 +712,13 @@ public final class PackInstaller {
     private func snapshotManagedCollections(
         pack: Pack,
         manager: RuleCollectionsManager
-    ) -> PackCollectionSnapshot {
+    ) throws -> PackCollectionSnapshot {
         let encoder = JSONEncoder()
         var entries: [PackCollectionSnapshot.Entry] = []
 
         for managed in pack.managedDefaults {
             let collection = manager.ruleCollections.first { $0.id == managed.collectionID }
-            let configJSON = (try? encoder.encode(collection?.configuration ?? .list)) ?? Data()
+            let configJSON = try encoder.encode(collection?.configuration ?? .list)
             entries.append(PackCollectionSnapshot.Entry(
                 collectionID: managed.collectionID,
                 wasEnabled: collection?.isEnabled ?? false,
@@ -794,15 +729,13 @@ public final class PackInstaller {
         return PackCollectionSnapshot(packID: pack.id, entries: entries)
     }
 
-    private func applyManagedDefaults(
+    private func prepareManagedDefaults(
         pack: Pack,
         manager: RuleCollectionsManager,
         policy: ManagedDefaultInstallPolicy,
-        associatedCollectionConfiguration: RuleCollectionConfiguration?,
-        skipReload: Bool,
-        mutationPermit: ConfigurationOperationGate.Permit
-    ) async throws {
-        let snapshot = snapshotManagedCollections(pack: pack, manager: manager)
+        associatedCollectionConfiguration: RuleCollectionConfiguration?
+    ) async throws -> PackCollectionSnapshot {
+        let snapshot = try snapshotManagedCollections(pack: pack, manager: manager)
         let catalog = RuleCollectionCatalog().defaultCollections()
 
         // Ensure the pack's own associated collection exists too
@@ -842,13 +775,7 @@ public final class PackInstaller {
             }
         }
 
-        try PackCollectionSnapshot.save(snapshot)
-
-        let applied = await manager.regenerateConfigFromCollections(skipReload: skipReload, mutationPermit: mutationPermit)
-        guard applied else {
-            throw InstallError.saveFailed("could not apply managed collection defaults")
-        }
-        AppLogger.shared.log("📦 [PackInstaller] Applied managed defaults for '\(pack.name)'")
+        return snapshot
     }
 
     private func shouldApplyManagedDefault(
@@ -914,18 +841,25 @@ public final class PackInstaller {
     @discardableResult
     private func restoreOrKeepOnUninstall(
         pack: Pack,
-        manager: RuleCollectionsManager
-    ) async -> Bool {
-        var snapshot = PackCollectionSnapshot.load(for: pack.id)
-
-        // Legacy migration for Vallack System
+        manager: RuleCollectionsManager,
+        installedSnapshot: PackCollectionSnapshot?
+    ) async throws -> Bool {
+        var snapshot = try installedSnapshot ?? PackCollectionSnapshot.loadForMutation(for: pack.id)
         if snapshot == nil, pack.id == "com.keypath.pack.vallack-system" {
-            snapshot = PackCollectionSnapshot.loadLegacyVallack()
+            snapshot = try PackCollectionSnapshot.loadLegacyVallackForMutation()
         }
-
         guard let snapshot else {
             AppLogger.shared.log("⚠️ [PackInstaller] No snapshot found for '\(pack.id)' — skipping restore")
             return false
+        }
+        let ids = snapshot.entries.map(\.collectionID)
+        guard snapshot.packID == pack.id, Set(ids).count == ids.count,
+              Set(ids).isSubset(of: Set(pack.managedDefaults.map(\.collectionID)))
+        else {
+            throw InstallError.saveFailed("Saved settings do not match this pack; no changes were made")
+        }
+        for entry in snapshot.entries {
+            _ = try JSONDecoder().decode(RuleCollectionConfiguration.self, from: entry.configurationJSON)
         }
 
         let decoder = JSONDecoder()

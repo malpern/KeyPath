@@ -17,17 +17,21 @@ public struct InstalledPackRecord: Codable, Equatable, Sendable {
     /// Current values of the pack's quick settings, keyed by `PackQuickSetting.id`.
     /// Only int values in M1 (sliders). M2 will widen.
     public var quickSettingValues: [String: Int]
+    /// Restore state participates in the same journal as the installed record.
+    public var managedCollectionSnapshot: PackCollectionSnapshot?
 
     public init(
         packID: String,
         version: String,
         installedAt: Date = Date(),
-        quickSettingValues: [String: Int] = [:]
+        quickSettingValues: [String: Int] = [:],
+        managedCollectionSnapshot: PackCollectionSnapshot? = nil
     ) {
         self.packID = packID
         self.version = version
         self.installedAt = installedAt
         self.quickSettingValues = quickSettingValues
+        self.managedCollectionSnapshot = managedCollectionSnapshot
     }
 }
 

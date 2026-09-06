@@ -4,12 +4,12 @@ import KeyPathRulesCore
 
 /// Snapshot of managed collections' state before a pack was installed.
 /// Used to restore previous configuration on uninstall.
-public struct PackCollectionSnapshot: Codable {
+public struct PackCollectionSnapshot: Codable, Equatable, Sendable {
     public let packID: String
     public let snapshotDate: Date
     public var entries: [Entry]
 
-    public struct Entry: Codable {
+    public struct Entry: Codable, Equatable, Sendable {
         public let collectionID: UUID
         public var wasEnabled: Bool
         public var configurationJSON: Data
@@ -45,6 +45,14 @@ public struct PackCollectionSnapshot: Codable {
         return try? JSONDecoder().decode(PackCollectionSnapshot.self, from: data)
     }
 
+    /// Mutation paths distinguish an absent legacy snapshot from unreadable data.
+    static func loadForMutation(for packID: String) throws -> PackCollectionSnapshot? {
+        let data: Data
+        do { data = try Data(contentsOf: snapshotURL(for: packID)) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { return nil }
+        return try JSONDecoder().decode(PackCollectionSnapshot.self, from: data)
+    }
+
     static func remove(for packID: String) {
         try? FileManager.default.removeItem(at: snapshotURL(for: packID))
     }
@@ -64,34 +72,36 @@ public struct PackCollectionSnapshot: Codable {
     }
 
     static func loadLegacyVallack() -> PackCollectionSnapshot? {
-        let url = legacyVallackURL
-        guard let data = try? Data(contentsOf: url),
-              let legacy = try? JSONDecoder().decode(LegacyVallackSnapshot.self, from: data)
-        else { return nil }
+        try? loadLegacyVallackForMutation()
+    }
+
+    static func loadLegacyVallackForMutation() throws -> PackCollectionSnapshot? {
+        let data: Data
+        do { data = try Data(contentsOf: legacyVallackURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { return nil }
+        let legacy = try JSONDecoder().decode(LegacyVallackSnapshot.self, from: data)
 
         var entries: [Entry] = []
 
         let modsConfig: RuleCollectionConfiguration = legacy.homeRowModsConfig.map {
             .homeRowMods($0)
         } ?? .homeRowMods(HomeRowModsConfig())
-        if let modsJSON = try? JSONEncoder().encode(modsConfig) {
-            entries.append(Entry(
-                collectionID: RuleCollectionIdentifier.homeRowMods,
-                wasEnabled: legacy.homeRowModsEnabled,
-                configurationJSON: modsJSON
-            ))
-        }
+        let modsJSON = try JSONEncoder().encode(modsConfig)
+        entries.append(Entry(
+            collectionID: RuleCollectionIdentifier.homeRowMods,
+            wasEnabled: legacy.homeRowModsEnabled,
+            configurationJSON: modsJSON
+        ))
 
         let togglesConfig: RuleCollectionConfiguration = legacy.homeRowLayerTogglesConfig.map {
             .homeRowLayerToggles($0)
         } ?? .homeRowLayerToggles(HomeRowLayerTogglesConfig())
-        if let togglesJSON = try? JSONEncoder().encode(togglesConfig) {
-            entries.append(Entry(
-                collectionID: RuleCollectionIdentifier.homeRowLayerToggles,
-                wasEnabled: legacy.homeRowLayerTogglesEnabled,
-                configurationJSON: togglesJSON
-            ))
-        }
+        let togglesJSON = try JSONEncoder().encode(togglesConfig)
+        entries.append(Entry(
+            collectionID: RuleCollectionIdentifier.homeRowLayerToggles,
+            wasEnabled: legacy.homeRowLayerTogglesEnabled,
+            configurationJSON: togglesJSON
+        ))
 
         return PackCollectionSnapshot(
             packID: "com.keypath.pack.vallack-system",
@@ -104,8 +114,7 @@ public struct PackCollectionSnapshot: Codable {
         try? removeLegacyVallackIfPresent()
     }
 
-    /// Throwing variant used by transactional rollback so cleanup failures are
-    /// surfaced instead of being reported as a complete restoration.
+    /// Throwing cleanup for callers that need to report a legacy-file failure.
     static func removeLegacyVallackIfPresent() throws {
         guard FileManager.default.fileExists(atPath: legacyVallackURL.path) else {
             return

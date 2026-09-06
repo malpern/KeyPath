@@ -786,17 +786,15 @@ final class GenericPackConfigTests: XCTestCase {
             guard case let .saveFailed(reason) = error else {
                 return XCTFail("Expected saveFailed, got \(error)")
             }
-            XCTAssertEqual(
-                reason,
-                "installed-pack record could not be saved and the previous system-pack state could not be fully restored"
-            )
+            XCTAssertTrue(reason.contains(CocoaError(.fileWriteNoPermission).localizedDescription))
+            XCTAssertTrue(reason.contains("prior files were restored"))
         } catch {
-            XCTFail("Expected full-restore saveFailed, got \(error)")
+            XCTFail("Expected staging saveFailed, got \(error)")
         }
 
         XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
         XCTAssertEqual(manager.customRules, originalRuleState.customRules)
-        XCTAssertEqual(regenerationCount, 2, "Install and rollback should each regenerate once")
+        XCTAssertEqual(regenerationCount, 1, "Staging rollback restores files without a second generation")
         let restoredRecord = await failingTracker.record(for: PackRegistry.launcher.id)
         XCTAssertEqual(restoredRecord, previousRecord)
 
@@ -810,7 +808,7 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
-    func testSystemPackInstallRestoresDurableStateWhenCollectionStoreWriteFails() async throws {
+    func testSystemPackInstallPreservesExternalDirectoryAtCollectionStore() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -834,7 +832,6 @@ final class GenericPackConfigTests: XCTestCase {
         let collectionStoreURL = tempDir.appendingPathComponent("RuleCollections.json")
         let customRulesStoreURL = tempDir.appendingPathComponent("CustomRules.json")
         let originalConfigData = try Data(contentsOf: configURL)
-        let originalCollectionStoreData = try Data(contentsOf: collectionStoreURL)
         let originalCustomRulesStoreData = try Data(contentsOf: customRulesStoreURL)
 
         let previousSnapshot = try PackCollectionSnapshot(
@@ -870,14 +867,8 @@ final class GenericPackConfigTests: XCTestCase {
             at: collectionStoreURL,
             withIntermediateDirectories: false
         )
-        var shouldRemoveFailedStore = true
-        manager.onError = { _ in
-            // Make this a one-shot persistence failure so the compensating
-            // rollback can prove it rewrites every durable representation.
-            guard shouldRemoveFailedStore else { return }
-            shouldRemoveFailedStore = false
-            try? FileManager.default.removeItem(at: collectionStoreURL)
-        }
+        let externalMarker = collectionStoreURL.appendingPathComponent("external.txt")
+        try Data("external directory".utf8).write(to: externalMarker)
 
         do {
             _ = try await PackInstaller.shared.install(
@@ -896,10 +887,7 @@ final class GenericPackConfigTests: XCTestCase {
         XCTAssertEqual(restoredRuleState.collections, originalRuleState.collections)
         XCTAssertEqual(restoredRuleState.customRules, originalRuleState.customRules)
         XCTAssertEqual(try Data(contentsOf: configURL), originalConfigData)
-        XCTAssertEqual(
-            try Data(contentsOf: collectionStoreURL),
-            originalCollectionStoreData
-        )
+        XCTAssertEqual(try Data(contentsOf: externalMarker), Data("external directory".utf8))
         XCTAssertEqual(
             try Data(contentsOf: customRulesStoreURL),
             originalCustomRulesStoreData
@@ -1245,7 +1233,7 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
-    func testQuickLauncherInstallCreatesSnapshotFile() async throws {
+    func testQuickLauncherInstallEmbedsSnapshotInRecord() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -1255,9 +1243,9 @@ final class GenericPackConfigTests: XCTestCase {
             PackCollectionSnapshot.remove(for: PackRegistry.launcher.id)
         }
 
-        _ = try await PackInstaller.shared.install(PackRegistry.launcher, manager: manager)
+        let installed = try await PackInstaller.shared.install(PackRegistry.launcher, manager: manager)
 
-        let snapshot = PackCollectionSnapshot.load(for: PackRegistry.launcher.id)
+        let snapshot = installed.managedCollectionSnapshot
         XCTAssertNotNil(snapshot, "Snapshot should exist after install")
         XCTAssertEqual(snapshot?.entries.count, 1, "Should snapshot one managed collection")
         XCTAssertEqual(snapshot?.entries.first?.collectionID, RuleCollectionIdentifier.capsLockRemap)
@@ -1292,7 +1280,7 @@ final class GenericPackConfigTests: XCTestCase {
         }
 
         // Install launcher — should apply its defaults (auto-approved in test env)
-        _ = try await PackInstaller.shared.install(PackRegistry.launcher, manager: manager)
+        let installed = try await PackInstaller.shared.install(PackRegistry.launcher, manager: manager)
 
         // Verify pack defaults were applied
         let capsCollection = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }
@@ -1300,7 +1288,7 @@ final class GenericPackConfigTests: XCTestCase {
         XCTAssertEqual(capsCollection?.configuration.tapHoldPickerConfig?.selectedHoldOutput, "hyper")
 
         // Verify snapshot captured the PRE-INSTALL custom config
-        let snapshot = PackCollectionSnapshot.load(for: PackRegistry.launcher.id)
+        let snapshot = installed.managedCollectionSnapshot
         XCTAssertNotNil(snapshot)
         let capsEntry = snapshot?.entries.first { $0.collectionID == RuleCollectionIdentifier.capsLockRemap }
         XCTAssertNotNil(capsEntry)
@@ -1740,6 +1728,7 @@ final class GenericPackConfigTests: XCTestCase {
 
     func testLegacyVallackSnapshotMigration() throws {
         let legacyURL = AppPaths.configDirectory.appendingPathComponent("vallack-system-snapshot.json")
+        try FileManager.default.createDirectory(at: legacyURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
         let legacySnapshot: [String: Any] = [
             "homeRowModsEnabled": true,
