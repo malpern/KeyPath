@@ -67,10 +67,31 @@ extension RuleCollectionsManager {
         }
     }
 
+    /// Preserve the editor's existing enable policy while sharing preparation and
+    /// settlement. The Boolean means newly enabled AND committed, not applied.
+    func updateCollectionSettings(id: UUID, enableExisting: Bool = true,
+                                  update: @escaping @MainActor @Sendable (inout RuleCollection) -> Void) async -> Bool
+    {
+        await withRuleMutation(failure: false) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
+            let existing = ruleCollections.first(where: { $0.id == id })
+            guard var candidate = existing ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id }) else { return false }
+            let wasNewlyEnabled = existing == nil || (enableExisting && !candidate.isEnabled)
+            update(&candidate)
+            if enableExisting || existing == nil { candidate.isEnabled = true }
+            if let index = ruleCollections.firstIndex(where: { $0.id == id }) { ruleCollections[index] = candidate }
+            else { ruleCollections.append(candidate) }
+            dedupeRuleCollectionsInPlace()
+            refreshLayerIndicatorState()
+            guard await commitRuleMutation(snapshot: snapshot, failureContext: candidate.name, mutationPermit: permit) else { return false }
+            return wasNewlyEnabled
+        }
+    }
+
     /// The save owner restores files/runtime; the manager restores its in-memory
     /// candidate without regenerating over the recovered or externally edited files.
     @discardableResult
-    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false,
+    func commitRuleMutation(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil,
                             mutationPermit: ConfigurationOperationGate.Permit) async -> Bool
     {
         let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
@@ -81,7 +102,8 @@ extension RuleCollectionsManager {
             customRules = snapshot.customRules
             refreshLayerIndicatorState()
             if let error = result.error, !(error is CancellationError) {
-                onError?(error.localizedDescription)
+                let message = failureContext.map { "Could not save \($0): \(error.localizedDescription)" } ?? error.localizedDescription
+                onError?(message)
                 SoundManager.shared.playErrorSound()
             }
             return false

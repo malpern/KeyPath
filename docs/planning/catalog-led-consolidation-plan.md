@@ -401,7 +401,7 @@ the next editor snapshot, including the pack tap/hold picker. Local layer-label 
 heartbeat evidence. Collection/preferences/watcher work and agreed UI decisions
 remain open.
 
-### Collection and layer membership recovery in progress
+### Collection and layer membership recovery merged in #1282
 
 Collection add/update, remove, batch enable, and layer creation/removal now use
 SaveCoordinator's retained rule transaction. Layer removal no longer writes
@@ -415,3 +415,12 @@ Review follow-up for membership recovery: add results also propagate through UI
 wrappers. Failed collection imports use the existing partial-import error;
 failed mapper layer creation does not select an unsaved layer. The broader
 saved/pending status design and combined import transaction remain open.
+
+### Collection settings recovery in progress
+
+Tap/hold and preset pickers, window/function key settings, chord/sequence settings,
+Auto Shift, and repeat settings now share recovery before preparation and retained
+rule settlement. Prerequisite-aware Home Row and Launcher/window activation saves
+keep confirmed providers in the same transaction. Existing enable policies and
+newly-enabled Boolean semantics remain. Leader/single-output settings, collection
+toggles, replace-all, preferences, managed snapshots, and watching remain open.

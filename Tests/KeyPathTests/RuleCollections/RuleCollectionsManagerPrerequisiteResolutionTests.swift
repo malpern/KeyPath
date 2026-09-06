@@ -243,7 +243,7 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         XCTAssertEqual(manager.ruleCollections, [capsLock])
     }
 
-    func testApplyLauncherConfigFailureRestoresPersistedState() async throws {
+    func testApplyLauncherConfigUnreadableSourceIsNotOverwritten() async throws {
         let manager = try makeManager()
         defer { TestEnvironment.forceTestMode = false }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
@@ -258,7 +258,6 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         let customRulesStoreURL = collectionStoreURL.deletingLastPathComponent()
             .appendingPathComponent("CustomRules.json")
         let originalConfigData = try Data(contentsOf: configURL)
-        let originalCollectionStoreData = try Data(contentsOf: collectionStoreURL)
         let originalCustomRulesStoreData = try Data(contentsOf: customRulesStoreURL)
 
         try FileManager.default.removeItem(at: collectionStoreURL)
@@ -266,12 +265,10 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
             at: collectionStoreURL,
             withIntermediateDirectories: false
         )
-        var shouldRemoveFailedStore = true
-        manager.onError = { _ in
-            guard shouldRemoveFailedStore else { return }
-            shouldRemoveFailedStore = false
-            try? FileManager.default.removeItem(at: collectionStoreURL)
-        }
+        let externalMarker = collectionStoreURL.appendingPathComponent("external.txt")
+        try Data("external directory".utf8).write(to: externalMarker)
+        var errors: [String] = []
+        manager.onError = { errors.append($0) }
 
         var regenerationCount = 0
         var reloadCount = 0
@@ -295,19 +292,17 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         )
 
         XCTAssertFalse(applied)
-        XCTAssertEqual(regenerationCount, 2)
+        XCTAssertEqual(regenerationCount, 1)
         XCTAssertEqual(
             reloadCount,
-            1,
-            "The failed caller-owned save should reload only the restored state"
+            0,
+            "An unreadable preimage must fail before any write or reload"
         )
         XCTAssertEqual(manager.ruleCollections, originalState.collections)
         XCTAssertEqual(manager.customRules, originalState.customRules)
         XCTAssertEqual(try Data(contentsOf: configURL), originalConfigData)
-        XCTAssertEqual(
-            try Data(contentsOf: collectionStoreURL),
-            originalCollectionStoreData
-        )
+        XCTAssertEqual(errors.count, 1)
+        XCTAssertEqual(try Data(contentsOf: externalMarker), Data("external directory".utf8))
         XCTAssertEqual(
             try Data(contentsOf: customRulesStoreURL),
             originalCustomRulesStoreData
@@ -624,7 +619,6 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
 
         let appliedProviderIDs = await manager.applyProposedCollectionWithPrerequisites(
             candidate,
-            rollbackMessage: "Test rollback",
             nonInteractiveChoice: .enableRequiredProvidersAndApply
         )
 
@@ -780,8 +774,8 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         XCTAssertFalse(newlyEnabled)
         XCTAssertEqual(
             regenerationCount,
-            2,
-            "The failed apply and rollback should each regenerate exactly once"
+            1,
+            "Validation failure must not regenerate a rollback revision"
         )
         XCTAssertTrue(manager.ruleCollections[id: candidate.id]?.isEnabled == false)
         XCTAssertTrue(manager.ruleCollections[id: provider.id]?.isEnabled == false)

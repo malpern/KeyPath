@@ -329,3 +329,17 @@ unsaved collections in their existing partial-import error instead of completing
 or dismissing. Mapper creation selects the new layer only after a successful
 save and refresh, and preserves navigation made while saving. This corrects
 existing failure handling; no new status UI or import atomicity is introduced.
+
+### Collection settings and prerequisites
+
+Simple collection setting edits use `updateCollectionSettings` to recover before
+reading the candidate, preserve each editor's enable policy, and settle through
+`commitRuleMutation`. A `true` return still means newly enabled and committed;
+it does not independently assert application. Auto Shift and repeat edits keep
+existing disabled collections disabled; catalog fallback is enabled as before.
+
+Prerequisite-aware callers recover before deriving their candidate. Their common
+apply helper then keeps the candidate and confirmed providers in one retained
+transaction, with no separate snapshot-regeneration rollback. Explicit skipReload
+still means persistence-only for higher-level callers. These changes do not
+include leader preferences or alter prerequisite/conflict choices.
