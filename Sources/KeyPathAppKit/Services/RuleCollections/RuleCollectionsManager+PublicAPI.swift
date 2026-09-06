@@ -49,129 +49,153 @@ extension RuleCollectionsManager {
         skipReload: Bool = false,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> Bool {
-        await withRuleMutation(using: mutationPermit, failure: false) { [self] permit in
-            AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
+        await toggleCollectionResult(id: id, isEnabled: isEnabled, autoResolveConflicts: autoResolveConflicts,
+                                     bypassOwnershipCheck: bypassOwnershipCheck, configurationOverride: configurationOverride,
+                                     additionalCollectionIDsToDisable: additionalCollectionIDsToDisable, skipReload: skipReload,
+                                     mutationPermit: mutationPermit).success
+    }
 
-            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
-            if !bypassOwnershipCheck {
-                if let owner = await InstalledPackTracker.shared.packManagingCollection(id) {
-                    AppLogger.shared.log(
-                        "🔒 [RuleCollections] Toggle blocked: collection \(id) is managed by pack '\(owner.packName)'"
-                    )
-                    return false
-                }
-            }
+    @discardableResult
+    func toggleCollectionResult(
+        id: UUID,
+        isEnabled: Bool,
+        autoResolveConflicts: Bool = false,
+        bypassOwnershipCheck: Bool = false,
+        configurationOverride: RuleCollectionConfiguration? = nil,
+        additionalCollectionIDsToDisable: Set<UUID> = [],
+        skipReload: Bool = false,
+        packRecord: InstalledPackTracker.RecordChange? = nil,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
+    ) async -> SaveResult {
+        do {
+            return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+                AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
-            let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
-
-            let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
-            AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
-            guard var candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch else {
-                return false
-            }
-            candidate.isEnabled = isEnabled
-            if let configurationOverride {
-                candidate.configuration = configurationOverride
-            }
-
-            if !isEnabled {
-                guard await confirmedDisableOfProvider(
-                    id: candidate.id,
-                    name: candidate.name
-                ) else {
-                    return false
-                }
-            }
-
-            // Ensure home row mods config exists if this is a home row mods collection.
-            if candidate.displayStyle == .homeRowMods,
-               case .homeRowMods = candidate.configuration
-            {
-                // Already configured.
-            } else if candidate.displayStyle == .homeRowMods {
-                candidate.configuration = .homeRowMods(HomeRowModsConfig())
-            }
-
-            var prerequisiteProviderIDs: [UUID] = []
-            if isEnabled {
-                guard let confirmedProviderIDs = await confirmedPrerequisiteProviderIDs(
-                    for: candidate,
-                    operation: .enable,
-                    disablingCollectionIDs: additionalCollectionIDsToDisable
-                ) else {
-                    return false
-                }
-                prerequisiteProviderIDs = confirmedProviderIDs
-
-                if let conflict = conflictInfo(
-                    for: candidate,
-                    ignoringCollectionIDs: additionalCollectionIDsToDisable
-                ) {
-                    if autoResolveConflicts {
+                try await recoverRuleState(mutationPermit: permit)
+                let snapshot = snapshotRuleState()
+                if !bypassOwnershipCheck {
+                    if let owner = await InstalledPackTracker.shared.packManagingCollection(id) {
                         AppLogger.shared.log(
-                            "🔄 [RuleCollections] Auto-resolving conflict: \(candidate.name) wins over \(conflict.displayName) on \(conflict.keys)"
+                            "🔒 [RuleCollections] Toggle blocked: collection \(id) is managed by pack '\(owner.packName)'"
                         )
-                        await disableConflicting(conflict.source, regenerate: false)
-                    } else {
-                        let context = RuleConflictContext(
-                            newRule: .collection(candidate),
-                            existingRule: conflict.source,
-                            conflictingKeys: conflict.keys
-                        )
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: ["Collection is managed by \(owner.packName); change it through that pack."])))
+                    }
+                }
 
-                        AppLogger.shared.log(
-                            "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
-                        )
+                let leaderPreferenceSnapshot = PreferencesService.shared.leaderKeyPreference
 
-                        guard let choice = await onConflictResolution?(context) else {
-                            return false
-                        }
+                let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
+                AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
+                guard var candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch else {
+                    return .failure(KeyPathError.configuration(.validationFailed(errors: ["No matching collection was found."])))
+                }
+                candidate.isEnabled = isEnabled
+                if let configurationOverride {
+                    candidate.configuration = configurationOverride
+                }
 
-                        switch choice {
-                        case .keepNew:
+                if !isEnabled {
+                    guard await confirmedDisableOfProvider(
+                        id: candidate.id,
+                        name: candidate.name
+                    ) else {
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: ["Disabling \(candidate.name) was declined."])))
+                    }
+                }
+
+                // Ensure home row mods config exists if this is a home row mods collection.
+                if candidate.displayStyle == .homeRowMods,
+                   case .homeRowMods = candidate.configuration
+                {
+                    // Already configured.
+                } else if candidate.displayStyle == .homeRowMods {
+                    candidate.configuration = .homeRowMods(HomeRowModsConfig())
+                }
+
+                var prerequisiteProviderIDs: [UUID] = []
+                if isEnabled {
+                    guard let confirmedProviderIDs = await confirmedPrerequisiteProviderIDs(
+                        for: candidate,
+                        operation: .enable,
+                        disablingCollectionIDs: additionalCollectionIDsToDisable
+                    ) else {
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: ["Required collections were not enabled; \(candidate.name) was left unchanged."])))
+                    }
+                    prerequisiteProviderIDs = confirmedProviderIDs
+
+                    if let conflict = conflictInfo(
+                        for: candidate,
+                        ignoringCollectionIDs: additionalCollectionIDsToDisable
+                    ) {
+                        if autoResolveConflicts {
+                            AppLogger.shared.log(
+                                "🔄 [RuleCollections] Auto-resolving conflict: \(candidate.name) wins over \(conflict.displayName) on \(conflict.keys)"
+                            )
                             await disableConflicting(conflict.source, regenerate: false)
-                        case .keepExisting:
-                            return false
+                        } else {
+                            let context = RuleConflictContext(
+                                newRule: .collection(candidate),
+                                existingRule: conflict.source,
+                                conflictingKeys: conflict.keys
+                            )
+
+                            AppLogger.shared.log(
+                                "⚠️ [RuleCollections] Conflict enabling \(candidate.name) vs \(conflict.displayName) on \(conflict.keys)"
+                            )
+
+                            guard let choice = await onConflictResolution?(context) else {
+                                return .failure(KeyPathError.configuration(.validationFailed(errors: ["The mapping conflict was not resolved; \(candidate.name) was left unchanged."])))
+                            }
+
+                            switch choice {
+                            case .keepNew:
+                                await disableConflicting(conflict.source, regenerate: false)
+                            case .keepExisting:
+                                return .failure(KeyPathError.configuration(.validationFailed(errors: ["The existing mapping was kept; \(candidate.name) was not enabled."])))
+                            }
                         }
                     }
                 }
-            }
 
-            for index in ruleCollections.indices where
-                additionalCollectionIDsToDisable.contains(ruleCollections[index].id)
-                && ruleCollections[index].id != candidate.id
-            {
-                ruleCollections[index].isEnabled = false
-            }
-
-            applyPrerequisiteChangeInMemory(
-                candidate: candidate,
-                providerIDs: prerequisiteProviderIDs
-            )
-
-            AppLogger.shared.log("🔀 [RuleCollections] After toggle - collections: \(ruleCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
-
-            // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
-            if id == RuleCollectionIdentifier.leaderKey {
-                if isEnabled {
-                    let key = leaderKeyOutput(from: candidate) ?? leaderPreferenceSnapshot.key
-                    syncLeaderKeyPreference(key: key, enabled: true)
-                } else {
-                    syncLeaderKeyPreference(enabled: false)
-                    applyLeaderKeyToMomentaryActivators("space")
+                for index in ruleCollections.indices where
+                    additionalCollectionIDsToDisable.contains(ruleCollections[index].id)
+                    && ruleCollections[index].id != candidate.id
+                {
+                    ruleCollections[index].isEnabled = false
                 }
-            }
 
-            guard await commitRuleMutation(snapshot: snapshot, skipReload: skipReload, failureContext: candidate.name,
-                                           leaderPreferenceBefore: id == RuleCollectionIdentifier.leaderKey ? leaderPreferenceSnapshot : nil,
-                                           mutationPermit: permit)
-            else { return false }
+                applyPrerequisiteChangeInMemory(
+                    candidate: candidate,
+                    providerIDs: prerequisiteProviderIDs
+                )
 
-            // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
-            if isEnabled, let collection = ruleCollections.first(where: { $0.id == id }) {
-                await warmLayerIconCache(for: collection)
+                AppLogger.shared.log("🔀 [RuleCollections] After toggle - collections: \(ruleCollections.map { "\($0.name) (enabled: \($0.isEnabled))" }.joined(separator: ", "))")
+
+                // Special handling: If Leader Key collection is toggled off, reset all momentary activators to default (space)
+                if id == RuleCollectionIdentifier.leaderKey {
+                    if isEnabled {
+                        let key = leaderKeyOutput(from: candidate) ?? leaderPreferenceSnapshot.key
+                        syncLeaderKeyPreference(key: key, enabled: true)
+                    } else {
+                        syncLeaderKeyPreference(enabled: false)
+                        applyLeaderKeyToMomentaryActivators("space")
+                    }
+                }
+
+                let result = await commitRuleMutationResult(snapshot: snapshot, skipReload: skipReload, failureContext: candidate.name,
+                                                            leaderPreferenceBefore: id == RuleCollectionIdentifier.leaderKey ? leaderPreferenceSnapshot : nil,
+                                                            packRecord: packRecord, mutationPermit: permit)
+                guard result.success else { return result }
+
+                // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
+                if isEnabled, let collection = ruleCollections.first(where: { $0.id == id }) {
+                    await warmLayerIconCache(for: collection)
+                }
+                return result
             }
-            return true
+        } catch {
+            if !(error is CancellationError) { onError?(error.localizedDescription) }
+            return .failure(error)
         }
     }
 

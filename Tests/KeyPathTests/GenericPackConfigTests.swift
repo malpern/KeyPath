@@ -669,6 +669,12 @@ final class GenericPackConfigTests: XCTestCase {
         capsLock.isEnabled = false
         manager.ruleCollections = [capsLock]
         let originalCollections = manager.ruleCollections
+        try await manager.configurationService.saveRuleState(
+            ruleCollections: manager.ruleCollections, customRules: manager.customRules,
+            collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore
+        )
+        let files = ["keypath.kbd", "RuleCollections.json", "CustomRules.json"].map { tempDir.appendingPathComponent($0) }
+        let originalFiles = try files.map { try Data(contentsOf: $0) }
 
         var regenerationCount = 0
         manager.onBeforeSave = { regenerationCount += 1 }
@@ -693,16 +699,16 @@ final class GenericPackConfigTests: XCTestCase {
             guard case let .saveFailed(reason) = error else {
                 return XCTFail("Expected saveFailed, got \(error)")
             }
-            XCTAssertEqual(
-                reason,
-                "installed-pack record could not be saved and the previous state could not be fully restored"
-            )
+            XCTAssertTrue(reason.contains(CocoaError(.fileWriteNoPermission).localizedDescription))
+            XCTAssertTrue(reason.contains("prior files were restored"))
         } catch {
-            XCTFail("Expected full-restore saveFailed, got \(error)")
+            XCTFail("Expected staging saveFailed, got \(error)")
         }
 
         XCTAssertEqual(manager.ruleCollections, originalCollections)
-        XCTAssertEqual(regenerationCount, 2, "Install and rollback should each regenerate once")
+        XCTAssertEqual(regenerationCount, 1, "Only the candidate is generated; staging rollback restores exact files")
+        XCTAssertEqual(try files.map { try Data(contentsOf: $0) }, originalFiles)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: trackerURL.path), "Originally absent metadata must remain absent")
         let isInstalled = await failingTracker.isInstalled(packID: PackRegistry.capsLockToEscape.id)
         XCTAssertFalse(isInstalled, "A failed install must not remain authoritative in memory")
     }
