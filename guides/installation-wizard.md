@@ -63,7 +63,7 @@ Similar to Accessibility — macOS asks you to grant Input Monitoring access.
 
 If you have Karabiner-Elements installed, the wizard offers to import your existing rules. You can review which rules will convert and choose which to import.
 
-See [Switching from Karabiner]({{ '/migration/karabiner-users/' | relative_url }}) for details on what converts.
+See [Switching from Karabiner]({{ '/migration/karabiner-users/' | relative_url }}) for the current conversion and support boundaries.
 
 ### 5. Start service
 

@@ -119,9 +119,9 @@ This is where the difference is most noticeable. If you use home row mods in Kar
 - **App launching** — Built-in [app launching]({{ '/guides/action-uri/' | relative_url }}) for launching apps, opening URLs, and tiling windows from your keyboard.
 - **Visual configuration** — KeyPath's UI lets you configure without editing JSON or config files directly.
 
-## What you'll lose (temporarily)
+## Current boundaries
 
-- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with 19 built-in packs and can [import your existing Karabiner config](#4-import-your-karabiner-config), but doesn't yet support a community sharing marketplace.
+- **Community rule library** — Karabiner's [importable modifications](https://ke-complex-modifications.pqrs.org/) library has thousands of user-contributed rules. KeyPath ships with built-in packs and can [import your existing Karabiner config](#4-import-your-karabiner-config), but does not provide a community sharing marketplace.
 - **Some edge-case rules** — Karabiner's JSON is extremely flexible. Some exotic conditions (mouse button combinations, device-specific vendor IDs with complex conditions) may require creative workarounds in Kanata.
 - **Track record** — Karabiner has been trusted for 10+ years. KeyPath is newer. Both are open source, so you can verify the code yourself.
 
@@ -189,7 +189,7 @@ keypath import karabiner ~/.config/karabiner/karabiner.json --profile=1
 keypath import karabiner ~/.config/karabiner/karabiner.json --collection="My Karabiner Rules"
 ```
 
-The converter handles simple remaps, tap-hold rules, chords, app-specific conditions, shell commands, and macros. About 95% of typical configs convert to working rules.
+The converter handles simple remaps, tap-hold rules, chords, app-specific conditions, shell commands, and macros. It reports rules that it skips and the reason for each skip.
 
 **What gets skipped (with warnings):**
 - Mouse button rules
@@ -231,27 +231,27 @@ KeyPath's per-finger timing, opposite-hand activation, and fast typing protectio
 
 ---
 
-## Karabiner feature parity
+## Current Karabiner support boundaries
 
-Not every Karabiner feature has a direct KeyPath equivalent yet. Here's the current state:
+Not every Karabiner feature has a direct KeyPath equivalent. Here's the current state:
 
 | Karabiner Feature | KeyPath Status | Notes |
 |---|---|---|
-| Simple remaps | **Full support** | `defsrc` / `deflayer` |
-| Tap-hold / `to_if_alone` | **Full support** | 4 variants, more control than Karabiner |
-| Layers | **Full support** | First-class `deflayer` with `layer-switch` / `layer-toggle` |
-| App-specific rules | **Full support** | Automatic layer switching via TCP |
-| Simultaneous key combos | **Full support** | Kanata `chord` action |
-| Mouse button remapping | **Partial** | Kanata supports mouse keys, but Karabiner's mouse button conditions are more flexible |
-| Device-specific rules | **Partial** | Kanata's `device-if` works in raw config, but no UI yet (see [#203](https://github.com/malpern/KeyPath/issues/203)) |
-| Complex variable conditions | **Partial** | Kanata's `switch` action covers most cases, but some multi-variable conditions need restructuring |
-| Profile switching | **Not yet** | Karabiner lets you switch between profiles; KeyPath uses a single config with layers |
-| Community rule import | **Partial** | 16 built-in collections, but no community sharing or import yet (Karabiner has [thousands](https://ke-complex-modifications.pqrs.org/)) |
+| Simple remaps | **Supported** | `defsrc` / `deflayer` |
+| Tap-hold / `to_if_alone` | **Supported** | 4 variants, more control than Karabiner |
+| Layers | **Supported** | First-class `deflayer` with `layer-switch` / `layer-toggle` |
+| App-specific rules | **Supported** | Automatic layer switching via TCP |
+| Simultaneous key combos | **Supported** | Kanata `chord` action |
+| Mouse button remapping | **Limited** | Kanata supports mouse keys, but Karabiner's mouse button conditions are more flexible |
+| Device-specific rules | **Limited** | Kanata's `device-if` works in raw config, but there is no UI (see [#203](https://github.com/malpern/KeyPath/issues/203)) |
+| Complex variable conditions | **Limited** | Kanata's `switch` action covers most cases, but some multi-variable conditions need restructuring |
+| Profile switching | **Deferred** | Karabiner lets you switch between profiles; KeyPath uses a single config with layers |
+| Community rule import | **Limited** | Built-in collections are available; community sharing and direct community-library import are not provided (Karabiner has [thousands](https://ke-complex-modifications.pqrs.org/)) |
 | Pointing device rules | **Limited** | Kanata has mouse key support but not Karabiner's full pointing device condition system |
 
 ### Config import
 
-KeyPath includes a built-in Karabiner config converter — see [step 4 above](#4-import-your-karabiner-config) for how to use it. The converter handles ~95% of typical configs. For rules that don't convert automatically, you can recreate them using KeyPath's visual rule editor or the [CLI]({{ '/guides/cli/' | relative_url }}).
+KeyPath includes a built-in Karabiner JSON config converter — see [step 4 above](#4-import-your-karabiner-config) for how to use it. The importer accepts Karabiner JSON or a complex-modifications rule file; Goku EDN is outside this importer path. Keep the original config as a backup and inspect the skipped-rule warnings before deciding what to recreate using KeyPath's visual rule editor or the [CLI]({{ '/guides/cli/' | relative_url }}).
 
 ---
 
