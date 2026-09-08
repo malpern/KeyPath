@@ -63,6 +63,7 @@ theme: parchment
 <li><a href="{{ '/guides/keyboard-layouts/' | relative_url }}">Works With Your Keyboard</a></li>
 <li><a href="{{ '/guides/kindavim/' | relative_url }}">KindaVim</a></li>
 <li><a href="{{ '/guides/neovim-terminal/' | relative_url }}">Neovim in the Terminal</a></li>
+<li><a href="{{ '/guides/electron-text-parity/' | relative_url }}">Why Text Tools Break in Electron Apps</a></li>
 </ul>
 </div>
 
