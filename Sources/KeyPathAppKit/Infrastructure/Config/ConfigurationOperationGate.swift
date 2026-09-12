@@ -8,6 +8,11 @@ actor ConfigurationOperationGate {
     struct Permit: Sendable {
         fileprivate let owner: UUID
         fileprivate let operation: UUID
+
+        /// Identifies one admitted root operation without exposing the gate owner.
+        /// Consumers use this only to avoid repeating preparation work for trusted
+        /// nested calls that carry the same permit.
+        var operationID: UUID { operation }
     }
 
     enum Failure: LocalizedError {

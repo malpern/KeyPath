@@ -60,6 +60,9 @@ final class RuleCollectionsManager {
     /// Remains set when recovered files cannot yet be read completely.
     var needsRecoveredRuleStateRefresh = false
     var observedRuleRecoveryRevision: UInt64 = 0
+    /// Source state is refreshed once for each newly admitted root operation.
+    /// Trusted nested calls retain their candidate state instead of reloading it.
+    var lastRuleStateRefreshOperationID: UUID?
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
     /// Active keymap layout ID (e.g., "colemak-dh", "dvorak")

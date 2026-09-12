@@ -103,8 +103,11 @@ permits through internal overloads. Missing-file backup reads carry the permit
 through self-healing creation so the backup retains stored rules. CLI operation
 ownership is described below. App-specific edits and Simple Modifications now
 use SaveCoordinator; startup app-include creation uses the same directory gate.
-Source/cache freshness and external edits remain separate work. Merely using
-this service for validation does not acquire write admission. Pack operations hold admission while staging
+`RuleCollectionsManager` refreshes its persisted collection and custom-rule
+sources once after each newly admitted root operation, before it snapshots an
+edit candidate. Trusted nested calls keep the same permit and therefore retain
+that candidate. Other source/cache freshness and external edits remain separate
+work. Merely using this service for validation does not acquire write admission. Pack operations hold admission while staging
 arrays, making nested collection calls, updating metadata and running their
 existing recovery paths; their multiple writes are still separate durable commits.
 The collection journal below provides a separate durable file recovery boundary;

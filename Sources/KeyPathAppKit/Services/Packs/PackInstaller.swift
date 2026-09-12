@@ -72,7 +72,7 @@ public final class PackInstaller {
         )
         manager.preferencesService.reloadLeaderKeyPreference(from: manager.preferencesService.persistenceDefaults)
         do {
-            try await manager.refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: permit)
+            try await manager.refreshRuleStateAtMutationAdmission(recovered: recovered, mutationPermit: permit)
         } catch let error as KeyPathError {
             if case let .configuration(.loadFailed(reason)) = error {
                 throw InstallError.saveFailed(reason)

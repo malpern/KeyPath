@@ -22,7 +22,8 @@ extension RuleCollectionsManager {
         }
     }
 
-    /// Recover interrupted source writes before taking the next editor snapshot.
+    /// Recover interrupted source writes and refresh normally committed source
+    /// state before taking the next root-editor snapshot.
     func recoverAndSnapshotRuleState(mutationPermit: ConfigurationOperationGate.Permit) async -> RuleStateSnapshot? {
         do {
             try await recoverRuleState(mutationPermit: mutationPermit)
@@ -45,24 +46,36 @@ extension RuleCollectionsManager {
         if pendingLeaderKeyPreference == nil {
             preferencesService.reloadLeaderKeyPreference(from: preferencesService.persistenceDefaults)
         }
-        try await refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: mutationPermit)
+        try await refreshRuleStateAtMutationAdmission(
+            recovered: recovered,
+            mutationPermit: mutationPermit
+        )
     }
 
-    /// Do not let a retry use stale arrays after journal recovery succeeded but
-    /// source decoding failed. Clear the requirement only after both stores load.
-    func refreshRecoveredRuleStateIfNeeded(_ recovered: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
-        needsRecoveredRuleStateRefresh = needsRecoveredRuleStateRefresh || recovered
+    /// A cooperating peer can commit a new source revision without leaving a
+    /// recovery journal. Reload once after this operation acquires its lease so
+    /// a later rejected edit cannot restore the manager's stale in-memory arrays.
+    /// Do not reload again for trusted nested calls: they intentionally operate
+    /// on the candidate staged by their enclosing root operation.
+    func refreshRuleStateAtMutationAdmission(
+        recovered: Bool,
+        mutationPermit: ConfigurationOperationGate.Permit
+    ) async throws {
+        let needsRefresh = lastRuleStateRefreshOperationID != mutationPermit.operationID
+            || needsRecoveredRuleStateRefresh
+            || recovered
             || observedRuleRecoveryRevision != configurationService.ruleRecoveryRevision
-        if needsRecoveredRuleStateRefresh {
+        if needsRefresh {
             let collections = await ruleCollectionStore.loadCollectionsDetailed()
             guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
-                throw KeyPathError.configuration(.loadFailed(reason: "Recovered rule collections could not be read completely. No edit was made."))
+                throw KeyPathError.configuration(.loadFailed(reason: "Rule collections could not be read completely. No edit was made."))
             }
             let rules = try await customRulesStore.loadForMutation()
             ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
             customRules = rules
             needsRecoveredRuleStateRefresh = false
             observedRuleRecoveryRevision = configurationService.ruleRecoveryRevision
+            lastRuleStateRefreshOperationID = mutationPermit.operationID
             refreshLayerIndicatorState()
         }
         // The configuration owner retains this requirement across app/rule/raw
