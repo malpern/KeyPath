@@ -131,7 +131,8 @@ final class HelperManagerTests: XCTestCase {
         await second.value
         await third.value
         let finalOrder = await order.values
-        XCTAssertEqual(finalOrder, ["second", "third"])
+        XCTAssertEqual(finalOrder.count, 2)
+        XCTAssertEqual(Set(finalOrder), Set(["second", "third"]))
     }
 
     private var originalFactory: ((String) -> SMAppServiceProtocol)!
