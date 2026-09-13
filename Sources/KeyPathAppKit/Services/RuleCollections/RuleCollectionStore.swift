@@ -80,6 +80,20 @@ actor RuleCollectionStore {
         loadCollectionsDetailed().collections
     }
 
+    /// Mutation owners need the persisted revision itself, without catalog
+    /// defaults merged in. Falling back to defaults here could overwrite a
+    /// configuration that was generated from an intentionally minimal source
+    /// revision.
+    func loadForMutation() throws -> [RuleCollection] {
+        let data: Data
+        do { data = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { return [] }
+        if let versioned = try? decoder.decode(VersionedCollections.self, from: data) {
+            return versioned.collections
+        }
+        return try decoder.decode([RuleCollection].self, from: data)
+    }
+
     func loadCollectionsDetailed() -> LoadResult {
         guard fileManager.fileExists(atPath: fileURL.path) else {
             return LoadResult(collections: catalog.defaultCollections(), failedCollectionNames: [], wasFullReset: false)

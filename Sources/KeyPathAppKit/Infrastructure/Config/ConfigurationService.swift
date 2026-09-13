@@ -430,21 +430,29 @@ public final class ConfigurationService: FileConfigurationProviding {
                 packUpdate = try await packRecord.tracker.prepareUpdate(packRecord)
                 guard packUpdate?.before == before["installedPacks"] else { throw RecoverableRuleWrite.Failure.changedFile("installedPacks") }
             } else { packUpdate = nil }
-            let deviceGenerationInput: DeviceGenerationInput? = if let deviceSelections {
+            let persistedInputs = try await persistedGlobalRuleGenerationInputs(preferenceDefaults: preferenceDefaults)
+            let deviceGenerationInput: DeviceGenerationInput = if let deviceSelections {
                 await deviceSelectionStore.generationInput(for: deviceSelections)
             } else {
-                nil
+                persistedInputs.device
             }
+            try await ensureExistingGlobalConfigurationIsReproducible(
+                collectionStore: collectionStore,
+                customStore: customStore,
+                preferenceDefaults: preferenceDefaults,
+                inputs: persistedInputs
+            )
             let newConfig = try await preparedConfiguration(
                 ruleCollections: ruleCollections, customRules: customRules,
                 leaderKeyPreference: leaderKeyPreference ?? persistedLeaderPreference(in: preferenceDefaults),
-                shortcutListGenerationInput: shortcutListGenerationInput,
+                shortcutListGenerationInput: shortcutListGenerationInput ?? persistedInputs.shortcut,
                 deviceGenerationInput: deviceGenerationInput
             )
             var payload = try await [
                 "config": Data(newConfig.content.utf8),
                 "collections": collectionStore.encodedCollections(ruleCollections),
-                "customRules": customStore.encodedRules(customRules)
+                "customRules": customStore.encodedRules(customRules),
+                "deviceTargetingManifest": Data(deviceTargetingRegion(from: newConfig.content).utf8)
             ]
             if let packUpdate { payload["installedPacks"] = packUpdate.contents }
             if let deviceSelections { payload["deviceSelection"] = try await deviceSelectionStore.encodedSelections(deviceSelections) }
@@ -615,25 +623,38 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             let rules = try await customRulesStore.loadForMutation()
             let leaderKeyPreference = persistedLeaderPreference(in: PreferencesService.canonicalDefaults)
+            let persistedInputs = try await persistedGlobalRuleGenerationInputs(
+                preferenceDefaults: PreferencesService.canonicalDefaults
+            )
             // Refuse a lossy regeneration, including manual edits to a generated file.
             // A generated header alone does not prove that the visual editor owns it.
             let previousKeys = Set(previous.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
             let expected = try await generateConfiguration(
                 ruleCollections: collections.collections, customRules: rules,
-                appSpecificKeys: previousKeys, leaderKeyPreference: leaderKeyPreference
+                appSpecificKeys: previousKeys, leaderKeyPreference: leaderKeyPreference,
+                shortcutListGenerationInput: persistedInputs.shortcut,
+                deviceGenerationInput: persistedInputs.device
             )
             for (name, content) in [("keypath.kbd", expected.content), ("keypath-apps.kbd", AppConfigGenerator.generate(from: previous))] {
                 let url = URL(fileURLWithPath: configDirectory).appendingPathComponent(name)
-                if FileManager.default.fileExists(atPath: url.path), try !AppConfigGenerator.matchesManagedContent(String(contentsOf: url, encoding: .utf8), expected: content) {
+                if FileManager.default.fileExists(atPath: url.path) {
+                    let existing = try String(contentsOf: url, encoding: .utf8)
+                    let matches = name == "keypath.kbd"
+                        ? matchesGlobalManagedContent(existing, expected: content)
+                        : AppConfigGenerator.matchesManagedContent(existing, expected: content)
+                    guard matches else {
                     throw AppConfigError
                         .validationFailed(
                             errors: ["Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."]
                         )
+                    }
                 }
             }
             let configuration = try await generateConfiguration(
                 ruleCollections: collections.collections, customRules: rules,
-                appSpecificKeys: appKeys, leaderKeyPreference: leaderKeyPreference
+                appSpecificKeys: appKeys, leaderKeyPreference: leaderKeyPreference,
+                shortcutListGenerationInput: persistedInputs.shortcut,
+                deviceGenerationInput: persistedInputs.device
             )
             // Validate the exact new include with the new main config before either
             // replaces its committed file. The engine receives the normal include.
@@ -645,7 +666,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             guard validation.isValid else { throw AppConfigError.validationFailed(errors: validation.errors) }
             let contents = try await ["config": Data(configuration.content.utf8),
                                       "appKeymaps": store.encodedKeymaps(keymaps),
-                                      "appInclude": Data(appContent.utf8)]
+                                      "appInclude": Data(appContent.utf8),
+                                      "deviceTargetingManifest": Data(deviceTargetingRegion(from: configuration.content).utf8)]
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
             let pending = try await performRuleFileOperation {
@@ -731,14 +753,16 @@ public final class ConfigurationService: FileConfigurationProviding {
     private func appKeymapWriteFiles(store: AppKeymapStore) async -> [String: URL] {
         await ["config": URL(fileURLWithPath: configurationPath),
                "appKeymaps": store.persistenceURL,
-               "appInclude": URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-apps.kbd")]
+               "appInclude": URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-apps.kbd"),
+               "deviceTargetingManifest": deviceTargetingManifestURL]
     }
 
     private func ruleWriteFiles(collectionStore: RuleCollectionStore, customStore: CustomRulesStore) async -> [String: URL] {
         await [
             "config": URL(fileURLWithPath: configurationPath),
             "collections": collectionStore.persistenceURL,
-            "customRules": customStore.persistenceURL
+            "customRules": customStore.persistenceURL,
+            "deviceTargetingManifest": deviceTargetingManifestURL
         ]
     }
 
@@ -768,6 +792,134 @@ public final class ConfigurationService: FileConfigurationProviding {
             throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
         }
         return newConfig
+    }
+
+    /// Global edits regenerate the main file from collection-backed sources.
+    /// Refuse before staging any source or configuration file when the committed
+    /// main file cannot be reproduced from the previously committed inputs.
+    /// This gives collection, mapper, and standalone regeneration the same
+    /// handwritten-file preservation contract as app-specific editing.
+    private func ensureExistingGlobalConfigurationIsReproducible(
+        collectionStore: RuleCollectionStore,
+        customStore: CustomRulesStore,
+        preferenceDefaults: UserDefaults?,
+        inputs: GlobalRuleGenerationInputs
+    ) async throws {
+        let configURL = URL(fileURLWithPath: configurationPath)
+        guard FileManager.default.fileExists(atPath: configURL.path) else { return }
+        let existing = try String(contentsOf: configURL, encoding: .utf8)
+        if let current = withLockedCurrentConfig(),
+           matchesGlobalManagedContent(existing, expected: current.content)
+        {
+            return
+        }
+
+        // A missing collection store is the first-write/bootstrap migration
+        // case: there is no committed global input set to reproduce yet.
+        // Once collections exist, every global writer must preserve a main file
+        // it cannot reconstruct from that prior revision.
+        let collectionURL = await collectionStore.persistenceURL
+        guard FileManager.default.fileExists(atPath: collectionURL.path) else { return }
+
+        let persistedCollections = try await collectionStore.loadForMutation()
+        let persistedRules = try await customStore.loadForMutation()
+        let expected = try await generateConfiguration(
+            ruleCollections: persistedCollections,
+            customRules: persistedRules,
+            leaderKeyPreference: persistedLeaderPreference(in: preferenceDefaults),
+            shortcutListGenerationInput: inputs.shortcut,
+            deviceGenerationInput: inputs.device
+        )
+        guard matchesGlobalManagedContent(existing, expected: expected.content) else {
+            throw AppConfigError.validationFailed(errors: ["Your configuration was preserved. The visual editor cannot safely reproduce keypath.kbd. Convert it explicitly with a backup before editing global rules."])
+        }
+    }
+
+    /// Device enumeration is live runtime evidence, not a durable generation
+    /// input. A connect/disconnect can legitimately change the device-name
+    /// directives between app launches. We tolerate that only when the exact
+    /// existing directives equal the sidecar snapshot written with the prior
+    /// managed transaction; arbitrary handwritten directives are never erased.
+    private func matchesGlobalManagedContent(_ existing: String, expected: String) -> Bool {
+        if AppConfigGenerator.matchesManagedContent(existing, expected: expected) { return true }
+        guard let manifest = try? String(contentsOf: deviceTargetingManifestURL, encoding: .utf8),
+              manifest == deviceTargetingRegion(from: existing)
+        else { return false }
+        return AppConfigGenerator.matchesManagedContent(
+            removingDynamicDeviceTargeting(from: existing),
+            expected: removingDynamicDeviceTargeting(from: expected)
+        )
+    }
+
+    private var deviceTargetingManifestURL: URL {
+        URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-device-targeting.manifest")
+    }
+
+    /// Capture exactly the emitted device directive blocks. The durable
+    /// snapshot is proof that a changed runtime device list is ours to replace.
+    private func deviceTargetingRegion(from content: String) -> String {
+        var capturing = false
+        return content.components(separatedBy: "\n").compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("macos-dev-names-include (") || trimmed.hasPrefix("macos-dev-names-exclude (") {
+                capturing = true
+                return line
+            }
+            if capturing {
+                if trimmed == ")" { capturing = false }
+                return line
+            }
+            return nil
+        }.joined(separator: "\n")
+    }
+
+    private func removingDynamicDeviceTargeting(from content: String) -> String {
+        var skippingDeviceNames = false
+        return content.components(separatedBy: "\n").compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("macos-dev-names-include (") || trimmed.hasPrefix("macos-dev-names-exclude (") {
+                skippingDeviceNames = true
+                return nil
+            }
+            if skippingDeviceNames {
+                if trimmed == ")" { skippingDeviceNames = false }
+                return nil
+            }
+            if trimmed == ";; Only remap selected keyboards (user device selection)." ||
+                trimmed == ";; All keyboards disabled by user — remap nothing." ||
+                trimmed == ";; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops."
+            {
+                return nil
+            }
+            return line
+        }.joined(separator: "\n")
+    }
+
+    private struct GlobalRuleGenerationInputs {
+        let shortcut: ShortcutListGenerationInput
+        let device: DeviceGenerationInput
+    }
+
+    private func persistedGlobalRuleGenerationInputs(
+        preferenceDefaults: UserDefaults?
+    ) async throws -> GlobalRuleGenerationInputs {
+        let defaults = preferenceDefaults ?? PreferencesService.canonicalDefaults
+        let trigger = ContextHUDTriggerMode(
+            rawValue: defaults.string(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key) ?? ContextHUDTriggerMode.holdToShow.rawValue
+        ) ?? .holdToShow
+        let preset = ContextHUDHoldDelayPreset(
+            rawValue: defaults.string(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key) ?? ContextHUDHoldDelayPreset.long.rawValue
+        ) ?? .long
+        let custom = defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key) as? Int ?? 200
+        let selections = try await deviceSelectionStore.loadForMutation()
+        return GlobalRuleGenerationInputs(
+            shortcut: ShortcutListGenerationInput(
+                triggerMode: trigger,
+                holdDelayPreset: preset,
+                customHoldDelayMs: custom
+            ),
+            device: await deviceSelectionStore.generationInput(for: selections)
+        )
     }
 
     @MainActor

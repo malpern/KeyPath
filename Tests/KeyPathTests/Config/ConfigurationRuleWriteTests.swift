@@ -134,6 +134,180 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
     }
 
+    func testManualGlobalConfigIsPreservedBeforeSourceWrites() async throws {
+        let original = collection("Original")
+        try await service.saveRuleState(
+            ruleCollections: [original], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        let collectionURL = await collections.persistenceURL
+        let customURL = await customRules.persistenceURL
+        let beforeCollections = try Data(contentsOf: collectionURL)
+        let beforeRules = try Data(contentsOf: customURL)
+        try ";; handwritten global configuration".write(to: configURL, atomically: true, encoding: .utf8)
+
+        do {
+            try await service.saveRuleState(
+                ruleCollections: [collection("Candidate")], customRules: [],
+                collectionStore: collections, customStore: customRules
+            )
+            XCTFail("A global writer must preserve a configuration it cannot reproduce")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("configuration was preserved"))
+        }
+
+        XCTAssertEqual(try String(contentsOf: configURL, encoding: .utf8), ";; handwritten global configuration")
+        XCTAssertEqual(try Data(contentsOf: collectionURL), beforeCollections)
+        XCTAssertEqual(try Data(contentsOf: customURL), beforeRules)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
+    }
+
+    func testStandaloneRegenerationPreservesManualGlobalConfig() async throws {
+        let original = collection("Original")
+        try await service.saveRuleState(
+            ruleCollections: [original], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        let collectionURL = await collections.persistenceURL
+        let beforeCollections = try Data(contentsOf: collectionURL)
+        try ";; handwritten global configuration".write(to: configURL, atomically: true, encoding: .utf8)
+
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: collections,
+            customRulesStore: customRules,
+            configurationService: service
+        )
+        manager.ruleCollections = [collection("Candidate")]
+        let persisted = await manager.regenerateConfigFromCollections(skipReload: true)
+
+        XCTAssertFalse(persisted)
+        XCTAssertEqual(try String(contentsOf: configURL, encoding: .utf8), ";; handwritten global configuration")
+        XCTAssertEqual(try Data(contentsOf: collectionURL), beforeCollections)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
+    }
+
+    func testFreshServiceReproducesPersistedDeviceAndShortcutInputs() async throws {
+        let defaultsName = "ConfigurationRuleWriteTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: defaultsName))
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+        defaults.set(ContextHUDTriggerMode.tapToToggle.rawValue,
+                     forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key)
+        defaults.set(ContextHUDHoldDelayPreset.custom.rawValue,
+                     forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key)
+        defaults.set(321, forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key)
+        let shortcut = ShortcutListGenerationInput(
+            triggerMode: .tapToToggle,
+            holdDelayPreset: .custom,
+            customHoldDelayMs: 321
+        )
+        let connectedCache = DeviceSelectionCache()
+        connectedCache.updateConnectedDevices([
+            ConnectedDevice(hash: "disabled-device", vendorID: 1, productID: 2,
+                            productKey: "Example Keyboard", isVirtualHID: false)
+        ])
+        let deviceStore = DeviceSelectionStore(
+            fileURL: directory.appendingPathComponent("DeviceSelection.json"),
+            cache: connectedCache
+        )
+        let service = ConfigurationService(
+            configDirectory: directory.path,
+            ruleCollectionStore: collections,
+            customRulesStore: customRules,
+            deviceSelectionStore: deviceStore
+        )
+        let selection = DeviceSelection(
+            hash: "disabled-device", productKey: "Example Keyboard",
+            isEnabled: false, lastSeen: .distantPast
+        )
+        let original = collection("Original")
+        try await service.operationGate.withOperation { @MainActor permit in
+            let write = try await service.stageRuleState(
+                ruleCollections: [original], customRules: [],
+                collectionStore: self.collections, customStore: self.customRules,
+                mutationPermit: permit, preferenceDefaults: defaults,
+                shortcutListGenerationInput: shortcut, deviceSelections: [selection]
+            )
+            try await service.settleRuleWrite(write, commit: true, mutationPermit: permit)
+        }
+        XCTAssertTrue(
+            try String(contentsOfFile: service.configurationPath, encoding: .utf8)
+                .contains("macos-dev-names-include")
+        )
+
+        let freshDeviceStore = DeviceSelectionStore(
+            fileURL: directory.appendingPathComponent("DeviceSelection.json"),
+            cache: DeviceSelectionCache()
+        )
+        let freshService = ConfigurationService(
+            configDirectory: directory.path,
+            ruleCollectionStore: collections,
+            customRulesStore: customRules,
+            deviceSelectionStore: freshDeviceStore
+        )
+        try await freshService.operationGate.withOperation { @MainActor permit in
+            let write = try await freshService.stageRuleState(
+                ruleCollections: [collection("Candidate")], customRules: [],
+                collectionStore: self.collections, customStore: self.customRules,
+                mutationPermit: permit, preferenceDefaults: defaults
+            )
+            try await freshService.settleRuleWrite(write, commit: true, mutationPermit: permit)
+        }
+
+        let content = try String(contentsOfFile: freshService.configurationPath, encoding: .utf8)
+        let persistedSelections = try await deviceStore.loadForMutation()
+        XCTAssertEqual(persistedSelections, [selection])
+        XCTAssertTrue(content.contains("321"))
+    }
+
+    func testManualDeviceDirectiveIsPreservedBeforeSourceWrites() async throws {
+        let cache = DeviceSelectionCache()
+        cache.updateConnectedDevices([
+            ConnectedDevice(hash: "disabled-device", vendorID: 1, productID: 2,
+                            productKey: "Example Keyboard", isVirtualHID: false)
+        ])
+        let deviceStore = DeviceSelectionStore(
+            fileURL: directory.appendingPathComponent("DeviceSelection.json"), cache: cache
+        )
+        let service = ConfigurationService(
+            configDirectory: directory.path, ruleCollectionStore: collections,
+            customRulesStore: customRules, deviceSelectionStore: deviceStore
+        )
+        let selection = DeviceSelection(
+            hash: "disabled-device", productKey: "Example Keyboard",
+            isEnabled: false, lastSeen: .distantPast
+        )
+        let original = collection("Original")
+        try await service.operationGate.withOperation { @MainActor permit in
+            let write = try await service.stageRuleState(
+                ruleCollections: [original], customRules: [],
+                collectionStore: self.collections, customStore: self.customRules,
+                mutationPermit: permit, deviceSelections: [selection]
+            )
+            try await service.settleRuleWrite(write, commit: true, mutationPermit: permit)
+        }
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        let handwritten = try String(contentsOf: configURL, encoding: .utf8)
+            .replacingOccurrences(of: "__keypath_no_devices__", with: "Handwritten Keyboard")
+        try handwritten.write(to: configURL, atomically: true, encoding: .utf8)
+        let collectionURL = await collections.persistenceURL
+        let beforeCollections = try Data(contentsOf: collectionURL)
+
+        do {
+            try await service.saveRuleState(
+                ruleCollections: [collection("Candidate")], customRules: [],
+                collectionStore: collections, customStore: customRules
+            )
+            XCTFail("A hand-edited device directive must be preserved")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("configuration was preserved"))
+        }
+
+        XCTAssertEqual(try String(contentsOf: configURL, encoding: .utf8), handwritten)
+        XCTAssertEqual(try Data(contentsOf: collectionURL), beforeCollections)
+    }
+
     func testInterruptedStageIsRecoveredByFreshService() async throws {
         try await service.saveRuleState(ruleCollections: [collection("Original")], customRules: [], collectionStore: collections, customStore: customRules)
         let before = try snapshot()

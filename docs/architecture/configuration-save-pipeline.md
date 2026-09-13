@@ -181,6 +181,15 @@ reload. Backup is now an async API so lock contention does not block an actor;
 the CLI command syntax and output are unchanged. A callback attempting another
 apply, backup or restore is rejected before copying or staging preferences.
 
+CLI apply is an explicit regeneration-and-overwrite command: it replaces
+`keypath.kbd` from the supplied collection and rule sources, including when the
+existing file is handwritten or otherwise not reproducible by the visual editor.
+The global managed-file preservation check is intentionally an app-editor
+contract; CLI apply remains the documented conversion/overwrite escape hatch.
+Use CLI backup first when preserving a handwritten revision matters. Directory
+admission serializes that overwrite, but it does not supply the app save
+coordinator's runtime rollback semantics.
+
 This does not yet change reload-result semantics, make directory restore atomic,
 or include preference restoration in rejected-apply recovery. Feature-specific
 writers remain separate migration work. Backups remain copies of current disk state; this scope does not recover pending journals
