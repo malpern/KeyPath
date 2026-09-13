@@ -71,9 +71,9 @@ actor RuleCollectionStore {
         decoder = JSONDecoder()
     }
 
-    /// Test-only: the resolved backing file, for asserting sandbox isolation.
+    /// Test-only compatibility alias for sandbox assertions.
     var debugFileURL: URL {
-        fileURL
+        persistenceURL
     }
 
     func loadCollections() -> [RuleCollection] {

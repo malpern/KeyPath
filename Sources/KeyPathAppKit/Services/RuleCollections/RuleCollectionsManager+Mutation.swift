@@ -142,13 +142,22 @@ extension RuleCollectionsManager {
             || recovered
             || observedRuleRecoveryRevision != configurationService.ruleRecoveryRevision
         if needsRefresh {
-            let collections = await ruleCollectionStore.loadCollectionsDetailed()
-            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
-                throw KeyPathError.configuration(.loadFailed(reason: "Rule collections could not be read completely. No edit was made."))
-            }
+            let collectionSourceURL = await ruleCollectionStore.persistenceURL
+            let customRuleSourceURL = await customRulesStore.persistenceURL
+            let hasPersistedCollections = FileManager.default.fileExists(atPath: collectionSourceURL.path)
+            let hasPersistedCustomRules = FileManager.default.fileExists(atPath: customRuleSourceURL.path)
+            let collections = try await ruleCollectionStore.loadForMutation()
             let rules = try await customRulesStore.loadForMutation()
-            ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
-            customRules = rules
+            // A missing source has no newer revision to recover. Keep the
+            // manager's bootstrap/test state until its first successful save;
+            // an existing (including intentionally empty) file remains the
+            // authoritative source and malformed data still fails closed.
+            if hasPersistedCollections {
+                ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
+            }
+            if hasPersistedCustomRules {
+                customRules = rules
+            }
             needsRecoveredRuleStateRefresh = false
             observedRuleRecoveryRevision = configurationService.ruleRecoveryRevision
             lastRuleStateRefreshOperationID = mutationPermit.operationID
