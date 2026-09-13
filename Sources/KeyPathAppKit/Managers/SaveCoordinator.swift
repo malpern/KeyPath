@@ -237,6 +237,8 @@ final class SaveCoordinator {
         packRecord: InstalledPackTracker.RecordChange? = nil,
         preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
         leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceSelections: [DeviceSelection]? = nil,
         reloadHandler: (() async -> ReloadResult)?
     ) async -> SaveResult {
         do {
@@ -256,7 +258,9 @@ final class SaveCoordinator {
                             mutationPermit: permit, packRecord: packRecord,
                             preferenceDefaults: manager.preferencesService.persistenceDefaults,
                             preferenceChanges: preferenceChanges,
-                            leaderKeyPreference: leaderKeyPreference
+                            leaderKeyPreference: leaderKeyPreference,
+                            shortcutListGenerationInput: shortcutListGenerationInput,
+                            deviceSelections: deviceSelections
                         )
                         try Task.checkCancellation()
                         playWriteSound()

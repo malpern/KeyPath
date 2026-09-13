@@ -2,7 +2,7 @@ import Foundation
 import KeyPathCore
 
 /// Persisted selection state for a single device.
-struct DeviceSelection: Codable, Sendable {
+struct DeviceSelection: Codable, Equatable, Sendable {
     let hash: String
     let productKey: String
     var isEnabled: Bool
@@ -12,6 +12,14 @@ struct DeviceSelection: Codable, Sendable {
     var displayName: String {
         DeviceDisplayNameFormatter.format(productKey)
     }
+}
+
+/// A point-in-time device view used while generating a candidate configuration.
+/// It prevents a retained transaction from reading a cache that has already
+/// moved to a different selection.
+struct DeviceGenerationInput: Sendable {
+    let selections: [DeviceSelection]
+    let connectedDevices: [ConnectedDevice]
 }
 
 /// Thread-safe synchronous cache for device selections and connected devices,
@@ -102,6 +110,10 @@ actor DeviceSelectionStore {
         self.decoder = decoder
     }
 
+    /// The transaction owner journals this exact file with the generated
+    /// configuration. Keeping the URL here prevents a second path convention.
+    var persistenceURL: URL { fileURL }
+
     func loadSelections() -> [DeviceSelection] {
         AppLogger.shared.log("📂 [DeviceSelectionStore] loadSelections from: \(fileURL.path)")
         guard fileManager.fileExists(atPath: fileURL.path) else {
@@ -117,6 +129,31 @@ actor DeviceSelectionStore {
             AppLogger.shared.log("⚠️ [DeviceSelectionStore] Failed to load selections: \(error)")
             return []
         }
+    }
+
+    /// Mutation paths must not treat corrupt selection data as an empty choice:
+    /// doing so could make a later rollback or apply target every keyboard.
+    func loadForMutation() throws -> [DeviceSelection] {
+        guard fileManager.fileExists(atPath: fileURL.path) else { return [] }
+        let data = try Data(contentsOf: fileURL)
+        return try decoder.decode([DeviceSelection].self, from: data)
+    }
+
+    func encodedSelections(_ selections: [DeviceSelection]) throws -> Data {
+        try encoder.encode(selections)
+    }
+
+    /// Cache publication happens only after the corresponding durable write has
+    /// settled. Candidate data must never leak into synchronous generation.
+    func publishSelectionsToCache(_ selections: [DeviceSelection]) {
+        cache.update(selections)
+    }
+
+    /// Capture all device-dependent generation inputs from the same injected
+    /// cache used by this store. A retained transaction must not mix its
+    /// candidate selection with the process-global device cache.
+    func generationInput(for selections: [DeviceSelection]) -> DeviceGenerationInput {
+        DeviceGenerationInput(selections: selections, connectedDevices: cache.getConnectedDevices())
     }
 
     func saveSelections(_ selections: [DeviceSelection]) throws {

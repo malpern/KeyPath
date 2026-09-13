@@ -3,6 +3,82 @@ import KeyPathCore
 import KeyPathRulesCore
 
 extension RuleCollectionsManager {
+    /// Persist shortcut-list generation settings only with the generated
+    /// configuration that uses them. The preference service keeps its prior
+    /// in-memory value until the retained write is accepted or deferred.
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
+            let defaults = preferencesService.persistenceDefaults
+            let changes: [RecoverableRuleWrite.PreferenceChange]
+            do {
+                changes = try [
+                    .contextHUDTriggerMode(
+                        before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key),
+                        after: input.triggerMode.rawValue
+                    ),
+                    .contextHUDHoldDelayPreset(
+                        before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key),
+                        after: input.holdDelayPreset.rawValue
+                    ),
+                    .contextHUDHoldDelayCustomMs(
+                        before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key),
+                        after: input.customHoldDelayMs
+                    )
+                ]
+            } catch {
+                onError?(error.localizedDescription)
+                return false
+            }
+
+            let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
+                manager: self,
+                mutationPermit: permit,
+                preferenceChanges: changes,
+                shortcutListGenerationInput: input,
+                reloadHandler: onRulesChanged
+            )
+            guard result.success else { return false }
+            preferencesService.reloadShortcutListGenerationInput(from: defaults)
+            return true
+        }
+    }
+
+    /// Apply device targeting as a retained configuration write. The candidate
+    /// selection is deliberately not published to the synchronous cache until
+    /// the daemon has restarted successfully; a rejected restart restores both
+    /// the selection file and the previous generated configuration.
+    @discardableResult
+    func applyDeviceSelections(
+        _ selections: [DeviceSelection],
+        restartHandler: @escaping @MainActor @Sendable () async -> Bool
+    ) async -> Bool {
+        await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
+            let reloadHandler: () async -> ReloadResult = {
+                let restarted = await restartHandler()
+                return ReloadResult(
+                    success: restarted,
+                    response: nil,
+                    errorMessage: restarted ? nil : "Kanata could not restart with the selected keyboards",
+                    protocol: nil,
+                    disposition: restarted ? .applied : .rejected
+                )
+            }
+            let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
+                manager: self,
+                mutationPermit: permit,
+                deviceSelections: selections,
+                reloadHandler: reloadHandler
+            )
+            if result.success {
+                NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            }
+            return result.success
+        }
+    }
+
     /// Admission precedes snapshots and mutation. Nested internal calls carry an
     /// explicit permit; callbacks without one fail rather than deadlock/reenter.
     func withRuleMutation<Result: Sendable>(

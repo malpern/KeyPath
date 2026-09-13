@@ -39,11 +39,12 @@ public struct KanataConfiguration: Sendable {
 
     /// Generate configuration content from rule collections.
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
-    public static func generateFromCollections(
+    static func generateFromCollections(
         _ collections: [RuleCollection],
         leaderKeyPreference: LeaderKeyPreference? = nil,
         navActivationMode: ContextHUDTriggerMode = .tapToToggle,
         navHoldDelayMs: Int = 200,
+        deviceGenerationInput: DeviceGenerationInput? = nil,
         chordGroups: [ChordGroupConfig] = [],
         sequences: [KanataDefseqParser.ParsedSequence] = [],
         appSpecificKeys: Set<String>? = nil
@@ -96,7 +97,7 @@ public struct KanataConfiguration: Sendable {
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
-        let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg()
+        let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg(deviceGenerationInput)
         let keyRepeatConfig = enabledCollections
             .compactMap(\.configuration.keyRepeatControlConfig)
             .first
@@ -225,21 +226,28 @@ public struct KanataConfiguration: Sendable {
     /// When all non-VirtualHID devices are enabled (the default), we emit only `macos-dev-names-exclude`.
     /// When any non-VirtualHID device is disabled, we emit `macos-dev-names-include` for enabled devices
     /// plus `macos-dev-names-exclude` for VirtualHID devices.
-    private static func renderMacOSDeviceTargetingForDefcfg() -> String {
+    private static func renderMacOSDeviceTargetingForDefcfg(
+        _ input: DeviceGenerationInput? = nil
+    ) -> String {
         #if os(macOS)
             let cache = DeviceSelectionCache.shared
 
             // Use only the cached device list. CompositionRoot primes selections synchronously
             // at startup, and device enumeration updates this cache when the Devices tab loads.
-            let allDevices = cache.getConnectedDevices()
+            let allDevices = input?.connectedDevices ?? cache.getConnectedDevices()
             guard !allDevices.isEmpty else { return "" }
 
             let virtualHIDDevices = allDevices.filter(\.isVirtualHID)
             let physicalDevices = allDevices.filter { !$0.isVirtualHID }
 
             // Check which physical devices are disabled via user selection
-            let disabledPhysical = physicalDevices.filter { !cache.isEnabled(hash: $0.hash) }
-            let enabledPhysical = physicalDevices.filter { cache.isEnabled(hash: $0.hash) }
+            let enabledByHash = Dictionary(
+                (input?.selections ?? cache.allSelections()).map { ($0.hash, $0.isEnabled) },
+                uniquingKeysWith: { _, latest in latest }
+            )
+            let isEnabled: (String) -> Bool = { enabledByHash[$0] ?? true }
+            let disabledPhysical = physicalDevices.filter { !isEnabled($0.hash) }
+            let enabledPhysical = physicalDevices.filter { isEnabled($0.hash) }
 
             // VirtualHID exclusion (always needed)
             let virtualHIDNames = virtualHIDDevices.flatMap { [$0.hash, $0.productKey] }.sorted()

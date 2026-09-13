@@ -11,6 +11,7 @@ enum RecoverableRuleWrite {
         case appKeymaps
         case packRules
         case rawConfig
+        case deviceRules
 
         var roles: Set<String> {
             switch self {
@@ -18,6 +19,7 @@ enum RecoverableRuleWrite {
             case .appKeymaps: ["config", "appKeymaps", "appInclude"]
             case .packRules: ["config", "collections", "customRules", "installedPacks"]
             case .rawConfig: ["config"]
+            case .deviceRules: ["config", "collections", "customRules", "deviceSelection"]
             }
         }
     }
@@ -79,14 +81,44 @@ enum RecoverableRuleWrite {
                 after: requiredPreferenceData(after)
             )
         }
+
+        static func contextHUDTriggerMode(before: Any?, after: String) throws -> Self {
+            try .init(
+                role: .contextHUDTriggerMode,
+                before: preferenceData(before),
+                after: requiredPreferenceData(after)
+            )
+        }
+
+        static func contextHUDHoldDelayPreset(before: Any?, after: String) throws -> Self {
+            try .init(
+                role: .contextHUDHoldDelayPreset,
+                before: preferenceData(before),
+                after: requiredPreferenceData(after)
+            )
+        }
+
+        static func contextHUDHoldDelayCustomMs(before: Any?, after: Int) throws -> Self {
+            try .init(
+                role: .contextHUDHoldDelayCustomMs,
+                before: preferenceData(before),
+                after: requiredPreferenceData(after)
+            )
+        }
     }
 
     enum PreferenceRole: Codable, Hashable, Sendable {
         case leader
+        case contextHUDTriggerMode
+        case contextHUDHoldDelayPreset
+        case contextHUDHoldDelayCustomMs
 
         var key: String {
             switch self {
             case .leader: PreferencesService.leaderKeyPreferenceKey
+            case .contextHUDTriggerMode: "KeyPath.ContextHUD.TriggerMode"
+            case .contextHUDHoldDelayPreset: "KeyPath.ContextHUD.HoldDelayPreset"
+            case .contextHUDHoldDelayCustomMs: "KeyPath.ContextHUD.HoldDelayCustomMs"
             }
         }
     }
@@ -400,6 +432,7 @@ enum RecoverableRuleWrite {
         case .appKeymaps: ".keypath-app-write.json"
         case .packRules: ".keypath-pack-rule-write.json"
         case .rawConfig: ".keypath-raw-write.json"
+        case .deviceRules: ".keypath-device-write.json"
         }
         return directory.appendingPathComponent(name)
     }
@@ -411,6 +444,7 @@ enum RecoverableRuleWrite {
             journalURL(directory, scope: .appKeymaps),
             journalURL(directory, scope: .packRules),
             journalURL(directory, scope: .rawConfig),
+            journalURL(directory, scope: .deviceRules),
             directory.appendingPathComponent(".keypath-rule-write.lock")
         ]
         .map(\.standardizedFileURL))

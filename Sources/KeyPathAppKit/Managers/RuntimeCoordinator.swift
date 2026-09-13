@@ -477,6 +477,16 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
             Task {
                 await ruleCollectionsManager.bootstrap()
+                do {
+                    _ = try await configurationService.applyRecoveredDeviceRuntimeRestartIfNeeded(
+                        mutationPermit: nil
+                    ) { [weak self] in
+                        guard let self else { return false }
+                        return await self.restartKanata(reason: "Recovering device selection")
+                    }
+                } catch {
+                    self.lastError = error.localizedDescription
+                }
                 ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
             }
             HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
@@ -492,45 +502,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("🧪 [RuntimeCoordinator] One-shot probe mode or test host - skipping bootstrap and event monitoring")
         }
 
-        // Observe config-affecting preference changes (e.g., nav trigger mode) to regenerate config
         if !isOneShotProbeMode {
-            notificationObserverTokens.append(NotificationCenter.default.addObserver(
-                forName: .configAffectingPreferenceChanged,
-                object: nil,
-                queue: NotificationObserverManager.mainOperationQueue
-            ) { @Sendable [weak self] _ in
-                guard let self else { return }
-                Task { @MainActor in
-                    AppLogger.shared.log("🔄 [RuntimeCoordinator] Config-affecting preference changed, regenerating config...")
-                    await self.ruleCollectionsManager.regenerateConfigFromCollections()
-                }
-            })
-
-            notificationObserverTokens.append(NotificationCenter.default.addObserver(
-                forName: .deviceSelectionChanged,
-                object: nil,
-                queue: NotificationObserverManager.mainOperationQueue
-            ) { @Sendable [weak self] _ in
-                guard let self else { return }
-                Task { @MainActor in
-                    AppLogger.shared.log("🔌 [RuntimeCoordinator] Device selection changed, regenerating config and restarting Kanata...")
-                    let regenerated = await self.ruleCollectionsManager.regenerateConfigFromCollections(skipReload: true)
-                    let success: Bool = if regenerated {
-                        await self.restartKanata(reason: "Device selection changed")
-                    } else {
-                        false
-                    }
-                    NotificationCenter.default.post(
-                        name: .deviceSelectionApplyCompleted,
-                        object: nil,
-                        userInfo: ["success": success]
-                    )
-                    if success {
-                        NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
-                    }
-                }
-            })
-
             // Authoritative kanata grab status (#625): a grab failure means kanata
             // is up but not remapping. Drive bounded auto-recovery off this signal.
             notificationObserverTokens.append(NotificationCenter.default.addObserver(

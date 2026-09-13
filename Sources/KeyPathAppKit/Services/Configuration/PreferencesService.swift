@@ -1,5 +1,17 @@
 import Foundation
 import KeyPathCore
+
+/// The three shortcut-list values that affect generated Kanata configuration.
+/// A mutation captures this immutable candidate before it writes any defaults.
+struct ShortcutListGenerationInput: Sendable, Equatable {
+    let triggerMode: ContextHUDTriggerMode
+    let holdDelayPreset: ContextHUDHoldDelayPreset
+    let customHoldDelayMs: Int
+
+    var holdDelayMs: Int {
+        holdDelayPreset.milliseconds ?? customHoldDelayMs
+    }
+}
 import Observation
 
 /// Key label display style for modifier and action keys on the keyboard visualization.
@@ -176,6 +188,7 @@ final class PreferencesService: @unchecked Sendable {
     }
 
     private var suppressLeaderPersistence = false
+    private var suppressShortcutListPersistence = false
 
     // MARK: - Communication Protocol Configuration
 
@@ -349,10 +362,9 @@ final class PreferencesService: @unchecked Sendable {
     /// How the HUD/overlay is triggered by the modifier key
     var contextHUDTriggerMode: ContextHUDTriggerMode {
         didSet {
-            UserDefaults.standard.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
+            guard !suppressShortcutListPersistence else { return }
+            leaderDefaults.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
             AppLogger.shared.log("🎯 [Preferences] contextHUDTriggerMode = \(contextHUDTriggerMode.rawValue)")
-            // Trigger config regeneration since this affects Kanata layer activation behavior
-            NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
         }
     }
 
@@ -372,22 +384,22 @@ final class PreferencesService: @unchecked Sendable {
     /// Preset hold duration for triggering Shortcut List/navigation layer.
     var contextHUDHoldDelayPreset: ContextHUDHoldDelayPreset {
         didSet {
-            UserDefaults.standard.set(contextHUDHoldDelayPreset.rawValue, forKey: Keys.contextHUDHoldDelayPreset)
+            guard !suppressShortcutListPersistence else { return }
+            leaderDefaults.set(contextHUDHoldDelayPreset.rawValue, forKey: Keys.contextHUDHoldDelayPreset)
             AppLogger.shared.log("🎯 [Preferences] contextHUDHoldDelayPreset = \(contextHUDHoldDelayPreset.rawValue)")
-            NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
         }
     }
 
     /// Custom hold duration in milliseconds (used when preset is `.custom`).
     var contextHUDHoldDelayCustomMs: Int {
         didSet {
+            guard !suppressShortcutListPersistence else { return }
             let clamped = Self.clampedContextHUDHoldDelayCustomMs(contextHUDHoldDelayCustomMs)
             if clamped != contextHUDHoldDelayCustomMs {
                 contextHUDHoldDelayCustomMs = clamped
             } else {
-                UserDefaults.standard.set(contextHUDHoldDelayCustomMs, forKey: Keys.contextHUDHoldDelayCustomMs)
+                leaderDefaults.set(contextHUDHoldDelayCustomMs, forKey: Keys.contextHUDHoldDelayCustomMs)
                 AppLogger.shared.log("🎯 [Preferences] contextHUDHoldDelayCustomMs = \(contextHUDHoldDelayCustomMs)")
-                NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
             }
         }
     }
@@ -395,6 +407,37 @@ final class PreferencesService: @unchecked Sendable {
     /// Effective hold duration in milliseconds used by generated config.
     var contextHUDHoldDelayMs: Int {
         contextHUDHoldDelayPreset.milliseconds ?? contextHUDHoldDelayCustomMs
+    }
+
+    var shortcutListGenerationInput: ShortcutListGenerationInput {
+        ShortcutListGenerationInput(
+            triggerMode: contextHUDTriggerMode,
+            holdDelayPreset: contextHUDHoldDelayPreset,
+            customHoldDelayMs: contextHUDHoldDelayCustomMs
+        )
+    }
+
+    /// Reload only the configuration-affecting shortcut-list values after their
+    /// retained write settles. This intentionally avoids emitting the legacy
+    /// notification-driven regeneration path.
+    func reloadShortcutListGenerationInput(from defaults: UserDefaults? = nil) {
+        let source = defaults ?? leaderDefaults
+        let trigger = source.string(forKey: Keys.contextHUDTriggerMode) ?? Defaults.contextHUDTriggerMode.rawValue
+        let preset = source.string(forKey: Keys.contextHUDHoldDelayPreset) ?? Defaults.contextHUDHoldDelayPreset.rawValue
+        let custom = source.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int ?? Defaults.contextHUDHoldDelayCustomMs
+        stageShortcutListGenerationInput(ShortcutListGenerationInput(
+            triggerMode: ContextHUDTriggerMode(rawValue: trigger) ?? Defaults.contextHUDTriggerMode,
+            holdDelayPreset: ContextHUDHoldDelayPreset(rawValue: preset) ?? Defaults.contextHUDHoldDelayPreset,
+            customHoldDelayMs: Self.clampedContextHUDHoldDelayCustomMs(custom)
+        ))
+    }
+
+    func stageShortcutListGenerationInput(_ input: ShortcutListGenerationInput) {
+        suppressShortcutListPersistence = true
+        contextHUDTriggerMode = input.triggerMode
+        contextHUDHoldDelayPreset = input.holdDelayPreset
+        contextHUDHoldDelayCustomMs = input.customHoldDelayMs
+        suppressShortcutListPersistence = false
     }
 
     /// Presentation mode for KindaVim in leader-hold HUD/key list.
@@ -576,7 +619,7 @@ final class PreferencesService: @unchecked Sendable {
         contextHUDDisplayMode = ContextHUDDisplayMode(rawValue: hudModeString)
             ?? Defaults.contextHUDDisplayMode
 
-        let triggerModeString = UserDefaults.standard.string(forKey: Keys.contextHUDTriggerMode)
+        let triggerModeString = leaderDefaults.string(forKey: Keys.contextHUDTriggerMode)
             ?? Defaults.contextHUDTriggerMode.rawValue
         contextHUDTriggerMode = ContextHUDTriggerMode(rawValue: triggerModeString)
             ?? Defaults.contextHUDTriggerMode
@@ -589,17 +632,17 @@ final class PreferencesService: @unchecked Sendable {
             UserDefaults.standard.set(sanitizedTimeout, forKey: Keys.contextHUDTimeout)
         }
 
-        let holdDelayPresetString = UserDefaults.standard.string(forKey: Keys.contextHUDHoldDelayPreset)
+        let holdDelayPresetString = leaderDefaults.string(forKey: Keys.contextHUDHoldDelayPreset)
             ?? Defaults.contextHUDHoldDelayPreset.rawValue
         contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset(rawValue: holdDelayPresetString)
             ?? Defaults.contextHUDHoldDelayPreset
 
-        let storedCustomDelay = UserDefaults.standard.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
+        let storedCustomDelay = leaderDefaults.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
         let rawCustomDelay = storedCustomDelay ?? Defaults.contextHUDHoldDelayCustomMs
         let sanitizedCustomDelay = Self.clampedContextHUDHoldDelayCustomMs(rawCustomDelay)
         contextHUDHoldDelayCustomMs = sanitizedCustomDelay
         if storedCustomDelay != nil, sanitizedCustomDelay != rawCustomDelay {
-            UserDefaults.standard.set(sanitizedCustomDelay, forKey: Keys.contextHUDHoldDelayCustomMs)
+            leaderDefaults.set(sanitizedCustomDelay, forKey: Keys.contextHUDHoldDelayCustomMs)
         }
 
         let kindaVimHUDModeString = UserDefaults.standard.string(forKey: Keys.kindaVimLeaderHUDMode)

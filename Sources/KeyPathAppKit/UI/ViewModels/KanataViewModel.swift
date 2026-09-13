@@ -463,6 +463,16 @@ class KanataViewModel {
         await manager.updateLeaderKey(newKey)
     }
 
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await manager.applyShortcutListGenerationInput(input)
+    }
+
+    @discardableResult
+    func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
+        await manager.applyDeviceSelections(selections)
+    }
+
     func isCompletelyInstalled() -> Bool {
         manager.isCompletelyInstalled()
     }

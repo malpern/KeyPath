@@ -32,9 +32,11 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
+    private let deviceSelectionStore: DeviceSelectionStore
     private let synchronizePreferences: @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool
 
     @MainActor private var needsRecoveredRuntimeRefresh = false
+    @MainActor private var needsRecoveredDeviceRuntimeRestart = false
     @MainActor private(set) var ruleRecoveryRevision: UInt64 = 0
 
     let operationGate: ConfigurationOperationGate
@@ -50,7 +52,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         self.init(
             configDirectory: configDirectory,
             ruleCollectionStore: .shared,
-            customRulesStore: .shared
+            customRulesStore: .shared,
+            deviceSelectionStore: .shared
         )
     }
 
@@ -60,10 +63,12 @@ public final class ConfigurationService: FileConfigurationProviding {
         configDirectory: String?,
         ruleCollectionStore: RuleCollectionStore,
         customRulesStore: CustomRulesStore,
+        deviceSelectionStore: DeviceSelectionStore = .shared,
         synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
+        self.deviceSelectionStore = deviceSelectionStore
         self.synchronizePreferences = synchronizePreferences
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
@@ -387,6 +392,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         let pending: RecoverableRuleWrite.PendingWrite
         let configuration: KanataConfiguration
         let packUpdate: InstalledPackTracker.PreparedRecordUpdate?
+        let deviceSelections: [DeviceSelection]?
     }
 
     /// Stage the generated configuration and both source stores without notifying
@@ -398,9 +404,14 @@ public final class ConfigurationService: FileConfigurationProviding {
         packRecord: InstalledPackTracker.RecordChange? = nil,
         preferenceDefaults: UserDefaults? = PreferencesService.canonicalDefaults,
         preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
-        leaderKeyPreference: LeaderKeyPreference? = nil
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceSelections: [DeviceSelection]? = nil
     ) async throws -> RuleWrite {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            guard packRecord == nil || deviceSelections == nil else {
+                throw RecoverableRuleWrite.Failure.invalidJournal
+            }
             try await recoverPendingRuleWrite(
                 collectionStore: collectionStore,
                 customStore: customStore,
@@ -410,6 +421,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             )
             try await recoverPendingAppKeymapWrite(mutationPermit: permit)
             var targets = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            if deviceSelections != nil { targets["deviceSelection"] = await deviceSelectionStore.persistenceURL }
             if let packRecord { targets["installedPacks"] = await packRecord.tracker.persistenceURL }
             let files = targets
             let before = try await snapshotRuleFiles(files)
@@ -418,9 +430,16 @@ public final class ConfigurationService: FileConfigurationProviding {
                 packUpdate = try await packRecord.tracker.prepareUpdate(packRecord)
                 guard packUpdate?.before == before["installedPacks"] else { throw RecoverableRuleWrite.Failure.changedFile("installedPacks") }
             } else { packUpdate = nil }
+            let deviceGenerationInput: DeviceGenerationInput? = if let deviceSelections {
+                await deviceSelectionStore.generationInput(for: deviceSelections)
+            } else {
+                nil
+            }
             let newConfig = try await preparedConfiguration(
                 ruleCollections: ruleCollections, customRules: customRules,
-                leaderKeyPreference: leaderKeyPreference ?? persistedLeaderPreference(in: preferenceDefaults)
+                leaderKeyPreference: leaderKeyPreference ?? persistedLeaderPreference(in: preferenceDefaults),
+                shortcutListGenerationInput: shortcutListGenerationInput,
+                deviceGenerationInput: deviceGenerationInput
             )
             var payload = try await [
                 "config": Data(newConfig.content.utf8),
@@ -428,13 +447,14 @@ public final class ConfigurationService: FileConfigurationProviding {
                 "customRules": customStore.encodedRules(customRules)
             ]
             if let packUpdate { payload["installedPacks"] = packUpdate.contents }
+            if let deviceSelections { payload["deviceSelection"] = try await deviceSelectionStore.encodedSelections(deviceSelections) }
             let contents = payload
             let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory,
-                                               scope: packUpdate == nil ? .rules : .packRules, expectedBefore: before,
+                                               scope: deviceSelections != nil ? .deviceRules : (packUpdate == nil ? .rules : .packRules), expectedBefore: before,
                                                preferences: sendablePreferences?.value, preferenceChanges: preferenceChanges,
                                                synchronizePreferences: self.synchronizePreferences)
                 { data, url in
@@ -442,7 +462,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                     else { try RecoverableRuleWrite.durableWrite(data, url) }
                 }
             }
-            return RuleWrite(pending: pending, configuration: newConfig, packUpdate: packUpdate)
+            return RuleWrite(pending: pending, configuration: newConfig, packUpdate: packUpdate, deviceSelections: deviceSelections)
         }
     }
 
@@ -455,9 +475,13 @@ public final class ConfigurationService: FileConfigurationProviding {
             if commit {
                 await publishSavedConfiguration(write.configuration)
                 if let update = write.packUpdate { await update.tracker.publishCommittedUpdate(update) }
+                if let deviceSelections = write.deviceSelections { await deviceSelectionStore.publishSelectionsToCache(deviceSelections) }
             } else {
                 stateLock.withLock { currentConfiguration = nil }
                 if let update = write.packUpdate { await update.tracker.restorePublishedUpdate(update) }
+                if write.deviceSelections != nil {
+                    await deviceSelectionStore.publishSelectionsToCache(try await deviceSelectionStore.loadForMutation())
+                }
             }
         }
     }
@@ -494,6 +518,9 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             let packFiles = packTargets
             let rawFiles = ["config": URL(fileURLWithPath: configurationPath)]
+            let deviceFiles = files.merging([
+                "deviceSelection": await deviceSelectionStore.persistenceURL
+            ], uniquingKeysWith: { _, deviceSelectionURL in deviceSelectionURL })
             let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
             let recovered = try await performRuleFileOperation {
                 let rawRecovered = try RecoverableRuleWrite.recover(
@@ -502,14 +529,19 @@ public final class ConfigurationService: FileConfigurationProviding {
                 )
                 let packRecovered = try RecoverableRuleWrite.recover(files: packFiles, directory: directory, scope: .packRules, preferences: sendablePreferences?.value)
                 let rulesRecovered = try RecoverableRuleWrite.recover(files: files, directory: directory, preferences: sendablePreferences?.value)
-                return (raw: rawRecovered, rules: packRecovered || rulesRecovered)
+                let deviceRecovered = try RecoverableRuleWrite.recover(files: deviceFiles, directory: directory, scope: .deviceRules, preferences: sendablePreferences?.value)
+                return (raw: rawRecovered, rules: packRecovered || rulesRecovered, device: deviceRecovered)
             }
-            if recovered.raw || recovered.rules {
+            if recovered.raw || recovered.rules || recovered.device {
                 stateLock.withLock { currentConfiguration = nil }
                 needsRecoveredRuntimeRefresh = true
             }
             if recovered.rules { ruleRecoveryRevision &+= 1 }
-            return recovered.rules
+            if recovered.device {
+                await deviceSelectionStore.publishSelectionsToCache(try await deviceSelectionStore.loadForMutation())
+                needsRecoveredDeviceRuntimeRestart = true
+            }
+            return recovered.rules || recovered.device
         }
     }
 
@@ -668,13 +700,31 @@ public final class ConfigurationService: FileConfigurationProviding {
         reloadHandler: (() async -> ReloadResult)?
     ) async throws -> ReloadResult? {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
-            guard needsRecoveredRuntimeRefresh, let reloadHandler else { return nil }
+            guard needsRecoveredRuntimeRefresh, !needsRecoveredDeviceRuntimeRestart, let reloadHandler else { return nil }
             let result = await Task { @MainActor in await reloadHandler() }.value
             guard result.disposition == .applied || result.disposition == .pending else {
                 throw KeyPathError.configuration(.loadFailed(reason: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")"))
             }
             needsRecoveredRuntimeRefresh = false
             return result
+        }
+    }
+
+    /// Device targeting changes require a daemon restart: a TCP config reload
+    /// does not replace the active device-grab set. The caller owns restart
+    /// sequencing, then clears this retained recovery obligation.
+    func applyRecoveredDeviceRuntimeRestartIfNeeded(
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        restartHandler: () async -> Bool
+    ) async throws -> Bool {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            guard needsRecoveredDeviceRuntimeRestart else { return false }
+            guard await restartHandler() else {
+                throw KeyPathError.configuration(.loadFailed(reason: "Recovered device targeting could not be restarted"))
+            }
+            needsRecoveredDeviceRuntimeRestart = false
+            needsRecoveredRuntimeRefresh = false
+            return true
         }
     }
 
@@ -703,11 +753,15 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private func preparedConfiguration(
         ruleCollections: [RuleCollection], customRules: [CustomRule],
-        leaderKeyPreference: LeaderKeyPreference? = nil
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceGenerationInput: DeviceGenerationInput? = nil
     ) async throws -> KanataConfiguration {
         let newConfig = try await generateConfiguration(
             ruleCollections: ruleCollections, customRules: customRules,
-            leaderKeyPreference: leaderKeyPreference
+            leaderKeyPreference: leaderKeyPreference,
+            shortcutListGenerationInput: shortcutListGenerationInput,
+            deviceGenerationInput: deviceGenerationInput
         )
         let validation = await validateConfiguration(newConfig.content)
         guard validation.isValid else {
@@ -738,11 +792,13 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     /// Generate a Kanata configuration from rule stores without writing it.
-    public func generateConfiguration(
+    func generateConfiguration(
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = [],
         appSpecificKeys: Set<String>? = nil,
-        leaderKeyPreference: LeaderKeyPreference? = nil
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceGenerationInput: DeviceGenerationInput? = nil
     ) async throws -> KanataConfiguration {
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
@@ -771,6 +827,7 @@ public final class ConfigurationService: FileConfigurationProviding {
              PreferencesService.shared.contextHUDHoldDelayMs)
         }
         let leaderKeyPref = leaderKeyPreference ?? storedLeaderKeyPref
+        let shortcutInput = shortcutListGenerationInput
 
         // DETECT CONFLICTS BEFORE DEDUPLICATION
         // This catches cases where multiple collections map the same key, and where
@@ -795,8 +852,9 @@ public final class ConfigurationService: FileConfigurationProviding {
         let configContent = KanataConfiguration.generateFromCollections(
             combinedCollections,
             leaderKeyPreference: leaderKeyPref,
-            navActivationMode: triggerMode,
-            navHoldDelayMs: holdDelayMs,
+            navActivationMode: shortcutInput?.triggerMode ?? triggerMode,
+            navHoldDelayMs: shortcutInput?.holdDelayMs ?? holdDelayMs,
+            deviceGenerationInput: deviceGenerationInput,
             chordGroups: preservedChordGroups,
             sequences: preservedSequences,
             appSpecificKeys: appSpecificKeys

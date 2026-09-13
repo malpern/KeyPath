@@ -58,12 +58,16 @@ commit restores both the files and leader preference. Applied and pending result
 commit both. A third leader preference revision stops recovery before any file is
 rolled back and retains the journal for diagnosis.
 
-This does not yet cover logical keymap selection. Its overlay `@AppStorage`
-selection is written before the manager receives the mutation, so reconstructing
-that preimage would not be a safe transaction. Context HUD trigger/hold settings
-and device selection also regenerate configuration through standalone paths.
-Those workflows need their own bounded migration. Display-only preferences remain
-outside the journal and are preserved.
+Context HUD trigger/hold settings now join this retained write with explicit
+preimages for all three generation inputs. Device selection uses a dedicated
+journal containing its JSON file and the generated configuration; candidate
+selections are not published to the generator cache until the daemon restart is
+accepted. A rejected or interrupted device apply restores the JSON, cache, and
+generated configuration, and startup retains a restart obligation for recovered
+device targeting. Logical keymap selection remains outside this transaction:
+its overlay `@AppStorage` selection is written before the manager receives the
+mutation, so reconstructing that preimage is not yet safe. Display-only
+preferences remain outside the journal and are preserved.
 See the [consolidation baseline](../planning/consolidation-baseline.md) for paths
 and remaining gaps. UI presentation changes require discussion before implementation.
 

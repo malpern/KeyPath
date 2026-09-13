@@ -4,6 +4,7 @@ import SwiftUI
 /// Visual settings section for the Shortcut List
 struct ContextHUDSettingsSection: View {
     @Environment(\.services) private var services
+    @Environment(KanataViewModel.self) private var kanataManager
     @State private var displayMode = PreferencesService.shared.contextHUDDisplayMode
     @State private var triggerMode = PreferencesService.shared.contextHUDTriggerMode
     @State private var holdDelayPreset = PreferencesService.shared.contextHUDHoldDelayPreset
@@ -60,8 +61,7 @@ struct ContextHUDSettingsSection: View {
                         isSelected: triggerMode == .holdToShow,
                         cardWidth: SettingsOptionCard.settingsRowWidth
                     ) {
-                        triggerMode = .holdToShow
-                        services.preferences.contextHUDTriggerMode = .holdToShow
+                        applyShortcutListInput(triggerMode: .holdToShow)
                     }
                     .accessibilityIdentifier("settings-context-hud-trigger-holdToShow")
                     .accessibilityLabel("Hold trigger mode")
@@ -73,8 +73,7 @@ struct ContextHUDSettingsSection: View {
                         isSelected: triggerMode == .tapToToggle,
                         cardWidth: SettingsOptionCard.settingsRowWidth
                     ) {
-                        triggerMode = .tapToToggle
-                        services.preferences.contextHUDTriggerMode = .tapToToggle
+                        applyShortcutListInput(triggerMode: .tapToToggle)
                     }
                     .accessibilityIdentifier("settings-context-hud-trigger-tapToToggle")
                     .accessibilityLabel("Tap trigger mode")
@@ -104,8 +103,7 @@ struct ContextHUDSettingsSection: View {
                         .labelsHidden()
                         .frame(width: 140)
                         .onChange(of: holdDelayPreset) { _, newValue in
-                            services.preferences.contextHUDHoldDelayPreset = newValue
-                            customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
+                            applyShortcutListInput(holdDelayPreset: newValue)
                         }
                         .accessibilityIdentifier("settings-context-hud-hold-delay-preset")
                         .accessibilityLabel(Text(TimingCopy.leaderHoldDelay))
@@ -127,8 +125,7 @@ struct ContextHUDSettingsSection: View {
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 100)
                             .onChange(of: customHoldDelayMs) { _, newValue in
-                                services.preferences.contextHUDHoldDelayCustomMs = newValue
-                                customHoldDelayMs = services.preferences.contextHUDHoldDelayCustomMs
+                                applyShortcutListInput(customHoldDelayMs: newValue)
                             }
                             .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
                             .accessibilityLabel(Text(TimingCopy.customLeaderHoldDelayAccessibilityLabel))
@@ -142,6 +139,30 @@ struct ContextHUDSettingsSection: View {
     }
 
     // MARK: - Display Mode Card
+
+    private func applyShortcutListInput(
+        triggerMode: ContextHUDTriggerMode? = nil,
+        holdDelayPreset: ContextHUDHoldDelayPreset? = nil,
+        customHoldDelayMs: Int? = nil
+    ) {
+        let candidate = ShortcutListGenerationInput(
+            triggerMode: triggerMode ?? self.triggerMode,
+            holdDelayPreset: holdDelayPreset ?? self.holdDelayPreset,
+            customHoldDelayMs: customHoldDelayMs ?? self.customHoldDelayMs
+        )
+        Task {
+            guard await kanataManager.applyShortcutListGenerationInput(candidate) else {
+                let restored = services.preferences.shortcutListGenerationInput
+                self.triggerMode = restored.triggerMode
+                self.holdDelayPreset = restored.holdDelayPreset
+                self.customHoldDelayMs = restored.customHoldDelayMs
+                return
+            }
+            self.triggerMode = candidate.triggerMode
+            self.holdDelayPreset = candidate.holdDelayPreset
+            self.customHoldDelayMs = candidate.customHoldDelayMs
+        }
+    }
 
     private func displayModeCard(
         mode: ContextHUDDisplayMode,

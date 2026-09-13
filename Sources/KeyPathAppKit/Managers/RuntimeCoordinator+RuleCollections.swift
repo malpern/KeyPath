@@ -104,6 +104,19 @@ extension RuntimeCoordinator {
     }
 
     @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await ruleCollectionsManager.applyShortcutListGenerationInput(input)
+    }
+
+    @discardableResult
+    func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
+        await ruleCollectionsManager.applyDeviceSelections(selections) { [weak self] in
+            guard let self else { return false }
+            return await self.restartKanata(reason: "Device selection changed")
+        }
+    }
+
+    @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
         await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)
     }
