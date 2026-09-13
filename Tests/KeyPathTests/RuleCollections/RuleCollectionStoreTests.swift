@@ -54,7 +54,7 @@ final class RuleCollectionStoreTests: XCTestCase {
         )
     }
 
-    func testLoadUpgradesBuiltInCollectionsWithLatestMetadata() async throws {
+    func testLoadKeepsBuiltInCollectionsLocalUntilAnUpdateIsApproved() async throws {
         let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("rule-collections-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -81,10 +81,11 @@ final class RuleCollectionStoreTests: XCTestCase {
 
         let vim = loaded.first { $0.id == RuleCollectionIdentifier.vimNavigation }
         XCTAssertNotNil(vim)
-        XCTAssertEqual(vim?.targetLayer, .navigation)
-        XCTAssertEqual(vim?.momentaryActivator?.input, "space")
-        XCTAssertEqual(vim?.momentaryActivator?.targetLayer, .navigation)
-        XCTAssertEqual(vim?.activationHint, "Hold Leader key to enter Navigation layer")
+        XCTAssertEqual(vim?.summary, "Legacy")
+        XCTAssertEqual(vim?.targetLayer, .base)
+        XCTAssertNil(vim?.momentaryActivator)
+        XCTAssertNil(vim?.activationHint)
+        XCTAssertEqual(vim?.mappings.first?.input, "h")
     }
 
     func testSaveWritesVersionedFormat() async throws {
@@ -310,5 +311,20 @@ final class RuleCollectionStoreTests: XCTestCase {
             defaultIDs, loadedIDs,
             "Loading should merge persisted subset with all catalog defaults (including new ones)"
         )
+    }
+
+    func testCatalogUpdateBackupCopiesThePersistedCollections() async throws {
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("rule-collections-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let fileURL = tempDir.appendingPathComponent("collections.json")
+        let store = RuleCollectionStore.testStore(at: fileURL)
+        let original = RuleCollectionCatalog().defaultCollections()
+        try await store.saveCollections(original)
+
+        let backupPath = try await store.backupForCatalogUpdate()
+
+        let backupURL = try URL(fileURLWithPath: XCTUnwrap(backupPath))
+        XCTAssertEqual(try Data(contentsOf: backupURL), try Data(contentsOf: fileURL))
     }
 }

@@ -14,6 +14,7 @@ struct RulesTabView: View {
     @State private var searchQuery = ""
     @State var recommendationFocusCollectionId: UUID?
     @State private var showingResetConfirmation = false
+    @State private var showingCatalogUpdateReview = false
     @State private var showingNewRuleSheet = false
     @State var settingsToastManager = WizardToastManager()
     @State private var createButtonHovered = false
@@ -232,6 +233,18 @@ struct RulesTabView: View {
                     .frame(width: 128)
 
                 Spacer()
+
+                if !kanataManager.catalogUpdatePreviews().isEmpty {
+                    Button {
+                        showingCatalogUpdateReview = true
+                    } label: {
+                        Label("Catalog updates", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .accessibilityIdentifier("rules-catalog-updates-button")
+                    .accessibilityLabel("Review catalog updates")
+                }
 
                 Button {
                     showingResetConfirmation = true
@@ -562,6 +575,14 @@ struct RulesTabView: View {
         }
         .sheet(isPresented: $showingHomeRowModsHelp) {
             MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+        }
+        .sheet(isPresented: $showingCatalogUpdateReview) {
+            CatalogUpdateReviewSheet(
+                previews: kanataManager.catalogUpdatePreviews(),
+                onApply: { ids in
+                    await kanataManager.applyCatalogUpdates(ids: ids)
+                }
+            )
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}

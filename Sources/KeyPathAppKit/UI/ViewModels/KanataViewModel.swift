@@ -227,6 +227,14 @@ class KanataViewModel {
 
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        manager.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        await manager.applyCatalogUpdates(ids: ids)
+    }
+
     func batchEnableCollections(_ ids: [UUID]) async {
         await manager.batchEnableCollections(ids: ids)
     }
@@ -461,6 +469,16 @@ class KanataViewModel {
     /// Update the leader key for all collections that use momentary activation
     func updateLeaderKey(_ newKey: String) async {
         await manager.updateLeaderKey(newKey)
+    }
+
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await manager.applyShortcutListGenerationInput(input)
+    }
+
+    @discardableResult
+    func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
+        await manager.applyDeviceSelections(selections)
     }
 
     func isCompletelyInstalled() -> Bool {

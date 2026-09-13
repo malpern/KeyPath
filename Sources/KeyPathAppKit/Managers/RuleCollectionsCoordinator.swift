@@ -42,6 +42,19 @@ final class RuleCollectionsCoordinator {
 
     // MARK: - Rule Collection Operations
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        ruleCollectionsManager.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        let result = await ruleCollectionsManager.applyCatalogUpdates(ids: ids)
+        if result.saveResult.success {
+            applyMappings(ruleCollectionsManager.enabledMappings())
+            notifyStateChanged()
+        }
+        return result
+    }
+
     /// Toggle a rule collection's enabled state
     /// - Returns: `true` if the toggle was applied successfully
     @discardableResult

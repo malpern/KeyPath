@@ -48,6 +48,8 @@ extension KanataConfiguration {
         leaderKeyPreference: LeaderKeyPreference?,
         navActivationMode: ContextHUDTriggerMode = .tapToToggle,
         navHoldDelayMs: Int = 200,
+        connectedDevices: [ConnectedDevice] = [],
+        physicalLayout: PhysicalLayout = .macBookUS,
         globalRequirePriorIdleMs: Int = 0
     ) -> ([CollectionBlock], [AliasDefinition], [RuleCollectionLayer], [ChordMapping]) {
         var blocks: [CollectionBlock] = []
@@ -315,9 +317,9 @@ extension KanataConfiguration {
                 // Per-device switch wrapping: if this key has device overrides,
                 // wrap the output in a (switch ((device N)) ...) expression
                 if let overrides = mapping.deviceOverrides, !overrides.isEmpty {
-                    let devices = DeviceSelectionCache.shared.getConnectedDevices()
+                    let devices = connectedDevices
                     if devices.isEmpty {
-                        AppLogger.shared.debug("⚠️ [ConfigGen] Device overrides on key '\(mapping.input)' but no connected devices in cache — using default output only")
+                        AppLogger.shared.debug("⚠️ [ConfigGen] Device overrides on key '\(mapping.input)' but the generation input has no connected devices — using default output only")
                     }
                     let switchExpr = renderDeviceSwitchExpression(
                         defaultOutput: layerOutput,
@@ -359,13 +361,10 @@ extension KanataConfiguration {
                 // Skip ALL activator keys that target this layer, not just Vim's own activator
                 // This prevents blocking layer-switch keys like "w" (Nav → Window)
                 let keysToSkip = activatorKeysBySourceLayer[collection.targetLayer] ?? []
-                // Read user's selected physical layout from UserDefaults
-                let selectedLayoutId = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey) ?? LayoutPreferences.defaultLayoutId
-                let layout = PhysicalLayout.find(id: selectedLayoutId) ?? .macBookUS
                 let extraKeys = Self.navigationUnmappedKeys(
                     excluding: mappedKeys,
                     skipping: keysToSkip,
-                    layout: layout
+                    layout: physicalLayout
                 )
                 let blockedEntries = extraKeys.map { key in
                     let layerOutput = wrapWithOneShotExit(

@@ -6,6 +6,132 @@ import KeyPathRulesCore
 extension RuleCollectionsManager {
     // MARK: - Public API
 
+    // MARK: - Catalog updates
+
+    /// Return catalog changes that would alter a persisted collection. The
+    /// proposed version retains supported per-user selections through
+    /// `upgradedCollection(from:)`; it does not silently replace the local one.
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        let catalog = RuleCollectionCatalog()
+        return ruleCollections.compactMap { existing in
+            guard catalog.defaultCollections().contains(where: { $0.id == existing.id }) else { return nil }
+            let proposed = catalog.upgradedCollection(from: existing)
+            guard proposed != existing else { return nil }
+
+            let existingKeys = normalizedKeys(for: existing)
+            let proposedKeys = normalizedKeys(for: proposed)
+            let affectedKeys = existingKeys.symmetricDifference(proposedKeys).sorted()
+            let affectedLayers = Set([existing.targetLayer.displayName, proposed.targetLayer.displayName]).sorted()
+            let conflict = conflictInfo(for: proposed)
+            let conflictDescription = conflict.map {
+                "Conflicts with \($0.displayName) on \($0.keys.sorted().joined(separator: ", "))"
+            }
+
+            return CatalogUpdatePreview(
+                existing: existing,
+                proposed: proposed,
+                affectedKeys: affectedKeys,
+                affectedLayers: affectedLayers,
+                conflictDescription: conflictDescription,
+                isPackManaged: existing.owningPackID != nil
+            )
+        }
+    }
+
+    /// Re-check a selected batch against its final in-memory shape. Per-row
+    /// previews are useful for review, but two individually safe catalog
+    /// changes can still collide once both replacements are staged.
+    func combinedCatalogUpdateConflict(in previews: [CatalogUpdatePreview]) -> RuleConflictInfo? {
+        let snapshot = ruleCollections
+        defer {
+            ruleCollections = snapshot
+            refreshLayerIndicatorState()
+        }
+
+        for preview in previews {
+            guard let index = ruleCollections.firstIndex(where: { $0.id == preview.id }) else { continue }
+            ruleCollections[index] = preview.proposed
+        }
+
+        for preview in previews {
+            guard let candidate = ruleCollections.first(where: { $0.id == preview.id }),
+                  let conflict = conflictInfo(for: candidate)
+            else { continue }
+            return conflict
+        }
+        return nil
+    }
+
+    /// Apply explicitly selected, conflict-free catalog updates in one durable
+    /// mutation. Pack-owned entries remain under their pack's ownership and are
+    /// never changed here. A backup is created before the mutation so the user
+    /// can always restore their prior local version.
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        guard !ids.isEmpty else {
+            return CatalogUpdateApplicationResult(
+                saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: ["No catalog updates were selected."]))),
+                backupPath: nil,
+                appliedCollectionIDs: []
+            )
+        }
+
+        do {
+            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+                try await recoverRuleState(mutationPermit: permit)
+                let previews = catalogUpdatePreviews().filter { ids.contains($0.id) }
+                guard previews.count == ids.count else {
+                    return CatalogUpdateApplicationResult(
+                        saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: ["One or more catalog updates are no longer available."]))),
+                        backupPath: nil,
+                        appliedCollectionIDs: []
+                    )
+                }
+                guard previews.allSatisfy(\.canApply) else {
+                    return CatalogUpdateApplicationResult(
+                        saveResult: .failure(KeyPathError
+                            .configuration(.validationFailed(errors: ["Catalog updates with pack ownership or mapping conflicts must be kept or resolved outside this update flow."]))),
+                        backupPath: nil,
+                        appliedCollectionIDs: []
+                    )
+                }
+
+                if let conflict = combinedCatalogUpdateConflict(in: previews) {
+                    return CatalogUpdateApplicationResult(
+                        saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: [
+                            "Selected catalog updates conflict with \(conflict.displayName) on \(conflict.keys.sorted().joined(separator: ", ")). Keep Mine or apply a smaller, conflict-free selection."
+                        ]))),
+                        backupPath: nil,
+                        appliedCollectionIDs: []
+                    )
+                }
+
+                let backupPath = try await ruleCollectionStore.backupForCatalogUpdate()
+                let snapshot = snapshotRuleState()
+                for preview in previews {
+                    guard let index = ruleCollections.firstIndex(where: { $0.id == preview.id }) else { continue }
+                    ruleCollections[index] = preview.proposed
+                }
+                refreshLayerIndicatorState()
+                let saveResult = await commitRuleMutationResult(
+                    snapshot: snapshot,
+                    failureContext: "catalog updates",
+                    mutationPermit: permit
+                )
+                return CatalogUpdateApplicationResult(
+                    saveResult: saveResult,
+                    backupPath: backupPath,
+                    appliedCollectionIDs: saveResult.success ? ids : []
+                )
+            }
+        } catch {
+            return CatalogUpdateApplicationResult(
+                saveResult: .failure(error),
+                backupPath: nil,
+                appliedCollectionIDs: []
+            )
+        }
+    }
+
     /// Get all enabled mappings from collections and custom rules
     func enabledMappings() -> [KeyMapping] {
         ruleCollections.enabledMappings() + customRules.enabledMappings()

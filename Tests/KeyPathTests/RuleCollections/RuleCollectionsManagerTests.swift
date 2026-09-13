@@ -34,6 +34,101 @@ final class RuleCollectionsManagerTests: XCTestCase {
     // MARK: - Existing Tests
 
     @MainActor
+    func testCatalogUpdatePreviewDefaultsToLocalRuleAndShowsAffectedKeys() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var local = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation }
+        )
+        local.summary = "My local navigation"
+        local.mappings = [KeyMapping(input: "q", action: .keystroke(key: "left"))]
+        manager.ruleCollections = [local]
+
+        let preview = try XCTUnwrap(manager.catalogUpdatePreviews().first { $0.id == local.id })
+
+        XCTAssertEqual(preview.existing.summary, "My local navigation")
+        XCTAssertTrue(preview.affectedKeys.contains("q"))
+        XCTAssertFalse(preview.isPackManaged)
+        XCTAssertTrue(preview.canApply)
+    }
+
+    @MainActor
+    func testCatalogUpdatePreviewDoesNotOfferPackManagedRule() async throws {
+        let (manager, _) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var local = try XCTUnwrap(
+            RuleCollectionCatalog().defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation }
+        )
+        local.summary = "My local navigation"
+        local.owningPackID = "example-pack"
+        manager.ruleCollections = [local]
+
+        let preview = try XCTUnwrap(manager.catalogUpdatePreviews().first { $0.id == local.id })
+
+        XCTAssertTrue(preview.isPackManaged)
+        XCTAssertFalse(preview.canApply)
+    }
+
+    @MainActor
+    func testApplyCatalogUpdateBacksUpLocalRuleAndReportsApplied() async throws {
+        let (manager, tempDir) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        var collections = RuleCollectionCatalog().defaultCollections()
+        let index = try XCTUnwrap(collections.firstIndex { $0.id == RuleCollectionIdentifier.vimNavigation })
+        collections[index].summary = "My local navigation"
+        try await manager.ruleCollectionStore.saveCollections(collections)
+        manager.ruleCollections = collections
+        manager.onRulesChanged = {
+            ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied)
+        }
+
+        let result = await manager.applyCatalogUpdates(ids: [RuleCollectionIdentifier.vimNavigation])
+
+        XCTAssertTrue(result.saveResult.success)
+        XCTAssertEqual(result.appliedCollectionIDs, [RuleCollectionIdentifier.vimNavigation])
+        XCTAssertTrue(try FileManager.default.fileExists(atPath: XCTUnwrap(result.backupPath)))
+        XCTAssertNotEqual(
+            manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.vimNavigation }?.summary,
+            "My local navigation"
+        )
+        XCTAssertTrue(FileManager.default.fileExists(atPath: tempDir.appendingPathComponent("RuleCollections.json").path))
+    }
+
+    @MainActor
+    func testCombinedCatalogUpdateConflictRejectsBatchBeforeBackup() async throws {
+        let (manager, tempDir) = try await createTestManager()
+        defer { TestEnvironment.forceTestMode = false }
+
+        let firstID = UUID()
+        let secondID = UUID()
+        let first = RuleCollection(name: "First", summary: "Local", category: .custom, mappings: [
+            KeyMapping(input: "a", action: .keystroke(key: "left"))
+        ], isEnabled: true, icon: "1.circle")
+        let second = RuleCollection(name: "Second", summary: "Local", category: .custom, mappings: [
+            KeyMapping(input: "b", action: .keystroke(key: "right"))
+        ], isEnabled: true, icon: "2.circle")
+        let localFirst = RuleCollection(id: firstID, name: first.name, summary: first.summary, category: first.category, mappings: first.mappings, isEnabled: true, icon: first.icon)
+        let localSecond = RuleCollection(id: secondID, name: second.name, summary: second.summary, category: second.category, mappings: second.mappings, isEnabled: true, icon: second.icon)
+        var proposedFirst = localFirst
+        proposedFirst.mappings = [KeyMapping(input: "x", action: .keystroke(key: "left"))]
+        var proposedSecond = localSecond
+        proposedSecond.mappings = [KeyMapping(input: "x", action: .keystroke(key: "right"))]
+        manager.ruleCollections = [localFirst, localSecond]
+
+        let previews = [
+            CatalogUpdatePreview(existing: localFirst, proposed: proposedFirst, affectedKeys: ["a", "x"], affectedLayers: ["Base"], conflictDescription: nil, isPackManaged: false),
+            CatalogUpdatePreview(existing: localSecond, proposed: proposedSecond, affectedKeys: ["b", "x"], affectedLayers: ["Base"], conflictDescription: nil, isPackManaged: false)
+        ]
+
+        XCTAssertNotNil(manager.combinedCatalogUpdateConflict(in: previews))
+        XCTAssertEqual(manager.ruleCollections, [localFirst, localSecond])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tempDir.appendingPathComponent(".backups").path))
+    }
+
+    @MainActor
     func testToggleRehydratesMissingCatalogCollection() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }

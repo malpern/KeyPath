@@ -292,7 +292,11 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
         )
 
         XCTAssertFalse(applied)
-        XCTAssertEqual(regenerationCount, 1)
+        XCTAssertEqual(
+            regenerationCount,
+            0,
+            "Mutation admission must reject an unreadable source before generating a candidate configuration"
+        )
         XCTAssertEqual(
             reloadCount,
             0,

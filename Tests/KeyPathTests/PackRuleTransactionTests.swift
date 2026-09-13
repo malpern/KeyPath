@@ -21,6 +21,8 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         manager.ruleCollections = []
         manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42))]
         try await service.saveRuleState(ruleCollections: [], customRules: manager.customRules, collectionStore: collections, customStore: rules)
+        manager.ruleCollections = try await collections.loadForMutation()
+        manager.customRules = try await rules.loadForMutation()
         tracker = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json"))
         try await tracker.upsert(InstalledPackRecord(packID: "unrelated", version: "1", installedAt: Date(timeIntervalSince1970: 42)))
         pack = makePack(inputs: ["f13", "f15"])
@@ -64,6 +66,13 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     func testDeclinedCollectionConflictPreservesExistingRuleAndExplainsFailure() async throws {
         pack = PackRegistry.capsLockToEscape
         manager.customRules.append(CustomRule(input: "caps", action: .keystroke(key: "f13")))
+        try await manager.configurationService.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: manager.ruleCollectionStore,
+            customStore: manager.customRulesStore
+        )
+        manager.customRules = try await manager.customRulesStore.loadForMutation()
         let before = try snapshot()
         let originalRules = manager.customRules
         manager.onConflictResolution = { _ in .keepExisting }
@@ -411,7 +420,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     func testRejectedUninstallRestoresRulesAndInstalledRecord() async throws {
         _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
         let before = try snapshot()
-        let rules = manager.customRules
+        let rules = try await manager.customRulesStore.loadForMutation()
         var reloads = 0
         manager.onRulesChanged = {
             reloads += 1
@@ -429,7 +438,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     func testUninstallMetadataWriteFailureRestoresExactRevisionWithoutReload() async throws {
         _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
         let before = try snapshot()
-        let rules = manager.customRules
+        let rules = try await manager.customRulesStore.loadForMutation()
         let failingTracker = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json")) { _, _ in
             throw CocoaError(.fileWriteNoPermission)
         }
@@ -468,12 +477,24 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     func testMissingTimingCollectionDoesNotWriteMetadata() async throws {
         try await prepareHomeRowSettings()
         manager.ruleCollections = []
+        try await manager.configurationService.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: manager.ruleCollectionStore,
+            customStore: manager.customRulesStore
+        )
         try await assertInvalidTimingTargetDoesNotWrite()
     }
 
     func testMalformedTimingCollectionDoesNotWriteMetadata() async throws {
         try await prepareHomeRowSettings()
         manager.ruleCollections[0].configuration = .list
+        try await manager.configurationService.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: manager.ruleCollectionStore,
+            customStore: manager.customRulesStore
+        )
         try await assertInvalidTimingTargetDoesNotWrite()
     }
 

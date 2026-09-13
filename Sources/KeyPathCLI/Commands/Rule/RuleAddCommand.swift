@@ -3,7 +3,7 @@ import Foundation
 import KeyPathAppKit
 import KeyPathRulesCore
 
-struct RuleAdd: AsyncParsableCommand {
+struct RuleAdd: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "add",
         abstract: "Create or modify a key remapping"

@@ -3,6 +3,33 @@ import KeyPathRulesCore
 import XCTest
 
 final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
+    func testExplicitGenerationInputsDoNotConsultDeviceCache() {
+        let cachedDevice = ConnectedDevice(
+            hash: "cache-device",
+            vendorID: 1,
+            productID: 1,
+            productKey: "Cached Keyboard",
+            isVirtualHID: true
+        )
+        let explicitDevice = ConnectedDevice(
+            hash: "explicit-device",
+            vendorID: 2,
+            productID: 2,
+            productKey: "Explicit Keyboard",
+            isVirtualHID: true
+        )
+        DeviceSelectionCache.shared.updateConnectedDevices([cachedDevice])
+        defer { DeviceSelectionCache.shared.reset() }
+
+        let inputs = KanataGenerationInputs(
+            deviceGenerationInput: DeviceGenerationInput(selections: [], connectedDevices: [explicitDevice])
+        )
+        let config = KanataConfiguration.generateFromCollections([], inputs: inputs)
+
+        assertContains(config, "explicit-device")
+        XCTAssertFalse(config.contains("cache-device"))
+    }
+
     func testBaseConfigIncludesDefaultFunctionKeys() {
         let config = KanataConfiguration.generateFromCollections([])
 

@@ -4,6 +4,7 @@ import SwiftUI
 /// Displays connected keyboards with toggles to enable/disable remapping per device.
 /// VirtualHID devices are filtered out (never shown to users).
 struct DeviceSelectionView: View {
+    @Environment(KanataViewModel.self) private var kanataManager
     @State private var connectedDevices: [ConnectedDevice] = []
     @State private var selections: [String: DeviceSelection] = [:]
     @State private var isLoading = true
@@ -46,6 +47,7 @@ struct DeviceSelectionView: View {
                     }
                     .padding(.top, 4)
                 }
+                .disabled(isRestarting)
 
                 Spacer(minLength: 0)
                 footerView
@@ -53,13 +55,6 @@ struct DeviceSelectionView: View {
         }
         .task {
             await loadDevices()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .deviceSelectionApplyCompleted)) { notification in
-            isRestarting = false
-            let success = notification.userInfo?["success"] as? Bool ?? false
-            if success {
-                needsRestart = false
-            }
         }
     }
 
@@ -202,12 +197,8 @@ struct DeviceSelectionView: View {
             }
         }
 
-        // Persist updated lastSeen timestamps
-        do {
-            try await DeviceSelectionStore.shared.saveSelections(Array(selections.values))
-        } catch {
-            AppLogger.shared.warn("⚠️ [DeviceSelectionView] Failed to persist lastSeen updates: \(error)")
-        }
+        // Device discovery updates the draft only. It joins the durable
+        // selection/configuration transaction when the user explicitly applies.
     }
 
     // MARK: - Actions
@@ -229,21 +220,19 @@ struct DeviceSelectionView: View {
             )
         }
         needsRestart = true
-
-        // Persist immediately so selections survive tab navigation
-        Task {
-            do {
-                try await DeviceSelectionStore.shared.saveSelections(Array(selections.values))
-            } catch {
-                AppLogger.shared.warn("⚠️ [DeviceSelectionView] Failed to persist toggle: \(error)")
-            }
-        }
     }
 
     private func applyChanges() {
         isRestarting = true
         Task {
-            NotificationCenter.default.post(name: .deviceSelectionChanged, object: nil)
+            let applied = await kanataManager.applyDeviceSelections(Array(selections.values))
+            isRestarting = false
+            if applied {
+                needsRestart = false
+            } else {
+                errorMessage = "KeyPath could not apply the selected keyboards. Your previous selection was restored."
+                await loadDevices()
+            }
         }
     }
 }

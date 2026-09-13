@@ -5,6 +5,14 @@ import KeyPathRulesCore
 extension RuntimeCoordinator {
     // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        ruleCollectionsCoordinator.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        await ruleCollectionsCoordinator.applyCatalogUpdates(ids: ids)
+    }
+
     func replaceRuleCollections(_ collections: [RuleCollection]) async {
         await ruleCollectionsCoordinator.replaceRuleCollections(collections)
     }
@@ -101,6 +109,19 @@ extension RuntimeCoordinator {
 
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsCoordinator.updateLeaderKey(newKey)
+    }
+
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await ruleCollectionsManager.applyShortcutListGenerationInput(input)
+    }
+
+    @discardableResult
+    func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
+        await ruleCollectionsManager.applyDeviceSelections(selections) { [weak self] in
+            guard let self else { return false }
+            return await restartKanata(reason: "Device selection changed")
+        }
     }
 
     @discardableResult

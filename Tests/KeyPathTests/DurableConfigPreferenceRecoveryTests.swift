@@ -164,7 +164,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
     func testManagerCommitsAppliedAndPendingLeaderButRestoresRejectedLeader() async throws {
         for disposition: ReloadDisposition in [.applied, .pending, .rejected] {
             let caseDirectory = directory.appendingPathComponent(String(describing: disposition))
-            let (manager, _) = try makeManager(at: caseDirectory)
+            let (manager, _) = try await makeManager(at: caseDirectory)
             try preferencesReset(to: .default)
             manager.ruleCollections = try leaderCollections()
             var reloadCount = 0
@@ -195,9 +195,156 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
     }
 
     @MainActor
+    func testShortcutListSettingsCommitOnlyWithAcceptedGeneratedConfiguration() async throws {
+        let baseline = ShortcutListGenerationInput(
+            triggerMode: .holdToShow,
+            holdDelayPreset: .long,
+            customHoldDelayMs: 200
+        )
+        let candidate = ShortcutListGenerationInput(
+            triggerMode: .tapToToggle,
+            holdDelayPreset: .custom,
+            customHoldDelayMs: 444
+        )
+
+        for disposition: ReloadDisposition in [.applied, .pending, .rejected] {
+            let caseDirectory = directory.appendingPathComponent("shortcut-\(disposition)")
+            defaults.set(baseline.triggerMode.rawValue, forKey: "KeyPath.ContextHUD.TriggerMode")
+            defaults.set(baseline.holdDelayPreset.rawValue, forKey: "KeyPath.ContextHUD.HoldDelayPreset")
+            defaults.set(baseline.customHoldDelayMs, forKey: "KeyPath.ContextHUD.HoldDelayCustomMs")
+            let (manager, _) = try await makeManager(at: caseDirectory)
+            manager.preferencesService.reloadShortcutListGenerationInput(from: defaults)
+            manager.ruleCollections = try leaderCollections()
+            var reloadCount = 0
+            manager.onRulesChanged = {
+                reloadCount += 1
+                return ReloadResult(
+                    success: disposition == .applied,
+                    response: nil,
+                    errorMessage: disposition == .rejected ? "rejected" : nil,
+                    protocol: nil,
+                    disposition: disposition
+                )
+            }
+
+            let success = await manager.applyShortcutListGenerationInput(candidate)
+            XCTAssertEqual(success, disposition != .rejected)
+            let expected = disposition == .rejected ? baseline : candidate
+            XCTAssertEqual(defaults.string(forKey: "KeyPath.ContextHUD.TriggerMode"), expected.triggerMode.rawValue)
+            XCTAssertEqual(defaults.string(forKey: "KeyPath.ContextHUD.HoldDelayPreset"), expected.holdDelayPreset.rawValue)
+            XCTAssertEqual(defaults.object(forKey: "KeyPath.ContextHUD.HoldDelayCustomMs") as? Int, expected.customHoldDelayMs)
+            XCTAssertEqual(manager.preferencesService.shortcutListGenerationInput, expected)
+            XCTAssertEqual(reloadCount, disposition == .rejected ? 2 : 1)
+        }
+    }
+
+    @MainActor
+    func testDeviceSelectionsCommitOnlyAfterRestartAndRestoreOnRejection() async throws {
+        for restartSucceeds in [true, false] {
+            let caseDirectory = directory.appendingPathComponent("device-\(restartSucceeds)")
+            let cache = DeviceSelectionCache()
+            let deviceStore = DeviceSelectionStore.testStore(
+                at: caseDirectory.appendingPathComponent("DeviceSelection.json"), cache: cache
+            )
+            cache.updateConnectedDevices([
+                ConnectedDevice(hash: "a", vendorID: 1, productID: 2, productKey: "Apple Keyboard", isVirtualHID: false)
+            ])
+            let baseline = DeviceSelection(hash: "a", productKey: "Apple Keyboard", isEnabled: true, lastSeen: .distantPast)
+            let candidate = DeviceSelection(hash: "a", productKey: "Apple Keyboard", isEnabled: false, lastSeen: .now)
+            try await deviceStore.saveSelections([baseline])
+            try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
+            let (manager, _) = try await makeManager(at: caseDirectory, deviceSelectionStore: deviceStore)
+            manager.ruleCollections = try leaderCollections()
+            let generated = await manager.regenerateConfigFromCollections(skipReload: true)
+            XCTAssertTrue(generated)
+            let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
+            let beforeConfig = try Data(contentsOf: configURL)
+            var restartCount = 0
+
+            let success = await manager.applyDeviceSelections([candidate]) {
+                restartCount += 1
+                return restartSucceeds
+            }
+
+            XCTAssertEqual(success, restartSucceeds)
+            XCTAssertEqual(restartCount, restartSucceeds ? 1 : 2)
+            let expected = restartSucceeds ? candidate : baseline
+            let persistedSelections = try await deviceStore.loadForMutation()
+            let cachedSelections = cache.allSelections()
+            XCTAssertEqual(persistedSelections.count, 1)
+            XCTAssertEqual(cachedSelections.count, 1)
+            XCTAssertEqual(persistedSelections.first?.hash, expected.hash)
+            XCTAssertEqual(persistedSelections.first?.productKey, expected.productKey)
+            XCTAssertEqual(persistedSelections.first?.isEnabled, expected.isEnabled)
+            XCTAssertEqual(cachedSelections.first?.hash, expected.hash)
+            XCTAssertEqual(cachedSelections.first?.productKey, expected.productKey)
+            XCTAssertEqual(cachedSelections.first?.isEnabled, expected.isEnabled)
+            let persistedConfig = try Data(contentsOf: configURL)
+            if restartSucceeds {
+                XCTAssertNotEqual(persistedConfig, beforeConfig)
+                XCTAssertTrue(String(decoding: persistedConfig, as: UTF8.self).contains("macos-dev-names-include"))
+            } else {
+                XCTAssertEqual(persistedConfig, beforeConfig)
+            }
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: RecoverableRuleWrite.journalURL(caseDirectory, scope: .deviceRules).path
+            ))
+        }
+    }
+
+    @MainActor
+    func testInterruptedDeviceWriteRestoresConfigSelectionAndRequiresRestart() async throws {
+        let caseDirectory = directory.appendingPathComponent("device-crash")
+        let cache = DeviceSelectionCache()
+        let deviceStore = DeviceSelectionStore.testStore(
+            at: caseDirectory.appendingPathComponent("DeviceSelection.json"), cache: cache
+        )
+        cache.updateConnectedDevices([
+            ConnectedDevice(hash: "a", vendorID: 1, productID: 2, productKey: "Apple Keyboard", isVirtualHID: false)
+        ])
+        let baseline = DeviceSelection(hash: "a", productKey: "Apple Keyboard", isEnabled: true, lastSeen: .distantPast)
+        let candidate = DeviceSelection(hash: "a", productKey: "Apple Keyboard", isEnabled: false, lastSeen: .now)
+        try await deviceStore.saveSelections([baseline])
+        try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
+        let (manager, service) = try await makeManager(at: caseDirectory, deviceSelectionStore: deviceStore)
+        manager.ruleCollections = try leaderCollections()
+        let generated = await manager.regenerateConfigFromCollections(skipReload: true)
+        XCTAssertTrue(generated)
+        let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
+        let beforeConfig = try Data(contentsOf: configURL)
+
+        try await service.operationGate.withOperation { @MainActor permit in
+            _ = try await service.stageRuleState(
+                ruleCollections: manager.ruleCollections, customRules: manager.customRules,
+                collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
+                mutationPermit: permit, deviceSelections: [candidate]
+            )
+        }
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: RecoverableRuleWrite.journalURL(caseDirectory, scope: .deviceRules).path
+        ))
+
+        _ = try await service.recoverPendingRuleWrite(
+            collectionStore: manager.ruleCollectionStore,
+            customStore: manager.customRulesStore
+        )
+        XCTAssertEqual(try Data(contentsOf: configURL), beforeConfig)
+        let restored = try await deviceStore.loadForMutation()
+        XCTAssertEqual(restored.first?.isEnabled, baseline.isEnabled)
+        XCTAssertEqual(cache.allSelections().first?.isEnabled, baseline.isEnabled)
+        var restartCount = 0
+        let handled = try await service.applyRecoveredDeviceRuntimeRestartIfNeeded {
+            restartCount += 1
+            return true
+        }
+        XCTAssertTrue(handled)
+        XCTAssertEqual(restartCount, 1)
+    }
+
+    @MainActor
     func testManagerRestoresLeaderWhenDurabilityBarrierFails() async throws {
         let barrierCalls = LockedCounter()
-        let (manager, _) = try makeManager(at: directory, synchronizePreferences: { _ in
+        let (manager, _) = try await makeManager(at: directory, synchronizePreferences: { _ in
             barrierCalls.increment()
             return false
         })
@@ -222,7 +369,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
 
     @MainActor
     func testRootMutationRefreshesLeaderCommittedByAnotherServiceBeforeRollback() async throws {
-        let (manager, _) = try makeManager(at: directory)
+        let (manager, _) = try await makeManager(at: directory)
         try preferencesReset(to: .default)
         manager.ruleCollections = try leaderCollections()
         let newer = LeaderKeyPreference(key: "f17", targetLayer: .navigation, enabled: true)
@@ -238,7 +385,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
 
     @MainActor
     func testManagerRejectsPreferenceChangedAfterSnapshotBeforeJournal() async throws {
-        let (manager, _) = try makeManager(at: directory)
+        let (manager, _) = try await makeManager(at: directory)
         try preferencesReset(to: .default)
         manager.ruleCollections = try leaderCollections()
         let beforeFiles = ruleFiles(at: directory)
@@ -263,7 +410,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
 
     @MainActor
     func testBootstrapRecoversInterruptedLeaderAndRuleRevision() async throws {
-        let (stagingManager, stagingService) = try makeManager(at: directory)
+        let (stagingManager, stagingService) = try await makeManager(at: directory)
         try preferencesReset(to: .default)
         stagingManager.ruleCollections = try leaderCollections()
         let attempted = LeaderKeyPreference(key: "tab", targetLayer: .navigation, enabled: true)
@@ -284,7 +431,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
         }
         XCTAssertEqual(try storedLeader(defaults), attempted)
 
-        let (recoveringManager, _) = try makeManager(at: directory)
+        let (recoveringManager, _) = try await makeManager(at: directory)
         recoveringManager.onRulesChanged = {
             ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied)
         }
@@ -306,6 +453,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
             "config": directory.appendingPathComponent("keypath.kbd"),
             "collections": directory.appendingPathComponent("RuleCollections.json"),
             "customRules": directory.appendingPathComponent("CustomRules.json"),
+            "deviceTargetingManifest": directory.appendingPathComponent("keypath-device-targeting.manifest"),
         ]
         for (role, url) in files {
             try Data("before-\(role)".utf8).write(to: url)
@@ -350,8 +498,9 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
     @MainActor
     private func makeManager(
         at directory: URL,
+        deviceSelectionStore: DeviceSelectionStore = .shared,
         synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
-    ) throws -> (RuleCollectionsManager, ConfigurationService) {
+    ) async throws -> (RuleCollectionsManager, ConfigurationService) {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
@@ -359,8 +508,20 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
             configDirectory: directory.path,
             ruleCollectionStore: collections,
             customRulesStore: rules,
+            deviceSelectionStore: deviceSelectionStore,
             synchronizePreferences: synchronizePreferences
         )
+        // Root mutations refresh their persisted source state before snapshotting.
+        // RuleCollectionStore merges omitted catalog entries back in, so persist the
+        // full catalog with every non-leader collection disabled. That is the same
+        // effective source model the fixture uses, without relying on a missing-file
+        // fallback that enables unrelated mappings.
+        var sourceCollections = RuleCollectionCatalog().defaultCollections()
+        for index in sourceCollections.indices where sourceCollections[index].id != RuleCollectionIdentifier.leaderKey {
+            sourceCollections[index].isEnabled = false
+        }
+        try await collections.saveCollections(sourceCollections)
+        try await rules.saveRules([])
         let preferences = PreferencesService(leaderDefaults: defaults)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collections,

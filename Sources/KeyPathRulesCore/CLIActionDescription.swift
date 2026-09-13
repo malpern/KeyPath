@@ -1,10 +1,10 @@
 import Foundation
-import KeyPathRulesCore
 
-// MARK: - CLI–GUI Parity Guard
-
-// Exhaustive switches on KeyAction and MappingBehavior ensure the CLI won't
-// compile if a new case is added without CLI support.
+/// Stable action and behavior descriptions shared by the CLI help surface.
+public struct CLISchemaEntry: Codable, Sendable {
+    public let name: String
+    public let description: String
+}
 
 public extension KeyAction {
     var cliSchemaName: String {
@@ -45,11 +45,11 @@ public extension KeyAction {
 
     static var allSchemaDescriptions: [CLISchemaEntry] {
         let representative: [KeyAction] = [
-            .keystroke(key: ""), .hyper, .meh,
-            .launchApp(name: "", bundleId: nil), .openURL(""), .openFolder(path: "", name: nil),
-            .runScript(path: "", name: nil), .systemAction(id: ""), .notify(title: "", body: nil, sound: false),
-            .windowAction(position: ""), .fakeKey(name: "", action: .tap), .activateLayer(name: ""),
-            .rawKanata(""),
+            .keystroke(key: ""), .hyper, .meh, .launchApp(name: "", bundleId: nil),
+            .openURL(""), .openFolder(path: "", name: nil), .runScript(path: "", name: nil),
+            .systemAction(id: ""), .notify(title: "", body: nil, sound: false),
+            .windowAction(position: ""), .fakeKey(name: "", action: .tap),
+            .activateLayer(name: ""), .rawKanata("")
         ]
         return representative.map { CLISchemaEntry(name: $0.cliSchemaName, description: $0.cliSchemaDescription) }
     }
@@ -77,15 +77,9 @@ public extension MappingBehavior {
     static var allSchemaDescriptions: [CLISchemaEntry] {
         let representative: [MappingBehavior] = [
             .dualRole(DualRoleBehavior(tapAction: .empty, holdAction: .empty)),
-            .tapOrTapDance(.tap),
-            .macro(MacroBehavior()),
-            .chord(ChordBehavior(keys: [], output: .empty)),
+            .tapOrTapDance(.tap), .macro(MacroBehavior()),
+            .chord(ChordBehavior(keys: [], output: .empty))
         ]
         return representative.map { CLISchemaEntry(name: $0.cliSchemaName, description: $0.cliSchemaDescription) }
     }
-}
-
-public struct CLISchemaEntry: Codable, Sendable {
-    public let name: String
-    public let description: String
 }

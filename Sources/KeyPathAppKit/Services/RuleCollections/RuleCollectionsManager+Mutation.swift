@@ -3,6 +3,82 @@ import KeyPathCore
 import KeyPathRulesCore
 
 extension RuleCollectionsManager {
+    /// Persist shortcut-list generation settings only with the generated
+    /// configuration that uses them. The preference service keeps its prior
+    /// in-memory value until the retained write is accepted or deferred.
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
+            let defaults = preferencesService.persistenceDefaults
+            let changes: [RecoverableRuleWrite.PreferenceChange]
+            do {
+                changes = try [
+                    .contextHUDTriggerMode(
+                        before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key),
+                        after: input.triggerMode.rawValue
+                    ),
+                    .contextHUDHoldDelayPreset(
+                        before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key),
+                        after: input.holdDelayPreset.rawValue
+                    ),
+                    .contextHUDHoldDelayCustomMs(
+                        before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key),
+                        after: input.customHoldDelayMs
+                    )
+                ]
+            } catch {
+                onError?(error.localizedDescription)
+                return false
+            }
+
+            let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
+                manager: self,
+                mutationPermit: permit,
+                preferenceChanges: changes,
+                shortcutListGenerationInput: input,
+                reloadHandler: onRulesChanged
+            )
+            guard result.success else { return false }
+            preferencesService.reloadShortcutListGenerationInput(from: defaults)
+            return true
+        }
+    }
+
+    /// Apply device targeting as a retained configuration write. The candidate
+    /// selection is deliberately not published to the synchronous cache until
+    /// the daemon has restarted successfully; a rejected restart restores both
+    /// the selection file and the previous generated configuration.
+    @discardableResult
+    func applyDeviceSelections(
+        _ selections: [DeviceSelection],
+        restartHandler: @escaping @MainActor @Sendable () async -> Bool
+    ) async -> Bool {
+        await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
+            let reloadHandler: () async -> ReloadResult = {
+                let restarted = await restartHandler()
+                return ReloadResult(
+                    success: restarted,
+                    response: nil,
+                    errorMessage: restarted ? nil : "Kanata could not restart with the selected keyboards",
+                    protocol: nil,
+                    disposition: restarted ? .applied : .rejected
+                )
+            }
+            let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
+                manager: self,
+                mutationPermit: permit,
+                deviceSelections: selections,
+                reloadHandler: reloadHandler
+            )
+            if result.success {
+                NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
+            }
+            return result.success
+        }
+    }
+
     /// Admission precedes snapshots and mutation. Nested internal calls carry an
     /// explicit permit; callbacks without one fail rather than deadlock/reenter.
     func withRuleMutation<Result: Sendable>(
@@ -22,7 +98,8 @@ extension RuleCollectionsManager {
         }
     }
 
-    /// Recover interrupted source writes before taking the next editor snapshot.
+    /// Recover interrupted source writes and refresh normally committed source
+    /// state before taking the next root-editor snapshot.
     func recoverAndSnapshotRuleState(mutationPermit: ConfigurationOperationGate.Permit) async -> RuleStateSnapshot? {
         do {
             try await recoverRuleState(mutationPermit: mutationPermit)
@@ -45,24 +122,45 @@ extension RuleCollectionsManager {
         if pendingLeaderKeyPreference == nil {
             preferencesService.reloadLeaderKeyPreference(from: preferencesService.persistenceDefaults)
         }
-        try await refreshRecoveredRuleStateIfNeeded(recovered, mutationPermit: mutationPermit)
+        try await refreshRuleStateAtMutationAdmission(
+            recovered: recovered,
+            mutationPermit: mutationPermit
+        )
     }
 
-    /// Do not let a retry use stale arrays after journal recovery succeeded but
-    /// source decoding failed. Clear the requirement only after both stores load.
-    func refreshRecoveredRuleStateIfNeeded(_ recovered: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
-        needsRecoveredRuleStateRefresh = needsRecoveredRuleStateRefresh || recovered
+    /// A cooperating peer can commit a new source revision without leaving a
+    /// recovery journal. Reload once after this operation acquires its lease so
+    /// a later rejected edit cannot restore the manager's stale in-memory arrays.
+    /// Do not reload again for trusted nested calls: they intentionally operate
+    /// on the candidate staged by their enclosing root operation.
+    func refreshRuleStateAtMutationAdmission(
+        recovered: Bool,
+        mutationPermit: ConfigurationOperationGate.Permit
+    ) async throws {
+        let needsRefresh = lastRuleStateRefreshOperationID != mutationPermit.operationID
+            || needsRecoveredRuleStateRefresh
+            || recovered
             || observedRuleRecoveryRevision != configurationService.ruleRecoveryRevision
-        if needsRecoveredRuleStateRefresh {
-            let collections = await ruleCollectionStore.loadCollectionsDetailed()
-            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
-                throw KeyPathError.configuration(.loadFailed(reason: "Recovered rule collections could not be read completely. No edit was made."))
-            }
+        if needsRefresh {
+            let collectionSourceURL = await ruleCollectionStore.persistenceURL
+            let customRuleSourceURL = await customRulesStore.persistenceURL
+            let hasPersistedCollections = FileManager.default.fileExists(atPath: collectionSourceURL.path)
+            let hasPersistedCustomRules = FileManager.default.fileExists(atPath: customRuleSourceURL.path)
+            let collections = try await ruleCollectionStore.loadForMutation()
             let rules = try await customRulesStore.loadForMutation()
-            ruleCollections = RuleCollectionDeduplicator.dedupe(collections.collections)
-            customRules = rules
+            // A missing source has no newer revision to recover. Keep the
+            // manager's bootstrap/test state until its first successful save;
+            // an existing (including intentionally empty) file remains the
+            // authoritative source and malformed data still fails closed.
+            if hasPersistedCollections {
+                ruleCollections = RuleCollectionDeduplicator.dedupe(collections)
+            }
+            if hasPersistedCustomRules {
+                customRules = rules
+            }
             needsRecoveredRuleStateRefresh = false
             observedRuleRecoveryRevision = configurationService.ruleRecoveryRevision
+            lastRuleStateRefreshOperationID = mutationPermit.operationID
             refreshLayerIndicatorState()
         }
         // The configuration owner retains this requirement across app/rule/raw

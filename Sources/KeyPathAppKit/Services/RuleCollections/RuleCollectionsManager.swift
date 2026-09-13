@@ -41,6 +41,33 @@ enum RulePersistenceResult {
     }
 }
 
+/// A user-visible catalog update candidate. Catalog changes never apply merely
+/// because they were discovered at load time: the user either keeps their local
+/// version or explicitly applies this candidate after reviewing its impact.
+struct CatalogUpdatePreview: Identifiable, Equatable {
+    let existing: RuleCollection
+    let proposed: RuleCollection
+    let affectedKeys: [String]
+    let affectedLayers: [String]
+    let conflictDescription: String?
+    let isPackManaged: Bool
+
+    var id: UUID {
+        existing.id
+    }
+
+    var canApply: Bool {
+        !isPackManaged && conflictDescription == nil
+    }
+}
+
+/// The durable outcome of applying one or more approved catalog updates.
+struct CatalogUpdateApplicationResult {
+    let saveResult: SaveResult
+    let backupPath: String?
+    let appliedCollectionIDs: Set<UUID>
+}
+
 // MARK: - RuleCollectionsManager
 
 /// Manages rule collections and custom rules with conflict detection.
@@ -60,6 +87,9 @@ final class RuleCollectionsManager {
     /// Remains set when recovered files cannot yet be read completely.
     var needsRecoveredRuleStateRefresh = false
     var observedRuleRecoveryRevision: UInt64 = 0
+    /// Source state is refreshed once for each newly admitted root operation.
+    /// Trusted nested calls retain their candidate state instead of reloading it.
+    var lastRuleStateRefreshOperationID: UUID?
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
     /// Active keymap layout ID (e.g., "colemak-dh", "dvorak")

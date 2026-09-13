@@ -28,6 +28,10 @@ runtime recovery remains incomplete for global collection and pack operations.
 - Restore the last known-good file after `rejected` or `failed`.
 - Keep `ConfigurationService` as the only collection-generation writer and
   `SaveCoordinator` as the only generated/raw-save coordinator.
+- Render collection-backed configuration from one immutable point-in-time input
+  snapshot. `ConfigurationService` captures preferences, device state, app keys,
+  preserved chords/sequences, and physical layout before calling the renderer;
+  the renderer does not read disk, mutable caches, or `UserDefaults`.
 
 ## Save result boundary
 
@@ -58,12 +62,16 @@ commit restores both the files and leader preference. Applied and pending result
 commit both. A third leader preference revision stops recovery before any file is
 rolled back and retains the journal for diagnosis.
 
-This does not yet cover logical keymap selection. Its overlay `@AppStorage`
-selection is written before the manager receives the mutation, so reconstructing
-that preimage would not be a safe transaction. Context HUD trigger/hold settings
-and device selection also regenerate configuration through standalone paths.
-Those workflows need their own bounded migration. Display-only preferences remain
-outside the journal and are preserved.
+Context HUD trigger/hold settings now join this retained write with explicit
+preimages for all three generation inputs. Device selection uses a dedicated
+journal containing its JSON file and the generated configuration; candidate
+selections are not published to the generator cache until the daemon restart is
+accepted. A rejected or interrupted device apply restores the JSON, cache, and
+generated configuration, and startup retains a restart obligation for recovered
+device targeting. Logical keymap selection remains outside this transaction:
+its overlay `@AppStorage` selection is written before the manager receives the
+mutation, so reconstructing that preimage is not yet safe. Display-only
+preferences remain outside the journal and are preserved.
 See the [consolidation baseline](../planning/consolidation-baseline.md) for paths
 and remaining gaps. UI presentation changes require discussion before implementation.
 
@@ -103,8 +111,11 @@ permits through internal overloads. Missing-file backup reads carry the permit
 through self-healing creation so the backup retains stored rules. CLI operation
 ownership is described below. App-specific edits and Simple Modifications now
 use SaveCoordinator; startup app-include creation uses the same directory gate.
-Source/cache freshness and external edits remain separate work. Merely using
-this service for validation does not acquire write admission. Pack operations hold admission while staging
+`RuleCollectionsManager` refreshes its persisted collection and custom-rule
+sources once after each newly admitted root operation, before it snapshots an
+edit candidate. Trusted nested calls keep the same permit and therefore retain
+that candidate. Other source/cache freshness and external edits remain separate
+work. Merely using this service for validation does not acquire write admission. Pack operations hold admission while staging
 arrays, making nested collection calls, updating metadata and running their
 existing recovery paths; their multiple writes are still separate durable commits.
 The collection journal below provides a separate durable file recovery boundary;
@@ -174,10 +185,31 @@ reload. Backup is now an async API so lock contention does not block an actor;
 the CLI command syntax and output are unchanged. A callback attempting another
 apply, backup or restore is rejected before copying or staging preferences.
 
+CLI apply is an explicit regeneration-and-overwrite command: it replaces
+`keypath.kbd` from the supplied collection and rule sources, including when the
+existing file is handwritten or otherwise not reproducible by the visual editor.
+The global managed-file preservation check is intentionally an app-editor
+contract; CLI apply remains the documented conversion/overwrite escape hatch.
+Use CLI backup first when preserving a handwritten revision matters. Directory
+admission serializes that overwrite, but it does not supply the app save
+coordinator's runtime rollback semantics.
+
 This does not yet change reload-result semantics, make directory restore atomic,
 or include preference restoration in rejected-apply recovery. Feature-specific
 writers remain separate migration work. Backups remain copies of current disk state; this scope does not recover pending journals
 or refresh the app's cached state following a CLI restore.
+
+## Catalog updates
+
+Loading a rule collection never writes a catalog revision back just because the
+catalog changed. The Rules screen exposes an explicit review instead: **Keep
+Mine** is the default, while an approved catalog update creates a durable
+`RuleCollections.json` backup before staging the catalog version. The preview
+lists affected keys and layers, excludes pack-managed collections, and offers
+an update only if the proposed result has no mapping conflict. Its result makes
+the same applied, pending, rejected, or failed runtime distinction as every
+other rule write. CLI commands retain their explicit existing policy; they do
+not inherit a UI choice.
 
 ## CLI pack ownership
 

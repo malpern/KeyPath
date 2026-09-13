@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-struct PackConfigure: AsyncParsableCommand {
+struct PackConfigure: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "configure",
         abstract: "Update quick settings on an installed pack"

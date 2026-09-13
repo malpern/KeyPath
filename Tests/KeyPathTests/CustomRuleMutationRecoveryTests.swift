@@ -18,7 +18,13 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
         manager.ruleCollections = []
         manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42))]
-        try await service.saveRuleState(ruleCollections: [], customRules: manager.customRules, collectionStore: collections, customStore: rules)
+        manager.ruleCollections = await collections.loadCollectionsDetailed().collections
+        try await service.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: collections,
+            customStore: rules
+        )
     }
 
     override func tearDown() async throws {
@@ -198,6 +204,60 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
         XCTAssertTrue(saved)
         let stored = try await manager.customRulesStore.loadForMutation()
         XCTAssertEqual(Set(stored.map(\.input)), ["f13", "f20"])
+    }
+
+    func testRejectedMutationRefreshesNormallyCommittedPeerRevisionBeforeSnapshot() async throws {
+        let peerCollections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
+        let peerRules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
+        let peerService = ConfigurationService(
+            configDirectory: directory.path,
+            ruleCollectionStore: peerCollections,
+            customRulesStore: peerRules
+        )
+        let peerRule = CustomRule(input: "f18", action: .keystroke(key: "f17"))
+        let baseline = manager.customRules
+        try await peerService.saveRuleState(
+            ruleCollections: [],
+            customRules: baseline + [peerRule],
+            collectionStore: peerCollections,
+            customStore: peerRules
+        )
+
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            return Self.reload(reloads == 1 ? .rejected : .applied)
+        }
+        let candidate = CustomRule(input: "f13", action: .keystroke(key: "f14"))
+        let rejected = await manager.saveCustomRule(candidate)
+        XCTAssertFalse(rejected)
+
+        XCTAssertEqual(Set(manager.customRules.map(\.input)), ["f18", "f20"])
+        let afterRejectedSave = try await manager.customRulesStore.loadForMutation()
+        XCTAssertEqual(Set(afterRejectedSave.map(\.input)), ["f18", "f20"])
+
+        let applied = await manager.saveCustomRule(candidate)
+        XCTAssertTrue(applied)
+        let afterRetry = try await manager.customRulesStore.loadForMutation()
+        XCTAssertEqual(Set(afterRetry.map(\.input)), ["f13", "f18", "f20"])
+    }
+
+    func testNestedMutationRetainsOuterStagedCandidateUnderSamePermit() async throws {
+        let outerCandidate = CustomRule(input: "f13", action: .keystroke(key: "f14"))
+        let nestedCandidate = CustomRule(input: "f18", action: .keystroke(key: "f17"))
+        manager.onRulesChanged = { Self.reload(.applied) }
+
+        try await manager.configurationService.operationGate.withOperation { @MainActor permit in
+            let snapshot = await self.manager.recoverAndSnapshotRuleState(mutationPermit: permit)
+            XCTAssertNotNil(snapshot)
+            self.manager.customRules.append(outerCandidate)
+
+            let nestedSave = await self.manager.saveCustomRule(nestedCandidate, mutationPermit: permit)
+            XCTAssertTrue(nestedSave)
+        }
+
+        let stored = try await manager.customRulesStore.loadForMutation()
+        XCTAssertEqual(Set(stored.map(\.input)), ["f13", "f18", "f20"])
     }
 
     func testUnreadableRecoveredSourcesBlockRetriesUntilRepaired() async throws {

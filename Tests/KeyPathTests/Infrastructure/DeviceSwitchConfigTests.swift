@@ -199,10 +199,6 @@ final class DeviceSwitchConfigTests: XCTestCase {
     // MARK: - Full Config Snapshot Tests
 
     func testFullConfigWithDeviceOverrides_ContainsSwitchBlock() {
-        let cache = DeviceSelectionCache.shared
-        cache.updateConnectedDevices([device0, device1])
-        defer { cache.reset() }
-
         let mapping = KeyMapping(
             input: "a",
             action: .keystroke(key: "b"),
@@ -219,7 +215,10 @@ final class DeviceSwitchConfigTests: XCTestCase {
             mappings: [mapping]
         )
 
-        let config = KanataConfiguration.generateFromCollections([collection])
+        let config = KanataConfiguration.generateFromCollections(
+            [collection],
+            deviceGenerationInput: DeviceGenerationInput(selections: [], connectedDevices: [device0, device1])
+        )
 
         // The full config should contain the device switch alias definition
         assertContains(config, "dev_base_a")
@@ -232,10 +231,6 @@ final class DeviceSwitchConfigTests: XCTestCase {
     }
 
     func testFullConfigWithDeviceOverrides_OnNavLayer() {
-        let cache = DeviceSelectionCache.shared
-        cache.updateConnectedDevices([device0, device1])
-        defer { cache.reset() }
-
         let mapping = KeyMapping(
             input: "h",
             action: .keystroke(key: "left"),
@@ -262,7 +257,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let config = KanataConfiguration.generateFromCollections(
             [collection],
-            navActivationMode: .tapToToggle
+            navActivationMode: .tapToToggle,
+            deviceGenerationInput: DeviceGenerationInput(selections: [], connectedDevices: [device0, device1])
         )
 
         // Device switch should wrap the nav layer output
@@ -327,12 +323,6 @@ final class DeviceSwitchConfigTests: XCTestCase {
     // MARK: - Integration with buildCollectionBlocks
 
     func testCollectionWithDeviceOverrides_GeneratesSwitchAlias() {
-        // Set up connected devices in the cache
-        let cache = DeviceSelectionCache.shared
-        cache.updateConnectedDevices([device0, device1])
-
-        defer { cache.reset() }
-
         let mapping = KeyMapping(
             input: "a",
             action: .keystroke(key: "b"),
@@ -350,7 +340,8 @@ final class DeviceSwitchConfigTests: XCTestCase {
 
         let (_, aliases, _, _) = KanataConfiguration.buildCollectionBlocks(
             from: [collection],
-            leaderKeyPreference: nil
+            leaderKeyPreference: nil,
+            connectedDevices: [device0, device1]
         )
 
         let deviceAlias = aliases.first(where: { $0.aliasName.hasPrefix("dev_") })

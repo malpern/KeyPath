@@ -11,13 +11,28 @@ enum RecoverableRuleWrite {
         case appKeymaps
         case packRules
         case rawConfig
+        case deviceRules
 
         var roles: Set<String> {
+            switch self {
+            case .rules: ["config", "collections", "customRules", "deviceTargetingManifest"]
+            case .appKeymaps: ["config", "appKeymaps", "appInclude", "deviceTargetingManifest"]
+            case .packRules: ["config", "collections", "customRules", "installedPacks", "deviceTargetingManifest"]
+            case .rawConfig: ["config"]
+            case .deviceRules: ["config", "collections", "customRules", "deviceSelection", "deviceTargetingManifest"]
+            }
+        }
+
+        /// Version 1 journals predate the device-targeting provenance sidecar.
+        /// They remain recoverable: their entries never claimed that sidecar,
+        /// so recovery must restore the recorded revision and leave it absent.
+        var legacyRoles: Set<String> {
             switch self {
             case .rules: ["config", "collections", "customRules"]
             case .appKeymaps: ["config", "appKeymaps", "appInclude"]
             case .packRules: ["config", "collections", "customRules", "installedPacks"]
             case .rawConfig: ["config"]
+            case .deviceRules: ["config", "collections", "customRules", "deviceSelection"]
             }
         }
     }
@@ -79,14 +94,44 @@ enum RecoverableRuleWrite {
                 after: requiredPreferenceData(after)
             )
         }
+
+        static func contextHUDTriggerMode(before: Any?, after: String) throws -> Self {
+            try .init(
+                role: .contextHUDTriggerMode,
+                before: preferenceData(before),
+                after: requiredPreferenceData(after)
+            )
+        }
+
+        static func contextHUDHoldDelayPreset(before: Any?, after: String) throws -> Self {
+            try .init(
+                role: .contextHUDHoldDelayPreset,
+                before: preferenceData(before),
+                after: requiredPreferenceData(after)
+            )
+        }
+
+        static func contextHUDHoldDelayCustomMs(before: Any?, after: Int) throws -> Self {
+            try .init(
+                role: .contextHUDHoldDelayCustomMs,
+                before: preferenceData(before),
+                after: requiredPreferenceData(after)
+            )
+        }
     }
 
     enum PreferenceRole: Codable, Hashable, Sendable {
         case leader
+        case contextHUDTriggerMode
+        case contextHUDHoldDelayPreset
+        case contextHUDHoldDelayCustomMs
 
         var key: String {
             switch self {
             case .leader: PreferencesService.leaderKeyPreferenceKey
+            case .contextHUDTriggerMode: "KeyPath.ContextHUD.TriggerMode"
+            case .contextHUDHoldDelayPreset: "KeyPath.ContextHUD.HoldDelayPreset"
+            case .contextHUDHoldDelayCustomMs: "KeyPath.ContextHUD.HoldDelayCustomMs"
             }
         }
     }
@@ -298,9 +343,10 @@ enum RecoverableRuleWrite {
         let url = journalURL(directory, scope: scope)
         guard let data = try read(url) else { return }
         let journal = try JSONDecoder().decode(Journal.self, from: data)
+        let journalRoles = Set(journal.entries.map(\.role))
+        let usesLegacyRoles = journal.version == 1 && journalRoles == scope.legacyRoles
         guard journal.version == 1 || journal.version == 2,
-              journal.entries.count == files.count,
-              Set(journal.entries.map(\.role)) == Set(files.keys),
+              usesLegacyRoles || (journal.entries.count == files.count && journalRoles == Set(files.keys)),
               journal.entries.allSatisfy({ files[$0.role]?.standardizedFileURL.path == $0.path }),
               Set(files.values.map(\.standardizedFileURL)).count == files.count
         else { throw Failure.invalidJournal }
@@ -400,6 +446,7 @@ enum RecoverableRuleWrite {
         case .appKeymaps: ".keypath-app-write.json"
         case .packRules: ".keypath-pack-rule-write.json"
         case .rawConfig: ".keypath-raw-write.json"
+        case .deviceRules: ".keypath-device-write.json"
         }
         return directory.appendingPathComponent(name)
     }
@@ -411,6 +458,7 @@ enum RecoverableRuleWrite {
             journalURL(directory, scope: .appKeymaps),
             journalURL(directory, scope: .packRules),
             journalURL(directory, scope: .rawConfig),
+            journalURL(directory, scope: .deviceRules),
             directory.appendingPathComponent(".keypath-rule-write.lock")
         ]
         .map(\.standardizedFileURL))
