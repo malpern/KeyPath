@@ -195,6 +195,18 @@ or include preference restoration in rejected-apply recovery. Feature-specific
 writers remain separate migration work. Backups remain copies of current disk state; this scope does not recover pending journals
 or refresh the app's cached state following a CLI restore.
 
+## Catalog updates
+
+Loading a rule collection never writes a catalog revision back just because the
+catalog changed. The Rules screen exposes an explicit review instead: **Keep
+Mine** is the default, while an approved catalog update creates a durable
+`RuleCollections.json` backup before staging the catalog version. The preview
+lists affected keys and layers, excludes pack-managed collections, and offers
+an update only if the proposed result has no mapping conflict. Its result makes
+the same applied, pending, rejected, or failed runtime distinction as every
+other rule write. CLI commands retain their explicit existing policy; they do
+not inherit a UI choice.
+
 ## CLI pack ownership
 
 `PacksFacade` admits install, uninstall and configure before inspecting installed

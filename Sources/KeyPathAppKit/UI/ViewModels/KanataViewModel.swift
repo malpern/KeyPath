@@ -227,6 +227,14 @@ class KanataViewModel {
 
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        manager.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        await manager.applyCatalogUpdates(ids: ids)
+    }
+
     func batchEnableCollections(_ ids: [UUID]) async {
         await manager.batchEnableCollections(ids: ids)
     }

@@ -5,6 +5,14 @@ import KeyPathRulesCore
 extension RuntimeCoordinator {
     // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        ruleCollectionsCoordinator.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        await ruleCollectionsCoordinator.applyCatalogUpdates(ids: ids)
+    }
+
     func replaceRuleCollections(_ collections: [RuleCollection]) async {
         await ruleCollectionsCoordinator.replaceRuleCollections(collections)
     }

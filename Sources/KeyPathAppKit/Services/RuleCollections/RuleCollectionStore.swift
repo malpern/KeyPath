@@ -186,15 +186,34 @@ actor RuleCollectionStore {
     }
 
     private func upgradeAndMergeDefaults(_ collections: [RuleCollection]) -> [RuleCollection] {
+        // Catalog changes are deliberately not applied while loading. Doing so made
+        // an update appear in memory without an explicit user decision, and the
+        // next unrelated save could persist it. The Rules screen now previews and
+        // applies catalog updates through a backed-up mutation instead.
         var upgraded = collections
             .filter { $0.id != RuleCollectionIdentifier.typingSounds }
-            .map { catalog.upgradedCollection(from: $0) }
 
         let defaults = catalog.defaultCollections()
         for collection in defaults where !upgraded.contains(where: { $0.id == collection.id }) {
             upgraded.append(collection)
         }
         return upgraded
+    }
+
+    /// Make a restorable copy before a user-approved catalog update. This is a
+    /// separate, explicit backup from corruption recovery: it records a choice,
+    /// not a failed decode.
+    func backupForCatalogUpdate() throws -> String? {
+        guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
+        let backupDir = fileURL.deletingLastPathComponent().appendingPathComponent(".backups")
+        try fileManager.createDirectory(at: backupDir, withIntermediateDirectories: true)
+
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let backupURL = backupDir.appendingPathComponent("RuleCollections-catalog-update-\(timestamp).json")
+        try fileManager.copyItem(at: fileURL, to: backupURL)
+        AppLogger.shared.log("📦 [RuleCollectionStore] Backed up collections before catalog update: \(backupURL.lastPathComponent)")
+        return backupURL.path
     }
 
     @discardableResult
