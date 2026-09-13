@@ -20,7 +20,11 @@ public struct OutputContext: Sendable {
 
 public enum CLIOutput {
     public static func write(_ value: some Encodable, context: OutputContext, humanRender: () -> String) {
-        context.shouldOutputJSON ? writeJSON(value) : print(humanRender())
+        if context.shouldOutputJSON {
+            writeJSON(value)
+        } else {
+            print(humanRender())
+        }
     }
 
     private struct APIEnvelope<T: Encodable>: Encodable { let apiVersion: Int = 1; let data: T }

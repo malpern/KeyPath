@@ -56,7 +56,13 @@ public extension CLIError {
     }
 
     static func invalidKey(_ key: String, label: String) -> CLIError {
-        CLIError(code: .validation, message: "Invalid \(label) key: '\(key)'", hint: "Run 'keypath help-topics schemas rule' for valid key names (e.g., caps, lalt, esc, lctl, spc, ret)", details: nil, docsUrl: CLIDocsURL.faq)
+        CLIError(
+            code: .validation,
+            message: "Invalid \(label) key: '\(key)'",
+            hint: "Run 'keypath help-topics schemas rule' for valid key names (e.g., caps, lalt, esc, lctl, spc, ret)",
+            details: nil,
+            docsUrl: CLIDocsURL.faq
+        )
     }
 
     static func ambiguous(_ message: String, matches: [String]) -> CLIError {
