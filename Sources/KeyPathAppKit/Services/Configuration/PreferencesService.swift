@@ -179,7 +179,13 @@ final class PreferencesService: @unchecked Sendable {
     static var canonicalDefaults: UserDefaults {
         TestEnvironment.isRunningTests
             ? .standard
-            : UserDefaults(suiteName: "com.keypath.KeyPath")!
+            : canonicalDefaults(using: UserDefaults(suiteName: "com.keypath.KeyPath"))
+    }
+
+    /// The suite can be unavailable during early app launch. Preferences must
+    /// still initialize so launchd does not restart the app in a crash loop.
+    static func canonicalDefaults(using suiteDefaults: UserDefaults?) -> UserDefaults {
+        suiteDefaults ?? .standard
     }
 
     static let leaderKeyPreferenceKey = "KeyPath.LeaderKey.Preference"

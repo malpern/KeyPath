@@ -3,6 +3,16 @@ import XCTest
 
 @MainActor
 final class PreferencesServiceTests: XCTestCase {
+    func testCanonicalDefaultsFallsBackToStandardWhenSuiteIsUnavailable() {
+        let key = "PreferencesServiceTests.canonicalDefaultsFallback"
+        let defaults = PreferencesService.canonicalDefaults(using: nil)
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+
+        defaults.set(true, forKey: key)
+
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: key))
+    }
+
     // MARK: - Port Validation
 
     func testIsValidPort_AcceptsUserPorts() {
