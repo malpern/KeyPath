@@ -1,18 +1,20 @@
 import ArgumentParser
 import Foundation
+import KeyPathCLICommon
 
-struct HelpExamples: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
+public struct HelpExamples: AsyncParsableCommand {
+    public init() {}
+    public static let configuration = CommandConfiguration(
         commandName: "examples",
         abstract: "Curated workflow examples for each command noun"
     )
 
-    @OptionGroup var globals: GlobalOptions
+    @OptionGroup public var globals: GlobalOptions
 
     @Argument(help: "Noun to show examples for (rule, collection, layer, service, config, system)")
-    var noun: String?
+    public var noun: String?
 
-    mutating func run() async throws {
+    public mutating func run() async throws {
         let ctx = globals.outputContext
 
         if let noun {

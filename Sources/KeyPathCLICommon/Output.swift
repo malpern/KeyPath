@@ -1,0 +1,61 @@
+import Foundation
+
+public struct OutputContext: Sendable {
+    public let isInteractive: Bool
+    public let forceJSON: Bool
+    public let forceHuman: Bool
+    public let noColor: Bool
+    public let quiet: Bool
+
+    public var shouldOutputJSON: Bool { forceJSON || (!forceHuman && !isInteractive) }
+
+    public init(isInteractive: Bool, forceJSON: Bool, forceHuman: Bool, noColor: Bool, quiet: Bool = false) {
+        self.isInteractive = isInteractive; self.forceJSON = forceJSON; self.forceHuman = forceHuman; self.noColor = noColor; self.quiet = quiet
+    }
+
+    public static func detect(forceJSON: Bool = false, forceHuman: Bool = false, quiet: Bool = false) -> OutputContext {
+        OutputContext(isInteractive: isatty(STDOUT_FILENO) != 0, forceJSON: forceJSON, forceHuman: forceHuman, noColor: ProcessInfo.processInfo.environment["NO_COLOR"] != nil, quiet: quiet)
+    }
+}
+
+public enum CLIOutput {
+    public static func write(_ value: some Encodable, context: OutputContext, humanRender: () -> String) {
+        context.shouldOutputJSON ? writeJSON(value) : print(humanRender())
+    }
+
+    private struct APIEnvelope<T: Encodable>: Encodable { let apiVersion: Int = 1; let data: T }
+
+    public static func writeJSON(_ value: some Encodable) {
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
+        let envelope = APIEnvelope(data: value)
+        guard let data = try? encoder.encode(envelope), let json = String(data: data, encoding: .utf8) else { return }
+        print(json)
+    }
+
+    private struct APIErrorEnvelope: Encodable { let apiVersion: Int = 1; let error: CLIError }
+
+    public static func writeError(_ error: CLIError, context: OutputContext) {
+        if context.shouldOutputJSON {
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let envelope = APIErrorEnvelope(error: error)
+            if let data = try? encoder.encode(envelope), let json = String(data: data, encoding: .utf8) { writeErrorLine(json) }
+        } else {
+            let nc = context.noColor
+            writeErrorLine(ANSIColor.red("Error: \(error.message)", noColor: nc))
+            if let hint = error.hint { writeErrorLine(ANSIColor.dim("Hint: \(hint)", noColor: nc)) }
+            if let details = error.details { for detail in details { writeErrorLine(ANSIColor.dim("  \(detail)", noColor: nc)) } }
+            if let docsUrl = error.docsUrl { writeErrorLine(ANSIColor.dim("Docs: \(docsUrl)", noColor: nc)) }
+        }
+    }
+
+    public static func writeRaw(_ text: String) { Swift.print(text) }
+
+    public static func progress(_ message: String, context: OutputContext) {
+        guard context.isInteractive, !context.quiet else { return }
+        writeErrorLine(ANSIColor.yellow(message, noColor: context.noColor))
+    }
+}
+
+private func writeErrorLine(_ message: String) {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+}

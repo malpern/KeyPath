@@ -1,20 +1,21 @@
 import ArgumentParser
 import Foundation
-import KeyPathAppKit
+import KeyPathCLICommon
 import KeyPathRulesCore
 
-struct HelpSchemas: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
+public struct HelpSchemas: AsyncParsableCommand {
+    public init() {}
+    public static let configuration = CommandConfiguration(
         commandName: "schemas",
         abstract: "List available CLI schemas for agent API discovery"
     )
 
-    @OptionGroup var globals: GlobalOptions
+    @OptionGroup public var globals: GlobalOptions
 
     @Argument(help: "Schema noun to inspect (e.g., action, behavior, rule, collection)")
-    var noun: String?
+    public var noun: String?
 
-    mutating func run() async throws {
+    public mutating func run() async throws {
         let ctx = globals.outputContext
 
         if let noun {

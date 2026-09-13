@@ -157,6 +157,17 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        // Foundation-only CLI argument and presentation contracts.
+        .target(
+            name: "KeyPathCLICommon",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Sources/KeyPathCLICommon",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Installation wizard (extracted from KeyPathAppKit for incremental compilation)
         .target(
             name: "KeyPathInstallationWizard",
@@ -290,14 +301,29 @@ let package = Package(
         ),
         // CLI library (testable)
         .target(
+            name: "KeyPathCLIHelp",
+            dependencies: [
+                "KeyPathCLICommon",
+                "KeyPathRulesCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Sources/KeyPathCLI/Commands/Help",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .target(
             name: "KeyPathCLI",
             dependencies: [
                 "KeyPathCLISupport",
+                "KeyPathCLICommon",
+                "KeyPathCLIHelp",
                 "KeyPathAppKit",
                 "KeyPathRulesCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "Sources/KeyPathCLI",
+            exclude: ["Commands/Help"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
@@ -385,6 +411,17 @@ let package = Package(
                 "KeyPathCore"
             ],
             path: "Tests/KeyPathRulesCoreTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
+            name: "KeyPathCLIHelpTests",
+            dependencies: [
+                "KeyPathCLIHelp",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Tests/KeyPathCLIHelpTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
