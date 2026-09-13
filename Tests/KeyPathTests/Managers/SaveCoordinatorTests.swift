@@ -422,6 +422,9 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         var second = RuleCollection(name: "Second", summary: "Second", category: .custom, mappings: [], isEnabled: true)
         second.configuration = .tapHoldPicker(TapHoldPickerConfig(inputKey: "a", tapOptions: [], holdOptions: [], selectedTapOutput: "c", selectedHoldOutput: "lalt"))
         manager.ruleCollections = [first, second]
+        // Admission reloads the durable revision before resolving conflicts.
+        // Seed that revision so this test exercises its intended conflict path.
+        try? await manager.ruleCollectionStore.saveCollections([first, second])
         var choices = 0
         manager.onMappingConflictResolution = { _ in
             choices += 1

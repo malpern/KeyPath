@@ -466,10 +466,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         // Note: onActionURI callback not needed - RuleCollectionsManager.handleActionURI()
         // already dispatches to ActionDispatcher. Setting this would cause double dispatch.
-        ruleCollectionsManager.onBeforeSave = { [weak self] in
-            // Suppress file watcher to prevent double-reload when we save internally
-            self?.configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal rule change")
-        }
+        ruleCollectionsManager.onBeforeSave = nil
 
         if !isOneShotProbeMode, !TestEnvironment.isTestHostProcess {
             AppLogger.shared.log(
@@ -1348,6 +1345,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         guard let fileWatcher = configFileWatcher else {
             AppLogger.shared.warn("⚠️ [FileWatcher] ConfigFileWatcher not initialized")
             return
+        }
+
+        configurationService.onWillStageConfigurationWrite = { [weak fileWatcher] content in
+            fileWatcher?.claimInternalContent(content)
         }
 
         // Configure the hot reload service

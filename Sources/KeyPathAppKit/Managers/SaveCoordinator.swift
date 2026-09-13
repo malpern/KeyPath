@@ -122,10 +122,8 @@ final class SaveCoordinator {
                 var staged: ConfigurationService.AppKeymapWrite?
                 var reload: ReloadResult?
                 do {
-                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal app-specific save")
                     try await recoverBeforeEditing(appStore: store, mutationPermit: permit,
                                                    runtimeDidApply: runtimeDidApply, reloadHandler: reloadHandler)
-                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal app-specific save after recovery")
                     staged = try await configurationService.stageAppKeymapChange(store: store, mutationPermit: permit, mutate: mutate)
                     try Task.checkCancellation()
                     let result = await reloadHandler()
@@ -191,13 +189,11 @@ final class SaveCoordinator {
         do {
             return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
                 // Suppress file watcher to prevent double reload
-                configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveConfiguration")
                 saveStatus = .saving
 
                 do {
                     try await ruleCollectionsManager.recoverRuleState(mutationPermit: permit)
                     _ = try await configurationService.applyRecoveredRuntimeIfNeeded(mutationPermit: permit, reloadHandler: reloadHandler)
-                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal mapping save after recovery")
                     let snapshot = ruleCollectionsManager.snapshotRuleState()
                     let (sanitizedInput, sanitizedOutput) = try validateInputOutput(input: input, output: output)
                     let rule = ruleCollectionsManager.makeCustomRule(input: sanitizedInput, output: sanitizedOutput)
@@ -382,7 +378,6 @@ final class SaveCoordinator {
         do {
             return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
                 // Suppress file watcher to prevent double reload
-                configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal saveGeneratedConfiguration")
                 saveStatus = .saving
 
                 var staged: ConfigurationService.RawConfigurationWrite?
@@ -400,7 +395,6 @@ final class SaveCoordinator {
                     }
                     try Task.checkCancellation()
                     backupCurrentConfig(previousContent)
-                    configFileWatcher?.suppressEvents(for: 1.0, reason: "Internal raw save after recovery")
                     staged = try await configurationService.stageRawConfiguration(content: content, expectedContent: previousContent, mutationPermit: permit)
                     try Task.checkCancellation()
                     playWriteSound()

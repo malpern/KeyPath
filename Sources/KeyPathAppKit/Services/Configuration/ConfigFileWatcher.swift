@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import Foundation
 import KeyPathCore
 
@@ -21,7 +22,7 @@ class ConfigFileWatcher: @unchecked Sendable {
 
     private var fileMonitorSource: DispatchSourceFileSystemObject?
     private var directoryMonitorSource: DispatchSourceFileSystemObject?
-    private var lastModificationDate: Date?
+    private var lastContentFingerprint: String?
     private var debounceTask: Task<Void, Never>?
     private var watchedFilePath: String?
     private var watchedDirectoryPath: String?
@@ -33,8 +34,10 @@ class ConfigFileWatcher: @unchecked Sendable {
     private var retryCount = 0
     private var pendingAtomicWriteEvent = false
 
-    // Suppression to prevent self-initiated reload loops
-    private var suppressUntil: Date?
+    // Each internal save claims exactly one reconciled filesystem revision.
+    // Unlike a clock window, this neither hides a later external edit nor
+    // depends on filesystem timestamp granularity.
+    private var pendingInternalFingerprint: String?
     private var inFlightProcessing = false
     private var rebindTask: Task<Void, Never>?
 
@@ -60,20 +63,14 @@ class ConfigFileWatcher: @unchecked Sendable {
         AppLogger.shared.log("📁 [FileWatcher] ConfigFileWatcher deinitialized")
     }
 
-    // MARK: - Suppression API
+    // MARK: - Internal revision API
 
-    /// Suppress file watcher events for a duration to prevent self-initiated reload loops
-    func suppressEvents(for duration: TimeInterval, reason: String? = nil) {
-        suppressUntil = Date().addingTimeInterval(duration)
-        let reasonText = reason ?? "unspecified"
-        AppLogger.shared.log("🔇 [FileWatcher] Suppressing events for \(duration)s - \(reasonText)")
-    }
-
-    private func isSuppressedNow() -> Bool {
-        if let until = suppressUntil, Date() < until {
-            return true
-        }
-        return false
+    /// Claim the next debounced filesystem revision as an app-owned save.
+    /// Call immediately before the write transaction. The revision is consumed
+    /// by content reconciliation, not by elapsed time.
+    func claimInternalContent(_ content: String) {
+        pendingInternalFingerprint = SHA256.hash(data: Data(content.utf8)).map { String(format: "%02x", $0) }.joined()
+        AppLogger.shared.log("🧾 [FileWatcher] Claimed exact internal content revision")
     }
 
     /// Start watching a file for changes
@@ -118,7 +115,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
 
         // Get initial modification date
-        updateLastModificationDate()
+        updateLastContentFingerprint()
 
         // Create file descriptor for monitoring
         guard let fileDescriptor = openFileDescriptor(at: path) else {
@@ -259,7 +256,7 @@ class ConfigFileWatcher: @unchecked Sendable {
         watchedFilePath = nil
         watchedDirectoryPath = nil
         onFileChanged = nil
-        lastModificationDate = nil
+        lastContentFingerprint = nil
         retryCount = 0
 
         AppLogger.shared.log("✅ [FileWatcher] All monitoring stopped and state cleared")
@@ -291,13 +288,6 @@ class ConfigFileWatcher: @unchecked Sendable {
             rebindFileMonitor(to: path)
         }
 
-        // Check for suppression — skip the callback but descriptor is already rebound above
-        if isSuppressedNow() {
-            AppLogger.shared.log("🔇 [FileWatcher] Event suppressed - skipping processing")
-            pendingAtomicWriteEvent = false
-            return
-        }
-
         if inFlightProcessing {
             AppLogger.shared.log("📁 [FileWatcher] Event already being processed - skipping duplicate")
             return
@@ -313,6 +303,10 @@ class ConfigFileWatcher: @unchecked Sendable {
     #if DEBUG
         func simulateFileEventForTesting() async {
             await handleFileEvent(flags: .write)
+        }
+
+        func reconcileFileChangeForTesting() async {
+            await processFileChange()
         }
     #endif
 
@@ -477,22 +471,18 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
     }
 
-    private func updateLastModificationDate() {
+    private func updateLastContentFingerprint() {
         guard let path = watchedFilePath else {
             AppLogger.shared.log("⚠️ [FileWatcher] Cannot update modification date - no watched file path")
             return
         }
 
         do {
-            let attributes = try Foundation.FileManager().attributesOfItem(atPath: path)
-            let modDate = attributes[.modificationDate] as? Date
-            lastModificationDate = modDate
-            AppLogger.shared.log(
-                "📁 [FileWatcher] Updated last modification date: \(modDate?.description ?? "nil")"
-            )
+            lastContentFingerprint = try contentFingerprint(at: path)
+            AppLogger.shared.log("📁 [FileWatcher] Updated content fingerprint")
         } catch {
-            AppLogger.shared.log("⚠️ [FileWatcher] Failed to get modification date for \(path): \(error)")
-            lastModificationDate = nil
+            AppLogger.shared.log("⚠️ [FileWatcher] Failed to fingerprint \(path): \(error)")
+            lastContentFingerprint = nil
         }
     }
 
@@ -503,30 +493,18 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
 
         do {
-            let attributes = try Foundation.FileManager().attributesOfItem(atPath: path)
-            let currentModDate = attributes[.modificationDate] as? Date
-
-            AppLogger.shared.log(
-                "📁 [FileWatcher] Checking file modification: current=\(currentModDate?.description ?? "nil"), last=\(lastModificationDate?.description ?? "nil")"
-            )
-
-            // If we don't have a previous date, consider it changed
-            guard let lastDate = lastModificationDate else {
-                AppLogger.shared.log(
-                    "📁 [FileWatcher] No previous modification date - considering file changed"
-                )
-                lastModificationDate = currentModDate
+            let fingerprint = try contentFingerprint(at: path)
+            guard let previous = lastContentFingerprint else {
+                AppLogger.shared.log("📁 [FileWatcher] No previous content fingerprint - considering file changed")
+                lastContentFingerprint = fingerprint
                 return true
             }
 
-            // Check if modification date has actually changed
-            let hasChanged = currentModDate != lastDate
+            let hasChanged = fingerprint != previous
 
             if hasChanged {
-                lastModificationDate = currentModDate
-                AppLogger.shared.log(
-                    "✅ [FileWatcher] File modification confirmed at \(currentModDate?.description ?? "unknown")"
-                )
+                lastContentFingerprint = fingerprint
+                AppLogger.shared.log("✅ [FileWatcher] Content fingerprint changed")
             } else {
                 AppLogger.shared.log("📁 [FileWatcher] File modification date unchanged - no actual change")
             }
@@ -536,6 +514,11 @@ class ConfigFileWatcher: @unchecked Sendable {
             AppLogger.shared.log("❌ [FileWatcher] Error checking file modification for \(path): \(error)")
             return false
         }
+    }
+
+    private func contentFingerprint(at path: String) throws -> String {
+        let data = try Data(contentsOf: URL(fileURLWithPath: path))
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
     private func processFileChange() async {
@@ -558,16 +541,24 @@ class ConfigFileWatcher: @unchecked Sendable {
             return
         }
 
-        if pendingAtomicWriteEvent {
-            pendingAtomicWriteEvent = false
-            AppLogger.shared.log("📁 [FileWatcher] Atomic write detected - forcing change callback")
-        } else {
-            // Check if file actually changed (avoid false positives)
-            guard hasFileActuallyChanged() else {
-                AppLogger.shared.log("📁 [FileWatcher] No actual file changes detected - skipping callback")
-                return
-            }
+        // Reconcile the final bytes after debouncing. An atomic replacement,
+        // recreation, or same-mtime rewrite is judged by content—not event type
+        // or timestamp. A claimed internal revision consumes only its own final
+        // bytes; the following external revision is observed normally.
+        let changed = hasFileActuallyChanged()
+        pendingAtomicWriteEvent = false
+        if let expected = pendingInternalFingerprint, lastContentFingerprint == expected {
+            pendingInternalFingerprint = nil
+            AppLogger.shared.log("🧾 [FileWatcher] Reconciled exact internal revision")
+            return
         }
+        guard changed else {
+            AppLogger.shared.log("📁 [FileWatcher] No content change detected; retaining any internal claim")
+            return
+        }
+        // A mismatch is never suppressed: it is an external write (or a failed
+        // internal write followed by an external one). Retire the stale claim.
+        pendingInternalFingerprint = nil
 
         // Get file size for logging
         do {

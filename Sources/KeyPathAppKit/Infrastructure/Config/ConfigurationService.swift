@@ -29,6 +29,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var lastContentHash: String?
     private var fileWatcher: FileWatcher?
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
+    @MainActor var onWillStageConfigurationWrite: ((String) -> Void)?
 
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
@@ -343,6 +344,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             let before = try await snapshotRuleFiles(files)
             let sendablePreferences = RecoverableRuleWrite.PreferenceDefaults(preferenceDefaults)
             let directory = URL(fileURLWithPath: configDirectory)
+            onWillStageConfigurationWrite?(newConfig.content)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(
                     files: files, contents: ["config": Data(newConfig.content.utf8)],
@@ -460,6 +462,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
+            onWillStageConfigurationWrite?(newConfig.content)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory,
                                                scope: deviceSelections != nil ? .deviceRules : (packUpdate == nil ? .rules : .packRules), expectedBefore: before,
@@ -566,6 +569,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             let files = ["config": URL(fileURLWithPath: configurationPath)]
             let directory = URL(fileURLWithPath: configDirectory)
             try Task.checkCancellation()
+            onWillStageConfigurationWrite?(content)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(files: files, contents: ["config": Data(content.utf8)],
                                                directory: directory, scope: .rawConfig,
@@ -670,6 +674,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                                       "deviceTargetingManifest": Data(deviceTargetingRegion(from: configuration.content).utf8)]
             try Task.checkCancellation()
             let directory = URL(fileURLWithPath: configDirectory)
+            onWillStageConfigurationWrite?(configuration.content)
             let pending = try await performRuleFileOperation {
                 try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory, scope: .appKeymaps, expectedBefore: before)
             }
