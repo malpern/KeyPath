@@ -198,9 +198,12 @@ jobs:
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
     timeout-minutes: 5
-    # No concurrency group: this job never runs `swift test` or touches
-    # RuleCollectionsManager's config file, so it doesn't share the state
-    # that caused the race — no need to queue it behind build-and-test.
+    # This job does not share test state, but it does share the only physical
+    # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
+    # before its fixed per-rule safety timeout.
+    concurrency:
+      group: keypath-self-hosted-runner
+      cancel-in-progress: false
 
     steps:
     - name: Clean stale git credentials
