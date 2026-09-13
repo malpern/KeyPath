@@ -397,7 +397,7 @@ final class VallackSystemPackTests: XCTestCase {
     }
 
     @MainActor
-    func testVallackInstallDoesNotRecordWhenManagedApplyFails() async throws {
+    func testVallackInstallDoesNotRecordWhenSourceChangesBeforeStaging() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -412,27 +412,43 @@ final class VallackSystemPackTests: XCTestCase {
             PackCollectionSnapshot.remove(for: PackRegistry.vallackSystem.id)
         }
 
-        // Keep admission/recovery usable; fail the later source-write stage so
-        // this still exercises managed-default snapshot rollback and cleanup.
-        let blockedSource = tempDir.appendingPathComponent("CustomRules.json")
-        try FileManager.default.createDirectory(at: blockedSource, withIntermediateDirectories: true)
-
+        let collections = RuleCollectionStore.testStore(at: tempDir.appendingPathComponent("RuleCollections.json"))
+        let rules = CustomRulesStore.testStore(at: tempDir.appendingPathComponent("CustomRules.json"))
+        let service = ConfigurationService(configDirectory: tempDir.path, ruleCollectionStore: collections, customRulesStore: rules)
         let manager = RuleCollectionsManager(
-            ruleCollectionStore: RuleCollectionStore(
-                fileURL: tempDir.appendingPathComponent("RuleCollections.json")
-            ),
-            customRulesStore: CustomRulesStore(
-                fileURL: tempDir.appendingPathComponent("CustomRules.json")
-            ),
-            configurationService: ConfigurationService(configDirectory: tempDir.path),
+            ruleCollectionStore: collections,
+            customRulesStore: rules,
+            configurationService: service,
             eventListener: KanataEventListener()
         )
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        try await service.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: collections,
+            customStore: rules
+        )
         let originalCollections = manager.ruleCollections
+        let tracker = InstalledPackTracker(fileURL: tempDir.appendingPathComponent("installed-packs.json"))
+        let customRulesURL = tempDir.appendingPathComponent("CustomRules.json")
+        var shouldBlockNextSourceWrite = true
+        service.onWillStageConfigurationWrite = { _ in
+            guard shouldBlockNextSourceWrite else { return }
+            shouldBlockNextSourceWrite = false
+            // Simulate a concurrent source revision after admission captures its
+            // baseline and before it may stage a managed-pack transaction.
+            try? FileManager.default.removeItem(at: customRulesURL)
+            try? FileManager.default.createDirectory(at: customRulesURL, withIntermediateDirectories: true)
+        }
+        defer { service.onWillStageConfigurationWrite = nil }
 
         do {
-            _ = try await PackInstaller.shared.install(PackRegistry.vallackSystem, manager: manager)
-            XCTFail("Install should fail when managed defaults cannot be applied")
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.vallackSystem,
+                manager: manager,
+                installedPackTracker: tracker
+            )
+            XCTFail("Install should fail when a source changes before staging")
         } catch let error as PackInstaller.InstallError {
             guard case .saveFailed = error else {
                 XCTFail("Expected saveFailed, got \(error)")
@@ -440,19 +456,19 @@ final class VallackSystemPackTests: XCTestCase {
             }
         }
 
-        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.vallackSystem.id)
+        let isInstalled = await tracker.isInstalled(packID: PackRegistry.vallackSystem.id)
         XCTAssertFalse(
             isInstalled,
-            "Failed managed install must not record the pack as installed"
+            "A rejected source revision must not record the pack as installed"
         )
         XCTAssertEqual(
             manager.ruleCollections,
             originalCollections,
-            "Failed managed install should restore in-memory collections"
+            "A rejected source revision should restore in-memory collections"
         )
         XCTAssertNil(
             PackCollectionSnapshot.load(for: PackRegistry.vallackSystem.id),
-            "Failed managed install should not leave an uninstall snapshot behind"
+            "A rejected source revision should not leave an uninstall snapshot behind"
         )
     }
 

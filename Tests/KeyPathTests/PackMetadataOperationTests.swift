@@ -86,8 +86,14 @@ final class PackMetadataOperationTests: KeyPathTestCase {
             _ = try RecoverableRuleWrite.stage(files: [
                 "config": fixture.directory.appendingPathComponent("keypath.kbd"),
                 "collections": sourceURL,
-                "customRules": fixture.directory.appendingPathComponent("CustomRules.json")
-            ], contents: ["config": Data("(defsrc)\n(deflayer base)".utf8), "collections": proposed, "customRules": Data("[]".utf8)],
+                "customRules": fixture.directory.appendingPathComponent("CustomRules.json"),
+                "deviceTargetingManifest": fixture.directory.appendingPathComponent("keypath-device-targeting.manifest")
+            ], contents: [
+                "config": Data("(defsrc)\n(deflayer base)".utf8),
+                "collections": proposed,
+                "customRules": Data("[]".utf8),
+                "deviceTargetingManifest": Data()
+            ],
             directory: fixture.directory, scope: .rules)
             var recoveryReloads = 0
             fixture.manager.onRulesChanged = {

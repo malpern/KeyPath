@@ -154,7 +154,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         }
     }
 
-    func testRuntimeAffectingPreferenceChangesPostNotifications() {
+    func testShortcutListPreferenceChangesPersistWithoutLegacyNotification() {
         withPreservedDefaults {
             let prefs = PreferencesService()
             let recorder = NotificationRecorder()
@@ -187,10 +187,9 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             XCTAssertTrue(postedNames.contains(.verboseLoggingChanged))
             XCTAssertTrue(postedNames.contains(.accessibilityTestModeChanged))
             XCTAssertTrue(postedNames.contains(.overlaySuppressedBundleIDsChanged))
-            XCTAssertGreaterThanOrEqual(
-                postedNames.filter { $0 == .configAffectingPreferenceChanged }.count,
-                3
-            )
+            // Generation now uses a staged, durable shortcut input instead of
+            // an ambient notification-driven regeneration path.
+            XCTAssertFalse(postedNames.contains(.configAffectingPreferenceChanged))
         }
     }
 
