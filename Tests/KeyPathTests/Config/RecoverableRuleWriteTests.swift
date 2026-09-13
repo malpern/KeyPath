@@ -9,7 +9,7 @@ final class RecoverableRuleWriteTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let files = Dictionary(uniqueKeysWithValues: ["config", "collections", "customRules"].map {
+        let files = Dictionary(uniqueKeysWithValues: ["config", "collections", "customRules", "deviceTargetingManifest"].map {
             ($0, directory.appendingPathComponent($0))
         })
         let old = files.mapValues { Data("old \($0.lastPathComponent)".utf8) }

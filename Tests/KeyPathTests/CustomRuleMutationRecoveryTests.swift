@@ -18,8 +18,13 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
         manager.ruleCollections = []
         manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42))]
-        try await service.saveRuleState(ruleCollections: [], customRules: manager.customRules, collectionStore: collections, customStore: rules)
         manager.ruleCollections = await collections.loadCollectionsDetailed().collections
+        try await service.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: collections,
+            customStore: rules
+        )
     }
 
     override func tearDown() async throws {

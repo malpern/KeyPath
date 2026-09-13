@@ -578,11 +578,12 @@ final class GenericPackConfigTests: XCTestCase {
             action: .keystroke(key: "f19")
         )
         manager.customRules = [existingRule]
-        let originalRuleState = manager.snapshotRuleState()
         let didGenerateOriginalConfig = await manager.regenerateConfigFromCollections(
             skipReload: true
         )
         XCTAssertTrue(didGenerateOriginalConfig)
+        manager.customRules = try await manager.customRulesStore.loadForMutation()
+        let originalRuleState = manager.snapshotRuleState()
 
         let configURL = URL(fileURLWithPath: manager.configurationService.configurationPath)
         let collectionStoreURL = tempDir.appendingPathComponent("RuleCollections.json")
@@ -1582,6 +1583,8 @@ final class GenericPackConfigTests: XCTestCase {
                 selectedHoldOutput: "lctl"
             ))
         }
+        let regenerated = await manager.regenerateConfigFromCollections(skipReload: true)
+        XCTAssertTrue(regenerated)
 
         // Uninstall with "Keep Current"
         try await PackInstaller.shared.uninstall(packID: PackRegistry.launcher.id, manager: manager)

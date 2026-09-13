@@ -253,11 +253,12 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
             let candidate = DeviceSelection(hash: "a", productKey: "Apple Keyboard", isEnabled: false, lastSeen: .now)
             try await deviceStore.saveSelections([baseline])
             try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
-            let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
-            let beforeConfig = Data("before-device-config".utf8)
-            try beforeConfig.write(to: configURL)
             let (manager, _) = try await makeManager(at: caseDirectory, deviceSelectionStore: deviceStore)
             manager.ruleCollections = try leaderCollections()
+            let generated = await manager.regenerateConfigFromCollections(skipReload: true)
+            XCTAssertTrue(generated)
+            let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
+            let beforeConfig = try Data(contentsOf: configURL)
             var restartCount = 0
 
             let success = await manager.applyDeviceSelections([candidate]) {
@@ -305,11 +306,12 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
         let candidate = DeviceSelection(hash: "a", productKey: "Apple Keyboard", isEnabled: false, lastSeen: .now)
         try await deviceStore.saveSelections([baseline])
         try FileManager.default.createDirectory(at: caseDirectory, withIntermediateDirectories: true)
-        let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
-        let beforeConfig = Data("before-crash-device-config".utf8)
-        try beforeConfig.write(to: configURL)
         let (manager, service) = try await makeManager(at: caseDirectory, deviceSelectionStore: deviceStore)
         manager.ruleCollections = try leaderCollections()
+        let generated = await manager.regenerateConfigFromCollections(skipReload: true)
+        XCTAssertTrue(generated)
+        let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
+        let beforeConfig = try Data(contentsOf: configURL)
 
         try await service.operationGate.withOperation { @MainActor permit in
             _ = try await service.stageRuleState(
@@ -451,6 +453,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
             "config": directory.appendingPathComponent("keypath.kbd"),
             "collections": directory.appendingPathComponent("RuleCollections.json"),
             "customRules": directory.appendingPathComponent("CustomRules.json"),
+            "deviceTargetingManifest": directory.appendingPathComponent("keypath-device-targeting.manifest"),
         ]
         for (role, url) in files {
             try Data("before-\(role)".utf8).write(to: url)
