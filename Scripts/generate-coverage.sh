@@ -7,8 +7,10 @@ cd "$ROOT_DIR"
 OUT_DIR="${1:-coverage}"
 mkdir -p "$OUT_DIR"
 
-TEST_BINARY="$(find .build -path '*debug/KeyPathPackageTests.xctest/Contents/MacOS/KeyPathPackageTests' | head -n1)"
-PROFDATA="$(find .build -path '*debug/codecov/default.profdata' | head -n1)"
+SCRATCH_PATH="${SCRATCH_PATH:-.build}"
+
+TEST_BINARY="$(find "$SCRATCH_PATH" -path '*debug/KeyPathPackageTests.xctest/Contents/MacOS/KeyPathPackageTests' | head -n1)"
+PROFDATA="$(find "$SCRATCH_PATH" -path '*debug/codecov/default.profdata' | head -n1)"
 
 if [[ -z "${TEST_BINARY:-}" || ! -f "$TEST_BINARY" ]]; then
   echo "ERROR: Coverage test binary not found. Run: swift test --enable-code-coverage"

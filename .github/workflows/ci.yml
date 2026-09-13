@@ -17,6 +17,9 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  KEYPATH_CI_VOLUME_UUID: ${{ vars.KEYPATH_CI_VOLUME_UUID }}
+
 jobs:
   build-and-test:
     # macOS 27 AppSSO traps SwiftPM binary-artifact requests from a headless
@@ -51,6 +54,12 @@ jobs:
 
     - name: Verify runner disk reserve
       run: ./Scripts/lab/host-disk-reserve
+
+    - name: Test CI storage safeguards
+      run: python3 -m unittest discover -s Scripts/tests -p test_ci_storage.py
+
+    - name: Prepare external CI scratch
+      run: python3 Scripts/ci-storage.py prepare
 
     - name: Ensure Metal toolchain
       run: ./Scripts/ensure-metal-toolchain.sh
@@ -121,7 +130,6 @@ jobs:
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
         KEYPATH_SWIFT_BUILD_JOBS: "4"
-        SCRATCH_PATH: ${{ runner.temp }}/keypath-build
       run: |
         echo "Running full named test lane..."
         export CI_ENVIRONMENT=true
@@ -135,6 +143,10 @@ jobs:
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
           exit 1
         fi
+
+    - name: Mark CI scratch completed
+      if: always() && env.SCRATCH_PATH != ''
+      run: python3 Scripts/ci-storage.py finish
 
     - name: Parse Installer Reliability Matrix from Test Log
       if: always()
