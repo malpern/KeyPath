@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-struct RuleDisable: AsyncParsableCommand {
+struct RuleDisable: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "disable",
         abstract: "Disable a custom rule"

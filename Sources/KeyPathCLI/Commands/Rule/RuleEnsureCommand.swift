@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-struct RuleEnsure: AsyncParsableCommand {
+struct RuleEnsure: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "ensure",
         abstract: "Ensure a rule exists with the given mapping (idempotent)"

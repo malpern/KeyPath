@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-struct CollectionEnable: AsyncParsableCommand {
+struct CollectionEnable: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "enable",
         abstract: "Enable a rule collection"

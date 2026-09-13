@@ -1,6 +1,6 @@
 import ArgumentParser
 
-public struct GlobalOptions: ParsableArguments {
+public struct GlobalOptions: ParsableArguments, Sendable {
     @Flag(help: "Force JSON output")
     public var json: Bool = false
 

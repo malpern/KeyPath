@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-struct RuleRemove: AsyncParsableCommand {
+struct RuleRemove: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "remove",
         abstract: "Remove a key remapping"

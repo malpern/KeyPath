@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 
-struct PackUninstall: AsyncParsableCommand {
+struct PackUninstall: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "uninstall",
         abstract: "Uninstall a pack"
