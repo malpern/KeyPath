@@ -266,7 +266,10 @@ jobs:
       if: steps.changed.outputs.swift_files != ''
       run: |
         echo "Checking formatting of changed Swift files (must match the pinned fixed-point)..."
-        echo "${{ steps.changed.outputs.swift_files }}" | xargs mise exec swiftformat -- swiftformat --lint || {
+        # SwiftFormat 0.61.1 can time out while applying rules across a large
+        # argument set. Each file still uses the same pinned configuration;
+        # batching one at a time keeps the lint result deterministic.
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs -n 1 mise exec swiftformat -- swiftformat --lint || {
           echo "::error::SwiftFormat found formatting issues. Run 'swiftformat Sources Tests' (at the pinned version) and commit."
           exit 1
         }
