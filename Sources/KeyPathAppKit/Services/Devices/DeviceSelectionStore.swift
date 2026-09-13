@@ -22,9 +22,9 @@ struct DeviceGenerationInput: Sendable {
     let connectedDevices: [ConnectedDevice]
 }
 
-/// Thread-safe synchronous cache for device selections and connected devices,
-/// used by the config generator. The generator runs synchronously and cannot
-/// await actor methods, so it reads from this cache.
+/// Thread-safe synchronous cache for UI and service-layer device snapshots.
+/// Configuration rendering receives a point-in-time `DeviceGenerationInput`
+/// instead of consulting this mutable cache directly.
 final class DeviceSelectionCache: @unchecked Sendable {
     static let shared = DeviceSelectionCache()
 

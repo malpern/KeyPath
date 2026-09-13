@@ -4,6 +4,42 @@ import KeyPathDaemonLifecycle
 import KeyPathRulesCore
 import Network
 
+/// Point-in-time non-rule inputs for synchronous configuration rendering.
+/// Capture these in the owning service before rendering; the renderer itself
+/// must not mix a candidate with live disk, cache, or preference state.
+struct KanataGenerationInputs {
+    let leaderKeyPreference: LeaderKeyPreference?
+    let navActivationMode: ContextHUDTriggerMode
+    let navHoldDelayMs: Int
+    let deviceGenerationInput: DeviceGenerationInput
+    let chordGroups: [ChordGroupConfig]
+    let sequences: [KanataDefseqParser.ParsedSequence]
+    let appSpecificKeys: Set<String>
+    let physicalLayout: PhysicalLayout
+
+    init(
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        navActivationMode: ContextHUDTriggerMode = .tapToToggle,
+        navHoldDelayMs: Int = 200,
+        deviceGenerationInput: DeviceGenerationInput = DeviceGenerationInput(selections: [], connectedDevices: []),
+        chordGroups: [ChordGroupConfig] = [],
+        sequences: [KanataDefseqParser.ParsedSequence] = [],
+        appSpecificKeys: Set<String> = [],
+        physicalLayout: PhysicalLayout = .macBookUS
+    ) {
+        self.leaderKeyPreference = leaderKeyPreference
+        self.navActivationMode = navActivationMode
+        self.navHoldDelayMs = navHoldDelayMs
+        self.deviceGenerationInput = deviceGenerationInput
+        self.chordGroups = chordGroups
+        self.sequences = sequences
+        self.appSpecificKeys = appSpecificKeys
+        self.physicalLayout = physicalLayout
+    }
+
+    static let empty = KanataGenerationInputs()
+}
+
 // MARK: - Kanata Configuration Model
 
 /// Represents Kanata configuration data and metadata
@@ -34,20 +70,14 @@ public struct KanataConfiguration: Sendable {
     /// Generate configuration content from key mappings (adds default system collections when absent).
     public static func generateFromMappings(_ mappings: [KeyMapping]) -> String {
         let collections = [RuleCollection].collection(named: "Custom Mappings", mappings: mappings)
-        return generateFromCollections(collections)
+        return generateFromCollections(collections, inputs: .empty)
     }
 
     /// Generate configuration content from rule collections.
     /// Flattens enabled collections to `defsrc`/`deflayer` for backward compatibility with Kanata config format.
     static func generateFromCollections(
         _ collections: [RuleCollection],
-        leaderKeyPreference: LeaderKeyPreference? = nil,
-        navActivationMode: ContextHUDTriggerMode = .tapToToggle,
-        navHoldDelayMs: Int = 200,
-        deviceGenerationInput: DeviceGenerationInput? = nil,
-        chordGroups: [ChordGroupConfig] = [],
-        sequences: [KanataDefseqParser.ParsedSequence] = [],
-        appSpecificKeys: Set<String>? = nil
+        inputs: KanataGenerationInputs
     ) -> String {
         var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
@@ -84,9 +114,11 @@ public struct KanataConfiguration: Sendable {
 
         let (rawBlocks, aliasDefinitions, extraLayers, chordMappings) = buildCollectionBlocks(
             from: enabledCollections,
-            leaderKeyPreference: leaderKeyPreference,
-            navActivationMode: navActivationMode,
-            navHoldDelayMs: navHoldDelayMs,
+            leaderKeyPreference: inputs.leaderKeyPreference,
+            navActivationMode: inputs.navActivationMode,
+            navHoldDelayMs: inputs.navHoldDelayMs,
+            connectedDevices: inputs.deviceGenerationInput.connectedDevices,
+            physicalLayout: inputs.physicalLayout,
             globalRequirePriorIdleMs: requirePriorIdleMs
         )
         let mergedAliasDefinitions = deduplicateAliases(aliasDefinitions)
@@ -97,14 +129,14 @@ public struct KanataConfiguration: Sendable {
         let blocks = deduplicateBlocks(rawBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
-        let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg(deviceGenerationInput)
+        let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg(inputs.deviceGenerationInput)
         let keyRepeatConfig = enabledCollections
             .compactMap(\.configuration.keyRepeatControlConfig)
             .first
         let sequencesConfig = enabledCollections
             .compactMap(\.configuration.sequencesConfig)
             .first
-        let hasSequences = !sequences.isEmpty || !(sequencesConfig?.sequences.isEmpty ?? true)
+        let hasSequences = !inputs.sequences.isEmpty || !(sequencesConfig?.sequences.isEmpty ?? true)
         let sequencePauseLimitMs = hasSequences ? sequencesConfig?.clampedPauseLimitMs : nil
 
         // All defcfg header construction flows through KanataDefcfg (single source of truth).
@@ -149,8 +181,7 @@ public struct KanataConfiguration: Sendable {
 
         let sourceBlock = renderDefsrcBlock(blocks)
 
-        // Load app-specific keys to use @kp-{key} aliases in base layer
-        let appSpecificKeys = appSpecificKeys ?? loadAppSpecificKeys()
+        let appSpecificKeys = inputs.appSpecificKeys
 
         let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { entry in
             // If this key has app-specific overrides, use the alias instead of the plain key
@@ -169,8 +200,8 @@ public struct KanataConfiguration: Sendable {
         let fakeKeysBlock = renderFakeKeysBlock(extraLayers)
         let aliasBlock = renderAliasBlock(mergedAliasDefinitions)
         let chordsBlock = renderChordsBlock(chordMappings)
-        let preservedChordGroupsBlock = renderChordGroupsBlock(chordGroups)
-        let preservedSequencesBlock = renderSequencesBlock(sequences)
+        let preservedChordGroupsBlock = renderChordGroupsBlock(inputs.chordGroups)
+        let preservedSequencesBlock = renderSequencesBlock(inputs.sequences)
         let uiChordGroupsBlock = renderUIChordGroupsBlock(uiChordGroupsConfig)
 
         // Include keypath-apps.kbd if there are app-specific keys
@@ -215,7 +246,33 @@ public struct KanataConfiguration: Sendable {
         .joined(separator: "\n")
     }
 
-    private static let defaultEmptyConfig = generateFromCollections(defaultSystemCollections)
+    /// Compatibility convenience for callers that do not own all point-in-time inputs yet.
+    /// It deliberately supplies deterministic empty values instead of consulting live state.
+    static func generateFromCollections(
+        _ collections: [RuleCollection],
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        navActivationMode: ContextHUDTriggerMode = .tapToToggle,
+        navHoldDelayMs: Int = 200,
+        deviceGenerationInput: DeviceGenerationInput? = nil,
+        chordGroups: [ChordGroupConfig] = [],
+        sequences: [KanataDefseqParser.ParsedSequence] = [],
+        appSpecificKeys: Set<String> = []
+    ) -> String {
+        generateFromCollections(
+            collections,
+            inputs: KanataGenerationInputs(
+                leaderKeyPreference: leaderKeyPreference,
+                navActivationMode: navActivationMode,
+                navHoldDelayMs: navHoldDelayMs,
+                deviceGenerationInput: deviceGenerationInput ?? DeviceGenerationInput(selections: [], connectedDevices: []),
+                chordGroups: chordGroups,
+                sequences: sequences,
+                appSpecificKeys: appSpecificKeys
+            )
+        )
+    }
+
+    private static let defaultEmptyConfig = generateFromCollections(defaultSystemCollections, inputs: .empty)
 
     // MARK: - macOS Device Targeting (VirtualHID exclusion + per-device selection)
 
@@ -227,14 +284,10 @@ public struct KanataConfiguration: Sendable {
     /// When any non-VirtualHID device is disabled, we emit `macos-dev-names-include` for enabled devices
     /// plus `macos-dev-names-exclude` for VirtualHID devices.
     private static func renderMacOSDeviceTargetingForDefcfg(
-        _ input: DeviceGenerationInput? = nil
+        _ input: DeviceGenerationInput
     ) -> String {
         #if os(macOS)
-            let cache = DeviceSelectionCache.shared
-
-            // Use only the cached device list. CompositionRoot primes selections synchronously
-            // at startup, and device enumeration updates this cache when the Devices tab loads.
-            let allDevices = input?.connectedDevices ?? cache.getConnectedDevices()
+            let allDevices = input.connectedDevices
             guard !allDevices.isEmpty else { return "" }
 
             let virtualHIDDevices = allDevices.filter(\.isVirtualHID)
@@ -242,7 +295,7 @@ public struct KanataConfiguration: Sendable {
 
             // Check which physical devices are disabled via user selection
             let enabledByHash = Dictionary(
-                (input?.selections ?? cache.allSelections()).map { ($0.hash, $0.isEnabled) },
+                input.selections.map { ($0.hash, $0.isEnabled) },
                 uniquingKeysWith: { _, latest in latest }
             )
             let isEnabled: (String) -> Bool = { enabledByHash[$0] ?? true }

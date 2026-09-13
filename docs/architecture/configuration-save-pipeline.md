@@ -28,6 +28,10 @@ runtime recovery remains incomplete for global collection and pack operations.
 - Restore the last known-good file after `rejected` or `failed`.
 - Keep `ConfigurationService` as the only collection-generation writer and
   `SaveCoordinator` as the only generated/raw-save coordinator.
+- Render collection-backed configuration from one immutable point-in-time input
+  snapshot. `ConfigurationService` captures preferences, device state, app keys,
+  preserved chords/sequences, and physical layout before calling the renderer;
+  the renderer does not read disk, mutable caches, or `UserDefaults`.
 
 ## Save result boundary
 

@@ -831,6 +831,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         let expected = try await generateConfiguration(
             ruleCollections: persistedCollections,
             customRules: persistedRules,
+            appSpecificKeys: inputs.appSpecificKeys,
             leaderKeyPreference: persistedLeaderPreference(in: preferenceDefaults),
             shortcutListGenerationInput: inputs.shortcut,
             deviceGenerationInput: inputs.device
@@ -903,6 +904,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     private struct GlobalRuleGenerationInputs {
         let shortcut: ShortcutListGenerationInput
         let device: DeviceGenerationInput
+        let appSpecificKeys: Set<String>
     }
 
     private func persistedGlobalRuleGenerationInputs(
@@ -917,13 +919,22 @@ public final class ConfigurationService: FileConfigurationProviding {
         ) ?? .long
         let custom = defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key) as? Int ?? 200
         let selections = try await deviceSelectionStore.loadForMutation()
+        let appKeymapStore = AppKeymapStore(
+            fileURL: URL(fileURLWithPath: configDirectory).appendingPathComponent("AppKeymaps.json")
+        )
+        let appKeymaps = try await appKeymapStore.loadForMutation()
         return GlobalRuleGenerationInputs(
             shortcut: ShortcutListGenerationInput(
                 triggerMode: trigger,
                 holdDelayPreset: preset,
                 customHoldDelayMs: custom
             ),
-            device: await deviceSelectionStore.generationInput(for: selections)
+            device: await deviceSelectionStore.generationInput(for: selections),
+            appSpecificKeys: Set(
+                appKeymaps
+                    .filter { $0.mapping.isEnabled }
+                    .flatMap { $0.overrides.map { $0.inputKey.lowercased() } }
+            )
         )
     }
 
@@ -957,6 +968,12 @@ public final class ConfigurationService: FileConfigurationProviding {
         shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
         deviceGenerationInput: DeviceGenerationInput? = nil
     ) async throws -> KanataConfiguration {
+        let persistedInputs: GlobalRuleGenerationInputs? = if appSpecificKeys == nil || shortcutListGenerationInput == nil || deviceGenerationInput == nil {
+            try await persistedGlobalRuleGenerationInputs(preferenceDefaults: PreferencesService.canonicalDefaults)
+        } else {
+            nil
+        }
+
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
@@ -1006,16 +1023,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         let preservedChordGroups = loadPreservedChordGroups()
         let preservedSequences = loadPreservedSequences()
 
-        let configContent = KanataConfiguration.generateFromCollections(
-            combinedCollections,
+        let layoutID = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey)
+            ?? LayoutPreferences.defaultLayoutId
+        let inputs = KanataGenerationInputs(
             leaderKeyPreference: leaderKeyPref,
-            navActivationMode: shortcutInput?.triggerMode ?? triggerMode,
-            navHoldDelayMs: shortcutInput?.holdDelayMs ?? holdDelayMs,
-            deviceGenerationInput: deviceGenerationInput,
+            navActivationMode: shortcutInput?.triggerMode ?? persistedInputs?.shortcut.triggerMode ?? triggerMode,
+            navHoldDelayMs: shortcutInput?.holdDelayMs ?? persistedInputs?.shortcut.holdDelayMs ?? holdDelayMs,
+            deviceGenerationInput: deviceGenerationInput ?? persistedInputs?.device ?? DeviceGenerationInput(selections: [], connectedDevices: []),
             chordGroups: preservedChordGroups,
             sequences: preservedSequences,
-            appSpecificKeys: appSpecificKeys
+            appSpecificKeys: appSpecificKeys ?? persistedInputs?.appSpecificKeys ?? [],
+            physicalLayout: PhysicalLayout.find(id: layoutID) ?? .macBookUS
         )
+        let configContent = KanataConfiguration.generateFromCollections(combinedCollections, inputs: inputs)
 
         return KanataConfiguration(
             content: configContent,

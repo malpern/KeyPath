@@ -532,6 +532,44 @@ class ConfigurationServiceTests: XCTestCase {
         )
     }
 
+    func testCreateInitialConfigPreservesPersistedAppKeysAndDeviceSnapshot() async throws {
+        let appKeymapStore = AppKeymapStore(fileURL: tempDirectory.appendingPathComponent("AppKeymaps.json"))
+        try await appKeymapStore.saveKeymaps([
+            AppKeymap(
+                bundleIdentifier: "com.example.KeyPathTests",
+                displayName: "KeyPath Tests",
+                overrides: [AppKeyOverride(inputKey: "f1", action: .keystroke(key: "b"))]
+            )
+        ])
+
+        let deviceCache = DeviceSelectionCache()
+        deviceCache.updateConnectedDevices([
+            ConnectedDevice(
+                hash: "test-virtual-hid",
+                vendorID: 1,
+                productID: 1,
+                productKey: "KeyPath Test Virtual HID",
+                isVirtualHID: true
+            )
+        ])
+        let service = ConfigurationService(
+            configDirectory: tempDirectory.path,
+            ruleCollectionStore: .testStore(at: tempDirectory.appendingPathComponent("RuleCollections.json")),
+            customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json")),
+            deviceSelectionStore: DeviceSelectionStore(
+                fileURL: tempDirectory.appendingPathComponent("DeviceSelection.json"),
+                cache: deviceCache
+            )
+        )
+
+        try await service.createInitialConfigIfNeeded()
+
+        let contents = try String(contentsOf: tempDirectory.appendingPathComponent("keypath.kbd"), encoding: .utf8)
+        XCTAssertTrue(contents.contains("(include keypath-apps.kbd)"))
+        XCTAssertTrue(contents.contains("@kp-f1"))
+        XCTAssertTrue(contents.contains("test-virtual-hid"))
+    }
+
     /// #929: a pre-existing 0-byte keypath.kbd (left behind by old helper
     /// scaffolding) must be treated as missing and replaced with the default.
     func testCreateInitialConfigRewritesEmptyFile() async throws {
