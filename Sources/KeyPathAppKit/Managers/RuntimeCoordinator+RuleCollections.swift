@@ -120,7 +120,7 @@ extension RuntimeCoordinator {
     func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
         await ruleCollectionsManager.applyDeviceSelections(selections) { [weak self] in
             guard let self else { return false }
-            return await self.restartKanata(reason: "Device selection changed")
+            return await restartKanata(reason: "Device selection changed")
         }
     }
 

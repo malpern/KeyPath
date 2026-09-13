@@ -220,7 +220,6 @@ struct DeviceSelectionView: View {
             )
         }
         needsRestart = true
-
     }
 
     private func applyChanges() {

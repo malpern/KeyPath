@@ -491,7 +491,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                 stateLock.withLock { currentConfiguration = nil }
                 if let update = write.packUpdate { await update.tracker.restorePublishedUpdate(update) }
                 if write.deviceSelections != nil {
-                    await deviceSelectionStore.publishSelectionsToCache(try await deviceSelectionStore.loadForMutation())
+                    try await deviceSelectionStore.publishSelectionsToCache(deviceSelectionStore.loadForMutation())
                 }
             }
         }
@@ -529,8 +529,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             let packFiles = packTargets
             let rawFiles = ["config": URL(fileURLWithPath: configurationPath)]
-            let deviceFiles = files.merging([
-                "deviceSelection": await deviceSelectionStore.persistenceURL
+            let deviceFiles = await files.merging([
+                "deviceSelection": deviceSelectionStore.persistenceURL
             ], uniquingKeysWith: { _, deviceSelectionURL in deviceSelectionURL })
             let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
             let recovered = try await performRuleFileOperation {
@@ -549,7 +549,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             }
             if recovered.rules { ruleRecoveryRevision &+= 1 }
             if recovered.device {
-                await deviceSelectionStore.publishSelectionsToCache(try await deviceSelectionStore.loadForMutation())
+                try await deviceSelectionStore.publishSelectionsToCache(deviceSelectionStore.loadForMutation())
                 needsRecoveredDeviceRuntimeRestart = true
             }
             return recovered.rules || recovered.device
@@ -647,10 +647,12 @@ public final class ConfigurationService: FileConfigurationProviding {
                         ? matchesGlobalManagedContent(existing, expected: content)
                         : AppConfigGenerator.matchesManagedContent(existing, expected: content)
                     guard matches else {
-                    throw AppConfigError
-                        .validationFailed(
-                            errors: ["Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."]
-                        )
+                        throw AppConfigError
+                            .validationFailed(
+                                errors: [
+                                    "Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."
+                                ]
+                            )
                     }
                 }
             }
@@ -837,7 +839,8 @@ public final class ConfigurationService: FileConfigurationProviding {
             deviceGenerationInput: inputs.device
         )
         guard matchesGlobalManagedContent(existing, expected: expected.content) else {
-            throw AppConfigError.validationFailed(errors: ["Your configuration was preserved. The visual editor cannot safely reproduce keypath.kbd. Convert it explicitly with a backup before editing global rules."])
+            throw AppConfigError
+                .validationFailed(errors: ["Your configuration was preserved. The visual editor cannot safely reproduce keypath.kbd. Convert it explicitly with a backup before editing global rules."])
         }
     }
 
@@ -923,16 +926,16 @@ public final class ConfigurationService: FileConfigurationProviding {
             fileURL: URL(fileURLWithPath: configDirectory).appendingPathComponent("AppKeymaps.json")
         )
         let appKeymaps = try await appKeymapStore.loadForMutation()
-        return GlobalRuleGenerationInputs(
+        return await GlobalRuleGenerationInputs(
             shortcut: ShortcutListGenerationInput(
                 triggerMode: trigger,
                 holdDelayPreset: preset,
                 customHoldDelayMs: custom
             ),
-            device: await deviceSelectionStore.generationInput(for: selections),
+            device: deviceSelectionStore.generationInput(for: selections),
             appSpecificKeys: Set(
                 appKeymaps
-                    .filter { $0.mapping.isEnabled }
+                    .filter(\.mapping.isEnabled)
                     .flatMap { $0.overrides.map { $0.inputKey.lowercased() } }
             )
         )

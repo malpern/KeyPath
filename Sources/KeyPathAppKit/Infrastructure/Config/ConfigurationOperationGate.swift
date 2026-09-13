@@ -12,7 +12,9 @@ actor ConfigurationOperationGate {
         /// Identifies one admitted root operation without exposing the gate owner.
         /// Consumers use this only to avoid repeating preparation work for trusted
         /// nested calls that carry the same permit.
-        var operationID: UUID { operation }
+        var operationID: UUID {
+            operation
+        }
     }
 
     enum Failure: LocalizedError {

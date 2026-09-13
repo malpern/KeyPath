@@ -7,7 +7,9 @@ public struct OutputContext: Sendable {
     public let noColor: Bool
     public let quiet: Bool
 
-    public var shouldOutputJSON: Bool { forceJSON || (!forceHuman && !isInteractive) }
+    public var shouldOutputJSON: Bool {
+        forceJSON || (!forceHuman && !isInteractive)
+    }
 
     public init(isInteractive: Bool, forceJSON: Bool, forceHuman: Bool, noColor: Bool, quiet: Bool = false) {
         self.isInteractive = isInteractive; self.forceJSON = forceJSON; self.forceHuman = forceHuman; self.noColor = noColor; self.quiet = quiet
@@ -47,12 +49,16 @@ public enum CLIOutput {
             let nc = context.noColor
             writeErrorLine(ANSIColor.red("Error: \(error.message)", noColor: nc))
             if let hint = error.hint { writeErrorLine(ANSIColor.dim("Hint: \(hint)", noColor: nc)) }
-            if let details = error.details { for detail in details { writeErrorLine(ANSIColor.dim("  \(detail)", noColor: nc)) } }
+            if let details = error.details { for detail in details {
+                writeErrorLine(ANSIColor.dim("  \(detail)", noColor: nc))
+            } }
             if let docsUrl = error.docsUrl { writeErrorLine(ANSIColor.dim("Docs: \(docsUrl)", noColor: nc)) }
         }
     }
 
-    public static func writeRaw(_ text: String) { Swift.print(text) }
+    public static func writeRaw(_ text: String) {
+        Swift.print(text)
+    }
 
     public static func progress(_ message: String, context: OutputContext) {
         guard context.isInteractive, !context.quiet else { return }

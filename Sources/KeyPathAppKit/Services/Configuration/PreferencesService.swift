@@ -12,6 +12,7 @@ struct ShortcutListGenerationInput: Sendable, Equatable {
         holdDelayPreset.milliseconds ?? customHoldDelayMs
     }
 }
+
 import Observation
 
 /// Key label display style for modifier and action keys on the keyboard visualization.

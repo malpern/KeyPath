@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
-import KeyPathCLISupport
 @_exported import KeyPathCLIHelp
+import KeyPathCLISupport
 
 public struct KeyPathCLI: AsyncParsableCommand {
     public init() {}

@@ -88,7 +88,8 @@ extension RuleCollectionsManager {
                 }
                 guard previews.allSatisfy(\.canApply) else {
                     return CatalogUpdateApplicationResult(
-                        saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: ["Catalog updates with pack ownership or mapping conflicts must be kept or resolved outside this update flow."]))),
+                        saveResult: .failure(KeyPathError
+                            .configuration(.validationFailed(errors: ["Catalog updates with pack ownership or mapping conflicts must be kept or resolved outside this update flow."]))),
                         backupPath: nil,
                         appliedCollectionIDs: []
                     )

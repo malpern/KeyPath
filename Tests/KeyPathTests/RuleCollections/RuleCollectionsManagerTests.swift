@@ -89,7 +89,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         XCTAssertTrue(result.saveResult.success)
         XCTAssertEqual(result.appliedCollectionIDs, [RuleCollectionIdentifier.vimNavigation])
-        XCTAssertTrue(FileManager.default.fileExists(atPath: try XCTUnwrap(result.backupPath)))
+        XCTAssertTrue(try FileManager.default.fileExists(atPath: XCTUnwrap(result.backupPath)))
         XCTAssertNotEqual(
             manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.vimNavigation }?.summary,
             "My local navigation"

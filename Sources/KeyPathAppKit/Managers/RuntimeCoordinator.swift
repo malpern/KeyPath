@@ -479,7 +479,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                         mutationPermit: nil
                     ) { [weak self] in
                         guard let self else { return false }
-                        return await self.restartKanata(reason: "Recovering device selection")
+                        return await restartKanata(reason: "Recovering device selection")
                     }
                 } catch {
                     self.lastError = error.localizedDescription

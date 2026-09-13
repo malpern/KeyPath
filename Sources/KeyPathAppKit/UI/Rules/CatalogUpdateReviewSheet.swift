@@ -60,7 +60,6 @@ struct CatalogUpdateReviewSheet: View {
         .frame(width: 580)
     }
 
-    @ViewBuilder
     private func updateRow(_ preview: CatalogUpdatePreview) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(isOn: selectionBinding(for: preview)) {
@@ -122,13 +121,12 @@ struct CatalogUpdateReviewSheet: View {
                     feedback = CatalogUpdateFeedback.failureMessage(for: result.saveResult)
                     return
                 }
-                let disposition: String
-                switch result.saveResult.reloadResult?.disposition {
-                case .applied: disposition = "Applied and running."
-                case .pending: disposition = "Saved; it will apply when the engine is available."
-                case .rejected: disposition = "The engine rejected the update; your prior rules were restored."
-                case .failed: disposition = "The engine could not apply the update; your prior rules were restored."
-                case nil: disposition = "Saved."
+                let disposition = switch result.saveResult.reloadResult?.disposition {
+                case .applied: "Applied and running."
+                case .pending: "Saved; it will apply when the engine is available."
+                case .rejected: "The engine rejected the update; your prior rules were restored."
+                case .failed: "The engine could not apply the update; your prior rules were restored."
+                case nil: "Saved."
                 }
                 let backup = result.backupPath.map { " Backup: \($0)" } ?? ""
                 feedback = "\(disposition)\(backup)"
@@ -142,21 +140,21 @@ enum CatalogUpdateFeedback {
     static func failureMessage(for result: SaveResult) -> String {
         switch result.recoveryResult {
         case let .restoredPreviousRuleState(reloadResult):
-            return "The catalog update was not accepted. Your previous rules were restored.\(runtimeRecoveryMessage(reloadResult))"
+            "The catalog update was not accepted. Your previous rules were restored.\(runtimeRecoveryMessage(reloadResult))"
         case .ruleStateRecoveryFailed:
-            return "The catalog update was not accepted, and restoring your previous rules also failed. Please review your configuration and backup."
+            "The catalog update was not accepted, and restoring your previous rules also failed. Please review your configuration and backup."
         default:
-            return "Could not apply the catalog update: \(result.error?.localizedDescription ?? "Unknown error")"
+            "Could not apply the catalog update: \(result.error?.localizedDescription ?? "Unknown error")"
         }
     }
 
     private static func runtimeRecoveryMessage(_ result: ReloadResult?) -> String {
         switch result?.disposition {
-        case .applied: return " The restored rules are running."
-        case .pending: return " The restored rules are saved and will apply when the engine is available."
-        case .rejected: return " The engine rejected the restored rules."
-        case .failed: return " The restored rules could not be applied to the engine."
-        case nil: return ""
+        case .applied: " The restored rules are running."
+        case .pending: " The restored rules are saved and will apply when the engine is available."
+        case .rejected: " The engine rejected the restored rules."
+        case .failed: " The restored rules could not be applied to the engine."
+        case nil: ""
         }
     }
 }

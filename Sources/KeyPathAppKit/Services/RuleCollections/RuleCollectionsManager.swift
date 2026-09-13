@@ -52,8 +52,13 @@ struct CatalogUpdatePreview: Identifiable, Equatable {
     let conflictDescription: String?
     let isPackManaged: Bool
 
-    var id: UUID { existing.id }
-    var canApply: Bool { !isPackManaged && conflictDescription == nil }
+    var id: UUID {
+        existing.id
+    }
+
+    var canApply: Bool {
+        !isPackManaged && conflictDescription == nil
+    }
 }
 
 /// The durable outcome of applying one or more approved catalog updates.

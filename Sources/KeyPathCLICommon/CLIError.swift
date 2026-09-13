@@ -21,7 +21,9 @@ public enum CLIExitCode: Int32, Codable, Sendable, CaseIterable {
     case success = 0, usage = 2, validation = 3, conflict = 4, notFound = 5
     case serviceUnreachable = 6, permissionBlocked = 7, kanataInvalid = 8
 
-    public var exitCode: ExitCode { ExitCode(rawValue: rawValue) }
+    public var exitCode: ExitCode {
+        ExitCode(rawValue: rawValue)
+    }
 }
 
 public enum CLIDocsURL {

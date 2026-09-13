@@ -22,8 +22,8 @@ final class HelpOutputContractTests: XCTestCase {
         )
     }
 
-    private func assertUnknownHelpOutput<Command: AsyncParsableCommand>(
-        command: Command.Type,
+    private func assertUnknownHelpOutput(
+        command: (some AsyncParsableCommand).Type,
         noun: String,
         entity: String,
         listCommand: String

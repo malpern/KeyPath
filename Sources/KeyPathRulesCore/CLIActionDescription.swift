@@ -24,6 +24,7 @@ public extension KeyAction {
         case .rawKanata: "raw-kanata"
         }
     }
+
     var cliSchemaDescription: String {
         switch self {
         case .keystroke: "Emit a different key (simple remap)"
@@ -41,6 +42,7 @@ public extension KeyAction {
         case .rawKanata: "Raw kanata expression (power user escape hatch)"
         }
     }
+
     static var allSchemaDescriptions: [CLISchemaEntry] {
         let representative: [KeyAction] = [
             .keystroke(key: ""), .hyper, .meh, .launchApp(name: "", bundleId: nil),
@@ -62,6 +64,7 @@ public extension MappingBehavior {
         case .chord: "chord"
         }
     }
+
     var cliSchemaDescription: String {
         switch self {
         case .dualRole: "Dual-role key: tap produces one action, hold produces another"
@@ -70,6 +73,7 @@ public extension MappingBehavior {
         case .chord: "Chord: multiple keys pressed together produce a single output"
         }
     }
+
     static var allSchemaDescriptions: [CLISchemaEntry] {
         let representative: [MappingBehavior] = [
             .dualRole(DualRoleBehavior(tapAction: .empty, holdAction: .empty)),

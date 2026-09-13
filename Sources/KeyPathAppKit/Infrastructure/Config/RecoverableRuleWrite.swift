@@ -346,7 +346,7 @@ enum RecoverableRuleWrite {
         let journalRoles = Set(journal.entries.map(\.role))
         let usesLegacyRoles = journal.version == 1 && journalRoles == scope.legacyRoles
         guard journal.version == 1 || journal.version == 2,
-              (usesLegacyRoles || (journal.entries.count == files.count && journalRoles == Set(files.keys))),
+              usesLegacyRoles || (journal.entries.count == files.count && journalRoles == Set(files.keys)),
               journal.entries.allSatisfy({ files[$0.role]?.standardizedFileURL.path == $0.path }),
               Set(files.values.map(\.standardizedFileURL)).count == files.count
         else { throw Failure.invalidJournal }

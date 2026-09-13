@@ -217,6 +217,9 @@ jobs:
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
+    - name: Install pinned SwiftFormat
+      run: mise install swiftformat
+
     - name: Get changed Swift files
       id: changed
       run: |
@@ -244,7 +247,7 @@ jobs:
       if: steps.changed.outputs.swift_files != ''
       run: |
         PINNED=$(sed -nE 's/^[[:space:]]*swiftformat[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' mise.toml)
-        ACTUAL=$(swiftformat --version | tr -d '[:space:]')
+        ACTUAL=$(mise exec swiftformat -- swiftformat --version | tr -d '[:space:]')
         echo "SwiftFormat — pinned (mise.toml): '$PINNED', installed: '$ACTUAL'"
         if [ -z "$PINNED" ]; then
           echo "::error::Could not read the swiftformat pin from mise.toml"
@@ -260,7 +263,7 @@ jobs:
       if: steps.changed.outputs.swift_files != ''
       run: |
         echo "Checking formatting of changed Swift files (must match the pinned fixed-point)..."
-        echo "${{ steps.changed.outputs.swift_files }}" | xargs swiftformat --lint || {
+        echo "${{ steps.changed.outputs.swift_files }}" | xargs mise exec swiftformat -- swiftformat --lint || {
           echo "::error::SwiftFormat found formatting issues. Run 'swiftformat Sources Tests' (at the pinned version) and commit."
           exit 1
         }

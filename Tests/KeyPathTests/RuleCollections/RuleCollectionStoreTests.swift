@@ -324,7 +324,7 @@ final class RuleCollectionStoreTests: XCTestCase {
 
         let backupPath = try await store.backupForCatalogUpdate()
 
-        let backupURL = URL(fileURLWithPath: try XCTUnwrap(backupPath))
+        let backupURL = try URL(fileURLWithPath: XCTUnwrap(backupPath))
         XCTAssertEqual(try Data(contentsOf: backupURL), try Data(contentsOf: fileURL))
     }
 }

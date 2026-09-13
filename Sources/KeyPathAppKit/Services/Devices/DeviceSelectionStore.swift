@@ -112,7 +112,9 @@ actor DeviceSelectionStore {
 
     /// The transaction owner journals this exact file with the generated
     /// configuration. Keeping the URL here prevents a second path convention.
-    var persistenceURL: URL { fileURL }
+    var persistenceURL: URL {
+        fileURL
+    }
 
     func loadSelections() -> [DeviceSelection] {
         AppLogger.shared.log("📂 [DeviceSelectionStore] loadSelections from: \(fileURL.path)")
