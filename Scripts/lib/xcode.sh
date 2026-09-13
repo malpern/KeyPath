@@ -4,7 +4,7 @@
 # Set KEYPATH_DEV_XCODE_DEVELOPER_DIR only when intentionally validating another toolchain.
 
 KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}"
-KEYPATH_STABLE_XCODE_DEVELOPER_DIR="${KEYPATH_STABLE_XCODE_DEVELOPER_DIR:-/Applications/Xcode-26.6.0.app/Contents/Developer}"
+KEYPATH_STABLE_XCODE_DEVELOPER_DIR="${KEYPATH_STABLE_XCODE_DEVELOPER_DIR:-/Applications/Xcode-26.6.app/Contents/Developer}"
 
 keypath_xcode_version() {
     local developer_dir="$1"
@@ -45,4 +45,9 @@ keypath_use_stable_xcode() {
         echo "❌ Invalid Xcode developer directory: $DEVELOPER_DIR" >&2
         return 1
     fi
+
+    # Rust invokes the system compiler through `cc`; without an explicit SDK it
+    # can resolve Command Line Tools even when DEVELOPER_DIR points at Xcode.
+    # Keep every compiler on the same selected Xcode SDK.
+    export SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 }

@@ -36,12 +36,13 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Scripts/release-doctor.sh",
         ]
 
-        XCTAssertTrue(xcodeContract.contains("Xcode-26.6.0.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains("Xcode-26.6.app/Contents/Developer"))
         XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}""#))
         XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
         XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
         XCTAssertTrue(xcodeContract.contains("keypath_use_stable_xcode"))
+        XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
 
         for relativePath in consumers {
             let script = try contents(of: root.appendingPathComponent(relativePath))
