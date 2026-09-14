@@ -1,2 +1,6 @@
 tenant	keypath
 artifact_expect	KeyPath.app
+policy_generator	Scripts/lab/mdm/generate-keypath-profiles
+admission	Scripts/lab/mdm/verify-lane
+policy_verifier	Scripts/lab/mdm/verify-artifact-policy
+policy_manifest	/Library/KeyPathLab/managed-policy/manifest.json
