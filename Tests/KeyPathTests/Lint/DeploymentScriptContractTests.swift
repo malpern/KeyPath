@@ -36,8 +36,8 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Scripts/release-doctor.sh",
         ]
 
-        XCTAssertTrue(xcodeContract.contains("Xcode-26.6.app/Contents/Developer"))
-        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}""#))
+        XCTAssertTrue(xcodeContract.contains("Xcode-27.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-27.0}""#))
         XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
         XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
