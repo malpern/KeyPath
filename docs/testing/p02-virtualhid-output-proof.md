@@ -60,6 +60,8 @@ TextEdit oracle. All keystrokes were physical USB HID input.
 | soak | 180 characters at 15 ms | `wz` repeated cleanly | pass, 360 reports, 0 late |
 | live reload while typing | rule changed 7 s into a 10 s run | output switches mid-stream | pass, `wy` to `wb`, no loss at the boundary |
 | overlapping keys | `q` down, `z` down while held, both released | `wb` | pass |
+| home row mod, hold | `f` held 250 ms as Shift, then `a` | `A` | pass |
+| home row mod, tap | `f` tapped 40 ms | `f` | pass |
 
 The shift case matters: the remap applies to the physical key and the shift
 modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
@@ -98,10 +100,24 @@ key at a time, but its script format is a raw HID report stream
 hold one key while pressing another. With `q` still down when `z` went down,
 the output was `w` then `b` — each key remapped, in the right order.
 
-**Still unproven with physical input: anything needing a held modifier or a
-layer.** Home row mods, the hyper key, layer activation, tap-dance, and the
-Ctrl+Space+Esc emergency stop were not exercised. The chord script above is the
-route to them; it simply was not built out in this session.
+That route then proved a home row mod, the feature this lab could never reach
+before. With `f` bound to tap `f` / hold `lsft`, holding it 250 milliseconds and
+pressing `a` produced `A`, while a 40 millisecond tap produced `f`. Both the
+timing threshold and the modifier chord behaved correctly against real hardware.
+
+**A custom rule can be silently outranked by an enabled collection.** The first
+home row mod attempt produced lowercase `a`. `rule add f --tap f --hold lsft
+--on-conflict replace` reported `applied: true`, but the generated config still
+bound `f` to `layer_home-arrows_f` from the enabled Home Row Arrows collection,
+so the custom rule never took effect. Disabling that collection made the rule
+active on the next reload and the test passed. Worth checking whether
+`--on-conflict replace` should detect a collection-owned key rather than
+reporting success. **Always confirm the generated config binds the key you
+expect before concluding a rule does not work.**
+
+Still unproven with physical input: layer activation, the hyper key, tap-dance,
+and the Ctrl+Space+Esc emergency stop. The chord script is the route to all of
+them.
 
 **Trap: TextEdit autocorrect silently rewrites remapped output.** The first
 throughput run appeared to show the remap failing at speed — the document read
