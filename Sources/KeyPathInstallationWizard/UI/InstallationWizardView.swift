@@ -135,7 +135,9 @@ public struct InstallationWizardView: View {
             }
         }
         .onChange(of: isOperationRunning) { _, newValue in
-            if !newValue { hasKeyboardFocus = true }
+            if !newValue {
+                hasKeyboardFocus = true
+            }
         }
         .onChange(of: showAllSummaryItems) { _, showAll in
             stateMachine.customSequence = showAll ? nil : navSequence
@@ -144,10 +146,14 @@ public struct InstallationWizardView: View {
             handlePageChange(from: oldPage, to: newPage)
         }
         .onChange(of: navSequence) { _, newSeq in
-            if !showAllSummaryItems { stateMachine.customSequence = newSeq }
+            if !showAllSummaryItems {
+                stateMachine.customSequence = newSeq
+            }
         }
         .onChange(of: showingCloseConfirmation) { _, newValue in
-            if !newValue { hasKeyboardFocus = true }
+            if !newValue {
+                hasKeyboardFocus = true
+            }
         }
         .modifier(
             KeyboardNavigationModifier(
@@ -172,7 +178,9 @@ public struct InstallationWizardView: View {
             Text("Login Items will open. Find KeyPath under Background Items and flip the switch to enable it.")
         }
         .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
-            if isShowing { startLoginItemsApprovalPolling() }
+            if isShowing {
+                startLoginItemsApprovalPolling()
+            }
         }
     }
 

@@ -31,7 +31,9 @@ public final class HelperMaintenance {
     /// by `runCleanupAndRepair` so UI callers don't surface them as error text.
     public var lastErrorLine: String? {
         for line in logLines.reversed() {
-            if line.hasPrefix("🧹 Cleanup & Repair") { continue }
+            if line.hasPrefix("🧹 Cleanup & Repair") {
+                continue
+            }
             if line.hasPrefix("❌") || line.hasPrefix("⚠️") {
                 return line
             }
@@ -248,8 +250,12 @@ public final class HelperMaintenance {
 
         paths = Array(Set(paths)) // unique
         paths.sort { lhs, rhs in
-            if lhs == "/Applications/KeyPath.app" { return true }
-            if rhs == "/Applications/KeyPath.app" { return false }
+            if lhs == "/Applications/KeyPath.app" {
+                return true
+            }
+            if rhs == "/Applications/KeyPath.app" {
+                return false
+            }
             return lhs < rhs
         }
         return paths
@@ -471,10 +477,10 @@ extension HelperMaintenance {
     }
 }
 
-// Sendable is already required of this type: the wizard protocol it conforms to
-// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
-// been in force all along. Swift 6 requires it to be declared alongside the
-// class rather than in the conformance file, so state it here. This records the
-// existing guarantee where the compiler wants it; it is not a new claim about
-// this type's thread safety.
+/// Sendable is already required of this type: the wizard protocol it conforms to
+/// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
+/// been in force all along. Swift 6 requires it to be declared alongside the
+/// class rather than in the conformance file, so state it here. This records the
+/// existing guarantee where the compiler wants it; it is not a new claim about
+/// this type's thread safety.
 extension HelperMaintenance: @unchecked Sendable {}

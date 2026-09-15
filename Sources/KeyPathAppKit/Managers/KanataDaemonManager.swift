@@ -208,7 +208,9 @@ public class KanataDaemonManager {
     /// - Returns: true if SMAppService reports `.enabled` OR launchctl has the job
     nonisolated func isInstalled() async -> Bool {
         let smStatus = await systemStateProvider.cachedSMAppServiceStatus(for: Self.kanataPlistName)
-        if smStatus == .enabled { return true }
+        if smStatus == .enabled {
+            return true
+        }
 
         let evidence = await systemStateProvider.launchctlPrint(target: "system/\(Self.kanataServiceID)")
         if evidence.exitCode == 0 {
@@ -796,10 +798,10 @@ private extension KanataDaemonManager {
     }
 }
 
-// Sendable is already required of this type: the wizard protocol it conforms to
-// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
-// been in force all along. Swift 6 requires it to be declared alongside the
-// class rather than in the conformance file, so state it here. This records the
-// existing guarantee where the compiler wants it; it is not a new claim about
-// this type's thread safety.
+/// Sendable is already required of this type: the wizard protocol it conforms to
+/// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
+/// been in force all along. Swift 6 requires it to be declared alongside the
+/// class rather than in the conformance file, so state it here. This records the
+/// existing guarantee where the compiler wants it; it is not a new claim about
+/// this type's thread safety.
 extension KanataDaemonManager: @unchecked Sendable {}

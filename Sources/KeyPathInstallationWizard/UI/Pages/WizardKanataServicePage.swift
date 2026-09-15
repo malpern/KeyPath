@@ -455,12 +455,24 @@ public struct WizardKanataServicePage: View {
         guard hasErrorSignal else { return false }
 
         // Ignore known non-fatal runtime noise that should not drive wizard crash UI.
-        if lower.contains("error writing reloadresult: broken pipe") { return false }
-        if lower.contains("broken pipe (os error 32)") { return false }
-        if lower.contains("connection reset by peer") { return false }
-        if lower.contains("client sent an invalid message") { return false }
-        if lower.contains("iohiddeviceopen error: (iokit/common) exclusive access and device already open") { return false }
-        if lower.contains("iohiddeviceopen error: (iokit/common) not permitted apple internal keyboard / trackpad") { return false }
+        if lower.contains("error writing reloadresult: broken pipe") {
+            return false
+        }
+        if lower.contains("broken pipe (os error 32)") {
+            return false
+        }
+        if lower.contains("connection reset by peer") {
+            return false
+        }
+        if lower.contains("client sent an invalid message") {
+            return false
+        }
+        if lower.contains("iohiddeviceopen error: (iokit/common) exclusive access and device already open") {
+            return false
+        }
+        if lower.contains("iohiddeviceopen error: (iokit/common) not permitted apple internal keyboard / trackpad") {
+            return false
+        }
 
         return true
     }

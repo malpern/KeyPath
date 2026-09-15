@@ -19,6 +19,18 @@ public struct WizardSystemStatusOverview: View {
     @Binding public var visibleIssueCount: Int
 
     @State private var duplicateCopies: [String] = []
+
+    /// Stands in for the detected copies when this view is evaluated outside a
+    /// rendered hierarchy. Reading `@State` on an uninstalled view produces a
+    /// SwiftUI runtime warning and yields a fresh instance each time, so tests
+    /// that read the status items directly supply the value instead. Nil in the
+    /// app, where the state is real.
+    private let duplicateCopiesOverride: [String]?
+
+    private var resolvedDuplicateCopies: [String] {
+        duplicateCopiesOverride ?? duplicateCopies
+    }
+
     /// Cache heavy probes so SwiftUI re-renders don’t hammer the filesystem/network
     private static var cache = ProbeCache()
 
@@ -29,7 +41,8 @@ public struct WizardSystemStatusOverview: View {
         kanataIsRunning: Bool,
         showAllItems: Bool,
         navSequence: Binding<[WizardPage]>,
-        visibleIssueCount: Binding<Int>
+        visibleIssueCount: Binding<Int>,
+        duplicateCopiesOverride: [String]? = nil
     ) {
         self.systemState = systemState
         self.issues = issues
@@ -38,6 +51,7 @@ public struct WizardSystemStatusOverview: View {
         self.showAllItems = showAllItems
         _navSequence = navSequence
         _visibleIssueCount = visibleIssueCount
+        self.duplicateCopiesOverride = duplicateCopiesOverride
     }
 
     public var body: some View {
@@ -165,7 +179,7 @@ public struct WizardSystemStatusOverview: View {
             }
             return issueStatus(for: helperIssues)
         }()
-        let helperSubtitle: String? = duplicateCopies.count > 1 ? "Multiple app copies detected" : nil
+        let helperSubtitle: String? = resolvedDuplicateCopies.count > 1 ? "Multiple app copies detected" : nil
         items.append(
             StatusItemModel(
                 id: "privileged-helper",
@@ -432,7 +446,9 @@ public struct WizardSystemStatusOverview: View {
     public static func filteredDisplayItems(_ items: [StatusItemModel], showAllItems: Bool)
         -> [StatusItemModel]
     {
-        if showAllItems { return items }
+        if showAllItems {
+            return items
+        }
         // Show incomplete items. Treat .unverified as "complete enough" - we can't verify it,
         // so don't alarm the user with it in the issues list.
         return items.filter { $0.status != .completed && $0.status != .unverified }
@@ -593,7 +609,9 @@ public struct WizardSystemStatusOverview: View {
     private func getCommunicationServerStatus() -> InstallationStatus {
         // Keep this lightweight on the UI thread: if Kanata is running, assume comm server is available.
         // Detailed TCP health is validated elsewhere by InstallerEngine.
-        if systemState == .initializing { return .notStarted }
+        if systemState == .initializing {
+            return .notStarted
+        }
         return kanataIsRunning ? .completed : .notStarted
     }
 

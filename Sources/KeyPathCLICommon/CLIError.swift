@@ -37,7 +37,9 @@ public enum CLIDocsURL {
 public extension CLIError {
     static func notFound(_ entity: String, query: String, listCommand: String, suggestions: [String] = []) -> CLIError {
         var hint = "Run '\(listCommand)' to see available \(entity.lowercased())s"
-        if !suggestions.isEmpty { hint = "Did you mean: \(suggestions.joined(separator: ", "))?\n" + hint }
+        if !suggestions.isEmpty {
+            hint = "Did you mean: \(suggestions.joined(separator: ", "))?\n" + hint
+        }
         return CLIError(code: .notFound, message: "\(entity) not found: '\(query)'", hint: hint, details: ["query: '\(query)'"], docsUrl: nil)
     }
 

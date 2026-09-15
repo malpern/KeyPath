@@ -195,7 +195,9 @@ public struct RulesFacade: Sendable {
             // never reports a rule as created that can never be applied.
             let conflicts = await collectionConflicts(adding: rules, baseline: baseline)
             if !conflicts.isEmpty {
-                if onConflict == .skip { return .skipped }
+                if onConflict == .skip {
+                    return .skipped
+                }
                 throw CLICollectionConflictError(
                     input: input, conflicts: conflicts, ruleName: rule.displayTitle
                 )
@@ -225,7 +227,9 @@ public struct RulesFacade: Sendable {
             var rules = await store.loadRules()
             let before = rules.count
             rules.removeAll { $0.input == input }
-            if rules.count == before { return false }
+            if rules.count == before {
+                return false
+            }
             try await store.saveRules(rules)
             return true
         }
