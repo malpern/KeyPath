@@ -53,6 +53,7 @@ TextEdit oracle. All keystrokes were physical USB HID input.
 | tap-hold, hold | `s` held 400 ms | `d` | pass |
 | throughput | 40 characters at 10 ms intervals | all 40, remap applied | pass, `the wuick brown fox jumps over lazy dogs` |
 | remap after recovery | `qaz` after a service teardown and repair | `waz` | pass |
+| key repeat through a remap | `q` held 1000 ms | repeated `w` | pass, seven `w` characters |
 
 The shift case matters: the remap applies to the physical key and the shift
 modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
@@ -60,6 +61,16 @@ simulation cannot settle, because the verdict depends on real hold duration
 crossing the 200 ms timeout. The throughput run reported 82 of 82 USB reports
 delivered with zero late reports and 41 microseconds maximum lateness, and
 every character reached the app.
+
+Key repeat survives the remap: a one-second hold of the remapped key produced
+seven `w` characters rather than one. An equivalent hold of an unmapped key was
+attempted as a control but the result is **inconclusive** — TextEdit window
+focus drifted between fires, so that comparison is not evidence either way.
+
+Holding a remapped key with macOS press-and-hold enabled opens the accent
+picker for the **remapped** character (`ŵ`), which is further evidence the
+remap is a real HID-level key rather than injected text. Disable
+`ApplePressAndHoldEnabled` before measuring repeat.
 
 KeyPath's keyboard overlay independently rendered `W` on the physical Q key
 while the rule was live.
