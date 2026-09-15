@@ -10,21 +10,41 @@ private class MockSMAppService: SMAppServiceProtocol, @unchecked Sendable {
         case unregisterFailed
     }
 
-    var status: SMAppService.Status
+    private var storedStatus: SMAppService.Status
     var registerCalled = false
     var unregisterCalled = false
     var calls: [String] = []
     var statusesAfterUnregister: [SMAppService.Status] = []
     var failingUnregisterCalls: Set<Int> = []
+    var failingRegisterCalls: Set<Int> = []
     var statusBeforeRegisterError: SMAppService.Status?
+    /// Statuses handed out by the next reads, ahead of the stored value. Models
+    /// SMAppService settling a registration asynchronously.
+    var pendingStatusReads: [SMAppService.Status] = []
+
+    var status: SMAppService.Status {
+        get {
+            guard !pendingStatusReads.isEmpty else { return storedStatus }
+            return pendingStatusReads.removeFirst()
+        }
+        set { storedStatus = newValue }
+    }
+
+    /// The stored value, read without consuming a pending read.
+    var settledStatus: SMAppService.Status {
+        storedStatus
+    }
 
     init(status: SMAppService.Status = .notRegistered) {
-        self.status = status
+        storedStatus = status
     }
 
     func register() throws {
         registerCalled = true
         calls.append("register")
+        if failingRegisterCalls.contains(calls.count(where: { $0 == "register" })) {
+            throw MockError.registerFailed
+        }
         if let statusBeforeRegisterError {
             status = statusBeforeRegisterError
             throw MockError.registerFailed
@@ -275,6 +295,77 @@ final class KanataDaemonServiceIntegrationTests: KeyPathAsyncTestCase {
 
         XCTAssertEqual(mock.calls, ["unregister", "unregister", "unregister"])
         XCTAssertEqual(mock.status, .notRegistered)
+    }
+
+    /// A restart that fails must never leave the daemon unregistered. `stop()`
+    /// removes the SMAppService registration before verifying its postcondition,
+    /// so without a rollback a failed restart leaves launchd with no such
+    /// service and no command-line path back.
+    func testRestartRestoresRegistrationWhenStartCannotRegister() async {
+        let mock = MockSMAppService(status: .enabled)
+        // Fail only the start path's register, so the rollback's register works.
+        mock.failingRegisterCalls = [1]
+        useService(mock)
+        service = KanataDaemonService()
+
+        do {
+            try await service.restart()
+            XCTFail("Expected restart to fail when the service cannot re-register")
+        } catch {
+            // Expected: the restart still reports failure.
+        }
+
+        XCTAssertEqual(
+            mock.settledStatus, .enabled,
+            "A failed restart must leave the daemon registered, not unregistered"
+        )
+        XCTAssertEqual(
+            mock.calls.count(where: { $0 == "register" }), 2,
+            "Expected the failed start's register plus the rollback's register"
+        )
+    }
+
+    /// The same guarantee when the failure happens in `stop()` rather than
+    /// `start()`: the registration is already gone by the time stop throws.
+    func testRestartRestoresRegistrationWhenStopFails() async {
+        let mock = MockSMAppService(status: .enabled)
+        useService(mock)
+        // The process never goes away, so the stopped postcondition is never met.
+        KanataDaemonService.processRunningOverride = { true }
+        KanataDaemonService.privilegedStopOverride = {}
+        service = KanataDaemonService()
+
+        do {
+            try await service.restart()
+            XCTFail("Expected restart to fail when the daemon never stops")
+        } catch {
+            // Expected: the restart still reports failure.
+        }
+
+        XCTAssertEqual(
+            mock.settledStatus, .enabled,
+            "A restart that fails during stop must still leave the daemon registered"
+        )
+    }
+
+    /// SMAppService settles a registration asynchronously, so the status read
+    /// taken right after `register()` can still say `.notRegistered`. Starting
+    /// must poll rather than fail a start that would have succeeded, which is
+    /// what made recovery take two attempts.
+    func testStartPollsWhileRegistrationSettles() async throws {
+        let mock = MockSMAppService(status: .notRegistered)
+        // Entry read, the read inside register(), and one stale post-register read.
+        mock.pendingStatusReads = [.notRegistered, .notRegistered, .notRegistered]
+        useService(mock)
+        service = KanataDaemonService()
+
+        try await service.start()
+
+        XCTAssertEqual(mock.settledStatus, .enabled)
+        XCTAssertEqual(
+            mock.calls.count(where: { $0 == "register" }), 1,
+            "A settling registration must not trigger a second register"
+        )
     }
 
     func testStatusRefresh_ShouldDetectChanges() async {

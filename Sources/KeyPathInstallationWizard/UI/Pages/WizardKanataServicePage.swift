@@ -201,15 +201,15 @@ public struct WizardKanataServicePage: View {
         case .running:
             "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events."
         case .stopped:
-            "KeyPath runtime is not running. Click Fix to start it."
+            "KeyPath runtime is not running. Click Start to start it."
         case .failed:
-            "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Fix to retry."
+            "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Restart to retry."
         case .starting:
             "Starting KeyPath runtime…"
         case .stopping:
             "KeyPath runtime is shutting down."
         case .unknown:
-            "Checking KeyPath runtime status… If this takes too long, click Fix."
+            "Checking KeyPath runtime status… If this takes too long, click Start."
         }
     }
 
