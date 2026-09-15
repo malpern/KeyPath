@@ -175,3 +175,11 @@ public final class PermissionRequestService {
         return (im, ax)
     }
 }
+
+// Sendable is already required of this type: the wizard protocol it conforms to
+// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
+// been in force all along. Swift 6 requires it to be declared alongside the
+// class rather than in the conformance file, so state it here. This records the
+// existing guarantee where the compiler wants it; it is not a new claim about
+// this type's thread safety.
+extension PermissionRequestService: @unchecked Sendable {}

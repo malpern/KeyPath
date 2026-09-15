@@ -332,7 +332,16 @@ struct OverlayKeycapView: View {
         return meta
     }
 
-    @Environment(\.services) var services
+    @Environment(\.services) private var environmentServices
+
+    /// Stands in for the environment's service container when this view is
+    /// evaluated outside a rendered hierarchy. Reading `@Environment` on an
+    /// uninstalled view produces a SwiftUI runtime warning, so tests that drive
+    /// the keycap's styling directly inject the container instead. Nil in the
+    /// app, where the environment supplies it.
+    var servicesOverride: ServiceContainer?
+
+    var services: ServiceContainer { servicesOverride ?? environmentServices }
 
     /// Whether mouse is hovering over this key
     @State var isHovering = false

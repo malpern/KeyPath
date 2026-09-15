@@ -93,7 +93,11 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     autoFixActions: [],
                     detectionTimestamp: Date()
                 )
-            }
+            },
+            // Drive dismissal without touching @Environment: this view is never
+            // installed in a hierarchy, and reading the environment's dismiss
+            // action on an uninstalled view emits a SwiftUI runtime warning.
+            dismissHandler: {}
         )
         view.stateMachine.updateWizardState(.serviceNotRunning, issues: [])
 
@@ -129,7 +133,11 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     autoFixActions: [],
                     detectionTimestamp: Date()
                 )
-            }
+            },
+            // Drive dismissal without touching @Environment: this view is never
+            // installed in a hierarchy, and reading the environment's dismiss
+            // action on an uninstalled view emits a SwiftUI runtime warning.
+            dismissHandler: {}
         )
         await view.refreshPostStartStateAndDismiss()
 

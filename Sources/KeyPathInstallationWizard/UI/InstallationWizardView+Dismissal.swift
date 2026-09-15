@@ -32,7 +32,7 @@ public extension InstallationWizardView {
         }
 
         NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
-        dismiss()
+        performDismiss()
         if shouldShowFirstSuccess {
             onFirstSuccess?()
         }
@@ -50,6 +50,17 @@ public extension InstallationWizardView {
 
         refreshTask?.cancel()
         stopLoginItemsApprovalPolling()
-        dismiss()
+        performDismiss()
+    }
+
+    /// Dismiss through the injected handler when one is present, so a view that
+    /// was never installed never reads the dismiss action out of the environment.
+    @MainActor
+    internal func performDismiss() {
+        if let dismissHandler {
+            dismissHandler()
+        } else {
+            dismiss()
+        }
     }
 }
