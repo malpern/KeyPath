@@ -41,6 +41,63 @@ Kanata logged every physical press and release (`[KeyInput] sent key=q
 action=Press`), so the events reached the engine as real input rather than as
 synthesized events.
 
+### Extended matrix on the same lease
+
+With the fixture attached, the following ran against the same guest and a
+TextEdit oracle. All keystrokes were physical USB HID input.
+
+| test | sent | expected | result |
+| --- | --- | --- | --- |
+| shift and passthrough | `Q1!q` with `q -> w` | `W1!w` | pass |
+| tap-hold, tap | `s` held 40 ms, rule tap `s` / hold `d`, timeout 200 ms | `s` | pass |
+| tap-hold, hold | `s` held 400 ms | `d` | pass |
+| throughput | 40 characters at 10 ms intervals | all 40, remap applied | pass, `the wuick brown fox jumps over lazy dogs` |
+| remap after recovery | `qaz` after a service teardown and repair | `waz` | pass |
+
+The shift case matters: the remap applies to the physical key and the shift
+modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
+simulation cannot settle, because the verdict depends on real hold duration
+crossing the 200 ms timeout. The throughput run reported 82 of 82 USB reports
+delivered with zero late reports and 41 microseconds maximum lateness, and
+every character reached the app.
+
+KeyPath's keyboard overlay independently rendered `W` on the physical Q key
+while the rule was live.
+
+**Trap: TextEdit autocorrect silently rewrites remapped output.** The first
+throughput run appeared to show the remap failing at speed — the document read
+`quick`, not `wuick`. Autocorrect had repaired the "misspelling" the remap
+produced. Any future text-oracle test must disable
+`NSAutomaticSpellingCorrectionEnabled` and `NSAutomaticCapitalizationEnabled`
+first, or it will report false results in both directions.
+
+### Finding: a failed service restart leaves the daemon unregistered
+
+`keypath-cli service restart`, invoked as the console user from outside a GUI
+session, stopped Kanata and then failed with "Could not restart Kanata
+service". It did not merely fail to start: `com.keypath.kanata` was gone from
+the launchd system domain entirely, so `launchctl kickstart` could not find it.
+`keypath-cli system repair` then failed at
+`install-required-runtime-services` with `userActionRequired: true`.
+
+The reporting was correct — the command failed closed and said so — but the
+system was left worse off than before the call, and no command-line path
+recovered it.
+
+Recovery came from the app. KeyPath's own UI had already detected the state and
+offered a repair step reading "KeyPath runtime is not running. Click Fix to
+start it." Activating it restored a running Kanata and TCP readiness, and the
+`q -> w` rule was still in force afterwards.
+
+Two caveats before treating this as a product bug. The invocation was
+`sudo -u keypathmdm` from a root guest-control context, which is not how a user
+runs the CLI, and re-registering a service legitimately needs user approval.
+The part worth investigating is the unregistration side effect on a failed
+restart, not the authorization requirement.
+
+Minor: that repair step's body text says "Click Fix" while its button is
+labelled "Start".
+
 ### Lease and artifacts
 
 Lease `cbx_f4fdf8bd64de`, KeyPath commit
