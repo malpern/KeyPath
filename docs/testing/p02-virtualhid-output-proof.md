@@ -62,6 +62,7 @@ TextEdit oracle. All keystrokes were physical USB HID input.
 | overlapping keys | `q` down, `z` down while held, both released | `wb` | pass |
 | home row mod, hold | `f` held 250 ms as Shift, then `a` | `A` | pass |
 | home row mod, tap | `f` tapped 40 ms | `f` | pass |
+| emergency stop | Ctrl+Space+Esc as a real chord, then `q` | `q`, remapping off | pass |
 
 The shift case matters: the remap applies to the physical key and the shift
 modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
@@ -115,9 +116,18 @@ active on the next reload and the test passed. Worth checking whether
 reporting success. **Always confirm the generated config binds the key you
 expect before concluding a rule does not work.**
 
-Still unproven with physical input: layer activation, the hyper key, tap-dance,
-and the Ctrl+Space+Esc emergency stop. The chord script is the route to all of
-them.
+The emergency stop was exercised the same way and behaves as documented. A real
+Ctrl+Space+Esc chord from the fixture stopped Kanata: `q` produced `w`
+immediately before the chord and `q` immediately after, with the process gone
+and port 37001 closed. That is the safety guarantee working against physical
+hardware rather than a synthesized event.
+
+Recovering afterwards needs KeyPath's window focused — a Return sent while
+TextEdit was frontmost naturally went to TextEdit. The recovery path itself was
+already demonstrated earlier in the session.
+
+Still unproven with physical input: layer activation, the hyper key, and
+tap-dance. The chord script is the route to all of them.
 
 **Trap: TextEdit autocorrect silently rewrites remapped output.** The first
 throughput run appeared to show the remap failing at speed — the document read
