@@ -118,12 +118,18 @@ struct OverlayKeycapView: View {
     /// info, or an explicit `XX` blocker with no label/output.
     var isVisuallyUnmappedLayerKey: Bool {
         guard let info = layerKeyInfo else { return true }
-        if info.isTransparent { return true }
-        if info.isLayerSwitch { return false }
+        if info.isTransparent {
+            return true
+        }
+        if info.isLayerSwitch {
+            return false
+        }
         if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
             return false
         }
-        if isNavIdentityMapping { return false }
+        if isNavIdentityMapping {
+            return false
+        }
         if key.layoutRole == .narrowModifier {
             return true
         }
@@ -152,11 +158,21 @@ struct OverlayKeycapView: View {
             return false
         }
         // Has a mapping if it's not transparent and has actual content
-        if info.isTransparent { return false }
-        if info.isLayerSwitch { return true }
-        if info.appLaunchIdentifier != nil { return true }
-        if info.systemActionIdentifier != nil { return true }
-        if info.urlIdentifier != nil { return true }
+        if info.isTransparent {
+            return false
+        }
+        if info.isLayerSwitch {
+            return true
+        }
+        if info.appLaunchIdentifier != nil {
+            return true
+        }
+        if info.systemActionIdentifier != nil {
+            return true
+        }
+        if info.urlIdentifier != nil {
+            return true
+        }
         // Check if output differs from input (not identity mapping)
         if let outputKey = info.outputKey {
             return outputKey.lowercased() != inputKeyName
@@ -218,13 +234,19 @@ struct OverlayKeycapView: View {
         }
 
         // Special keys always render their own content
-        if hasSpecialLabel { return true }
+        if hasSpecialLabel {
+            return true
+        }
 
         // If there's a nav overlay symbol, render it (arrow only, letter handled by floating label)
-        if navOverlaySymbol != nil { return true }
+        if navOverlaySymbol != nil {
+            return true
+        }
 
         // Nav identity mappings render their own centered label
-        if isNavIdentityMapping { return true }
+        if isNavIdentityMapping {
+            return true
+        }
 
         // If key is remapped to a different output, render the label directly
         // (floating labels only exist for base layout characters like A-Z, not for mapped outputs)
@@ -299,8 +321,12 @@ struct OverlayKeycapView: View {
     /// Whether the overlay should fall back to the base label (keymap or physical)
     var shouldUseBaseLabel: Bool {
         guard let info = layerKeyInfo else { return true }
-        if info.isTransparent { return true }
-        if info.isLayerSwitch { return false }
+        if info.isTransparent {
+            return true
+        }
+        if info.isLayerSwitch {
+            return false
+        }
         if info.appLaunchIdentifier != nil || info.systemActionIdentifier != nil || info.urlIdentifier != nil {
             return false
         }
@@ -332,7 +358,18 @@ struct OverlayKeycapView: View {
         return meta
     }
 
-    @Environment(\.services) var services
+    @Environment(\.services) private var environmentServices
+
+    /// Stands in for the environment's service container when this view is
+    /// evaluated outside a rendered hierarchy. Reading `@Environment` on an
+    /// uninstalled view produces a SwiftUI runtime warning, so tests that drive
+    /// the keycap's styling directly inject the container instead. Nil in the
+    /// app, where the environment supplies it.
+    var servicesOverride: ServiceContainer?
+
+    var services: ServiceContainer {
+        servicesOverride ?? environmentServices
+    }
 
     /// Whether mouse is hovering over this key
     @State var isHovering = false

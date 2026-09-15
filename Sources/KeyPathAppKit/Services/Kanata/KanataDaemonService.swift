@@ -172,6 +172,28 @@ final class KanataDaemonService {
         return false
     }
 
+    /// SMAppService settles a fresh registration asynchronously, so a status
+    /// read taken immediately after `register()` can still report
+    /// `.notRegistered` and fail a start that would have succeeded a moment
+    /// later. Poll briefly before concluding the registration did not persist.
+    /// Status is slow synchronous IPC, so keep the attempt count small.
+    private func waitForRegistrationToSettle(
+        maxAttempts: Int = 6,
+        delayMilliseconds: Int = 250
+    ) async -> SMAppService.Status {
+        var status = await currentRegistrationStatus()
+        for attempt in 1 ... maxAttempts {
+            guard status == .notRegistered || status == .notFound else {
+                return status
+            }
+            if attempt < maxAttempts {
+                try? await Task.sleep(for: .milliseconds(delayMilliseconds))
+                status = await currentRegistrationStatus()
+            }
+        }
+        return status
+    }
+
     private enum StoppedPostcondition: Equatable {
         case satisfied
         case registrationPresent
@@ -258,7 +280,7 @@ final class KanataDaemonService {
             // Registration can race with an IPC error. The fresh status below
             // is authoritative, so do not fail before observing the result.
             try? await registerDaemon()
-            finalRegistrationStatus = await currentRegistrationStatus()
+            finalRegistrationStatus = await waitForRegistrationToSettle()
         @unknown default:
             throw KanataDaemonServiceError.startFailed(reason: "Unknown SMAppService registration state")
         }
@@ -343,9 +365,45 @@ final class KanataDaemonService {
     /// KeepAlive respawn.
     func restart() async throws {
         AppLogger.shared.log("🔄 [KanataDaemonService] Restart requested")
-        try await stop()
-        try await start()
+        do {
+            try await stop()
+            try await start()
+        } catch {
+            // `stop()` removes the SMAppService registration before it verifies
+            // its postcondition, and `start()` deliberately swallows a failed
+            // re-register. Either way a thrown restart can leave the daemon with
+            // no registration at all, which launchd reports as a missing service
+            // and which no command-line path recovers. Put the registration back
+            // before surfacing the failure so the caller is never left worse off
+            // than before the restart.
+            await restoreRegistrationAfterFailedRestart()
+            throw error
+        }
         AppLogger.shared.info("✅ [KanataDaemonService] Restart requested successfully")
+    }
+
+    /// Re-register the daemon after a failed restart, but only when the
+    /// registration is actually gone. A registration that merely awaits approval
+    /// is left alone: re-registering cannot clear that state and would discard
+    /// the pending approval.
+    private func restoreRegistrationAfterFailedRestart() async {
+        let status = await currentRegistrationStatus()
+        guard status == .notRegistered || status == .notFound else { return }
+
+        AppLogger.shared.warn(
+            "⚠️ [KanataDaemonService] Restart failed with the daemon unregistered; restoring registration"
+        )
+        do {
+            try await registerDaemon()
+            AppLogger.shared.info(
+                "✅ [KanataDaemonService] Registration restored after failed restart"
+            )
+        } catch {
+            AppLogger.shared.error(
+                "❌ [KanataDaemonService] Could not restore registration after failed restart: "
+                    + error.localizedDescription
+            )
+        }
     }
 
     /// Returns whether the internal recovery daemon is currently active.

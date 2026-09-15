@@ -161,7 +161,10 @@ final class VallackOverlayZoneTests: XCTestCase {
             baseLabel: "Q",
             isPressed: true,
             scale: 1.0,
-            zoneColor: Color.blue.opacity(0.45)
+            zoneColor: Color.blue.opacity(0.45),
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
         let bg = view.backgroundColor
         XCTAssertEqual(
@@ -178,7 +181,10 @@ final class VallackOverlayZoneTests: XCTestCase {
             isPressed: false,
             scale: 1.0,
             isOneShot: true,
-            zoneColor: Color.blue.opacity(0.45)
+            zoneColor: Color.blue.opacity(0.45),
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
         let bg = view.backgroundColor
         let oneShotColor = Color(red: 0.2, green: 0.7, blue: 0.8)
@@ -196,7 +202,10 @@ final class VallackOverlayZoneTests: XCTestCase {
             baseLabel: "Q",
             isPressed: false,
             scale: 1.0,
-            zoneColor: zoneColor
+            zoneColor: zoneColor,
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
         let bg = view.backgroundColor
         XCTAssertEqual(
@@ -215,7 +224,10 @@ final class VallackOverlayZoneTests: XCTestCase {
             scale: 1.0,
             currentLayerName: "vallack-nav",
             layerKeyInfo: .mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123, collectionId: RuleCollectionIdentifier.vallackNavigation),
-            zoneColor: zoneColor
+            zoneColor: zoneColor,
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
         let bg = view.backgroundColor
         XCTAssertEqual(
@@ -230,7 +242,10 @@ final class VallackOverlayZoneTests: XCTestCase {
             key: PhysicalKey(keyCode: 4, label: "H", x: 5, y: 2, width: 1, height: 1),
             baseLabel: "H",
             isPressed: false,
-            scale: 1.0
+            scale: 1.0,
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
         let bg = view.backgroundColor
         let defaultAlpha = GMKColorway.default.alphaBaseColor

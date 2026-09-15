@@ -25,7 +25,11 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
             kanataIsRunning: false,
             showAllItems: true,
             navSequence: .constant(nav),
-            visibleIssueCount: .constant(visible)
+            visibleIssueCount: .constant(visible),
+            // Supply the value rather than reading @State: this view is never
+            // installed in a hierarchy, and an uninstalled read warns and hands
+            // back a fresh instance each time.
+            duplicateCopiesOverride: []
         )
 
         let items = overview.statusItems

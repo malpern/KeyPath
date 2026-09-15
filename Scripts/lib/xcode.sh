@@ -3,8 +3,8 @@
 # Canonical local Xcode selection for KeyPath build, test, deploy, and release scripts.
 # Set KEYPATH_DEV_XCODE_DEVELOPER_DIR only when intentionally validating another toolchain.
 
-KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}"
-KEYPATH_STABLE_XCODE_DEVELOPER_DIR="${KEYPATH_STABLE_XCODE_DEVELOPER_DIR:-/Applications/Xcode-26.6.app/Contents/Developer}"
+KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-27.0}"
+KEYPATH_STABLE_XCODE_DEVELOPER_DIR="${KEYPATH_STABLE_XCODE_DEVELOPER_DIR:-/Applications/Xcode-27.app/Contents/Developer}"
 
 keypath_xcode_version() {
     local developer_dir="$1"

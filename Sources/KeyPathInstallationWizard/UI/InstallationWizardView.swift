@@ -80,22 +80,32 @@ public struct InstallationWizardView: View {
     /// Used to suppress the global operation overlay to avoid duplicate progress treatments.
     @State private var hasInlineProgressIndicator: Bool = false
 
+    /// Stands in for the SwiftUI dismiss action when this view is exercised
+    /// outside a rendered hierarchy. Reading `@Environment(\.dismiss)` on a view
+    /// that was never installed produces a SwiftUI runtime warning, so callers
+    /// that drive the dismissal path directly supply this instead of letting the
+    /// environment be touched. Nil in the app, where the environment is real.
+    let dismissHandler: (@MainActor () -> Void)?
+
     public init(initialPage: WizardPage? = nil, onFirstSuccess: (() -> Void)? = nil) {
         self.initialPage = initialPage
         self.onFirstSuccess = onFirstSuccess
         postStartStateDetector = nil
+        dismissHandler = nil
     }
 
     init(
         initialPage: WizardPage? = nil,
         onFirstSuccess: (() -> Void)? = nil,
         didShowWelcomePage: Bool = false,
-        postStartStateDetector: @escaping @MainActor () async -> SystemStateResult
+        postStartStateDetector: @escaping @MainActor () async -> SystemStateResult,
+        dismissHandler: (@MainActor () -> Void)? = nil
     ) {
         self.initialPage = initialPage
         self.onFirstSuccess = onFirstSuccess
         _didShowWelcomePage = State(initialValue: didShowWelcomePage)
         self.postStartStateDetector = postStartStateDetector
+        self.dismissHandler = dismissHandler
     }
 
     public var currentFixDescriptionForUI: String? {
@@ -125,7 +135,9 @@ public struct InstallationWizardView: View {
             }
         }
         .onChange(of: isOperationRunning) { _, newValue in
-            if !newValue { hasKeyboardFocus = true }
+            if !newValue {
+                hasKeyboardFocus = true
+            }
         }
         .onChange(of: showAllSummaryItems) { _, showAll in
             stateMachine.customSequence = showAll ? nil : navSequence
@@ -134,10 +146,14 @@ public struct InstallationWizardView: View {
             handlePageChange(from: oldPage, to: newPage)
         }
         .onChange(of: navSequence) { _, newSeq in
-            if !showAllSummaryItems { stateMachine.customSequence = newSeq }
+            if !showAllSummaryItems {
+                stateMachine.customSequence = newSeq
+            }
         }
         .onChange(of: showingCloseConfirmation) { _, newValue in
-            if !newValue { hasKeyboardFocus = true }
+            if !newValue {
+                hasKeyboardFocus = true
+            }
         }
         .modifier(
             KeyboardNavigationModifier(
@@ -162,7 +178,9 @@ public struct InstallationWizardView: View {
             Text("Login Items will open. Find KeyPath under Background Items and flip the switch to enable it.")
         }
         .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
-            if isShowing { startLoginItemsApprovalPolling() }
+            if isShowing {
+                startLoginItemsApprovalPolling()
+            }
         }
     }
 

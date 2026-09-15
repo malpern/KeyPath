@@ -1229,9 +1229,15 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         isIntentionalTransition: Bool,
         isRecovering: Bool
     ) -> GrabRecoveryGate {
-        if active { return .recordSuccess }
-        if isIntentionalTransition { return .suppressedDuringTransition }
-        if isRecovering { return .suppressedRecoveryInFlight }
+        if active {
+            return .recordSuccess
+        }
+        if isIntentionalTransition {
+            return .suppressedDuringTransition
+        }
+        if isRecovering {
+            return .suppressedRecoveryInFlight
+        }
         return .evaluate
     }
 
@@ -1450,7 +1456,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         try await mutateAppKeymaps(store: store) { keymaps in
             guard let index = keymaps.firstIndex(where: { $0.mapping.bundleIdentifier == bundleIdentifier }) else { return }
             keymaps[index].overrides.removeAll { $0.id == overrideID }
-            if keymaps[index].overrides.isEmpty { keymaps.remove(at: index) }
+            if keymaps[index].overrides.isEmpty {
+                keymaps.remove(at: index)
+            }
         }
     }
 
@@ -1760,3 +1768,11 @@ struct ReloadResult {
         self.disposition = disposition ?? (success ? .applied : .failed)
     }
 }
+
+/// Sendable is already required of this type: the wizard protocol it conforms to
+/// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
+/// been in force all along. Swift 6 requires it to be declared alongside the
+/// class rather than in the conformance file, so state it here. This records the
+/// existing guarantee where the compiler wants it; it is not a new claim about
+/// this type's thread safety.
+extension RuntimeCoordinator: @unchecked Sendable {}

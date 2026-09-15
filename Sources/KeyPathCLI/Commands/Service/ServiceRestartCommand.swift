@@ -23,7 +23,7 @@ struct ServiceRestart: AsyncParsableCommand {
         } else {
             let error = CLIError.serviceControlFailed(
                 action: "restart",
-                hint: "macOS may require administrator authorization for system services. Check 'keypath service status --json' or use KeyPath's repair UI."
+                hint: "The service did not reach a running, responding state. Run 'keypath service status --json' to see where it stopped, then 'keypath system repair' or KeyPath's repair UI. Registering a system service can also need approval in System Settings."
             )
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
