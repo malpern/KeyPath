@@ -5,21 +5,64 @@ import KeyPathRulesCore
 public struct RulesFacade: Sendable {
     private let store: CustomRulesStore
     private let operation: CLIConfigurationOperation?
+    /// Loads the rule collections the generated config will be built from.
+    ///
+    /// Only the CLI-operation path supplies this. A custom rule can collide with a
+    /// key an *enabled collection* already claims (its mappings, or its momentary
+    /// layer activator), and `ConfigurationService.generateConfiguration` refuses to
+    /// generate at all in that case. Without this loader `addRule` only sees other
+    /// custom rules, so it happily persists a rule that every later `apply` will
+    /// reject — the rule is reported as created, never takes effect, and poisons
+    /// the store until it is removed by hand.
+    private let collectionLoader: (@Sendable () async -> [RuleCollection])?
 
     public init() {
         store = .shared
         operation = nil
+        collectionLoader = nil
     }
 
     init(operation: CLIConfigurationOperation) {
-        store = CustomRulesStore(fileURL: URL(fileURLWithPath: operation.directory)
-            .appendingPathComponent("CustomRules.json"))
+        let directory = URL(fileURLWithPath: operation.directory)
+        store = CustomRulesStore(fileURL: directory.appendingPathComponent("CustomRules.json"))
         self.operation = operation
+        let collectionStore = RuleCollectionStore(
+            fileURL: directory.appendingPathComponent("RuleCollections.json")
+        )
+        collectionLoader = { await collectionStore.loadCollections() }
     }
 
     init(store: CustomRulesStore) {
         self.store = store
         operation = nil
+        collectionLoader = nil
+    }
+
+    init(store: CustomRulesStore, collectionLoader: @escaping @Sendable () async -> [RuleCollection]) {
+        self.store = store
+        operation = nil
+        self.collectionLoader = collectionLoader
+    }
+
+    /// Conflicts that `rules` introduce against the enabled collections, relative to
+    /// `baselineRules`. Pre-existing conflicts between collections are subtracted so a
+    /// store that is already in a bad state does not block an unrelated rule.
+    private func collectionConflicts(
+        adding rules: [CustomRule], baseline baselineRules: [CustomRule]
+    ) async -> [KeyPathError.MappingConflictInfo] {
+        guard let collectionLoader else { return [] }
+        let collections = await collectionLoader()
+        // Custom rules first, exactly as generateConfiguration orders them.
+        let after = RuleCollectionDeduplicator.detectConflicts(
+            in: rules.asRuleCollections() + collections
+        )
+        guard !after.isEmpty else { return [] }
+        let before = Set(
+            RuleCollectionDeduplicator
+                .detectConflicts(in: baselineRules.asRuleCollections() + collections)
+                .map(\.description)
+        )
+        return after.filter { !before.contains($0.description) }
     }
 
     private func withMutation<Result: Sendable>(
@@ -102,6 +145,7 @@ public struct RulesFacade: Sendable {
     ) async throws -> RuleAddResult {
         try await withMutation {
             var rules = await store.loadRules()
+            let baseline = rules
             let existingIndex = rules.firstIndex(where: { $0.input == input })
 
             if let existingIndex {
@@ -116,6 +160,12 @@ public struct RulesFacade: Sendable {
                     let existing = rules[existingIndex]
                     let merged = try Self.mergeRules(existing: existing, newAction: action, newBehavior: behavior)
                     rules[existingIndex] = merged
+                    let conflicts = await collectionConflicts(adding: rules, baseline: baseline)
+                    if !conflicts.isEmpty {
+                        throw CLICollectionConflictError(
+                            input: input, conflicts: conflicts, ruleName: merged.displayTitle
+                        )
+                    }
                     try await store.saveRules(rules)
                     return .merged(CLIRuleDetail(from: merged))
                 }
@@ -138,6 +188,19 @@ public struct RulesFacade: Sendable {
                 deviceOverrides: deviceOverrides
             )
             rules.append(rule)
+
+            // A key an enabled collection already claims cannot be taken by a custom
+            // rule: config generation refuses the whole file rather than silently
+            // picking a winner. Refuse here, before anything is written, so the CLI
+            // never reports a rule as created that can never be applied.
+            let conflicts = await collectionConflicts(adding: rules, baseline: baseline)
+            if !conflicts.isEmpty {
+                if onConflict == .skip { return .skipped }
+                throw CLICollectionConflictError(
+                    input: input, conflicts: conflicts, ruleName: rule.displayTitle
+                )
+            }
+
             try await store.saveRules(rules)
 
             let detail = CLIRuleDetail(from: rule)
@@ -411,5 +474,40 @@ public struct CLIConflictError: Error, CustomStringConvertible {
     public let input: String
     public var description: String {
         "Rule already exists for '\(input)'"
+    }
+}
+
+/// The requested key is already claimed by an enabled rule collection (either one of
+/// its mappings or its momentary layer activator). Config generation refuses to build
+/// a file with two owners for one key, so the rule is rejected before it is persisted
+/// rather than written and then rejected by every subsequent `apply`.
+public struct CLICollectionConflictError: Error, CustomStringConvertible {
+    public let input: String
+    public let conflicts: [KeyPathError.MappingConflictInfo]
+    /// Display name the rejected rule would have had as a collection. Custom rules
+    /// appear in the conflict as a collection named after their display title, so it
+    /// is filtered out of `collectionNames` — the user does not need to be told their
+    /// own pending rule is one of the claimants.
+    public let ruleName: String
+
+    public init(input: String, conflicts: [KeyPathError.MappingConflictInfo], ruleName: String = "") {
+        self.input = input
+        self.conflicts = conflicts
+        self.ruleName = ruleName
+    }
+
+    /// Names of the collections claiming the key, excluding the pending custom rule.
+    public var collectionNames: [String] {
+        var seen = Set<String>()
+        return conflicts.flatMap(\.conflictingCollections)
+            .filter { $0 != ruleName && seen.insert($0).inserted }
+    }
+
+    public var explanation: String {
+        conflicts.map(\.userExplanation).joined(separator: "\n\n")
+    }
+
+    public var description: String {
+        "Key '\(input)' is already used by \(collectionNames.joined(separator: ", "))"
     }
 }

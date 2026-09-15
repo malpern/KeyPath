@@ -169,6 +169,14 @@ struct RuleAdd: AsyncParsableCommand, Sendable {
             )
             CLIOutput.writeError(error, context: ctx)
             throw CLIExitCode.conflict.exitCode
+        } catch let collisionErr as CLICollectionConflictError {
+            let error = CLIError.conflict(
+                collisionErr.description,
+                hint: "Disable the collection that owns this key (keypath collection disable <name>), or pick a different key. Nothing was written.",
+                details: [collisionErr.explanation]
+            )
+            CLIOutput.writeError(error, context: ctx)
+            throw CLIExitCode.conflict.exitCode
         } catch is CLIConflictError {
             let error = CLIError.conflict(
                 "Rule already exists for '\(input)'",

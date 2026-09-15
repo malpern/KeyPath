@@ -53,8 +53,8 @@ public extension CLIError {
         CLIError(code: .validation, message: message, hint: hint, details: details, docsUrl: nil)
     }
 
-    static func conflict(_ message: String, hint: String? = nil) -> CLIError {
-        CLIError(code: .conflict, message: message, hint: hint, details: nil, docsUrl: nil)
+    static func conflict(_ message: String, hint: String? = nil, details: [String]? = nil) -> CLIError {
+        CLIError(code: .conflict, message: message, hint: hint, details: details, docsUrl: nil)
     }
 
     static func invalidKey(_ key: String, label: String) -> CLIError {
