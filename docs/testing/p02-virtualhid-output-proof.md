@@ -57,6 +57,8 @@ TextEdit oracle. All keystrokes were physical USB HID input.
 | key repeat, unmapped control | `z` held 1000 ms | repeated `z` | pass, seven `z` |
 | shifted alternate output | rule `e -> r` with shifted `z`, sent `eE` | `rZ` | pass |
 | rule disable then enable | `q` after disable, then after enable | `q` then `w` | pass |
+| soak | 180 characters at 15 ms | `wz` repeated cleanly | pass, 360 reports, 0 late |
+| live reload while typing | rule changed 7 s into a 10 s run | output switches mid-stream | pass, `wy` to `wb`, no loss at the boundary |
 
 The shift case matters: the remap applies to the physical key and the shift
 modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
@@ -82,6 +84,12 @@ remap is a real HID-level key rather than injected text. Disable
 
 KeyPath's keyboard overlay independently rendered `W` on the physical Q key
 while the rule was live.
+
+The live-reload case is the most demanding one here and the most
+representative: a rule was applied while the fixture was still typing at about
+33 characters per second. The emitted text switched from `wy` to `wb` partway
+through with no garbled, dropped, or duplicated characters at the boundary, so
+a config reload does not disturb input already in flight.
 
 **Trap: TextEdit autocorrect silently rewrites remapped output.** The first
 throughput run appeared to show the remap failing at speed — the document read
