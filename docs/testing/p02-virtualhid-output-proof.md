@@ -53,7 +53,10 @@ TextEdit oracle. All keystrokes were physical USB HID input.
 | tap-hold, hold | `s` held 400 ms | `d` | pass |
 | throughput | 40 characters at 10 ms intervals | all 40, remap applied | pass, `the wuick brown fox jumps over lazy dogs` |
 | remap after recovery | `qaz` after a service teardown and repair | `waz` | pass |
-| key repeat through a remap | `q` held 1000 ms | repeated `w` | pass, seven `w` characters |
+| key repeat through a remap | `q` held 1000 ms | repeated `w` | pass, seven `w` |
+| key repeat, unmapped control | `z` held 1000 ms | repeated `z` | pass, seven `z` |
+| shifted alternate output | rule `e -> r` with shifted `z`, sent `eE` | `rZ` | pass |
+| rule disable then enable | `q` after disable, then after enable | `q` then `w` | pass |
 
 The shift case matters: the remap applies to the physical key and the shift
 modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
@@ -62,10 +65,15 @@ crossing the 200 ms timeout. The throughput run reported 82 of 82 USB reports
 delivered with zero late reports and 41 microseconds maximum lateness, and
 every character reached the app.
 
-Key repeat survives the remap: a one-second hold of the remapped key produced
-seven `w` characters rather than one. An equivalent hold of an unmapped key was
-attempted as a control but the result is **inconclusive** — TextEdit window
-focus drifted between fires, so that comparison is not evidence either way.
+Key repeat survives the remap and is not perturbed by it: a one-second hold
+produced seven characters through the remap and seven through an unmapped key,
+the same count either way.
+
+The rule lifecycle works in both directions from the CLI. `rule disable`
+restored passthrough and `rule enable` reinstated the mapping, each taking
+effect on the next keystroke, which is a different code path from the
+add-and-remove cycle above. `--shifted` resolves against the real physical
+shift: `e` produced `r` and shift-`e` produced `Z`.
 
 Holding a remapped key with macOS press-and-hold enabled opens the accent
 picker for the **remapped** character (`ŵ`), which is further evidence the
