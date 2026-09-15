@@ -63,6 +63,7 @@ TextEdit oracle. All keystrokes were physical USB HID input.
 | home row mod, hold | `f` held 250 ms as Shift, then `a` | `A` | pass |
 | home row mod, tap | `f` tapped 40 ms | `f` | pass |
 | emergency stop | Ctrl+Space+Esc as a real chord, then `q` | `q`, remapping off | pass |
+| layer activation | space leader held 400 ms | enters `nav`, returns to `base` | pass |
 
 The shift case matters: the remap applies to the physical key and the shift
 modifier survives it, so `shift`+`q` yields `W`. Tap-hold is the case
@@ -122,12 +123,21 @@ immediately before the chord and `q` immediately after, with the process gone
 and port 37001 closed. That is the safety guarantee working against physical
 hardware rather than a synthesized event.
 
-Recovering afterwards needs KeyPath's window focused — a Return sent while
-TextEdit was frontmost naturally went to TextEdit. The recovery path itself was
-already demonstrated earlier in the session.
+**Recovering from the emergency stop took two attempts.** With KeyPath's window
+focused, the first activation produced "KeyPath Runtime, powered by Kanata
+Engine, failed to start. Click Fix to retry."; the second restored a running
+Kanata, an open port 37001, and a launchd service reporting `running`. Worth
+understanding why the first attempt fails, since a user hitting the emergency
+stop will meet this. Note also that the body text says "Click Fix" while the
+button reads "Restart", the same copy mismatch seen on the earlier repair step.
 
-Still unproven with physical input: layer activation, the hyper key, and
-tap-dance. The chord script is the route to all of them.
+Layer activation works from physical input too. Holding the space leader key
+for 400 milliseconds made Kanata log `Entered layer: (deflayer nav` and then
+`(deflayer base` on release, so the leader-key layer resolves on real hold
+timing rather than only in simulation.
+
+Still unproven with physical input: the hyper key and tap-dance. The chord
+script is the route to both.
 
 **Trap: TextEdit autocorrect silently rewrites remapped output.** The first
 throughput run appeared to show the remap failing at speed — the document read
