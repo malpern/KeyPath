@@ -162,7 +162,15 @@ BUILD_SYSTEM_FLAGS=()
 if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" && "${KEYPATH_BUILD_SYSTEM:-}" != "native" ]]; then
     BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
 fi
-swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release -Xswiftc -no-whole-module-optimization
+# Whole-module optimization is left at the release default. It was disabled
+# here in August 2025 to dodge a build hang on the toolchain of the day; that
+# hang no longer reproduces, and the workaround now breaks the build outright:
+# Xcode 27 makes SwiftPM's newer build system the default, and that system
+# fails to emit the per-file dependencies output the flag implies
+# ("unable to open dependencies file ... -primary.d"). Restoring the flag
+# therefore also means forcing --build-system native, which is deprecated and
+# slated for removal. If the hang ever returns, that pair is the fallback.
+swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
