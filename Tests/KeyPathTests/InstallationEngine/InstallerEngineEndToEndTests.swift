@@ -766,7 +766,7 @@ private final class StubHelperMaintenance: WizardHelperMaintaining {
     var logLines: [String] = []
     var lastErrorLine: String?
 
-    func detectDuplicateAppCopies() -> [String] {
+    func detectDuplicateAppCopies() async -> [String] {
         ["/Applications/KeyPath.app"]
     }
 

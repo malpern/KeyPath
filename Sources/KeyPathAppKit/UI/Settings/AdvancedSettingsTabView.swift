@@ -183,7 +183,7 @@ struct AdvancedSettingsTabView: View {
         }
         .task {
             await refreshHelperStatus()
-            duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
+            duplicateAppCopies = await HelperMaintenance.shared.detectDuplicateAppCopies()
             backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
         }
         .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
@@ -410,7 +410,7 @@ struct AdvancedSettingsTabView: View {
             }
         }
 
-        let refreshed = HelperMaintenance.shared.detectDuplicateAppCopies()
+        let refreshed = await HelperMaintenance.shared.detectDuplicateAppCopies()
         await MainActor.run {
             duplicateAppCopies = refreshed
             if removed > 0 {

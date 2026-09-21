@@ -137,6 +137,22 @@ final class SubprocessRunnerTests: XCTestCase {
 
     // MARK: - Timeout Scenarios
 
+    func testRealRunnerTimeoutTerminatesLongRunningProcess() async {
+        // The fake above only proves callers handle a thrown timeout. This drives the
+        // real runner against a real process, which is the path that let an unbounded
+        // mdfind freeze Settings (docs/bugs/2026-09-21-duplicate-app-scan-mdfind-hang.md).
+        let start = Date()
+        do {
+            _ = try await SubprocessRunner.shared.run("/bin/sleep", args: ["10"], timeout: 0.5)
+            XCTFail("Expected timeout error")
+        } catch let SubprocessError.timeout(executable, _) {
+            XCTAssertEqual(executable, "/bin/sleep")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(start), 5, "Timeout must bound the wait")
+    }
+
     func testTimeoutHandling() async {
         // Setup fake to simulate timeout
         await fakeRunner.setShouldTimeout(true)

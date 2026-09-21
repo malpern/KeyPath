@@ -171,8 +171,12 @@ public struct WizardHelperPage: View {
             isLoadingHelperStatus = false
         }
         .onAppear {
-            duplicateCopies = WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
             logLoginItemsDiagnostics()
+        }
+        .task {
+            // .task, not a Task in .onAppear: dismissing the page cancels the scan
+            // (and SubprocessRunner kills its mdfind) instead of leaving it running.
+            duplicateCopies = await WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
         }
         .onDisappear {
             stopApprovalPolling()
