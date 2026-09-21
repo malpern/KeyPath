@@ -63,7 +63,7 @@ public final class HelperMaintenance {
             log("🔐 Helper install finished")
         }
 
-        let copies = detectDuplicateAppCopies()
+        let copies = await detectDuplicateAppCopies()
         if copies.filter({ !$0.hasPrefix("/Applications/KeyPath.app") }).count > 0 {
             log("⚠️ Multiple KeyPath.app copies detected:")
             for c in copies {
@@ -115,7 +115,7 @@ public final class HelperMaintenance {
         }
 
         // Step 0: Duplicate app detection
-        let copies = detectDuplicateAppCopies()
+        let copies = await detectDuplicateAppCopies()
         if copies.filter({ !$0.hasPrefix("/Applications/KeyPath.app") }).count > 0 {
             log("⚠️ Multiple KeyPath.app copies detected:")
             for c in copies {
@@ -205,47 +205,39 @@ public final class HelperMaintenance {
         return healthy
     }
 
-    // Find all KeyPath.app copies visible to Spotlight (fast, robust in practice).
+    // Find all KeyPath.app copies visible to Spotlight.
     // Results are sorted with `/Applications/KeyPath.app` first if present.
-    // Excludes build directories (dist/, .build/, build/) to avoid flagging build artifacts.
+    // Excludes build and Sparkle staging directories to avoid flagging artifacts.
+    //
+    // Async and time-boxed on purpose: Spotlight can stall for minutes (for example
+    // while it wakes a sleeping external volume that holds an indexed KeyPath.app),
+    // and this used to run `mdfind` with an unbounded `waitUntilExit()` on the main
+    // actor, freezing Settings and the wizard behind a spinner. A slow or failed
+    // scan now falls back to the canonical install locations instead.
     #if DEBUG
         nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
+        nonisolated(unsafe) static var testDuplicateScanRunner: (any SubprocessRunning)?
     #endif
-    public nonisolated func detectDuplicateAppCopies() -> [String] {
-        var paths: [String] = []
-        let process = Process()
-        process.launchPath = "/usr/bin/mdfind"
-        process.arguments = ["kMDItemFSName == 'KeyPath.app'c"]
-        let out = Pipe()
-        process.standardOutput = out
-        process.standardError = Pipe()
-        do { try process.run() } catch {
-            return canonicalAppCandidates()
-        }
+    nonisolated static let duplicateScanTimeout: TimeInterval = 2
+    nonisolated static let duplicateScanExcludedPathFragments = [
+        "/dist/", "/.build/", "/build/", "/DerivedData/", "/Sparkle_generate_appcast/"
+    ]
+
+    public nonisolated func detectDuplicateAppCopies() async -> [String] {
+        var paths: [String]
         #if DEBUG
             if let override = Self.testDuplicateAppPathsOverride?() {
                 paths = override
             } else {
-                process.waitUntilExit()
-                let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                paths = s.split(separator: "\n").map(String.init)
-                if paths.isEmpty {
-                    paths = canonicalAppCandidates()
-                }
+                paths = await spotlightAppCopies()
             }
         #else
-            process.waitUntilExit()
-            let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            paths = s.split(separator: "\n").map(String.init)
-            if paths.isEmpty {
-                paths = canonicalAppCandidates()
-            }
+            paths = await spotlightAppCopies()
         #endif
 
-        // Filter out build directories to avoid flagging build artifacts as duplicates
-        let buildDirPatterns = ["/dist/", "/.build/", "/build/", "/DerivedData/"]
+        // Filter out build/staging directories to avoid flagging artifacts as duplicates
         paths = paths.filter { path in
-            !buildDirPatterns.contains { pattern in path.contains(pattern) }
+            !Self.duplicateScanExcludedPathFragments.contains { path.contains($0) }
         }
 
         paths = Array(Set(paths)) // unique
@@ -259,6 +251,34 @@ public final class HelperMaintenance {
             return lhs < rhs
         }
         return paths
+    }
+
+    private nonisolated func spotlightAppCopies() async -> [String] {
+        var runner: any SubprocessRunning = SubprocessRunner.shared
+        #if DEBUG
+            if let override = Self.testDuplicateScanRunner {
+                runner = override
+            }
+        #endif
+        do {
+            let result = try await runner.run(
+                "/usr/bin/mdfind",
+                args: ["kMDItemFSName == 'KeyPath.app'c"],
+                timeout: Self.duplicateScanTimeout
+            )
+            let paths = result.stdout.split(separator: "\n").map(String.init)
+            if result.exitCode == 0, !paths.isEmpty {
+                return paths
+            }
+            AppLogger.shared.log(
+                "⚠️ [HelperMaintenance] Duplicate-app Spotlight scan exited \(result.exitCode) with \(paths.count) result(s); using canonical locations"
+            )
+        } catch {
+            AppLogger.shared.log(
+                "⚠️ [HelperMaintenance] Duplicate-app Spotlight scan failed; using canonical locations: \(error)"
+            )
+        }
+        return canonicalAppCandidates()
     }
 
     // MARK: - Private steps
@@ -427,7 +447,9 @@ public final class HelperMaintenance {
         for p in defaults where Foundation.FileManager().fileExists(atPath: p) {
             candidates.append(p)
         }
-        return candidates.isEmpty ? defaults : candidates
+        // Only locations that exist: returning the hardcoded defaults when none do
+        // reported phantom "multiple copies" whenever the Spotlight scan fell back.
+        return candidates
     }
 
     private nonisolated func legacyHelperArtifactPaths() -> (legacyBin: String, legacyPlist: String) {

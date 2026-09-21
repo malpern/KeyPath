@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 @preconcurrency import XCTest
 
 @MainActor
@@ -13,6 +14,7 @@ final class HelperMaintenanceTests: XCTestCase {
     override func tearDown() async throws {
         try await super.tearDown()
         HelperMaintenance.testDuplicateAppPathsOverride = nil
+        HelperMaintenance.testDuplicateScanRunner = nil
         HelperMaintenance.testLegacyHelperArtifactPathsOverride = nil
         HelperMaintenance.shared.applyTestHooks(nil)
         HelperManager.testHelperFunctionalityOverride = nil
@@ -20,17 +22,18 @@ final class HelperMaintenanceTests: XCTestCase {
         AdminCommandExecutorHolder.shared = originalExecutor
     }
 
-    func testDetectDuplicateAppCopiesFiltersBuildPathsAndSortsApplicationsFirst() {
+    func testDetectDuplicateAppCopiesFiltersBuildPathsAndSortsApplicationsFirst() async {
         HelperMaintenance.testDuplicateAppPathsOverride = {
             [
                 "/Users/test/Downloads/KeyPath.app",
                 "/dist/KeyPath.app",
+                "/Volumes/Cache/Sparkle_generate_appcast/abc123/KeyPath.app",
                 "/Applications/KeyPath.app",
                 "/Users/test/KeyPath.app"
             ]
         }
 
-        let copies = HelperMaintenance.shared.detectDuplicateAppCopies()
+        let copies = await HelperMaintenance.shared.detectDuplicateAppCopies()
         XCTAssertEqual(copies.first, "/Applications/KeyPath.app")
         let remaining = Set(copies.dropFirst())
         XCTAssertEqual(
@@ -40,6 +43,43 @@ final class HelperMaintenanceTests: XCTestCase {
                 "/Users/test/Downloads/KeyPath.app"
             ])
         )
+    }
+
+    func testDetectDuplicateAppCopiesUsesBoundedSpotlightScan() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.configureRunResult { _, _ in
+            ProcessResult(
+                exitCode: 0,
+                stdout: "/Applications/KeyPath.app\n/Users/test/Downloads/KeyPath.app\n",
+                stderr: "",
+                duration: 0.01
+            )
+        }
+        HelperMaintenance.testDuplicateScanRunner = runner
+
+        let copies = await HelperMaintenance.shared.detectDuplicateAppCopies()
+
+        XCTAssertEqual(copies, ["/Applications/KeyPath.app", "/Users/test/Downloads/KeyPath.app"])
+        let commands = await runner.executedCommands
+        XCTAssertEqual(commands.first?.executable, "/usr/bin/mdfind")
+        XCTAssertEqual(HelperMaintenance.duplicateScanTimeout, 2)
+        XCTAssertTrue(HelperMaintenance.duplicateScanExcludedPathFragments.contains("/Sparkle_generate_appcast/"))
+    }
+
+    func testDetectDuplicateAppCopiesFallsBackWhenSpotlightTimesOut() async {
+        let runner = SubprocessRunnerFake.shared
+        await runner.reset()
+        await runner.setShouldTimeout(true)
+        HelperMaintenance.testDuplicateScanRunner = runner
+
+        let copies = await HelperMaintenance.shared.detectDuplicateAppCopies()
+
+        // A stalled Spotlight must degrade to the canonical locations, never hang, and
+        // never report a location that does not exist (which read as a phantom duplicate).
+        XCTAssertTrue(copies.allSatisfy { $0.hasSuffix("/KeyPath.app") })
+        XCTAssertTrue(copies.allSatisfy { FileManager.default.fileExists(atPath: $0) })
+        await runner.reset()
     }
 
     func testRunCleanupLogsWarningForDuplicateCopies() async {
