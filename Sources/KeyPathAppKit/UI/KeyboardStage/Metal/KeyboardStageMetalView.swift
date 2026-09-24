@@ -244,6 +244,16 @@ final class KeyboardStageMTKView: MTKView {
     private var retryTask: Task<Void, Never>?
     private var reportedWindowX = SIMD2<Float>(0, 1)
 
+    /// The renderer is visual output only; the native semantic overlay stacked
+    /// above it owns pointer interaction and accessibility. As a real `NSView`
+    /// this would otherwise return itself for every point inside the keyboard
+    /// and swallow clicks before those hit targets could see them, so pointer
+    /// presses worked in the SwiftUI fallback and silently failed whenever
+    /// Metal was active.
+    override func hitTest(_: NSPoint) -> NSView? {
+        nil
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         stopObservingWindow()
