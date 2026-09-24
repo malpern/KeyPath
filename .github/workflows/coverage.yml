@@ -9,6 +9,9 @@ concurrency:
   group: coverage-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  KEYPATH_CI_VOLUME_UUID: ${{ vars.KEYPATH_CI_VOLUME_UUID }}
+
 jobs:
   narrow-coverage:
     runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
@@ -32,6 +35,9 @@ jobs:
       - name: Verify runner disk reserve
         run: ./Scripts/lab/host-disk-reserve
 
+      - name: Prepare external CI scratch
+        run: python3 Scripts/ci-storage.py prepare
+
       - name: Ensure Metal toolchain
         run: ./Scripts/ensure-metal-toolchain.sh
 
@@ -46,9 +52,13 @@ jobs:
           SKIP_EVENT_TAP_TESTS: "1"
         run: |
           echo "Generating narrow-lane coverage..."
-          swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
+          swift test --scratch-path "$SCRATCH_PATH" --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
           chmod +x ./Scripts/generate-coverage.sh
           ./Scripts/generate-coverage.sh coverage
+
+      - name: Mark CI scratch completed
+        if: always() && env.SCRATCH_PATH != ''
+        run: python3 Scripts/ci-storage.py finish
 
       - name: Enforce coverage non-regression
         run: |
@@ -123,6 +133,9 @@ jobs:
       - name: Verify runner disk reserve
         run: ./Scripts/lab/host-disk-reserve
 
+      - name: Prepare external CI scratch
+        run: python3 Scripts/ci-storage.py prepare
+
       - name: Ensure Metal toolchain
         run: ./Scripts/ensure-metal-toolchain.sh
 
@@ -137,9 +150,13 @@ jobs:
           SKIP_EVENT_TAP_TESTS: "1"
         run: |
           echo "Generating full-suite coverage (no filter)..."
-          swift test --enable-code-coverage
+          swift test --scratch-path "$SCRATCH_PATH" --enable-code-coverage
           chmod +x ./Scripts/generate-coverage.sh
           ./Scripts/generate-coverage.sh coverage-full
+
+      - name: Mark CI scratch completed
+        if: always() && env.SCRATCH_PATH != ''
+        run: python3 Scripts/ci-storage.py finish
 
       - name: Upload full coverage artifacts
         if: always()
