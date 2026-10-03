@@ -213,34 +213,30 @@ public final class HelperMaintenance {
     #endif
     public nonisolated func detectDuplicateAppCopies() -> [String] {
         var paths: [String] = []
-        let process = Process()
-        process.launchPath = "/usr/bin/mdfind"
-        process.arguments = ["kMDItemFSName == 'KeyPath.app'c"]
-        let out = Pipe()
-        process.standardOutput = out
-        process.standardError = Pipe()
-        do { try process.run() } catch {
-            return canonicalAppCandidates()
-        }
+        var needsScan = true
         #if DEBUG
             if let override = Self.testDuplicateAppPathsOverride?() {
                 paths = override
-            } else {
-                process.waitUntilExit()
-                let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                paths = s.split(separator: "\n").map(String.init)
-                if paths.isEmpty {
-                    paths = canonicalAppCandidates()
-                }
+                needsScan = false
             }
-        #else
+        #endif
+        if needsScan {
+            let process = Process()
+            process.launchPath = "/usr/bin/mdfind"
+            process.arguments = ["kMDItemFSName == 'KeyPath.app'c"]
+            let out = Pipe()
+            process.standardOutput = out
+            process.standardError = Pipe()
+            do { try process.run() } catch {
+                return canonicalAppCandidates()
+            }
             process.waitUntilExit()
             let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             paths = s.split(separator: "\n").map(String.init)
             if paths.isEmpty {
                 paths = canonicalAppCandidates()
             }
-        #endif
+        }
 
         // Filter out build directories to avoid flagging build artifacts as duplicates
         let buildDirPatterns = ["/dist/", "/.build/", "/build/", "/DerivedData/"]
