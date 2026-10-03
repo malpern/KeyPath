@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathWizardCore
 
 /// Rows from `docs/process/installer-repair-state-matrix.md`.
