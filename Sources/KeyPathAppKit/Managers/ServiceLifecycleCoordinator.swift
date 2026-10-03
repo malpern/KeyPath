@@ -15,6 +15,7 @@ final class ServiceLifecycleCoordinator {
     var sessionApplication: NSRunningApplication?
     var sessionReportURL: URL?
     var sessionNonce: String?
+    var sessionOutputsRecovered = false
     var sessionSupervisionTask: Task<Void, Never>?
 
     // MARK: - Runtime Status

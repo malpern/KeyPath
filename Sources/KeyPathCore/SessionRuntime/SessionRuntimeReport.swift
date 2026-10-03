@@ -42,8 +42,14 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.heldOutputUsages = heldOutputUsages
     }
 
-    public func isCurrent(nonce: String, pid: Int32, uid: UInt32, now: Date) -> Bool {
+    /// Cleanup evidence remains useful after a stalled worker dies. Callers must
+    /// confirm termination separately before replaying this launch's ledger.
+    public func belongsTo(nonce: String, pid: Int32, uid: UInt32) -> Bool {
         self.nonce == nonce && self.pid == pid && self.uid == uid
+    }
+
+    public func isCurrent(nonce: String, pid: Int32, uid: UInt32, now: Date) -> Bool {
+        belongsTo(nonce: nonce, pid: pid, uid: uid)
             && timestamp <= now.addingTimeInterval(1)
             && now.timeIntervalSince(timestamp) <= 2
     }

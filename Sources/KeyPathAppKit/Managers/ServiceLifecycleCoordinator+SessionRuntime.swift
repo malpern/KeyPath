@@ -53,6 +53,7 @@ extension ServiceLifecycleCoordinator {
             sessionApplication = application
             sessionReportURL = url
             sessionNonce = nonce
+            sessionOutputsRecovered = false
             for _ in 0 ..< 40 {
                 if let report = currentSessionReport() {
                     if report.state == .running, report.tapActive,
@@ -92,9 +93,8 @@ extension ServiceLifecycleCoordinator {
                 try? await Task.sleep(for: .milliseconds(50))
             }
             if !application.isTerminated {
-                // Only this launch's NSRunningApplication is eligible. Preserve
-                // its final emitted-key ledger before terminating a hung worker.
-                let report = sessionReportURL.flatMap(Self.readSessionReport)
+                // Only this launch's NSRunningApplication is eligible. Read its
+                // final emitted-key ledger after termination, not before SIGKILL.
                 kill(application.processIdentifier, SIGKILL)
                 for _ in 0 ..< 20 {
                     if application.isTerminated { break }
@@ -104,9 +104,12 @@ extension ServiceLifecycleCoordinator {
                     onError?("Driverless runtime did not stop; restart was refused.")
                     return false
                 }
-                if let report, report.nonce == sessionNonce, report.pid == application.processIdentifier,
-                   report.uid == getuid() { releaseReportedOutputs(report) }
             }
+        }
+        // Also recover workers already dead on entry or killed during the TERM
+        // wait. Replay before deleting the only durable emitted-output evidence.
+        if let application = sessionApplication {
+            _ = recoverSessionOutputs(for: application)
         }
         if let url = sessionReportURL {
             try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
@@ -114,6 +117,7 @@ extension ServiceLifecycleCoordinator {
         sessionApplication = nil
         sessionReportURL = nil
         sessionNonce = nil
+        sessionOutputsRecovered = false
         onStateChanged?()
         return true
     }
@@ -133,11 +137,7 @@ extension ServiceLifecycleCoordinator {
                     }
                     continue
                 }
-                let report = sessionReportURL.flatMap(Self.readSessionReport)
-                if let report, let nonce = sessionNonce,
-                   report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
-                {
-                    releaseReportedOutputs(report)
+                if let report = recoverSessionOutputs(for: application) {
                     if report.state == .secureInput {
                         onWarning?("Remapping is paused during secure typing.")
                         while IsSecureEventInputEnabled(), !Task.isCancelled {
@@ -156,6 +156,18 @@ extension ServiceLifecycleCoordinator {
                 return
             }
         }
+    }
+
+    private func recoverSessionOutputs(for application: NSRunningApplication) -> SessionRuntimeReport? {
+        guard application.isTerminated, let nonce = sessionNonce,
+              let report = sessionReportURL.flatMap(Self.readSessionReport),
+              report.belongsTo(nonce: nonce, pid: application.processIdentifier, uid: getuid())
+        else { return nil }
+        if !sessionOutputsRecovered {
+            releaseReportedOutputs(report)
+            sessionOutputsRecovered = true
+        }
+        return report
     }
 
     private func releaseReportedOutputs(_ report: SessionRuntimeReport) {

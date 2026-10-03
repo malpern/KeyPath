@@ -210,11 +210,13 @@ public final class SessionRuntimeWorker {
             case let .success(event?):
                 do {
                     let output = try outputs.translate(event)
-                    // Publish cleanup state before posting a press. A parent that
-                    // observes unexpected process death can release emitted keys.
-                    writeReport(.running)
+                    // Publish a press before posting it, but retain a release in
+                    // the durable ledger until its key-up has been posted. Death
+                    // between these operations leaves a conservative cleanup set.
+                    if output.isDown { writeReport(.running) }
                     post(output)
                     outputCount += 1
+                    if !output.isDown { writeReport(.running) }
                 } catch {
                     finish(.failed, reason: "unsupported-output")
                 }

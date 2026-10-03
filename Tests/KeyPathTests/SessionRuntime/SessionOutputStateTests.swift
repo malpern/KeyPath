@@ -94,4 +94,27 @@ final class SessionOutputStateTests: XCTestCase {
         XCTAssertFalse(report.isCurrent(nonce: "owned", pid: 100, uid: 501, now: now.addingTimeInterval(-2)))
         XCTAssertEqual(try JSONDecoder().decode(SessionRuntimeReport.self, from: JSONEncoder().encode(report)), report)
     }
+
+    func testStaleCrashLedgerRetainsOwnedOutputWithoutClaimingReadiness() throws {
+        let now = Date(timeIntervalSince1970: 1000)
+        let report = SessionRuntimeReport(
+            nonce: "owned", pid: 100, uid: 501, state: .running,
+            accessibility: true, effectiveInputAccess: true, tapActive: true,
+            tcpPort: 37001, inputCount: 1, outputCount: 1,
+            timestamp: now.addingTimeInterval(-60), heldOutputUsages: [4, 224]
+        )
+        XCTAssertFalse(report.isCurrent(nonce: "owned", pid: 100, uid: 501, now: now))
+        XCTAssertTrue(report.belongsTo(nonce: "owned", pid: 100, uid: 501))
+        XCTAssertFalse(report.belongsTo(nonce: "foreign", pid: 100, uid: 501))
+        XCTAssertFalse(report.belongsTo(nonce: "owned", pid: 101, uid: 501))
+        XCTAssertFalse(report.belongsTo(nonce: "owned", pid: 100, uid: 0))
+        var outputs = SessionOutputState()
+        for usage in report.heldOutputUsages {
+            _ = try outputs.translate(event(usage, 1))
+        }
+        let releases = outputs.releaseAll()
+        XCTAssertEqual(releases.map(\.keyCode), [0, 59])
+        XCTAssertTrue(releases.allSatisfy { !$0.isDown })
+        XCTAssertTrue(outputs.heldUsages.isEmpty)
+    }
 }

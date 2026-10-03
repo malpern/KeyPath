@@ -105,7 +105,9 @@ def main():
     time.sleep(.1)
    else:raise RuntimeError('parent did not release held output after worker crash')
    status=client.status()
-   if status.get('runId')!=run or status.get('state')!='running':raise RuntimeError('physical hold ended before parent cleanup proof')
+   # Running includes the post-release cycle tail. Exactly the first submitted
+   # report proves q is still physically down when the independent a-up is seen.
+   if status.get('runId')!=run or status.get('state')!='running' or status.get('reportsSubmitted')!=1:raise RuntimeError('physical hold ended before parent cleanup proof')
    record['releasedDuringPhysicalHold']=released;record['fixtureDuringRelease']=status
   deadline=time.monotonic()+12
   while time.monotonic()<deadline:
