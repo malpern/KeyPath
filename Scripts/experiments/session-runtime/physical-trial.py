@@ -21,13 +21,14 @@ def stop(lease,pid):
   time.sleep(.2)
  raise RuntimeError('owned worker did not exit after graceful stop')
 def main():
- p=argparse.ArgumentParser();p.add_argument('lease');p.add_argument('--label',required=True);p.add_argument('--mode',choices=['remap','hrm-tap','hrm-hold','unmapped','secure','denied','repeat'],default='remap');p.add_argument('--binary-sha',required=True);p.add_argument('--expected-input',type=int,choices=[0,1]);p.add_argument('--caps-via-f18',action='store_true');p.add_argument('--existing-report');p.add_argument('--existing-nonce');p.add_argument('--owner-pid',type=int);p.add_argument('--expected-worker-pid',type=int);a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('lease');p.add_argument('--label',required=True);p.add_argument('--mode',choices=['remap','hrm-tap','hrm-hold','unmapped','secure','denied','repeat','held-crash'],default='remap');p.add_argument('--binary-sha',required=True);p.add_argument('--expected-input',type=int,choices=[0,1]);p.add_argument('--caps-via-f18',action='store_true');p.add_argument('--existing-report');p.add_argument('--existing-nonce');p.add_argument('--owner-pid',type=int);p.add_argument('--expected-worker-pid',type=int);a=p.parse_args()
  external=bool(a.existing_report or a.existing_nonce or a.owner_pid)
  if external:
   import re
-  if not (a.existing_report and a.existing_nonce and a.owner_pid and a.owner_pid>0 and a.expected_worker_pid and a.expected_worker_pid>0) or a.mode not in ('remap','secure') or a.caps_via_f18:raise RuntimeError('invalid parent trial')
+  if not (a.existing_report and a.existing_nonce and a.owner_pid and a.owner_pid>0 and a.expected_worker_pid and a.expected_worker_pid>0) or a.mode not in ('remap','secure','held-crash') or a.caps_via_f18:raise RuntimeError('invalid parent trial')
   if not re.fullmatch(r'/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-'+re.escape(a.existing_nonce)+r'/report.json',a.existing_report):raise RuntimeError('invalid parent report path')
   uuid.UUID(a.existing_nonce)
+ if a.mode=='held-crash' and not external:raise RuntimeError('held crash requires a previously observed parent-owned worker')
  if a.caps_via_f18 and a.mode not in ('remap','hrm-tap','hrm-hold'):raise RuntimeError('invalid Caps Lock sample mode')
  if not a.label.replace('-','').isalnum() or len(a.binary_sha)!=64:raise RuntimeError('invalid provenance')
  nonce=str(uuid.uuid4());run='session-'+uuid.uuid4().hex[:16];path='/Users/keypathqa/session-'+nonce+'.json';config='/Users/keypathqa/session-'+nonce+'.kbd'
@@ -44,7 +45,7 @@ def main():
   fixture=importlib.machinery.SourceFileLoader('fixture',str(pathlib.Path.home()/'local-code/keypath-pico-hid-fixture/Scripts/lab/pico-hid-fixture-client')).load_module()
   if a.mode=='hrm-hold':
    payload='0 0 20 0 0 0 0 0\n300000 0 20 4 0 0 0 0\n340000 0 20 0 0 0 0 0\n400000 0 0 0 0 0 0 0\n';script=f'KPHID1 {run} 4 1 700000 {zlib.crc32(payload.encode())&0xffffffff:08x}\n'+payload
-  else:script=fixture.compile_text(run,'qaz123' if a.mode=='secure' else ('b' if a.mode=='unmapped' else 'q'),1400 if a.mode=='repeat' else 120,1100 if a.mode=='repeat' else 40,1,200)
+  else:script=fixture.compile_text(run,'qaz123' if a.mode=='secure' else ('b' if a.mode=='unmapped' else 'q'),10000 if a.mode=='held-crash' else (1400 if a.mode=='repeat' else 120),8000 if a.mode=='held-crash' else (1100 if a.mode=='repeat' else 40),1,200)
   if a.caps_via_f18:
    # Physical fixture reports still contain Caps Lock usage 57. F18 is only
    # the guest's explicitly staged, fixture-scoped hidutil destination.
@@ -85,6 +86,27 @@ def main():
   pilot.verify_usb(a.lease)
   if not pilot.ready(pilot.state(a.lease,'keypathqa'),before['pid']) or stability.require(a.lease,'keypathqa')!=boot:raise RuntimeError('focus or boot changed')
   record['stage']='physical-input';client.start(run,500)
+  if a.mode=='held-crash':
+   deadline=time.monotonic()+3
+   while time.monotonic()<deadline:
+    held=pilot.state(a.lease,'keypathqa');ledger=report(a.lease,path,nonce)
+    if held.get('pid')==before['pid'] and held.get('active') and not held.get('focusLost') and 0<=time.time()-held.get('observedAt',0)<3 and held.get('held')==[0] and held.get('modifiers')==0 and ledger.get('heldOutputUsages')==[4]:break
+    time.sleep(.1)
+   else:raise RuntimeError('owned held-output state not independently verified')
+   record['heldBeforeCrash']=held;record['ledgerBeforeCrash']=ledger
+   args=pilot.observe(a.lease,'guest-root','--','/bin/zsh','-lc','true; ps -p '+str(pid)+' -o uid=,comm=; ps -p '+str(pid)+' -o args=; true')
+   if args.splitlines()[0].split(maxsplit=1)!=['501',APP+'/Contents/MacOS/KeyPath'] or '--session-nonce '+nonce+' ' not in args or '--session-owner '+str(a.owner_pid)+' ' not in args:raise RuntimeError('owned worker crash guard failed')
+   command='true; test "$(ps -p '+str(pid)+' -o uid= | tr -d " ")" = 501 && test "$(ps -p '+str(pid)+' -o comm=)" = '+shlex.quote(APP+'/Contents/MacOS/KeyPath')+' && kill -KILL '+str(pid)+'; true'
+   pilot.lab(a.lease,'guest-root','--','/bin/zsh','-lc',command)
+   deadline=time.monotonic()+2
+   while time.monotonic()<deadline:
+    released=pilot.state(a.lease,'keypathqa')
+    if released.get('pid')==before['pid'] and released.get('active') and not released.get('focusLost') and 0<=time.time()-released.get('observedAt',0)<3 and 0 not in released.get('held',[]) and released.get('ups',0)>=1:break
+    time.sleep(.1)
+   else:raise RuntimeError('parent did not release held output after worker crash')
+   status=client.status()
+   if status.get('runId')!=run or status.get('state')!='running':raise RuntimeError('physical hold ended before parent cleanup proof')
+   record['releasedDuringPhysicalHold']=released;record['fixtureDuringRelease']=status
   deadline=time.monotonic()+12
   while time.monotonic()<deadline:
    current=client.status()
@@ -92,14 +114,16 @@ def main():
    if current.get('state')=='complete':break
    time.sleep(.1)
   else:raise RuntimeError('fixture timeout')
-  time.sleep(.7);after=pilot.state(a.lease,'keypathqa');target_ready=pilot.ready(after,before['pid']);value=report(a.lease,path,nonce,fresh=expected=='running')
+  time.sleep(.7);after=pilot.state(a.lease,'keypathqa');target_ready=pilot.ready(after,before['pid']);value=report(a.lease,path,nonce,fresh=expected=='running' and a.mode!='held-crash')
   trace=client.trace_all(retry_seconds=10);rows=[list(map(int,row.split()[1:])) for row in script.splitlines()[1:]];actual=[[e.get('modifiers'),*e.get('keys',[])] for e in trace]
   outcome=(after.get('controlA')==1 and after.get('aDowns')==1 and value.get('inputCount')==4 and value.get('outputCount')==4) if a.mode=='hrm-hold' else (after.get('text')=={'remap':'a','hrm-tap':'q','unmapped':'b','denied':'q'}.get(a.mode) and after.get('downs')==1 and after.get('ups')==1)
   if external and a.mode=='remap':outcome=outcome and value.get('inputCount',0)-record['workerBefore'].get('inputCount',0)==2 and value.get('outputCount',0)-record['workerBefore'].get('outputCount',0)==2
+  if a.mode=='held-crash':outcome=bool(record.get('releasedDuringPhysicalHold')) and after.get('text','').startswith('a') and after.get('aDowns',0)>=1
   if a.mode=='repeat':outcome=after.get('text','').startswith('aa') and after.get('downs',0)>1 and after.get('ups')==1 and value.get('inputCount',0)>2
   if a.mode=='secure':outcome=after.get('secureLength')==6 and after.get('secureSampleMatches')==1 and value.get('inputCount')==(record['workerBefore'].get('inputCount') if external else 0)
   checks={'targetReady':target_ready,'productOutcome':outcome,'exactTrace':actual==rows,'reportsSubmitted':current.get('reportsSubmitted')==len(rows),'outputReleased':value.get('heldOutputUsages')==[]}
-  if expected=='running':checks['workerLive']=pilot.observe(a.lease,'guest-root','--','/bin/zsh','-lc','true; kill -0 '+str(pid)+' 2>/dev/null && echo live; true').strip()=='live'
+  if a.mode=='held-crash':checks['outputReleased']=0 not in after.get('held',[])
+  if expected=='running' and a.mode!='held-crash':checks['workerLive']=pilot.observe(a.lease,'guest-root','--','/bin/zsh','-lc','true; kill -0 '+str(pid)+' 2>/dev/null && echo live; true').strip()=='live'
   pilot.verify_usb(a.lease);checks['sameBoot']=stability.require(a.lease,'keypathqa')==boot
   record.update(after=after,workerAfter=value,fixtureAfter=current,trace=trace,acceptanceChecks=checks,passed=all(checks.values()),stage='complete')
  except Exception as error:record.update(error=str(error),failureType=type(error).__name__)

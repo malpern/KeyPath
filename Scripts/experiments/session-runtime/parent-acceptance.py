@@ -50,6 +50,9 @@ try:
   time.sleep(.25)
  assert worker!=old,'secure recovery missing';r['resumedWorker']=v
  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-resumed','--mode','remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+ prepare()
+ subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-held-crash','--mode','held-crash','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+ r['workerCrashAccepted']=True
  r['passed']=True
 except Exception as e:r['error']=str(e)
 finally:
@@ -60,7 +63,7 @@ finally:
   time.sleep(1)
   try:
    v=t.report(lease,path,nonce,False);r['finalWorker']=v
-   if v.get('state')!='stopped' or v.get('heldOutputUsages')!=[]:r.update(passed=False,cleanupError='worker not cleanly stopped')
+   if not r.get('workerCrashAccepted') and (v.get('state')!='stopped' or v.get('heldOutputUsages')!=[]):r.update(passed=False,cleanupError='worker not cleanly stopped')
   except Exception as e:r.update(passed=False,cleanupError=str(e))
  if discover():r.update(passed=False,cleanupError='KeyPath process remains')
  if observe('test -f '+backup+' && echo saved').strip()=='saved':run('cp -p '+backup+' '+cfg+' && rm '+backup)
