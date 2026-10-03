@@ -23,7 +23,13 @@ The normal SwiftUI entry point is now synchronous (`e02da015`); startup also
 uses backend-specific readiness instead of helper registration (`0b2e7a79`).
 The parent acceptance campaign is saved under
 `Scripts/experiments/session-runtime/parent-acceptance.py`. Signed retest and
-final safe gate remain pending. Preserve all failed records; do not count them
+final safe gate remain pending. Normal AX revocation passed with unchanged
+physical `q` (`session-077d1044f2d84f44`). Re-enabling the ordinary Settings
+toggle restored AX/effective input access, verified by independent process
+nonce `e990a694-a9cc-40f9-afa9-0b428a2413a2`. The authorization helper refused
+before credential load because no authorization sheet was present; approval
+had already been restored. Preserve this refusal as a harness outcome, not a
+failed permission grant. Preserve all failed records; do not count them
 as successes. Approval remains never; host deployment and upstream changes
 remain excluded.
 
