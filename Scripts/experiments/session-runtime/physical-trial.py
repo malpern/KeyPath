@@ -21,11 +21,11 @@ def stop(lease,pid):
   time.sleep(.2)
  raise RuntimeError('owned worker did not exit after graceful stop')
 def main():
- p=argparse.ArgumentParser();p.add_argument('lease');p.add_argument('--label',required=True);p.add_argument('--mode',choices=['remap','hrm-tap','hrm-hold','unmapped','secure','denied','repeat'],default='remap');p.add_argument('--binary-sha',required=True);p.add_argument('--expected-input',type=int,choices=[0,1]);p.add_argument('--caps-via-f18',action='store_true');p.add_argument('--existing-report');p.add_argument('--existing-nonce');p.add_argument('--owner-pid',type=int);a=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('lease');p.add_argument('--label',required=True);p.add_argument('--mode',choices=['remap','hrm-tap','hrm-hold','unmapped','secure','denied','repeat'],default='remap');p.add_argument('--binary-sha',required=True);p.add_argument('--expected-input',type=int,choices=[0,1]);p.add_argument('--caps-via-f18',action='store_true');p.add_argument('--existing-report');p.add_argument('--existing-nonce');p.add_argument('--owner-pid',type=int);p.add_argument('--expected-worker-pid',type=int);a=p.parse_args()
  external=bool(a.existing_report or a.existing_nonce or a.owner_pid)
  if external:
   import re
-  if not (a.existing_report and a.existing_nonce and a.owner_pid and a.owner_pid>0) or a.mode not in ('remap','secure') or a.caps_via_f18:raise RuntimeError('invalid parent trial')
+  if not (a.existing_report and a.existing_nonce and a.owner_pid and a.owner_pid>0 and a.expected_worker_pid and a.expected_worker_pid>0) or a.mode not in ('remap','secure') or a.caps_via_f18:raise RuntimeError('invalid parent trial')
   if not re.fullmatch(r'/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-'+re.escape(a.existing_nonce)+r'/report.json',a.existing_report):raise RuntimeError('invalid parent report path')
   uuid.UUID(a.existing_nonce)
  if a.caps_via_f18 and a.mode not in ('remap','hrm-tap','hrm-hold'):raise RuntimeError('invalid Caps Lock sample mode')
@@ -70,10 +70,14 @@ def main():
   if external and a.mode=='secure' and not 0<=time.time()-(value.get('timestamp',0)+978307200)<90:raise RuntimeError('expired parent secure transition')
   record['workerBefore']=value
   if external:
+   if pid!=a.expected_worker_pid:raise RuntimeError('parent worker PID changed')
    record['parentPID']=a.owner_pid
    parent=pilot.observe(a.lease,'guest-root','--','/bin/zsh','-lc','true; ps -p '+str(a.owner_pid)+' -o uid=,comm=; ps -p '+str(pid)+' -o args=; true')
    if parent.splitlines()[0].split(maxsplit=1)!=['501',APP+'/Contents/MacOS/KeyPath']:raise RuntimeError('parent executable/UID mismatch')
-   if '--session-owner '+str(a.owner_pid)+' ' not in parent:raise RuntimeError('worker owner mismatch')
+   if '--session-owner '+str(a.owner_pid)+' ' not in parent:
+    dead=pilot.observe(a.lease,'guest-root','--','/bin/zsh','-lc','true; kill -0 '+str(pid)+' 2>/dev/null && echo live; true').strip()==''
+    if not (a.mode=='secure' and value.get('state')=='secureInput' and dead):raise RuntimeError('worker owner mismatch')
+    record['secureWorkerExited']=True
   if a.expected_input is not None and value.get('effectiveInputAccess')!=bool(a.expected_input):raise RuntimeError('effective input capability differs from expected state')
   expected='secureInput' if a.mode=='secure' else ('failed' if a.mode=='denied' else 'running')
   if value['state']!=expected or (expected=='running' and not value['tapActive']):raise RuntimeError('unexpected tap state')
