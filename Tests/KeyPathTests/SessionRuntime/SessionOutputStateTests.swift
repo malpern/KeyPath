@@ -2,6 +2,19 @@ import KeyPathCore
 import XCTest
 
 final class SessionOutputStateTests: XCTestCase {
+    func testFunctionKeyFlagDoesNotBecomePhysicalFnOnRemappedLetter() {
+        var state = SessionPhysicalModifierState()
+        let function: UInt64 = 1 << 23
+        let caps: UInt64 = 1 << 16
+        XCTAssertEqual(state.passthroughFlags(keyCode: 79, isFlagsChanged: false, flags: function), 0)
+        XCTAssertEqual(state.passthroughFlags(keyCode: 0, isFlagsChanged: false, flags: caps), caps)
+        XCTAssertEqual(state.passthroughFlags(keyCode: 63, isFlagsChanged: true, flags: function), function)
+        XCTAssertEqual(state.passthroughFlags(keyCode: 79, isFlagsChanged: false, flags: function), function)
+        XCTAssertEqual(state.passthroughFlags(keyCode: 0, isFlagsChanged: false, flags: function), function)
+        XCTAssertEqual(state.passthroughFlags(keyCode: 63, isFlagsChanged: true, flags: 0), 0)
+        XCTAssertEqual(state.passthroughFlags(keyCode: 79, isFlagsChanged: false, flags: function), 0)
+    }
+
     private func event(_ usage: UInt32, _ value: UInt64, page: UInt32 = 7) -> KanataHostBridgePassthruOutputEvent {
         .init(value: value, usagePage: page, usage: usage)
     }

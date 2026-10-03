@@ -7,7 +7,7 @@ APP='/Users/keypathqa/Applications/KeyPath.app'
 def check(lease):
  nonce=str(uuid.uuid4());path='/Users/keypathqa/keypath-capability-'+nonce+'.json'
  pilot.lab(lease,'guest-root','--','/bin/zsh','-lc',
-  'true; test "$(stat -f %Su /dev/console)" = keypathqa && launchctl asuser 501 sudo -H -u keypathqa open -n "'+APP+'" --args --session-capabilities --session-report '+path+' --session-nonce '+nonce+'; true')
+  'true; test "$(stat -f %Su /dev/console)" = keypathqa && launchctl asuser 501 sudo -H -u keypathqa open -g -n "'+APP+'" --args --session-capabilities --session-report '+path+' --session-nonce '+nonce+'; true')
  for attempt in range(20):
   time.sleep(.2)
   values=pilot.objects(pilot.observe(lease,'guest-root','--','/bin/zsh','-lc','true; cat '+path+' 2>/dev/null; printf "\\n"; true'))

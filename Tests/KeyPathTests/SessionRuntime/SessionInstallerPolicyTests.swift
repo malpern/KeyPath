@@ -6,6 +6,29 @@ import XCTest
 
 @MainActor
 final class SessionInstallerPolicyTests: XCTestCase {
+    private final class Validator: WizardSystemValidating, @unchecked Sendable {
+        let value: SystemSnapshot
+        init(_ value: SystemSnapshot) {
+            self.value = value
+        }
+
+        func checkSystem() async -> SystemSnapshot {
+            value
+        }
+    }
+
+    func testWizardRefreshPreservesSessionModeThroughUIOperation() async throws {
+        let previous = WizardDependencies.systemValidator
+        defer { WizardDependencies.systemValidator = previous }
+        WizardDependencies.systemValidator = Validator(snapshot(running: false, ax: .denied, input: .denied))
+        let machine = WizardStateMachine()
+        let result = try await WizardOperations.stateDetection(stateMachine: machine).execute { _ in }
+        XCTAssertEqual(result.backend, .session)
+        machine.updateWizardState(from: result)
+        let next = await machine.getNextPage(for: result.state, issues: result.issues)
+        XCTAssertEqual(next, .accessibility)
+    }
+
     private func snapshot(running: Bool, ax: PermissionOracle.Status = .granted,
                           input: PermissionOracle.Status = .granted,
                           backend: KanataRuntimeBackend = .session) -> SystemSnapshot

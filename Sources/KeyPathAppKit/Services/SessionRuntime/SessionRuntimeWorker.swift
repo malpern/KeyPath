@@ -26,6 +26,7 @@ public final class SessionRuntimeWorker {
     private var lastReport = Date.distantPast
     private var finished = false
     private var physicalPassthroughFlags: UInt64 = 0
+    private var physicalModifiers = SessionPhysicalModifierState()
 
     private init(
         reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
@@ -123,9 +124,15 @@ public final class SessionRuntimeWorker {
 
         for number in [SIGTERM, SIGINT, SIGHUP] {
             signal(number, SIG_IGN)
-            let signalSource = DispatchSource.makeSignalSource(signal: number, queue: .main)
-            signalSource.setEventHandler { [weak self] in
-                MainActor.assumeIsolated { self?.finish(.stopped) }
+            // The standalone worker drives CFRunLoop directly; it does not run
+            // NSApplication's main-dispatch servicing. Deliver shutdown onto
+            // that run loop rather than queueing a main-dispatch handler.
+            let signalSource = DispatchSource.makeSignalSource(signal: number, queue: .global())
+            signalSource.setEventHandler { @Sendable [weak self] in
+                CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
+                    MainActor.assumeIsolated { self?.finish(.stopped) }
+                }
+                CFRunLoopWakeUp(CFRunLoopGetMain())
             }
             signals.append(signalSource)
             signalSource.resume()
@@ -144,7 +151,10 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "tap-disabled")
         }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
-        physicalPassthroughFlags = event.flags.rawValue & ((1 << 16) | (1 << 23)) // Caps Lock and Fn.
+        physicalPassthroughFlags = physicalModifiers.passthroughFlags(
+            keyCode: UInt16(event.getIntegerValueField(.keyboardEventKeycode)),
+            isFlagsChanged: type == .flagsChanged, flags: event.flags.rawValue
+        )
         for modifier: UInt32 in 224 ... 231 {
             if runtime?.isInputMapped(usagePage: 7, usage: modifier) == false,
                event.flags.rawValue & SessionKeyMap.deviceModifierFlag(for: modifier) != 0

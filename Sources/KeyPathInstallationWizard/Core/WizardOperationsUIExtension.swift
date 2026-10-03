@@ -38,7 +38,8 @@ extension WizardOperations {
                             detectionTimestamp: Date(),
                             captureStatus: captured.captureStatus,
                             helperInstalled: captured.helperInstalled,
-                            helperNeedsApproval: captured.helperNeedsApproval
+                            helperNeedsApproval: captured.helperNeedsApproval,
+                            backend: captured.backend
                         )
                     }
                     return timeoutResult()

@@ -1,5 +1,18 @@
 import Foundation
 
+/// Function-key events carry the Function flag even when physical Fn is not
+/// held. Only Fn's own flagsChanged event establishes passthrough Fn state.
+public struct SessionPhysicalModifierState: Sendable {
+    private var fnHeld = false
+
+    public init() {}
+
+    public mutating func passthroughFlags(keyCode: UInt16, isFlagsChanged: Bool, flags: UInt64) -> UInt64 {
+        if keyCode == 63, isFlagsChanged { fnHeld = flags & (1 << 23) != 0 }
+        return (flags & (1 << 16)) | (fnHeld ? (1 << 23) : 0)
+    }
+}
+
 public struct SessionKeyOutput: Equatable, Sendable {
     public let keyCode: UInt16
     public let isDown: Bool
