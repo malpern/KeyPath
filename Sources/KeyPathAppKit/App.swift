@@ -547,6 +547,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Service Bounce
 
     private func handleServiceBounceIfNeeded() async {
+        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return }
         let isFreshInstall = await Self.checkIsFreshInstall()
         if isFreshInstall {
             AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
@@ -680,10 +681,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
 
-            let helperFunctional = await HelperManager.shared.testHelperFunctionality()
-            AppLogger.shared.info("🆕 [AppDelegate] Helper functional check: \(helperFunctional)")
-            if !helperFunctional {
-                AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
+            let setupReady: Bool = if KanataRuntimeBackend.selected == .session {
+                await InstallerEngine().inspectSystem().isReady
+            } else {
+                await HelperManager.shared.testHelperFunctionality()
+            }
+            AppLogger.shared.info("🆕 [AppDelegate] Backend setup ready: \(setupReady)")
+            if !setupReady {
+                AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
                 NotificationCenter.default.post(name: .showWizard, object: nil)
             }
@@ -693,6 +698,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Fresh Install Check
 
     private static func checkIsFreshInstall() async -> Bool {
+        // Session startup has no helper/daemon registration step to defer.
+        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return false }
         // Route SMAppService.status through SystemStateProvider (issue #853):
         // these two reads used to be direct synchronous IPC on the MainActor during
         // app init, which could stall the UI for up to 30s under load.
