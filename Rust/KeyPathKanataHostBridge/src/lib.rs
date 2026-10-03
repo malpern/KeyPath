@@ -433,23 +433,35 @@ pub extern "C" fn keypath_kanata_bridge_passthru_send_input(
         return false;
     };
 
-    let input_event = kanata_state_machine::oskbd::InputEvent {
-        value,
-        page,
-        code,
-        device_hash: 0,
-    };
-    let key_event = match kanata_state_machine::oskbd::KeyEvent::try_from(input_event) {
-        Ok(event) => event,
-        Err(()) => {
+    // DriverKit's InputEvent conversion recognizes only physical down/up.
+    // The session ABI carries explicit repeats, so decode its values here.
+    let key_value = match value {
+        0 => kanata_state_machine::oskbd::KeyValue::Release,
+        1 => kanata_state_machine::oskbd::KeyValue::Press,
+        2 => kanata_state_machine::oskbd::KeyValue::Repeat,
+        _ => {
             write_error(
                 error_buffer,
                 error_buffer_len,
-                &format!("unrecognized input event: value={value} page={page} code={code}"),
+                "invalid session input value",
             );
             return false;
         }
     };
+    let oscode =
+        match kanata_state_machine::OsCode::try_from(kanata_state_machine::PageCode { page, code })
+        {
+            Ok(code) => code,
+            Err(_) => {
+                write_error(
+                    error_buffer,
+                    error_buffer_len,
+                    "unrecognized session input usage",
+                );
+                return false;
+            }
+        };
+    let key_event = kanata_state_machine::oskbd::KeyEvent::new(oscode, key_value);
 
     // A session event-tap callback must never wait for a full processing queue.
     // Let the host fail open if the engine falls behind instead of blocking the
@@ -839,6 +851,46 @@ mod tests {
         assert_eq!(value, 1);
         assert_eq!(page, page_code.page);
         assert_eq!(code, page_code.code);
+
+        for expected in [2u64, 0u64] {
+            assert!(keypath_kanata_bridge_passthru_send_input(
+                runtime,
+                expected,
+                page_code.page,
+                page_code.code,
+                error_buffer.as_mut_ptr(),
+                error_buffer.len(),
+            ));
+            let deadline = Instant::now() + Duration::from_millis(250);
+            let mut status = 0;
+            while Instant::now() < deadline {
+                status = keypath_kanata_bridge_passthru_try_recv_output(
+                    runtime,
+                    &mut value,
+                    &mut page,
+                    &mut code,
+                    error_buffer.as_mut_ptr(),
+                    error_buffer.len(),
+                );
+                if status != 0 {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            assert_eq!(status, 1);
+            assert_eq!(
+                (value, page, code),
+                (expected, page_code.page, page_code.code)
+            );
+        }
+        assert!(!keypath_kanata_bridge_passthru_send_input(
+            runtime,
+            3,
+            page_code.page,
+            page_code.code,
+            error_buffer.as_mut_ptr(),
+            error_buffer.len(),
+        ));
 
         keypath_kanata_bridge_destroy_passthru_runtime(runtime);
     }
