@@ -1,3 +1,4 @@
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 @preconcurrency import XCTest
 
@@ -95,6 +96,15 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
         XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installVirtualHIDPayload])
     }
 
+    func testSessionTCPWithoutVerifiedCaptureOrPayloadIsNotReady() {
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(matrixSnapshot(
+            backend: .session, sessionInputCaptureReady: .unknown
+        )), .sessionRuntimeStopped)
+        XCTAssertEqual(InstallerStateMatrixPlanner.classify(matrixSnapshot(
+            backend: .session, requiredRuntimePayloadPresent: false
+        )), .sessionRuntimeStopped)
+    }
+
     private struct GoldenCase {
         let name: String
         let snapshot: InstallerStateMatrixSnapshot
@@ -103,6 +113,8 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
     }
 
     private func matrixSnapshot(
+        backend: KanataRuntimeBackend = .driverKit,
+        sessionInputCaptureReady: Evidence<Bool> = .present,
         kanataBinaryPresent: Evidence<Bool> = .present,
         requiredRuntimePayloadPresent: Evidence<Bool> = .present,
         smAppServiceRegistered: Evidence<Bool> = .present,
@@ -125,6 +137,8 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
         definitiveUnhealthyState: Evidence<Bool> = .absent
     ) -> InstallerStateMatrixSnapshot {
         InstallerStateMatrixSnapshot(
+            backend: backend,
+            sessionInputCaptureReady: sessionInputCaptureReady,
             kanataBinaryPresent: kanataBinaryPresent,
             requiredRuntimePayloadPresent: requiredRuntimePayloadPresent,
             smAppServiceRegistered: smAppServiceRegistered,
@@ -182,6 +196,20 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
 
     private var goldenCases: [GoldenCase] {
         [
+            GoldenCase(
+                name: "Session runtime stopped without optional driver/helper",
+                snapshot: matrixSnapshot(backend: .session, kanataProcessRunning: false,
+                                         virtualHIDDriverPresent: false, helperInstalled: false),
+                expectedRow: .sessionRuntimeStopped,
+                expectedPlan: [.restartOrRecoverKanataRuntime]
+            ),
+            GoldenCase(
+                name: "Session tap and TCP ready without optional driver/helper",
+                snapshot: matrixSnapshot(backend: .session, virtualHIDDriverPresent: false,
+                                         helperInstalled: false),
+                expectedRow: .sessionRuntimeReady,
+                expectedPlan: []
+            ),
             GoldenCase(
                 name: "Fresh install, missing components",
                 snapshot: matrixSnapshot(kanataBinaryPresent: false),

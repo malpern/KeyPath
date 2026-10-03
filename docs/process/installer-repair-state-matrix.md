@@ -56,6 +56,8 @@ current missing/stopped runtime.
 
 | State | Typical Evidence | Planner Should | Success Postcondition | Test Requirement |
 |-------|------------------|----------------|-----------------------|------------------|
+| Session runtime stopped or not ready | Session backend; current tap/process/TCP or bundled payload evidence is missing | Start/recover through the session lifecycle owner; request AX then effective input approval only if needed | Current tap active, process live, TCP responding and bundled payload present; otherwise explicit failure/pending approval | Session golden fixture with absent optional driver/helper, plus unknown-capture and missing-payload rejection |
+| Session tap active and TCP responding | Session backend; current independently verified tap, process, TCP and bundled payload | No helper/DriverKit install or repair | Runtime ready without inventing optional service health | Session ready golden fixture with absent optional driver/helper |
 | Fresh install, missing components | Kanata binary, VHID driver, or required payload absent | Install missing components before runtime services | Components exist and next action is either runtime install or pending approval | Planner test for missing component order |
 | Kanata not registered | SMAppService not found, no launchd job | Install/register runtime services | `ready` or explicit pending Login Items approval | Router/postcondition test for no false success |
 | Registered but not loaded | `SMAppService.status == enabled`, launchd cannot find/load job | Bypass install throttle and recover registration | `ready` or explicit pending approval | Guard test for stale enabled registration bypassing throttle |

@@ -70,6 +70,8 @@ extension Evidence: ExpressibleByBooleanLiteral where Value == Bool {
 /// This is intentionally pure and OS-free. `SystemStateProvider` can build this
 /// from live evidence in a later slice without changing the classifier contract.
 public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
+    public var backend: KanataRuntimeBackend
+    public var sessionInputCaptureReady: Evidence<Bool>
     public var kanataBinaryPresent: Evidence<Bool>
     public var requiredRuntimePayloadPresent: Evidence<Bool>
     public var smAppServiceRegistered: Evidence<Bool>
@@ -92,6 +94,8 @@ public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
     public var definitiveUnhealthyState: Evidence<Bool>
 
     public init(
+        backend: KanataRuntimeBackend = .driverKit,
+        sessionInputCaptureReady: Evidence<Bool> = .unknown,
         kanataBinaryPresent: Evidence<Bool>,
         requiredRuntimePayloadPresent: Evidence<Bool>,
         smAppServiceRegistered: Evidence<Bool>,
@@ -113,6 +117,8 @@ public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
         manualApprovalRequired: Evidence<Bool>,
         definitiveUnhealthyState: Evidence<Bool>
     ) {
+        self.backend = backend
+        self.sessionInputCaptureReady = sessionInputCaptureReady
         self.kanataBinaryPresent = kanataBinaryPresent
         self.requiredRuntimePayloadPresent = requiredRuntimePayloadPresent
         self.smAppServiceRegistered = smAppServiceRegistered
@@ -160,6 +166,12 @@ public enum InstallerStateMatrixAction: String, Sendable, Equatable {
 
 public enum InstallerStateMatrixPlanner {
     public static func classify(_ snapshot: InstallerStateMatrixSnapshot) -> InstallerStateMatrixRow {
+        if snapshot.backend == .session {
+            return snapshot.kanataBinaryPresent.isKnownTrue
+                && snapshot.requiredRuntimePayloadPresent.isKnownTrue
+                && snapshot.runtimeReady && snapshot.sessionInputCaptureReady.isKnownTrue
+                ? .sessionRuntimeReady : .sessionRuntimeStopped
+        }
         let runtimeUsable = snapshot.runtimeReady && !snapshot.currentInputCaptureIssue.isKnownTrue
 
         if snapshot.manualApprovalRequired.isKnownTrue, !runtimeUsable {
@@ -311,6 +323,8 @@ public extension SystemContext {
         }
 
         return InstallerStateMatrixSnapshot(
+            backend: permissions.backend,
+            sessionInputCaptureReady: .known(services.kanataRuntimeReadiness.inputCaptureReady),
             kanataBinaryPresent: .known(components.kanataBinaryInstalled),
             requiredRuntimePayloadPresent: .known(components.requiredRuntimePayloadPresent),
             smAppServiceRegistered: services.kanataSMAppServiceRegistered.map(Evidence<Bool>.known) ?? .unknown,
@@ -335,10 +349,7 @@ public extension SystemContext {
     }
 
     var installerStateMatrixRow: InstallerStateMatrixRow {
-        if permissions.backend == .session {
-            return services.kanataRuntimeReadiness.isReady ? .sessionRuntimeReady : .sessionRuntimeStopped
-        }
-        return InstallerStateMatrixPlanner.classify(installerStateMatrixSnapshot)
+        InstallerStateMatrixPlanner.classify(installerStateMatrixSnapshot)
     }
 
     var installerStateMatrixPlan: [InstallerStateMatrixAction] {
