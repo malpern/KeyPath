@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -11,6 +12,11 @@ import KeyPathWizardCore
 /// then exec's into the bundled kanata binary. Single root process.
 @MainActor
 final class ServiceLifecycleCoordinator {
+    var sessionApplication: NSRunningApplication?
+    var sessionReportURL: URL?
+    var sessionNonce: String?
+    var sessionSupervisionTask: Task<Void, Never>?
+
     // MARK: - Runtime Status
 
     enum RuntimeStatus: Equatable, Sendable {
@@ -28,7 +34,7 @@ final class ServiceLifecycleCoordinator {
 
     // MARK: - Dependencies
 
-    private let kanataDaemonService: KanataDaemonService
+    let kanataDaemonService: KanataDaemonService
     private let recoveryCoordinator: RecoveryCoordinator
 
     // MARK: - Wait-for-exit test seams (#625 part-1)
@@ -185,12 +191,30 @@ final class ServiceLifecycleCoordinator {
     ) {
         self.kanataDaemonService = kanataDaemonService
         self.recoveryCoordinator = recoveryCoordinator
+        if KanataRuntimeBackend.selected == .session {
+            ServiceHealthChecker.shared.configureSessionReadinessProvider { [weak self] in
+                guard let report = await self?.currentSessionReport() else {
+                    return KanataRuntimeReadiness(isRunning: false, isResponding: false, inputCaptureReady: false)
+                }
+                let running = report.state == .running && report.tapActive
+                let responding = running ? await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300) : false
+                return KanataRuntimeReadiness(isRunning: running, isResponding: responding, inputCaptureReady: running)
+            }
+            Task { [weak self] in
+                await PermissionOracle.shared.configureSessionCapabilityProvider { [weak self] in
+                    await self?.sessionCapabilities()
+                }
+            }
+        }
     }
 
     // MARK: - Start / Stop / Restart
 
     @discardableResult
     func startKanata(reason: String = "Manual start") async -> Bool {
+        if KanataRuntimeBackend.selected == .session {
+            return await startSessionRuntime(reason: reason)
+        }
         AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
         // End any lingering post-stop grace (#625): we are deliberately starting a new
         // kanata now, so its authoritative grab status is exactly what we want to act
@@ -299,6 +323,9 @@ final class ServiceLifecycleCoordinator {
 
     @discardableResult
     func stopKanata(reason: String = "Manual stop") async -> Bool {
+        if KanataRuntimeBackend.selected == .session {
+            return await stopSessionRuntime()
+        }
         AppLogger.shared.log("🛑 [Service] Stopping Kanata (\(reason))")
         // Mark this as an intentional transition so a benign `InputGrab active=false`
         // emitted by the dying kanata doesn't trip auto-recovery (#625).
@@ -400,6 +427,12 @@ final class ServiceLifecycleCoordinator {
     // MARK: - Runtime Status
 
     func currentRuntimeStatus() async -> RuntimeStatus {
+        if KanataRuntimeBackend.selected == .session {
+            if isStartingKanata { return .starting }
+            guard let report = currentSessionReport() else { return .stopped }
+            return report.state == .running && report.tapActive
+                ? .running(pid: Int(report.pid)) : .failed(reason: report.failure ?? report.state.rawValue)
+        }
         if isStartingKanata {
             return .starting
         }
@@ -420,6 +453,10 @@ final class ServiceLifecycleCoordinator {
     // MARK: - Validation Start
 
     func startKanataWithValidation() async {
+        if KanataRuntimeBackend.selected == .session {
+            _ = await startSessionRuntime(reason: "Driverless validation start")
+            return
+        }
         await recoveryCoordinator.startKanataWithValidation(
             isKarabinerDaemonRunning: { [weak self] in
                 guard let self, let checker = isVirtualHIDDaemonHealthy else { return false }

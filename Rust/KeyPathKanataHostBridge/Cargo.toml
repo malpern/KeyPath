@@ -19,5 +19,6 @@ passthru-output-spike = [
 [dependencies]
 kanata_state_machine = { package = "kanata", path = "../../External/kanata", features = ["tcp_server"] }
 kanata-parser = { path = "../../External/kanata/parser" }
+kanata-keyberon = { path = "../../External/kanata/keyberon" }
 karabiner-driverkit = { git = "https://github.com/malpern/driverkit.git", rev = "9fcaf6fe5af0059466afcd4d6c9713fd10c0216c" }
 parking_lot = "0.12"

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathWizardCore
 
 /// Pure, side-effect-free routing function for the wizard.
@@ -11,7 +12,8 @@ public enum WizardRouter {
         state: WizardSystemState,
         issues: [WizardIssue],
         helperInstalled: Bool,
-        helperNeedsApproval: Bool
+        helperNeedsApproval: Bool,
+        backend: KanataRuntimeBackend = .driverKit
     ) -> WizardPage {
         // 1. Conflicts (highest priority)
         if issues.contains(where: { $0.category == .conflicts }) {
@@ -19,19 +21,23 @@ public enum WizardRouter {
         }
 
         // 2. Privileged Helper gating
-        if helperNeedsApproval { return .helper }
-        if !helperInstalled { return .helper }
+        if backend.requiresPrivilegedServices {
+            if helperNeedsApproval { return .helper }
+            if !helperInstalled { return .helper }
+        }
 
         // 3. Permissions (blocking only — warnings like "not verified" don't route here)
-        if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring), in: issues)
-            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring), in: issues)
-        {
-            return .inputMonitoring
-        }
+        // Accessibility may already provide effective input access. Resolve it
+        // first, then refresh the Oracle before asking for separate IM approval.
         if hasBlockingPermissionIssue(.permission(.keyPathAccessibility), in: issues)
             || hasBlockingPermissionIssue(.permission(.kanataAccessibility), in: issues)
         {
             return .accessibility
+        }
+        if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring), in: issues)
+            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring), in: issues)
+        {
+            return .inputMonitoring
         }
 
         // 4. Communication configuration
@@ -71,8 +77,8 @@ public enum WizardRouter {
         case .conflicts, .helper, .inputMonitoring, .accessibility:
             return base
         default:
-            if inputMonitoringUnknown { return .inputMonitoring }
             if accessibilityUnknown { return .accessibility }
+            if inputMonitoringUnknown { return .inputMonitoring }
             return base
         }
     }
@@ -87,14 +93,15 @@ public enum WizardRouter {
         state: WizardSystemState,
         issues: [WizardIssue],
         helperInstalled: Bool = true,
-        helperNeedsApproval: Bool = false
+        helperNeedsApproval: Bool = false,
+        backend: KanataRuntimeBackend = .driverKit
     ) -> WizardPage {
         // Check if a blocking prerequisite page needs attention first.
         // This catches cases where the helper page is behind us in the order
         // but must be resolved before we can advance.
         let target = route(
             state: state, issues: issues,
-            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval, backend: backend
         )
         if target != current,
            isBlockingPage(target, helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval)

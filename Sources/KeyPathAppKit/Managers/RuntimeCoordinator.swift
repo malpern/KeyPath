@@ -290,11 +290,22 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize ConfigurationManager
         configurationManager = ConfigurationManager(configurationService: configurationService)
 
+        recoveryCoordinator = RecoveryCoordinator()
+        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
+            kanataDaemonService: kanataDaemonService,
+            recoveryCoordinator: recoveryCoordinator
+        )
+
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
             healthMonitor: serviceHealthMonitor,
-            processStatusProvider: { [kanataDaemonService] in
+            processStatusProvider: { [kanataDaemonService, serviceLifecycleCoordinator] in
+                if KanataRuntimeBackend.selected == .session {
+                    let report = serviceLifecycleCoordinator.currentSessionReport()
+                    return ProcessHealthStatus(isRunning: report?.state == .running && report?.tapActive == true,
+                                               pid: report.map { Int($0.pid) })
+                }
                 let isRunning = await kanataDaemonService.isDaemonRunning()
                 return ProcessHealthStatus(isRunning: isRunning, pid: nil)
             }
@@ -305,15 +316,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Initialize EngineClient
         self.engineClient = engineClient ?? TCPEngineClient()
-
-        // Initialize RecoveryCoordinator (will be configured after all initialization)
-        recoveryCoordinator = RecoveryCoordinator()
-
-        // Initialize ServiceLifecycleCoordinator
-        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
-            kanataDaemonService: kanataDaemonService,
-            recoveryCoordinator: recoveryCoordinator
-        )
 
         // Initialize ConfigReloadCoordinator
         configReloadCoordinator = ConfigReloadCoordinator(

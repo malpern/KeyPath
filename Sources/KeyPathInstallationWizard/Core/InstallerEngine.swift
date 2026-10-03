@@ -196,7 +196,7 @@ public final class InstallerEngine {
     /// Returns: Blocking requirement if any, nil if all requirements met
     private func checkRequirements(for intent: InstallIntent, context: SystemContext) -> Requirement? {
         // For inspectOnly, no requirements needed
-        if intent == .inspectOnly {
+        if intent == .inspectOnly || context.permissions.backend == .session {
             return nil
         }
 
@@ -731,6 +731,11 @@ public final class InstallerEngine {
     {
         // Map recipe ID to component installation method
         switch recipe.id {
+        case "start-session-runtime":
+            guard await WizardDependencies.runtimeCoordinator?.startKanata(reason: "Driverless setup") == true else {
+                throw InstallerError.healthCheckFailed("Session runtime did not become ready")
+            }
+
         case InstallerRecipeID.installCorrectVHIDDriver:
             try await broker.downloadAndInstallCorrectVHIDDriver()
 

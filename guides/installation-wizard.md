@@ -55,6 +55,8 @@ macOS asks you to grant KeyPath Accessibility access in System Settings. The wiz
 
 ### 3. Input Monitoring permission
 
+The wizard resolves Accessibility first, then checks input access again. KeyPath’s own Input Monitoring grant supports keyboard visualization; it is not required just to apply a saved configuration or allow the separate engine to remap keys. The engine still needs its own verified input access.
+
 Similar to Accessibility — macOS asks you to grant Input Monitoring access.
 
 **Why it's needed:** Input Monitoring lets KeyPath intercept key events before they reach your apps. This is what makes remapping work — KeyPath catches the physical key, transforms it, and sends the remapped key to your app.

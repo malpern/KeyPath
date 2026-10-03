@@ -8,9 +8,45 @@ import KeyPathWizardCore
 public enum SystemInspector {
     /// Inspect the system and return the current state plus all detected issues.
     public static func inspect(context: SystemContext) -> (WizardSystemState, [WizardIssue]) {
+        if context.permissions.backend == .session { return inspectSession(context) }
         let state = determineState(context)
         let issues = generateIssues(context)
         return (state, issues)
+    }
+
+    private static func inspectSession(_ context: SystemContext) -> (WizardSystemState, [WizardIssue]) {
+        guard context.captureStatus.isComplete else { return (.serviceNotRunning, []) }
+        var issues: [WizardIssue] = []
+        var missing: [PermissionRequirement] = []
+        if !context.permissions.keyPath.accessibility.isReady || !context.permissions.kanata.accessibility.isReady {
+            missing.append(.keyPathAccessibility)
+            issues.append(WizardIssue(
+                identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
+                title: "Allow KeyPath to remap keys", description: "Enable KeyPath in Accessibility, then retry.",
+                autoFixAction: nil, userAction: "Open Accessibility in System Settings"
+            ))
+        } else if !context.permissions.kanata.inputMonitoring.isReady {
+            missing.append(.keyPathInputMonitoring)
+            issues.append(WizardIssue(
+                identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
+                title: "Keyboard access still needs approval",
+                description: "The independently launched KeyPath runtime still lacks effective input access after Accessibility approval.",
+                autoFixAction: nil, userAction: "Enable KeyPath in Input Monitoring, then retry"
+            ))
+        }
+        if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }
+        if !context.components.requiredRuntimePayloadPresent {
+            return (.missingComponents(missing: [.bundledKanataMissing]), [WizardIssue(
+                identifier: .component(.bundledKanataMissing), severity: .error, category: .installation,
+                title: "Bundled runtime missing", description: "Reinstall this KeyPath build.", autoFixAction: nil, userAction: "Reinstall KeyPath"
+            )])
+        }
+        if context.services.kanataRuntimeReadiness.isReady { return (.active, []) }
+        return (.serviceNotRunning, [WizardIssue(
+            identifier: .daemon, severity: .error, category: .daemon,
+            title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
+            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+        )])
     }
 
     // MARK: - State Determination

@@ -65,7 +65,7 @@ final class ConfigReloadCoordinator {
         // Use the manager refresh path instead of the unbounded synchronous
         // currentManagementState cache; the underlying SMAppService provider
         // still coalesces IPC with a short TTL.
-        let smState = await KanataDaemonManager.shared.refreshManagementStateInternal()
+        let smState = KanataRuntimeBackend.selected == .session ? nil : await KanataDaemonManager.shared.refreshManagementStateInternal()
         if smState == .smappservicePending {
             AppLogger.shared.warn(
                 "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval"
@@ -343,6 +343,15 @@ final class ConfigReloadCoordinator {
 
     /// TCP-based config reload (no authentication required - see ADR-013)
     func triggerTCPReload() async -> TCPReloadResult {
+        if KanataRuntimeBackend.selected == .session {
+            let validation = KanataHostBridge.validateSessionConfig(
+                runtimeHost: .current(), configPath: KeyPathConstants.Config.mainConfigPath,
+                supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
+            )
+            guard case .valid = validation else {
+                return .failure(error: "This configuration requires the advanced driver backend or contains an error", response: "")
+            }
+        }
         if let tcpReloadOverride {
             return await tcpReloadOverride()
         }

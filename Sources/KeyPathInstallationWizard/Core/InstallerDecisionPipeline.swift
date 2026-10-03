@@ -63,6 +63,9 @@ public enum InstallerDecisionPipeline {
     /// Determine actions for repair (general auto-fix)
     /// Used by both InstallerEngine and the wizard presentation projection.
     public static func determineRepairActions(context: SystemContext) -> [AutoFixAction] {
+        if context.permissions.backend == .session {
+            return context.services.kanataRuntimeReadiness.isReady ? [] : [.restartCommServer]
+        }
         var actions: [AutoFixAction] = []
 
         // Every repair action below may need privileged XPC. Establish a working
@@ -147,6 +150,9 @@ public enum InstallerDecisionPipeline {
 
     /// Determine actions for fresh installation
     public static func determineInstallActions(context: SystemContext) -> [AutoFixAction] {
+        if context.permissions.backend == .session {
+            return context.services.kanataRuntimeReadiness.isReady ? [] : [.restartCommServer]
+        }
         var actions: [AutoFixAction] = []
 
         // Clean installs have no XPC endpoint yet. Install the helper before any

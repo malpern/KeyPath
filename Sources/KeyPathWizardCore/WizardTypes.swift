@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathDaemonLifecycle
 import SwiftUI
 
@@ -355,6 +356,7 @@ public struct WizardNavigationState: Sendable {
 
 /// Result of system state detection
 public struct SystemStateResult: Sendable {
+    public let backend: KanataRuntimeBackend
     public let state: WizardSystemState
     public let issues: [WizardIssue]
     public let autoFixActions: [AutoFixAction]
@@ -374,7 +376,8 @@ public struct SystemStateResult: Sendable {
         stateMatrixPlan: [String] = [],
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
-        helperNeedsApproval: Bool = false
+        helperNeedsApproval: Bool = false,
+        backend: KanataRuntimeBackend = .driverKit
     ) {
         self.state = state
         self.issues = issues
@@ -385,6 +388,7 @@ public struct SystemStateResult: Sendable {
         self.captureStatus = captureStatus
         self.helperInstalled = helperInstalled
         self.helperNeedsApproval = helperNeedsApproval
+        self.backend = backend
     }
 
     public var hasBlockingIssues: Bool {

@@ -1,0 +1,42 @@
+# KeyPath permission reduction implementation — 2026-10-03
+
+Research evidence is preserved in `/private/tmp/keypath-permission-footprint/docs/testing/permission-exploration-results.md`. Development is isolated in `/private/tmp/keypath-permission-reduction`, branch `feature/permission-reduction`, starting at `d5581754`. No host KeyPath deployment, permission change or upstream change is authorized by this document.
+
+## First implementation slice
+
+Separate KeyPath's app permission requirements from the engine's requirements. Starting remapping still requires the engine's verified AX and input access, plus KeyPath AX for app actions; it no longer requires KeyPath's own Input Monitoring. Configuration reload goes through the existing TCP coordinator and requests no keyboard permissions. Local key capture and emergency handling require KeyPath AX without depending on unrelated engine grants. After an app grant, re-evaluate the whole action gate before executing; an engine denial or unknown state must not be bypassed.
+
+Route both denied and unknown permission setup to Accessibility before Input Monitoring. Refresh the Oracle before prompting for KeyPath IM, so cached pre-AX denial does not cause an unnecessary prompt. The convenience request-all flow waits for AX approval before attempting IM. Existing helper, driver and engine checks remain in place until a working driverless backend replaces their requirements.
+
+## Remaining permission reduction work
+
+1. Replace explicit engine TCC-entry assumptions with an independently launched, non-prompting capability report from the final stable remapper identity. Do not treat KeyPath's effective IOHID access as the engine's access, or infer permission from AX alone.
+2. Integrate the tested session-event-tap/CGEvent adapter with real Kanata, complete keys/layouts, output tagging, modifiers/repeats and safe failure handling. Keep it experimental until acceptance passes.
+3. Make runtime, installer planning and repair requirements backend-specific. For a verified driverless session backend, stop installing/checking/repairing root helper and Karabiner driver services for ordinary remapping; retain an explicit advanced driver path and migration/rollback.
+4. Verify clean installation, signed identity/update, permission revocation/regrant, physical USB and supported built-in/Bluetooth keyboards, Secure Input, crash/fail-open, sleep/wake and session/reboot continuity. Use owned vm-lab resources and destroy them after tests.
+5. Once reduced requirements are fully verified, revisit onboarding UX. The current slice adjusts requirement correctness and ordering; it does not redesign pages or announce a driverless default.
+
+All check results and any implementation limitations must be recorded below before reporting this slice verified.
+
+
+## Verification of the first slice
+
+Passed 200 selected tests via `Scripts/run-tests-safe.sh`: `PermissionGateEvaluationTests`, `WizardRouterUnverifiedPermissionsTests`, `WizardGoldenTests`, `WizardPureLogicTests`, `WizardDeterminismTests`, `ConfigReloadCoordinatorTests`, `SystemStateProjectionPermissionSeverityTests` and `PermissionOracleInputMonitoringTests`. The final build/test run reported no Swift warnings or app errors. An initial expanded run found one old IM-first routing expectation; it was updated to the intentional AX-first requirement and the rerun passed.
+
+Coverage includes denied app IM with a ready engine, engine denial/unknown despite an app grant, local capture with unverified app AX, TCP reload without keyboard consent, mixed app/engine failures and AX-first ordering for both denied and unknown setup. Test execution used the repository's isolated HOME and event-tap safety guards. No installed app was launched or deployed and no host permissions or services changed.
+
+SwiftFormat 0.61.1 was applied only to touched files. Accessibility identifier validation passed across 380 UI files; whitespace checks passed. Research and rig worktrees remain preserved. This is a verified first implementation slice, not completed driverless integration, clean-installer VM acceptance or a release candidate.
+
+## Driverless integration in progress
+
+The opt-in session backend runs real Kanata in an independently NSWorkspace-launched instance of the same signed KeyPath executable. The worker reads its own passive Apple capability APIs through PermissionOracle, captures with a modifying session tap and emits tagged CGEvents. Its private reports bind nonce, PID, UID and freshness; they carry counters and generated-key cleanup state, never captured input or typed text. The existing lifecycle owner supervises it. The process boundary contains Kanata's detached TCP threads so restart cannot retain an old listener.
+
+Installer planning, readiness, routing and repair now distinguish the session backend. Session readiness requires current capture plus TCP evidence and the bundled runtime payload; absent helper/DriverKit components remain truthfully absent. Session setup plans no privileged helper, DriverKit installation or service registration. Accessibility comes first; Input Monitoring is requested only if effective access is still denied. Legacy remains the default pending acceptance.
+
+The adapter supports the mapped macOS keyboard keys, sided modifiers, repeats, layers, tap/hold, one-shot and ordinary key macros. It passes unmapped physical keys through. Caps Lock remapping/output, consumer/mouse/Unicode output, device filtering and several advanced Kanata actions are rejected by a parser-backed session configuration preflight. These are material limitations; no claim of full Kanata or physical keyboard compatibility is made. Configuration reload repeats that preflight. Secure Input pauses remapping and normal physical typing remains available; supervision is being validated for automatic recovery and held-output release.
+
+Kanata's local-only commit `0d05696` exposes its canonical mapped-input set to the bridge; no upstream contribution has been submitted. Bridge input uses a nonblocking queue. All 12 memory-only bridge checks passed: five supported configuration profiles, six rejected profiles and a real q→a press/release. 134 selected Swift tests passed before the latest supervision/health changes; rerun pending. Twenty rig safety tests pass after adding exact KeyPath toggle targeting. The Xcode 27 release scripts needed removal of the obsolete helper WMO override and discovery of SwiftPM's actual release output directory.
+
+Owned source VM `cbx_8bd54247c73b` / `39fdaa87-32be-487d-bd29-da32c4a15dd3` was admitted through the preserved lab controller, macOS 26.5.2 (25F84), console `keypathqa`. Its manifest's d5581754 source and Sept 16 baseline archive are preparation provenance only. It was prepared, stopped and cloned into temporary candidates: clawd `0c3d6351-c2f1-402c-99b1-b70e8dfba4bb`; malpern `3386c33c-8baf-4589-8096-4e5db5cb0204`. Actual current-KeyPath acceptance and cleanup remain pending. The original signed rig archive is preserved at `/private/tmp/keypath-session-original-rig-tools.zip`; the new KeyPath-targeting archive is SHA256 `3a9564aa70a0c14f7aa560a59197d7ee5d8f12f1f3b3d6460bd0b668e9d90ff1`.
+
+Latest local check: 209 targeted tests passed after supervision, reload and canonical health integration, with no reported Swift or app warnings/errors. Accessibility validation passes for all 380 UI files. `origin/master` is current at d5581754. Signed candidate v2: app executable SHA256 `6a66bff4a6875192291e4e72f8af21bb1a3a24c02a9859f6ee782fcff1bba2f8`; archive `335540a0e7b17e408ab6bb3bfdd555b00057eb3c89804f879a2ae2cb73b0bf1c`. This is a dirty experimental build, not an exact final source-commit artifact; the final candidate must be rebuilt from its checkpoint after remaining fixes. GUI lease `cbx_92ff62339803` / `66c8cc66-ce7c-4c96-8e6e-1e0cd63ba9c4` uses this archive. Its d5581754 manifest describes the lab harness base, not the modified executable's exact source revision.

@@ -12,6 +12,23 @@ import KeyPathCore
 public actor PermissionOracle {
     public static let shared = PermissionOracle()
 
+    private var sessionCapabilityProvider: (@Sendable () async -> PermissionSet?)?
+
+    public func configureSessionCapabilityProvider(_ provider: @escaping @Sendable () async -> PermissionSet?) {
+        sessionCapabilityProvider = provider
+        lastSnapshot = nil
+    }
+
+    /// A non-prompting report from the executable that will own a session tap.
+    /// No cross-process TCC inference or database access is needed here.
+    public func currentProcessCapabilities() -> PermissionSet {
+        PermissionSet(
+            accessibility: Self.checkKeyPathAccessibilityStatus(),
+            inputMonitoring: Self.checkKeyPathInputMonitoringStatus(),
+            source: "current-process.apple-api", confidence: .high, timestamp: Date()
+        )
+    }
+
     // MARK: - Core Types
 
     public enum Status: Equatable, Sendable {
@@ -64,11 +81,13 @@ public actor PermissionOracle {
     }
 
     public struct Snapshot: Sendable {
+        public let backend: KanataRuntimeBackend
         public let keyPath: PermissionSet
         public let kanata: PermissionSet
         public let timestamp: Date
 
-        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date) {
+        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date, backend: KanataRuntimeBackend = .driverKit) {
+            self.backend = backend
             self.keyPath = keyPath
             self.kanata = kanata
             self.timestamp = timestamp
@@ -245,12 +264,20 @@ public actor PermissionOracle {
         let keyPathSet = await checkKeyPathPermissions()
 
         // Get Kanata permissions (UDP primary, functional verification)
-        let kanataSet = await checkKanataPermissions()
+        let backend = KanataRuntimeBackend.selected
+        let kanataSet: PermissionSet = if backend == .session {
+            await sessionCapabilityProvider?() ?? PermissionSet(
+                accessibility: .unknown, inputMonitoring: .unknown,
+                source: "session-process-not-verified", confidence: .low, timestamp: Date()
+            )
+        } else {
+            await checkKanataPermissions()
+        }
 
         let snapshot = Snapshot(
             keyPath: keyPathSet,
             kanata: kanataSet,
-            timestamp: Date()
+            timestamp: Date(), backend: backend
         )
 
         let duration = Date().timeIntervalSince(start)

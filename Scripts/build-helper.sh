@@ -46,8 +46,9 @@ if [ ! -f "$HELPER_INFO_PLIST" ]; then
 fi
 
 swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --product "$HELPER_NAME" \
-    -Xswiftc -no-whole-module-optimization \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$HELPER_INFO_PLIST"
+
+BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --show-bin-path)
 
 # The executable is at BUILD_DIR/HELPER_NAME (not in a subdirectory)
 HELPER_EXECUTABLE="$BUILD_DIR/$HELPER_NAME"

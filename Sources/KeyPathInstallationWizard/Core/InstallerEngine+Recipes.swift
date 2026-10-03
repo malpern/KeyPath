@@ -188,7 +188,7 @@ public extension InstallerEngine {
 
         case .restartCommServer:
             ServiceRecipe(
-                id: InstallerRecipeID.restartCommServer,
+                id: context.permissions.backend == .session ? "start-session-runtime" : InstallerRecipeID.restartCommServer,
                 type: .installComponent,
                 serviceID: nil,
                 expectedPostconditions: [.runtimeReadyOrApprovalPending]

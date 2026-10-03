@@ -131,7 +131,8 @@ public extension InstallationWizardView {
             state: cachedState.state,
             issues: cachedState.issues,
             helperInstalled: cachedState.helperInstalled,
-            helperNeedsApproval: cachedState.helperNeedsApproval
+            helperNeedsApproval: cachedState.helperNeedsApproval,
+            backend: cachedState.backend
         )
         return page != .summary ? page : nil
     }
@@ -180,7 +181,8 @@ public extension InstallationWizardView {
                         state: result.state,
                         issues: filteredIssues,
                         helperInstalled: result.helperInstalled,
-                        helperNeedsApproval: result.helperNeedsApproval
+                        helperNeedsApproval: result.helperNeedsApproval,
+                        backend: result.backend
                     )
                     if recommended != stateMachine.currentPage {
                         AppLogger.shared.log("🔄 [Wizard] Skipping green page \(stateMachine.currentPage) → \(recommended)")

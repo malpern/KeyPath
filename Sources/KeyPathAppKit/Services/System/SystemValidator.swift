@@ -238,6 +238,9 @@ public class SystemValidator {
     private func performValidationBody(
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) async -> SystemSnapshot {
+        if KanataRuntimeBackend.selected == .session {
+            return await captureSessionSnapshot(progressCallback: progressCallback)
+        }
         // If cancelled before we start, return a minimal snapshot without mutating counters
         if Task.isCancelled {
             return Self.makeCancelledSnapshot()
@@ -467,6 +470,41 @@ public class SystemValidator {
         snapshot.validate()
 
         return snapshot
+    }
+
+    private func captureSessionSnapshot(progressCallback: @escaping @Sendable (Double) -> Void) async -> SystemSnapshot {
+        let permissions = await PermissionOracle.shared.currentSnapshot()
+        let report = kanataManager?.serviceLifecycleCoordinator.currentSessionReport()
+        let running = report?.state == .running && report?.tapActive == true
+        let responding = running ? await SystemStateProvider.shared.isTCPPortResponding(port: 37001, timeoutMs: 300) : false
+        let host = KanataRuntimeHost.current()
+        let payload = FileManager.default.fileExists(atPath: host.bridgeLibraryPath)
+            && FileManager.default.fileExists(atPath: Bundle.main.executablePath ?? "")
+        progressCallback(1)
+        return SystemSnapshot(
+            permissions: permissions,
+            components: ComponentStatus(
+                kanataBinaryInstalled: payload, requiredRuntimePayloadPresent: payload,
+                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
+                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
+                vhidServicesHealthy: false, vhidVersionMismatch: false
+            ),
+            conflicts: .empty,
+            health: HealthStatus(
+                backend: .session,
+                kanataProcessRunning: running, kanataTCPResponding: responding,
+                kanataTCPConfigured: true, kanataRunning: running && responding,
+                karabinerDaemonRunning: false, vhidHealthy: false,
+                kanataInputCaptureReady: running,
+                activeRuntimePathTitle: "Driverless session runtime",
+                activeRuntimePathDetail: "Current user · KeyPath app identity · session event tap"
+            ),
+            helper: .empty,
+            compatibility: SystemCompatibilityStatus(
+                macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString, driverCompatible: false
+            ),
+            timestamp: Date()
+        )
     }
 
     static func combinedCaptureStatus(

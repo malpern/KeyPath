@@ -10,6 +10,7 @@ public struct WizardSnapshotRecord {
     public let captureStatus: SystemSnapshotCaptureStatus
     public let helperInstalled: Bool
     public let helperNeedsApproval: Bool
+    public let backend: KanataRuntimeBackend
 }
 
 /// Observable state container for the installation wizard.
@@ -53,7 +54,8 @@ public class WizardStateMachine {
         issues: [WizardIssue],
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
-        helperNeedsApproval: Bool = false
+        helperNeedsApproval: Bool = false,
+        backend: KanataRuntimeBackend = .driverKit
     ) {
         wizardState = state
         wizardIssues = issues
@@ -62,7 +64,8 @@ public class WizardStateMachine {
             issues: issues,
             captureStatus: captureStatus,
             helperInstalled: helperInstalled,
-            helperNeedsApproval: helperNeedsApproval
+            helperNeedsApproval: helperNeedsApproval,
+            backend: backend
         )
         stateVersion += 1
     }
@@ -73,7 +76,8 @@ public class WizardStateMachine {
             issues: issues ?? result.issues,
             captureStatus: result.captureStatus,
             helperInstalled: result.helperInstalled,
-            helperNeedsApproval: result.helperNeedsApproval
+            helperNeedsApproval: result.helperNeedsApproval,
+            backend: result.backend
         )
     }
 
@@ -94,7 +98,8 @@ public class WizardStateMachine {
         let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
         let next = WizardRouter.nextPage(
             after: currentPage, state: state, issues: issues,
-            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval,
+            backend: lastWizardSnapshot?.backend ?? .driverKit
         )
         return next != currentPage ? next : nil
     }
@@ -106,7 +111,8 @@ public class WizardStateMachine {
             let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
             let next = WizardRouter.nextPage(
                 after: currentPage, state: wizardState, issues: wizardIssues,
-                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval,
+                backend: lastWizardSnapshot?.backend ?? .driverKit
             )
             if next != currentPage {
                 navigateToPage(next)
@@ -145,7 +151,8 @@ public class WizardStateMachine {
             state: state,
             issues: issues,
             helperInstalled: lastWizardSnapshot?.helperInstalled ?? false,
-            helperNeedsApproval: lastWizardSnapshot?.helperNeedsApproval ?? false
+            helperNeedsApproval: lastWizardSnapshot?.helperNeedsApproval ?? false,
+            backend: lastWizardSnapshot?.backend ?? .driverKit
         )
 
         guard recommended != currentPage else { return }

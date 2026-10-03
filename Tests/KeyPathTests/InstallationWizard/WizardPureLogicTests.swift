@@ -679,7 +679,7 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(page, .accessibility)
     }
 
-    func test_route_inputMonitoringTakesPriorityOverAccessibility() {
+    func test_route_accessibilityTakesPriorityOverInputMonitoring() {
         let issues = [
             makeIssue(identifier: .permission(.keyPathInputMonitoring), severity: .error),
             makeIssue(identifier: .permission(.keyPathAccessibility), severity: .error),
@@ -690,7 +690,7 @@ final class WizardPureLogicTests: XCTestCase {
             helperInstalled: true,
             helperNeedsApproval: false
         )
-        XCTAssertEqual(page, .inputMonitoring, "IM should take priority over AX")
+        XCTAssertEqual(page, .accessibility, "Resolve AX before requesting separate input access")
     }
 
     func test_route_communicationIssue_routesToCommunication() {

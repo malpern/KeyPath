@@ -196,7 +196,8 @@ public extension InstallationWizardView {
                     state: result.state,
                     issues: filteredIssues,
                     helperInstalled: result.helperInstalled,
-                    helperNeedsApproval: result.helperNeedsApproval
+                    helperNeedsApproval: result.helperNeedsApproval,
+                    backend: result.backend
                 ),
                 inputMonitoringUnknown: kanataInputMonitoringUnknown,
                 accessibilityUnknown: kanataAccessibilityUnknown

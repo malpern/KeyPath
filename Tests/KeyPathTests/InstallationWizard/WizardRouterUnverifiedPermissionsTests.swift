@@ -9,13 +9,13 @@ import KeyPathWizardCore
 /// never overriding higher-priority blocking pages (conflicts/helper).
 @MainActor
 final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
-    func testUnknownInputMonitoringOverridesSummary() {
+    func testUnknownAccessibilityComesBeforeInputMonitoring() {
         let page = WizardRouter.routeForUnverifiedKanataPermissions(
             base: .summary,
             inputMonitoringUnknown: true,
             accessibilityUnknown: true
         )
-        XCTAssertEqual(page, .inputMonitoring, "IM comes first in the wizard's permission order")
+        XCTAssertEqual(page, .accessibility, "Resolve AX before asking for separate input access")
     }
 
     func testUnknownAccessibilityOnlyOverridesToAccessibility() {
@@ -74,5 +74,14 @@ final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
             accessibilityUnknown: false
         )
         XCTAssertEqual(page, .inputMonitoring)
+    }
+
+    func testDeniedAccessibilityComesBeforeDeniedInputMonitoring() {
+        let issues = [PermissionRequirement.kanataInputMonitoring, .kanataAccessibility].map {
+            WizardIssue(identifier: .permission($0), severity: .error, category: .permissions,
+                        title: "Permission", description: "Denied", autoFixAction: nil, userAction: nil)
+        }
+        XCTAssertEqual(WizardRouter.route(state: .serviceNotRunning, issues: issues,
+                                          helperInstalled: true, helperNeedsApproval: false), .accessibility)
     }
 }

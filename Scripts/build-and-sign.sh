@@ -174,7 +174,7 @@ swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration 
 
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
-BUILD_DIR=".build/arm64-apple-macosx/release"
+BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --show-bin-path)
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"

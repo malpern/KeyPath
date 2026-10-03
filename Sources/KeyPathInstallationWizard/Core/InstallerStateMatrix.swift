@@ -3,6 +3,8 @@ import KeyPathWizardCore
 
 /// Rows from `docs/process/installer-repair-state-matrix.md`.
 public enum InstallerStateMatrixRow: String, CaseIterable, Sendable, Equatable {
+    case sessionRuntimeStopped = "Session runtime stopped or not ready"
+    case sessionRuntimeReady = "Session tap active and TCP responding"
     case freshInstallMissingComponents = "Fresh install, missing components"
     case kanataNotRegistered = "Kanata not registered"
     case registeredButNotLoaded = "Registered but not loaded"
@@ -236,6 +238,8 @@ public enum InstallerStateMatrixPlanner {
 
     public static func plan(for row: InstallerStateMatrixRow) -> [InstallerStateMatrixAction] {
         switch row {
+        case .sessionRuntimeStopped: [.restartOrRecoverKanataRuntime]
+        case .sessionRuntimeReady: []
         case .freshInstallMissingComponents:
             [.installMissingComponents]
         case .kanataNotRegistered:
@@ -331,10 +335,13 @@ public extension SystemContext {
     }
 
     var installerStateMatrixRow: InstallerStateMatrixRow {
-        InstallerStateMatrixPlanner.classify(installerStateMatrixSnapshot)
+        if permissions.backend == .session {
+            return services.kanataRuntimeReadiness.isReady ? .sessionRuntimeReady : .sessionRuntimeStopped
+        }
+        return InstallerStateMatrixPlanner.classify(installerStateMatrixSnapshot)
     }
 
     var installerStateMatrixPlan: [InstallerStateMatrixAction] {
-        InstallerStateMatrixPlanner.plan(for: installerStateMatrixSnapshot)
+        InstallerStateMatrixPlanner.plan(for: installerStateMatrixRow)
     }
 }

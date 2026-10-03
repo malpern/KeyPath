@@ -129,6 +129,16 @@ public enum KanataHostBridgePassthruSendInputError: Error, Equatable, Sendable {
 }
 
 public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
+    fileprivate typealias InputMappedFunction = @convention(c) (UInt32, UInt32) -> Bool
+    private let inputMappedFunction: InputMappedFunction?
+    public var hasSessionInputMap: Bool {
+        inputMappedFunction != nil
+    }
+
+    public func isInputMapped(usagePage: UInt32, usage: UInt32) -> Bool {
+        inputMappedFunction?(usagePage, usage) ?? false
+    }
+
     fileprivate typealias DestroyPassthruRuntimeFunction = @convention(c) (UnsafeMutableRawPointer?) -> Void
     fileprivate typealias StartPassthruRuntimeFunction = @convention(c) (
         UnsafeMutableRawPointer?,
@@ -165,7 +175,8 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
         destroyRuntime: @escaping DestroyPassthruRuntimeFunction,
         startRuntime: @escaping StartPassthruRuntimeFunction,
         tryReceiveOutputFunction: @escaping TryReceivePassthruOutputFunction,
-        sendInputFunction: @escaping SendPassthruInputFunction
+        sendInputFunction: @escaping SendPassthruInputFunction,
+        inputMappedFunction: InputMappedFunction? = nil
     ) {
         self.bridgeHandle = bridgeHandle
         self.runtimeHandle = runtimeHandle
@@ -173,6 +184,7 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
         self.startRuntime = startRuntime
         self.tryReceiveOutputFunction = tryReceiveOutputFunction
         self.sendInputFunction = sendInputFunction
+        self.inputMappedFunction = inputMappedFunction
     }
 
     deinit {
@@ -372,6 +384,31 @@ public enum KanataHostBridge {
         return .invalid(reason: reason)
     }
 
+    public static func validateSessionConfig(
+        runtimeHost: KanataRuntimeHost, configPath: String,
+        supportedUsages: [UInt32], fileManager: FileManager = .default
+    ) -> KanataHostBridgeValidationResult {
+        typealias ValidateSessionFunction = @convention(c) (
+            UnsafePointer<CChar>?, UnsafePointer<UInt32>?, Int,
+            UnsafeMutablePointer<CChar>?, Int
+        ) -> Bool
+        guard let handle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else {
+            return .unavailable(reason: unavailableReason(runtimeHost: runtimeHost, fileManager: fileManager))
+        }
+        defer { dlclose(handle) }
+        guard let symbol = dlsym(handle, "keypath_kanata_bridge_validate_session_config") else {
+            return .unavailable(reason: "session profile validator missing")
+        }
+        let validate = unsafeBitCast(symbol, to: ValidateSessionFunction.self)
+        var buffer = [CChar](repeating: 0, count: 2048)
+        let valid = supportedUsages.withUnsafeBufferPointer { usages in
+            configPath.withCString { path in
+                validate(path, usages.baseAddress, usages.count, &buffer, buffer.count)
+            }
+        }
+        return valid ? .valid : .invalid(reason: decodeCStringBuffer(buffer) ?? "session config rejected")
+    }
+
     public static func createRuntime(
         runtimeHost: KanataRuntimeHost,
         configPath: String,
@@ -492,7 +529,9 @@ public enum KanataHostBridge {
             destroyRuntime: destroyRuntime,
             startRuntime: startRuntime,
             tryReceiveOutputFunction: tryReceiveOutput,
-            sendInputFunction: sendInput
+            sendInputFunction: sendInput,
+            inputMappedFunction: dlsym(bridgeHandle, "keypath_kanata_bridge_passthru_is_input_mapped")
+                .map { unsafeBitCast($0, to: KanataHostBridgePassthruRuntimeHandle.InputMappedFunction.self) }
         )
         return (.created(layerCount: runtimeLayerCount(runtimeHandle)), handle)
     }

@@ -1,17 +1,59 @@
-use std::ffi::{CStr, c_char, c_void};
+use std::ffi::{c_char, c_void, CStr};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[cfg(feature = "passthru-output-spike")]
-use std::sync::mpsc::{self, Receiver};
+use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(feature = "passthru-output-spike")]
 use std::sync::mpsc::SyncSender;
 #[cfg(feature = "passthru-output-spike")]
-use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver};
 #[cfg(feature = "passthru-output-spike")]
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 const BRIDGE_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
+
+#[cfg(target_os = "macos")]
+mod session_config;
+
+/// Validate the supported session profile using Kanata's actual parsed action
+/// tree. The host supplies its key map, so this cannot drift from CG translation.
+#[cfg(target_os = "macos")]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_validate_session_config(
+    config_path: *const c_char,
+    supported_usages: *const u32,
+    supported_count: usize,
+    error_buffer: *mut c_char,
+    error_buffer_len: usize,
+) -> bool {
+    let Some(path) = parse_config_path(config_path, error_buffer, error_buffer_len) else {
+        return false;
+    };
+    if supported_usages.is_null() || supported_count == 0 || supported_count > 512 {
+        write_error(error_buffer, error_buffer_len, "invalid session key map");
+        return false;
+    }
+    let usages = unsafe { std::slice::from_raw_parts(supported_usages, supported_count) };
+    match kanata_parser::cfg::new_from_file(Path::new(&path)) {
+        Ok(cfg) if session_config::supported(&cfg, usages) => {
+            write_error(error_buffer, error_buffer_len, "");
+            true
+        }
+        Ok(_) => {
+            write_error(error_buffer, error_buffer_len, "configuration requires the advanced driver backend (device filters, Caps Lock remapping, unsupported keys or actions)");
+            false
+        }
+        Err(_) => {
+            write_error(
+                error_buffer,
+                error_buffer_len,
+                "configuration could not be parsed by Kanata",
+            );
+            false
+        }
+    }
+}
 
 #[cfg(target_os = "macos")]
 unsafe extern "C" {
@@ -26,6 +68,13 @@ struct PassthruRuntime {
     processing_tx: parking_lot::Mutex<Option<SyncSender<kanata_state_machine::oskbd::KeyEvent>>>,
     tcp_server_address: Option<kanata_state_machine::SocketAddrWrapper>,
     started: AtomicBool,
+}
+
+#[cfg(all(feature = "passthru-output-spike", target_os = "macos"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_passthru_is_input_mapped(page: u32, code: u32) -> bool {
+    use kanata_parser::keys::{OsCode, PageCode};
+    OsCode::try_from(PageCode { page, code }).is_ok_and(kanata_state_machine::is_mapped_input)
 }
 
 #[unsafe(no_mangle)]
@@ -107,7 +156,9 @@ pub extern "C" fn keypath_kanata_bridge_destroy_runtime(runtime: *mut c_void) {
     }
 
     unsafe {
-        drop(Box::from_raw(runtime.cast::<kanata_state_machine::Kanata>()));
+        drop(Box::from_raw(
+            runtime.cast::<kanata_state_machine::Kanata>(),
+        ));
     }
 }
 
@@ -196,7 +247,9 @@ pub extern "C" fn keypath_kanata_bridge_destroy_passthru_runtime(_runtime: *mut 
 
 #[cfg(feature = "passthru-output-spike")]
 #[unsafe(no_mangle)]
-pub extern "C" fn keypath_kanata_bridge_passthru_runtime_layer_count(runtime: *const c_void) -> usize {
+pub extern "C" fn keypath_kanata_bridge_passthru_runtime_layer_count(
+    runtime: *const c_void,
+) -> usize {
     if runtime.is_null() {
         return 0;
     }
@@ -207,7 +260,9 @@ pub extern "C" fn keypath_kanata_bridge_passthru_runtime_layer_count(runtime: *c
 
 #[cfg(not(feature = "passthru-output-spike"))]
 #[unsafe(no_mangle)]
-pub extern "C" fn keypath_kanata_bridge_passthru_runtime_layer_count(_runtime: *const c_void) -> usize {
+pub extern "C" fn keypath_kanata_bridge_passthru_runtime_layer_count(
+    _runtime: *const c_void,
+) -> usize {
     0
 }
 
@@ -222,7 +277,11 @@ pub extern "C" fn keypath_kanata_bridge_passthru_try_recv_output(
     error_buffer_len: usize,
 ) -> i32 {
     if runtime.is_null() {
-        write_error(error_buffer, error_buffer_len, "passthru runtime handle was null");
+        write_error(
+            error_buffer,
+            error_buffer_len,
+            "passthru runtime handle was null",
+        );
         return -1;
     }
 
@@ -230,13 +289,19 @@ pub extern "C" fn keypath_kanata_bridge_passthru_try_recv_output(
     match runtime.output_rx.try_recv() {
         Ok(event) => {
             if !value_out.is_null() {
-                unsafe { *value_out = event.value; }
+                unsafe {
+                    *value_out = event.value;
+                }
             }
             if !page_out.is_null() {
-                unsafe { *page_out = event.page; }
+                unsafe {
+                    *page_out = event.page;
+                }
             }
             if !code_out.is_null() {
-                unsafe { *code_out = event.code; }
+                unsafe {
+                    *code_out = event.code;
+                }
             }
             write_error(error_buffer, error_buffer_len, "");
             1
@@ -282,7 +347,11 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
     error_buffer_len: usize,
 ) -> bool {
     if runtime.is_null() {
-        write_error(error_buffer, error_buffer_len, "passthru runtime handle was null");
+        write_error(
+            error_buffer,
+            error_buffer_len,
+            "passthru runtime handle was null",
+        );
         return false;
     }
 
@@ -345,7 +414,11 @@ pub extern "C" fn keypath_kanata_bridge_passthru_send_input(
     error_buffer_len: usize,
 ) -> bool {
     if runtime.is_null() {
-        write_error(error_buffer, error_buffer_len, "passthru runtime handle was null");
+        write_error(
+            error_buffer,
+            error_buffer_len,
+            "passthru runtime handle was null",
+        );
         return false;
     }
 
@@ -360,7 +433,12 @@ pub extern "C" fn keypath_kanata_bridge_passthru_send_input(
         return false;
     };
 
-    let input_event = kanata_state_machine::oskbd::InputEvent { value, page, code, device_hash: 0 };
+    let input_event = kanata_state_machine::oskbd::InputEvent {
+        value,
+        page,
+        code,
+        device_hash: 0,
+    };
     let key_event = match kanata_state_machine::oskbd::KeyEvent::try_from(input_event) {
         Ok(event) => event,
         Err(()) => {
@@ -373,7 +451,10 @@ pub extern "C" fn keypath_kanata_bridge_passthru_send_input(
         }
     };
 
-    match tx.send(key_event) {
+    // A session event-tap callback must never wait for a full processing queue.
+    // Let the host fail open if the engine falls behind instead of blocking the
+    // WindowServer callback and losing its tap to a timeout.
+    match tx.try_send(key_event) {
         Ok(()) => {
             write_error(error_buffer, error_buffer_len, "");
             true
@@ -600,7 +681,11 @@ fn parse_config_path(
     match unsafe { CStr::from_ptr(config_path) }.to_str() {
         Ok(path) => Some(path.to_owned()),
         Err(_) => {
-            write_error(error_buffer, error_buffer_len, "config path was not valid UTF-8");
+            write_error(
+                error_buffer,
+                error_buffer_len,
+                "config path was not valid UTF-8",
+            );
             None
         }
     }
@@ -673,7 +758,12 @@ mod tests {
             error_buffer.len(),
         );
 
-        assert_eq!(recv_status, 0, "unexpected error: {}", read_error_buffer(&error_buffer));
+        assert_eq!(
+            recv_status,
+            0,
+            "unexpected error: {}",
+            read_error_buffer(&error_buffer)
+        );
         assert_eq!(read_error_buffer(&error_buffer), "");
         assert_eq!(value, 99);
         assert_eq!(page, 99);
@@ -706,9 +796,10 @@ mod tests {
         ));
         assert_eq!(read_error_buffer(&error_buffer), "");
 
-        let page_code =
-            kanata_state_machine::PageCode::try_from(kanata_state_machine::str_to_oscode("a").unwrap())
-                .expect("page code");
+        let page_code = kanata_state_machine::PageCode::try_from(
+            kanata_state_machine::str_to_oscode("a").unwrap(),
+        )
+        .expect("page code");
         assert!(keypath_kanata_bridge_passthru_send_input(
             runtime,
             1,
@@ -739,7 +830,12 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
 
-        assert_eq!(recv_status, 1, "unexpected error: {}", read_error_buffer(&error_buffer));
+        assert_eq!(
+            recv_status,
+            1,
+            "unexpected error: {}",
+            read_error_buffer(&error_buffer)
+        );
         assert_eq!(value, 1);
         assert_eq!(page, page_code.page);
         assert_eq!(code, page_code.code);
