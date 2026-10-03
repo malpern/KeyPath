@@ -8,6 +8,18 @@
 /// system services are needed.
 @MainActor
 final class VHIDSafetyInvariantTests: KeyPathTestCase {
+    func test_sessionBackendDoesNotStopForAbsentVirtualHID() {
+        XCTAssertFalse(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, vhidDaemonHealthy: false, backend: .session
+        ))
+        XCTAssertFalse(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, confirmedFailureCount: 2, backend: .session
+        ))
+        XCTAssertTrue(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, confirmedFailureCount: 2, backend: .driverKit
+        ))
+    }
+
     // MARK: - Emergency Stop Decision
 
     func test_emergencyStop_triggeredWhenKanataRunningWithoutVHID() {

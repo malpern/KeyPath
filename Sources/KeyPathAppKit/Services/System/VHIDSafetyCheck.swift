@@ -1,8 +1,9 @@
 import Foundation
+import KeyPathCore
 import KeyPathInstallationWizard
 
 /// Pure-function safety logic for the VirtualHID daemon invariant:
-/// Kanata must never run without a healthy VirtualHID daemon, because kanata
+/// The DriverKit backend must never run without a healthy VirtualHID daemon, because it
 /// grabs keyboard input and VirtualHID is the only path for re-emitting keystrokes.
 ///
 /// Extracted as a value type so the decision logic is unit-testable without
@@ -12,8 +13,10 @@ enum VHIDSafetyCheck {
 
     /// Returns `true` when kanata is running but the VirtualHID daemon is not healthy.
     /// Callers should emergency-stop kanata when this returns `true`.
-    static func shouldEmergencyStop(kanataRunning: Bool, vhidDaemonHealthy: Bool) -> Bool {
-        kanataRunning && !vhidDaemonHealthy
+    static func shouldEmergencyStop(kanataRunning: Bool, vhidDaemonHealthy: Bool,
+                                    backend: KanataRuntimeBackend = .driverKit) -> Bool
+    {
+        backend.requiresPrivilegedServices && kanataRunning && !vhidDaemonHealthy
     }
 
     /// A safety shutdown requires repeated, affirmative evidence. Unknown
@@ -35,9 +38,10 @@ enum VHIDSafetyCheck {
 
     static func shouldEmergencyStop(
         kanataRunning: Bool,
-        confirmedFailureCount: Int
+        confirmedFailureCount: Int,
+        backend: KanataRuntimeBackend = .driverKit
     ) -> Bool {
-        kanataRunning && confirmedFailureCount >= requiredConfirmedFailures
+        backend.requiresPrivilegedServices && kanataRunning && confirmedFailureCount >= requiredConfirmedFailures
     }
 
     /// Returns `true` when VirtualHID is healthy enough to allow kanata to start.

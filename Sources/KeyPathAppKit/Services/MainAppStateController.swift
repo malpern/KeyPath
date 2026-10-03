@@ -299,7 +299,7 @@ class MainAppStateController {
                 // is not healthy, emergency-stop kanata to release the keyboard.
                 // W3 safety exception: this background mutation only stops remapping
                 // to prevent unsafe keyboard capture; it must not perform repair.
-                if isHealthy {
+                if isHealthy, KanataRuntimeBackend.selected.requiresPrivilegedServices {
                     let vhidStatus = await ServiceHealthChecker.shared.vhidSafetyStatus()
                     vhidConfirmedFailureCount = VHIDSafetyCheck.confirmedFailureCount(
                         after: vhidStatus,
@@ -307,7 +307,8 @@ class MainAppStateController {
                     )
                     if VHIDSafetyCheck.shouldEmergencyStop(
                         kanataRunning: true,
-                        confirmedFailureCount: vhidConfirmedFailureCount
+                        confirmedFailureCount: vhidConfirmedFailureCount,
+                        backend: KanataRuntimeBackend.selected
                     ) {
                         AppLogger.shared.error(
                             "🚨 [MainAppStateController] SAFETY: Kanata running after repeated confirmed VirtualHID failures — emergency stop"
