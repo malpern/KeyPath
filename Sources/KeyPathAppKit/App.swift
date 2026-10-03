@@ -682,7 +682,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
 
             let setupReady: Bool = if KanataRuntimeBackend.selected == .session {
-                await InstallerEngine().inspectSystem().isReady
+                await WizardDependencies.systemValidator?.checkSystem(freshness: .fresh).isReady ?? false
             } else {
                 await HelperManager.shared.testHelperFunctionality()
             }
