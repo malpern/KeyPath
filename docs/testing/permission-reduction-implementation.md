@@ -1,5 +1,7 @@
 # KeyPath permission reduction implementation — 2026-10-03
 
+Canonical gaps, candidate workarounds and acceptance criteria: [driverless gap register](driverless-gap-register.md). Current delivery order remains permission reduction and lifecycle acceptance first, then onboarding UX and broader feature experiments.
+
 ## Caps Lock feasibility and shutdown correction (22:54 UTC)
 
 **Verified feasibility at 23:05 UTC:** all three real ESP32 Caps Lock cases passed in the owned macOS 26.5.2 guest with the signed KeyPath executable 71dc40ec7aa4709444c5a1bd0a0665e99eef77052aa737524f2073065ade6d87 (archive 035a0ff43fbd8725f7df90900dbad920fb37079d344a9e5c9cd4c4198cbaf253). Basic Caps→F18→Kanata→a: session-5190c26939bb4718. Tap/hold tap→q: session-df5b859d598c4d49. Hold→left Control plus physical a: session-a260c3b6ebda400c. Each passed exact real usage-57 trace, focus, same-boot, verified attachment, final released output/target state, live capture and clean stopped report. The fixture-scoped hidutil mapping was read back empty after cleanup. Campaign: evidence/session-runtime/cbx_92ff62339803-caps-path-1791068598.json. This verifies feasibility, not automatic product Caps setup or recovery. Secure Input, keyboard reconnect/reboot, conflicting mappings, real F18 collisions and crash cleanup of the OS mapping remain separate acceptance gates. No Karabiner driver or helper was installed and no new permission grant was made for these trials. Twelve targeted Swift tests passed with no warnings/errors, pinned formatting and accessibility validation passed.
@@ -13,6 +15,42 @@ Two physical Caps trials delivered real usage-57 press/release reports and recor
 Research evidence is preserved in `/private/tmp/keypath-permission-footprint/docs/testing/permission-exploration-results.md`. Development is isolated in `/private/tmp/keypath-permission-reduction`, branch `feature/permission-reduction`, starting at `d5581754`. No host KeyPath deployment, permission change or upstream change is authorized by this document.
 
 ## First implementation slice
+
+### Follow-up priorities after Caps feasibility
+
+Review of current Apple APIs and Karabiner's own development documentation separates
+session-event constraints from missing adapter features. These are research/test
+priorities, not newly verified product capabilities:
+
+1. Preserve layers, tap/hold, chords, one-shots and keyboard macros through real
+   Kanata; their state machines do not inherently require a virtual HID device.
+2. Finish Caps OS-mapping ownership and reconnect/crash cleanup before expanding
+   static normalization. Explore selected device-specific trigger normalization,
+   but do not promise arbitrary per-device profiles: CGEventTap lacks source-device
+   identity. Matching raw HID observations by timing is not reliable attribution.
+3. Test common media inputs/outputs and physical Apple Fn/Globe. For Fn system
+   behavior, prefer equivalent KeyPath actions to synthesizing a physical Fn key.
+   Firmware-only Fn keys that emit no host event cannot be recovered by software.
+   Media normalization/direct OS actions are candidates, not accepted capabilities.
+4. Add mouse movement/click/scroll output through public Quartz APIs, then Unicode
+   output with target-app compatibility tests. Clipboard paste is an optional
+   alternative with clipboard preservation and application limitations; it is not
+   universal equivalence to keyboard typing.
+5. Keep Secure Input as explicit pause/reset/resume. Static OS substitutions are
+   a possible limited baseline but do not restore Kanata layers or tap/hold in
+   protected input; any Caps→F18 staging must have a safe protected-input policy.
+   The session app also does not run before login or in FileVault preboot.
+6. Prioritize held-key release, event-tap timeout, worker/parent crash, sleep/wake,
+   session changes and mapping restoration before claiming default-backend readiness.
+
+[Karabiner's event-capture/output comparison](https://github.com/pqrs-org/Karabiner-Elements/blob/main/DEVELOPMENT.md#the-difference-of-event-grabbing-methods)
+documents Secure Input, missing source-device identity and synthetic Fn limitations.
+Its CGEventTap fallback still emits through VirtualHIDDevice, so enabling that
+fallback does not remove the driver dependency. [Apple Quartz event APIs](https://developer.apple.com/documentation/coregraphics/cgevent)
+support mouse and Unicode output, but [Apple's Unicode documentation](https://developer.apple.com/documentation/coregraphics/cgevent/keyboardsetunicodestring(stringlength:unicodestring:))
+warns that application frameworks may ignore the Unicode string. [Karabiner's
+feature limitations](https://karabiner-elements.pqrs.org/docs/getting-started/features/#current-limitations)
+also distinguish firmware-only Fn handling from software remapping.
 
 Separate KeyPath's app permission requirements from the engine's requirements. Starting remapping still requires the engine's verified AX and input access, plus KeyPath AX for app actions; it no longer requires KeyPath's own Input Monitoring. Configuration reload goes through the existing TCP coordinator and requests no keyboard permissions. Local key capture and emergency handling require KeyPath AX without depending on unrelated engine grants. After an app grant, re-evaluate the whole action gate before executing; an engine denial or unknown state must not be bypassed.
 
