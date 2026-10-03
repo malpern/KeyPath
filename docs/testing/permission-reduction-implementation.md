@@ -2,15 +2,40 @@
 
 Canonical gaps, candidate workarounds and acceptance criteria: [driverless gap register](driverless-gap-register.md). Current delivery order remains permission reduction and lifecycle acceptance first, then onboarding UX and broader feature experiments.
 
-## Caps Lock feasibility and shutdown correction (22:54 UTC)
+## Current acceptance status (23:23 UTC)
+
+Gap register committed in `da6d72ea`; repeat preservation fix in `bc6b0d7d`
+with local Kanata commit `0853689`. The real-engine press/repeat/release ABI
+regression passes and invalid input value 3 is rejected. Physical repeat failure
+`session-9f95f6699ec04e5f` remains excluded: ten input callbacks produced one
+character because the physical DriverKit conversion treated repeats as releases.
+Signed physical retest is pending.
+
+Current signed executable `71dc40ec...` also passed ordinary home-row tap
+`session-ae922917cc1640e9`, hold `session-630a30ea6055447a`, unmapped-key
+pass-through `session-a4abad55eaf0494f` and fixed Secure Input pass-through
+`session-38d3ca01b8314d51`. Each retains exact fixture and independent target
+checks. These are independent worker trials, not parent recovery acceptance.
+
+The first parent campaign did not start a lifecycle worker. Logs showed
+CompositionRoot initialization but no AppDelegate finish-launching callback.
+The normal SwiftUI entry point is now synchronous (`e02da015`); startup also
+uses backend-specific readiness instead of helper registration (`0b2e7a79`).
+The parent acceptance campaign is saved under
+`Scripts/experiments/session-runtime/parent-acceptance.py`. Signed retest and
+final safe gate remain pending. Preserve all failed records; do not count them
+as successes. Approval remains never; host deployment and upstream changes
+remain excluded.
+
+## Caps Lock feasibility and shutdown correction (historical chronology)
 
 **Verified feasibility at 23:05 UTC:** all three real ESP32 Caps Lock cases passed in the owned macOS 26.5.2 guest with the signed KeyPath executable 71dc40ec7aa4709444c5a1bd0a0665e99eef77052aa737524f2073065ade6d87 (archive 035a0ff43fbd8725f7df90900dbad920fb37079d344a9e5c9cd4c4198cbaf253). Basic Caps→F18→Kanata→a: session-5190c26939bb4718. Tap/hold tap→q: session-df5b859d598c4d49. Hold→left Control plus physical a: session-a260c3b6ebda400c. Each passed exact real usage-57 trace, focus, same-boot, verified attachment, final released output/target state, live capture and clean stopped report. The fixture-scoped hidutil mapping was read back empty after cleanup. Campaign: evidence/session-runtime/cbx_92ff62339803-caps-path-1791068598.json. This verifies feasibility, not automatic product Caps setup or recovery. Secure Input, keyboard reconnect/reboot, conflicting mappings, real F18 collisions and crash cleanup of the OS mapping remain separate acceptance gates. No Karabiner driver or helper was installed and no new permission grant was made for these trials. Twelve targeted Swift tests passed with no warnings/errors, pinned formatting and accessibility validation passed.
 
-Follow-up: signed executable fc68b406b856bb920cd22236fc3f6790af2352e63224dd3aff5d6253ab5094d5 retained AX/effective input approval after update and passed ordinary physical q→a with a verified stopped report (session-c5244141b2ef4f21). The matching Caps→F18 trial still lost focus despite clean shutdown (session-eb01ba9985c4438a), so the shutdown crash did not explain all Caps failures. The worker was incorrectly copying F18's semantic Function flag onto its ordinary letter output, plausibly triggering the macOS Fn+A Dock shortcut. Physical Fn state is now established only from Fn's own flagsChanged events; a regression test distinguishes semantic F18 flags from actual held Fn. Signed rebuild and physical Caps verification are pending.
+Follow-up: signed executable fc68b406b856bb920cd22236fc3f6790af2352e63224dd3aff5d6253ab5094d5 retained AX/effective input approval after update and passed ordinary physical q→a with a verified stopped report (session-c5244141b2ef4f21). The matching Caps→F18 trial still lost focus despite clean shutdown (session-eb01ba9985c4438a), so the shutdown crash did not explain all Caps failures. The worker was incorrectly copying F18's semantic Function flag onto its ordinary letter output, plausibly triggering the macOS Fn+A Dock shortcut. Physical Fn state is now established only from Fn's own flagsChanged events; a regression test distinguishes semantic F18 flags from actual held Fn. The subsequent signed build and physical Caps campaign verified the correction, as recorded above.
 
 Caps Lock is a current session adapter limitation, not an established driverless hard limit. The candidate path uses Apple's hidutil to translate Caps Lock usage 57 into F18 usage 109 before the session event tap, then feeds F18 through real Kanata. The feasibility harness limits this mapping to the verified ESP32 device in the owned guest, refuses to overwrite a nonempty existing mapping, and clears its mapping afterward. Product mapping ownership, reconnect/reboot restoration, real F18 conflicts and crash recovery remain unimplemented. Sources: [Apple TN2450](https://developer.apple.com/library/archive/technotes/tn2450/) and [Hyperkey](https://github.com/feedthejim/hyperkey). No host mapping was changed.
 
-Two physical Caps trials delivered real usage-57 press/release reports and recorded Kanata input/output, but the target lost focus. Both are excluded from acceptance. Investigation found repeated SIGTRAP crash reports at shutdown in the global DispatchSource signal handler: Swift inferred main-actor isolation for a callback running on a global queue. The handler is now explicitly Sendable and forwards shutdown to the main CFRunLoop; rebuild and physical verification are pending. Earlier q→a evidence session-4a4ef0212aa145de verifies output but must not be cited as graceful shutdown proof: mere PID disappearance incorrectly accepted a crash. The harness now additionally requires a final stopped report with an empty output ledger. Crash alerts were dismissed through their observed Ignore controls; no reports were sent.
+Two physical Caps trials delivered real usage-57 press/release reports and recorded Kanata input/output, but the target lost focus. Both are excluded from acceptance. Investigation found repeated SIGTRAP crash reports at shutdown in the global DispatchSource signal handler: Swift inferred main-actor isolation for a callback running on a global queue. The handler is now explicitly Sendable and forwards shutdown to the main CFRunLoop; the subsequent rebuild and physical campaign passed. Earlier q→a evidence session-4a4ef0212aa145de verifies output but must not be cited as graceful shutdown proof: mere PID disappearance incorrectly accepted a crash. The harness now additionally requires a final stopped report with an empty output ledger. Crash alerts were dismissed through their observed Ignore controls; no reports were sent.
 
 Research evidence is preserved in `/private/tmp/keypath-permission-footprint/docs/testing/permission-exploration-results.md`. Development is isolated in `/private/tmp/keypath-permission-reduction`, branch `feature/permission-reduction`, starting at `d5581754`. No host KeyPath deployment, permission change or upstream change is authorized by this document.
 
@@ -81,7 +106,7 @@ The opt-in session backend runs real Kanata in an independently NSWorkspace-laun
 
 Installer planning, readiness, routing and repair now distinguish the session backend. Session readiness requires current capture plus TCP evidence and the bundled runtime payload; absent helper/DriverKit components remain truthfully absent. Session setup plans no privileged helper, DriverKit installation or service registration. Accessibility comes first; Input Monitoring is requested only if effective access is still denied. Legacy remains the default pending acceptance.
 
-The adapter supports the mapped macOS keyboard keys, sided modifiers, repeats, layers, tap/hold, one-shot and ordinary key macros. It passes unmapped physical keys through. Caps Lock remapping/output, consumer/mouse/Unicode output, device filtering and several advanced Kanata actions are rejected by a parser-backed session configuration preflight. These are material limitations; no claim of full Kanata or physical keyboard compatibility is made. Configuration reload repeats that preflight. Secure Input pauses remapping and normal physical typing remains available; supervision is being validated for automatic recovery and held-output release.
+The adapter implements the mapped macOS keyboard keys, sided modifiers, layers, tap/hold, one-shot and ordinary key macros. Repeat preservation required the correction recorded above and still needs a signed physical retest. It passes unmapped physical keys through. Caps Lock remapping/output, consumer/mouse/Unicode output, device filtering and several advanced Kanata actions are rejected by a parser-backed session configuration preflight. These are material limitations; no claim of full Kanata or physical keyboard compatibility is made. Configuration reload repeats that preflight. Secure Input pauses remapping and normal physical typing remains available; supervision is being validated for automatic recovery and held-output release.
 
 Kanata's local-only commit `0d05696` exposes its canonical mapped-input set to the bridge; no upstream contribution has been submitted. Bridge input uses a nonblocking queue. All 12 memory-only bridge checks passed: five supported configuration profiles, six rejected profiles and a real q→a press/release. 134 selected Swift tests passed before the latest supervision/health changes; rerun pending. Twenty rig safety tests pass after adding exact KeyPath toggle targeting. The Xcode 27 release scripts needed removal of the obsolete helper WMO override and discovery of SwiftPM's actual release output directory.
 
