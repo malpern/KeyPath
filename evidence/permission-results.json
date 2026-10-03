@@ -1,0 +1,247 @@
+{
+  "date": "2026-10-03",
+  "note": "Sanitized counter/identity extracts; raw logs are local and intentionally uncommitted.",
+  "evidence": [
+    {
+      "source": "neither-engine-retest-start.log",
+      "sha256": "9eb8268875896b5615c2190e59e6bae98374b8b66abbb1b2325b203204d422ca",
+      "probe_records": [
+        "START pid=3647 uid=501 ax=0 listen=1 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=0 remap=0"
+      ]
+    },
+    {
+      "source": "neither-engine-result.log",
+      "sha256": "c0f6bad75408331b376438de7027e1b3cf3b49aad99a59ce432d1724a684b793",
+      "probe_records": [
+        "TAP created=0 remap=0",
+        "END pid=3647 ax=0 listen=1 secure=0 hid=0 tap=0 remaps=0 engine-in=0 engine-out=0 tagged=0",
+        "TARGET pid=3647 expected-a=0 has-q=1 length=1 engine-in=0 engine-out=0 tagged=0 ctrl-chord=0"
+      ]
+    },
+    {
+      "source": "ax-only-engine-start.log",
+      "sha256": "8ba8b68c081ae66a418a42a1df365fe3174b470f99aa24d32a8dfab0b20930fb",
+      "probe_records": [
+        "START pid=2576 uid=501 ax=1 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0"
+      ]
+    },
+    {
+      "source": "ax-only-engine-result.log",
+      "sha256": "b8222cdf96242d719dbc3c035123f865d19fe09078e748883b5101881e20faf2",
+      "probe_records": [
+        "START pid=2576 uid=501 ax=1 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0",
+        "END ax=1 listen=0 secure=0 hid=0 tap=4 remaps=0",
+        "TARGET expected-a=1 unexpected-q=0 length=1 engine-in=2 engine-out=2 tagged=2"
+      ]
+    },
+    {
+      "source": "both-engine-start.log",
+      "sha256": "2152da8159b1cd74a94f4f61f65131c368a4a6ec17d53809f5922086a870ada0",
+      "probe_records": [
+        "TARGET pid=2788 expected-a=0 unexpected-q=1 length=1 engine-in=0 engine-out=0 tagged=0",
+        "IDENTITY bundle=com.keypath.experimental.permission-probe version=3 path=/Users/keypathqa/Applications/Permission Probe.app ppid=1",
+        "START pid=3307 uid=501 ax=1 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0"
+      ]
+    },
+    {
+      "source": "both-engine-result.log",
+      "sha256": "b8f53ff4cbc340aa0a14aec53b081057b948dbf27bd2d43277f087ba398e5ee9",
+      "probe_records": [
+        "TAP created=1 remap=0",
+        "END pid=3307 ax=1 listen=0 secure=0 hid=0 tap=4 remaps=0 engine-in=2 engine-out=2 tagged=2",
+        "TARGET pid=3307 expected-a=1 has-q=0 length=1 engine-in=2 engine-out=2 tagged=2 ctrl-chord=0"
+      ]
+    },
+    {
+      "source": "im-only-engine-start.log",
+      "sha256": "83ea0c6b1975d6262ec1e6549def5f56d290a71bbe73d659d37b2939ff71f38a",
+      "probe_records": [
+        "START pid=3487 uid=501 ax=0 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=0 remap=0"
+      ]
+    },
+    {
+      "source": "im-only-engine-result.log",
+      "sha256": "8000885736b17ba61e48e6f716bae17ee8e7fc661f86667f6a9cc35ac92f7f33",
+      "probe_records": [
+        "TAP created=0 remap=0",
+        "END pid=3487 ax=0 listen=0 secure=0 hid=0 tap=0 remaps=0 engine-in=0 engine-out=0 tagged=0",
+        "TARGET pid=3487 expected-a=0 has-q=1 length=1 engine-in=0 engine-out=0 tagged=0 ctrl-chord=0"
+      ]
+    },
+    {
+      "source": "hrm-tap-start.log",
+      "sha256": "d0a07672d3c141d2e066f3421be52e604db074805baf9fd868ceff1ad290f89b",
+      "probe_records": [
+        "START pid=3365 uid=501 ax=1 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0"
+      ]
+    },
+    {
+      "source": "hrm-tap-result.log",
+      "sha256": "0ef06374d4124c34c8c88e68828d8baab229a513d52887c01be8f23e9f1ea96a",
+      "probe_records": [
+        "TAP created=1 remap=0",
+        "END pid=3365 ax=1 listen=0 secure=0 hid=0 tap=4 remaps=0 engine-in=2 engine-out=2 tagged=2",
+        "TARGET pid=3365 expected-a=0 has-q=1 length=1 engine-in=2 engine-out=2 tagged=2 ctrl-chord=0"
+      ]
+    },
+    {
+      "source": "hrm-hold-start.log",
+      "sha256": "cea154d3441dad249bd02363a269c0dd50974454e550e53f0c052a94d9d87068",
+      "probe_records": [
+        "START pid=3422 uid=501 ax=1 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0"
+      ]
+    },
+    {
+      "source": "hrm-hold-result.log",
+      "sha256": "22e76fd8f7536dd884da4f03efe3184c653da87df1b6bb9d8c0a8e16ebab93f6",
+      "probe_records": [
+        "TAP created=1 remap=0",
+        "END pid=3422 ax=1 listen=0 secure=0 hid=0 tap=8 remaps=0 engine-in=4 engine-out=4 tagged=4",
+        "TARGET pid=3422 expected-a=0 has-q=0 length=0 engine-in=4 engine-out=4 tagged=4 ctrl-chord=1"
+      ]
+    },
+    {
+      "source": "secure-engine-start.log",
+      "sha256": "39418f4e97dacbfb02c7b4346c30edb52edda962526e28180a50355475f18052",
+      "probe_records": [
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0",
+        "IDENTITY bundle=com.keypath.experimental.permission-probe-alternate version=2 path=/Users/keypathqa/Applications/Permission Probe Alternate.app ppid=1",
+        "START pid=2788 uid=501 ax=0 listen=1 secure=0",
+        "SECURE pid=2788 enabled=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0"
+      ]
+    },
+    {
+      "source": "secure-engine-result.log",
+      "sha256": "3f3edd836dcefceca3ed81eebd442896751962881494639598eb0be6a4248e94",
+      "probe_records": [
+        "SECURE pid=2788 enabled=1",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0",
+        "END pid=2784 ax=1 listen=0 secure=1 hid=0 tap=0 remaps=0 engine-in=0 engine-out=0 tagged=0",
+        "END pid=2788 ax=0 listen=1 secure=1 hid=0 tap=0 remaps=0 engine-in=0 engine-out=0 tagged=0",
+        "TARGET pid=2788 expected-a=0 unexpected-q=1 length=1 engine-in=0 engine-out=0 tagged=0"
+      ]
+    },
+    {
+      "source": "signed-update-result.log",
+      "sha256": "763a76897d155995b9873a4a5c205d04372fb287b63e094478abb18567069c7a",
+      "probe_records": [
+        "IDENTITY bundle=com.keypath.experimental.permission-probe version=2 path=/Users/keypathqa/Applications/Permission Probe.app ppid=1",
+        "START pid=2694 uid=501 ax=1 listen=0 secure=0"
+      ]
+    },
+    {
+      "source": "alternate-identity-result.log",
+      "sha256": "ca753b5b88bb517733d29d2f03c42a49b609a9adf9e2962e701b9b7c3ed6af8e",
+      "probe_records": [
+        "IDENTITY bundle=com.keypath.experimental.permission-probe-alternate version=2 path=/Users/keypathqa/Applications/Permission Probe Alternate.app ppid=1",
+        "START pid=2752 uid=501 ax=0 listen=2 secure=0"
+      ]
+    },
+    {
+      "source": "hidutil-set.log",
+      "sha256": "8558f2717f4d5fc3b15d556ba707f7cffcaefd5e6b89f692a9fe9c98d1d29293",
+      "probe_records": []
+    },
+    {
+      "source": "hidutil-target-start.log",
+      "sha256": "47e3c964c9656efee7591aa3e747e9de05e4b43a4129467174836d97a2433733",
+      "probe_records": [
+        "TARGET pid=3647 expected-a=0 has-q=1 length=1 engine-in=0 engine-out=0 tagged=0 ctrl-chord=0",
+        "IDENTITY bundle=com.keypath.experimental.permission-probe version=3 path=/Users/keypathqa/Applications/Permission Probe.app ppid=1",
+        "START pid=3741 uid=501 ax=0 listen=1 secure=0",
+        "HID open=0x0 devices=0",
+        "TAP created=1 remap=0"
+      ]
+    },
+    {
+      "source": "hidutil-target-result.log",
+      "sha256": "eac94cf9be612d0f927386141703ef0e2ffd31655beb5199c5ec001a0fe7bb1d",
+      "probe_records": [
+        "TAP created=1 remap=0",
+        "END pid=3741 ax=0 listen=1 secure=0 hid=0 tap=0 remaps=0 engine-in=0 engine-out=0 tagged=0",
+        "TARGET pid=3741 expected-a=1 has-q=0 length=1 engine-in=0 engine-out=0 tagged=0 ctrl-chord=0"
+      ]
+    },
+    {
+      "source": "post-reboot-start.log",
+      "sha256": "40ab3eadde709a1df64149c2d8a6566860c57270a63d8c5f9877e087c02459fd",
+      "probe_records": [
+        "kern.boottime: { sec = 1791047097, usec = 469600 } Sat Oct  3 10:04:57 2026",
+        "System Integrity Protection status: enabled.",
+        "0 extension(s)",
+        "START pid=588 uid=501 ax=0 listen=0 secure=0",
+        "ENGINE created=1 error=",
+        "ENGINE started=1",
+        "HID open=0x0 devices=0",
+        "TAP created=0 remap=0"
+      ]
+    },
+    {
+      "source": "post-reboot-result.log",
+      "sha256": "dcceefd17cac7f41d50265cea19e00b6a820be43c7f244e1ddec75b9bb50d126",
+      "probe_records": [
+        "TAP created=0 remap=0",
+        "END pid=588 ax=0 listen=0 secure=0 hid=0 tap=0 remaps=0 engine-in=0 engine-out=0 tagged=0",
+        "TARGET pid=588 expected-a=0 has-q=1 length=1 engine-in=0 engine-out=0 tagged=0 ctrl-chord=0"
+      ]
+    },
+    {
+      "source": "reboot-auth-postcondition.log",
+      "sha256": "f541c791a53327d6526bbcea221ca0f2e561e467a4e25a2fb18f9221da777bf8",
+      "probe_records": [
+        "IDENTITY bundle=com.keypath.experimental.permission-probe version=3 path=/Users/keypathqa/Applications/Permission Probe.app ppid=1",
+        "START pid=1057 uid=501 ax=1 listen=0 secure=0"
+      ]
+    },
+    {
+      "source": "continuity-before-reboot.log",
+      "sha256": "7a49c50b2a920b19e436d0976d78bc89cad382a66ec62f3d7eb57fc902d6ccec",
+      "probe_records": [
+        "IDENTITY bundle=com.keypath.experimental.permission-probe version=3 path=/Users/keypathqa/Applications/Permission Probe.app ppid=1",
+        "START pid=1178 uid=501 ax=0 listen=0 secure=0"
+      ]
+    },
+    {
+      "source": "continuity-grant-final.log",
+      "sha256": "04bae06c3ffd40201b4ea3a6583f54a3d8c5b0612ab3d1de8896d8e54e18e9da",
+      "probe_records": [
+        "IDENTITY bundle=com.keypath.experimental.permission-probe version=3 path=/Users/keypathqa/Applications/Permission Probe.app ppid=1",
+        "START pid=1379 uid=501 ax=0 listen=0 secure=0"
+      ]
+    }
+  ]
+}
