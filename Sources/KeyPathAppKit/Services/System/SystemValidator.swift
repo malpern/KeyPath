@@ -473,7 +473,7 @@ public class SystemValidator {
     }
 
     private func captureSessionSnapshot(progressCallback: @escaping @Sendable (Double) -> Void) async -> SystemSnapshot {
-        let permissions = await PermissionOracle.shared.currentSnapshot()
+        let permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
         let report = kanataManager?.serviceLifecycleCoordinator.currentSessionReport()
         let running = report?.state == .running && report?.tapActive == true
         let responding = running ? await SystemStateProvider.shared.isTCPPortResponding(port: 37001, timeoutMs: 300) : false

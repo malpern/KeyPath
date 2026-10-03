@@ -1,6 +1,18 @@
 import KeyPathCore
 
 public extension SystemStateProvider {
+    /// Passive capabilities of the independently launched remapper executable.
+    func currentProcessPermissionCapabilities() async -> PermissionOracle.PermissionSet {
+        await PermissionOracle.shared.currentProcessCapabilities()
+    }
+
+    /// Bind session evidence through the canonical permission snapshot owner.
+    func configureSessionPermissionCapabilityProvider(
+        _ provider: @escaping @Sendable () async -> PermissionOracle.PermissionSet?
+    ) async {
+        await PermissionOracle.shared.configureSessionCapabilityProvider(provider)
+    }
+
     /// Cached/current permission snapshot for installer and wizard decisions.
     ///
     /// Delegates to `PermissionOracle` while Phase 1 grows the full immutable

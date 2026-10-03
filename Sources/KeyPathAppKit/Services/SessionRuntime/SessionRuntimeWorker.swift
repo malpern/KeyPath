@@ -55,7 +55,7 @@ public final class SessionRuntimeWorker {
               let nonce = argument("--session-nonce"), UUID(uuidString: nonce) != nil
         else { exit(64) }
 
-        let capabilities = await PermissionOracle.shared.currentProcessCapabilities()
+        let capabilities = await SystemStateProvider.shared.currentProcessPermissionCapabilities()
         let worker = SessionRuntimeWorker(
             reportURL: URL(fileURLWithPath: path), nonce: nonce,
             ownerPID: argument("--session-owner").flatMap(Int32.init) ?? 0,
@@ -198,7 +198,7 @@ public final class SessionRuntimeWorker {
     private func tick() {
         guard !finished else { return }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
-        if ownerPID > 0, kill(ownerPID, 0) != 0 { finish(.stopped, reason: "owner-exited") }
+        if ownerPID > 0, !SystemStateProvider.shared.isProcessAlive(pid: ownerPID) { finish(.stopped, reason: "owner-exited") }
         guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled") }
         guard let runtime else { finish(.failed, reason: "runtime-unavailable") }
         // Bound each drain so a runaway output queue cannot monopolize the tap.

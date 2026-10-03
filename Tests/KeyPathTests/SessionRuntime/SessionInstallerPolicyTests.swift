@@ -5,7 +5,7 @@ import KeyPathWizardCore
 import XCTest
 
 @MainActor
-final class SessionInstallerPolicyTests: XCTestCase {
+final class SessionInstallerPolicyTests: KeyPathTestCase {
     private final class Validator: WizardSystemValidating, @unchecked Sendable {
         let value: SystemSnapshot
         init(_ value: SystemSnapshot) {

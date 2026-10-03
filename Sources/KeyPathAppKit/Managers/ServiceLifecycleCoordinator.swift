@@ -201,7 +201,7 @@ final class ServiceLifecycleCoordinator {
                 return KanataRuntimeReadiness(isRunning: running, isResponding: responding, inputCaptureReady: running)
             }
             Task { [weak self] in
-                await PermissionOracle.shared.configureSessionCapabilityProvider { [weak self] in
+                await SystemStateProvider.shared.configureSessionPermissionCapabilityProvider { [weak self] in
                     await self?.sessionCapabilities()
                 }
             }
