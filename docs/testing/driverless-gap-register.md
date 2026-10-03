@@ -1,6 +1,8 @@
 # Driverless gaps and candidate workarounds
 
 Updated 2026-10-03. Canonical backlog for the experimental user-session backend.
+Current ordered work and model assignments: [paused execution plan](permission-reduction-plan.md).
+
 Implementation owner: KeyPath's existing permission, installer, lifecycle and
 configuration coordinators. Kanata retains remapping semantics. Upstream work
 and host deployment remain deferred. Onboarding redesign follows verification
@@ -28,8 +30,7 @@ not authorization to flash the ESP32 or alter the host.
 | DL-09 | Event-tap timeout, crash, sleep/wake, session switches and OS substitutions can leave stale state or orphaned keys. | Existing lifecycle supervision, bounded nonblocking input, exact emitted-key ledger, clean state reset and owned mapping restoration. | Clean worker stop verified. Parent startup exposed and fixed a legacy VirtualHID safety shutdown; a guarded held-output worker-crash campaign is now implemented. Parent remap, Secure Input pass-through and automatic resume passed on binary 32c5781f. Held-output crash test refused before input on transient USB observation transport failure; retry required. Timeout, sleep/wake and session continuity still require integrated acceptance. This is a release gate before expanding feature scope. |
 | DL-10 | Some apps may handle synthetic input differently, and keycodes versus characters differ across layouts. | Preserve physical key semantics and add explicit layout/text modes only where intended; compatibility testing. | Full ANSI/ISO/JIS, built-in/USB/Bluetooth, games/raw-input apps and remote-desktop coverage remains open. No blanket incompatibility or compatibility claim. |
 | DL-11 | Not every Kanata custom action is implemented by the adapter whitelist. | Implement supported action outputs through canonical owners, expand parser-backed preflight only after testing semantics. | Layers, tap/hold, chords, one-shots and ordinary key macros do not inherently need a virtual device. Existing parser whitelist is authoritative for current eligibility; full feature parity is not asserted. Evaluate generated default packs against this whitelist before enabling the backend. |
-
-| DL-12 | Ordinary remapped keys must repeat while held; the first physical trial emitted only one character. | Preserve explicit repeat values across the session ABI and host output queue. | Reproduced with exact ESP32 trace: 10 input events, 2 output events and one character. Root cause: physical DriverKit conversion decoded repeat as release. Repeat ABI fix committed (bc6b0d7d/local Kanata 0853689); press/repeat/release and unsupported-value real-engine regressions pass. Signed physical retest required. |
+| DL-12 | Ordinary remapped keys must repeat while held; the first physical trial emitted only one character. | Preserve explicit repeat values across the session ABI and host output queue. | Reproduced with exact ESP32 trace: 10 input events, 2 output events and one character. Root cause: physical DriverKit conversion decoded repeat as release. Repeat ABI fix committed (bc6b0d7d/local Kanata 0853689); press/repeat/release and unsupported-value real-engine regressions pass. Signed physical retest passed on binary 32c5781f: session-3826bf9efd914cae, 10 input/10 output events, nine characters, exact trace and clean stop. Final-source artifact rerun remains part of acceptance. |
 
 ## Delivery order
 

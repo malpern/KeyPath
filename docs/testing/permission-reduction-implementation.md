@@ -1,6 +1,19 @@
 # KeyPath permission reduction implementation — 2026-10-03
 
-## Current acceptance checkpoint — 2026-10-03 23:42 UTC
+## Paused execution — 2026-10-03
+
+The user paused execution to review model routing. Current ordered steps,
+recommended model/effort and independent verification gates are in the
+[execution plan](permission-reduction-plan.md). No delegated agents started.
+Final frozen build was stopped intentionally (exit 143); no artifact from it is
+accepted. The previous signed physical repeat retest completed successfully:
+`session-3826bf9efd914cae`, binary `32c5781f…`, 10 input/10 output events,
+nine repeated characters, exact fixture trace, empty held state and clean stopped
+worker report. The snapshot scan isolation check passed all 10 selected tests,
+including the formerly stalled repair view. Three home-row snapshots remain open.
+Worktrees and existing evidence are preserved. Lease expiry must be checked on resume.
+
+## Acceptance checkpoint — 2026-10-03 23:42 UTC (historical)
 
 Approval policy verified `never`; full filesystem access and network are enabled.
 All guest-only restrictions remain in force. Canonical open-feature backlog:
