@@ -1,5 +1,33 @@
 # KeyPath permission reduction implementation — 2026-10-03
 
+## Current acceptance checkpoint — 2026-10-03 23:42 UTC
+
+Approval policy verified `never`; full filesystem access and network are enabled.
+All guest-only restrictions remain in force. Canonical open-feature backlog:
+[driverless gap register](driverless-gap-register.md), DL-01 through DL-12.
+
+Signed binary `32c5781fe643ed64c48bf1d2ebf86c5cf294bfa74f841375a574c416f25b5393`
+(source product f33beacf) passed app-managed physical remap (ed7813f1c0a74f85),
+Secure Input pass-through (a2252e5fff604762), and automatic resume/remap with a
+new supervised worker (7a9673b818da4dc8). Held-output crash test
+2349f557dd2e47fe refused before input because the read-only USB observation
+transport exited 255; this is neither crash acceptance nor a product failure.
+Parent cleanup stopped its worker with empty ledger and restored the QA profile.
+
+The full safe gate timed out at HardViewSnapshotTests.testRepairSettingsTabView.
+A captured stack identified a real installed-app scan blocking snapshot rendering;
+the existing duplicate-app test override now runs before launching mdfind, and
+snapshot tests explicitly provide it. Three home-row timing snapshot differences
+remain (missing quick-tap row, 52 px height difference); source and references are
+unchanged against origin/master, but an independent baseline run is not asserted.
+Do not refresh these references blindly. The gate also found installer-matrix,
+permission-provider, liveness and test-seam violations; corrected in d23349bf,
+1ba5a413 and ddf98304. All 35 targeted matrix/ownership/safety tests now pass.
+Snapshot-isolation verification, final frozen signed build, repeat and held-crash
+physical acceptance, controlled reboot continuity and resource cleanup remain.
+Older status sections below describe chronology, not current completion.
+
+
 Canonical gaps, candidate workarounds and acceptance criteria: [driverless gap register](driverless-gap-register.md). Current delivery order remains permission reduction and lifecycle acceptance first, then onboarding UX and broader feature experiments.
 
 ## Current acceptance status (23:30 UTC)
