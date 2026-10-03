@@ -2,7 +2,17 @@
 
 Canonical gaps, candidate workarounds and acceptance criteria: [driverless gap register](driverless-gap-register.md). Current delivery order remains permission reduction and lifecycle acceptance first, then onboarding UX and broader feature experiments.
 
-## Current acceptance status (23:23 UTC)
+## Current acceptance status (23:30 UTC)
+
+Parent runtime now starts after synchronous SwiftUI startup. The first parent
+remap produced correct output but failed worker liveness: the legacy VirtualHID
+safety monitor emergency-stopped the healthy session runtime. This failed trial
+is retained (`session-22defddc3cd740e9`), not accepted. Fix `f33beacf` scopes the
+observation and shutdown decision to DriverKit. Its regression preserves unsafe
+DriverKit shutdown and prevents session shutdown for an absent optional driver.
+Signed parent/Secure Input recovery retest and final safe gate remain pending.
+
+### Earlier continuation status
 
 Gap register committed in `da6d72ea`; repeat preservation fix in `bc6b0d7d`
 with local Kanata commit `0853689`. The real-engine press/repeat/release ABI
