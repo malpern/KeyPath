@@ -361,9 +361,11 @@ final class AppKeymapSaveTests: KeyPathTestCase {
     }
 
     func testManagedCatalogAndCustomRuleConfigurationsRemainEditableAcrossSaves() async throws {
+        // F21–F24 have no event-tap mapping. Use a physical supported key so
+        // eligibility failures describe the selected collection, not the fixture.
+        let custom = CustomRule(input: "f20", action: .keystroke(key: "f19"))
         for selected in [
-            RuleCollectionIdentifier.capsLockRemap,
-            RuleCollectionIdentifier.capsLockHyperKey,
+            RuleCollectionIdentifier.macFunctionKeys,
             RuleCollectionIdentifier.vimNavigation,
             RuleCollectionIdentifier.homeRowMods,
             RuleCollectionIdentifier.homeRowLayerToggles
@@ -373,14 +375,59 @@ final class AppKeymapSaveTests: KeyPathTestCase {
                 collection.isEnabled = collection.id == selected
                 return collection
             }
-            let custom = CustomRule(input: "f24", action: .keystroke(key: "f23"))
+            XCTAssertTrue(collections.contains { $0.id == selected && $0.isEnabled })
             try await withFixture(collections: collections, customRules: [custom]) { fixture in
+                var reloads = 0
                 for _ in 0 ..< 2 {
                     let result = await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: { keymaps in
                         keymaps[0].overrides[0] = AppKeyOverride(inputKey: "a", action: .keystroke(key: "z"))
-                    }) { Self.reload(.applied) }
+                    }) { reloads += 1; return Self.reload(.applied) }
                     XCTAssertTrue(result.success, "\(selected): \(result.error?.localizedDescription ?? "")")
+                    XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(fixture.directory, scope: .appKeymaps).path))
                 }
+                XCTAssertEqual(reloads, 2)
+                let keymaps = try await fixture.store.loadForMutation()
+                XCTAssertEqual(keymaps[0].overrides[0].action, .keystroke(key: "z"))
+            }
+        }
+
+        // Stored Caps and media profiles remain intact when an app edit cannot run them.
+        // Generate them for inspection, but require the real validator to reject
+        // before any app source, include, main config, or journal is written.
+        for selected in [RuleCollectionIdentifier.capsLockRemap, RuleCollectionIdentifier.macFunctionKeys] {
+            let collections = RuleCollectionCatalog().defaultCollections().map { original in
+                var collection = original
+                collection.isEnabled = collection.id == selected
+                if collection.id == RuleCollectionIdentifier.macFunctionKeys {
+                    collection.functionKeyMode = .media
+                    collection.mappings = RuleCollectionCatalog.functionKeyMappings(for: .media)
+                }
+                return collection
+            }
+            XCTAssertTrue(collections.contains { $0.id == selected && $0.isEnabled })
+            try await withFixture(collections: collections, customRules: [custom]) { fixture in
+                var reloads = 0
+                var sourceBefore: [String: Data] = [:]
+                for name in ["RuleCollections.json", "CustomRules.json"] {
+                    sourceBefore[name] = try Data(contentsOf: fixture.directory.appendingPathComponent(name))
+                }
+                let originalKeymaps = try await fixture.store.loadForMutation()
+                for _ in 0 ..< 2 {
+                    let result = await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: Self.addOverride) {
+                        reloads += 1
+                        return Self.reload(.applied)
+                    }
+                    XCTAssertFalse(result.success, "\(selected) must reject unsupported Caps input or media output")
+                    XCTAssertTrue(result.error?.localizedDescription.contains("driverless session") == true)
+                    try self.assertOriginalFiles(fixture)
+                    for (name, bytes) in sourceBefore {
+                        XCTAssertEqual(try Data(contentsOf: fixture.directory.appendingPathComponent(name)), bytes)
+                    }
+                    XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(fixture.directory, scope: .appKeymaps).path))
+                }
+                XCTAssertEqual(reloads, 0)
+                let keymaps = try await fixture.store.loadForMutation()
+                XCTAssertEqual(keymaps, originalKeymaps)
             }
         }
     }

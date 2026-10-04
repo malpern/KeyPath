@@ -12,11 +12,12 @@ final class PackRuleTransactionTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
         manager.ruleCollections = []
         manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42))]
@@ -29,7 +30,9 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: directory)
+        if let directory {
+            try? FileManager.default.removeItem(at: directory)
+        }
         manager = nil
         tracker = nil
         pack = nil
@@ -64,8 +67,8 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testDeclinedCollectionConflictPreservesExistingRuleAndExplainsFailure() async throws {
-        pack = PackRegistry.capsLockToEscape
-        manager.customRules.append(CustomRule(input: "caps", action: .keystroke(key: "f13")))
+        pack = PackRegistry.homeRowMods
+        manager.customRules.append(CustomRule(input: "a", action: .keystroke(key: "f13")))
         try await manager.configurationService.saveRuleState(
             ruleCollections: manager.ruleCollections,
             customRules: manager.customRules,
@@ -88,8 +91,30 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         XCTAssertEqual(manager.customRules, originalRules)
     }
 
-    func testCollectionPackStagesRecordWithCollectionBeforeOneAcceptedReload() async throws {
+    func testUnsupportedCapsCollectionPackPreservesFourFilesWithoutJournalOrReload() async throws {
         pack = PackRegistry.capsLockToEscape
+        let before = try snapshot()
+        let collections = manager.ruleCollections
+        let rules = manager.customRules
+        var reloads = 0
+        manager.onRulesChanged = { reloads += 1; return Self.reload(.applied) }
+        do {
+            _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+            XCTFail("Caps input must fail session eligibility before staging")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
+        }
+        XCTAssertEqual(reloads, 0)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, collections)
+        XCTAssertEqual(manager.customRules, rules)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
+        let record = await tracker.record(for: pack.id)
+        XCTAssertNil(record)
+    }
+
+    func testCollectionPackStagesRecordWithCollectionBeforeOneAcceptedReload() async throws {
+        pack = PackRegistry.homeRowMods
         var reloads = 0
         manager.onRulesChanged = {
             reloads += 1
@@ -105,7 +130,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testCollectionPackMetadataWriteFailureLeavesNoPartialActivation() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         let before = try snapshot()
         let collections = manager.ruleCollections
         let failing = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json"), writeFile: { _, _ in
@@ -126,7 +151,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testRejectedCollectionPackInstallRestoresFourFiles() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         let before = try snapshot()
         let collections = manager.ruleCollections
         var reloads = 0
@@ -145,7 +170,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testRejectedCollectionPackUninstallRestoresRecordAndCollection() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
         let before = try snapshot()
         let collections = manager.ruleCollections
@@ -167,7 +192,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testCollectionPackUninstallPendingCommitsRecordRemovalWithOneReload() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
         var reloads = 0
         manager.onRulesChanged = { reloads += 1; return Self.reload(.pending) }
@@ -180,7 +205,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testCollectionPackExternalMetadataEditPreservesConflictingRevision() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         var external: [String: Data]?
         var reloads = 0
         manager.onRulesChanged = {
@@ -316,7 +341,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
                 packRecord: .init(tracker: self.tracker, record: InstalledPackRecord(packID: self.pack.id, version: "2"))
             )
         }
-        let fresh = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: manager.ruleCollectionStore, customRulesStore: manager.customRulesStore)
+        let fresh = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: manager.ruleCollectionStore, customRulesStore: manager.customRulesStore)
         try await fresh.recoverPendingRuleWrite(collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
         XCTAssertEqual(try snapshot(), before)
     }
