@@ -336,7 +336,7 @@ class BatchBoundaryTests(unittest.TestCase):
                       state='running', tapActive=True, heldOutputUsages=[])
         fields = dict(identity='\n'.join([identity.account, str(identity.uid), identity.home, identity.account,
                                          str(identity.uid), str(identity.boot_epoch)]) + '\n',
-                      processes=process, pids='17\n29\n33', target=json.dumps(snapshot()),
+                      processes=process, pids='17\n29\n33\n41', observerPID='41', target=json.dumps(snapshot()),
                       binaryHash='a' * 64 + '  ' + guest.exe, complete='D8_COMPLETE',
                       **{'report-29': json.dumps(report)})
         if changes:
@@ -381,7 +381,7 @@ class BatchBoundaryTests(unittest.TestCase):
         self.assertEqual(failed.stdout, b'')
 
     def test_missing_batch_completion_or_worker_report_cannot_pass(self):
-        for field in ('complete', 'report-29', 'target', 'pids', 'identity'):
+        for field in ('complete', 'report-29', 'target', 'pids', 'observerPID', 'identity'):
             guest, _ = self.batch_guest(lambda fields, _: fields.pop(field))
             with self.subTest(field=field), self.assertRaisesRegex(Refusal, 'incomplete'):
                 guest.snapshot()
@@ -401,22 +401,52 @@ class BatchBoundaryTests(unittest.TestCase):
     def test_target_process_and_hash_are_required_in_the_same_batch(self):
         import json
         def target_fields(fields, guest):
-            executable = guest.home + '/rig-target/capture-target'
+            executable = guest.home + '/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget'
             guest.target_identity = dict(pid=33, uid=502, nonce='target-nonce',
-                                        executable=executable, arguments=[executable])
+                                        executable=executable, rawArguments=executable + ' --owned-target')
             target = json.loads(fields['target'])
             target['pid'] = 33
-            fields.update(target=json.dumps(target), targetProcess='33 502 ' + executable + ' ' + executable,
+            fields.update(target=json.dumps(target), targetPID=' 33', targetUID=' 502',
+                          targetExecutable=executable, targetArguments=executable + ' --owned-target',
                           targetHash='b' * 64)
-        guest, _ = self.batch_guest(target_fields)
+        guest, pilot = self.batch_guest(target_fields)
         self.assertEqual(guest.snapshot()['target']['pid'], 33)
-        for field, value in (('targetHash', 'c' * 64), ('targetProcess', '33 501 /wrong /wrong')):
+        import subprocess
+        expression = pilot.observations[-1]
+        parsed = subprocess.run(['/bin/zsh', '-n', '-c', expression], capture_output=True)
+        self.assertEqual(parsed.returncode, 0, parsed.stderr.decode())
+        self.assertIn('d8emit targetExecutable', expression)
+        self.assertIn('test "$d8targetcomm"', expression)
+        self.assertNotIn('d8emit targetProcess', expression)
+        for field, value in (('targetHash', 'c' * 64), ('targetUID', '501'), ('targetExecutable', '/wrong'),
+                             ('targetArguments', 'wrong --owned-target')):
             def mutate(fields, guest):
                 target_fields(fields, guest)
                 fields[field] = value
             guest, _ = self.batch_guest(mutate)
             with self.assertRaisesRegex(Refusal, 'target process or hash'):
                 guest.snapshot()
+
+    def test_empty_partial_or_invalid_pid_scan_cannot_prove_old_worker_exit(self):
+        import json
+        def old_fields(fields, guest):
+            # A known stopped generation is distinct from the live worker.
+            guest.old_for_test = dict(pid=28, uid=502, nonce='old-owned-generation',
+                                     reportPath='/var/folders/ab/owned/T/old/report.json', arguments=['old'])
+            target = json.loads(fields['target'])
+            target['pid'] = 33
+            fields['target'] = json.dumps(target)
+            fields['oldReport'] = json.dumps(dict(pid=28, uid=502, nonce='old-owned-generation',
+                                      state='secureInput', tapActive=False, heldOutputUsages=[]))
+        guest, _ = self.batch_guest(old_fields)
+        self.assertTrue(guest.snapshot(guest.old_for_test)['oldExited'])
+        for scan in ('', '0', '17 29 33', '17 33 41', '17 29 41', '17 29 33 41 41', '-1 17 29 33 41'):
+            def mutate(fields, guest):
+                old_fields(fields, guest)
+                fields['pids'] = scan
+            guest, _ = self.batch_guest(mutate)
+            with self.subTest(scan=scan), self.assertRaisesRegex(Refusal, 'exit observation'):
+                guest.snapshot(guest.old_for_test)
 
     def test_batch_target_focus_loss_is_fatal_without_retry(self):
         import json

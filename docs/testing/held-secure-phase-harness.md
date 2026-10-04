@@ -84,7 +84,13 @@ process/hash, and the old PID's exit observation when required. Labelled base64
 records have an exact shape and terminal completion marker; missing, duplicate,
 foreign or partial records fail. Process tables bracket the snapshot and must
 match, so a generation change during the batch is refused. Target process
-observations are bracketed too. No guest Python is needed for these reads.
+observations are bracketed too. The target executable and raw arguments are
+separate labelled records, preserving spaces in `VM Lab Rig Target.app`; raw
+arguments are compared to their exact preflight observation without guessing argv
+quoting. KeyPath discovery explicitly requires its whitespace-free app path. Exit
+proof requires a nonempty unique positive PID scan containing the observer shell,
+all observed live owned processes and the target; missing PID data cannot become
+a false exit. Kernel PID0 is filtered out by the observation command. No guest Python is needed for these reads.
 Mode mutation remains a separate unreplayed write followed by acknowledgement.
 Its existing Python dependency is explicitly checked during preflight, before
 physical input. Setup and cleanup keep their individually guarded observations.
@@ -125,7 +131,7 @@ own bounded timeout before refusal; they are never replayed as mutations. The
 512-entry target rings; deadline or anchor eviction is a failed/untested campaign,
 never permission to lengthen or replay physical input automatically.
 
-The 25 pure checks include synthetic positive and negative tests for stale/focus
+The 26 pure checks include synthetic positive and negative tests for stale/focus
 receipts, dropped/evicted anchors, actual versus sampled Control release,
 physical hold ordering, command application, worker generations, no resurrection
 with permitted q repeats, exact terminal all-up traces, phase retirement and

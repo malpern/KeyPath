@@ -41,6 +41,7 @@ class Guest:
         self.account, self.uid, self.home = identity.account, identity.uid, identity.home
         self.app = identity.app
         self.exe = self.app + "/Contents/MacOS/KeyPath"
+        require(not any(c.isspace() for c in self.exe), 'unsupported spaced KeyPath discovery path')
         self.profile = self.home + "/.config/keypath/keypath.kbd"
         self.parent = None
         self.generations = {}
@@ -84,24 +85,26 @@ class Guest:
         commands = [
             'set -e; set -o pipefail',
             'd8emit() { printf "D8\\t%s\\t" "$1"; /usr/bin/base64 | /usr/bin/tr -d "\\n"; printf "\\n"; }',
-            'd8processes() { /bin/ps -axo pid=,uid=,comm=,args= | /usr/bin/awk -v exe=' + q(self.exe) + ' \'$3 == exe\'; }',
+            'd8processes() { /bin/ps -ww -axo pid=,uid=,comm=,args= | /usr/bin/awk -v exe=' + q(self.exe) + ' \'$3 == exe\'; }',
             'd8before=$(d8processes)',
             '{ /usr/bin/id -un ' + str(self.uid) + '; /usr/bin/id -u ' + q(self.account)
             + '; /usr/bin/dscl . -read /Users/' + q(self.account) + ' NFSHomeDirectory | /usr/bin/cut -d " " -f 2-'
             + '; /usr/bin/stat -f %Su /dev/console; /usr/bin/stat -f %u /dev/console'
             + "; /usr/sbin/sysctl -n kern.boottime | /usr/bin/sed -E 's/^.*sec = ([0-9]+),.*$/\\1/'; } | d8emit identity",
             'printf %s "$d8before" | d8emit processes',
-            '/bin/ps -axo pid= | d8emit pids',
+            'printf %s "$$" | d8emit observerPID',
+            "/bin/ps -axo pid= | /usr/bin/awk '$1 ~ /^[0-9]+$/ && $1 > 0 {print $1}' | d8emit pids",
             '/bin/cat ' + q(self.home + '/rig-target.json') + ' | d8emit target',
             '/usr/bin/shasum -a 256 ' + q(self.exe) + ' | d8emit binaryHash',
         ]
+        target_fields = (('pid', 'targetPID', 'pid'), ('uid', 'targetUID', 'uid'),
+                         ('comm', 'targetExecutable', 'executable'), ('args', 'targetArguments', 'rawArguments'))
         if self.target_identity:
-            target = self.target_identity
-            commands += [
-                'd8target=$(/bin/ps -p ' + str(target['pid']) + ' -o pid=,uid=,comm=,args=)',
-                'printf %s "$d8target" | d8emit targetProcess',
-                '/usr/bin/shasum -a 256 ' + q(target['executable']) + ' | d8emit targetHash',
-            ]
+            for option, label, _ in target_fields:
+                variable = 'd8target' + option
+                commands += [variable + '=$(/bin/ps -ww -p ' + str(self.target_identity['pid']) + ' -o ' + option + '=)',
+                             'printf %s "$' + variable + '" | d8emit ' + label]
+            commands += ['/usr/bin/shasum -a 256 ' + q(self.target_identity['executable']) + ' | d8emit targetHash']
         # Discover only bounded owned report paths. A foreign worker causes a
         # refusal before its file can be read. Host repeats the argument checks.
         commands += [
@@ -126,8 +129,9 @@ class Guest:
                          'test "$(/usr/bin/stat -f %u ' + q(old['reportPath']) + ')" = ' + str(self.uid),
                          '/bin/cat ' + q(old['reportPath']) + ' | d8emit oldReport']
         if self.target_identity:
-            commands += ['test "$d8target" = "$(/bin/ps -p ' + str(self.target_identity['pid'])
-                         + ' -o pid=,uid=,comm=,args=)"']
+            for option, _, _ in target_fields:
+                commands += ['test "$d8target' + option + '" = "$(/bin/ps -ww -p '
+                             + str(self.target_identity['pid']) + ' -o ' + option + '=)"']
         commands += ['d8after=$(d8processes)', 'test "$d8before" = "$d8after"',
                      self.guest_identity.guard(), 'printf D8_COMPLETE | d8emit complete']
         expression = ('true; ' + self.guest_identity.guard() + ' && { '
@@ -142,9 +146,10 @@ class Guest:
                 fields[parts[1]] = base64.b64decode(parts[2], validate=True).decode('utf-8')
             except (ValueError, UnicodeError):
                 raise Refusal('malformed batch receipt') from None
-        expected = {'identity', 'processes', 'pids', 'target', 'binaryHash', 'complete'}
+        expected = {'identity', 'processes', 'pids', 'observerPID', 'target', 'binaryHash', 'complete'}
         if self.target_identity:
-            expected.update(('targetProcess', 'targetHash'))
+            expected.update(label for _, label, _ in target_fields)
+            expected.add('targetHash')
         if old:
             expected.add('oldReport')
         require(fields.get('complete') == 'D8_COMPLETE' and expected <= fields.keys(),
@@ -197,17 +202,24 @@ class Guest:
             live.append((item, report))
         require(len(live) <= 1 and set(fields) == expected, 'unexpected or ambiguous batch records')
         if self.target_identity:
-            observed = process(fields['targetProcess'])
-            require(all(observed[k] == self.target_identity[k] for k in ('pid', 'uid', 'executable', 'arguments'))
+            require(all(fields[label].strip() == str(self.target_identity[key])
+                        for _, label, key in target_fields)
                     and fields['targetHash'].split()[0] == self.target_sha, 'target process or hash changed')
         pids = fields['pids'].split()
-        require(all(p.isdigit() for p in pids), 'malformed exit observation')
+        observer = fields['observerPID'].strip()
+        positive_pid = lambda value: re.fullmatch(r'[1-9][0-9]*', value) is not None
+        require(bool(pids) and all(positive_pid(p) for p in pids) and len(pids) == len(set(pids))
+                and positive_pid(observer) and observer in pids
+                and all(str(item['pid']) in pids for item in processes), 'incomplete or malformed exit observation')
         target_receipt = json.loads(fields['target'])
+        require(type(target_receipt.get('pid')) is int and target_receipt['pid'] > 0
+                and str(target_receipt['pid']) in pids, 'target absent from exit observation')
         if self.target_identity:
             require(tuple(target_receipt.get(k) for k in ('pid', 'uid', 'nonce'))
                     == tuple(self.target_identity[k] for k in ('pid', 'uid', 'nonce')),
                     'target receipt ownership changed')
         result = dict(target=target_receipt, worker=live[0] if live else None,
+                      observerPID=int(observer), pidScan=[int(p) for p in pids],
                       processes=processes, oldExited=old is not None and str(old['pid']) not in pids,
                       observedAt=time.time(), identity=dict(account=self.account, uid=self.uid, home=self.home,
                       providerUUID=self.guest_identity.provider_uuid, bootEpoch=int(actual_identity[5]),
@@ -254,12 +266,12 @@ class Guest:
         self.run('codesign --verify --strict ' + shlex.quote(self.app))
         require(self.run('shasum -a 256 ' + shlex.quote(self.exe)).split()[0] == self.binary_sha,
                 'frozen parent/worker binary mismatch')
-        target_exe = self.run(f'ps -p {target["pid"]} -o comm=').strip()
+        target_exe = self.run(f'ps -ww -p {target["pid"]} -o comm=').strip()
         require(self.run(f'ps -p {target["pid"]} -o uid=').strip() == str(self.uid), 'target UID mismatch')
         require(self.run('shasum -a 256 ' + shlex.quote(target_exe)).split()[0] == self.target_sha,
                 'reviewed target binary mismatch')
         self.target_identity = {'pid': target['pid'], 'uid': self.uid, 'nonce': target['nonce'],
-                'arguments': shlex.split(self.run(f'ps -p {target["pid"]} -o args=')),
+                'rawArguments': self.run(f'ps -ww -p {target["pid"]} -o args=').strip(),
                 'executable': target_exe, 'binarySHA256': self.target_sha}
         # Command writes use Python; verify this explicit dependency before input.
         self.run('/usr/bin/python3 -c ' + shlex.quote('import json,os,pathlib,stat,sys,tempfile'))
