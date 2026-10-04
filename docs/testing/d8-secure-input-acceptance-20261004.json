@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "untested": [
+    "actual OS tap timeout",
+    "sleep/wake",
+    "console departure/return"
+  ],
+  "lease": "cbx_51ce1622f58b",
+  "providerUUID": "ed86d8e3-700f-4e62-b6dd-ac1f33b8f767",
+  "bootEpoch": 1791118107,
+  "binarySHA256": "4b8eb82877b734ca87dde4b67f6ee9e7eec6f116325832b78ee6659f99b5fbd7",
+  "targetSHA256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858",
+  "targetIdentity": {
+    "pid": 17630,
+    "uid": 502,
+    "nonce": "9EC38204-4CE9-42DE-81B6-54924F8BB0D3",
+    "rawArguments": "/Users/keypathqa_51ce1622/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget",
+    "executable": "/Users/keypathqa_51ce1622/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget",
+    "binarySHA256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858"
+  },
+  "parentIdentity": {
+    "pid": 18117,
+    "uid": 502,
+    "arguments": [
+      "/Users/keypathqa_51ce1622/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+      "--headless"
+    ],
+    "rawArguments": "/Users/keypathqa_51ce1622/Applications/KeyPath.app/Contents/MacOS/KeyPath --headless",
+    "binarySHA256": "4b8eb82877b734ca87dde4b67f6ee9e7eec6f116325832b78ee6659f99b5fbd7"
+  },
+  "ownerCleanup": {
+    "errors": [],
+    "profileBackup": "/Users/keypathqa_51ce1622/.config/keypath/keypath.kbd.held-secure-978011cfabee4f91932a87d71f14cb24",
+    "profileBytewiseRestored": true
+  },
+  "acceptedPhases": [
+    "accepted-held-transition",
+    "accepted-fresh-tap",
+    "accepted-fresh-hold",
+    "accepted-fresh-chord",
+    "accepted-secure-calibration"
+  ],
+  "independentCleanup": {
+    "noKeyPathProcess": true,
+    "profileCmpExit": 0,
+    "consoleUID": 502,
+    "bootEpoch": 1791118107,
+    "targetPID": 17630,
+    "secureLength": 0,
+    "held": [],
+    "modifiers": 0,
+    "globalControl": false,
+    "normalFocused": true
+  },
+  "evidenceDirectory": "/private/tmp/keypath-d8-secure-backspace-candidate/evidence/session-runtime/held-secure-eb2bbb91165841ca8d94f7dfb66f0512"
+}

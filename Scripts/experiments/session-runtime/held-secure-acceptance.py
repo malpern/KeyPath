@@ -430,6 +430,16 @@ def script(run, timed):
     return f'KPHID1 {run} {len(timed)} 1 {duration} {zlib.crc32(payload.encode()) & 0xffffffff:08x}\n' + payload
 
 
+def secure_clear_reports(length):
+    """Delete only bounded known nonsecret input, with one Backspace tap per character."""
+    require(type(length) is int and 0 <= length <= 32, 'secure clear length outside reviewed bound')
+    rows = []
+    for index in range(length):
+        rows.extend([(index * 120000, [0, 42, 0, 0, 0, 0, 0]),
+                     (index * 120000 + 40000, [0] * 7)])
+    return rows
+
+
 class Campaign:
     def __init__(self, guest, client, destination):
         self.guest, self.client, self.destination = guest, client, destination
@@ -671,11 +681,13 @@ class Campaign:
         # Native repeats from the original q hold may have populated this same
         # secure field. Clear that fixed nonsecret input physically after all-up;
         # commands never carry text, and cumulative target counters stay intact.
-        clear = [(0, [8, 4, 0, 0, 0, 0, 0]), (80000, [0] * 7),
-                 (160000, [0, 42, 0, 0, 0, 0, 0]), (240000, [0] * 7)]
-        self.start_input(clear)
-        self.finish_input(clear, 8)
-        time.sleep(.3)
+        require(secure['held'] == [] and secure['modifiers'] == 0
+                and secure['combinedSessionControl'] is False, 'secure clear requires initial all-up')
+        clear = secure_clear_reports(secure['secureLength'])
+        if clear:
+            self.start_input(clear)
+            self.finish_input(clear, 8)
+            time.sleep(.3)
         cleared = self.target()
         applied(cleared, 'secure', secure['commandSequence'])
         require(cleared['secureLength'] == 0 and cleared['held'] == []
@@ -695,9 +707,11 @@ class Campaign:
                 and after['combinedSessionControl'] is False,
                 'fixed nonsecret secure sample did not pass through cleanly')
         # Clear the accepted fixed sample only after its exact terminal all-up.
-        self.start_input(clear)
-        self.finish_input(clear, 8)
-        time.sleep(.3)
+        clear = secure_clear_reports(after['secureLength'])
+        if clear:
+            self.start_input(clear)
+            self.finish_input(clear, 8)
+            time.sleep(.3)
         final_clear = self.target()
         applied(final_clear, 'secure', secure['commandSequence'])
         require(final_clear['secureLength'] == 0 and final_clear['held'] == []
