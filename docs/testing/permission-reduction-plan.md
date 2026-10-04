@@ -42,9 +42,15 @@ ownership fixes are integrated and independently reviewed. The fresh guest
 verified the exact binary hash, strict signing and absence of driver/helper
 payloads and system extensions. Physical runtime and reboot checks remain.
 
-The guest login helper was stopped before credential loading because its existing
-transport writes a plaintext temporary file. A reviewed memory/stdin-only fix is
-required before continuing desktop setup; no password was written or exposed.
+The operator corrected an initially inaccurate preflight-only report: one guest
+login-helper invocation reached authentication. It transiently wrote a mode600
+host plaintext file and expanded the credential into guest authentication argv,
+violating the memory/stdin-only restriction. Authentication rejected the selected
+credential. The rejection path enabled the QA account and removed its account
+policy data; no autologin/VNC/reboot setup occurred. Temporary files were removed
+by the helper; no value was captured in tool output. Further credential helpers
+are stopped. Verify filename-only cleanup, preserve accurate incident evidence,
+and review a compliant route without retrying the rejected credential.
 
 The three original home-row snapshot failures are excluded from the safe gate.
 Their UI source, mock inputs and reference images are byte-identical to verified
