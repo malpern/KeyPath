@@ -27,6 +27,7 @@ public final class SessionRuntimeWorker {
     private var finished = false
     private var physicalPassthroughFlags: UInt64 = 0
     private var physicalModifiers = SessionPhysicalModifierState()
+    private var environmentObserver: SessionRuntimeEnvironmentObserver?
 
     private init(
         reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
@@ -84,6 +85,14 @@ public final class SessionRuntimeWorker {
         guard capabilities.hasAllPermissions else {
             finish(.failed, reason: "missing-current-process-permission")
         }
+        let environmentObserver = SessionRuntimeEnvironmentObserver(expectedUID: getuid()) { [weak self] reason, acknowledge in
+            guard let self else { acknowledge?(); return }
+            self.finish(.failed, reason: reason.rawValue, acknowledge: acknowledge)
+        }
+        self.environmentObserver = environmentObserver
+        guard environmentObserver.start() else {
+            finish(.failed, reason: "environment-observer-registration-failed")
+        }
         guard !IsSecureEventInputEnabled() else { finish(.secureInput) }
         let validation = KanataHostBridge.validateSessionConfig(
             runtimeHost: .current(), configPath: configPath,
@@ -120,6 +129,7 @@ public final class SessionRuntimeWorker {
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         guard let source else { finish(.failed, reason: "tap-runloop-unavailable") }
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        guard environmentObserver.check() else { finish(.failed, reason: "console-session-inactive") }
         CGEvent.tapEnable(tap: tap, enable: true)
 
         for number in [SIGTERM, SIGINT, SIGHUP] {
@@ -152,6 +162,9 @@ public final class SessionRuntimeWorker {
         }
         if type == .tapDisabledByUserInput {
             finish(.failed, reason: "tap-disabled-by-user-input")
+        }
+        guard environmentObserver?.check() == true else {
+            finish(.failed, reason: "environment-observer-unavailable")
         }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
         physicalPassthroughFlags = physicalModifiers.passthroughFlags(
@@ -200,6 +213,9 @@ public final class SessionRuntimeWorker {
 
     private func tick() {
         guard !finished else { return }
+        guard environmentObserver?.check() == true else {
+            finish(.failed, reason: "environment-observer-unavailable")
+        }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
         if ownerPID > 0, !SystemStateProvider.shared.isProcessAlive(pid: ownerPID) { finish(.stopped, reason: "owner-exited") }
         guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled-observed") }
@@ -212,14 +228,29 @@ public final class SessionRuntimeWorker {
                 return
             case let .success(event?):
                 do {
-                    let output = try outputs.translate(event)
+                    // Refresh immediately before each queued event as well as
+                    // before the drain; a console change can race a long drain.
+                    guard environmentObserver?.check() == true else {
+                        finish(.failed, reason: "environment-observer-unavailable")
+                    }
+                    var nextOutputs = outputs
+                    let output = try nextOutputs.translate(event)
                     // Publish a press before posting it, but retain a release in
                     // the durable ledger until its key-up has been posted. Death
                     // between these operations leaves a conservative cleanup set.
-                    if output.isDown { writeReport(.running) }
-                    post(output)
+                    if output.isDown {
+                        outputs = nextOutputs
+                        writeReport(.running)
+                    }
+                    guard environmentObserver?.check() == true else {
+                        finish(.failed, reason: "environment-observer-unavailable")
+                    }
+                    guard post(output) else { finish(.failed, reason: "output-event-unavailable") }
                     outputCount += 1
-                    if !output.isDown { writeReport(.running) }
+                    if !output.isDown {
+                        outputs = nextOutputs
+                        writeReport(.running)
+                    }
                 } catch {
                     finish(.failed, reason: "unsupported-output")
                 }
@@ -230,14 +261,15 @@ public final class SessionRuntimeWorker {
         finish(.failed, reason: "output-queue-overrun")
     }
 
-    private func post(_ output: SessionKeyOutput) {
+    private func post(_ output: SessionKeyOutput) -> Bool {
         guard let source = CGEventSource(stateID: .privateState),
               let event = CGEvent(keyboardEventSource: source, virtualKey: output.keyCode, keyDown: output.isDown)
-        else { finish(.failed, reason: "output-event-unavailable") }
+        else { return false }
         event.flags = CGEventFlags(rawValue: output.flags | physicalPassthroughFlags)
         event.setIntegerValueField(.keyboardEventAutorepeat, value: output.isRepeat ? 1 : 0)
         event.setIntegerValueField(.eventSourceUserData, value: Self.outputTag)
         event.post(tap: .cgSessionEventTap)
+        return true
     }
 
     private func writeReport(_ state: SessionRuntimeReport.State, failure: String? = nil) {
@@ -258,14 +290,39 @@ public final class SessionRuntimeWorker {
         }
     }
 
-    private func finish(_ state: SessionRuntimeReport.State, reason: String? = nil) -> Never {
+    /// The production shutdown ordering is also exercised without OS events or
+    /// process exit in tests. A power acknowledgement must precede unregister.
+    static func completeTermination(
+        releaseOutputs: () -> Void, publishTerminalReport: () -> Void,
+        acknowledge: (() -> Void)?, unregisterObservers: () -> Void
+    ) {
+        releaseOutputs()
+        publishTerminalReport()
+        acknowledge?()
+        unregisterObservers()
+    }
+
+    private func finish(
+        _ state: SessionRuntimeReport.State, reason: String? = nil,
+        acknowledge: (() -> Void)? = nil
+    ) -> Never {
         finished = true
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         timer?.invalidate()
-        for output in outputs.releaseAll() {
-            post(output)
-        }
-        writeReport(state, failure: reason)
+        Self.completeTermination(releaseOutputs: {
+            // Allocation failure during shutdown cannot recursively exit before
+            // the power ACK. Preserve unposted releases in the crash ledger.
+            var pending = outputs
+            for output in pending.releaseAll() {
+                if post(output), let usage = SessionKeyMap.keyCodeToUsage[output.keyCode] {
+                    _ = try? outputs.translate(.init(value: 0, usagePage: 7, usage: usage))
+                }
+            }
+        }, publishTerminalReport: {
+            writeReport(state, failure: reason)
+        }, acknowledge: acknowledge, unregisterObservers: {
+            environmentObserver?.stop()
+        })
         // Process exit is the shutdown boundary for all detached bridge threads.
         exit(state == .failed ? 1 : 0)
     }
