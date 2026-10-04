@@ -27,13 +27,15 @@ struct WindowSnappingActivationModeTests {
         let catalog = RuleCollectionCatalog()
         manager.ruleCollections = catalog.defaultCollections()
 
-        // Mode changes need one enabled navigation provider. Keep l and w
-        // free for the launcher/window entrances exercised by this fixture.
+        // Mode changes need navigation content and an entrance, not just a
+        // target-layer mapping. Tab enters navigation; l and w stay free for
+        // the launcher/window entrances exercised by this fixture.
         if supportedEntrance {
             manager.ruleCollections.append(RuleCollection(
                 id: UUID(), name: "Test Navigation", summary: "", category: .custom,
                 mappings: [KeyMapping(input: "q", action: .keystroke(key: "esc"))],
-                isEnabled: true, targetLayer: .navigation
+                isEnabled: true, targetLayer: .navigation,
+                momentaryActivator: MomentaryActivator(input: "tab", targetLayer: .navigation)
             ))
         }
 
