@@ -379,14 +379,7 @@ final class ErrorHandlingTests: KeyPathTestCase {
         let status = manager.getInstallationStatus()
         XCTAssertFalse(status.isEmpty, "Installation status should not be empty")
 
-        let validStatuses = [
-            "✅ Fully installed",
-            "⚠️ Driver missing",
-            "⚠️ Service & driver missing",
-            "⚠️ Bundled Kanata unsigned (needs Developer ID signature)",
-            "❌ Not installed",
-            "⚠️ CRITICAL: App bundle corrupted - reinstall KeyPath"
-        ]
+        let validStatuses = ["✅ Session runtime installed", "❌ Session runtime missing"]
         XCTAssertTrue(
             validStatuses.contains(status), "Status should be one of the valid options: \(status)"
         )

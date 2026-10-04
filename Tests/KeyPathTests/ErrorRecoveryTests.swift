@@ -36,23 +36,29 @@ final class ErrorRecoveryTests: XCTestCase {
 
     func testVHIDSafety_EmergencyStopWhenDaemonUnhealthy() {
         XCTAssertTrue(
-            VHIDSafetyCheck.shouldEmergencyStop(kanataRunning: true, vhidDaemonHealthy: false),
+            VHIDSafetyCheck.shouldEmergencyStop(kanataRunning: true, vhidDaemonHealthy: false, backend: .driverKit),
             "Should trigger emergency stop when kanata runs without VirtualHID"
         )
     }
 
     func testVHIDSafety_NoStopWhenBothHealthy() {
         XCTAssertFalse(
-            VHIDSafetyCheck.shouldEmergencyStop(kanataRunning: true, vhidDaemonHealthy: true),
+            VHIDSafetyCheck.shouldEmergencyStop(kanataRunning: true, vhidDaemonHealthy: true, backend: .driverKit),
             "Should not stop when both are healthy"
         )
     }
 
     func testVHIDSafety_NoStopWhenKanataNotRunning() {
         XCTAssertFalse(
-            VHIDSafetyCheck.shouldEmergencyStop(kanataRunning: false, vhidDaemonHealthy: false),
+            VHIDSafetyCheck.shouldEmergencyStop(kanataRunning: false, vhidDaemonHealthy: false, backend: .driverKit),
             "Should not stop when kanata isn't running"
         )
+    }
+
+    func testSessionSafetyDoesNotStopForAbsentLegacyDaemon() {
+        XCTAssertFalse(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, vhidDaemonHealthy: false, backend: .session
+        ))
     }
 
     // MARK: - Config Validation
