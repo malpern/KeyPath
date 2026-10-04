@@ -150,3 +150,50 @@ Run pure checks without guest operations:
 ```sh
 python3 -m unittest discover -s Scripts/experiments/session-runtime -p 'test_held_secure_predicates.py'
 ```
+
+The guest command-channel dependency is the ordinary Python 3.13.16 framework
+interpreter at `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13`.
+Receipt-guarded preflight verifies its version and required standard-library modules
+before input. Command publication uses the same isolated interpreter and refuses a
+version mismatch before opening a command file. The Apple developer-tools launcher
+is not used.
+
+
+D8 canonical parent readiness integration (source review only)
+
+The unchanged reviewed `parent_readiness.py` dependency is pinned at SHA256
+`69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b`.
+Both initial and resumed admission now perform its identity-guarded combined
+parent-log/current-worker-report read. The current parent PID, worker PID and
+launch nonce must match an actual coordinator completion after this campaign's
+parent launch request. A healthy tap without this completion keeps waiting;
+identity and transport failures propagate. Each accepted worker receipt includes
+`parentReadiness`. The helper instance is shared so transient refusal has the same
+exception identity in both pollers; its source hash is checked on every access.
+No timing budgets change. The extra provider/identity and combined guest read
+must finish inside each existing eight-second worker deadline.
+
+The actual read-only fixture preflight route is the separately reviewed
+`/private/tmp/keypath-held-fixture-factory/read_only_preflight.py --requests 1`
+(or three requests for latency sampling). It extracts only the selected credential
+in memory, pins factory SHA256
+`78d188b220934cfaf6f264bb3203dbe3c7ea24d8d2ef556a55e5dd7999800f1b`,
+and reads status at the fixed numeric endpoint. This source task did not execute
+that route. Status can establish the reported firmware/build/state and request
+latency; the exposed factory has no read-only script-validation method. Its
+local load checks only framing/run ID/ASCII size, and `load_script` itself mutates
+the controller. Therefore read-only preflight cannot establish installed firmware
+acceptance of the exact declared 45.3-second script. That remains a separately
+released load-admission gate without arm/start or input, subject to owned idle
+state and cleanup review. Installed build `fc98a5acc0a5` is a status identifier,
+not a proven binding to the previously inspected duration-limit source.
+
+The frozen RigTarget binary SHA256 is
+`a8a0e0eeed6d1cbc63bb1bb5c51d80f6d9b36e3a92d06bfda4027f6326284f67`.
+Its 512 combined samples at nominal 10Hz retain about 51.2 seconds; usable phase
+anchors and fresh focus/secure-input receipts must survive the whole sequence.
+Prior numeric status timings (0.0374/0.3734/0.0275 seconds) do not measure the
+complete Control-down/secure/release/normal/resume path. Physical execution still
+requires measured completion before q-up, preserved phase anchors, actual secure
+focus, current firmware/USB ownership and the resumed canonical parent receipt.
+No live D8 acceptance, timing fit or installed script admissibility is claimed.

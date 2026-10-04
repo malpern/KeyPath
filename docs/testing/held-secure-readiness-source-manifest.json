@@ -1,0 +1,21 @@
+{
+  "sourceOnly": true,
+  "originalHarnessCommit": "4e0ac6dbbe0e84a224d2d0091dbc2d0e31fa5eb3",
+  "isolatedFrameworkBase": "e6f18badcbedfdddfe97844c354ac85fd07f04d8",
+  "hashes": {
+    "Scripts/experiments/session-runtime/held-secure-acceptance.py": "460766439d21b64234bd5997b4c9365c7a361f02922abdd805caaeecfb31d65e",
+    "Scripts/experiments/session-runtime/parent_readiness.py": "69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b",
+    "Scripts/experiments/session-runtime/held_secure_predicates.py": "14fbed279df894085a39350e26d9de05528bdacbdf4a36306ecaed6b849d2de5",
+    "Scripts/experiments/session-runtime/test_held_secure_predicates.py": "27097567f3a498803103867b7a7b957dca15a23a68e640b8da3692f7ad3865b7",
+    "Tests/test_parent_readiness.py": "6f499fa33f2f87dcfd22aabe45a6c466d531b49e8a13b10af0b9cef465ce9730",
+    "docs/testing/held-secure-phase-harness.md": "39c94cc1c991eccddfa35298f3741becf9d068f3914a82cefce7457208046a62"
+  },
+  "factorySHA256": "78d188b220934cfaf6f264bb3203dbe3c7ea24d8d2ef556a55e5dd7999800f1b",
+  "targetSHA256": "a8a0e0eeed6d1cbc63bb1bb5c51d80f6d9b36e3a92d06bfda4027f6326284f67",
+  "inertTests": {
+    "readiness": 14,
+    "existingPredicatesAndFramework": 28
+  },
+  "liveActions": false,
+  "installedScriptAdmissibility": "unverified; status-only preflight does not validate script"
+}

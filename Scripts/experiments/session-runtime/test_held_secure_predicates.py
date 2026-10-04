@@ -179,6 +179,49 @@ class HeldSecureEvidenceTests(unittest.TestCase):
 
 
 
+class FrameworkCommandPublicationTests(unittest.TestCase):
+    def test_framework_version_checked_before_atomic_command_publication(self):
+        import importlib.machinery
+        import json
+        import os
+        import pathlib
+        import shlex
+        import sys
+        import tempfile
+        import types
+        from unittest.mock import patch
+        harness = importlib.machinery.SourceFileLoader(
+            'held_framework_test', str(pathlib.Path(__file__).with_name('held-secure-acceptance.py'))).load_module()
+        with tempfile.TemporaryDirectory() as folder:
+            identity = types.SimpleNamespace(account='inert', uid=os.getuid(), home=folder,
+                                             app=folder + '/Applications/KeyPath.app')
+            guest = harness.Guest('inert', None, 'a' * 64, 'b' * 64, identity)
+            nonce = 'c' * 32
+            directory = pathlib.Path(folder) / ('rig-target-control-7-' + nonce)
+            directory.mkdir(mode=0o700)
+            path = directory / 'command.json'
+            before = dict(pid=7, uid=identity.uid, nonce=nonce,
+                          commandPath=str(path), commandSequence=4)
+            captured = []
+            guest.run = captured.append  # Capture only; never invoke guest transport.
+            self.assertEqual(guest.command(before, 'secure'), 5)
+            argv = shlex.split(captured[0])
+            self.assertEqual(argv[:4], [harness.GUEST_PYTHON, '-I', '-B', '-c'])
+            code = compile(argv[4], '<inert-command-publication>', 'exec')
+            with patch.object(sys, 'argv', ['-c'] + argv[5:]), \
+                 patch.object(sys, 'version_info', (3, 13, 15)), self.assertRaises(AssertionError):
+                exec(code, {})
+            self.assertFalse(path.exists())
+            self.assertEqual(list(directory.iterdir()), [])
+            with patch.object(sys, 'argv', ['-c'] + argv[5:]), \
+                 patch.object(sys, 'version_info', (3, 13, 16)):
+                exec(code, {})
+            self.assertEqual(json.loads(path.read_text()),
+                             dict(pid=7, uid=identity.uid, nonce=nonce, sequence=5, mode='secure'))
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(list(directory.iterdir()), [path])
+
+
 class SharedIdentityBoundaryTests(unittest.TestCase):
     """Exercise the actual shared receipt reader at the D8 transport boundary."""
     @classmethod

@@ -21,6 +21,9 @@ from held_secure_predicates import (TargetHistory, Refusal, applied, control_dow
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 IDENTITY_MODULE = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
 RIG_ROOTS = ('/private/tmp/vm-lab-hid-rig', '/private/tmp/vm-lab-guest-identity')
+PARENT_READINESS_SHA256 = '69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b'
+_READINESS_MODULE = None
+GUEST_PYTHON = '/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13'
 CONFIG = '(defcfg)\n(defsrc q a)\n(deflayer base (tap-hold 200 200 q lctl) a)\n'
 
 
@@ -31,6 +34,16 @@ def load_module(path, name):
     sys.modules[name] = module  # dataclasses with postponed annotations resolve this entry
     spec.loader.exec_module(module)
     return module
+
+
+def readiness_module():
+    global _READINESS_MODULE
+    path = pathlib.Path(__file__).with_name('parent_readiness.py')
+    require(hashlib.sha256(path.read_bytes()).hexdigest() == PARENT_READINESS_SHA256,
+            'reviewed parent readiness source changed')
+    if _READINESS_MODULE is None:
+        _READINESS_MODULE = load_module(path, 'held_parent_readiness')
+    return _READINESS_MODULE
 
 
 class Guest:
@@ -49,6 +62,7 @@ class Guest:
         self.backed_up = False
         self.parent_args = None
         self.target_identity = None
+        self.parent_launch_requested_at = None
 
     def check_account(self):
         return self.guest_identity.verify(self.pilot, self.lease)
@@ -274,8 +288,24 @@ class Guest:
                 'rawArguments': self.run(f'ps -ww -p {target["pid"]} -o args=').strip(),
                 'executable': target_exe, 'binarySHA256': self.target_sha}
         # Command writes use Python; verify this explicit dependency before input.
-        self.run('/usr/bin/python3 -c ' + shlex.quote('import json,os,pathlib,stat,sys,tempfile'))
+        self.run(shlex.quote(GUEST_PYTHON) + ' -I -B -c ' + shlex.quote(
+            'import json,os,pathlib,stat,sys,tempfile; assert sys.version_info[:3] == (3,13,16)'))
         return self.target_identity
+
+    def parent_ready(self, identity):
+        readiness = readiness_module()
+        require(self.parent is not None and self.parent_launch_requested_at is not None,
+                'parent launch evidence unavailable')
+        self.observation_scope()
+        marker = 'KEYPATH_READY_READ_' + uuid.uuid4().hex
+        command = readiness.log_command(self.guest_identity, self.parent, identity['pid'],
+                                        identity['nonce'], identity['reportPath'],
+                                        identity['rawArguments'], marker)
+        output = self.pilot.observe(self.lease, 'guest-root', '--', '/bin/zsh', '-lc', command)
+        log, current = readiness.split_observation(output, marker)
+        evidence = readiness.admit(log, marker, self.parent, identity['pid'], identity['nonce'],
+                                   self.uid, current, self.parent_launch_requested_at, time.time())
+        return current, evidence
 
     def start(self):
         self.check_account()
@@ -283,6 +313,7 @@ class Guest:
                  + ' && cp -p ' + shlex.quote(self.profile) + ' ' + shlex.quote(self.backup))
         self.backed_up = True
         self.check_account()
+        self.parent_launch_requested_at = time.time()
         self.run('printf %s ' + shlex.quote(CONFIG) + ' > ' + shlex.quote(self.profile)
                  + ' && chown ' + shlex.quote(self.account) + ' ' + shlex.quote(self.profile)
                  + ' && launchctl asuser ' + str(self.uid) + ' sudo -H -u ' + shlex.quote(self.account) + ' open -g -n '
@@ -309,6 +340,7 @@ class Guest:
         command = {k: before[k] for k in ('pid', 'uid', 'nonce')}
         command.update(sequence=before['commandSequence'] + 1, mode=mode)
         code = '''import json,os,pathlib,stat,sys,tempfile
+assert sys.version_info[:3] == (3,13,16)
 p=pathlib.Path(sys.argv[1]); d=p.parent
 s=d.lstat()
 assert stat.S_ISDIR(s.st_mode) and s.st_uid==int(sys.argv[3]) and stat.S_IMODE(s.st_mode)==0o700
@@ -320,7 +352,7 @@ try:
 finally:
  if os.path.exists(tmp): os.unlink(tmp)
 '''
-        self.run('/usr/bin/python3 -c ' + shlex.quote(code) + ' ' + shlex.quote(path)
+        self.run(shlex.quote(GUEST_PYTHON) + ' -I -B -c ' + shlex.quote(code) + ' ' + shlex.quote(path)
                  + ' ' + shlex.quote(json.dumps(command, separators=(',', ':'))) + ' ' + str(self.uid))
         return command['sequence']
 
@@ -487,12 +519,17 @@ class Campaign:
         self.record['targetIdentity'] = self.guest.preflight(initial)
         self.record['usbBefore'] = self.guest.pilot.verify_usb(self.guest.lease)
         self.record['parentIdentity'] = self.guest.start()
+        readiness = readiness_module()
         def ready(_):
             found = self.latest['worker']
             if found and found[1].get('state') == 'running':
-                worker(found[1], tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
-                require(found[1].get('heldOutputUsages') == [], 'initial worker ledger not empty')
-                return {'identity': found[0], 'report': found[1]}
+                try:
+                    report, evidence = self.guest.parent_ready(found[0])
+                except readiness.NotReady:
+                    return None
+                worker(report, tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
+                require(report.get('heldOutputUsages') == [], 'initial worker ledger not empty')
+                return {'identity': found[0], 'report': report, 'parentReadiness': evidence}
             return None
         _, old = self.wait('initial-worker', ready, 8)
         timed = [(0, [0, 20, 0, 0, 0, 0, 0]), (45000000, [0] * 7)]
@@ -533,10 +570,14 @@ class Campaign:
                 return None
             require(found[0]['pid'] != old['identity']['pid']
                     and found[0]['nonce'] != old['identity']['nonce'], 'worker generation was reused')
-            worker(found[1], tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
-            no_resurrection(target, found[1], release['up']['sequence'])
+            try:
+                report, evidence = self.guest.parent_ready(found[0])
+            except readiness.NotReady:
+                return None
+            worker(report, tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
+            no_resurrection(target, report, release['up']['sequence'])
             physical_hold(self.client.status(), run)
-            return {'identity': found[0], 'report': found[1]}
+            return {'identity': found[0], 'report': report, 'parentReadiness': evidence}
         _, new = self.wait('resumed-worker', resumed, 8)
         deadline = time.monotonic() + 2
         while time.monotonic() < deadline:
