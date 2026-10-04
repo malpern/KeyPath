@@ -14,7 +14,7 @@ new physical trials require fresh vm-lab admission. Approval is `never`, full
 filesystem access and network enabled; the original guest-only restrictions
 still apply. No host deployment, permission changes, upstream push, or PR.
 
-`Research ✓ → driverless-only simplification [active] → validation → safety hardening → onboarding`
+`Research ✓ → driverless-only simplification ✓ → validation [active] → safety hardening → onboarding`
 
 Earlier bounded acceptance is estimated at 80%, not shipping readiness. The new
 simplification has its own gates; source edits alone do not inherit old physical
@@ -25,12 +25,28 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | D1 | Separate checkpoint/worktree. Complete. | Sol medium | Existing checkpoint unchanged; isolated branch and local Kanata revision recorded |
 | D2 | Session is the sole selectable runtime; privileged lifecycle and installer execution removed. Source integrated, checks pending. | Sol medium; Sol high reviews boundaries | Tests prove flag/env cannot select DriverKit, malformed plans cannot invoke broker actions, and success requires current session readiness |
 | D3 | Fresh supported profile defaults; existing profiles preserved; canonical eligibility before managed writes. Source integrated, checks pending. | Sol medium | Actual fresh generated profile accepted by real Kanata bridge; Caps/media/filter candidates rejected before config/store mutations |
-| D4 | Driver/helper/daemon/launcher absent from signed artifact. Packaging edits active. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
-| D5 | Combined targeted and broad safe tests. First fresh compile active. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
+| D4 | Driver/helper/daemon/launcher absent from signed artifact. Source integrated, signed artifact pending. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
+| D5 | Combined targeted and broad safe tests. First broad run: 4,817 passing assertions/tests reported, 294 failures and obsolete wizard-test force-unwrap crash; no broad pass. Test migration and shared real-bridge fixture integrated, rerun pending. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
 | D6 | Freeze source and build signed candidate without host deployment. Pending. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
 | D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Pending. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
 | D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
 | D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
+
+Current simplification estimate: **65%**, independent of the older 80% bounded
+checkpoint. Three earlier targeted runs narrowed source contract failures; the
+first broad run exposed missing local-bridge fixtures, obsolete privileged
+planner expectations, changed default golden files, and app-specific switch
+eligibility. The crash was in an obsolete test force unwrap, not the product.
+Generated actual golden outputs are preserved separately before restoring those
+tracked diagnostic files; reference changes require individual review.
+
+The narrow virtual-input switch fix is integrated: real TCP/passthrough engine
+tests prove fallback → active app branch → fallback with down/up output. All
+branches and virtual definitions remain validated; unsupported media/Unicode
+and other predicates remain rejected. Root must rebuild the bridge and verify
+Swift transactions and the broad gate. Signed/physical app-specific acceptance
+is still pending. Unit-test application launches are blocked to keep this gate
+from opening or modifying host applications. No new VM has been admitted.
 
 Do not imply default media keys or raw Caps are now supported. Built-in definitions
 remain available, fresh enabled defaults are conservative, and existing profiles

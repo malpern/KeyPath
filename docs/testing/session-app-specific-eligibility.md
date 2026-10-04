@@ -30,3 +30,9 @@ rejected even if supported keyboard switching becomes eligible. A missing local
 bridge skips bridge-dependent fixture cases with a message; an explicitly named
 missing bridge fails. No installed-library fallback or production test bypass is
 used.
+
+Follow-up: narrow generated virtual-input switch support is now integrated; see
+[engine diagnosis and proof](../bugs/session-app-virtual-switch.md). Real TCP
+engine acceptance passed in the agent worktree. Integration bridge rebuild,
+Swift transaction checks and signed physical acceptance remain pending; the
+original rejected probe above records the pre-fix behavior.
