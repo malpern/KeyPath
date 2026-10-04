@@ -1,4 +1,5 @@
 """Pure acceptance predicates for D8; no transport, capture, secrets or input."""
+import copy
 import math
 
 
@@ -41,13 +42,23 @@ class TargetHistory:
         self.anchors = {}
         self.counts = {}
         self.check(first, now)
-        self.anchor(first)
 
-    def anchor(self, snapshot):
+    def begin(self, phase, snapshot):
+        require(phase not in self.anchors, 'phase already active')
+        self.anchors[phase] = {}
+        self.anchor(phase, snapshot)
+
+    def anchor(self, phase, snapshot):
+        require(phase in self.anchors, 'phase is not active')
         for journal, _ in JOURNALS:
             rows = snapshot[journal]
             if rows:
-                self.anchors.setdefault(journal, {})[rows[-1]['sequence']] = rows[-1]
+                self.anchors[phase].setdefault(journal, {})[rows[-1]['sequence']] = copy.deepcopy(rows[-1])
+
+    def retire(self, phase, accepted_receipt):
+        require(phase in self.anchors and isinstance(accepted_receipt, str)
+                and bool(accepted_receipt), 'phase retirement lacks accepted evidence')
+        del self.anchors[phase]
 
     def check(self, value, now):
         require(tuple(value.get(k) for k in ('pid', 'uid', 'nonce', 'commandPath')) == self.identity,
@@ -74,9 +85,10 @@ class TargetHistory:
             old = self.counts.get(journal)
             if old:
                 require(drops >= old[0] and len(rows) + drops >= old[1], 'journal drop accounting regressed')
-            for sequence, anchor in self.anchors.get(journal, {}).items():
-                require(next((row for row in rows if row['sequence'] == sequence), None) == anchor,
-                        'required phase journal anchor evicted or changed')
+            for phase in self.anchors.values():
+                for sequence, anchor in phase.get(journal, {}).items():
+                    require(next((row for row in rows if row['sequence'] == sequence), None) == anchor,
+                            'required phase journal anchor evicted or changed')
             for row in rows:
                 require(number(row.get('observedAt')) and number(row.get('monotonicAt'))
                         and row['monotonicAt'] <= value['monotonicAt'], 'invalid journal timestamp')
@@ -84,7 +96,7 @@ class TargetHistory:
                         and left['observedAt'] <= right['observedAt']
                         for left, right in zip(rows, rows[1:])), 'journal timestamps regressed')
             self.counts[journal] = (drops, len(rows) + drops)
-        self.previous = value
+        self.previous = copy.deepcopy(value)
         return value
 
 
@@ -156,3 +168,31 @@ def exact_trace(trace, rows, status, run):
     require([[r.get('modifiers'), *r.get('keys', [])] for r in trace] == rows,
             'physical trace differs from exact submitted reports')
     require(rows[-1] == [0] * 7, 'physical run lacks terminal all-up')
+
+
+class StoppedWorkerEvidence:
+    """Accept a fresh terminal transition once; later exit proof is independent.
+
+    An exited process cannot republish. Re-reading an identical terminal report
+    is historical evidence only, never live liveness/ledger evidence.
+    """
+    def __init__(self, identity, command_wall_anchor):
+        self.identity = identity
+        self.command_wall_anchor = command_wall_anchor
+        self.accepted = None
+
+    def observe(self, value, now):
+        require(tuple(value.get(k) for k in ('pid', 'uid', 'nonce')) == self.identity,
+                'worker identity changed')
+        if self.accepted is not None:
+            require(value == self.accepted, 'accepted stopped worker evidence changed')
+            return self.accepted
+        if value.get('state') != 'secureInput':
+            worker(value, self.identity, now)
+            return None
+        worker(value, self.identity, now, 'secureInput')
+        require(value['timestamp'] + 978307200 >= self.command_wall_anchor
+                and value.get('heldOutputUsages') == [] and value.get('tapActive') is False,
+                'terminal report predates command or retains output')
+        self.accepted = copy.deepcopy(value)
+        return self.accepted

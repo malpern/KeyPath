@@ -4,7 +4,7 @@ import unittest
 
 from held_secure_predicates import (Refusal, TargetHistory, applied, control_down,
                                    control_released, exact_trace, no_resurrection,
-                                   physical_hold, worker)
+                                   physical_hold, worker, StoppedWorkerEvidence)
 
 
 def focused(mode='normal'):
@@ -34,6 +34,7 @@ class HeldSecureEvidenceTests(unittest.TestCase):
     def test_prephase_lifetime_drops_allowed_but_phase_anchor_eviction_fails(self):
         first = snapshot()
         history = TargetHistory(first, 1010, 502)
+        history.begin('held-transition', first)
         next_value = snapshot(11)
         next_value['combinedSessionControlJournal'] = first['combinedSessionControlJournal'] + [event(2, False, 11)]
         history.check(next_value, 1011)
@@ -131,6 +132,50 @@ class HeldSecureEvidenceTests(unittest.TestCase):
             worker(value, (28, 502, 'generation-1'), 1010)
         with self.assertRaisesRegex(Refusal, 'stale'):
             worker(dict(value, state='secureInput', tapActive=False), (29, 502, 'generation-2'), 1014, 'secureInput')
+
+    def test_retired_phase_can_roll_off_ring_but_live_phase_cannot(self):
+        first = snapshot()
+        history = TargetHistory(first, 1010, 502)
+        history.begin('held-transition', first)
+        with self.assertRaisesRegex(Refusal, 'accepted evidence'):
+            history.retire('held-transition', None)
+        history.retire('held-transition', '0042-accepted-held-transition.json')
+        later = snapshot(60)
+        later['combinedSessionControlJournal'] = [event(512, False, 60)]
+        later['combinedSessionControlDropped'] = 551
+        history.check(later, 1060)
+        history.begin('fresh-tap', later)
+        evicted = snapshot(61)
+        evicted['combinedSessionControlJournal'] = [event(513, False, 61)]
+        evicted['combinedSessionControlDropped'] = 552
+        with self.assertRaisesRegex(Refusal, 'anchor evicted'):
+            history.check(evicted, 1061)
+
+    def test_phase_anchors_are_immutable_copies(self):
+        first = snapshot()
+        history = TargetHistory(first, 1010, 502)
+        history.begin('held-transition', first)
+        first['combinedSessionControlJournal'][0]['control'] = True
+        later = snapshot(11)
+        later['combinedSessionControlJournal'] = [first['combinedSessionControlJournal'][0], event(2, False, 11)]
+        with self.assertRaisesRegex(Refusal, 'anchor evicted or changed'):
+            history.check(later, 1011)
+
+    def test_terminal_transition_is_fresh_once_and_immutable_after_exit(self):
+        identity = (29, 502, 'owned-generation')
+        value = dict(pid=29, uid=502, nonce='owned-generation', timestamp=1011 - 978307200,
+                     state='secureInput', tapActive=False, heldOutputUsages=[])
+        terminal = StoppedWorkerEvidence(identity, 1010)
+        self.assertEqual(terminal.observe(value, 1012), value)
+        # Independent process exit may be observed later. Historical state must
+        # stay identical; this is not a current running-ledger proof.
+        self.assertEqual(terminal.observe(value, 1020), value)
+        with self.assertRaisesRegex(Refusal, 'evidence changed'):
+            terminal.observe(dict(value, timestamp=value['timestamp'] + 1), 1020)
+        for changed, now in ((value, 1015), (dict(value, timestamp=1009 - 978307200), 1010),
+                             (dict(value, heldOutputUsages=[224]), 1012)):
+            with self.assertRaises(Refusal):
+                StoppedWorkerEvidence(identity, 1010).observe(changed, now)
 
 
 
@@ -267,6 +312,163 @@ class SharedIdentityBoundaryTests(unittest.TestCase):
         self.assertEqual(result.stdout, '')
         result = subprocess.run(['/bin/sh', '-c', 'true; true && { false; }'], capture_output=True)
         self.assertNotEqual(result.returncode, 0)
+
+
+class BatchBoundaryTests(unittest.TestCase):
+    setUpClass = SharedIdentityBoundaryTests.__dict__['setUpClass']
+    receipt = SharedIdentityBoundaryTests.receipt
+    pilot = SharedIdentityBoundaryTests.pilot
+    def batch_guest(self, changes=None):
+        import base64
+        import json
+        identity = self.shared.GuestIdentity('keypathqa_896c0d2d', 502, 'cbx_896c0d2d8565',
+                   '62017a62-8774-4bf6-8754-bbafe7c27c1f', 1791077561)
+        pilot = self.pilot()
+        guest = self.harness.Guest(identity.lease, pilot, 'a' * 64, 'b' * 64, identity)
+        guest.parent, guest.parent_args = 17, [guest.exe, '--headless']
+        nonce = '6c83293b-38bc-4ea1-af44-86c1647d3d7a'
+        path = '/var/folders/ab/owned/T/keypath-session-' + nonce + '/report.json'
+        args = [guest.exe, '--session-runtime', '--session-owner', '17', '--session-report', path,
+                '--session-nonce', nonce]
+        process = '17 502 ' + guest.exe + ' ' + ' '.join(guest.parent_args) + '\n'
+        process += '29 502 ' + guest.exe + ' ' + ' '.join(args)
+        report = dict(pid=29, uid=502, nonce=nonce, timestamp=1010 - 978307200,
+                      state='running', tapActive=True, heldOutputUsages=[])
+        fields = dict(identity='\n'.join([identity.account, str(identity.uid), identity.home, identity.account,
+                                         str(identity.uid), str(identity.boot_epoch)]) + '\n',
+                      processes=process, pids='17\n29\n33', target=json.dumps(snapshot()),
+                      binaryHash='a' * 64 + '  ' + guest.exe, complete='D8_COMPLETE',
+                      **{'report-29': json.dumps(report)})
+        if changes:
+            changes(fields, guest)
+        output = '\n'.join('D8\t' + key + '\t' + base64.b64encode(value.encode()).decode()
+                             for key, value in fields.items())
+        def observe(lease, verb, *args):
+            pilot.observations.append(args[-1])
+            return output
+        pilot.observe = observe
+        return guest, pilot
+
+    def test_one_batch_uses_one_provider_and_one_guarded_guest_read(self):
+        guest, pilot = self.batch_guest()
+        status = []
+        original = pilot.lab
+        def lab(lease, verb, *args):
+            status.append(verb)
+            return original(lease, verb, *args)
+        pilot.lab = lab
+        batch = guest.snapshot()
+        self.assertEqual(batch['worker'][0]['pid'], 29)
+        self.assertEqual(status, ['status'])
+        self.assertEqual(len(pilot.observations), 1)
+        self.assertEqual(pilot.mutations, [])
+        self.assertIn('/dev/console', pilot.observations[0])
+        self.assertIn(str(guest.guest_identity.boot_epoch), pilot.observations[0])
+        self.assertIn('test "$d8before" = "$d8after"', pilot.observations[0])
+        self.assertNotIn('python', pilot.observations[0])
+
+    def test_batch_shell_parses_and_a_failed_read_cannot_emit_completion(self):
+        import subprocess
+        guest, pilot = self.batch_guest()
+        guest.snapshot()
+        # Parse the complete guest expression without executing OS operations.
+        parsed = subprocess.run(['/bin/zsh', '-n', '-c', pilot.observations[-1]], capture_output=True)
+        self.assertEqual(parsed.returncode, 0, parsed.stderr.decode())
+        # Execute only inert booleans to check the grouped guard/errexit contract.
+        failed = subprocess.run(['/bin/zsh', '-c', 'true; true && { set -e; set -o pipefail; false; printf D8_COMPLETE; }'],
+                                capture_output=True)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertEqual(failed.stdout, b'')
+
+    def test_missing_batch_completion_or_worker_report_cannot_pass(self):
+        for field in ('complete', 'report-29', 'target', 'pids', 'identity'):
+            guest, _ = self.batch_guest(lambda fields, _: fields.pop(field))
+            with self.subTest(field=field), self.assertRaisesRegex(Refusal, 'incomplete'):
+                guest.snapshot()
+
+    def test_parent_arguments_worker_nonce_and_binary_changes_refuse(self):
+        mutations = (
+            lambda fields, _: fields.update(processes=fields['processes'].replace('--headless', '--different')),
+            lambda fields, _: fields.update(binaryHash='c' * 64),
+            lambda fields, _: fields.update(identity=fields['identity'].replace('1791077561', '1791077562')),
+            lambda fields, _: fields.update(**{'report-29': fields['report-29'].replace('6c83293b', '7c83293b')}),
+        )
+        for mutation in mutations:
+            guest, _ = self.batch_guest(mutation)
+            with self.assertRaises(Refusal):
+                guest.snapshot()
+
+    def test_target_process_and_hash_are_required_in_the_same_batch(self):
+        import json
+        def target_fields(fields, guest):
+            executable = guest.home + '/rig-target/capture-target'
+            guest.target_identity = dict(pid=33, uid=502, nonce='target-nonce',
+                                        executable=executable, arguments=[executable])
+            target = json.loads(fields['target'])
+            target['pid'] = 33
+            fields.update(target=json.dumps(target), targetProcess='33 502 ' + executable + ' ' + executable,
+                          targetHash='b' * 64)
+        guest, _ = self.batch_guest(target_fields)
+        self.assertEqual(guest.snapshot()['target']['pid'], 33)
+        for field, value in (('targetHash', 'c' * 64), ('targetProcess', '33 501 /wrong /wrong')):
+            def mutate(fields, guest):
+                target_fields(fields, guest)
+                fields[field] = value
+            guest, _ = self.batch_guest(mutate)
+            with self.assertRaisesRegex(Refusal, 'target process or hash'):
+                guest.snapshot()
+
+    def test_batch_target_focus_loss_is_fatal_without_retry(self):
+        import json
+        import pathlib
+        import tempfile
+        import unittest.mock
+        def mutate(fields, _):
+            target = snapshot()
+            target['requestedResponderFocused'] = False
+            fields['target'] = json.dumps(target)
+        guest, pilot = self.batch_guest(mutate)
+        with tempfile.TemporaryDirectory() as folder, unittest.mock.patch.object(self.harness.time, 'time', return_value=1010):
+            campaign = self.harness.Campaign(guest, None, pathlib.Path(folder))
+            with self.assertRaisesRegex(Refusal, 'focus'):
+                campaign.target()
+        self.assertEqual(len(pilot.observations), 1)
+
+    def test_client_close_failure_still_restores_owner_and_fails_campaign(self):
+        import pathlib
+        import tempfile
+        class Client:
+            def status(self):
+                return {'state': 'complete'}
+            def close(self):
+                raise RuntimeError('synthetic close failure')
+        class Guest:
+            restored = False
+            def cleanup(self):
+                self.restored = True
+                return {'errors': [], 'profileBytewiseRestored': True}
+        guest = Guest()
+        with tempfile.TemporaryDirectory() as folder:
+            campaign = self.harness.Campaign(guest, Client(), pathlib.Path(folder))
+            campaign.record['passed'] = True
+            campaign.cleanup()
+        self.assertTrue(guest.restored)
+        self.assertFalse(campaign.record['passed'])
+        self.assertIn('fixture client close failed', campaign.record['cleanupErrors'][0])
+
+    def test_acceptance_file_precedes_phase_retirement(self):
+        import pathlib
+        import tempfile
+        guest, _ = self.batch_guest()
+        with tempfile.TemporaryDirectory() as folder:
+            campaign = self.harness.Campaign(guest, None, pathlib.Path(folder))
+            campaign.history = TargetHistory(snapshot(), 1010, 502)
+            campaign.history.begin('held-transition', snapshot())
+            campaign.accept_phase('held-transition', {'physicalAllUpVerified': True})
+            records = sorted(pathlib.Path(folder).glob('*.json'))
+            self.assertEqual(len(records), 2)
+            self.assertEqual(campaign.history.anchors, {})
+            self.assertIn('accepted-held-transition', records[0].name)
 
 
 if __name__ == '__main__':

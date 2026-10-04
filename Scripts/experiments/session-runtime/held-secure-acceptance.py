@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Review-gated D8 campaign. Import is inert; only main performs guest operations."""
 import argparse
+import base64
+import hashlib
 import importlib.util
 import json
 import os
@@ -14,7 +16,7 @@ import zlib
 
 from held_secure_predicates import (TargetHistory, Refusal, applied, control_down,
                                    control_released, exact_trace, no_resurrection,
-                                   physical_hold, require, worker)
+                                   physical_hold, require, worker, StoppedWorkerEvidence)
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 IDENTITY_MODULE = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
@@ -45,6 +47,7 @@ class Guest:
         self.backup = self.profile + '.held-secure-' + uuid.uuid4().hex
         self.backed_up = False
         self.parent_args = None
+        self.target_identity = None
 
     def check_account(self):
         return self.guest_identity.verify(self.pilot, self.lease)
@@ -55,6 +58,165 @@ class Guest:
         # no-op prefix, while leaving guard/mutation failure as the final status.
         return self.pilot.lab(self.lease, 'guest-root', '--', '/bin/zsh', '-lc',
                               'true; ' + self.guest_identity.guard() + ' && { ' + command + '; }')
+
+    def observation_scope(self):
+        """The shared receipt/provider checks, without a second guest round trip."""
+        shared = load_module(IDENTITY_MODULE, 'held_batch_guest_identity')
+        identity = self.guest_identity
+        require(identity.lease is None or identity.lease == self.lease, 'identity lease changed')
+        if identity.receipt_path:
+            raw = shared.read_private_receipt(pathlib.Path(identity.receipt_path))
+            require(hashlib.sha256(raw).hexdigest() == identity.receipt_sha256,
+                    'frozen identity receipt changed')
+        if identity.provider_uuid is not None:
+            shared.verify_provider(self.pilot.lab(self.lease, 'status'), self.lease,
+                                   identity.provider_uuid, time.time())
+
+    def snapshot(self, old=None):
+        """One guarded read returns target, owned processes, reports and exit proof.
+
+        Shell records are individually base64 encoded; no guest Python or
+        transcribed JSON is required. Process tables bracket the read so a
+        partial or changing generation is refused, not accidentally combined.
+        """
+        self.observation_scope()
+        q = shlex.quote
+        commands = [
+            'set -e; set -o pipefail',
+            'd8emit() { printf "D8\\t%s\\t" "$1"; /usr/bin/base64 | /usr/bin/tr -d "\\n"; printf "\\n"; }',
+            'd8processes() { /bin/ps -axo pid=,uid=,comm=,args= | /usr/bin/awk -v exe=' + q(self.exe) + ' \'$3 == exe\'; }',
+            'd8before=$(d8processes)',
+            '{ /usr/bin/id -un ' + str(self.uid) + '; /usr/bin/id -u ' + q(self.account)
+            + '; /usr/bin/dscl . -read /Users/' + q(self.account) + ' NFSHomeDirectory | /usr/bin/cut -d " " -f 2-'
+            + '; /usr/bin/stat -f %Su /dev/console; /usr/bin/stat -f %u /dev/console'
+            + "; /usr/sbin/sysctl -n kern.boottime | /usr/bin/sed -E 's/^.*sec = ([0-9]+),.*$/\\1/'; } | d8emit identity",
+            'printf %s "$d8before" | d8emit processes',
+            '/bin/ps -axo pid= | d8emit pids',
+            '/bin/cat ' + q(self.home + '/rig-target.json') + ' | d8emit target',
+            '/usr/bin/shasum -a 256 ' + q(self.exe) + ' | d8emit binaryHash',
+        ]
+        if self.target_identity:
+            target = self.target_identity
+            commands += [
+                'd8target=$(/bin/ps -p ' + str(target['pid']) + ' -o pid=,uid=,comm=,args=)',
+                'printf %s "$d8target" | d8emit targetProcess',
+                '/usr/bin/shasum -a 256 ' + q(target['executable']) + ' | d8emit targetHash',
+            ]
+        # Discover only bounded owned report paths. A foreign worker causes a
+        # refusal before its file can be read. Host repeats the argument checks.
+        commands += [
+            '''while read -r d8pid d8uid d8comm d8args; do
+ test -z "$d8pid" && continue
+ case " $d8args " in *" --session-runtime "*)
+ d8path=$(printf '%s\\n' "$d8args" | /usr/bin/awk '{for(i=1;i<NF;i++)if($i=="--session-report")print $(i+1)}')
+ d8nonce=$(printf '%s\\n' "$d8args" | /usr/bin/awk '{for(i=1;i<NF;i++)if($i=="--session-nonce")print $(i+1)}')
+ d8owner=$(printf '%s\\n' "$d8args" | /usr/bin/awk '{for(i=1;i<NF;i++)if($i=="--session-owner")print $(i+1)}')
+ test "$d8owner" = ''' + shlex.quote(str(self.parent)) + '''
+ test "$d8uid" = ''' + str(self.uid) + '''
+ [[ "$d8nonce" =~ ^[0-9a-fA-F-]{36}$ ]]
+ [[ "$d8path" =~ ^/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-$d8nonce/report.json$ ]]
+ test ! -L "$d8path"
+ test "$(/usr/bin/stat -f %u "$d8path")" = ''' + str(self.uid) + '''
+ /bin/cat "$d8path" | d8emit "report-$d8pid"
+ ;; esac
+ done <<< "$d8before"''',
+        ]
+        if old:
+            commands += ['test ! -L ' + q(old['reportPath']),
+                         'test "$(/usr/bin/stat -f %u ' + q(old['reportPath']) + ')" = ' + str(self.uid),
+                         '/bin/cat ' + q(old['reportPath']) + ' | d8emit oldReport']
+        if self.target_identity:
+            commands += ['test "$d8target" = "$(/bin/ps -p ' + str(self.target_identity['pid'])
+                         + ' -o pid=,uid=,comm=,args=)"']
+        commands += ['d8after=$(d8processes)', 'test "$d8before" = "$d8after"',
+                     self.guest_identity.guard(), 'printf D8_COMPLETE | d8emit complete']
+        expression = ('true; ' + self.guest_identity.guard() + ' && { '
+                      + '\n'.join(commands) + '\n}')
+        output = self.pilot.observe(self.lease, 'guest-root', '--', '/bin/zsh', '-lc', expression)
+        fields = {}
+        for line in output.splitlines():
+            parts = line.split('\t')
+            require(len(parts) == 3 and parts[0] == 'D8' and parts[1] not in fields,
+                    'incomplete or ambiguous batch receipt')
+            try:
+                fields[parts[1]] = base64.b64decode(parts[2], validate=True).decode('utf-8')
+            except (ValueError, UnicodeError):
+                raise Refusal('malformed batch receipt') from None
+        expected = {'identity', 'processes', 'pids', 'target', 'binaryHash', 'complete'}
+        if self.target_identity:
+            expected.update(('targetProcess', 'targetHash'))
+        if old:
+            expected.add('oldReport')
+        require(fields.get('complete') == 'D8_COMPLETE' and expected <= fields.keys(),
+                'incomplete batch receipt')
+        actual_identity = fields['identity'].splitlines()
+        require(len(actual_identity) == 6 and actual_identity[:5]
+                == [self.account, str(self.uid), self.home, self.account, str(self.uid)]
+                and actual_identity[5].isdigit()
+                and (self.guest_identity.boot_epoch is None
+                     or int(actual_identity[5]) == self.guest_identity.boot_epoch),
+                'batched account/home/console/boot identity changed')
+        require(fields['binaryHash'].split()[0] == self.binary_sha, 'owned executable hash changed')
+        def process(row):
+            values = row.strip().split(maxsplit=3)
+            require(len(values) == 4 and values[0].isdigit() and values[1].isdigit(),
+                    'malformed process observation')
+            return dict(pid=int(values[0]), uid=int(values[1]), executable=values[2],
+                        arguments=shlex.split(values[3]), rawArguments=values[3], binarySHA256=self.binary_sha)
+        processes = [process(row) for row in fields['processes'].splitlines()]
+        require(len({p['pid'] for p in processes}) == len(processes), 'duplicate process receipt')
+        parent = [p for p in processes if p['pid'] == self.parent]
+        if self.parent:
+            require(len(parent) == 1 and parent[0]['uid'] == self.uid
+                    and parent[0]['arguments'] == self.parent_args, 'owned parent identity changed')
+        live = []
+        for item in processes:
+            require(item['executable'] == self.exe and item['uid'] == self.uid, 'foreign process')
+            args = item['arguments']
+            if item['pid'] == self.parent:
+                continue
+            require('--session-runtime' in args and args.count('--session-owner') == 1
+                    and args[args.index('--session-owner') + 1] == str(self.parent), 'foreign worker')
+            require(args.count('--session-report') == args.count('--session-nonce') == 1,
+                    'ambiguous worker report arguments')
+            path, nonce = args[args.index('--session-report') + 1], args[args.index('--session-nonce') + 1]
+            uuid.UUID(nonce)
+            require(re.fullmatch(r'/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-'
+                                 + re.escape(nonce) + r'/report.json', path), 'unsafe worker report path')
+            item.update(reportPath=path, nonce=nonce)
+            known = self.generations.get(item['pid'])
+            require(known is None or all(item[k] == known[k] for k in ('uid', 'nonce', 'arguments', 'reportPath')),
+                    'owned worker process identity changed')
+            label = 'report-' + str(item['pid'])
+            require(label in fields, 'incomplete worker batch receipt')
+            expected.add(label)
+            report = json.loads(fields[label])
+            require(tuple(report.get(k) for k in ('pid', 'uid', 'nonce'))
+                    == tuple(item[k] for k in ('pid', 'uid', 'nonce')), 'report ownership mismatch')
+            self.generations[item['pid']] = item
+            live.append((item, report))
+        require(len(live) <= 1 and set(fields) == expected, 'unexpected or ambiguous batch records')
+        if self.target_identity:
+            observed = process(fields['targetProcess'])
+            require(all(observed[k] == self.target_identity[k] for k in ('pid', 'uid', 'executable', 'arguments'))
+                    and fields['targetHash'].split()[0] == self.target_sha, 'target process or hash changed')
+        pids = fields['pids'].split()
+        require(all(p.isdigit() for p in pids), 'malformed exit observation')
+        target_receipt = json.loads(fields['target'])
+        if self.target_identity:
+            require(tuple(target_receipt.get(k) for k in ('pid', 'uid', 'nonce'))
+                    == tuple(self.target_identity[k] for k in ('pid', 'uid', 'nonce')),
+                    'target receipt ownership changed')
+        result = dict(target=target_receipt, worker=live[0] if live else None,
+                      processes=processes, oldExited=old is not None and str(old['pid']) not in pids,
+                      observedAt=time.time(), identity=dict(account=self.account, uid=self.uid, home=self.home,
+                      providerUUID=self.guest_identity.provider_uuid, bootEpoch=int(actual_identity[5]),
+                      consoleAccount=actual_identity[3], consoleUID=int(actual_identity[4])))
+        if old:
+            result['oldReport'] = json.loads(fields['oldReport'])
+            require(not any(p['pid'] == old['pid'] and p['arguments'] != old['arguments'] for p in processes),
+                    'old worker PID reused')
+        return result
 
     def target(self):
         return json.loads(self.run('cat ' + shlex.quote(self.home + '/rig-target.json')))
@@ -96,8 +258,12 @@ class Guest:
         require(self.run(f'ps -p {target["pid"]} -o uid=').strip() == str(self.uid), 'target UID mismatch')
         require(self.run('shasum -a 256 ' + shlex.quote(target_exe)).split()[0] == self.target_sha,
                 'reviewed target binary mismatch')
-        return {'pid': target['pid'], 'uid': self.uid, 'nonce': target['nonce'],
+        self.target_identity = {'pid': target['pid'], 'uid': self.uid, 'nonce': target['nonce'],
+                'arguments': shlex.split(self.run(f'ps -p {target["pid"]} -o args=')),
                 'executable': target_exe, 'binarySHA256': self.target_sha}
+        # Command writes use Python; verify this explicit dependency before input.
+        self.run('/usr/bin/python3 -c ' + shlex.quote('import json,os,pathlib,stat,sys,tempfile'))
+        return self.target_identity
 
     def start(self):
         self.check_account()
@@ -120,33 +286,6 @@ class Guest:
                 return self.identity(self.parent, self.parent_args)
             time.sleep(.2)
         raise Refusal('parent launch deadline')
-
-    def current_worker(self):
-        self.identity(self.parent, self.parent_args)
-        found = []
-        for pid, uid, args in self.processes():
-            if '--session-runtime' not in args:
-                continue
-            require(uid == self.uid and '--session-owner' in args
-                    and args[args.index('--session-owner') + 1] == str(self.parent), 'foreign worker')
-            path = args[args.index('--session-report') + 1]
-            nonce = args[args.index('--session-nonce') + 1]
-            uuid.UUID(nonce)
-            require(re.fullmatch(r'/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-'
-                                 + re.escape(nonce) + r'/report.json', path), 'unsafe worker report path')
-            identity = self.identity(pid, args)
-            identity.update(nonce=nonce, reportPath=path)
-            self.generations[pid] = identity
-            found.append((identity, self.read_worker(identity)))
-        require(len(found) <= 1, 'multiple live workers')
-        return found[0] if found else None
-
-    def read_worker(self, identity):
-        self.check_account()
-        value = json.loads(self.run('cat ' + shlex.quote(identity['reportPath'])))
-        require(tuple(value.get(k) for k in ('pid', 'uid', 'nonce'))
-                == tuple(identity[k] for k in ('pid', 'uid', 'nonce')), 'report ownership mismatch')
-        return value
 
     def command(self, before, mode):
         # Trusted owned guest directory; target independently verifies O_NOFOLLOW,
@@ -233,47 +372,63 @@ class Campaign:
             json.dump(value, output, indent=2)
             output.write('\n')
         self.record['phases'].append({'label': label, 'receipt': name})
+        return name
 
-    def target(self):
+    def target(self, old=None):
         remaining = .2 - (time.monotonic() - self.last_target_read)
         if remaining > 0:
             time.sleep(remaining)
-        value = self.guest.target()
+        batch = self.guest.snapshot(old)
+        self.latest = batch
+        value = batch['target']
+        self.save('phase-observation', batch)
         self.last_target_read = time.monotonic()
         if self.history is None:
             self.history = TargetHistory(value, time.time(), self.guest.uid)
         else:
             self.history.check(value, time.time())
-        self.save('target', value)
         return value
 
-    def wait(self, label, predicate, seconds=5):
+    def wait(self, label, predicate, seconds=5, old=None):
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
             time.sleep(.2)
-            target = self.target()  # stale, focus or instance failures are never retried
+            target = self.target(old)  # stale, focus or instance failures are never retried
+            require(time.monotonic() < deadline, label + ' observation overran deadline')
             value = predicate(target)
+            require(time.monotonic() < deadline, label + ' predicate overran deadline')
             if value is not None:
-                self.history.anchor(target)
                 self.save(label, value)
                 return target, value
         raise Refusal(label + ' deadline')
 
-    def switch(self, mode):
+    def accept_phase(self, phase, value):
+        receipt = self.save('accepted-' + phase, value)
+        # Persist acceptance before retiring any live ring retention requirement.
+        self.history.retire(phase, receipt)
+        self.save('retired-' + phase, {'phase': phase, 'acceptedReceipt': receipt})
+
+    def switch(self, mode, old=None):
         before = self.target()
         sequence = self.guest.command(before, mode)
-        self.save('command', {'sequence': sequence, 'mode': mode, 'anchor': before['monotonicAt']})
+        if old is not None:
+            self.terminal = StoppedWorkerEvidence(tuple(old[k] for k in ('pid', 'uid', 'nonce')),
+                                                 before['observedAt'])
+        self.save('command', {'sequence': sequence, 'mode': mode, 'anchor': before['monotonicAt'],
+                              'wallAnchor': before['observedAt']})
         def switched(target):
+            if old is not None:
+                self.terminal.observe(self.latest['oldReport'], time.time())
             require(target['commandSequence'] <= sequence, 'unexpected target command consumed')
             if target['commandSequence'] == sequence:
                 applied(target, mode, sequence)
                 return target
             require(target['commandStatus'] in ('applied', 'awaitingCommand'), 'target rejected mode command')
             return None
-        after, _ = self.wait('mode-' + mode, switched)
+        after, _ = self.wait('mode-' + mode, switched, old=old)
         return before, after
 
-    def start_input(self, timed):
+    def start_input(self, timed, phase=None):
         self.guest.check_account()
         status = self.client.status()
         require(status.get('state') in ('idle', 'complete', 'aborted'), 'foreign fixture campaign')
@@ -282,6 +437,8 @@ class Campaign:
         self.active_run = run  # set before arm/start so cleanup covers partial owned operations
         self.client.arm(run)
         self.guest.check_account()
+        if phase is not None:
+            self.history.begin(phase, self.target())
         self.client.start(run, 500)
         self.save('physical-script', {'runId': run, 'timedReports': timed})
         return run
@@ -291,6 +448,7 @@ class Campaign:
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
             status = self.client.status()
+            require(time.monotonic() < deadline, 'fixture status overran completion deadline')
             require(status.get('runId') == run, 'fixture ownership changed')
             if status.get('state') == 'complete':
                 break
@@ -301,8 +459,9 @@ class Campaign:
         else:
             raise Refusal('fixture completion deadline')
         trace = self.client.trace_all(retry_seconds=0)
+        require(time.monotonic() < deadline, 'fixture trace overran completion deadline')
         exact_trace(trace, [row for _, row in timed], status, run)
-        self.save('physical-trace', {'status': status, 'trace': trace})
+        self.last_physical_trace = self.save('physical-trace', {'status': status, 'trace': trace})
         self.active_run = None
 
     def execute(self):
@@ -315,19 +474,21 @@ class Campaign:
         self.record['usbBefore'] = self.guest.pilot.verify_usb(self.guest.lease)
         self.record['parentIdentity'] = self.guest.start()
         def ready(_):
-            found = self.guest.current_worker()
+            found = self.latest['worker']
             if found and found[1].get('state') == 'running':
                 worker(found[1], tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
                 require(found[1].get('heldOutputUsages') == [], 'initial worker ledger not empty')
                 return {'identity': found[0], 'report': found[1]}
             return None
         _, old = self.wait('initial-worker', ready, 8)
-        anchor = self.history.previous['flagsChangedJournal']
-        anchor = anchor[-1]['sequence'] if anchor else 0
         timed = [(0, [0, 20, 0, 0, 0, 0, 0]), (45000000, [0] * 7)]
-        run = self.start_input(timed)
+        run = self.start_input(timed, 'held-transition')
+        flags = self.history.previous['flagsChangedJournal']
+        anchor = flags[-1]['sequence'] if flags else 0
         def held(target):
-            ledger = self.guest.read_worker(old['identity'])
+            found = self.latest['worker']
+            require(found is not None and found[0]['pid'] == old['identity']['pid'], 'held worker disappeared')
+            ledger = found[1]
             worker(ledger, tuple(old['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
             if ledger.get('heldOutputUsages') != [224]:
                 return None
@@ -336,22 +497,24 @@ class Campaign:
             physical_hold(status, run)
             return {'down': down, 'worker': ledger, 'fixture': status}
         _, hold = self.wait('control-held', held)
-        command_before, secure = self.switch('secure')
+        self.history.anchor('held-transition', self.history.previous)
+        command_before, secure = self.switch('secure', old['identity'])
+        self.history.anchor('held-transition', secure)
+        terminal = self.terminal
         def released(target):
             applied(target, 'secure', secure['commandSequence'])
-            stopped = self.guest.read_worker(old['identity'])
-            if self.guest.alive(old['identity']['pid']):
+            stopped = terminal.observe(self.latest['oldReport'], time.time())
+            if stopped is None or self.latest['oldExited'] is not True:
                 return None
-            worker(stopped, tuple(old['identity'][k] for k in ('pid', 'uid', 'nonce')),
-                   time.time(), 'secureInput')
             up = control_released(target, stopped, hold['down'], command_before['monotonicAt'], True)
             status = self.client.status()
             physical_hold(status, run)
             return {'up': up, 'worker': stopped, 'oldWorkerExited': True, 'fixture': status}
-        _, release = self.wait('control-released-before-q-up', released)
+        _, release = self.wait('control-released-before-q-up', released, old=old['identity'])
+        self.history.anchor('held-transition', self.history.previous)
         self.switch('normal')
         def resumed(target):
-            found = self.guest.current_worker()
+            found = self.latest['worker']
             if not found or found[1].get('state') != 'running':
                 return None
             require(found[0]['pid'] != old['identity']['pid']
@@ -365,31 +528,41 @@ class Campaign:
         while time.monotonic() < deadline:
             time.sleep(.2)
             target = self.target()
-            ledger = self.guest.read_worker(new['identity'])
+            found = self.latest['worker']
+            require(found is not None and found[0]['pid'] == new['identity']['pid'], 'new worker disappeared')
+            ledger = found[1]
             worker(ledger, tuple(new['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
             no_resurrection(target, ledger, release['up']['sequence'])
-            physical_hold(self.client.status(), run)
-            self.save('held-no-resurrection', {'worker': ledger, 'fixture': self.client.status()})
+            status = self.client.status()
+            physical_hold(status, run)
+            self.save('held-no-resurrection', {'worker': ledger, 'fixture': status})
         self.finish_input(timed)
         time.sleep(.3)
         baseline = self.target()
-        ledger = self.guest.read_worker(new['identity'])
+        found = self.latest['worker']
+        require(found is not None and found[0]['pid'] == new['identity']['pid'], 'new worker disappeared')
+        ledger = found[1]
         worker(ledger, tuple(new['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
         no_resurrection(baseline, ledger, release['up']['sequence'])
         require(baseline['held'] == [] and baseline['combinedSessionControl'] is False
                 and baseline['modifiers'] == 0, 'physical all-up did not reconcile target')
+        self.accept_phase('held-transition', {'target': baseline, 'worker': ledger,
+                         'release': release, 'oldTerminalTransition': terminal.accepted,
+                         'physicalAllUpVerified': self.active_run is None, 'physicalTraceReceipt': self.last_physical_trace})
         # Fresh tap, modifier hold, then Control+a chord; every sample ends all-up.
         for label, rows in (
             ('tap', [(0, [0, 20, 0, 0, 0, 0, 0]), (80000, [0] * 7)]),
             ('hold', [(0, [0, 20, 0, 0, 0, 0, 0]), (350000, [0] * 7)]),
             ('chord', [(0, [0, 20, 0, 0, 0, 0, 0]), (300000, [0, 20, 4, 0, 0, 0, 0]),
                        (350000, [0, 20, 0, 0, 0, 0, 0]), (400000, [0] * 7)])):
-            before = self.target()
-            self.start_input(rows)
+            self.start_input(rows, 'fresh-' + label)
+            before = self.history.previous
             self.finish_input(rows, 8)
             time.sleep(.3)
             after = self.target()
-            ledger = self.guest.read_worker(new['identity'])
+            found = self.latest['worker']
+            require(found is not None and found[0]['pid'] == new['identity']['pid'], 'new worker disappeared')
+            ledger = found[1]
             worker(ledger, tuple(new['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
             require(ledger['heldOutputUsages'] == [] and after['held'] == []
                     and after['combinedSessionControl'] is False and after['modifiers'] == 0,
@@ -404,8 +577,10 @@ class Campaign:
                 require([r['control'] for r in recent] == [True, False], 'fresh Control hold not balanced')
             if label == 'chord':
                 require(after['controlA'] - before['controlA'] == 1, 'fresh Control+a chord missing')
-            self.save('fresh-' + label, {'before': before, 'after': after, 'worker': ledger})
+            self.accept_phase('fresh-' + label, {'before': before, 'after': after, 'worker': ledger,
+                             'physicalTraceReceipt': self.last_physical_trace})
         # No secret text is collected. This fixed sample occurs only after reconciled all-up.
+        self.history.begin('secure-calibration', self.target())
         _, secure = self.switch('secure')
         # Native repeats from the original q hold may have populated this same
         # secure field. Clear that fixed nonsecret input physically after all-up;
@@ -418,7 +593,7 @@ class Campaign:
         cleared = self.target()
         applied(cleared, 'secure', secure['commandSequence'])
         require(cleared['secureLength'] == 0 and cleared['held'] == []
-                and cleared['combinedSessionControl'] is False, 'secure field clear did not reconcile all-up')
+                and cleared['modifiers'] == 0 and cleared['combinedSessionControl'] is False, 'secure field clear did not reconcile all-up')
         keys = [20, 4, 29, 30, 31, 32]  # qaz123
         rows = []
         for index, key in enumerate(keys):
@@ -430,8 +605,25 @@ class Campaign:
         after = self.target()
         applied(after, 'secure', secure['commandSequence'])
         require(after['secureLength'] == 6 and after['secureSampleMatches'] is True
-                and after['held'] == [] and after['combinedSessionControl'] is False,
+                and after['held'] == [] and after['modifiers'] == 0
+                and after['combinedSessionControl'] is False,
                 'fixed nonsecret secure sample did not pass through cleanly')
+        # Clear the accepted fixed sample only after its exact terminal all-up.
+        self.start_input(clear)
+        self.finish_input(clear, 8)
+        time.sleep(.3)
+        final_clear = self.target()
+        applied(final_clear, 'secure', secure['commandSequence'])
+        require(final_clear['secureLength'] == 0 and final_clear['held'] == []
+                and final_clear['modifiers'] == 0 and final_clear['combinedSessionControl'] is False,
+                'accepted secure sample cleanup did not reconcile all-up')
+        self.accept_phase('secure-calibration', {'after': after, 'cleared': cleared,
+                         'finalClear': final_clear, 'physicalTraceReceipt': self.last_physical_trace,
+                         'fixedNonsecretSample': 'qaz123'})
+        _, restored = self.switch('normal')
+        require(restored['held'] == [] and restored['modifiers'] == 0
+                and restored['combinedSessionControl'] is False, 'target cleanup retained output')
+        self.save('target-restored-normal', restored)
         self.record['usbAfter'] = self.guest.pilot.verify_usb(self.guest.lease)
         self.record['passed'] = True
 
@@ -447,7 +639,10 @@ class Campaign:
         except Exception as error:
             errors.append(str(error))
         finally:
-            self.client.close()
+            try:
+                self.client.close()
+            except Exception as error:
+                errors.append('fixture client close failed: ' + str(error))
         try:
             self.record['ownerCleanup'] = self.guest.cleanup()
             errors.extend(self.record['ownerCleanup']['errors'])
