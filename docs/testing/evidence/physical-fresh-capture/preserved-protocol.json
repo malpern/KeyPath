@@ -1,0 +1,15 @@
+{
+  "originalExecutorSHA256": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+  "unchangedFunctionAST": {
+    "terminal": true,
+    "released": true,
+    "timing": true,
+    "delay_evidence": true,
+    "start_target": true,
+    "scoped_client": true,
+    "arm_delay": true,
+    "receipts": true,
+    "start_input": true,
+    "cleanup": true
+  }
+}

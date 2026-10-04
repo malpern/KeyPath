@@ -1,0 +1,24 @@
+test_actual_retirement_preserves_archive_before_report_removal_after_dead (test_capture_lifecycle.ActualRetirementBodyTests) ... ok
+test_actual_retirement_refuses_hash_held_foreign_process_and_unknown_exit (test_capture_lifecycle.ActualRetirementBodyTests) ... ok
+test_actual_claim_before_retirement_dispatch_and_lost_response_never_replays (test_capture_lifecycle.SequenceTests) ... ok
+test_fixed_physical_protocol_and_limits_preserved (test_capture_lifecycle.SequenceTests) ... ok
+test_initial_starts_parent_then_claim_then_exact_new_history (test_capture_lifecycle.SequenceTests) ... ok
+test_recovery_preserves_old_object_and_counters_requires_retirement (test_capture_lifecycle.SequenceTests) ... ok
+test_retirement_requires_exact_finished_physical_proof_and_all_up (test_capture_lifecycle.SequenceTests) ... ok
+test_reused_capture_refuses_and_keeps_old_history (test_capture_lifecycle.SequenceTests) ... ok
+test_actual_campaign_start_gate_applies_with_and_without_phase (test_executor.Tests) ... ok
+test_delay_receipts_same_generation_and_clock (test_executor.Tests) ... ok
+test_every_start_rechecks_focus_after_factory_status_and_journal (test_executor.Tests) ... ok
+test_focus_freshness_and_all_up (test_executor.Tests) ... ok
+test_measured_budget_and_declared_identity (test_executor.Tests) ... ok
+test_pinned_dependencies_and_exact_script (test_executor.Tests) ... ok
+test_real_cause_and_first_terminal_required (test_executor.Tests) ... ok
+test_real_guest_start_cannot_accept_slow_discovery_or_identity (test_executor.Tests) ... ok
+test_request_deadline_after_fresh_status_and_durable_no_retry (test_executor.Tests) ... ok
+test_target_delivery_and_physical_prefix_cannot_be_replaced_by_ledger (test_executor.Tests) ... ok
+testKnownVarAliasOnlyAndMetadataRefusals (test_executor.VarAliasTests) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 0.151s
+
+OK

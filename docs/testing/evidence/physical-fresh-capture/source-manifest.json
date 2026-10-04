@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "status": "source-only; independent review pending; no live release",
+  "inertTestFunctions": 19,
+  "originalExecutorSHA256": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+  "startupPath": "/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/measurement.py",
+  "startupSHA256": "33b242dafdfcf2c425010df34ff137b63f46f28f89ec693c0137d009cc129cda",
+  "startupManifestSHA256": "f1f48a8ef40124a54948c6252346697db70db4183835fb84bc06ca7ce034ac43",
+  "files": {
+    "executor.py": "735299b6d5b570a6c0e5130f4d18b36d28fdfad64e905e0e7a9056669925e60c",
+    "capture_lifecycle.py": "c2e82d9285203498aacc44b0e15769922ef36c4b42d3479cd63898a1cc803df6",
+    "fresh_capture.py": "3dde8c2e256b84b52f89307a5967e9cec41b9656f13e95fa7d1cc232cc5c98cc",
+    "prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
+    "parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
+    "test_executor.py": "e3283da0180519a2019aca8a5f29f29e173615c8b2877d2b1d822c982cb7e17e",
+    "test_capture_lifecycle.py": "69cd3167ae8b328559be8d3d2cd7eb03c9d519f796bbec974f4aecfa041da91a",
+    "scope-6eed.json": "33ce1ab2ef9faf90dedc43f68cb5f2553c8f03ad65a44796ef0f0c3fca26f8d0",
+    "README.md": "add209dd3a5a1de768246b1627b03227e778755126c1d66bee159dfcd1a5c977",
+    "preserved-protocol.json": "3d82ffd696b409270195c49cbb5831b17f000b751e57d08464c2d86b05132b71",
+    "physical-fresh-capture.patch": "3d92690801b22a0961911cbd8577040439875576b1bf649b70e1d434958a0a60",
+    "inert-tests-39.txt": "4393accf8b350fd08d6e5d03e2f498df8067b0b0b6ed9c2c1848aa388524e91b",
+    "inert-tests-default.txt": "98f91145223e025f864a715fd5b29cbd44a3ace17e2513a046b7c753cac3761f"
+  }
+}

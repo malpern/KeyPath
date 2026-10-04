@@ -1,0 +1,372 @@
+--- original/executor.py
++++ candidate/executor.py
+@@ -1,10 +1,14 @@
+ #!/usr/bin/env python3
+ """Source-only timeout executor candidate; import is inert, physical release separate."""
+ import prepared_identity as prepared
++import capture_lifecycle
+ import argparse,hashlib,importlib.util,json,math,os,pathlib,re,shlex,sys,time,uuid
+ H_PATH=pathlib.Path('/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py')
+ D7_PATH=pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/d7-fixture.py')
+ RIG=pathlib.Path('/private/tmp/vm-lab-guest-identity')
++STARTUP_PATH=pathlib.Path('/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/measurement.py')
++STARTUP_SHA='33b242dafdfcf2c425010df34ff137b63f46f28f89ec693c0137d009cc129cda'
++_STARTUP=None
+ CONFIG='(defcfg)\n(defsrc q a)\n(deflayer base a a)\n'
+ TIMED=[(0,[0,20,0,0,0,0,0]),(10000000,[0,20,5,0,0,0,0]),(10050000,[0,20,0,0,0,0,0]),(45000000,[0]*7)]
+ DELAY=750
+@@ -33,6 +37,8 @@
+ PINS.update({'/private/tmp/vm-lab-target-typed-booleans/SHA256SUMS':'7f5172f7a3354ca517679523a5f1cb26ff83096a8750b88be3dd560d269a1b89','/private/tmp/vm-lab-target-typed-booleans/rig/capture-target.m':'ec98a707195c3a732ada926f0f1ec8c12b2d497f1497dbb4ea6744334582b8bc'})
+ PINS[str(pathlib.Path(__file__).with_name('parent_readiness.py'))]='07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074'
+ PINS[str(pathlib.Path(__file__).with_name('prepared_identity.py'))]='575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d'
++PINS[str(pathlib.Path(__file__).with_name('fresh_capture.py'))]='3dde8c2e256b84b52f89307a5967e9cec41b9656f13e95fa7d1cc232cc5c98cc'
++PINS[str(pathlib.Path(__file__).with_name('capture_lifecycle.py'))]='c2e82d9285203498aacc44b0e15769922ef36c4b42d3479cd63898a1cc803df6'
+ _LOCAL_READINESS_MODULE=None
+ def local_readiness():
+     global _LOCAL_READINESS_MODULE
+@@ -47,6 +53,12 @@
+ def dependencies():
+     for p,d in PINS.items():require(hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()==d,'frozen dependency changed')
+     sys.path.insert(0,str(H_PATH.parent));return module(H_PATH,'timeout_base')
++def startup():
++    global _STARTUP
++    require(hashlib.sha256(STARTUP_PATH.read_bytes()).hexdigest()==STARTUP_SHA,'reviewed startup wrapper changed')
++    if _STARTUP is None:_STARTUP=module(STARTUP_PATH,'physical_fresh_capture_startup')
++    _STARTUP.verify_sources()
++    return _STARTUP
+ def normal(t):
+     require(all(t.get(k)is v for k,v in [('active',True),('windowKey',True),('focusLost',False),('secureTest',False),('secureInputEnabled',False),('requestedResponderFocused',True)]) and t.get('focusedMode')=='normal','normal target focus changed')
+ def hold(s,run,prefix):
+@@ -193,6 +205,7 @@
+ print(json.dumps(out))
+ '''
+             return json.loads(self.read(shlex.quote(H.GUEST_PYTHON)+' -I -B -c '+shlex.quote(code)+' '+shlex.quote(str(pathlib.PurePosixPath(w['reportPath']).parent))+' '+shlex.quote(w['nonce']),'timeout.receipts'))
++    Guest=startup().diagnostic_guest(Guest,H.Refusal,CONFIG)
+     class Campaign(H.Campaign):
+         def save(self,label,value):
+             name=super().save(label,value)
+@@ -210,15 +223,42 @@
+             t=self.target();start_target(t,time.time())
+             if phase:self.history.begin(phase,t)
+             self.client.start(run,500);return run
++        def start_fresh_owner(self,label,prior=None):
++            require(self.history is None or prior is not None,'unexpected capture history adoption')
++            if prior is not None:
++                require(not self.history.anchors and getattr(self,'old_capture_retired',None) and tuple(self.old_capture_retired['target'][k]for k in ('pid','uid','nonce'))==tuple(prior[k]for k in ('pid','uid','nonce')),'old capture retirement not retained')
++            deployed=self.guest.startup_preflight()
++            require(deployed['executable']==self.guest.capture_scope.target_executable and deployed['binarySHA256']==self.guest.target_sha,'reviewed target deployment changed')
++            parent=self.guest.start();self.save(label+'-parent',parent)
++            first=self.guest.fresh_capture(lambda value:self.save(label+'-target-launch-intent',value))
++            identity=tuple(first[k]for k in ('pid','uid','nonce'))
++            if prior is not None:
++                require(identity[0]!=prior['pid'] and identity[2]!=prior['nonce'],'fresh recovery capture reused identity')
++                require(not self.history.anchors,'old capture has unretired phase proof')
++                self.retired_histories=getattr(self,'retired_histories',[])+[self.history]
++                self.save('old-capture-history-retained',dict(identity=list(self.history.identity),previous=self.history.previous,counts=self.history.counts))
++            self.history=H.TargetHistory(first,time.time(),self.guest.uid)
++            self.save(label+'-fresh-capture',dict(target=first,identity=self.guest.target_identity))
++            self.latest=None;self.last_target_read=time.monotonic()
++            return parent,first
++        def retire_old_capture(self,after):
++            start_target(after,time.time())
++            require(self.active_run is None and self.latest['worker']is None and not self.history.anchors and self.history.previous==after,'old capture evidence not settled')
++            require(getattr(self,'timeout_trace_receipt',None) and getattr(self,'fail_open_trace_receipt',None) and getattr(self,'fail_open_receipt',None),'old physical proof not retained')
++            result=capture_lifecycle.retire(self.guest,self.guest.capture_scope,after,lambda value:self.save('old-target-retirement-intent',value))
++            self.save('old-target-retired',result)
++            self.old_capture_retired=result
++            return result
+         def execute(self):
+-            t=self.target();normal(t);require(t['held']==[] and t['modifiers']==0 and t['combinedSessionControl']is False and t['downs']==t['ups']==0 and t['text']=='' and t['secureLength']==0,'fresh empty normal target required')
+-            self.record['targetIdentity']=self.guest.preflight(t);self.record['usbBefore']=self.guest.pilot.verify_usb(self.guest.lease);self.record['parentIdentity']=self.guest.start()
++            self.record['usbBefore']=self.guest.pilot.verify_usb(self.guest.lease)
++            parent,first=self.start_fresh_owner('initial')
++            self.record['targetIdentity']=self.guest.target_identity;self.record['parentIdentity']=parent
+             def ready(_):
+                 found=self.latest['worker']
+                 if not found or found[1].get('state')!='running':return None
+                 try:r,e=self.guest.parent_ready(found[0])
+                 except local_readiness().NotReady:return None
+-                H.worker(r,tuple(found[0][k]for k in('pid','uid','nonce')),time.time());require(r['heldOutputUsages']==[],'new ledger not empty');return dict(identity=found[0],report=r,parentReadiness=e)
++                startup().worker_check(r,tuple(found[0][k]for k in('pid','uid','nonce')),time.time());require(r['heldOutputUsages']==[],'new ledger not empty');return dict(identity=found[0],report=r,parentReadiness=e)
+             _,old=self.wait('initial-ready',ready,8);self.save('delay-command-intent',old['identity']);self.save('delay-command',self.guest.arm_delay(old['identity']))
+             run=self.start_input(TIMED,'timeout')
+             def held(t):
+@@ -234,16 +274,18 @@
+                 released(t,baseline['target'],r,self.client.status(),run,True);return dict(target=t,report=r)
+             _,accepted=self.wait('actual-timeout-release',release,15,old=old['identity'])
+             receipts=self.guest.receipts(old['identity']);delay_evidence(receipts,old['identity'],self.guest.parent);self.save('delay-receipts',receipts)
+-            self.finish_input(TIMED,50);self.accept_phase('timeout',accepted)
++            self.finish_input(TIMED,50);self.timeout_trace_receipt=self.last_physical_trace;self.accept_phase('timeout',dict(accepted,physicalTraceReceipt=self.timeout_trace_receipt))
+             tap=[(0,[0,20,0,0,0,0,0]),(80000,[0]*7)]
+             before=self.target();require(self.latest['worker']is None and before['held']==[],'old generation not stopped');self.start_input(tap);self.finish_input(tap,8);after=self.target();normal(after)
+-            require(self.latest['worker']is None and after['held']==[] and after['qDowns']-before['qDowns']==1 and after['aDowns']==before['aDowns'] and after['downs']-before['downs']==after['ups']-before['ups']==1,'fail-open q unbalanced');self.save('fail-open',dict(before=before,after=after))
+-            cleanup=self.guest.cleanup();require(not cleanup['errors'],'old owner cleanup failed');old_parent=self.guest.parent
+-            self.guest=Guest(self.guest.lease,self.guest.pilot,self.guest.binary_sha,self.guest.target_sha,self.guest.guest_identity);self.guest.preflight(after);self.guest.start()
++            require(self.latest['worker']is None and after['held']==[] and after['qDowns']-before['qDowns']==1 and after['aDowns']==before['aDowns'] and after['downs']-before['downs']==after['ups']-before['ups']==1,'fail-open q unbalanced');self.fail_open_trace_receipt=self.last_physical_trace;self.fail_open_receipt=self.save('fail-open',dict(before=before,after=after,physicalTraceReceipt=self.fail_open_trace_receipt))
++            self.retire_old_capture(after)
++            cleanup=self.guest.cleanup();require(not cleanup['errors'] and cleanup['profileBytewiseRestored']is True,'old owner cleanup failed');self.save('old-owner-cleanup',cleanup);old_parent=self.guest.parent;scope=self.guest.capture_scope
++            self.guest=Guest(self.guest.lease,self.guest.pilot,self.guest.binary_sha,self.guest.target_sha,self.guest.guest_identity);self.guest.capture_scope=scope
++            self.start_fresh_owner('recovery',after)
+             require(self.guest.parent!=old_parent,'new parent PID reused');_,new=self.wait('new-parent-ready',ready,8);require(new['identity']['pid']!=old['identity']['pid'] and new['identity']['nonce']!=old['identity']['nonce'],'worker generation reused')
+             before=self.target();self.start_input(tap);self.finish_input(tap,8);after=self.target();normal(after)
+             require(after['held']==[] and after['aDowns']-before['aDowns']==1 and after['qDowns']==before['qDowns'] and after['downs']-before['downs']==after['ups']-before['ups']==1,'recovery remap unbalanced')
+-            self.record.update(passed=True,recoveryScope='new-parent-only',untested=['same-parent recovery','sleep/wake','console departure'])
++            self.record.update(passed=True,recoveryScope='new-parent-with-fresh-capture-only',targetCleanupOwner='root; no automatic final capture signal',untested=['same-parent recovery','sleep/wake','console departure'])
+     return Guest,Campaign
+ 
+ def main():
+@@ -251,15 +293,21 @@
+     for flag in('artifact-manifest','timing-receipt','destination'):p.add_argument('--'+flag,type=pathlib.Path,required=True)
+     for flag in('artifact-manifest-sha','timing-sha','target-sha','guest-identity-sha'):p.add_argument('--'+flag,required=True)
+     p.add_argument('--baseline-inventory',type=pathlib.Path,required=True);p.add_argument('--baseline-inventory-sha',required=True);p.add_argument('--expires-epoch',type=int,required=True);p.add_argument('--reviewed-execution',action='store_true')
++    p.add_argument('--scope',type=pathlib.Path,required=True);p.add_argument('--scope-sha',required=True);p.add_argument('--runner-sha',required=True)
+     H=dependencies();I=H.load_module(H.IDENTITY_MODULE,'timeout_identity');I.add_arguments(p);a=p.parse_args()
+     require(a.reviewed_execution,'physical release not granted')
++    require(hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()==a.runner_sha,'reviewed physical runner changed')
++    scope,scope_sha=startup().read_scope(a.scope,a.scope_sha)
+     for path,digest in[(a.artifact_manifest,a.artifact_manifest_sha),(a.timing_receipt,a.timing_sha)]:require(re.fullmatch('[0-9a-f]{64}',digest) and hashlib.sha256(path.read_bytes()).hexdigest()==digest,'declared pin changed')
+-    artifact=json.loads(a.artifact_manifest.read_text());binary=artifact.get('mainSHA256');require(binary=='82a8d104093b8080daa97d02f26e004dd257b784f57247ca224797885bc7a6d2','reviewed main pin changed')
+-    require(artifact.get('sourceCommit')=='4111b0de3e149bbe458ce527d959a78d1e2a1b42' and artifact.get('compileFlag')=='KEYPATH_TAP_TIMEOUT_EXPERIMENT' and artifact.get('strictSignatureVerified')is True and artifact.get('teamID')=='X2RKZ5TG99' and isinstance(binary,str) and re.fullmatch('[0-9a-f]{64}',binary) and len(set(binary))>1 and re.fullmatch('[0-9a-f]{64}',artifact.get('archiveSHA256','')),'declared experimental artifact unavailable')
++    artifact=json.loads(a.artifact_manifest.read_text());binary=artifact.get('mainSHA256');require(binary=='d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682','reviewed main pin changed')
++    require(artifact.get('sourceCommit')=='6ed4ea99052c19bc94e99517cfe9827377b17af7' and artifact.get('archiveSHA256')=='dc0dfd52ad83c8c75af5f49e3653a8ba2dc269f17ac00e1b376e7b47156bf9fa' and artifact.get('inputAccessSource')=='current-process.apple-api.modifying-tap-post-event' and artifact.get('compileFlag')=='KEYPATH_TAP_TIMEOUT_EXPERIMENT' and artifact.get('strictSignatureVerified')is True and artifact.get('teamID')=='X2RKZ5TG99' and isinstance(binary,str) and re.fullmatch('[0-9a-f]{64}',binary) and len(set(binary))>1 and re.fullmatch('[0-9a-f]{64}',artifact.get('archiveSHA256','')),'declared experimental artifact unavailable')
+     require(a.target_sha=='55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858','reviewed target pin changed')
+     identity=prepared.load(a.guest_identity_receipt,a.guest_identity_sha,a.baseline_inventory,a.baseline_inventory_sha,a.expires_epoch);require(a.guest_account in (None,identity.account) and a.guest_uid in (None,identity.uid),'declared prepared account changed');require(identity.uid==502 and identity.receipt_path and identity.receipt_sha256 and identity.provider_uuid and identity.boot_epoch and identity.lease==a.lease,'full public identity required')
+     require(re.fullmatch('[0-9a-f]{64}',a.guest_identity_sha) and identity.receipt_sha256==a.guest_identity_sha,'declared guest identity pin changed')
+-    timing(json.loads(a.timing_receipt.read_text()),binary,identity.receipt_sha256,time.time())
++    require(a.artifact_manifest_sha=='02153dc14f961145ddd9bee03f9feb7b6fe99d4d368ca086d4b01b61dfa81fee','reviewed artifact manifest changed')
++    require(scope.lease==identity.lease and scope.provider_uuid==identity.provider_uuid and scope.boot_epoch==identity.boot_epoch and scope.receipt_path==identity.receipt_path and scope.receipt_sha256==identity.receipt_sha256 and scope.deadline==a.expires_epoch and scope.baseline_path==str(a.baseline_inventory) and scope.baseline_sha==a.baseline_inventory_sha,'physical scope binding changed')
++    measured=json.loads(a.timing_receipt.read_text());timing(measured,binary,identity.receipt_sha256,time.time())
++    require(measured.get('scopeSHA256')==scope_sha and measured.get('lease')==scope.lease and measured.get('hardCutoffEpoch')==scope.deadline and measured.get('baselineInventorySHA256')==scope.baseline_sha and measured.get('productSource')==scope.product_source and measured.get('productArchiveSHA256')==artifact['archiveSHA256'],'timing provenance changed')
+     require(a.expires_epoch-time.time()>120,'campaign expiry headroom unavailable')
+     pilot=prepared.bind_pilot(module(RIG/'rig/physical-baseline.py','timeout_pilot'),identity,a.expires_epoch)
+     status=pilot.lab(a.lease,'status');prepared.admit_provider(status,identity,a.expires_epoch,time.time())
+@@ -267,10 +315,10 @@
+     parentfd=os.open(a.destination.parent,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+     try:os.fsync(parentfd)
+     finally:os.close(parentfd)
+-    G,C=classes(H);H.CONFIG=CONFIG;guest=G(a.lease,pilot,binary,a.target_sha,identity)
++    G,C=classes(H);H.CONFIG=CONFIG;guest=G(a.lease,pilot,binary,a.target_sha,identity);guest.capture_scope=scope
+     factory=module(D7_PATH,'timeout_fixture');campaign=C(guest,factory.create_client(),a.destination)
+     campaign.client=scoped_client(campaign.client,a.expires_epoch,campaign.save,lambda:start_target(campaign.target(),time.time()))
+-    campaign.record.update(baselineInventorySHA256=a.baseline_inventory_sha,identitySHA256=identity.receipt_sha256,hardCutoffEpoch=a.expires_epoch,binarySHA256=binary,artifactManifestSHA256=a.artifact_manifest_sha,timingSHA256=a.timing_sha,requestedDelayMillis=750,triggerMicros=10000000)
++    campaign.record.update(scopeSHA256=scope_sha,productSource=scope.product_source,productArchiveSHA256=artifact['archiveSHA256'],baselineInventorySHA256=a.baseline_inventory_sha,identitySHA256=identity.receipt_sha256,hardCutoffEpoch=a.expires_epoch,binarySHA256=binary,artifactManifestSHA256=a.artifact_manifest_sha,timingSHA256=a.timing_sha,requestedDelayMillis=750,triggerMicros=10000000)
+     try:campaign.execute()
+     except Exception as error:campaign.record.update(passed=False,error=str(error),failureType=type(error).__name__)
+     finally:
+--- /dev/null
++++ candidate/capture_lifecycle.py
+@@ -0,0 +1,83 @@
++"""Explicit old-capture retirement after retained timeout and fail-open proof."""
++import json
++import shlex
++import fresh_capture
++
++RETIRE_CODE = fresh_capture.TARGET_CODE.split('guard()\nif op',1)[0] + r'''
++import signal
++old=v['oldTarget'];pid=old['pid'];nonce=old['nonce']
++ck(type(pid)is int and pid>0 and type(old['uid'])is int and old['uid']==502 and type(nonce)is str and str(__import__('uuid').UUID(nonce)).upper()==nonce.upper())
++archive=home/('rig-target-retired-'+str(pid)+'-'+nonce+'.json')
++def target_process():
++ rows=[x for x in processes() if x[0]==pid]
++ if not rows:return False
++ ck(rows==[(pid,502,str(exe))])
++ args=subprocess.run(['/bin/ps','-ww','-p',str(pid),'-o','args='],capture_output=True,text=True,check=True,timeout=5).stdout.strip()
++ ck(args==str(exe));return True
++def read_old():
++ fd=os.open(report,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
++ try:
++  s=os.fstat(fd);ck(stat.S_ISREG(s.st_mode) and s.st_uid==502 and s.st_nlink==1 and not s.st_mode&0o7022 and 0<s.st_size<=262144)
++  raw=os.read(fd,262145);meta=lambda x:(x.st_dev,x.st_ino,x.st_mode,x.st_uid,x.st_nlink,x.st_size,x.st_mtime_ns,x.st_ctime_ns)
++  ck(len(raw)==s.st_size and meta(s)==meta(os.fstat(fd))==meta(report.lstat()))
++ finally:os.close(fd)
++ def unique(pairs):
++  out={}
++  for k,value in pairs:ck(k not in out);out[k]=value
++  return out
++ t=json.loads(raw,object_pairs_hook=unique)
++ ck(type(t)is dict and set(t)==set(['aDowns', 'active', 'combinedSessionControl', 'combinedSessionControlDropped', 'combinedSessionControlJournal', 'commandConsumedSequence', 'commandPath', 'commandSequence', 'commandStatus', 'controlA', 'downs', 'flagsChangedDropped', 'flagsChangedJournal', 'focusLost', 'focusedMode', 'held', 'modeTransitions', 'modeTransitionsDropped', 'modifiers', 'monotonicAt', 'nonce', 'observedAt', 'pid', 'qDowns', 'requestedResponderFocused', 'secureInputEnabled', 'secureLength', 'secureSampleMatches', 'secureTest', 'text', 'uid', 'ups', 'windowKey']) and all(t.get(k)==old[k] for k in ('pid','uid','nonce','commandPath')))
++ ck(all(type(t.get(k))is bool for k in ('active','windowKey','focusLost','secureTest','secureSampleMatches','requestedResponderFocused','secureInputEnabled','combinedSessionControl')))
++ ck(all(type(t.get(k))is list and len(t[k])<=limit and all(type(row)is dict for row in t[k])for k,limit in (('flagsChangedJournal',512),('combinedSessionControlJournal',512),('modeTransitions',64))))
++ ck(t.get('held')==[] and type(t.get('modifiers'))is int and t['modifiers']==0 and t.get('combinedSessionControl')is False)
++ ck(all(type(t.get(k))is int and t[k]>=old[k] for k in ('downs','ups','qDowns','aDowns')))
++ ck(type(t.get('observedAt'))in(int,float) and math.isfinite(t['observedAt']) and old['observedAt']<=t['observedAt']<=time.time())
++ return t,raw,meta(s),meta
++guard();paths();parent();ck(not os.path.lexists(archive) and target_process())
++t,raw,signature,meta=read_old()
++ck(time.time()-t['observedAt']<3 and all(t.get(k)is wanted for k,wanted in (('active',True),('windowKey',True),('focusLost',False),('requestedResponderFocused',True),('secureTest',False),('secureInputEnabled',False))))
++ck(t.get('focusedMode')=='normal')
++guard();ck(target_process());ck(time.time()<v['deadline'] and os.getuid()==502 and os.stat('/dev/console').st_uid==502)
++os.kill(pid,signal.SIGTERM)  # One owned signal after the durable host retirement claim.
++end=time.monotonic()+5
++while True:
++ guard();alive=target_process();ck(time.monotonic()<=end)
++ if not alive:break
++ time.sleep(min(.1,max(0,end-time.monotonic())))
++# Dead-target JSON is historical retained evidence, never live liveness.
++t,raw,signature,meta=read_old();guard();ck(not target_process())
++fd=os.open(archive,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
++try:ck(os.write(fd,raw)==len(raw));os.fsync(fd)
++finally:os.close(fd)
++fd=os.open(home,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
++try:os.fsync(fd)
++finally:os.close(fd)
++guard();ck(not target_process() and meta(report.lstat())==signature)
++os.unlink(report)
++fd=os.open(home,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
++try:os.fsync(fd)
++finally:os.close(fd)
++guard();ck(not os.path.lexists(report))
++print(json.dumps(dict(target=t,archive=str(archive),exited=True,termAttempted=True,reportRemoved=True)))
++'''
++
++
++def retire(guest, scope, old_target, claim):
++    if getattr(guest,'capture_retire_claimed',False):
++        raise RuntimeError('capture retirement replay refused')
++    if not guest.target_identity or tuple(guest.target_identity.get(k) for k in ('pid','uid','nonce')) != tuple(old_target.get(k) for k in ('pid','uid','nonce')):
++        raise RuntimeError('capture retirement identity refused')
++    value=fresh_capture.payload(guest,scope)
++    value['oldTarget']={k:old_target[k] for k in ('pid','uid','nonce','commandPath','observedAt','downs','ups','qDowns','aDowns')}
++    guest.capture_retire_claimed=True
++    claim(dict(state='old-target-retirement-claimed',target=value['oldTarget'],parentPID=guest.parent,deadline=scope.deadline))
++    command=('launchctl asuser 502 sudo -H -u '+shlex.quote(guest.account)
++             +' /Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13 -I -B -c '
++             +shlex.quote(RETIRE_CODE)+' '+shlex.quote(json.dumps(value,sort_keys=True))+' retire')
++    result=json.loads(guest.run(command))
++    if type(result)is not dict or set(result)!= {'target','archive','exited','termAttempted','reportRemoved'} or not all(result.get(k)is True for k in ('exited','termAttempted','reportRemoved')):
++        raise RuntimeError('capture retirement completion refused')
++    expected=scope.home+'/rig-target-retired-'+str(old_target['pid'])+'-'+old_target['nonce']+'.json'
++    if result['archive']!=expected or tuple(result['target'].get(k)for k in ('pid','uid','nonce'))!=tuple(old_target[k]for k in ('pid','uid','nonce')):
++        raise RuntimeError('capture retirement completion identity refused')
++    return result
+--- /dev/null
++++ candidate/test_capture_lifecycle.py
+@@ -0,0 +1,128 @@
++import copy
++import json
++import pathlib
++import types
++import unittest
++from unittest import mock
++import executor as E
++import capture_lifecycle as L
++
++NOW=1791153000
++SCOPE=E.startup().read_scope(pathlib.Path(__file__).with_name('scope-6eed.json'),'33ce1ab2ef9faf90dedc43f68cb5f2553c8f03ad65a44796ef0f0c3fca26f8d0')[0]
++
++def target(pid=50,nonce='12345678-1234-4234-8234-123456789012'):
++ return dict(pid=pid,uid=502,nonce=nonce,commandPath=SCOPE.home+'/rig-target-control-'+str(pid)+'-'+nonce+'/command.json',observedAt=NOW,monotonicAt=20.,active=True,windowKey=True,focusLost=False,secureTest=False,secureInputEnabled=False,requestedResponderFocused=True,focusedMode='normal',held=[],modifiers=0,combinedSessionControl=False,downs=0,ups=0,qDowns=0,aDowns=0,controlA=0,commandSequence=0,commandConsumedSequence=0,flagsChangedJournal=[],flagsChangedDropped=0,combinedSessionControlJournal=[],combinedSessionControlDropped=0,modeTransitions=[],modeTransitionsDropped=0,text='',secureLength=0,secureSampleMatches=False,commandStatus='awaitingCommand')
++
++class SequenceTests(unittest.TestCase):
++ def campaign(self,t):
++  H=E.dependencies();G,C=E.classes(H);c=C.__new__(C);events=[]
++  g=types.SimpleNamespace(capture_scope=SCOPE,target_sha=SCOPE.target_sha256,uid=502)
++  g.startup_preflight=lambda:events.append('preflight')or dict(executable=SCOPE.target_executable,binarySHA256=SCOPE.target_sha256)
++  def start():events.append('parent-start');g.parent=10;return dict(pid=10)
++  g.start=start
++  def capture(claim):
++   events.append('capture');claim(dict(intent=True));g.target_identity={k:t[k]for k in ('pid','uid','nonce')};return t
++  g.fresh_capture=capture;c.guest=g;c.history=None;c.save=lambda label,value:events.append(label)or label
++  return c,events,H
++ def test_initial_starts_parent_then_claim_then_exact_new_history(self):
++  c,events,H=self.campaign(target())
++  with mock.patch.object(E.time,'time',return_value=NOW):c.start_fresh_owner('initial')
++  self.assertEqual(events,['preflight','parent-start','initial-parent','capture','initial-target-launch-intent','initial-fresh-capture'])
++  self.assertEqual(c.history.identity[:3],(50,502,target()['nonce']))
++ def test_recovery_preserves_old_object_and_counters_requires_retirement(self):
++  new=target(51,'22345678-1234-4234-8234-123456789012');c,events,H=self.campaign(new);old=target();history=H.TargetHistory(old,NOW,502);c.history=history
++  with mock.patch.object(E.time,'time',return_value=NOW):
++   with self.assertRaisesRegex(RuntimeError,'retirement'):c.start_fresh_owner('recovery',old)
++  self.assertEqual(events,[]);self.assertIs(c.history,history)
++  c.old_capture_retired=dict(target=old);history.anchors['timeout']={}
++  with mock.patch.object(E.time,'time',return_value=NOW):
++   with self.assertRaisesRegex(RuntimeError,'retirement'):c.start_fresh_owner('recovery',old)
++  self.assertEqual(events,[]);history.anchors.clear()
++  with mock.patch.object(E.time,'time',return_value=NOW):c.start_fresh_owner('recovery',old)
++  self.assertIs(c.retired_histories[0],history);self.assertEqual(history.previous,old);self.assertNotEqual(c.history.identity,history.identity)
++  self.assertIn('old-capture-history-retained',events)
++ def test_reused_capture_refuses_and_keeps_old_history(self):
++  c,events,H=self.campaign(target());old=target();history=H.TargetHistory(old,NOW,502);c.history=history;c.old_capture_retired=dict(target=old)
++  with mock.patch.object(E.time,'time',return_value=NOW):
++   with self.assertRaisesRegex(RuntimeError,'reused'):c.start_fresh_owner('recovery',old)
++  self.assertIs(c.history,history)
++ def test_retirement_requires_exact_finished_physical_proof_and_all_up(self):
++  for missing in ('timeout_trace_receipt','fail_open_trace_receipt','fail_open_receipt','active_run','held','anchor'):
++   t=target();c,events,H=self.campaign(t);c.history=H.TargetHistory(t,NOW,502);c.latest=dict(worker=None);c.active_run=None
++   c.timeout_trace_receipt='exact-four-trace';c.fail_open_trace_receipt='exact-tap-trace';c.fail_open_receipt='balanced-q'
++   if missing=='active_run':c.active_run='running'
++   elif missing=='held':t['held']=[0]
++   elif missing=='anchor':c.history.anchors['timeout']={}
++   else:setattr(c,missing,None)
++   with mock.patch.object(E.time,'time',return_value=NOW),mock.patch.object(L,'retire')as dispatch:
++    with self.assertRaises(RuntimeError):c.retire_old_capture(t)
++    dispatch.assert_not_called()
++ def test_actual_claim_before_retirement_dispatch_and_lost_response_never_replays(self):
++  t=target();g=types.SimpleNamespace(parent=10,parent_args=['/parent','--headless'],exe='/parent',account=SCOPE.account,target_identity={k:t[k]for k in ('pid','uid','nonce')});events=[]
++  def claim(v):events.append('claim')
++  def lost(command):events.append('TERM-dispatch');raise TimeoutError('inert')
++  g.run=lost
++  with self.assertRaises(TimeoutError):L.retire(g,SCOPE,t,claim)
++  with self.assertRaisesRegex(RuntimeError,'replay'):L.retire(g,SCOPE,t,claim)
++  self.assertEqual(events,['claim','TERM-dispatch'])
++ def test_fixed_physical_protocol_and_limits_preserved(self):
++  self.assertEqual(E.DELAY,750);self.assertEqual(E.TIMED,[(0,[0,20,0,0,0,0,0]),(10000000,[0,20,5,0,0,0,0]),(10050000,[0,20,0,0,0,0,0]),(45000000,[0]*7)])
++  tree=__import__('ast').parse(pathlib.Path(E.__file__).read_text());calls=[n for n in __import__('ast').walk(tree)if isinstance(n,__import__('ast').Call)]
++  waits={n.args[0].value:n.args[2].value for n in calls if isinstance(n.func,__import__('ast').Attribute)and n.func.attr=='wait'and len(n.args)>=3}
++  self.assertEqual(waits,{'initial-ready':8,'a-held':7,'actual-timeout-release':15,'new-parent-ready':8})
++  self.assertEqual(SCOPE.product_source,'6ed4ea99052c19bc94e99517cfe9827377b17af7');self.assertEqual(SCOPE.deadline,1791154292)
++
++if __name__=='__main__':unittest.main()
++
++class ActualRetirementBodyTests(unittest.TestCase):
++ def test_actual_retirement_preserves_archive_before_report_removal_after_dead(self):self.exercise()
++ def test_actual_retirement_refuses_hash_held_foreign_process_and_unknown_exit(self):
++  for fault in ('hash','held','foreign','reused','timeout','archive-present','oversize','extra-field','malformed-journal','bounded-large','orphan-physical-up','target-extra','target-quoted'):
++   with self.subTest(fault=fault):self.exercise(fault)
++ def exercise(self,fault=None):
++  import hashlib,os,signal,stat,subprocess,tempfile,io
++  from contextlib import redirect_stdout
++  with tempfile.TemporaryDirectory(dir='/private/tmp')as tmp:
++   home=pathlib.Path(tmp);exe=home/'Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget';exe.parent.mkdir(parents=True);exe.write_bytes(b'inert');exe.chmod(0o755)
++   for p in (home/'Applications',exe.parents[2],exe.parents[1],exe.parent):p.chmod(0o755)
++   t=target();t['commandPath']=str(home/('rig-target-control-50-'+t['nonce'])/'command.json');report=home/'rig-target.json';raw=json.dumps(t).encode();report.write_bytes(raw);report.chmod(0o644)
++   archive=home/('rig-target-retired-50-'+t['nonce']+'.json');events=[];alive=[True];elapsed=[0];killed=[False]
++   if fault=='orphan-physical-up':t['ups']=1;raw=json.dumps(t).encode();report.write_bytes(raw)
++   if fault=='held':bad=dict(t,held=[0]);report.write_text(json.dumps(bad))
++   if fault=='archive-present':archive.write_bytes(b'old archive')
++   if fault=='oversize':
++    t['text']='q'*262144;raw=json.dumps(t).encode();report.write_bytes(raw)
++   if fault=='bounded-large':
++    t['combinedSessionControlJournal']=[dict(sequence=n+1,observedAt=NOW,monotonicAt=19.+n/1024,source='CGEventSourceCombinedSessionState',control=False,flags=0,secureInputEnabled=False,localDowns=0,localUps=0,localHeld=[],active=True,windowKey=True,focusLost=False,focusedMode='normal',requestedResponderFocused=True,mode='normal')for n in range(512)]
++    raw=json.dumps(t,separators=(',',':')).encode();self.assertGreater(len(raw),65536);self.assertLess(len(raw),262144);report.write_bytes(raw)
++   if fault=='extra-field':report.write_text(json.dumps(dict(t,unreviewed=True)))
++   if fault=='malformed-journal':report.write_text(json.dumps(dict(t,combinedSessionControlJournal=[1])))
++   original_lstat=pathlib.Path.lstat;original_stat=os.stat;original_fstat=os.fstat;original_unlink=os.unlink
++   def owned(s):return types.SimpleNamespace(**{name:(502 if name=='st_uid'else getattr(s,name))for name in ('st_dev','st_ino','st_mode','st_uid','st_gid','st_nlink','st_size','st_mtime_ns','st_ctime_ns')})
++   def osstat(p,*args,**kw):return types.SimpleNamespace(st_uid=502)if str(p)=='/dev/console'else original_stat(p,*args,**kw)
++   def run(args,**kw):
++    if args[0]=='/usr/sbin/sysctl':out='{ sec = 90, usec = 0 }'
++    elif args[0]=='/usr/bin/codesign':out=''
++    elif args[:3]==['/bin/ps','-ww','-axo']:
++     comm='/foreign'if fault=='foreign'or fault=='reused'and killed[0]else str(exe)
++     out='10 502 /parent\n'+('50 502 '+comm+'\n'if alive[0]else'')
++    elif args[:3]==['/bin/ps','-ww','-p']:out='/parent --headless'if args[3]=='10'else (str(exe)+' --foreign' if fault=='target-extra' else (__import__('shlex').quote(str(exe)) if fault=='target-quoted' else str(exe)))
++    else:raise AssertionError(args)
++    return types.SimpleNamespace(stdout=out,returncode=0)
++   def kill(pid,sig):
++    self.assertEqual((pid,sig),(50,signal.SIGTERM));events.append('TERM');killed[0]=True
++    if fault not in ('reused','timeout'):alive[0]=False
++   def unlink(p,*args,**kw):
++    self.assertEqual(pathlib.Path(p),report);self.assertFalse(alive[0]);self.assertEqual(archive.read_bytes(),raw);self.assertEqual(archive.stat().st_mode&0o777,0o600)
++    events.append('unlink-after-archive');return original_unlink(p,*args,**kw)
++   v=dict(home=str(home),bootEpoch=90,deadline=NOW+600,targetExecutable=str(exe),targetSHA256=hashlib.sha256(exe.read_bytes()).hexdigest(),parent=dict(pid=10,arguments=['/parent','--headless']),parentExecutable='/parent',oldTarget={k:t[k]for k in ('pid','uid','nonce','commandPath','observedAt','downs','ups','qDowns','aDowns')})
++   if fault=='hash':v['targetSHA256']='0'*64
++   output=io.StringIO()
++   with mock.patch.dict(os.environ,HOME=str(home)),mock.patch.object(os,'getuid',return_value=502),mock.patch.object(os,'stat',side_effect=osstat),mock.patch.object(os,'fstat',side_effect=lambda fd:owned(original_fstat(fd))),mock.patch.object(pathlib.Path,'lstat',side_effect=lambda p:owned(original_lstat(p)),autospec=True),mock.patch.object(os,'kill',side_effect=kill),mock.patch.object(os,'unlink',side_effect=unlink),mock.patch.object(subprocess,'run',side_effect=run),mock.patch('time.time',return_value=NOW),mock.patch('time.monotonic',side_effect=lambda:elapsed[0]),mock.patch('time.sleep',side_effect=lambda seconds:elapsed.__setitem__(0,elapsed[0]+max(seconds,.01))),mock.patch('sys.argv',['inert',json.dumps(v),'retire']),redirect_stdout(output):
++    if fault and fault not in ('bounded-large','orphan-physical-up'):
++     with self.assertRaises(RuntimeError):exec(compile(L.RETIRE_CODE,'actual-owned-retirement','exec'),{})
++    else:exec(compile(L.RETIRE_CODE,'actual-owned-retirement','exec'),{})
++   if fault and fault not in ('bounded-large','orphan-physical-up'):
++    self.assertTrue(report.exists());self.assertNotIn('unlink-after-archive',events);self.assertEqual(events, ['TERM']if fault in ('reused','timeout')else[])
++   else:
++    result=json.loads(output.getvalue());self.assertEqual(result['target'],t);self.assertTrue(result['exited']);self.assertFalse(report.exists());self.assertEqual(events,['TERM','unlink-after-archive'])
