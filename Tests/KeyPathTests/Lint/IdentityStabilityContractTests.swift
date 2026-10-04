@@ -2,110 +2,67 @@ import Foundation
 import KeyPathCore
 @preconcurrency import XCTest
 
-/// Pins the Workstream 4 identity contract for the components whose identity
-/// affects TCC, SMAppService, or launchd LWCR caching.
+/// Pins the driverless app's remaining permission-bearing identities and package boundary.
 final class IdentityStabilityContractTests: XCTestCase {
-    private static let kanataEngineID = "com.keypath.kanata-engine"
-    private static let helperID = "com.keypath.helper"
-    private static let kanataDaemonID = "com.keypath.kanata"
-    private static let canonicalAppPath = "/Applications/KeyPath.app"
-    private static let kanataDesignatedRequirement =
-        #"identifier "com.keypath.kanata-engine" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X2RKZ5TG99"#
-    private static let helperDesignatedRequirement =
-        #"identifier "com.keypath.helper" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X2RKZ5TG99"#
-    private static let launcherDesignatedRequirement =
-        #"identifier "kanata-launcher" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X2RKZ5TG99"#
+    private let root = repositoryRoot()
 
-    func testPinnedSourceIdentityContract() throws {
-        XCTAssertEqual(KeyPathConstants.Bundle.kanataEngineBundleID, Self.kanataEngineID)
-        XCTAssertEqual(KeyPathConstants.Bundle.helperID, Self.helperID)
-        XCTAssertEqual(KeyPathConstants.Bundle.daemonID, Self.kanataDaemonID)
+    func testKanataEngineIdentityAndRuntimePathsRemainStable() throws {
+        XCTAssertEqual(KeyPathConstants.Bundle.kanataEngineBundleID, "com.keypath.kanata-engine")
+        let host = KanataRuntimeHost.current(bundlePath: "/Applications/KeyPath.app")
+        XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app")
+        XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata")
+        XCTAssertEqual(host.bridgeLibraryPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib")
 
-        let runtimeHost = KanataRuntimeHost.current(bundlePath: Self.canonicalAppPath)
-        XCTAssertEqual(
-            runtimeHost.kanataEngineBundlePath,
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app"
-        )
-        XCTAssertEqual(
-            runtimeHost.bundledCorePath,
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
-        )
-        XCTAssertEqual(
-            runtimeHost.launcherPath,
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher"
-        )
-
-        let root = repositoryRoot()
-        let kanataInfo = try plist(at: root.appendingPathComponent("Sources/KeyPathApp/Resources/KanataEngine-Info.plist"))
-        XCTAssertEqual(kanataInfo["CFBundleIdentifier"] as? String, Self.kanataEngineID)
-        XCTAssertEqual(kanataInfo["CFBundleExecutable"] as? String, "kanata")
-
-        let helperInfo = try plist(at: root.appendingPathComponent("Sources/KeyPathHelper/Info.plist"))
-        XCTAssertEqual(helperInfo["CFBundleIdentifier"] as? String, Self.helperID)
-
-        let helperPlist = try plist(at: root.appendingPathComponent("Sources/KeyPathHelper/com.keypath.helper.plist"))
-        XCTAssertEqual(helperPlist["Label"] as? String, Self.helperID)
-        XCTAssertEqual(helperPlist["BundleProgram"] as? String, "Contents/Library/HelperTools/KeyPathHelper")
-        XCTAssertEqual((helperPlist["MachServices"] as? [String: Bool])?[Self.helperID], true)
-
-        let kanataPlist = try plist(at: root.appendingPathComponent("Sources/KeyPathApp/com.keypath.kanata.plist"))
-        XCTAssertEqual(kanataPlist["Label"] as? String, Self.kanataDaemonID)
-        XCTAssertEqual(kanataPlist["BundleProgram"] as? String, "Contents/Library/KeyPath/kanata-launcher")
-        XCTAssertEqual((kanataPlist["ProgramArguments"] as? [String])?.first, "Contents/Library/KeyPath/kanata-launcher")
-        XCTAssertEqual((kanataPlist["AssociatedBundleIdentifiers"] as? [String])?.first, "com.keypath.KeyPath")
+        let engineInfo = try plist(at: root.appendingPathComponent("Sources/KeyPathApp/Resources/KanataEngine-Info.plist"))
+        XCTAssertEqual(engineInfo["CFBundleIdentifier"] as? String, "com.keypath.kanata-engine")
+        XCTAssertEqual(engineInfo["CFBundleExecutable"] as? String, "kanata")
     }
 
-    func testReleaseGateInvokesIdentityContractScript() throws {
-        let root = repositoryRoot()
-        let verifier = root.appendingPathComponent("Scripts/verify-identity-contract.sh")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: verifier.path))
-        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: verifier.path))
-
-        let verifierContents = try String(contentsOf: verifier, encoding: .utf8)
-        XCTAssertTrue(verifierContents.contains(Self.kanataDesignatedRequirement))
-        XCTAssertTrue(verifierContents.contains(Self.helperDesignatedRequirement))
-        XCTAssertTrue(verifierContents.contains(Self.launcherDesignatedRequirement))
-
-        let releaseDoctor = try String(
-            contentsOf: root.appendingPathComponent("Scripts/release-doctor.sh"),
-            encoding: .utf8
-        )
-        XCTAssertTrue(releaseDoctor.contains("verify-identity-contract.sh\" --source"))
-
-        let buildAndSign = try String(
-            contentsOf: root.appendingPathComponent("Scripts/build-and-sign.sh"),
-            encoding: .utf8
-        )
-        XCTAssertTrue(buildAndSign.contains("\"$SCRIPT_DIR/verify-identity-contract.sh\" --app \"$APP_BUNDLE\""))
-    }
-
-    func testIdentityADRDocumentsPinnedContract() throws {
-        let root = repositoryRoot()
-        let adr = try String(
-            contentsOf: root.appendingPathComponent("docs/adr/adr-041-installer-identity-stability-contract.md"),
-            encoding: .utf8
-        )
-
-        for requiredText in [
-            Self.kanataEngineID,
-            Self.helperID,
-            Self.kanataDaemonID,
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-            "/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper",
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
-            Self.kanataDesignatedRequirement,
-            Self.helperDesignatedRequirement,
-            Self.launcherDesignatedRequirement,
-            "installPrivilegedHelper",
-            "reinstallPrivilegedHelper",
-            "com.keypath.KeyPath.Helper",
-            "HelperMaintenance",
-            "codesign -d -r- --verbose=4",
-            "reformat the requirement string",
-            "Scripts/verify-identity-contract.sh"
+    func testDriverlessIdentityVerifierRejectsLegacyPayloadAndChecksRemainingComponents() throws {
+        let verifier = try contents("Scripts/verify-identity-contract.sh")
+        for required in [
+            "Karabiner-DriverKit-VirtualHIDDevice-*.pkg",
+            "KeyPathHelper",
+            "kanata-launcher",
+            "LaunchDaemons",
+            "SMPrivilegedExecutables",
+            "com.keypath.KeyPath.CLI",
+            "com.keypath.kanata-host-bridge",
+            "com.keypath.kanata-simulator",
+            "Kanata Engine.app",
+            "DEVELOPER_ID_AUTHORITY",
+            "uses hardened runtime",
+            "designated requirement is stable"
         ] {
-            XCTAssertTrue(adr.contains(requiredText), "ADR missing identity-contract text: \(requiredText)")
+            XCTAssertTrue(verifier.contains(required), "Identity verifier missing driverless contract: \(required)")
         }
+    }
+
+    func testReleaseBuildIsProductScopedAndKeepsHardenedSigning() throws {
+        let build = try contents("Scripts/build-and-sign.sh")
+        let signingContract = try contents("Scripts/verify-release-signing-contract.sh")
+        let package = try contents("Package.swift")
+        XCTAssertTrue(build.contains("for product in KeyPath keypath-cli KeyPathInsights"))
+        XCTAssertTrue(package.contains("\"com.keypath.kanata.plist\""))
+        XCTAssertFalse(build.contains("./Scripts/build-helper.sh"))
+        XCTAssertFalse(build.contains("KeyPathHelper"))
+        XCTAssertFalse(build.contains("kanata-launcher"))
+        XCTAssertFalse(build.contains("LaunchDaemons"))
+        XCTAssertTrue(build.contains("--entitlements \"$ENTITLEMENTS_FILE\""))
+        XCTAssertTrue(build.contains("--options=runtime"))
+        XCTAssertTrue(signingContract.contains("main app Info.plist omits SMPrivilegedExecutables"))
+        XCTAssertTrue(signingContract.contains("stable hardened-runtime identity"))
+    }
+
+    func testMainAppNoLongerDeclaresPrivilegedHelper() throws {
+        let mainInfo = try plist(at: root.appendingPathComponent("Sources/KeyPathApp/Info.plist"))
+        XCTAssertNil(mainInfo["SMPrivilegedExecutables"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/Resources/Karabiner-DriverKit-VirtualHIDDevice-8.0.0.pkg").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/Resources/uninstall.sh").path))
+    }
+
+    private func contents(_ relativePath: String) throws -> String {
+        try String(contentsOf: root.appendingPathComponent(relativePath), encoding: .utf8)
     }
 }
 
@@ -122,8 +79,8 @@ private func plist(at url: URL) throws -> [String: Any] {
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
     URL(fileURLWithPath: "\(file)")
-        .deletingLastPathComponent() // Lint
-        .deletingLastPathComponent() // KeyPathTests
-        .deletingLastPathComponent() // Tests
-        .deletingLastPathComponent() // repo root
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
 }

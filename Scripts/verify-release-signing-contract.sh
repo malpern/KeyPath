@@ -101,7 +101,6 @@ done
 cd "$PROJECT_DIR"
 
 require_file "KeyPath.entitlements"
-require_file "Sources/KeyPathHelper/KeyPathHelper.entitlements"
 require_file "kanata.entitlements"
 require_file "Scripts/build-and-sign.sh"
 require_file "Scripts/release-doctor.sh"
@@ -109,7 +108,6 @@ require_executable "Scripts/verify-release-signing-contract.sh"
 
 for plist in \
     "KeyPath.entitlements" \
-    "Sources/KeyPathHelper/KeyPathHelper.entitlements" \
     "kanata.entitlements"; do
     require_valid_plist "$plist"
 done
@@ -117,25 +115,35 @@ done
 require_plist_key "KeyPath.entitlements" "com.apple.security.app-sandbox" "false"
 require_plist_key "KeyPath.entitlements" "com.apple.security.network.client" "true"
 require_plist_key "KeyPath.entitlements" "com.apple.security.automation.apple-events" "true"
-require_plist_key "Sources/KeyPathHelper/KeyPathHelper.entitlements" "com.apple.security.app-sandbox" "false"
 require_plist_key "kanata.entitlements" "com.apple.security.device.hid" "true"
 require_plist_key "kanata.entitlements" "com.apple.security.device.input-monitoring" "true"
+
+if /usr/libexec/PlistBuddy -c 'Print :SMPrivilegedExecutables' Sources/KeyPathApp/Info.plist >/dev/null 2>&1; then
+    fail "main app Info.plist must not declare SMPrivilegedExecutables in the driverless experiment"
+else
+    pass "main app Info.plist omits SMPrivilegedExecutables"
+fi
+for forbidden_asset in \
+    "Sources/KeyPathApp/Resources/Karabiner-DriverKit-VirtualHIDDevice-8.0.0.pkg" \
+    "Sources/KeyPathApp/Resources/uninstall.sh"; do
+    if [[ -e "$forbidden_asset" ]]; then fail "$forbidden_asset must not be packaged"; else pass "$forbidden_asset is absent"; fi
+done
 
 build_script="Scripts/build-and-sign.sh"
 doctor_script="Scripts/release-doctor.sh"
 
-require_contains "$build_script" 'HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"' "helper entitlements source is explicit"
-require_contains "$build_script" '--identifier "com.keypath.helper"' "helper signing uses stable helper identifier"
-require_contains "$build_script" '--entitlements "$HELPER_ENTITLEMENTS"' "helper signing applies helper entitlements"
 require_contains "$build_script" 'ENTITLEMENTS_FILE="KeyPath.entitlements"' "main app entitlements source is explicit"
 require_contains "$build_script" '--entitlements "$ENTITLEMENTS_FILE"' "main app signing applies app entitlements"
-require_contains "$build_script" '--identifier "com.keypath.KeyPath.CLI"' "CLI signing uses helper-trusted stable identifier"
+require_contains "$build_script" '--identifier "com.keypath.KeyPath.CLI"' "CLI signing uses a stable identifier"
 require_contains "$build_script" '--force --options=runtime' "release signing uses hardened runtime"
 require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"' "Kanata Engine inner binary is hardened-runtime signed"
 require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/Kanata Engine.app" --force --options=runtime --sign "$SIGNING_IDENTITY"' "Kanata Engine bundle is hardened-runtime signed"
-require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"' "Kanata launcher is hardened-runtime signed"
-require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --sign "$SIGNING_IDENTITY"' "Kanata host bridge is hardened-runtime signed"
-require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"' "Kanata simulator is hardened-runtime signed"
+require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --identifier "com.keypath.kanata-host-bridge" --sign "$SIGNING_IDENTITY"' "Kanata host bridge has a stable hardened-runtime identity"
+require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --identifier "com.keypath.kanata-simulator" --sign "$SIGNING_IDENTITY"' "Kanata simulator has a stable hardened-runtime identity"
+require_contains "$build_script" 'for product in KeyPath keypath-cli KeyPathInsights' "release builds explicitly select only app, CLI, and Insights products"
+if grep -Fq './Scripts/build-helper.sh' "$build_script"; then fail "release build must not build the privileged helper"; else pass "release build does not build the privileged helper"; fi
+if grep -Fq 'kanata-launcher' "$build_script"; then fail "release build must not package or sign kanata-launcher"; else pass "release build does not package or sign kanata-launcher"; fi
+if grep -Fq 'HelperTools' "$build_script" || grep -Fq 'LaunchDaemons' "$build_script"; then fail "release build must not package privileged helper or launch daemon directories"; else pass "release build omits privileged helper and LaunchDaemon packaging"; fi
 require_contains "$build_script" '"$SCRIPT_DIR/verify-identity-contract.sh" --app "$APP_BUNDLE"' "build-and-sign runs installed-app identity verification"
 require_contains "$build_script" '"$SCRIPT_DIR/verify-release-signing-contract.sh" --source' "build-and-sign runs source signing-contract verification"
 require_contains "$build_script" 'kp_staple_validate "$APP_BUNDLE"' "build-and-sign refuses to deploy without a stapled notarization ticket"

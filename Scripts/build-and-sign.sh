@@ -140,10 +140,6 @@ if [ $RUST_FAILED -ne 0 ]; then
 fi
 echo "✅ All Rust builds complete"
 
-echo "🔐 Building privileged helper..."
-# Build and sign the helper tool
-./Scripts/build-helper.sh
-
 # Screenshot regeneration is only needed for full public release builds or when
 # help/snapshot assets intentionally changed. Release-candidate builds should set
 # SKIP_SNAPSHOTS=1 to avoid spending time regenerating unrelated images.
@@ -170,11 +166,9 @@ fi
 # ("unable to open dependencies file ... -primary.d"). Restoring the flag
 # therefore also means forcing --build-system native, which is deprecated and
 # slated for removal. If the hang ever returns, that pair is the fallback.
-swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release
-
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
-BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --show-bin-path)
+BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --product KeyPath --show-bin-path)
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
@@ -188,6 +182,13 @@ MACOS="${CONTENTS}/MacOS"
 	mkdir -p "$RESOURCES"
 	mkdir -p "$FRAMEWORKS"
 	mkdir -p "$CONTENTS/Library/KeyPath"
+
+	# Build only the distributable app components. Helper and launcher targets
+	# remain in Package.swift for the existing installer architecture, but are
+	# intentionally not built into this driverless experiment.
+	for product in KeyPath keypath-cli KeyPathInsights; do
+	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --product "$product"
+	done
 
 	# Copy main executable
 	ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
@@ -235,7 +236,7 @@ MACOS="${CONTENTS}/MacOS"
 	# Copy bundled kanata simulator binary
 	ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
 
-	# Copy bundled host bridge library used for in-process smoke checks and future runtime hosting
+	# Copy bundled host bridge library used for config validation and host runtime.
 	ditto "build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib" "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
 
 	# Embed Sparkle.framework (required at runtime for updates; otherwise dyld aborts at launch)
@@ -277,38 +278,13 @@ MACOS="${CONTENTS}/MacOS"
 	    exit 1
 	fi
 
-		# Copy the bundled runtime host executable used by SMAppService
-		KANATA_LAUNCHER_SRC="$BUILD_DIR/KeyPathKanataLauncher"
-		KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
-		ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
-		chmod 755 "$KANATA_LAUNCHER_DST"
-
-# Embed privileged helper for SMJobBless
-echo "📦 Embedding privileged helper (SMAppService layout)..."
-HELPER_TOOLS="$CONTENTS/Library/HelperTools"
-LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
-mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
-
-# Copy helper binary into Contents/Library/HelperTools/
-ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
-
-# Copy daemon plist into bundle-local LaunchDaemons with final name
-ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
-
-# Copy Kanata daemon plist for SMAppService
-ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
-
-	verify_embedded_artifacts() {
+		verify_embedded_artifacts() {
 	    local missing=0
 	    for path in \
-	        "$HELPER_TOOLS/KeyPathHelper" \
 	        "$MACOS/keypath-cli" \
-	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
-	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
 	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
 	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
-	        "$KANATA_LAUNCHER_DST" \
 	        "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
 	        "$CONTENTS/Library/KeyPath/kanata-simulator" \
 	        "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" \
@@ -320,27 +296,21 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
     done
 
     if [ $missing -ne 0 ]; then
-        echo "💥 Packaging aborted because helper assets are incomplete." >&2
+	        echo "💥 Packaging aborted because a required driverless runtime artifact is missing." >&2
         exit 1
     fi
 }
 
 verify_embedded_artifacts
-./Scripts/verify-kanata-plist.sh "$APP_BUNDLE"
 
-echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
-echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
-echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
+echo "✅ Driverless runtime artifacts verified"
 
 # Copy main app Info.plist
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
 
-# Copy bundled app resources (icons, helper scripts, etc.)
+# Copy bundled app resources (icons, sounds, and UI assets).
 if [ -d "Sources/KeyPathApp/Resources" ]; then
     ditto "Sources/KeyPathApp/Resources/" "$RESOURCES"
-    if [ -f "$RESOURCES/uninstall.sh" ]; then
-        chmod 755 "$RESOURCES/uninstall.sh"
-    fi
     echo "✅ Copied app resources"
 else
     echo "⚠️ WARNING: Sources/KeyPathApp/Resources directory not found"
@@ -399,29 +369,19 @@ else
         fi
     fi
 
-    # Sign from innermost to outermost (helper -> kanata -> main app)
-
-    # Sign privileged helper (bundle-local binary)
-    HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
-    kp_sign "$HELPER_TOOLS/KeyPathHelper" \
-        --force --options=runtime \
-        --identifier "com.keypath.helper" \
-        --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$SIGNING_IDENTITY"
+    # Sign from innermost to outermost (Kanata core -> main app)
 
     # Sign "Kanata Engine.app" bundle inside-out: sign the inner binary first, then the bundle.
     kp_sign "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
     kp_sign "$CONTENTS/Library/KeyPath/Kanata Engine.app" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
     # Sign the bundled runtime host pieces explicitly before the outer app sign.
-    kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"
-    kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --sign "$SIGNING_IDENTITY"
+	kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --identifier "com.keypath.kanata-host-bridge" --sign "$SIGNING_IDENTITY"
 
     # Sign bundled kanata simulator binary
-    kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+	kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --identifier "com.keypath.kanata-simulator" --sign "$SIGNING_IDENTITY"
 
-    # Sign command-line tool embedded in the app bundle with a stable identifier
-    # trusted by the privileged helper for CLI system diagnostics and repair.
+    # Sign command-line tool embedded in the app bundle with a stable identifier.
     kp_sign "$MACOS/keypath-cli" \
         --force --options=runtime \
         --identifier "com.keypath.KeyPath.CLI" \

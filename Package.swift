@@ -223,11 +223,11 @@ let package = Package(
             ],
             path: "Sources/KeyPathApp",
             exclude: [
-                "Info.plist"
+                "Info.plist",
+                "com.keypath.kanata.plist"
             ],
             resources: [
-                .process("Resources"),
-                .copy("com.keypath.kanata.plist")
+                .process("Resources")
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
