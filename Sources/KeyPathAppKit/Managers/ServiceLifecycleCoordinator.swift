@@ -158,7 +158,7 @@ final class ServiceLifecycleCoordinator {
             testSessionRequestObserved?(generation)
         #endif
         if case .stop = operation {
-            return await Task.detached { @MainActor [self] in
+            return await Task.detached { [self] in
                 await admitSessionOperation(operation, generation: generation)
             }.value
         }
@@ -189,7 +189,7 @@ final class ServiceLifecycleCoordinator {
         #if DEBUG
             testSessionRequestObserved?(expectedGeneration)
         #endif
-        let resumed = await Task.detached { @MainActor [self] in
+        let resumed = await Task.detached { [self] in
             await admitSessionOperation(.start("Secure typing ended"), generation: expectedGeneration)
         }.value
         return sessionStartIsCurrent(expectedGeneration) && resumed
