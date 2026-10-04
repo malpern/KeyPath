@@ -18,6 +18,7 @@ retains gate decisions, source integration and hardware-operation ownership tran
 | Parent cleanup evidence audit | Luna low, read-only and parallel to reboot | Correctly distinguished killed-worker durable ledger from live-process evidence; identified missing byte-verification of profile restoration and process scan completion. | Root added explicit process success sentinel and bytewise restored-profile comparison to the next campaign. First campaign restoration remains attempted, not byte-verified. |
 | Remaining safety case design | Sol high, read-only and parallel to reboot | Proposed five bounded held-modifier/timeout/sleep/session cases with explicit missing harness support. | Root checked actual worker exit paths and recorded cases as unexecuted in gap register. |
 | Postboot continuity | Luna medium | Initial focus guard refused before input; corrected target activation allowed app-managed remap and verified cleanup to pass. | Root independently checked new boot, binary hash, exact physical trace, stopped report, empty process list and bytewise profile restoration. |
+| Final five-mode physical campaign and cleanup | Luna medium | All five passed after reboot; owned GUI resource deleted, with guest SSH hydration-marker warning. | Root checked each exact binary/boot/trace and stopped empty ledger, then independently verified all four owned UUIDs absent and USB policy unchanged. |
 
 No precise input/output/reasoning token accounting was exposed by these agent
 results. Usage and cost savings remain unknown; no percentage is claimed. The

@@ -4,7 +4,7 @@ Updated 2026-10-03 / 2026-10-04 UTC. Execution resumed at the user's request.
 Mixed-model delegation is active; the implementation record retains chronology
 and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 
-## Latest checkpoint — 2026-10-04 00:17 UTC
+## Latest checkpoint — 2026-10-04 00:21 UTC
 
 - Sol high independently found and corrected five crash-recovery/acceptance gaps.
   Root verified the diff and committed `8fd1320b`; 8 targeted regressions pass.
@@ -26,10 +26,15 @@ and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
   confirms stopped/empty worker ledger, no exact app processes and bytewise
   restored original configuration. First postboot target-focus refusal is excluded;
   the rig now explicitly activates the target and independently checks its state.
-  Five final-source worker cases are running.
-- Both owned prepared candidates and the stopped source lease are destroyed;
-  independent provider inventories confirm their three UUIDs absent. The one
-  owned GUI lease remains for continuity and final worker cases.
+  All five final-source worker cases passed: remap2b095459a4754d89,
+  HRM tap4fc7a7a1a8a84742, HRM hold670bea4a4e50423c, unmapped24c28355f5b241c6,
+  repeat14ccd6b0a95a41db. Root checked all acceptance fields and each stopped,
+  empty-held ledger. Repeat had10 input/10 output, nine characters.
+- All four owned VM resources are destroyed. Root independently checked both
+  provider inventories; all four UUIDs absent. Fixture is detached and host
+  policy remains ask with no automatic VM binding. Cleanup evidence:
+  evidence/session-runtime/mixed-model-final-cleanup.json. GUI deletion emitted
+  a guest SSH hydration-marker warning; actual resource deletion was verified.
 - A second bounded Luna analysis located DL-11's missing generated-profile
   eligibility check. Existing default-catalog validation checks Kanata syntax,
   not session eligibility. No generated-profile support claim has been made.
@@ -106,14 +111,14 @@ without pretending the feature backlog is complete.
 | 3 | Consolidate and freeze remaining source changes; run appropriate safe tests and broad gate after the hang fix. Main target passed; three unchanged snapshots remain failed. | Sol medium for edits; Luna low for existing checks | Review canonical permission/installer/liveness ownership, targeted results and broad-gate failures; no claim of a full pass after timeout |
 | 4 | Build and sign frozen candidate; verify archive, executable identity and source provenance. Complete on frozen source8fd1320b. | Luna low using existing build script | Sol medium checks signature, explicit commit/hash record and no host deployment; no concurrent broad Swift build |
 | 5 | Stage exact signed artifact in owned guest and check effective approval after update. Complete, exact signed artifact staged without guest resigning. | Luna low using guarded staging harness | Sol medium checks ownership, signature/hash, independent process capability and no privilege contamination |
-| 6 | Re-run final-source physical ordinary remap, home-row tap/hold, unmapped typing and repeat. Earlier versions passed. | Luna medium, established harness only | Sol medium checks fixture trace, focus, fresh PID/nonce/hash/boot, counters and clean stopped report |
+| 6 | Re-run final-source physical ordinary remap, home-row tap/hold, unmapped typing and repeat. Passed on final reviewed9f0e3435 after reboot; each cleanly stopped. | Luna medium, established harness only | Sol medium checks fixture trace, focus, fresh PID/nonce/hash/boot, counters and clean stopped report |
 | 7 | App-managed remap → Secure Input pass-through → automatic resume. Passed on final9f0e3435; unchanged-permission reboot remap also passed. | Luna medium, established harness only | Sol high checks lifecycle/report identity and independent physical result; protected-input remapping remains an accepted limitation |
 | 8 | Held-output worker crash and parent release before physical key-up. Passed on final9f0e3435 with independent release-during-hold evidence. | Sol high owns experiment; Luna may run fixed harness | Sol high independently checks kill target, actual emitted-key release timing, fixture still held and empty target state; escalate ambiguous failure to Astra |
 | 9 | Held-modifier Secure Input transitions, tap timeout, sleep/wake and session recovery. Open. | Sol high designs bounded cases; Luna medium executes approved scripts | Sol high checks no stuck output, correct reset/restart and ordinary typing during failure; record hardware/session limits |
 | 10 | Controlled unchanged-permission reboot and USB reconnect continuity on final app. Final-app reboot/remap passed; separate integrated reconnect remains open. | Luna medium with existing lab controls | Sol high checks new boot, startup settling, exact attachment, same approved identity and actual remap without permission mutation |
 | 11 | Evaluate generated/default profiles against parser-backed backend eligibility (DL-11). Open before enabling backend more broadly. | Luna medium enumerates profiles; Sol medium fixes eligibility | Sol high verifies supported semantics and explicit rejection; no silent feature removal or privileged fallback |
 | 12 | Close bounded prototype decision and reconcile current evidence. Open. | Luna low prepares evidence table | Sol high decides verified/failed/untested, remaining gates and customer permission claims; no default/release declaration while safety gates remain |
-| 13 | Collect artifacts and destroy/reconcile all four owned lab resources. Three resources destroyed/independently absent; GUI lease cleanup follows continuity. | Luna low, ownership-guarded controller only | Sol medium independently checks all four provider UUIDs absent and host fixture policy unchanged; preserve research/source/evidence |
+| 13 | Collect artifacts and destroy/reconcile all four owned lab resources. Complete; all four UUIDs independently absent and USB policy unchanged. | Luna low, ownership-guarded controller only | Sol medium independently checks all four provider UUIDs absent and host fixture policy unchanged; preserve research/source/evidence |
 | 14 | Caps product mapping ownership and recovery (DL-01/DL-09). Feasibility passed; integration open. | Sol high; Astra only for unresolved OS/lifecycle design | Independent Sol high review of existing-map preservation, F18 conflicts, stop/crash, protected input, reconnect and reboot; no host map changes |
 | 15 | Common media/brightness/international coverage and Apple Fn equivalents (DL-04/DL-05). Follow-up. | Sol medium for adapter/action work; Sol high for Fn semantics | Luna medium collects device cases; Sol high reviews actual input/output separately and permission impact; firmware-only Fn remains a boundary |
 | 16 | Mouse output (DL-06). Follow-up implementation gap. | Sol medium; Sol high reviews held buttons/async cleanup | Physical output and dragging/scroll/multi-display checks, generated-event tagging and crash release; record added requirements |
@@ -185,3 +190,20 @@ with shared mutable state or sequential dependencies: [multi-agent guidance](htt
 Usage assessment must include root and subagent calls, retries and reasoning:
 [usage accounting](https://developers.openai.com/api/docs/guides/agents-api/observability).
 API prices are not a promise of proportional ChatGPT subscription quota savings.
+
+## Recommended next experiment (proposal, not yet executed)
+
+The user asked whether to remove the other backend in an experimental worktree.
+Recommendation: preserve this accepted checkpoint/worktree and run a separate
+driverless-only experiment. First make session runtime the only executable path
+and explicitly reject unsupported profiles; then remove driver-specific install,
+helper/service and VHID safety glue in reviewed stages. Retain Kanata's engine
+and shared permission/lifecycle authorities. This can reveal whether the simpler
+installation also yields a simpler maintainable architecture.
+
+Judge success against an agreed supported-feature subset and the open safety,
+Caps ownership, generated-profile and real-device gates. A compiling branch or
+a few remaps are insufficient. Keep Secure Input/prelogin limits explicit.
+Deletion does not solve OS/device-attribution boundaries. The current worktree,
+main checkout and all evidence remain preserved; no driverless-only conversion
+has been performed merely in response to the question.
