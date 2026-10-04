@@ -5,22 +5,11 @@ import XCTest
 /// Tests for the mapper sidebar active rules footer logic.
 @MainActor
 final class MapperActiveRulesTests: XCTestCase {
-    func testDefaultEnabledCollections_CountIs6() {
+    func testDefaultEnabledCollectionsOnlyIncludesStandardFunctionKeys() {
         let defaults = RuleCollectionCatalog().defaultCollections()
-        let enabledCount = defaults.filter(\.isEnabled).count
-        // 6 default-on collections: macOS Function Keys, Vim, Caps Lock Remap,
-        // Fast Navigation, Home Row Arrows (added in f946842b), Quick Launcher.
-        XCTAssertEqual(enabledCount, 6, "Should have 6 default-enabled collections")
-    }
-
-    func testDefaultEnabledCollections_IncludesExpectedPacks() {
-        let defaults = RuleCollectionCatalog().defaultCollections()
-        let enabledIDs = Set(defaults.filter(\.isEnabled).map(\.id))
-
-        XCTAssertTrue(enabledIDs.contains(RuleCollectionIdentifier.macFunctionKeys))
-        XCTAssertTrue(enabledIDs.contains(RuleCollectionIdentifier.vimNavigation))
-        XCTAssertTrue(enabledIDs.contains(RuleCollectionIdentifier.capsLockRemap))
-        XCTAssertTrue(enabledIDs.contains(RuleCollectionIdentifier.launcher))
+        let enabled = defaults.filter(\.isEnabled)
+        XCTAssertEqual(enabled.map(\.id), [RuleCollectionIdentifier.macFunctionKeys])
+        XCTAssertEqual(enabled.first?.functionKeyMode, .function)
     }
 
     func testUserFacingPacks_ExcludesSystemDefaults() {
@@ -66,7 +55,7 @@ final class MapperActiveRulesTests: XCTestCase {
         let defaultEnabledIDs = Set(collections.filter(\.isEnabled).map(\.id))
 
         // Disable a default pack
-        if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }) {
+        if let idx = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
             collections[idx].isEnabled = false
         }
         let currentEnabledIDs = Set(collections.filter(\.isEnabled).map(\.id))
@@ -78,8 +67,8 @@ final class MapperActiveRulesTests: XCTestCase {
     func testMerchandisingThreshold_Under6ShowsHero() {
         // Default user-facing packs (excluding the macOS Function Keys system default)
         // must stay below the merchandising-hero threshold, which production sets at
-        // `< 6` (OverlayInspectorPanel+CustomRules.swift). The Home Row Arrows pack
-        // brought the default user-facing count to 5, so the hero card still shows.
+        // `< 6` (OverlayInspectorPanel+CustomRules.swift). The conservative fresh
+        // profile enables only the system function-key collection.
         let defaults = RuleCollectionCatalog().defaultCollections()
         let enabledIDs = Set(defaults.filter(\.isEnabled).map(\.id))
 
