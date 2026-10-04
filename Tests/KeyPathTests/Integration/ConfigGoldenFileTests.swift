@@ -11,7 +11,7 @@ import XCTest
 ///
 /// To update golden files after an intentional change:
 ///   Set UPDATE_GOLDEN=1 environment variable and run these tests.
-final class ConfigGoldenFileTests: XCTestCase {
+final class ConfigGoldenFileTests: KeyPathTestCase {
     private let goldenDir = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .appendingPathComponent("GoldenConfigs")
@@ -86,8 +86,29 @@ final class ConfigGoldenFileTests: XCTestCase {
         let collections = RuleCollectionCatalog().defaultCollections()
         let config = KanataConfiguration.generateFromCollections(collections)
 
+        XCTAssertEqual(collections.filter(\.isEnabled).map(\.id), [RuleCollectionIdentifier.macFunctionKeys])
+        let functionKeys = collections.first { $0.id == RuleCollectionIdentifier.macFunctionKeys }
+        XCTAssertEqual(functionKeys?.functionKeyMode, .function)
+        XCTAssertEqual(functionKeys?.mappings.map(\.action), (1 ... 12).map { KeyAction.keystroke(key: "f\($0)") })
         XCTAssertFalse(config.isEmpty, "Default config should not be empty")
         assertGoldenConfig(config, named: "default")
+    }
+
+    /// The resource retains historical enable states and media mappings. Keep its
+    /// combined repeat, navigation, Home Arrows, Caps/launcher and TCP aliases
+    /// covered even though fresh session profiles no longer enable them.
+    @MainActor
+    func testHistoricalCatalogConfig_Golden() throws {
+        let url = try XCTUnwrap(
+            KeyPathAppKitResources.url(forResource: "rule-collection-catalog", withExtension: "json")
+        )
+        let collections = try JSONDecoder().decode([RuleCollection].self, from: Data(contentsOf: url))
+        let config = KanataConfiguration.generateFromCollections(collections)
+        XCTAssertTrue(config.contains("(defrepeat"))
+        XCTAssertTrue(config.contains("(deflayer home-arrows"))
+        XCTAssertTrue(config.contains("(deflayer launcher"))
+        XCTAssertTrue(config.contains("brdn"))
+        assertGoldenConfig(config, named: "historical-catalog")
     }
 
     @MainActor
