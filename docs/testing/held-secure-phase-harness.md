@@ -57,7 +57,9 @@ phases may subsequently roll out of the 512-entry ring without invalidating thei
 saved immutable evidence; active phases cannot. Publication failure,
 wrong focus, missing delivery or unexpected ownership stops acceptance without
 replaying input/commands. Finally, only the campaign's exact fixture run can be
-aborted, only revalidated owned PIDs can be signaled, and the saved profile is
+aborted. The run identifier is retained before the one-shot load, so an accepted
+load with a lost response is still covered by that exact-status cleanup guard;
+foreign runs remain untouched. Only revalidated owned PIDs can be signaled, and the saved profile is
 restored with a bytewise comparison. The original profile backup is retained.
 
 ## Explicit transport and identity seam
@@ -131,7 +133,7 @@ own bounded timeout before refusal; they are never replayed as mutations. The
 512-entry target rings; deadline or anchor eviction is a failed/untested campaign,
 never permission to lengthen or replay physical input automatically.
 
-The 26 pure checks include synthetic positive and negative tests for stale/focus
+The 27 pure checks include synthetic positive and negative tests for stale/focus
 receipts, dropped/evicted anchors, actual versus sampled Control release,
 physical hold ordering, command application, worker generations, no resurrection
 with permitted q repeats, exact terminal all-up traces, phase retirement and

@@ -445,8 +445,10 @@ class Campaign:
         status = self.client.status()
         require(status.get('state') in ('idle', 'complete', 'aborted'), 'foreign fixture campaign')
         run = 'held-secure-' + uuid.uuid4().hex[:16]
+        # A lost load response may leave this exact script installed. Preserve
+        # ownership before every mutation; cleanup still checks live run identity.
+        self.active_run = run
         self.client.load_script(script(run, timed))
-        self.active_run = run  # set before arm/start so cleanup covers partial owned operations
         self.client.arm(run)
         self.guest.check_account()
         if phase is not None:

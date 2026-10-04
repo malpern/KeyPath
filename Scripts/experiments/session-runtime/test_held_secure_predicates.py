@@ -464,6 +464,48 @@ class BatchBoundaryTests(unittest.TestCase):
                 campaign.target()
         self.assertEqual(len(pilot.observations), 1)
 
+    def test_lost_load_response_keeps_exact_cleanup_ownership_without_replay(self):
+        import pathlib
+        import tempfile
+        class Guest:
+            def check_account(self):
+                return {}
+            def cleanup(self):
+                return {'errors': [], 'profileBytewiseRestored': True}
+        class Client:
+            def __init__(self, foreign=False):
+                self.current = {'state': 'idle'}
+                self.foreign = foreign
+                self.loads = self.aborts = self.status_reads = self.closes = 0
+            def status(self):
+                self.status_reads += 1
+                return self.current
+            def load_script(self, script):
+                self.loads += 1
+                self.accepted_run = script.splitlines()[0].split()[1]
+                self.current = {'state': 'loaded', 'runId': 'foreign-run' if self.foreign else self.accepted_run}
+                raise RuntimeError('synthetic accepted load with lost response')
+            def arm(self, run):
+                raise AssertionError('failed load must never arm or replay')
+            def abort(self):
+                self.aborts += 1
+            def close(self):
+                self.closes += 1
+        for foreign in (False, True):
+            with self.subTest(foreign=foreign), tempfile.TemporaryDirectory() as folder:
+                client = Client(foreign)
+                campaign = self.harness.Campaign(Guest(), client, pathlib.Path(folder))
+                with self.assertRaisesRegex(RuntimeError, 'lost response'):
+                    campaign.start_input([(0, [0, 20, 0, 0, 0, 0, 0]), (45000000, [0] * 7)])
+                self.assertEqual(campaign.active_run, client.accepted_run)
+                campaign.cleanup()
+                self.assertEqual(client.loads, 1)
+                self.assertEqual(client.aborts, 0 if foreign else 1)
+                self.assertEqual(client.status_reads, 2)
+                self.assertEqual(client.closes, 1)
+                if foreign:
+                    self.assertIn('foreign run was not aborted', campaign.record['cleanupErrors'][0])
+
     def test_client_close_failure_still_restores_owner_and_fails_campaign(self):
         import pathlib
         import tempfile
