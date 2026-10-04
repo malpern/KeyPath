@@ -12,11 +12,11 @@ import XCTest
 /// To update golden files after an intentional change:
 ///   Set UPDATE_GOLDEN=1 environment variable and run these tests.
 final class ConfigGoldenFileTests: KeyPathTestCase {
-    private let goldenDir = URL(fileURLWithPath: #filePath)
+    private nonisolated let goldenDir = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .appendingPathComponent("GoldenConfigs")
 
-    private var shouldUpdate: Bool {
+    private nonisolated var shouldUpdate: Bool {
         ProcessInfo.processInfo.environment["UPDATE_GOLDEN"] == "1"
     }
 
