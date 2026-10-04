@@ -14,7 +14,7 @@ enum VHIDSafetyCheck {
     /// Returns `true` when kanata is running but the VirtualHID daemon is not healthy.
     /// Callers should emergency-stop kanata when this returns `true`.
     static func shouldEmergencyStop(kanataRunning: Bool, vhidDaemonHealthy: Bool,
-                                    backend: KanataRuntimeBackend = .driverKit) -> Bool
+                                    backend: KanataRuntimeBackend = .selected) -> Bool
     {
         backend.requiresPrivilegedServices && kanataRunning && !vhidDaemonHealthy
     }
@@ -39,7 +39,7 @@ enum VHIDSafetyCheck {
     static func shouldEmergencyStop(
         kanataRunning: Bool,
         confirmedFailureCount: Int,
-        backend: KanataRuntimeBackend = .driverKit
+        backend: KanataRuntimeBackend = .selected
     ) -> Bool {
         backend.requiresPrivilegedServices && kanataRunning && confirmedFailureCount >= requiredConfirmedFailures
     }

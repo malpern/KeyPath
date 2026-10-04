@@ -95,7 +95,7 @@ public struct InstallerStateMatrixSnapshot: Sendable, Equatable {
     public var definitiveUnhealthyState: Evidence<Bool>
 
     public init(
-        backend: KanataRuntimeBackend = .driverKit,
+        backend: KanataRuntimeBackend = .selected,
         sessionInputCaptureReady: Evidence<Bool> = .unknown,
         kanataBinaryPresent: Evidence<Bool>,
         requiredRuntimePayloadPresent: Evidence<Bool>,

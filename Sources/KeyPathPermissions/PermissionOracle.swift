@@ -86,7 +86,7 @@ public actor PermissionOracle {
         public let kanata: PermissionSet
         public let timestamp: Date
 
-        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date, backend: KanataRuntimeBackend = .driverKit) {
+        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date, backend: KanataRuntimeBackend = .selected) {
             self.backend = backend
             self.keyPath = keyPath
             self.kanata = kanata

@@ -13,7 +13,7 @@ public enum WizardRouter {
         issues: [WizardIssue],
         helperInstalled: Bool,
         helperNeedsApproval: Bool,
-        backend: KanataRuntimeBackend = .driverKit
+        backend: KanataRuntimeBackend = .selected
     ) -> WizardPage {
         // 1. Conflicts (highest priority)
         if issues.contains(where: { $0.category == .conflicts }) {
@@ -94,7 +94,7 @@ public enum WizardRouter {
         issues: [WizardIssue],
         helperInstalled: Bool = true,
         helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .driverKit
+        backend: KanataRuntimeBackend = .selected
     ) -> WizardPage {
         // Check if a blocking prerequisite page needs attention first.
         // This catches cases where the helper page is behind us in the order

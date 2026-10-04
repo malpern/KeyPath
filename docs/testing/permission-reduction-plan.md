@@ -4,7 +4,42 @@ Updated 2026-10-03 / 2026-10-04 UTC. Execution resumed at the user's request.
 Mixed-model delegation is active; the implementation record retains chronology
 and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 
-## Latest checkpoint — 2026-10-04 00:21 UTC
+## Active driverless-only experiment — October 3, 2026 Pacific
+
+The user approved a separate driverless-only experiment. Active worktree:
+`/private/tmp/keypath-driverless-only`, branch `experiment/driverless-only`,
+branched from preserved checkpoint `234f7b87`. The accepted implementation,
+research, rig, and agent worktrees remain intact. No active VM lease remains;
+new physical trials require fresh vm-lab admission. Approval is `never`, full
+filesystem access and network enabled; the original guest-only restrictions
+still apply. No host deployment, permission changes, upstream push, or PR.
+
+`Research ✓ → driverless-only simplification [active] → validation → safety hardening → onboarding`
+
+Earlier bounded acceptance is estimated at 80%, not shipping readiness. The new
+simplification has its own gates; source edits alone do not inherit old physical
+or test passes. The prior artifact remains the rollback/comparison checkpoint.
+
+| Gate | Work / current state | Worker level | Required independent verification |
+| --- | --- | --- | --- |
+| D1 | Separate checkpoint/worktree. Complete. | Sol medium | Existing checkpoint unchanged; isolated branch and local Kanata revision recorded |
+| D2 | Session is the sole selectable runtime; privileged lifecycle and installer execution removed. Source integrated, checks pending. | Sol medium; Sol high reviews boundaries | Tests prove flag/env cannot select DriverKit, malformed plans cannot invoke broker actions, and success requires current session readiness |
+| D3 | Fresh supported profile defaults; existing profiles preserved; canonical eligibility before managed writes. Source integrated, checks pending. | Sol medium | Actual fresh generated profile accepted by real Kanata bridge; Caps/media/filter candidates rejected before config/store mutations |
+| D4 | Driver/helper/daemon/launcher absent from signed artifact. Packaging edits active. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
+| D5 | Combined targeted and broad safe tests. First fresh compile active. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
+| D6 | Freeze source and build signed candidate without host deployment. Pending. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
+| D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Pending. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
+| D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
+| D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
+
+Do not imply default media keys or raw Caps are now supported. Built-in definitions
+remain available, fresh enabled defaults are conservative, and existing profiles
+are preserved with explicit unsupported-profile failures. Caps automatic mapping
+ownership remains a separate product gate in the gap register. Onboarding UX
+redesign follows verified reduced requirements, as requested.
+
+## Previous bounded checkpoint — 2026-10-04 00:21 UTC (historical)
+
 
 - Sol high independently found and corrected five crash-recovery/acceptance gaps.
   Root verified the diff and committed `8fd1320b`; 8 targeted regressions pass.

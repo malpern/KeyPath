@@ -377,7 +377,7 @@ public struct SystemStateResult: Sendable {
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
         helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .driverKit
+        backend: KanataRuntimeBackend = .selected
     ) {
         self.state = state
         self.issues = issues

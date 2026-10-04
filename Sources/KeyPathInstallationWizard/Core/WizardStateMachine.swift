@@ -55,7 +55,7 @@ public class WizardStateMachine {
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
         helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .driverKit
+        backend: KanataRuntimeBackend = .selected
     ) {
         wizardState = state
         wizardIssues = issues

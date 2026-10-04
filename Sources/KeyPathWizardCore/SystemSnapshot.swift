@@ -469,7 +469,7 @@ public struct HealthStatus: Sendable {
     public let loginItemsApprovalRequired: Bool?
 
     public init(
-        backend: KanataRuntimeBackend = .driverKit,
+        backend: KanataRuntimeBackend = .selected,
         kanataLaunchdLoaded: Bool? = nil,
         kanataProcessRunning: Bool? = nil,
         kanataTCPResponding: Bool? = nil,
