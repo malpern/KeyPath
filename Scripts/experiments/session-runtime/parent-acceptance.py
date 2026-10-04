@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
 """Bounded parent-owned remap, Secure Input and resume acceptance in an owned guest."""
-import argparse,importlib.machinery,json,pathlib,shlex,subprocess,time,uuid
+import argparse,importlib.machinery,json,os,pathlib,shlex,subprocess,time,uuid
 ROOT=pathlib.Path(__file__).resolve().parents[3]
-a=argparse.ArgumentParser();a.add_argument('lease');a.add_argument('--binary-sha',required=True);a.add_argument('--remap-only',action='store_true');args=a.parse_args()
-p=importlib.machinery.SourceFileLoader('parent_pilot','/private/tmp/vm-lab-hid-rig/rig/physical-baseline.py').load_module()
+identity_module=importlib.machinery.SourceFileLoader('guest_identity',str(pathlib.Path(__file__).with_name('guest-identity.py'))).load_module()
+a=argparse.ArgumentParser();a.add_argument('lease');a.add_argument('--binary-sha',required=True);a.add_argument('--remap-only',action='store_true');identity_module.add_arguments(a);args=a.parse_args();identity=identity_module.from_arguments(args);identity_args=['--guest-account',identity.account,'--guest-uid',str(identity.uid)]
+RIG=pathlib.Path(os.environ.get('VM_LAB_RIG_ROOT','/private/tmp/vm-lab-hid-rig'))
+if str(RIG) not in ('/private/tmp/vm-lab-hid-rig','/private/tmp/vm-lab-guest-identity'):raise RuntimeError('unreviewed rig source root')
+p=importlib.machinery.SourceFileLoader('parent_pilot',str(RIG/'rig/physical-baseline.py')).load_module()
 t=importlib.machinery.SourceFileLoader('trial',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py')).load_module()
-lease=args.lease;app=t.APP;owner=None;worker=None;nonce=None;path=None;backup='/Users/keypathqa/.config/keypath/keypath.kbd.parent-backup-'+uuid.uuid4().hex;cfg='/Users/keypathqa/.config/keypath/keypath.kbd'
+t.configure_identity(identity)
+lease=args.lease;app=t.APP;owner=None;worker=None;nonce=None;path=None;backup=identity.home+'/.config/keypath/keypath.kbd.parent-backup-'+uuid.uuid4().hex;cfg=identity.home+'/.config/keypath/keypath.kbd'
 r={'passed':False,'lease':lease,'binarySHA256':args.binary_sha,'remapOnly':args.remap_only,'backendOptInFlagUsed':False}
 def observe(cmd):return p.observe(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
-def run(cmd):return p.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
+def run(cmd):
+ identity.verify(p,lease)
+ return p.lab(lease,'guest-root','--','/bin/zsh','-lc',identity.guard()+' && '+cmd)
 def prepare(secure=False):
- subprocess.run(['python3','/private/tmp/vm-lab-hid-rig/rig/prepare-target.py',lease,'--account','keypathqa']+(['--secure-test'] if secure else []),check=True)
+ identity.verify(p,lease)
+ subprocess.run(['python3',str(RIG/'rig/prepare-target.py'),lease,'--account',identity.account]+(['--secure-test'] if secure else []),check=True)
 def discover():
+ identity.verify(p,lease)
  result=observe('ps -axo pid=,uid=,comm= && echo KEYPATH_PROCESS_SCAN_COMPLETE').splitlines()
  if not result or result[-1]!='KEYPATH_PROCESS_SCAN_COMPLETE':raise RuntimeError('guest process scan not verified')
  rows=result[:-1];found=[]
  for row in rows:
   pieces=row.split(maxsplit=2)
-  if len(pieces)==3 and pieces[1]=='501' and pieces[2]==app+'/Contents/MacOS/KeyPath':
+  if len(pieces)==3 and pieces[1]==str(identity.uid) and pieces[2]==app+'/Contents/MacOS/KeyPath':
    pid=int(pieces[0]);args=observe('ps -p '+str(pid)+' -o args=');found.append((pid,args))
  return found
 def child():
@@ -28,8 +36,9 @@ def child():
    if v.get('state')=='running' and v.get('tapActive'):return pid,path,nonce,v
  return None
 try:
+ r['guestIdentity']=identity.verify(p,lease)
  prepare();assert not discover(),'existing KeyPath process'
- cmd='test -f '+cfg+' && test ! -e '+backup+' && cp -p '+cfg+' '+backup+' && printf %s '+shlex.quote('(defcfg)\n(defsrc q a)\n(deflayer base a a)\n')+' > '+cfg+' && chown keypathqa '+cfg+' && launchctl asuser 501 sudo -H -u keypathqa open -g -n '+shlex.quote(app)+' --args --headless'
+ cmd=identity.guard()+' && test -f '+cfg+' && test ! -e '+backup+' && cp -p '+cfg+' '+backup+' && printf %s '+shlex.quote('(defcfg)\n(defsrc q a)\n(deflayer base a a)\n')+' > '+cfg+' && chown '+identity.account+' '+cfg+' && launchctl asuser '+str(identity.uid)+' sudo -H -u '+identity.account+' open -g -n '+shlex.quote(app)+' --args --headless'
  run(cmd)
  for _ in range(30):
   parents=[pid for pid,args in discover() if '--headless' in args and '--session-runtime' not in args]
@@ -43,7 +52,7 @@ try:
  assert worker,'parent runtime not ready';r['initialWorker']=v
  for label,secure in ([('parent-remap',False)] if args.remap_only else [('parent-remap',False),('parent-secure',True)]):
   prepare(secure)
-  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label',label,'--mode','secure' if secure else 'remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label',label,'--mode','secure' if secure else 'remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)]+identity_args,check=True)
  if not args.remap_only:
   prepare()
   old=worker
@@ -52,9 +61,9 @@ try:
    if c and c[0]!=old:worker,path,nonce,v=c;break
    time.sleep(.25)
   assert worker!=old,'secure recovery missing';r['resumedWorker']=v
-  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-resumed','--mode','remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-resumed','--mode','remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)]+identity_args,check=True)
   prepare()
-  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-held-crash','--mode','held-crash','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-held-crash','--mode','held-crash','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)]+identity_args,check=True)
   r['workerCrashAccepted']=True
  r['passed']=True
 except Exception as e:r['error']=str(e)
@@ -72,8 +81,8 @@ finally:
   remaining=discover();r['cleanupProcessScanVerified']=True;r['remainingKeyPathPIDs']=[pid for pid,_ in remaining]
   if remaining:r.update(passed=False,cleanupError='KeyPath process remains')
  except Exception as e:r.update(passed=False,cleanupError=str(e))
- if observe('test -f '+backup+' && echo saved').strip()=='saved':
-  restored=run('cp -p '+backup+' '+cfg+' && cmp -s '+backup+' '+cfg+' && rm '+backup+' && test ! -e '+backup+' && echo KEYPATH_PROFILE_RESTORED')
+ if observe(identity.guard()+' && test -f '+backup+' && echo saved').strip()=='saved':
+  restored=run(identity.guard()+' && cp -p '+backup+' '+cfg+' && cmp -s '+backup+' '+cfg+' && rm '+backup+' && test ! -e '+backup+' && echo KEYPATH_PROFILE_RESTORED')
   r['profileRestoredVerified']=restored.strip()=='KEYPATH_PROFILE_RESTORED'
   if not r['profileRestoredVerified']:r.update(passed=False,profileCleanupError='profile restoration not independently verified')
  else:r.update(passed=False,profileCleanupError='saved original profile missing')
