@@ -27,6 +27,14 @@ struct WindowSnappingActivationModeTests {
         let catalog = RuleCollectionCatalog()
         manager.ruleCollections = catalog.defaultCollections()
 
+        // Mode changes need an unambiguous navigation provider. Fresh profiles
+        // leave these providers disabled, so seed the one this fixture uses.
+        if supportedEntrance,
+           let navIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vimNavigation })
+        {
+            manager.ruleCollections[navIndex].isEnabled = true
+        }
+
         // Enable Window Snapping and Quick Launcher
         if let wsIdx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.windowSnapping }) {
             manager.ruleCollections[wsIdx].isEnabled = true
@@ -117,10 +125,14 @@ struct WindowSnappingActivationModeTests {
     func autoEnablesLauncher() async throws {
         let manager = try await createManagerWithWindowSnapping()
 
-        // Disable launcher
+        // Root edits refresh persisted sources, so the disabled premise must
+        // reach the store before asking the manager to enable its provider.
         if let idx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
             manager.ruleCollections[idx].isEnabled = false
         }
+        try await manager.ruleCollectionStore.saveCollections(manager.ruleCollections)
+        let stored = try await manager.ruleCollectionStore.loadForMutation()
+        #expect(stored.first { $0.id == RuleCollectionIdentifier.launcher }?.isEnabled == false)
 
         let autoEnabled = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,

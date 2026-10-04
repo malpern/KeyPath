@@ -856,11 +856,14 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: KeyPathTestCase {
                 KeyMapping(input: input, action: .keystroke(key: output)),
             ],
             isEnabled: enabled,
-            targetLayer: .custom(layerName),
+            // Reserved layer names must use the canonical enum case. A
+            // custom "nav" and .navigation compare differently and would emit
+            // duplicate nav definitions when aliases reference the layer.
+            targetLayer: RuleCollectionLayer(kanataName: layerName),
             momentaryActivator: activatorKey.map {
                 MomentaryActivator(
                     input: $0,
-                    targetLayer: .custom(layerName)
+                    targetLayer: RuleCollectionLayer(kanataName: layerName)
                 )
             },
             configuration: .list
