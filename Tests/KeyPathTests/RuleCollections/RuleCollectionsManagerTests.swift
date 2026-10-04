@@ -307,7 +307,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             TestEnvironment.forceTestMode = false
             try? FileManager.default.removeItem(at: tempDir)
         }
-        let baseline = CustomRule(input: "q", action: .keystroke(key: "a"), isEnabled: true)
+        let baseline = CustomRule(input: "q", action: .keystroke(key: "a"), isEnabled: true, createdAt: Date(timeIntervalSince1970: 42))
         let saved = await manager.saveCustomRule(baseline)
         XCTAssertTrue(saved)
         let configURL = tempDir.appendingPathComponent("keypath.kbd")

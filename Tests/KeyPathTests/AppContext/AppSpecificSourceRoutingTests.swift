@@ -60,7 +60,7 @@ final class AppSpecificSourceRoutingTests: XCTestCase {
     }
 
     private func blockTokens(_ name: String, in content: String) throws -> [String] {
-        let range = try XCTUnwrap(content.range(of: "(\(name)"))
+        let range = try XCTUnwrap(content.range(of: "(?m)^\\(\(name)(?=\\s)", options: .regularExpression))
         let remaining = content[range.upperBound...]
         let end = try XCTUnwrap(remaining.firstIndex(of: ")"))
         return remaining[..<end].split(separator: "\n").flatMap { line in

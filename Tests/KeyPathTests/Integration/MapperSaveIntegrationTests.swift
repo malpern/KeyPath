@@ -23,7 +23,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let customStore = CustomRulesStore(
             fileURL: tempDir.appendingPathComponent("CustomRules.json")
         )
-        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let configService = ConfigurationService.sessionTestService(configDirectory: tempDir.path, ruleCollectionStore: collectionStore, customRulesStore: customStore)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
             customRulesStore: customStore,
@@ -62,14 +62,14 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let (manager, tempDir) = try await createTestEnvironment()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        let rule = CustomRule(input: "1", action: .keystroke(key: "2"), shiftedOutput: "at")
+        let rule = CustomRule(input: "1", action: .keystroke(key: "2"), shiftedOutput: "S-2")
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         let configPath = tempDir.appendingPathComponent("keypath.kbd")
         let config = try String(contentsOf: configPath, encoding: .utf8)
 
         XCTAssertTrue(
-            config.contains("2") || config.contains("at"),
+            config.contains("2") || config.contains("S-2"),
             "Config should contain either the main output or shifted output"
         )
     }
@@ -159,9 +159,9 @@ final class MapperSaveIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // Enable a pack
-        let capsCollectionID = RuleCollectionIdentifier.capsLockRemap
+        let collectionID = RuleCollectionIdentifier.homeRowMods
         let packSuccess = await manager.toggleCollection(
-            id: capsCollectionID,
+            id: collectionID,
             isEnabled: true,
             autoResolveConflicts: true,
             bypassOwnershipCheck: true
@@ -177,8 +177,8 @@ final class MapperSaveIntegrationTests: XCTestCase {
         let config = try String(contentsOf: configPath, encoding: .utf8)
 
         XCTAssertTrue(
-            config.contains("caps") || config.contains("capslock"),
-            "Config should contain caps lock remap from pack"
+            config.contains("tap-hold"),
+            "Config should contain home-row tap/hold mappings from pack"
         )
         XCTAssertTrue(config.contains("d"), "Config should contain custom rule output")
     }
