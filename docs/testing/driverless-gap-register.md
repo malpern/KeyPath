@@ -1,7 +1,7 @@
 # Driverless gaps and candidate workarounds
 
 Updated 2026-10-03. Canonical backlog for the experimental user-session backend.
-Current ordered work and model assignments: [paused execution plan](permission-reduction-plan.md).
+Current ordered work and model assignments: [execution plan](permission-reduction-plan.md).
 
 Implementation owner: KeyPath's existing permission, installer, lifecycle and
 configuration coordinators. Kanata retains remapping semantics. Upstream work
@@ -13,8 +13,9 @@ of the reduced installation requirements.
 Feasibility is not product integration. A candidate workaround stays unverified
 until its acceptance checks pass. Unsupported configurations must be rejected
 with an explanation, never silently simplified or routed to a privileged backend.
-The optional driver backend remains available for requirements the session
-backend cannot faithfully reproduce. Hardware firmware work is a separate option,
+This experimental worktree selects only the session backend. The preserved
+comparison worktree retains the earlier backend; unsupported session requirements
+are rejected here and cannot silently select that backend. Hardware firmware work is a separate option,
 not authorization to flash the ESP32 or alter the host.
 
 | ID | Gap and customer impact | Candidate approach | Status / acceptance required |
@@ -102,3 +103,41 @@ Each case keeps frozen binary/config identity, parent/nonce/PID/UID ownership,
 exact fixture traces and output observations independent of the worker ledger.
 Unavailable observation is untested, not successful. Dynamic remapping inside
 protected fields remains an accepted limitation.
+
+## Reviewed next slices — October 3, 2026, 8:25pm Pacific
+
+DL-09 timeout evidence needs refinement before actual acceptance: frozen
+6a35b48dd collapses `tapDisabledByTimeout`, `tapDisabledByUserInput` and the
+timer observation of a disabled tap into `tap-disabled`. This does not establish
+the OS timeout cause. A source-only acceptance design is being prepared; actual
+callback-origin evidence and a bounded inducement must precede a physical pass.
+The parent checks every250ms and report age is limited to2seconds; harness
+receipt freshness is a different limit. Generic tap failure requires explicit
+restart; automatic resume is currently specific to Secure Input.
+
+DL-01's smallest proposed product slice is one exact keyboard instance with
+explicit F18 reservation, after runtime stabilization. Add a pure mapping-lease
+model and bounded mapping transport/journal service, then integrate worker and
+parent cleanup through current lifecycle owners. Raw Caps eligibility and its
+onboarding tour stay unchanged until acceptance passes.
+
+Each mapping write must bind nonce/generation, UID, boot and exact device
+instance; persist intent before mutation and verify readback. Preserve unrelated
+mappings and refuse existing Caps/F18 mappings, duplicate or ambiguous devices.
+Never clear the whole mapping array unconditionally. Worker restores on orderly
+exit; parent restores only after independently confirming worker termination.
+Failed restoration retains the journal and blocks another acquisition.
+
+Existing HIDDeviceMonitor merges identical devices and lacks serial/registry
+identity, so notifications can only prompt fresh enumeration. Registry IDs cannot
+be reused across boots. Whole-array writes lack a demonstrated atomic
+compare-and-set; concurrent edits and identical replacement mappings remain
+ownership limitations. Real F18 from another keyboard is indistinguishable at
+the session tap and requires an explicit support policy.
+
+Acceptance must cover start/stop/cancellation, worker and parent crash separately,
+Secure Input restoration and held-Caps reconciliation, reconnect/reboot and
+startup journal recovery. Simultaneous parent/worker loss cannot promise immediate
+restoration. Require initial physical all-up and Caps-off state and independently
+observe latch/modifier state during transitions. These are design requirements,
+not implemented features or new test passes.

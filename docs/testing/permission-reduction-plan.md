@@ -1,3 +1,13 @@
+Current continuation — October 4, 2026: user explicitly authorizes local commits and GitHub pushes. Shared lab documentation is committed as37aa7bc (push verification pending). Fresh owned guest cbx_f9cd34169ee5, UUIDcf252104-8976-4fa0-86f2-a9c4153db059, expires1791100110, boot1791092918, console root0/loginwindow197. OriginalQA501 remains untouched. Fresh tuple-only bootstrap delta passed35 inert checks and independent review; dependency/prepare/create only released, autologin activation excluded. Full app acceptance and genuine lifecycle transitions remain pending. Source audit confirms rawGUI InputMonitoring denial is diagnostic; current driverless readiness correctly requires GUIAX plus fresh bound worker effective input/tap/TCP evidence. No gate loosening warranted. Publishing experiment branches does not establish release acceptance.
+
+Latest checkpoint — October 4, 2026: shared lab documentation now updated locally in /Users/malpern/local-code/vm-lab/docs/automation-lessons.md and docs/evidence/keypath-driverless-2026-10-04.json, linked from README and UI guide. Independent review checked three receipt hashes and copied evidence fields. Standalone physical remap, HRM tap and HRM hold passed on signed 6a35/dbb88 with AX and effective input true, no separate Input Monitoring grant, all seven case checks and worker clean stop. Parent app campaign, Secure Input transitions and OS sleep/wake remain pending; estimate remains 72%. Peekaboo activation requires separate Automation (AppleScript) for System Events according to official release source; normal route documented, live postcondition not yet verified. Sleep wrapper79 does not identify underlying OS response. Owned lease cbx_13eda81cf5a8 destroyed before expiry; independent provider inventory verifies UUID8b325b38-b575-4bc1-8c6a-9e50b3a21660 absent. Fixture detached, ask routing and empty automatic binding verified. Destruction reported a hydration stop-marker warning, but actual deletion independently verified. All experimental worktrees and receipts preserved. Approval auto_review/workspace-write/restricted network. Next: fresh owned guest, normal Peekaboo Automation consent, parent campaign, actual lifecycle calibration; Caps Lock and onboarding afterward. Shared main has documentation-only uncommitted changes; no runtime promotion or push.
+
+## Latest evidence checkpoint — October 4, 2026 05:30 UTC
+
+A standalone D7 AX-only physical remap passed on experimental artifact `6a35` / binary `dbb88d76cb4bc8c6c739fa93cde335fdeef2eaa44bfaf1409399cac56149c451`. Exact `q` fixture input produced `a` with one target down/up, no held events or modifiers, exact trace, all standalone acceptance checks, and clean stop. Evidence: `/private/tmp/keypath-guest-identity/evidence/session-runtime/cbx_13eda81cf5a8-uid502-ax-only-remap-session-f34b67fa4b52441d.json`. Guards included normal desktop focus plus fresh UID502, boot, nonce, hash, exact USB owner and cleanup. No separate Input Monitoring approval was made. This does not pass the parent campaign or clean main checkout. USB use was transient with automatic action `ask`, empty autobinding and no firmware flash.
+
+Process permission observations disagree: direct probe PID2058 and worker PID3422 both report AX/effective input true; parent GUI PID1490's PermissionOracle says AX granted and Input Monitoring denied. Cause remains unknown. Peekaboo AX and Screen Recording are verified; app switching returns `PERMISSION_ERROR_APPLESCRIPT` on `activateApplication`, unresolved. No TCC database bypass. Sleep calibration e486 remains unaccepted (request exit79, no observed cycle/UUID, empty schedule after cleanup). Current estimate 72%; parent campaign and broader product acceptance remain open. Historical status fields below are retained as chronology.
+
 # Permission reduction: execution plan and model routing
 
 Updated 2026-10-03 / 2026-10-04 UTC. Execution resumed at the user's request.
@@ -6,11 +16,82 @@ and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 
 ## Active driverless-only experiment — October 3, 2026 Pacific
 
-The user approved a separate driverless-only experiment. Active worktree:
+Latest checkpoint — October 4, 2026 05:21 UTC: root reopened the standard
+Privacy & Security password prompt in normal Settings, entered only the
+authorized public disposable password once, and clicked Modify Settings. Fresh
+direct capability observation for UID502 (PID2058, nonce
+`5451f9e9-df43-49cf-812f-6f82a81e09b6`, timestamp `812784108.241147`) reports
+AX=true and effective input access=true. No live tap; held/input/output counts
+are zero. Accessibility is ON, with no separate Input Monitoring approval.
+The earlier ON screenshot alone was premature and is not attributed to the
+other copy. The parent log before the prompt showed AX denied. Root is preparing
+the target; physical acceptance remains pending.
+
+Latest checkpoint — October 4, 2026 05:20 UTC: the same owned lease remains on
+boot `1791090099`, console UID502, desktop setup complete. Guest-local KeyPath
+copy PID1490 is running in the normal GUI session. Accessibility settings show
+KeyPath ON, but fresh direct `--session-capabilities` observation PID1896
+reports AX=false and effectiveInput=false, zero held/input/output events, and
+no live tap. Root is investigating launch/grant identity; permission acceptance
+is not established. No USB attachment or physical campaign occurred.
+
+Sleep calibration `e486` / bundle
+`84f7b0d114fff759c7c330f3c2cd3083d5c8edeca05dbe96877eaf6a5d115c9a` passed 59
+checks. Attempt `/private/tmp/keypath-s0-calibration-13eda81c-e486`, UUID
+`66037855-8067-4da5-a302-2eec91f430ab`, used a verified owned wake schedule for
+22:14:13 Pacific. Its single sleep action refused with exit79; bounded polling
+found no sleep/wake cycle and null UUID. No sleep/wake logs were created and
+exact cleanup verified an empty pmset schedule. `powercap sleep`,
+`IOSleepSupported=Yes`, and `SleepDisabled=No` are not proof of forced sleep.
+There is no S0 acceptance. Overall estimate remains 70%; preserve dirty
+worktrees.
+
+Latest checkpoint — October 4, 2026 05:08 UTC: normal disposable-account setup is complete. Native console shows Finder desktop; independent guest observation confirms UID502, unchanged boot `1791090099`, Setup Assistant absent, Finder PID783 and FileVault Off. The new-boot login journal records success. No KeyPath launch, TCC grant, USB attachment or physical trial yet. The earlier unexpected reboot remains unattributed.
+
+Latest checkpoint — October 4, 2026 05:06 UTC (October 3, 22:06 Pacific): the
+guest unexpectedly shut down at 22:01:31 Pacific; the initiator is unknown.
+New boot `1791090099`. Reviewed transport audit found one SSH path and one
+`prlctl exec` path; neither was replayed. KeyPath had not started. Root performed
+one normal login with the fixed public test password; at 05:06 UTC an independent
+observation confirmed `keypathqa_13eda81c`, UID502, as the console account.
+Setup Assistant resumed at Apple Account skip. Root corrected the previous
+manual-login journal’s success claim and is updating the new-boot journal
+result. No TCC, USB, or physical acceptance occurred.
+
+Current checkpoint — October 4, 2026 05:00 UTC: approval is **auto_review /
+workspace-write / restricted network**. The owned lease `cbx_13eda81cf5a8`
+(UUID `8b325b38-b575-4bc1-8c6a-9e50b3a21660`, `malpern@mini`) expires
+05:48:50 UTC. Original QA501 is unchanged; public disposable UID502 and its
+home were created and reconciled. The one autologin activation attempt failed
+strict verification; actual autologin stayed off, `kcpassword` remained absent,
+and the partial preference was cleaned up and verified absent.
+
+The reversible login UI preference `SHOWFULLNAME` was absent and is now Boolean
+`true`; receipt:
+`/private/tmp/keypath-driverless-only/evidence/session-runtime/login-name-mode-cbx_13eda81cf5a8-network-release.json`.
+After controlled boot `1791089750`, UI text entry initially delivered a hyphen
+and omitted modifier input. Pointer-drag selection and lowercase full-name
+entry corrected the username. One normal login submission established
+`keypathqa_13eda81c` as the UID502 console, with Setup Assistant running. Root
+is finishing setup. No TCC grant, USB attachment or physical-input trial has
+occurred. The signed session-observer artifact `27edc236` is complete and
+verified, with 27 regression checks passed. Sleep helper `533ee` / bundle
+`afe450` passed 58 root-independent checks; high review found no remaining
+blocking source defect, while runtime calibration remains unproven.
+
+Progress remains about **70%**, with physical acceptance pending. Luna handled
+routine VM work and Sol provided independent high review; token savings are
+not measured. Root is the exclusive VM/GUI operator from this checkpoint.
+Historical entries below retain earlier account attempts and approval states.
+
+Historical setup and prior lease checkpoint: the user approved a separate driverless-only experiment. Active worktree:
 `/private/tmp/keypath-driverless-only`, branch `experiment/driverless-only`,
 branched from preserved checkpoint `234f7b87`. The accepted implementation,
-research, rig, and agent worktrees remain intact. Fresh owned lease `cbx_896c0d2d8565` is active on `malpern@mini`,
-expiring 2026-10-04 03:32:41 UTC. The corrected frozen product source is
+research, rig, and agent worktrees remain intact. Latest owned lease `cbx_896c0d2d8565` on `malpern@mini` was destroyed
+before expiry. Root independently confirmed destroyed/complete, exact UUID
+absent from provider inventory, fixture detached and ask/no-binding unchanged.
+No active lease remains. Host desktop unlock and a usable newly admitted guest
+console are required before physical acceptance can resume. The corrected frozen product source is
 `6a35b48dd1c5895a572414d0453594c14e8f7f58`. Approval is now `auto_review`, with workspace-write filesystem sandboxing and
 restricted network access; narrowly scoped signing escalation was approved.
 The original guest-only restrictions still apply. No host deployment, permission changes, upstream push, or PR.
@@ -29,8 +110,8 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | D4 | Driver/helper/daemon/launcher absent from frozen signed comparison artifact; root independently verified. Corrected artifact signed and independently verified in the fresh guest. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
 | D5 | Corrected source6a35b48dd passed broad safe gate5: 5,292 checks, zero failures/warnings; focused lifecycle24 passed. Three old snapshots remain separately unresolved. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
 | D6 | Frozen corrected6a35b48dd build signed and root-verified; released for owned guest testing. Earlier f274 artifact remains comparison only. No host deployment. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
-| D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Active: guest artifact identity/payload passed; disposable UID502 account/home verified; one blank-password GUI login did not establish a session. Bounded read-only diagnosis active. Receipt-bound rig source reviewed, 21 checks passed, replacement tools signed/verified and withheld until login. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
-| D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. Persistent target sourcea3b0847 independently reviewed; Foundation guard checks and signed artifact verification passed. Phase harness e2e3ac998 passed26 inert checks; root independently reviewed corrected spaced-path parsing and complete PID scans. Scoped fixture factory review and measured latency pending; no physical acceptance. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
+| D7 | Fresh owned lease cbx_13eda81cf5a8: exact6a35 artifact/signatures/payload passed; boot1791085739, console root0. QA501/token/home preserved. Source-only fixed-public UID502 bootstrap and fresh Settings bindings are under independent review; no login/input/account/TCC/USB mutation in this lease. Prior failed/ambiguous attempts and destroyed leases remain historical evidence below. | Sol medium bounded execution; Sol high anomalies/review | Actual normal desktop and frozen identity receipt, genuine ESP32 events, current PID/nonce/hash/boot, exact output/cleanup, fresh generated profile, revoke/regrant and unchanged-permission reboot/reconnect |
+| D8 | Held Secure Input harness4e0ac6dbb:27 inert checks and reviewed exact-run cleanup. Numeric fixture adapter:18 checks; deployed fingerprint mismatch remains a provenance limit. Timeout-cause productc7276d79c signed build complete; root verified exact archive/main, strict signatures and payload/identity contracts. Actual sleep/active-session observers being implemented separately. None of these source checks establishes held Secure Input, OS timeout, actual sleep/wake or session continuity acceptance. | Sol high designs/reviews; Sol medium source and bounded execution | Physical output release before physical key-up, fail-open behavior and empty fresh ledgers; actual OS events corroborated independently; no SIGKILL or provider suspend substitution |
 | D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
 | D10 | Caps substitution ownership/integration after runtime stabilization. Planned follow-up, feature retained. | Sol high design/recovery review; Sol medium implementation; Luna hardware execution | Collision-safe device-scoped mapping, restore only owned state, stop/crash/reconnect/reboot/protected-input acceptance |
 | D11 | Revisit onboarding UX after reduced permissions and Caps prerequisites are verified. Deferred. | Sol medium implementation; design review at appropriate level | Normal fresh installer flow reflects actual consent and supported first win; no unavailable Caps retry loop |
@@ -99,6 +180,47 @@ ownership remains a planned follow-up after runtime stabilization (DL-01), not a
 removed feature. Restore a Caps-based first-success tour only after owned mapping,
 collision handling and recovery pass. Onboarding UX
 redesign follows verified reduced requirements, as requested.
+
+## Remaining stabilization evidence — reviewed October 3, 2026 Pacific
+
+D7 must run on the corrected signed artifact; older8fd passes cannot close it.
+Require ordinary launch, supported generated profile/app-specific fallback,
+five worker modes, access revoke/regrant, parent Secure Input/resume and held
+worker-crash release, then unchanged-permission reboot and USB reconnect.
+Each result needs exact fixture trace, current identity/PID/nonce/hash/boot,
+independent target output and independently verified cleanup.
+
+The existing D8 harness proves held Secure Input/no-resurrection and fresh
+samples only. Actual OS timeout, actual guest sleep/wake and owned console
+session departure/return need separate reviewed packets. Timeout source design:
+[/private/tmp/keypath-tap-timeout-harness/README.md](/private/tmp/keypath-tap-timeout-harness/README.md),
+source-only checkpoint9fa7c7b6e913fc8f708f12f3942ed2dec5f9fa07,
+root read/accepted its scope and source finding. Frozen6a35 conflates timeout,
+user-input disable and timer-observed disabled tap; actual timeout origin is not
+observable. A narrowly reviewed diagnostic revision/new signed checkpoint and
+honest bounded inducement are required. Parent report tolerance is2seconds;
+generic failure requires explicit restart, unlike Secure Input automatic resume.
+Diagnostic instrumentationc7276d79c is implemented and its signed candidate
+independently verified. No actual OS timeout has been accepted.
+
+Sleep/session source design:
+[/private/tmp/keypath-session-transition-design/transition-packet-design-v2.md](/private/tmp/keypath-session-transition-design/transition-packet-design-v2.md),
+SHA256fa344d82891015c1a895eec021b17f052ee86fb1e6de1cbddebd849fd3802fab,
+root independently read/reviewed including logout process-inventory correction.
+Frozen6a35 lacks power/active-session observers. Isolated candidate
+27edc236caa801e5a114405869154f9fa4f4b475 implements public IOKit sleep/wake,
+conservative console-change notification and strict active-console gates. Root
+and independent high review found no blocking defect; 27 focused regression
+tests and pinned formatter lint passed. Signed candidate is complete; root independently verified strict deep signing,
+team, hardened runtime, payload and identity contracts. No host deployment or
+guest acceptance. Separate phase predicates are being
+implemented before any transition release. First prove actual OS sleep/wake all-up control;
+normal lock/unlock and logout/login are distinct cases. No executable packet or
+physical result exists; VM suspend and logout return codes cannot substitute.
+
+The Caps ownership design is now recorded in the canonical gap register. It
+starts with one exact keyboard/F18 reservation and preserves existing mappings;
+no Caps implementation or onboarding changes precede runtime stabilization.
 
 ## Previous bounded checkpoint — 2026-10-04 00:21 UTC (historical)
 
