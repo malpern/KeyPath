@@ -70,11 +70,8 @@ def main():
    # the guest's explicitly staged, fixture-scoped hidutil destination.
    lines=script.splitlines();payload='\n'.join(line.replace(' 20 ', ' 57 ') for line in lines[1:])+'\n'
    header=lines[0].split();header[-1]=f'{zlib.crc32(payload.encode())&0xffffffff:08x}';script=' '.join(header)+'\n'+payload
-  env=dict(os.environ,SOPS_AGE_KEY_FILE=str(pathlib.Path.home()/'.config/sops/age/keys.txt'))
-  secret=subprocess.run(['/opt/homebrew/bin/sops','-d',str(pathlib.Path.home()/'dotfiles/secrets.env')],capture_output=True,text=True,env=env,timeout=10)
-  tokens=[line.split('=',1)[1] for line in secret.stdout.splitlines() if line.startswith('KEYPATH_FIXTURE_TOKEN=')] if secret.returncode==0 else []
-  if len(tokens)!=1 or not tokens[0]:raise RuntimeError('fixture token unavailable')
-  client=pilot.persistent_client(fixture,'keypath-hid-fixture.local',tokens[0]);del secret,tokens
+  scoped_fixture=importlib.machinery.SourceFileLoader('d7_fixture',str(pathlib.Path(__file__).with_name('d7-fixture.py'))).load_module()
+  client=scoped_fixture.create_client()
   if client.status().get('state') not in ('idle','complete','aborted'):raise RuntimeError('foreign fixture campaign')
   owned=True;client.load_script(script);client.arm(run)
   text='(defcfg)\n(defsrc '+('f18' if a.caps_via_f18 else 'q')+' a)\n(deflayer base '+('(tap-hold 200 200 q lctl) a' if a.mode.startswith('hrm') else 'a a')+')\n'
@@ -138,7 +135,7 @@ def main():
    time.sleep(.1)
   else:raise RuntimeError('fixture timeout')
   time.sleep(.7);after=pilot.state(a.lease,IDENTITY.account);target_ready=pilot.ready(after,before['pid']);value=report(a.lease,path,nonce,fresh=expected=='running' and a.mode!='held-crash')
-  trace=client.trace_all(retry_seconds=10);rows=[list(map(int,row.split()[1:])) for row in script.splitlines()[1:]];actual=[[e.get('modifiers'),*e.get('keys',[])] for e in trace]
+  trace=client.trace_all(limit=8,retry_seconds=0);rows=[list(map(int,row.split()[1:])) for row in script.splitlines()[1:]];actual=[[e.get('modifiers'),*e.get('keys',[])] for e in trace]
   outcome=(after.get('controlA')==1 and after.get('aDowns')==1 and value.get('inputCount')==4 and value.get('outputCount')==4) if a.mode=='hrm-hold' else (after.get('text')=={'remap':'a','hrm-tap':'q','unmapped':'b','denied':'q'}.get(a.mode) and after.get('downs')==1 and after.get('ups')==1)
   if external and a.mode=='remap':outcome=outcome and value.get('inputCount',0)-record['workerBefore'].get('inputCount',0)==2 and value.get('outputCount',0)-record['workerBefore'].get('outputCount',0)==2
   if a.mode=='held-crash':outcome=bool(record.get('releasedDuringPhysicalHold')) and after.get('text','').startswith('a') and after.get('aDowns',0)>=1
@@ -155,7 +152,10 @@ def main():
    try:
     current=client.status()
     if owned and current.get('runId')==run and current.get('state') in ('loaded','armed','running'):client.abort()
-   finally:client.close();client.token=''
+   except Exception:record.update(passed=False,fixtureCleanupError='fixture cleanup failed; diagnostics suppressed')
+   finally:
+    try:client.close()
+    except Exception:record.update(passed=False,fixtureCleanupError='fixture transport close failed')
   if pid and not external:
    try:stop(a.lease,pid,nonce)
    except Exception as cleanup_error:
