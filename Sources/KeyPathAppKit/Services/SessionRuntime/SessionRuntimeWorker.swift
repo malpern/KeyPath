@@ -147,8 +147,11 @@ public final class SessionRuntimeWorker {
     private func receive(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let original = Unmanaged.passUnretained(event)
         if finished || event.getIntegerValueField(.eventSourceUserData) == Self.outputTag { return original }
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            finish(.failed, reason: "tap-disabled")
+        if type == .tapDisabledByTimeout {
+            finish(.failed, reason: "tap-disabled-by-timeout")
+        }
+        if type == .tapDisabledByUserInput {
+            finish(.failed, reason: "tap-disabled-by-user-input")
         }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
         physicalPassthroughFlags = physicalModifiers.passthroughFlags(
@@ -199,7 +202,7 @@ public final class SessionRuntimeWorker {
         guard !finished else { return }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
         if ownerPID > 0, !SystemStateProvider.shared.isProcessAlive(pid: ownerPID) { finish(.stopped, reason: "owner-exited") }
-        guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled") }
+        guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled-observed") }
         guard let runtime else { finish(.failed, reason: "runtime-unavailable") }
         // Bound each drain so a runaway output queue cannot monopolize the tap.
         for _ in 0 ..< 256 {
