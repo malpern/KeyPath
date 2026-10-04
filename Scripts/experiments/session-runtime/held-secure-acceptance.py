@@ -47,6 +47,12 @@ def readiness_module():
 
 
 class Guest:
+    READ_STAGES = ('target', 'processes.table', 'processes.arguments', 'identity.process',
+                   'identity.arguments', 'identity.hash', 'alive', 'preflight.console',
+                   'preflight.signature', 'preflight.hash', 'preflight.target-executable',
+                   'preflight.target-uid', 'preflight.target-hash', 'preflight.target-arguments',
+                   'preflight.python')
+
     def __init__(self, lease, pilot, binary_sha, target_sha, identity):
         self.lease, self.pilot = lease, pilot
         self.binary_sha, self.target_sha = binary_sha, target_sha
@@ -63,6 +69,8 @@ class Guest:
         self.parent_args = None
         self.target_identity = None
         self.parent_launch_requested_at = None
+        self.read_stage = None
+        self.read_failure_stage = None
 
     def check_account(self):
         return self.guest_identity.verify(self.pilot, self.lease)
@@ -73,6 +81,20 @@ class Guest:
         # no-op prefix, while leaving guard/mutation failure as the final status.
         return self.pilot.lab(self.lease, 'guest-root', '--', '/bin/zsh', '-lc',
                               'true; ' + self.guest_identity.guard() + ' && { ' + command + '; }')
+
+    def read(self, command, stage):
+        """Only reviewed read call sites use the existing single255 observation retry."""
+        require(stage in self.READ_STAGES, 'unreviewed read diagnostic stage')
+        self.read_failure_stage = None
+        try:
+            self.read_stage = stage + '.identity'
+            self.check_account()
+            self.read_stage = stage + '.command'
+            return self.pilot.observe(self.lease, 'guest-root', '--', '/bin/zsh', '-lc',
+                                      'true; ' + self.guest_identity.guard() + ' && { ' + command + '; }')
+        except Exception:
+            self.read_failure_stage = self.read_stage
+            raise
 
     def observation_scope(self):
         """The shared receipt/provider checks, without a second guest round trip."""
@@ -254,51 +276,51 @@ class Guest:
         return result
 
     def target(self):
-        return json.loads(self.run('cat ' + shlex.quote(self.home + '/rig-target.json')))
+        return json.loads(self.read('cat ' + shlex.quote(self.home + '/rig-target.json'), 'target'))
 
     def processes(self):
-        rows = self.run('ps -axo pid=,uid=,comm=').splitlines()
+        rows = self.read('ps -axo pid=,uid=,comm=', 'processes.table').splitlines()
         result = []
         for row in rows:
             fields = row.split(maxsplit=2)
             if len(fields) == 3 and fields[2] == self.exe:
                 result.append((int(fields[0]), int(fields[1]),
-                               shlex.split(self.run(f'ps -p {int(fields[0])} -o args='))))
+                               shlex.split(self.read(f'ps -p {int(fields[0])} -o args=', 'processes.arguments'))))
         return result
 
     def identity(self, pid, expected_args):
         self.check_account()
         require(type(pid) is int and pid > 0, 'invalid owned PID')
-        result = self.run(f'ps -p {pid} -o uid=,comm=').strip().split(maxsplit=1)
+        result = self.read(f'ps -p {pid} -o uid=,comm=', 'identity.process').strip().split(maxsplit=1)
         require(result == [str(self.uid), self.exe], 'owned process executable or UID changed')
-        raw_args = self.run(f'ps -p {pid} -o args=').strip()
+        raw_args = self.read(f'ps -p {pid} -o args=', 'identity.arguments').strip()
         args = shlex.split(raw_args)
         require(args == expected_args, 'owned process arguments changed')
-        digest = self.run('shasum -a 256 ' + shlex.quote(self.exe)).split()[0]
+        digest = self.read('shasum -a 256 ' + shlex.quote(self.exe), 'identity.hash').split()[0]
         require(digest == self.binary_sha, 'owned executable hash changed')
         return {'pid': pid, 'uid': self.uid, 'arguments': args, 'rawArguments': raw_args, 'binarySHA256': digest}
 
     def alive(self, pid):
         # ps returning no row is an explicit exit observation, not a masked transport failure.
-        return bool(self.run(f'ps -axo pid= | awk \'$1 == {pid} {{print $1}}\'').strip())
+        return bool(self.read(f'ps -axo pid= | awk \'$1 == {pid} {{print $1}}\'', 'alive').strip())
 
     def preflight(self, target):
         require(not self.processes(), 'existing KeyPath process; campaign refuses adoption')
-        require(self.run('stat -f %Su /dev/console').strip() == self.account, 'wrong owned console')
+        require(self.read('stat -f %Su /dev/console', 'preflight.console').strip() == self.account, 'wrong owned console')
         self.check_account()
-        self.run('codesign --verify --strict ' + shlex.quote(self.app))
-        require(self.run('shasum -a 256 ' + shlex.quote(self.exe)).split()[0] == self.binary_sha,
+        self.read('codesign --verify --strict ' + shlex.quote(self.app), 'preflight.signature')
+        require(self.read('shasum -a 256 ' + shlex.quote(self.exe), 'preflight.hash').split()[0] == self.binary_sha,
                 'frozen parent/worker binary mismatch')
-        target_exe = self.run(f'ps -ww -p {target["pid"]} -o comm=').strip()
-        require(self.run(f'ps -p {target["pid"]} -o uid=').strip() == str(self.uid), 'target UID mismatch')
-        require(self.run('shasum -a 256 ' + shlex.quote(target_exe)).split()[0] == self.target_sha,
+        target_exe = self.read(f'ps -ww -p {target["pid"]} -o comm=', 'preflight.target-executable').strip()
+        require(self.read(f'ps -p {target["pid"]} -o uid=', 'preflight.target-uid').strip() == str(self.uid), 'target UID mismatch')
+        require(self.read('shasum -a 256 ' + shlex.quote(target_exe), 'preflight.target-hash').split()[0] == self.target_sha,
                 'reviewed target binary mismatch')
         self.target_identity = {'pid': target['pid'], 'uid': self.uid, 'nonce': target['nonce'],
-                'rawArguments': self.run(f'ps -ww -p {target["pid"]} -o args=').strip(),
+                'rawArguments': self.read(f'ps -ww -p {target["pid"]} -o args=', 'preflight.target-arguments').strip(),
                 'executable': target_exe, 'binarySHA256': self.target_sha}
         # Command writes use Python; verify this explicit dependency before input.
-        self.run(shlex.quote(GUEST_PYTHON) + ' -I -B -c ' + shlex.quote(
-            'import json,os,pathlib,stat,sys,tempfile; assert sys.version_info[:3] == (3,13,16)'))
+        self.read(shlex.quote(GUEST_PYTHON) + ' -I -B -c ' + shlex.quote(
+            'import json,os,pathlib,stat,sys,tempfile; assert sys.version_info[:3] == (3,13,16)'), 'preflight.python')
         return self.target_identity
 
     def parent_ready(self, identity):
@@ -751,6 +773,10 @@ def main():
         campaign.execute()
     except Exception as error:
         campaign.record.update(passed=False, error=str(error), failureType=type(error).__name__)
+        if guest.read_stage is not None:
+            campaign.record['lastReadStage'] = guest.read_stage
+        if guest.read_failure_stage is not None:
+            campaign.record['readFailureStage'] = guest.read_failure_stage
     finally:
         campaign.cleanup()
         with (destination / 'campaign.json').open('x') as output:
