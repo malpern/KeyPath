@@ -64,6 +64,18 @@ public final class ConfigurationService: FileConfigurationProviding {
             if let fixture = sessionValidationTestLock.withLock({ sessionValidationTestHost }) {
                 return fixture
             }
+            // Plain XCTestCase suites can construct services before the shared
+            // reset hook. Honor only an explicit bridge in an actual test host.
+            if TestEnvironment.isTestHostProcess,
+               let bridgePath = ProcessInfo.processInfo.environment["KEYPATH_SESSION_TEST_BRIDGE_PATH"]
+            {
+                let current = KanataRuntimeHost.current()
+                return KanataRuntimeHost(
+                    launcherPath: current.launcherPath, bridgeLibraryPath: bridgePath,
+                    bundledCorePath: current.bundledCorePath,
+                    kanataEngineBundlePath: current.kanataEngineBundlePath
+                )
+            }
         #endif
         return .current()
     }
