@@ -1,0 +1,131 @@
+--- a/Sources/KeyPathAppKit/App.swift
++++ b/Sources/KeyPathAppKit/App.swift
+@@ -327,6 +327,10 @@
+         } else {
+             AppLogger.shared.debug("🤖 [AppDelegate] Headless mode - skipping window management")
+         }
++
++        if !isHeadlessMode {
++            scheduleTypingSoundsInitialization()
++        }
+     }
+ 
+     func applicationWillResignActive(_: Notification) {
+@@ -592,7 +596,7 @@
+     private func handleHeadlessAutoStart() {
+         AppLogger.shared.info("🤖 [AppDelegate] Headless mode - starting KeyPath runtime automatically")
+ 
+-        Task {
++        DeferredApplicationLaunchWork.schedule(after: {
+             try? await Task.sleep(for: .seconds(2))
+ 
+             if let manager = self.kanataManager {
+@@ -603,7 +607,21 @@
+             } else {
+                 AppLogger.shared.error("❌ [AppDelegate] Headless auto-start failed: RuntimeCoordinator unavailable")
+             }
+-        }
++        }) {
++            self.initializeTypingSounds()
++        }
++    }
++
++    private func scheduleTypingSoundsInitialization() {
++        DeferredApplicationLaunchWork.schedule {
++            self.initializeTypingSounds()
++        }
++    }
++
++    private func initializeTypingSounds() {
++        AppLogger.shared.info("[LaunchTrace] optional typing-sounds init begin")
++        _ = TypingSoundsManager.shared
++        AppLogger.shared.info("[LaunchTrace] optional typing-sounds init complete")
+     }
+ 
+     // MARK: - Private: Main Window & Overlay Setup
+--- a/Sources/KeyPathAppKit/Core/CompositionRoot.swift
++++ b/Sources/KeyPathAppKit/Core/CompositionRoot.swift
+@@ -70,9 +70,6 @@
+                 onSystemHealthy: { manager.clearDiagnostics() }
+             )
+         }
+-
+-        // Ensure typing sounds manager is initialized so it can listen for key events
+-        _ = TypingSoundsManager.shared
+ 
+         // Set activation policy based on mode
+         if isHeadlessMode {
+--- a/Sources/KeyPathAppKit/Core/ApplicationLaunchGate.swift
++++ b/Sources/KeyPathAppKit/Core/ApplicationLaunchGate.swift
+@@ -21,3 +21,19 @@
+         return true
+     }
+ }
++
++/// Schedules optional startup work on a later main-actor turn. A prerequisite can
++/// keep nonessential initialization behind required launch work (such as runtime start).
++@MainActor
++enum DeferredApplicationLaunchWork {
++    static func schedule(
++        after prerequisite: @escaping @MainActor () async -> Void = {},
++        then operation: @escaping @MainActor () -> Void
++    ) {
++        Task { @MainActor in
++            await prerequisite()
++            await Task.yield()
++            operation()
++        }
++    }
++}
+--- a/Tests/KeyPathTests/ApplicationLaunchGateTests.swift
++++ b/Tests/KeyPathTests/ApplicationLaunchGateTests.swift
+@@ -24,3 +24,49 @@
+         XCTAssertFalse(gate.didConfigure())
+     }
+ }
++
++@MainActor
++final class DeferredApplicationLaunchWorkTests: XCTestCase {
++    func testOptionalWorkDoesNotRunInline() async {
++        let completed = expectation(description: "deferred work completes")
++        var schedulingCallReturned = false
++        var workRan = false
++
++        DeferredApplicationLaunchWork.schedule {
++            XCTAssertTrue(schedulingCallReturned)
++            workRan = true
++            completed.fulfill()
++        }
++
++        XCTAssertFalse(workRan, "Optional initialization must not run in the launch callback stack")
++        schedulingCallReturned = true
++        await fulfillment(of: [completed], timeout: 1.0)
++        XCTAssertTrue(workRan)
++    }
++
++    func testOptionalWorkWaitsUntilRequiredAsyncStartupFinishes() async {
++        let completed = expectation(description: "deferred work completes")
++        var events: [String] = []
++
++        DeferredApplicationLaunchWork.schedule(after: {
++            events.append("runtime-start-begin")
++            await Task.yield()
++            events.append("runtime-start-end")
++        }) {
++            events.append("optional-audio-init")
++            XCTAssertEqual(
++                events,
++                [
++                    "launch-callback-continues",
++                    "runtime-start-begin",
++                    "runtime-start-end",
++                    "optional-audio-init",
++                ]
++            )
++            completed.fulfill()
++        }
++
++        events.append("launch-callback-continues")
++        await fulfillment(of: [completed], timeout: 1.0)
++    }
++}

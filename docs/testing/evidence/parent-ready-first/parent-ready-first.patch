@@ -1,0 +1,447 @@
+--- /private/tmp/keypath-timeout-timing-transport-diagnostics/measurement.py	2026-10-04 15:49:52
++++ /private/tmp/keypath-timeout-parent-ready-first-single-snapshot/measurement.py	2026-10-04 16:07:47
+@@ -21,12 +21,13 @@
+ HARNESS = pathlib.Path('/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py')
+ IDENTITY = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
+ RIG = pathlib.Path('/private/tmp/vm-lab-guest-identity')
+-SOURCE_PINS_SHA = 'd0dff62e5f2ad6e63a925a8d57f4f25f1ff0052dcfd3480b44fd1ad3848fd224'
++SOURCE_PINS_SHA = '96b2c9141467d45d57ce23588a7d9588c18a268cf7943843ef2e1e8934794c2e'
+ BASE_SCOPE=dict(version=1,account='keypathqa_438d6abc',uid=502,home='/Users/keypathqa_438d6abc',productSource='6ed4ea99052c19bc94e99517cfe9827377b17af7',binarySHA256='d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682',targetSHA256='55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858',targetArchiveSHA256='26e5b024f561ebd6ccee43f2d4b07056d9da8d09c5be5aab9a61553380a52fb8',targetExecutable='/Users/keypathqa_438d6abc/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget')
+ EXECUTOR=ROOT/'executor.py'
+ BINDING_FIELDS=('identityReceipt','identityReceiptSHA256','lease','providerUUID','bootEpoch','deadline','baselineInventory','baselineInventorySHA256')
+ import prepared_identity as prepared
+ import fresh_capture
++import worker_discovery
+ 
+ @dataclass(frozen=True)
+ class Scope:
+@@ -189,12 +190,22 @@
+     Guest=diagnostic_guest(Guest,predicates.Refusal,ns['CONFIG'])
+     guest=Guest(scope.lease, pilot, scope.binary_sha256, scope.target_sha256, identity)
+     guest.capture_scope=scope
++    underlying.stage = lambda: guest.read_stage
+     return guest, identity, pilot
+ 
+ START_STAGES=('parent.initial-identity','parent.backup-dispatch','parent.profile-identity','parent.profile-launch-dispatch','parent.discovery','parent.identity')
+ def diagnostic_guest(Base,Refusal,CONFIG):
+     class Guest(Base):
+         READ_STAGES=Base.READ_STAGES+('capture.preflight','capture.observe')
++        def worker_snapshot(self):
++            self.read_stage='startup.worker-discovery'
++            return worker_discovery.worker_snapshot(self)
++        def snapshot(self, old=None):
++            self.read_stage='snapshot'
++            return super().snapshot(old)
++        def parent_ready(self, identity):
++            self.read_stage='parent-ready'
++            return super().parent_ready(identity)
+         def startup_preflight(self):
+             require(not self.processes(), 'existing KeyPath process; campaign refuses adoption')
+             require(self.read('stat -f %Su /dev/console', 'preflight.console').strip()==self.account,'wrong owned console')
+@@ -358,27 +369,49 @@
+             and report.get('heldOutputUsages') == [] and report.get('inputCount') == report.get('outputCount') == 0,
+             'worker not idle/running')
+ 
+-def startup_worker(guest, parent, target_binding, scope, receipt, monotonic, wall, sleep):
+-    deadline = monotonic() + 8
++def post_capture_worker(guest, parent, target_binding, scope, receipt, wall):
++    """One strict same-generation observation; no second startup window/retry."""
++    receipt['stage']='setup.snapshot'
++    require(wall() < scope.deadline, 'lease dispatch cutoff reached')
++    initial = guest.snapshot()
++    require(wall() < scope.deadline, 'lease response crossed cutoff; no replay')
++    receipt['stage']='setup.snapshot-parent-check'
++    observed = [p for p in initial['processes'] if p['pid'] == parent['pid']]
++    require(len(observed) == 1 and all(observed[0][k] == parent[k]
++            for k in ('uid', 'arguments', 'binarySHA256')), 'owned parent identity changed')
++    receipt['stage']='setup.snapshot-target-check'
++    target_check(initial['target'], wall(), target_binding, scope.uid)
++    receipt['stage']='setup.snapshot-worker-check'
++    require(initial['worker'] is not None, 'ready worker absent after capture')
++    return initial['worker'][0]
++
++def parent_ready_before_capture(guest, parent, scope, receipt, monotonic, wall, sleep):
++    """Actual owned worker + canonical readiness before any target launch claim."""
++    begin=monotonic();deadline=begin+8
+     while True:
+-        receipt['stage']='setup.snapshot'
+-        require(monotonic() < deadline, 'worker startup deadline')
+-        require(wall() < scope.deadline, 'lease dispatch cutoff reached')
+-        initial = guest.snapshot()  # Frozen guards validate each read; exceptions never retry.
+-        require(monotonic() <= deadline, 'worker startup deadline')
+-        require(wall() < scope.deadline, 'lease response crossed cutoff; no replay')
+-        receipt['stage']='setup.snapshot-parent-check'
+-        observed = [p for p in initial['processes'] if p['pid'] == parent['pid']]
+-        require(len(observed) == 1 and all(observed[0][k] == parent[k]
+-                for k in ('uid', 'arguments', 'binarySHA256')), 'owned parent identity changed')
+-        receipt['stage']='setup.snapshot-target-check'
+-        target_check(initial['target'], wall(), target_binding, scope.uid)
+-        receipt['stage']='setup.snapshot-worker-check'
+-        if initial['worker'] is not None:
+-            return initial['worker'][0]
+-        remaining = min(deadline - monotonic(), scope.deadline - wall())
+-        require(remaining > 0, 'worker startup deadline')
+-        sleep(min(.2, remaining))
++        receipt['stage']='setup.pre-capture-worker'
++        require(monotonic()<deadline,'worker startup deadline')
++        require(wall()<scope.deadline,'lease dispatch cutoff reached')
++        observed=guest.worker_snapshot()
++        require(monotonic()<=deadline,'worker startup deadline')
++        require(wall()<scope.deadline,'lease response crossed cutoff; no replay')
++        rows=[p for p in observed['processes'] if p['pid']==parent['pid']]
++        require(len(rows)==1 and all(rows[0][k]==parent[k] for k in ('uid','arguments','binarySHA256')),'owned parent identity changed')
++        if observed['worker'] is not None:
++            current,report=observed['worker'];binding=tuple(current[k] for k in ('pid','uid','nonce'))
++            worker_check(report,binding,wall())
++            receipt['stage']='setup.pre-capture-parent-ready'
++            ready,evidence=guest.parent_ready(current)
++            require(monotonic()<=deadline,'worker startup deadline')
++            require(wall()<scope.deadline,'lease response crossed cutoff; no replay')
++            worker_check(ready,binding,wall())
++            receipt['preCaptureReadiness']=evidence
++            receipt['preCaptureWorkerIdentity']=dict(zip(('pid','uid','nonce'),binding))
++            receipt['preCaptureReadinessSeconds']=monotonic()-begin
++            return current
++        remaining=min(deadline-monotonic(),scope.deadline-wall())
++        require(remaining>0,'worker startup deadline')
++        sleep(min(.2,remaining))
+ 
+ def measure(guest, identity, pilot, scope, scope_sha, monotonic=time.monotonic, wall=time.time, sleep=time.sleep, claim=None):
+     receipt = dict(passed=False, productArchiveSHA256='dc0dfd52ad83c8c75af5f49e3653a8ba2dc269f17ac00e1b376e7b47156bf9fa', lease=scope.lease, baselineInventorySHA256=scope.baseline_sha,hardCutoffEpoch=scope.deadline,scopeSHA256=scope_sha, identityReceiptSHA256=scope.receipt_sha256,
+@@ -392,14 +425,16 @@
+         receipt['stage']='setup.parent-start'
+         parent = guest.start()
+         receipt['parentIdentity'] = {key: parent[key] for key in ('pid', 'uid', 'binarySHA256')}
++        parent_ready_before_capture(guest,parent,scope,receipt,monotonic,wall,sleep)
+         receipt['stage']='setup.fresh-target-launch'
+         first = guest.fresh_capture(claim)
+         receipt['stage']='setup.target-check'
+         target_binding = target_check(first, wall(), uid=scope.uid)
+         receipt['targetIdentity']=dict(zip(('pid','uid','nonce'),target_binding))
+         receipt['targetCleanupOwner']='root; no target signal in no-input measurement'
+-        current = startup_worker(guest, parent, target_binding, scope, receipt, monotonic, wall, sleep)
++        current = post_capture_worker(guest, parent, target_binding, scope, receipt, wall)
+         binding = tuple(current[k] for k in ('pid', 'uid', 'nonce'))
++        require(binding == tuple(receipt['preCaptureWorkerIdentity'][k] for k in ('pid','uid','nonce')), 'pre-capture worker generation changed')
+         receipt['stage']='setup.parent-ready'
+         ready, evidence = guest.parent_ready(current)
+         receipt['stage']='setup.ready-worker-check'
+@@ -452,7 +487,10 @@
+         receipt.update(error='timing measurement refused', failureType=type(error).__name__, errorStage=receipt['stage'])
+         receipt.update(selected_failure(guest,error))
+         transport = getattr(pilot, 'diagnostic_transport', None)
+-        if transport is not None:receipt['transportDiagnostic'] = transport.last_diagnostic
++        if transport is not None:
++            receipt['transportDiagnostic'] = transport.last_diagnostic
++            receipt['diagnosticSequenceAtFailure'] = transport.sequence
++            receipt['transportFailuresBeforeCleanup'] = list(transport.failures)
+         if getattr(guest,'benchmark_failure',None)is not None:receipt['benchmarkFailure']=guest.benchmark_failure
+         # Never reflect arbitrary exception text. Emit only an exact reviewed
+         # static source literal; substrings/prefixes/dynamic values do not match.
+--- /private/tmp/keypath-timeout-timing-transport-diagnostics/diagnostic_transport.py	2026-10-04 15:49:06
++++ /private/tmp/keypath-timeout-parent-ready-first-single-snapshot/diagnostic_transport.py	2026-10-04 16:07:10
+@@ -42,19 +42,32 @@
+     finally:os.close(fd)
+ 
+ class Lab:
+-    def __init__(self,directory,host):self.directory=directory;self.host=host;self.sequence=0;self.last_diagnostic=None
++    def __init__(self,directory,host):self.directory=directory;self.host=host;self.sequence=0;self.last_diagnostic=None;self.stage=lambda:None;self.failures=[]
+     def __call__(self,lease,verb,*args):
+         nonce=uuid.uuid4().hex;env=dict(os.environ,VM_LAB_TRANSPORT_DIAGNOSTIC_NONCE=nonce)
+         command=[str(ROOT/'bin/vm-lab'),'--host',self.host,'keypath',verb,lease,*args]
+-        self.sequence+=1
++        self.sequence+=1;begin=time.monotonic()
++        label=self.stage()
++        allowed=('target','processes.table','processes.arguments','identity.process','identity.arguments','identity.hash','alive','preflight.console','preflight.signature','preflight.hash','preflight.target-executable','preflight.target-uid','preflight.target-hash','preflight.target-arguments','preflight.python','capture.preflight','capture.observe')
++        allowed=tuple(k+suffix for k in allowed for suffix in ('','.identity','.command'))+('startup.worker-discovery','snapshot','parent-ready')
++        label=label if label in allowed else None
++        def metadata(v):
++            if 'receiptSHA256' in v:v['frameReceiptSHA256']=v.pop('receiptSHA256')
++            v.update(sequence=self.sequence,verb=verb if verb in ('status','guest-root') else 'other',readStage=label,elapsedSeconds=max(0,time.monotonic()-begin))
++            v['receiptSHA256']=hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':')).encode()).hexdigest()
++            return v
+         try:
+             rc,out,err=collect(command,env)
+             if not 0<=rc<=255:raise RuntimeError('host transport signal refusal')
+             selected=diagnostic_receipt.receipt(err,nonce,rc)
+         except Exception as e:
+             selected=dict(version=1,nonce=nonce,classification='host-transport-observation-incomplete',diagnosticValid=False,exceptionClass=type(e).__name__ if type(e).__name__ in ('TimeoutExpired','RuntimeError','OSError','UnicodeDecodeError') else 'Exception')
++            metadata(selected)
++            if len(self.failures)<8:self.failures.append(selected)
+             self.last_diagnostic=selected;persist(self.directory,self.sequence,selected)
+             raise RuntimeError('owned guest transport observation incomplete; no replay') from None
++        metadata(selected)
++        if rc and len(self.failures)<8:self.failures.append(selected)
+         self.last_diagnostic=selected;persist(self.directory,self.sequence,selected)
+         if rc:raise RuntimeError('owned guest operation failed: '+verb+' exit='+str(rc)+'; diagnostics suppressed')
+         return out
+--- /private/tmp/keypath-timeout-timing-transport-diagnostics/test_measurement.py	2026-10-04 12:08:46
++++ /private/tmp/keypath-timeout-parent-ready-first-single-snapshot/test_measurement.py	2026-10-04 16:07:26
+@@ -47,6 +47,10 @@
+     def start(self):
+         self.tick('start')
+         return dict(pid=10, uid=502, arguments=['KeyPath','--headless'], binarySHA256=SCOPE.binary_sha256)
++    def worker_snapshot(self):
++        self.tick('worker_snapshot')
++        return dict(processes=[dict(pid=10,uid=502,arguments=['KeyPath','--headless'],binarySHA256=SCOPE.binary_sha256)],
++                    worker=None if self.worker_never_ready else (dict(pid=20,uid=502,nonce='worker'),self.report()))
+     def snapshot(self):
+         self.tick('snapshot')
+         absent = self.worker_never_ready or self.worker_none_left > 0
+@@ -173,7 +177,7 @@
+         class NotReady(RuntimeError): pass
+         for operation, error, stage in (
+                 ('snapshot', Refusal('incomplete or ambiguous batch receipt'), 'setup.snapshot'),
+-                ('parent_ready', NotReady('matching current parent startup completion not observed'), 'setup.parent-ready')):
++                ('parent_ready', NotReady('matching current parent startup completion not observed'), 'setup.pre-capture-parent-ready')):
+             f=Fake()
+             def fail(*args): raise error
+             setattr(f,operation,fail)
+@@ -186,7 +190,7 @@
+         self.assertEqual(r['errorStage'],'setup.target-check')
+         self.assertEqual(r['refusalReason'],'normal target focus lost')
+         f=Fake();f.stale=True;r=f.run()
+-        self.assertEqual(r['errorStage'],'setup.ready-worker-check')
++        self.assertEqual(r['errorStage'],'setup.pre-capture-worker')
+         self.assertEqual(r['refusalReason'],'stale worker')
+     def testArbitraryTransportTextIsNotReflectedInReason(self):
+         class Refusal(RuntimeError): pass
+@@ -201,14 +205,13 @@
+         self.assertTrue(r['passed'])
+         self.assertEqual([v['stage'] for v in r['samples']],
+                          [str(n)+'.'+operation for n in range(1,4) for operation in ('identity','snapshot','parent_ready')])
+-        self.assertEqual(f.calls, ['preflight','start','capture','snapshot','ready']+['identity','snapshot','ready']*3+['snapshot','ready'])
++        self.assertEqual(f.calls, ['preflight','start','worker_snapshot','ready','capture','snapshot','ready']+['identity','snapshot','ready']*3+['snapshot','ready'])
+         self.assertEqual(f.cleanup_count, 1)
+         self.assertNotIn('target', r)
+-    def testStartupTransientNoneThenReadyKeepsOneLaunch(self):
++    def testReadyWorkerMissingAfterCaptureHasOneSnapshotAndNoSecondWindow(self):
+         f=Fake();f.worker_none_left=2;r=f.run()
+-        self.assertTrue(r['passed']);self.assertEqual(f.calls.count('start'),1)
+-        self.assertEqual(f.calls[:7],['preflight','start','capture','snapshot','snapshot','snapshot','ready'])
+-        self.assertEqual(r['workerIdentity'],dict(pid=20,uid=502,nonce='worker'))
++        self.assertFalse(r['passed']);self.assertEqual(r['refusalReason'],'ready worker absent after capture')
++        self.assertEqual(f.calls,['preflight','start','worker_snapshot','ready','capture','snapshot'])
+         self.assertEqual(f.cleanup_count,1)
+     def testStartupNeverReadyStopsAtEightSecondsWithoutReadinessOrRelaunch(self):
+         f=Fake();f.worker_never_ready=True;started=.2;r=f.run()
+@@ -221,41 +224,41 @@
+         f=Fake();f.worker_never_ready=True
+         scope=replace(SCOPE,deadline=f.wall()+.45)
+         r=f.run(scope)
+-        self.assertFalse(r['passed']);self.assertEqual(f.calls.count('snapshot'),1)
++        self.assertFalse(r['passed']);self.assertEqual(f.calls.count('worker_snapshot'),1);self.assertEqual(f.calls.count('snapshot'),0)
+         self.assertEqual(r['refusalReason'],'lease dispatch cutoff reached')
+         self.assertNotIn('ready',f.calls);self.assertEqual(f.cleanup_count,1)
+     def testStartupParentChangeAfterAbsentWorkerRefusesWithoutAdoption(self):
+-        f=Fake();f.worker_none_left=1;original=f.snapshot
++        f=Fake();original=f.snapshot
+         def snapshot():
+-            if f.calls.count('snapshot') == 1: f.snapshot_parent_pid=11
++            f.snapshot_parent_pid=11
+             return original()
+         f.snapshot=snapshot;r=f.run()
+         self.assertFalse(r['passed']);self.assertEqual(r['errorStage'],'setup.snapshot-parent-check')
+         self.assertEqual(r['refusalReason'],'owned parent identity changed')
+-        self.assertEqual(f.calls.count('snapshot'),2);self.assertNotIn('ready',f.calls)
++        self.assertEqual(f.calls.count('snapshot'),1);self.assertEqual(f.calls.count('ready'),1)
+         self.assertEqual(f.calls.count('start'),1);self.assertEqual(f.cleanup_count,1)
+     def testStartupSnapshotErrorAfterAbsentWorkerHasNoFallback(self):
+-        f=Fake();f.worker_none_left=1;original=f.snapshot
++        f=Fake();original=f.snapshot
+         def snapshot():
+-            if f.calls.count('snapshot') == 1: f.transport_failure='snapshot'
++            f.transport_failure='snapshot'
+             return original()
+         f.snapshot=snapshot;r=f.run()
+         self.assertFalse(r['passed']);self.assertEqual(r['errorStage'],'setup.snapshot')
+-        self.assertEqual(f.calls.count('snapshot'),2);self.assertNotIn('ready',f.calls)
++        self.assertEqual(f.calls.count('snapshot'),1);self.assertEqual(f.calls.count('ready'),1)
+         self.assertEqual(f.calls.count('start'),1);self.assertEqual(f.cleanup_count,1)
+     def testStartupStaleTargetAfterAbsentWorkerRefusesWithoutAnotherRead(self):
+-        f=Fake();f.worker_none_left=1;original=f.snapshot
++        f=Fake();original=f.snapshot
+         def snapshot():
+             value=original()
+-            if f.calls.count('snapshot') == 2: value['target']['observedAt']-=4
++            value['target']['observedAt']-=4
+             return value
+         f.snapshot=snapshot;r=f.run()
+         self.assertFalse(r['passed']);self.assertEqual(r['refusalReason'],'stale target')
+-        self.assertEqual(f.calls.count('snapshot'),2);self.assertNotIn('ready',f.calls)
++        self.assertEqual(f.calls.count('snapshot'),1);self.assertEqual(f.calls.count('ready'),1)
+         self.assertEqual(f.cleanup_count,1)
+     def testFreshCaptureFocusRefusalStopsBeforeStartupSnapshot(self):
+         f=Fake();f.target_bad=True;r=f.run()
+-        self.assertFalse(r['passed']);self.assertEqual(f.calls,['preflight','start','capture']);self.assertEqual(f.cleanup_count,1)
++        self.assertFalse(r['passed']);self.assertEqual(f.calls,['preflight','start','worker_snapshot','ready','capture']);self.assertEqual(f.cleanup_count,1)
+     def testStaleReportRefusesBeforeMeasurement(self):
+         f=Fake();f.stale=True;r=f.run()
+         self.assertFalse(r['passed']);self.assertEqual(r['samples'],[]);self.assertEqual(f.cleanup_count,1)
+--- /private/tmp/keypath-timeout-timing-transport-diagnostics/test_transport.py	2026-10-04 15:50:08
++++ /private/tmp/keypath-timeout-parent-ready-first-single-snapshot/test_transport.py	2026-10-04 16:07:10
+@@ -25,6 +25,16 @@
+     self.assertEqual(ns['observe']('cbx_inert','guest-root','--','PUBLIC'),'SELECTED')
+     self.assertEqual(c.call_count,2)
+    self.assertEqual(len(list(pathlib.Path(d).glob('transport-*.json'))),2)
++ def test_elapsed_stage_is_fixed_and_failure_history_survives_later_cleanup_success(self):
++  with tempfile.TemporaryDirectory(dir='/private/tmp') as d:
++   lab=t.Lab(d,'inert');lab.stage=lambda:'identity.arguments.command'
++   with mock.patch.object(t,'collect',side_effect=[(255,'',''),(0,'cleanup','')]):
++    with self.assertRaises(RuntimeError):lab('inert','guest-root')
++    first=dict(lab.last_diagnostic);lab.stage=lambda:'PRIVATE_ARG'
++    self.assertEqual(lab('inert','guest-root'),'cleanup')
++   self.assertEqual(first['readStage'],'identity.arguments.command');self.assertGreaterEqual(first['elapsedSeconds'],0)
++   self.assertEqual(first['sequence'],1);self.assertEqual(lab.failures,[first]);self.assertIsNone(lab.last_diagnostic['readStage'])
++   raw=(pathlib.Path(d)/'transport-000002.json').read_bytes();self.assertNotIn(b'PRIVATE_ARG',raw)
+  def test_timeout_is_unknown_no_255_retry_trigger_and_persisted(self):
+   with tempfile.TemporaryDirectory(dir='/private/tmp') as d:
+    lab=t.Lab(d,'inert')
+--- /dev/null	2026-10-04 16:07:52
++++ /private/tmp/keypath-timeout-parent-ready-first-single-snapshot/worker_discovery.py	2026-10-04 16:07:10
+@@ -0,0 +1,145 @@
++"""Worker-only startup observation derived from pinned d290 snapshot. No target read/adoption."""
++import base64,json,pathlib,re,shlex,time,uuid
++class Refusal(RuntimeError):pass
++def require(value,reason):
++    if not value:raise Refusal(reason)
++
++def worker_snapshot(self):
++    old = None
++    """One guarded read returns owned processes, reports and exit proof.
++
++    Shell records are individually base64 encoded; no guest Python or
++    transcribed JSON is required. Process tables bracket the read so a
++    partial or changing generation is refused, not accidentally combined.
++    """
++    self.observation_scope()
++    q = shlex.quote
++    commands = [
++        'set -e; set -o pipefail',
++        'd8emit() { printf "D8\\t%s\\t" "$1"; /usr/bin/base64 | /usr/bin/tr -d "\\n"; printf "\\n"; }',
++        'd8processes() { local d8selected d8pid d8uid d8comm d8args; '
++        + 'd8selected=$(/bin/ps -ww -axo pid=,uid=,comm= | /usr/bin/awk -v exe='
++        + q(self.exe) + ' \'$3 == exe\') || return $?; '
++        + 'while read -r d8pid d8uid d8comm; do '
++        + 'test -n "$d8pid" || continue; '
++        + 'd8args=$(/bin/ps -ww -p "$d8pid" -o args=) || return $?; '
++        + 'test -n "$d8args" || return 79; '
++        + 'printf "%s %s %s %s\\n" "$d8pid" "$d8uid" "$d8comm" "$d8args"; '
++        + 'done <<< "$d8selected"; }',
++        'd8before=$(d8processes) || exit $?',
++        '{ /usr/bin/id -un ' + str(self.uid) + '; /usr/bin/id -u ' + q(self.account)
++        + '; /usr/bin/dscl . -read /Users/' + q(self.account) + ' NFSHomeDirectory | /usr/bin/cut -d " " -f 2-'
++        + '; /usr/bin/stat -f %Su /dev/console; /usr/bin/stat -f %u /dev/console'
++        + "; /usr/sbin/sysctl -n kern.boottime | /usr/bin/sed -E 's/^.*sec = ([0-9]+),.*$/\\1/'; } | d8emit identity",
++        'printf %s "$d8before" | d8emit processes',
++        'printf %s "$$" | d8emit observerPID',
++        "/bin/ps -axo pid= | /usr/bin/awk '$1 ~ /^[0-9]+$/ && $1 > 0 {print $1}' | d8emit pids",
++        '/usr/bin/shasum -a 256 ' + q(self.exe) + ' | d8emit binaryHash',
++    ]
++    # Discover only bounded owned report paths. A foreign worker causes a
++    # refusal before its file can be read. Host repeats the argument checks.
++    commands += [
++        '''while read -r d8pid d8uid d8comm d8args; do
++ test -z "$d8pid" && continue
++ case " $d8args " in *" --session-runtime "*)
++ d8path=$(printf '%s\\n' "$d8args" | /usr/bin/awk '{for(i=1;i<NF;i++)if($i=="--session-report")print $(i+1)}')
++ d8nonce=$(printf '%s\\n' "$d8args" | /usr/bin/awk '{for(i=1;i<NF;i++)if($i=="--session-nonce")print $(i+1)}')
++ d8owner=$(printf '%s\\n' "$d8args" | /usr/bin/awk '{for(i=1;i<NF;i++)if($i=="--session-owner")print $(i+1)}')
++ test "$d8owner" = ''' + shlex.quote(str(self.parent)) + '''
++ test "$d8uid" = ''' + str(self.uid) + '''
++ [[ "$d8nonce" =~ ^[0-9a-fA-F-]{36}$ ]]
++ [[ "$d8path" =~ ^/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-$d8nonce/report.json$ ]]
++ test ! -L "$d8path"
++ test "$(/usr/bin/stat -f %u "$d8path")" = ''' + str(self.uid) + '''
++ /bin/cat "$d8path" | d8emit "report-$d8pid"
++ ;; esac
++ done <<< "$d8before"''',
++    ]
++    if old:
++        commands += ['test ! -L ' + q(old['reportPath']),
++                     'test "$(/usr/bin/stat -f %u ' + q(old['reportPath']) + ')" = ' + str(self.uid),
++                     '/bin/cat ' + q(old['reportPath']) + ' | d8emit oldReport']
++    commands += ['d8after=$(d8processes) || exit $?', 'test "$d8before" = "$d8after"',
++                 'if ! ( ' + self.guest_identity.guard() + ' ); then exit 79; fi',
++                 'printf D8_COMPLETE | d8emit complete']
++    expression = ('true; if ! ( ' + self.guest_identity.guard() + ' ); then exit 79; fi; { '
++                  + '\n'.join(commands) + '\n}')
++    output = self.pilot.observe(self.lease, 'guest-root', '--', '/bin/zsh', '-lc', expression)
++    fields = {}
++    for line in output.splitlines():
++        parts = line.split('\t')
++        require(len(parts) == 3 and parts[0] == 'D8' and parts[1] not in fields,
++                'incomplete or ambiguous batch receipt')
++        try:
++            fields[parts[1]] = base64.b64decode(parts[2], validate=True).decode('utf-8')
++        except (ValueError, UnicodeError):
++            raise Refusal('malformed batch receipt') from None
++    expected = {'identity', 'processes', 'pids', 'observerPID', 'binaryHash', 'complete'}
++    if old:
++        expected.add('oldReport')
++    require(fields.get('complete') == 'D8_COMPLETE' and expected <= fields.keys(),
++            'incomplete batch receipt')
++    actual_identity = fields['identity'].splitlines()
++    require(len(actual_identity) == 6 and actual_identity[:5]
++            == [self.account, str(self.uid), self.home, self.account, str(self.uid)]
++            and actual_identity[5].isdigit()
++            and (self.guest_identity.boot_epoch is None
++                 or int(actual_identity[5]) == self.guest_identity.boot_epoch),
++            'batched account/home/console/boot identity changed')
++    require(fields['binaryHash'].split()[0] == self.binary_sha, 'owned executable hash changed')
++    def process(row):
++        values = row.strip().split(maxsplit=3)
++        require(len(values) == 4 and values[0].isdigit() and values[1].isdigit(),
++                'malformed process observation')
++        return dict(pid=int(values[0]), uid=int(values[1]), executable=values[2],
++                    arguments=shlex.split(values[3]), rawArguments=values[3], binarySHA256=self.binary_sha)
++    processes = [process(row) for row in fields['processes'].splitlines()]
++    require(len({p['pid'] for p in processes}) == len(processes), 'duplicate process receipt')
++    parent = [p for p in processes if p['pid'] == self.parent]
++    if self.parent:
++        require(len(parent) == 1 and parent[0]['uid'] == self.uid
++                and parent[0]['arguments'] == self.parent_args, 'owned parent identity changed')
++    live = []
++    for item in processes:
++        require(item['executable'] == self.exe and item['uid'] == self.uid, 'foreign process')
++        args = item['arguments']
++        if item['pid'] == self.parent:
++            continue
++        require('--session-runtime' in args and args.count('--session-owner') == 1
++                and args[args.index('--session-owner') + 1] == str(self.parent), 'foreign worker')
++        require(args.count('--session-report') == args.count('--session-nonce') == 1,
++                'ambiguous worker report arguments')
++        path, nonce = args[args.index('--session-report') + 1], args[args.index('--session-nonce') + 1]
++        uuid.UUID(nonce)
++        require(re.fullmatch(r'/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-'
++                             + re.escape(nonce) + r'/report.json', path), 'unsafe worker report path')
++        item.update(reportPath=path, nonce=nonce)
++        known = self.generations.get(item['pid'])
++        require(known is None or all(item[k] == known[k] for k in ('uid', 'nonce', 'arguments', 'reportPath')),
++                'owned worker process identity changed')
++        label = 'report-' + str(item['pid'])
++        require(label in fields, 'incomplete worker batch receipt')
++        expected.add(label)
++        report = json.loads(fields[label])
++        require(tuple(report.get(k) for k in ('pid', 'uid', 'nonce'))
++                == tuple(item[k] for k in ('pid', 'uid', 'nonce')), 'report ownership mismatch')
++        self.generations[item['pid']] = item
++        live.append((item, report))
++    require(len(live) <= 1 and set(fields) == expected, 'unexpected or ambiguous batch records')
++    pids = fields['pids'].split()
++    observer = fields['observerPID'].strip()
++    positive_pid = lambda value: re.fullmatch(r'[1-9][0-9]*', value) is not None
++    require(bool(pids) and all(positive_pid(p) for p in pids) and len(pids) == len(set(pids))
++            and positive_pid(observer) and observer in pids
++            and all(str(item['pid']) in pids for item in processes), 'incomplete or malformed exit observation')
++    result = dict(worker=live[0] if live else None,
++                  observerPID=int(observer), pidScan=[int(p) for p in pids],
++                  processes=processes, oldExited=old is not None and str(old['pid']) not in pids,
++                  observedAt=time.time(), identity=dict(account=self.account, uid=self.uid, home=self.home,
++                  providerUUID=self.guest_identity.provider_uuid, bootEpoch=int(actual_identity[5]),
++                  consoleAccount=actual_identity[3], consoleUID=int(actual_identity[4])))
++    if old:
++        result['oldReport'] = json.loads(fields['oldReport'])
++        require(not any(p['pid'] == old['pid'] and p['arguments'] != old['arguments'] for p in processes),
++                'old worker PID reused')
++    return result

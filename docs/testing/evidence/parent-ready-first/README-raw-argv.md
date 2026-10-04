@@ -1,0 +1,5 @@
+Source-only correction of the no-argument RigTarget identity check. The actual `ps -ww -p PID -o args=` output contains the executable path literally, including spaces; it is not shell-quoted. Compare that whole string with the admitted executable path. Exact PID/UID/comm, source hash, signature, ownership, freshness and parent guards remain unchanged. Extra arguments, prefixes and a shell-quoted string refuse in actual generated guest code tests.
+
+No guest actions or retry of an existing attempt. Use the same parameterized measurement CLI with a fresh explicitly reviewed scope JSON/SHA. Old scope-fdce.json is retained historical source material and is not current lease admission. Source pins bind this local corrected helper; all external pins retained.
+
+60 inert tests pass under host Python 3.9. Report reader remains limited to 65,536 bytes. A mature 512-sample target report may exceed this bound; that remains a fail-closed limitation and was not altered for this correction. Worker FSYNC report is a separate small report.

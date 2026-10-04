@@ -1,0 +1,27 @@
+{
+  "base_checkout": "/private/tmp/keypath-tap-timeout-hook-build",
+  "base_commit": "6ed4ea99052c19bc94e99517cfe9827377b17af7",
+  "scope": "isolated candidate only; no product checkout edits, build, app, VM, UI, HID, or deployment",
+  "base_sha256": {
+    "Sources/KeyPathAppKit/App.swift": "9c654a4b6dcf64ca21251f702622db761ff5a0db709f506186d51c5dc8ab2492",
+    "Sources/KeyPathAppKit/Core/CompositionRoot.swift": "031d59aef1212489acbfa8303d1181f01f9c7b228de0648c07d25f65fe7f17fc",
+    "Sources/KeyPathAppKit/Core/ApplicationLaunchGate.swift": "4def8118ee4012c263032c95e69f4059c54d9c471526c591e533b159847277e7",
+    "Tests/KeyPathTests/ApplicationLaunchGateTests.swift": "58462b793e40f9500deff3013a64f0e62c4895c9b758636fba97b14a4c6c99ed"
+  },
+  "candidate_sha256": {
+    "Sources/KeyPathAppKit/App.swift": "969b7b7711950646655fa2310ab33ef5fb2b4302ba03b439bf65e1dfd29f7759",
+    "Sources/KeyPathAppKit/Core/CompositionRoot.swift": "b467241f62809d62403979b5d30dc2099e049710ed5fd35bbbb28190dae3dd83",
+    "Sources/KeyPathAppKit/Core/ApplicationLaunchGate.swift": "249ea5a3261839d15ee36b1fda98d3773d4542824c3f48866bf269726b7ae165",
+    "Tests/KeyPathTests/ApplicationLaunchGateTests.swift": "bb794fecd57db9f14e67d5eea25a10e663c888454f1823e782a76643a116d79d"
+  },
+  "patch_sha256": "7bc604b1798e5528dfb7e2bc58b06f7c79bbb7461bc1cac0abe78c47b1b7ee57",
+  "test_command": "not run (source-only request; no build/test)",
+  "behavior": [
+    "remove TypingSoundsManager.shared construction from CompositionRoot.bootstrap",
+    "normal launch schedules optional typing-sounds construction on later MainActor turn after launch setup",
+    "headless launch awaits existing two-second delay and runtime start attempt before optional construction",
+    "one-shot and duplicate-launch exits remain before deferred scheduling",
+    "begin/complete launch trace brackets optional construction for future stall localization"
+  ],
+  "limits": "Current logs localize the missing completion marker to the synchronous singleton initialization interval but do not identify the exact initializer operation or prove an audio-device cause. This packet is a candidate, not validated product behavior."
+}

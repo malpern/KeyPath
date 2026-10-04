@@ -1,0 +1,1 @@
+This is a byte-preserved experimental source packet. The manifest records its original private paths and reviewed dependencies. Historical scopes are retained for provenance; they do not authorize a current lease or physical input. The installed lab CLI is unchanged. Live outcomes are documented in the current permission handoff.

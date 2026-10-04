@@ -1,0 +1,130 @@
+--- /private/tmp/keypath-timeout-physical-fresh-capture-6ed4/executor.py	2026-10-04 15:44:32
++++ /private/tmp/keypath-timeout-physical-parent-ready-first/executor.py	2026-10-04 16:12:34
+@@ -6,8 +6,8 @@
+ H_PATH=pathlib.Path('/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py')
+ D7_PATH=pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/d7-fixture.py')
+ RIG=pathlib.Path('/private/tmp/vm-lab-guest-identity')
+-STARTUP_PATH=pathlib.Path('/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/measurement.py')
+-STARTUP_SHA='33b242dafdfcf2c425010df34ff137b63f46f28f89ec693c0137d009cc129cda'
++STARTUP_PATH=pathlib.Path('/private/tmp/keypath-timeout-parent-ready-first-single-snapshot/measurement.py')
++STARTUP_SHA='a80d7dc532b03942446f30707c6919619432e14aaf820d82a1e2e5a067c41bab'
+ _STARTUP=None
+ CONFIG='(defcfg)\n(defsrc q a)\n(deflayer base a a)\n'
+ TIMED=[(0,[0,20,0,0,0,0,0]),(10000000,[0,20,5,0,0,0,0]),(10050000,[0,20,0,0,0,0,0]),(45000000,[0]*7)]
+@@ -39,6 +39,7 @@
+ PINS[str(pathlib.Path(__file__).with_name('prepared_identity.py'))]='575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d'
+ PINS[str(pathlib.Path(__file__).with_name('fresh_capture.py'))]='3dde8c2e256b84b52f89307a5967e9cec41b9656f13e95fa7d1cc232cc5c98cc'
+ PINS[str(pathlib.Path(__file__).with_name('capture_lifecycle.py'))]='c2e82d9285203498aacc44b0e15769922ef36c4b42d3479cd63898a1cc803df6'
++PINS[str(pathlib.Path(__file__).with_name('worker_discovery.py'))]='e16b297c59a3f634f7bf846848a80ce7d75cab5cf8114345077430717eebe78f'
+ _LOCAL_READINESS_MODULE=None
+ def local_readiness():
+     global _LOCAL_READINESS_MODULE
+@@ -230,6 +231,9 @@
+             deployed=self.guest.startup_preflight()
+             require(deployed['executable']==self.guest.capture_scope.target_executable and deployed['binarySHA256']==self.guest.target_sha,'reviewed target deployment changed')
+             parent=self.guest.start();self.save(label+'-parent',parent)
++            admission={}
++            startup().parent_ready_before_capture(self.guest,parent,self.guest.capture_scope,admission,time.monotonic,time.time,time.sleep)
++            self.save(label+'-pre-capture-readiness',admission)
+             first=self.guest.fresh_capture(lambda value:self.save(label+'-target-launch-intent',value))
+             identity=tuple(first[k]for k in ('pid','uid','nonce'))
+             if prior is not None:
+@@ -239,6 +243,13 @@
+                 self.save('old-capture-history-retained',dict(identity=list(self.history.identity),previous=self.history.previous,counts=self.history.counts))
+             self.history=H.TargetHistory(first,time.time(),self.guest.uid)
+             self.save(label+'-fresh-capture',dict(target=first,identity=self.guest.target_identity))
++            current=startup().post_capture_worker(self.guest,parent,identity,self.guest.capture_scope,admission,time.time)
++            binding=tuple(current[k]for k in('pid','uid','nonce'))
++            require(binding==tuple(admission['preCaptureWorkerIdentity'][k]for k in('pid','uid','nonce')),'pre-capture worker generation changed')
++            report,evidence=self.guest.parent_ready(current)
++            startup().worker_check(report,binding,time.time())
++            self.fresh_ready=dict(identity=current,report=report,parentReadiness=evidence)
++            self.save(label+'-post-capture-readiness',self.fresh_ready)
+             self.latest=None;self.last_target_read=time.monotonic()
+             return parent,first
+         def retire_old_capture(self,after):
+@@ -253,13 +264,7 @@
+             self.record['usbBefore']=self.guest.pilot.verify_usb(self.guest.lease)
+             parent,first=self.start_fresh_owner('initial')
+             self.record['targetIdentity']=self.guest.target_identity;self.record['parentIdentity']=parent
+-            def ready(_):
+-                found=self.latest['worker']
+-                if not found or found[1].get('state')!='running':return None
+-                try:r,e=self.guest.parent_ready(found[0])
+-                except local_readiness().NotReady:return None
+-                startup().worker_check(r,tuple(found[0][k]for k in('pid','uid','nonce')),time.time());require(r['heldOutputUsages']==[],'new ledger not empty');return dict(identity=found[0],report=r,parentReadiness=e)
+-            _,old=self.wait('initial-ready',ready,8);self.save('delay-command-intent',old['identity']);self.save('delay-command',self.guest.arm_delay(old['identity']))
++            old=self.fresh_ready;self.save('delay-command-intent',old['identity']);self.save('delay-command',self.guest.arm_delay(old['identity']))
+             run=self.start_input(TIMED,'timeout')
+             def held(t):
+                 normal(t);found=self.latest['worker'];require(found is not None and found[0]['pid']==old['identity']['pid'],'worker absent before trigger')
+@@ -282,7 +287,7 @@
+             cleanup=self.guest.cleanup();require(not cleanup['errors'] and cleanup['profileBytewiseRestored']is True,'old owner cleanup failed');self.save('old-owner-cleanup',cleanup);old_parent=self.guest.parent;scope=self.guest.capture_scope
+             self.guest=Guest(self.guest.lease,self.guest.pilot,self.guest.binary_sha,self.guest.target_sha,self.guest.guest_identity);self.guest.capture_scope=scope
+             self.start_fresh_owner('recovery',after)
+-            require(self.guest.parent!=old_parent,'new parent PID reused');_,new=self.wait('new-parent-ready',ready,8);require(new['identity']['pid']!=old['identity']['pid'] and new['identity']['nonce']!=old['identity']['nonce'],'worker generation reused')
++            require(self.guest.parent!=old_parent,'new parent PID reused');new=self.fresh_ready;require(new['identity']['pid']!=old['identity']['pid'] and new['identity']['nonce']!=old['identity']['nonce'],'worker generation reused')
+             before=self.target();self.start_input(tap);self.finish_input(tap,8);after=self.target();normal(after)
+             require(after['held']==[] and after['aDowns']-before['aDowns']==1 and after['qDowns']==before['qDowns'] and after['downs']-before['downs']==after['ups']-before['ups']==1,'recovery remap unbalanced')
+             self.record.update(passed=True,recoveryScope='new-parent-with-fresh-capture-only',targetCleanupOwner='root; no automatic final capture signal',untested=['same-parent recovery','sleep/wake','console departure'])
+--- /private/tmp/keypath-timeout-physical-fresh-capture-6ed4/test_capture_lifecycle.py	2026-10-04 15:44:42
++++ /private/tmp/keypath-timeout-physical-parent-ready-first/test_capture_lifecycle.py	2026-10-04 16:12:14
+@@ -18,17 +18,46 @@
+   H=E.dependencies();G,C=E.classes(H);c=C.__new__(C);events=[]
+   g=types.SimpleNamespace(capture_scope=SCOPE,target_sha=SCOPE.target_sha256,uid=502)
+   g.startup_preflight=lambda:events.append('preflight')or dict(executable=SCOPE.target_executable,binarySHA256=SCOPE.target_sha256)
+-  def start():events.append('parent-start');g.parent=10;return dict(pid=10)
++  def start():events.append('parent-start');g.parent=10;return dict(pid=10,uid=502,arguments=['/parent','--headless'],binarySHA256=SCOPE.binary_sha256)
+   g.start=start
+   def capture(claim):
+    events.append('capture');claim(dict(intent=True));g.target_identity={k:t[k]for k in ('pid','uid','nonce')};return t
+-  g.fresh_capture=capture;c.guest=g;c.history=None;c.save=lambda label,value:events.append(label)or label
++  g.fresh_capture=capture
++  def report():return dict(pid=20,uid=502,nonce='worker',timestamp=NOW-978307200,state='running',tapActive=True,heldOutputUsages=[],inputCount=0,outputCount=0,accessibility=True,effectiveInputAccess=True,inputAccessSource='current-process.apple-api.modifying-tap-post-event')
++  def observation(target=False):
++   events.append('snapshot'if target else'worker-only')
++   value=dict(processes=[dict(pid=10,uid=502,arguments=['/parent','--headless'],binarySHA256=SCOPE.binary_sha256)],worker=(dict(pid=20,uid=502,nonce='worker'),report()))
++   if target:value['target']=t
++   return value
++  g.worker_snapshot=lambda:observation();g.snapshot=lambda:observation(True)
++  g.parent_ready=lambda worker:(events.append('canonical-ready')or report(),dict(source='actual-parent-startup-log'))
++  c.guest=g;c.history=None;c.save=lambda label,value:events.append(label)or label
+   return c,events,H
+  def test_initial_starts_parent_then_claim_then_exact_new_history(self):
+   c,events,H=self.campaign(target())
+   with mock.patch.object(E.time,'time',return_value=NOW):c.start_fresh_owner('initial')
+-  self.assertEqual(events,['preflight','parent-start','initial-parent','capture','initial-target-launch-intent','initial-fresh-capture'])
++  self.assertEqual(events,['preflight','parent-start','initial-parent','worker-only','canonical-ready','initial-pre-capture-readiness','capture','initial-target-launch-intent','initial-fresh-capture','snapshot','canonical-ready','initial-post-capture-readiness'])
+   self.assertEqual(c.history.identity[:3],(50,502,target()['nonce']))
++ def test_missing_canonical_readiness_never_claims_target_initial_or_recovery(self):
++  for recovery in (False,True):
++   c,events,H=self.campaign(target(51))
++   prior=target()if recovery else None
++   if prior:c.history=H.TargetHistory(prior,NOW,502);c.old_capture_retired=dict(target=prior)
++   c.guest.parent_ready=lambda worker:(_ for _ in()).throw(RuntimeError('missing actual ready'))
++   with mock.patch.object(E.time,'time',return_value=NOW),self.assertRaisesRegex(RuntimeError,'missing actual ready'):c.start_fresh_owner('recovery'if recovery else'initial',prior)
++   self.assertNotIn('capture',events);self.assertFalse(any('target-launch-intent'in e for e in events))
++ def test_postcapture_worker_absence_has_one_snapshot_and_no_second_window(self):
++  c,events,H=self.campaign(target());original=c.guest.snapshot
++  def missing():value=original();value['worker']=None;return value
++  c.guest.snapshot=missing
++  with mock.patch.object(E.time,'time',return_value=NOW),self.assertRaisesRegex(RuntimeError,'ready worker absent'):c.start_fresh_owner('initial')
++  self.assertEqual(events.count('snapshot'),1);self.assertEqual(events.count('capture'),1);self.assertFalse(hasattr(c,'fresh_ready'))
++ def test_postcapture_changed_worker_refuses_before_input(self):
++  c,events,H=self.campaign(target());original=c.guest.snapshot
++  def changed():value=original();value['worker'][0]['nonce']='foreign';return value
++  c.guest.snapshot=changed
++  with mock.patch.object(E.time,'time',return_value=NOW),self.assertRaisesRegex(RuntimeError,'generation changed'):c.start_fresh_owner('initial')
++  self.assertFalse(hasattr(c,'fresh_ready'));self.assertEqual(events.count('canonical-ready'),1)
+  def test_recovery_preserves_old_object_and_counters_requires_retirement(self):
+   new=target(51,'22345678-1234-4234-8234-123456789012');c,events,H=self.campaign(new);old=target();history=H.TargetHistory(old,NOW,502);c.history=history
+   with mock.patch.object(E.time,'time',return_value=NOW):
+@@ -69,7 +98,7 @@
+   self.assertEqual(E.DELAY,750);self.assertEqual(E.TIMED,[(0,[0,20,0,0,0,0,0]),(10000000,[0,20,5,0,0,0,0]),(10050000,[0,20,0,0,0,0,0]),(45000000,[0]*7)])
+   tree=__import__('ast').parse(pathlib.Path(E.__file__).read_text());calls=[n for n in __import__('ast').walk(tree)if isinstance(n,__import__('ast').Call)]
+   waits={n.args[0].value:n.args[2].value for n in calls if isinstance(n.func,__import__('ast').Attribute)and n.func.attr=='wait'and len(n.args)>=3}
+-  self.assertEqual(waits,{'initial-ready':8,'a-held':7,'actual-timeout-release':15,'new-parent-ready':8})
++  self.assertEqual(waits,{'a-held':7,'actual-timeout-release':15})
+   self.assertEqual(SCOPE.product_source,'6ed4ea99052c19bc94e99517cfe9827377b17af7');self.assertEqual(SCOPE.deadline,1791154292)
+ 
+ if __name__=='__main__':unittest.main()

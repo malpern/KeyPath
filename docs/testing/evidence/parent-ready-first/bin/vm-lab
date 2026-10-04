@@ -1,0 +1,505 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd -P)
+LAB_HOME=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)
+REMOTE_SCRIPT="$LAB_HOME/lib/remote.sh"
+DEFAULT_HOST="clawd@keypath-lab-mini"
+
+# Tenancy. The lab used to derive the repository from its own location, which
+# only worked while it lived inside the single project it served. A tenant now
+# names itself and the lab looks it up, so the controller can sit anywhere on
+# PATH and serve any number of projects.
+#
+# The registry maps a tenant to its repository; the descriptor inside that
+# repository declares everything else. Both are TSV because the manifests
+# already are, and reading them needs no parser beyond the field() helper.
+TENANT_REGISTRY="${VM_LAB_REGISTRY:-$HOME/.config/vm-lab/tenants.tsv}"
+
+descriptor_field() {
+    local file=$1 key=$2
+    [[ -f $file ]] || return 1
+    awk -F '\t' -v key="$key" '$1 == key {sub(/^[^\t]*\t/, ""); print; exit}' "$file"
+}
+
+resolve_tenant() {
+    local tenant=$1 repo descriptor
+    [[ $tenant =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid tenant name: $tenant"
+    [[ -f $TENANT_REGISTRY ]] || die "no tenant registry at $TENANT_REGISTRY"
+    repo=$(descriptor_field "$TENANT_REGISTRY" "$tenant") || true
+    [[ -n ${repo:-} ]] || die "unknown tenant: $tenant (add it to $TENANT_REGISTRY)"
+    [[ -d $repo ]] || die "tenant $tenant points at a missing repository: $repo"
+    descriptor="$repo/.vm-lab.tsv"
+    [[ -f $descriptor ]] || die "tenant $tenant has no descriptor at $descriptor"
+
+    TENANT_NAME="$tenant"
+    TENANT_REPO="$repo"
+    TENANT_DESCRIPTOR="$descriptor"
+    # Guest user belongs to the base that provisions it; the descriptor only
+    # overrides it for a tenant on a differently-provisioned base.
+    TENANT_GUEST_USER=$(descriptor_field "$descriptor" guest_user || true)
+    TENANT_GUEST_USER="${TENANT_GUEST_USER:-keypathqa}"
+    # An artifact expectation is optional. When set, the managed lane checks
+    # that the installer really contains it; KeyPath expects KeyPath.app.
+    TENANT_ARTIFACT_EXPECT=$(descriptor_field "$descriptor" artifact_expect || true)
+    # Admission is a command run against the shipped repo, relative to it.
+    # A tenant with nothing to verify declares none, which is the default.
+    TENANT_ADMISSION=$(descriptor_field "$descriptor" admission || true)
+    TENANT_POLICY_GENERATOR=$(descriptor_field "$descriptor" policy_generator || true)
+}
+
+usage() {
+    cat >&2 <<'EOF'
+Usage: vm-lab [--host HOST] <tenant> <command> [options]
+
+A tenant is a name in the registry (default ~/.config/vm-lab/tenants.tsv,
+override with VM_LAB_REGISTRY) pointing at a repository that carries a
+.vm-lab.tsv descriptor. See docs/tenancy.md.
+
+Commands:
+  preflight
+  prepare-parallels-template --source NAME --name NAME
+  template-candidate LEASE_ID export|import|destroy
+  create --macos 15|26|27 --lane managed-functional|unmanaged-ui --commit SHA --installer PATH [--ttl 2h] [--desktop] [--tart-usb-passthrough]
+  install-app LEASE_ID
+  console-login LEASE_ID
+  reset-guest-password LEASE_ID
+  secure-console-submit LEASE_ID
+  rfb-pointer-probe LEASE_ID --x X --y Y
+  desktop-bootstrap LEASE_ID [--install-tools]
+  nameplate LEASE_ID enable|show|hide|status
+  protected-click LEASE_ID --app APP --window TITLE (--x X --y Y | --ax-x X --ax-y Y) [--after-window TITLE] [--count 1|2]
+  desktop-type LEASE_ID --text TEXT
+  secure-dialog-input LEASE_ID --app APP --field LABEL [--submit BUTTON] [--already-focused]
+  resume-managed-policy LEASE_ID
+  ui LEASE_ID -- snapshot|click|dialogs|file|screenshot|preflight [OPTIONS]
+  fixture-usb LEASE_ID status|verify
+  guest-root LEASE_ID -- COMMAND [ARG...]
+  guest-power LEASE_ID start|restart|stop
+  run LEASE_ID -- COMMAND [ARG...]
+  status LEASE_ID
+  list
+  artifacts LEASE_ID
+  guest-screenshot LEASE_ID
+  scenario LEASE_ID NAME
+  destroy LEASE_ID
+  cleanup [--dry-run]
+
+The default host is clawd@keypath-lab-mini. Set VM_LAB_HOST or pass --host to
+override it. Creation always requires an explicit full commit SHA and an
+installer artifact. No command embeds or prompts for credentials.
+
+VM creation is centrally admitted per provider. Exit 75 with `capacity_busy`
+means another owned lease has the available slot; do not bypass this controller,
+stop that lease, or adopt it. Continue non-VM work or retry after its owner
+destroys it or its TTL expires.
+EOF
+    exit 2
+}
+
+die() {
+    echo "vm-lab: $*" >&2
+    exit 1
+}
+
+host=${VM_LAB_HOST:-${KEYPATH_LAB_HOST:-$DEFAULT_HOST}}
+if [[ ${1:-} == "--host" ]]; then
+    [[ -n ${2:-} ]] || usage
+    host=$2
+    shift 2
+fi
+
+# Tenant first, matching the <tool> <account> <verb> shape the other wrappers
+# on PATH use. Resolving it here means every command below has the tenant's
+# repository and descriptor available without repeating the lookup.
+tenant=${1:-}
+[[ -n $tenant ]] || usage
+shift
+resolve_tenant "$tenant"
+
+command=${1:-}
+[[ -n $command ]] || usage
+shift
+
+# Settings the caller may override on the lab host. ssh does not forward the
+# environment, so anything not named here is unreachable from the controller
+# and the host-side default silently wins -- which is what made the disk
+# reserve impossible to repoint without editing remote.sh.
+FORWARDED_SETTINGS=(
+    VM_LAB_TRANSPORT_DIAGNOSTIC_NONCE
+    KEYPATH_LAB_PARALLELS_CANDIDATE_LEASE
+    KEYPATH_LAB_CLONE_ROOT
+    KEYPATH_LAB_DISK_RESERVE_PATH
+    KEYPATH_LAB_MIN_FREE_DISK_GIB
+    KEYPATH_LAB_CAPACITY_PARALLELS
+    KEYPATH_LAB_CAPACITY_TART
+    KEYPATH_LAB_PARALLELS_TEMPLATE_26_DESKTOP
+)
+
+# Helpers that run inside a guest. They belong to the lab, not to any tenant:
+# they used to be invoked as Scripts/lab/<name> from whichever repository the
+# lease had uploaded, which silently stopped working the moment the lab was
+# extracted and the tenants' copies were removed.
+#
+# remote.sh reaches the lab host by being piped over ssh, so the host keeps no
+# copy of the lab and neither does the guest. The helpers therefore travel the
+# same way, ahead of remote.sh in the same stream, and remote.sh materialises
+# them on the host before handing them to the provider. Delivering them with
+# the script that uses them also means the two versions cannot drift.
+GUEST_HELPERS=(desktop-bootstrap nameplate-instrumentation peekaboo-ui permission-drag fixture-usb)
+
+emit_remote_payload() {
+    local helper
+    for helper in "${GUEST_HELPERS[@]}"; do
+        [[ -f "$LAB_HOME/lib/$helper" ]] || die "guest helper is missing from the lab: lib/$helper"
+    done
+    printf 'VM_LAB_GUEST_HELPERS_B64=%s\n' \
+        "'$(tar -czf - -C "$LAB_HOME/lib" "${GUEST_HELPERS[@]}" | base64)'"
+    cat "$REMOTE_SCRIPT"
+}
+
+remote() {
+    local remote_command="" argument quoted name value
+    local diagnostic_nonce=${VM_LAB_TRANSPORT_DIAGNOSTIC_NONCE:-}
+    local -a diagnostic_status
+    local producer_status ssh_status pipeline_status
+    [[ -z "$diagnostic_nonce" || "$diagnostic_nonce" =~ ^[0-9a-f]{32}$ ]] || return 64
+    for name in "${FORWARDED_SETTINGS[@]}"; do
+        value=${!name-}
+        [[ -n $value ]] || continue
+        printf -v quoted '%q' "$value"
+        remote_command="$remote_command $name=$quoted"
+    done
+    remote_command="$remote_command /bin/zsh -s --"
+    for argument in "$@"; do
+        printf -v quoted '%q' "$argument"
+        remote_command="$remote_command $quoted"
+    done
+    # Capture both components without letting set -e discard their statuses.
+    if emit_remote_payload | ssh -o BatchMode=yes "$host" "$remote_command"; then
+        diagnostic_status=("${PIPESTATUS[@]}")
+    else
+        diagnostic_status=("${PIPESTATUS[@]}")
+    fi
+    producer_status=${diagnostic_status[0]}
+    ssh_status=${diagnostic_status[1]}
+    pipeline_status=$producer_status
+    (( ssh_status == 0 )) || pipeline_status=$ssh_status
+    if [[ -n "$diagnostic_nonce" ]]; then
+        printf '\nVM_LAB_DIAG_V1 %s outer.producer.exit %s\n' "$diagnostic_nonce" "$producer_status" >&2 || true
+        printf '\nVM_LAB_DIAG_V1 %s outer.ssh.exit %s\n' "$diagnostic_nonce" "$ssh_status" >&2 || true
+        printf '\nVM_LAB_DIAG_V1 %s outer.pipeline.exit %s\n' "$diagnostic_nonce" "$pipeline_status" >&2 || true
+    fi
+    return "$pipeline_status"
+}
+
+require_lease_id() {
+    [[ $1 =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid lease id: $1"
+}
+
+# This isolated campaign never uses a password/reset/autologin/RFB route.
+case "$command" in
+    console-login|reset-guest-password|secure-dialog-input|secure-console-submit|rfb-pointer-probe)
+        die "Credential and RFB routes are disabled in this isolated public-empty rig" ;;
+esac
+if [[ -n ${KEYPATH_GUEST_IDENTITY_RECEIPT:-} ]]; then
+    case "$command" in
+        ui|desktop-bootstrap|permission-drag)
+            die "Declared console requires the receipt-bound rig Python adapter" ;;
+    esac
+fi
+
+case "$command" in
+    preflight)
+        [[ $# -eq 0 ]] || usage
+        remote preflight
+        ;;
+    prepare-parallels-template)
+        source_name=
+        template_name=
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --source) source_name=${2:-}; shift 2 ;;
+                --name) template_name=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ -n $source_name && -n $template_name ]] || usage
+        remote prepare-parallels-template "$source_name" "$template_name"
+        ;;
+    template-candidate)
+        [[ $# -eq 2 ]] || usage
+        require_lease_id "$1"
+        remote template-candidate "$1" "$2"
+        ;;
+    create)
+        macos=
+        lane=
+        commit=
+        installer=
+        ttl=2h
+        desktop=0
+        tart_usb_passthrough=0
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --macos) macos=${2:-}; shift 2 ;;
+                --lane) lane=${2:-}; shift 2 ;;
+                --commit) commit=${2:-}; shift 2 ;;
+                --installer) installer=${2:-}; shift 2 ;;
+                --ttl) ttl=${2:-}; shift 2 ;;
+                --desktop) desktop=1; shift ;;
+                --tart-usb-passthrough) tart_usb_passthrough=1; shift ;;
+                *) usage ;;
+            esac
+        done
+        [[ $macos == "15" || $macos == "26" || $macos == "27" ]] || die "--macos must be 15, 26, or 27"
+        [[ $lane == "managed-functional" || $lane == "unmanaged-ui" ]] || die "--lane must be managed-functional or unmanaged-ui"
+        [[ ! ($macos == "27" && $lane == "managed-functional") ]] || die "managed-functional is not yet supported on macOS 27"
+        [[ $tart_usb_passthrough == "0" || $macos == "15" ]] || die "--tart-usb-passthrough requires --macos 15"
+        [[ $commit =~ ^[0-9a-fA-F]{40}$ ]] || die "--commit must be a full 40-character SHA"
+        [[ -f $installer ]] || die "installer not found: $installer"
+        resolved=$(git -C "$TENANT_REPO" rev-parse --verify "$commit^{commit}")
+        [[ $resolved == "$commit" ]] || die "commit does not resolve exactly: $commit"
+
+        installer_sha=$(shasum -a 256 "$installer" | awk '{print $1}')
+        # Version the key: an archive published before the tenancy work has a
+        # different staging layout and no tenant facts in source.tsv, so it must
+        # not be reused as though it were equivalent.
+        archive_key="v2-${commit}-${installer_sha}"
+        temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/vm-lab.XXXXXX")
+        trap 'rm -rf "$temp_dir"' EXIT
+        mkdir -p "$temp_dir/repo/.vm-lab/installer"
+        git -C "$TENANT_REPO" archive "$commit" | tar -x -C "$temp_dir/repo"
+        installer_name=$(basename "$installer")
+        [[ $installer_name =~ ^[A-Za-z0-9._-]+$ ]] || die "installer filename must contain only letters, numbers, dots, underscores, and dashes"
+        cp "$installer" "$temp_dir/repo/.vm-lab/installer/$installer_name"
+        # The managed lane needs to know what the installer should contain and
+        # how to turn it into policy. Both are tenant knowledge: the lab cannot
+        # guess that KeyPath ships KeyPath.app, and a tenant with no managed
+        # lane declares neither.
+        if [[ $lane == "managed-functional" ]]; then
+            [[ -n ${TENANT_ARTIFACT_EXPECT:-} ]] || die "tenant $TENANT_NAME has no artifact_expect, which the managed lane requires"
+            [[ -n ${TENANT_POLICY_GENERATOR:-} ]] || die "tenant $TENANT_NAME has no policy_generator, which the managed lane requires"
+            mkdir -p "$temp_dir/installer-extract"
+            /usr/bin/ditto -x -k "$installer" "$temp_dir/installer-extract"
+            [[ -d "$temp_dir/installer-extract/$TENANT_ARTIFACT_EXPECT" ]] || die "managed installer must contain $TENANT_ARTIFACT_EXPECT at its root"
+            "$TENANT_REPO/$TENANT_POLICY_GENERATOR" \
+                --app "$temp_dir/installer-extract/$TENANT_ARTIFACT_EXPECT" \
+                --output "$temp_dir/repo/.vm-lab/managed-policy" >/dev/null
+        fi
+        # Carry the tenant's own facts alongside provenance. install-app runs
+        # host-side from the extracted archive, so this is how it learns what to
+        # install and how to admit it without the lab knowing any product.
+        cat > "$temp_dir/repo/.vm-lab/source.tsv" <<EOF
+tenant	$TENANT_NAME
+tenant_commit	$commit
+installer_name	$installer_name
+installer_sha256	$installer_sha
+artifact_expect	${TENANT_ARTIFACT_EXPECT:-}
+admission	${TENANT_ADMISSION:-}
+policy_verifier	$(descriptor_field "$TENANT_DESCRIPTOR" policy_verifier || true)
+policy_manifest	$(descriptor_field "$TENANT_DESCRIPTOR" policy_manifest || true)
+EOF
+        tar -czf "$temp_dir/archive.tgz" -C "$temp_dir" repo
+
+        upload_ticket=$(remote prepare-upload "$archive_key")
+        [[ $upload_ticket == /tmp/keypath-lab.* ]] || die "host returned an invalid upload ticket"
+        scp -q "$temp_dir/archive.tgz" "$host:$upload_ticket"
+        remote install-archive "$upload_ticket" "$archive_key" "$commit" "$installer_sha" "$installer_name"
+        remote create "$macos" "$lane" "$archive_key" "$commit" "$installer_sha" "$installer_name" "$ttl" "$desktop" "$tart_usb_passthrough"
+        ;;
+    install-app)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote install-app "$1"
+        ;;
+    console-login)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote console-login "$1"
+        ;;
+    reset-guest-password)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote reset-guest-password "$1"
+        ;;
+    secure-console-submit)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote secure-console-submit "$1"
+        ;;
+    rfb-pointer-probe)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        x=
+        y=
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --x) x=${2:-}; shift 2 ;;
+                --y) y=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ ]] || usage
+        remote rfb-pointer-probe "$lease" "$x" "$y"
+        ;;
+    desktop-bootstrap)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        install_tools=0
+        if [[ ${1:-} == "--install-tools" && $# -eq 1 ]]; then install_tools=1; shift; fi
+        [[ $# -eq 0 ]] || usage
+        remote desktop-bootstrap "$lease" "$install_tools"
+        ;;
+    nameplate)
+        lease=${1:-}
+        nameplate_action=${2:-}
+        [[ -n $lease && $# -eq 2 ]] || usage
+        require_lease_id "$lease"
+        case "$nameplate_action" in enable|show|hide|status) ;; *) usage ;; esac
+        remote nameplate "$lease" "$nameplate_action"
+        ;;
+    protected-click)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        app=
+        window=
+        after_window=
+        x=
+        y=
+        count=1
+        coordinate_space=native
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --app) app=${2:-}; shift 2 ;;
+                --window) window=${2:-}; shift 2 ;;
+                --after-window) after_window=${2:-}; shift 2 ;;
+                --x) x=${2:-}; shift 2 ;;
+                --y) y=${2:-}; shift 2 ;;
+                --ax-x) x=${2:-}; coordinate_space=ax; shift 2 ;;
+                --ax-y) y=${2:-}; coordinate_space=ax; shift 2 ;;
+                --count) count=${2:-}; shift 2 ;;
+                *) usage ;;
+            esac
+        done
+        [[ -n $app && -n $window && $x =~ ^[0-9]+$ && $y =~ ^[0-9]+$ && $count =~ ^[12]$ ]] || usage
+        [[ -n $after_window ]] || after_window=$window
+        remote protected-click "$lease" "$app" "$window" "$after_window" "$coordinate_space" "$x" "$y" "$count"
+        ;;
+    desktop-type)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--text" && $# -eq 2 ]] || usage
+        remote desktop-type "$lease" "$2"
+        ;;
+    secure-dialog-input)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        app=
+        field=
+        submit=
+        already_focused=0
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --app) app=${2:-}; shift 2 ;;
+                --field) field=${2:-}; shift 2 ;;
+                --submit) submit=${2:-}; shift 2 ;;
+                --already-focused) already_focused=1; shift ;;
+                *) usage ;;
+            esac
+        done
+        [[ -n $app && -n $field ]] || usage
+        remote secure-dialog-input "$lease" "$app" "$field" "$submit" "$already_focused"
+        ;;
+    resume-managed-policy)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote resume-managed-policy "$1"
+        ;;
+    ui)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--" ]] || usage
+        shift
+        [[ $# -gt 0 ]] || usage
+        remote ui "$lease" "$@"
+        ;;
+    guest-power)
+        [[ $# -eq 2 && $2 =~ ^(start|restart|stop)$ ]] || usage
+        require_lease_id "$1"
+        remote guest-power "$1" "$2"
+        ;;
+    fixture-usb)
+        [[ $# -eq 2 && $2 =~ ^(status|verify)$ ]] || usage
+        require_lease_id "$1"
+        remote fixture-usb "$1" "$2"
+        ;;
+    guest-root)
+        [[ $# -ge 3 && $2 == -- ]] || usage
+        lease=$1; shift 2
+        require_lease_id "$lease"
+        remote guest-root "$lease" "$@"
+        ;;
+    run)
+        lease=${1:-}
+        [[ -n $lease ]] || usage
+        require_lease_id "$lease"
+        shift
+        [[ ${1:-} == "--" ]] || usage
+        shift
+        [[ $# -gt 0 ]] || usage
+        remote run "$lease" "$@"
+        ;;
+    status)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote status "$1"
+        ;;
+    list)
+        [[ $# -eq 0 ]] || usage
+        remote list
+        ;;
+    artifacts)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote artifacts "$1"
+        ;;
+    guest-screenshot)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote guest-screenshot "$1"
+        ;;
+    scenario)
+        [[ $# -eq 2 ]] || usage
+        require_lease_id "$1"
+        [[ $2 =~ ^[a-z0-9-]+$ ]] || die "invalid scenario name: $2"
+        remote scenario "$1" "$2"
+        ;;
+    destroy)
+        [[ $# -eq 1 ]] || usage
+        require_lease_id "$1"
+        remote destroy "$1"
+        ;;
+    cleanup)
+        if [[ ${1:-} == "--dry-run" && $# -eq 1 ]]; then
+            remote cleanup --dry-run
+        elif [[ $# -eq 0 ]]; then
+            remote cleanup
+        else
+            usage
+        fi
+        ;;
+    *) usage ;;
+esac

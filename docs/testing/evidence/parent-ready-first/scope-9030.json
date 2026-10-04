@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "account": "keypathqa_438d6abc",
+  "uid": 502,
+  "home": "/Users/keypathqa_438d6abc",
+  "productSource": "6ed4ea99052c19bc94e99517cfe9827377b17af7",
+  "binarySHA256": "d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682",
+  "targetSHA256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858",
+  "targetArchiveSHA256": "26e5b024f561ebd6ccee43f2d4b07056d9da8d09c5be5aab9a61553380a52fb8",
+  "targetExecutable": "/Users/keypathqa_438d6abc/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget",
+  "identityReceipt": "/private/tmp/keypath-post-event-9030-setup/guest-identity.json",
+  "identityReceiptSHA256": "09eb998dbf7839cf242025d40b84f98454c4e4a710c0524cc1c376926709b98a",
+  "lease": "cbx_9030969342d2",
+  "providerUUID": "8a9d7b1a-a3a3-4e14-9c94-8448139765ec",
+  "bootEpoch": 1791154231,
+  "deadline": 1791156043,
+  "baselineInventory": "/private/tmp/keypath-runtime-baseline-438d/inventory-python-pinned.json",
+  "baselineInventorySHA256": "7285826ed9f6f845599fdce653c0adf47d6fac7bfc5551234d44a45144bd07a6"
+}

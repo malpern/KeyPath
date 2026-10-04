@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "timing": {
+    "passed": true,
+    "receiptSHA256": "0835a65a088453c6fd6e3b0b6a18a47004cbaf43d718df8322376ca76c65b776",
+    "parentIdentity": {
+      "pid": 4392,
+      "uid": 502,
+      "binarySHA256": "d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682"
+    },
+    "workerIdentity": {
+      "pid": 4459,
+      "uid": 502,
+      "nonce": "C4193F38-8751-4272-A8A9-A6E10B1E6D27"
+    },
+    "preCaptureReadinessSeconds": 2.0542660840000018,
+    "snapshotWorstSeconds": 1.2910344169999988,
+    "readyWorstSeconds": 0.8762541660000025,
+    "callbackFsyncWorstSeconds": 0.0012054579999585258,
+    "fsyncIsProxy": true,
+    "cleanup": {
+      "errorCount": 0,
+      "profileBackup": "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd.held-secure-3ef1f623d16940738fb920beefb4400f",
+      "profileBytewiseRestored": true
+    },
+    "hardwareCalls": false
+  },
+  "physical": {
+    "passed": false,
+    "receiptSHA256": "1fb5e47b25230ea8b1272c71bde3da694d58906dfe8c3b9e0b2a839fd3e51b3e",
+    "error": "a-held observation overran deadline",
+    "ownerCleanup": {
+      "errors": [],
+      "profileBackup": "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd.held-secure-dd32d2d6259b4cd5a14f550057a84dcf",
+      "profileBytewiseRestored": true
+    },
+    "actualOSTimeoutAccepted": false,
+    "lastObservedMappedInputOutputCounts": [
+      0,
+      0
+    ],
+    "rawQReceived": true,
+    "callbackDeliveryVersusMappingUnresolved": true
+  },
+  "cleanup": {
+    "receiptSHA256": "1d00fb09d909ee65094d34c68276cefca87db22bd136b6bb9bcda4f9f8256524",
+    "independentlyVerified": true,
+    "providerAbsent": true,
+    "fixtureDetached": true,
+    "automaticBindingEmpty": true,
+    "routingAsk": true,
+    "templateStoppedRetained": true
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "status": "source-only physical parent-ready-before-target initial/recovery; no physical acceptance",
+  "inertTestFunctions": 19,
+  "originalExecutorSHA256": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+  "startupPath": "/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/measurement.py",
+  "startupSHA256": "33b242dafdfcf2c425010df34ff137b63f46f28f89ec693c0137d009cc129cda",
+  "startupManifestSHA256": "f1f48a8ef40124a54948c6252346697db70db4183835fb84bc06ca7ce034ac43",
+  "files": {
+    "README-parent-ready-first.md": "3e3fb6b22fdf9838a953b2b088b1d083a4c6e1c28aad150ddbb2ab5ce666ed1e",
+    "README.md": "add209dd3a5a1de768246b1627b03227e778755126c1d66bee159dfcd1a5c977",
+    "capture_lifecycle.py": "c2e82d9285203498aacc44b0e15769922ef36c4b42d3479cd63898a1cc803df6",
+    "executor.py": "d989c93fc86399420ea13bd0da6862352a06daa29520925f5ec50ee5f1784bc0",
+    "fresh_capture.py": "3dde8c2e256b84b52f89307a5967e9cec41b9656f13e95fa7d1cc232cc5c98cc",
+    "inert-tests-39.txt": "307295401244a9964120700bfb9e4e6e7a7711b973b4b04792e36546bbf31bb4",
+    "inert-tests-default.txt": "eca2490adf46baaa6b71e94851def14c0a424619599980468bb0f5280750bcd0",
+    "inert-tests.txt": "69bea8018ea059ec57a716e11d1df21d7236d4863c2e6a46eb7f650079f3e76f",
+    "initial-tests.txt": "5d6a2ed72d8a1044039f59b095e83dd79012334938689baf3ff6307d63217d0d",
+    "parent-ready-first.patch": "156f333a119a9c780eab9328c6f1876b752f549798a64fc9c840c62d52d6354a",
+    "parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
+    "physical-fresh-capture.patch": "3d92690801b22a0961911cbd8577040439875576b1bf649b70e1d434958a0a60",
+    "prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
+    "preserved-protocol.json": "3d82ffd696b409270195c49cbb5831b17f000b751e57d08464c2d86b05132b71",
+    "scope-6eed.json": "33ce1ab2ef9faf90dedc43f68cb5f2553c8f03ad65a44796ef0f0c3fca26f8d0",
+    "test_capture_lifecycle.py": "c9bd86caaf8bdb0decc97752329f4af3f3b8490502a88dc09edeba10596c4423",
+    "test_executor.py": "e3283da0180519a2019aca8a5f29f29e173615c8b2877d2b1d822c982cb7e17e",
+    "worker_discovery.py": "e16b297c59a3f634f7bf846848a80ce7d75cab5cf8114345077430717eebe78f"
+  },
+  "previousPhysicalManifestSHA256": "42d98e4538b6a024a9769f0ed05e6ab42f43c66526a289787f3c1d3956cba66b",
+  "reviewedStartupManifestSHA256": "0cd050d5da17e7f67c8bc1aeafb4e3412085b8372045003432ee3384a8cad3d1",
+  "inertTests": 22
+}
