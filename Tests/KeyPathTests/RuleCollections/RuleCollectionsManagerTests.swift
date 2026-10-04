@@ -171,8 +171,9 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
     func testGenerateConfigIncludesMomentaryActivatorAlias() throws {
         let catalog = RuleCollectionCatalog()
-        let vim = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation })
+        var vim = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.vimNavigation })
 
+        vim.isEnabled = true // Explicit supported profile, independent of fresh defaults.
         let config = KanataConfiguration.generateFromCollections([vim])
 
         // Momentary activator exposes layer-while-held navigation
@@ -299,6 +300,39 @@ final class RuleCollectionsManagerTests: XCTestCase {
         XCTAssertTrue(ids.contains(RuleCollectionIdentifier.homeRowLayerToggles))
     }
 
+    @MainActor
+    func testUnsupportedCapsAndMediaRulesRefuseWithoutChangingSavedState() async throws {
+        let (manager, tempDir) = try await createTestManager()
+        defer {
+            TestEnvironment.forceTestMode = false
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+        let baseline = CustomRule(input: "q", action: .keystroke(key: "a"), isEnabled: true)
+        let saved = await manager.saveCustomRule(baseline)
+        XCTAssertTrue(saved)
+        let configURL = tempDir.appendingPathComponent("keypath.kbd")
+        let rulesURL = tempDir.appendingPathComponent("CustomRules.json")
+        let originalConfig = try Data(contentsOf: configURL)
+        let originalRulesFile = try Data(contentsOf: rulesURL)
+        let originalCollections = manager.ruleCollections
+        let originalRules = manager.customRules
+        var refusalMessages: [String] = []
+        manager.onError = { refusalMessages.append($0) }
+
+        for unsupported in [
+            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true),
+            CustomRule(input: "f8", action: .keystroke(key: "pp"), isEnabled: true),
+        ] {
+            let accepted = await manager.saveCustomRule(unsupported)
+            XCTAssertFalse(accepted, "Unsupported session behavior must be refused")
+            XCTAssertEqual(manager.ruleCollections, originalCollections)
+            XCTAssertEqual(manager.customRules, originalRules)
+            XCTAssertEqual(try Data(contentsOf: configURL), originalConfig)
+            XCTAssertEqual(try Data(contentsOf: rulesURL), originalRulesFile)
+        }
+        XCTAssertEqual(refusalMessages.count, 2, "Each unsupported save should report its refusal")
+    }
+
     // MARK: - Conflict Detection Tests
 
     @MainActor
@@ -312,27 +346,27 @@ final class RuleCollectionsManagerTests: XCTestCase {
             return .keepNew
         }
 
-        // Create first custom rule mapping caps -> esc
-        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
+        // Create first custom rule mapping q -> esc
+        let rule1 = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: true)
         let saved1 = await manager.saveCustomRule(rule1)
         XCTAssertTrue(saved1, "First rule should save successfully")
 
         // Create second custom rule with same input (conflict!)
-        let rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
+        let rule2 = CustomRule(input: "q", action: .keystroke(key: "tab"), isEnabled: true)
         let saved2 = await manager.saveCustomRule(rule2)
 
         // Should resolve via conflict handler and still save
         XCTAssertTrue(saved2, "Second rule should save after conflict resolution")
         XCTAssertNotNil(conflictContext, "Conflict resolution should be requested")
         XCTAssertTrue(
-            conflictContext?.conflictingKeys.contains("caps") ?? false,
+            conflictContext?.conflictingKeys.contains("q") ?? false,
             "Conflict should include the conflicting key"
         )
 
         // Both rules should exist, but the original should be disabled
         XCTAssertEqual(manager.customRules.count, 2, "Both rules should be saved")
         XCTAssertFalse(
-            manager.customRules.contains { $0.input == "caps" && $0.action.outputString == "esc" && $0.isEnabled },
+            manager.customRules.contains { $0.input == "q" && $0.action.outputString == "esc" && $0.isEnabled },
             "Original conflicting rule should be disabled"
         )
     }
@@ -343,32 +377,39 @@ final class RuleCollectionsManagerTests: XCTestCase {
         defer { TestEnvironment.forceTestMode = false }
 
         var conflictContext: RuleConflictContext?
+        let collection = RuleCollection(
+            name: "Supported base conflict", summary: "q to right", category: .custom,
+            mappings: [KeyMapping(input: "q", action: .keystroke(key: "right"))],
+            isEnabled: false
+        )
+        await manager.addCollection(collection)
+
         manager.onConflictResolution = { context in
             conflictContext = context
             return .keepNew
         }
 
-        // Enable Caps Lock remap collection (maps caps -> something)
+        // Enable supported base collection (maps q -> right)
         await manager.toggleCollection(
-            id: RuleCollectionIdentifier.capsLockRemap,
+            id: collection.id,
             isEnabled: true,
             bypassOwnershipCheck: true
         )
-        XCTAssertTrue(manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
+        XCTAssertTrue(manager.ruleCollections.contains { $0.id == collection.id && $0.isEnabled })
 
-        // Create custom rule with same input (caps)
-        let rule = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
+        // Create custom rule with same input (q)
+        let rule = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: true)
         let saved = await manager.saveCustomRule(rule)
 
         // Should resolve via conflict handler and still save
         XCTAssertTrue(saved, "Rule should save after conflict resolution")
         XCTAssertNotNil(conflictContext, "Conflict resolution should be requested")
         XCTAssertTrue(
-            conflictContext?.conflictingKeys.contains("caps") ?? false,
+            conflictContext?.conflictingKeys.contains("q") ?? false,
             "Conflict should include the conflicting key"
         )
         XCTAssertFalse(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
+            manager.ruleCollections.contains { $0.id == collection.id && $0.isEnabled },
             "Conflicting collection should be disabled"
         )
     }
@@ -428,8 +469,8 @@ final class RuleCollectionsManagerTests: XCTestCase {
         }
 
         // Create two rules with same input, both initially disabled
-        var rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: false)
-        var rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: false)
+        var rule1 = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: false)
+        var rule2 = CustomRule(input: "q", action: .keystroke(key: "tab"), isEnabled: false)
 
         // Save both (no conflict since both disabled)
         await manager.saveCustomRule(rule1)
@@ -460,7 +501,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onWarning = { warningReceived = $0 }
 
         // Create two rules with different inputs
-        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
+        let rule1 = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: true)
         let rule2 = CustomRule(input: "tab", action: .keystroke(key: "ret"), isEnabled: true)
 
         await manager.saveCustomRule(rule1)
@@ -480,11 +521,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onWarning = { warningReceived = $0 }
 
         // Create disabled rule
-        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: false)
+        let rule1 = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: false)
         await manager.saveCustomRule(rule1)
 
         // Create enabled rule with same input - should NOT conflict (first is disabled)
-        let rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
+        let rule2 = CustomRule(input: "q", action: .keystroke(key: "tab"), isEnabled: true)
         await manager.saveCustomRule(rule2)
 
         XCTAssertNil(warningReceived, "Disabled rules should not trigger conflict warnings")
@@ -502,15 +543,15 @@ final class RuleCollectionsManagerTests: XCTestCase {
         }
 
         // Create conflicting rules
-        let rule1 = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
+        let rule1 = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: true)
         await manager.saveCustomRule(rule1)
 
-        let rule2 = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: true)
+        let rule2 = CustomRule(input: "q", action: .keystroke(key: "tab"), isEnabled: true)
         await manager.saveCustomRule(rule2)
 
         // Conflict context should contain the key name
         XCTAssertNotNil(conflictContext)
-        XCTAssertTrue(conflictContext?.conflictingKeys.contains("caps") ?? false, "Conflict should mention the key")
+        XCTAssertTrue(conflictContext?.conflictingKeys.contains("q") ?? false, "Conflict should mention the key")
     }
 
     @MainActor
@@ -565,12 +606,16 @@ final class RuleCollectionsManagerTests: XCTestCase {
             return .keepNew
         }
 
-        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        let catalogCollections = RuleCollectionCatalog().defaultCollections().map { collection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.vimNavigation { collection.isEnabled = true }
+            return collection
+        }
         await manager.replaceCollections(catalogCollections)
 
         XCTAssertTrue(
             manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.vimNavigation && $0.isEnabled },
-            "Vim shortcuts should start enabled from catalog defaults"
+            "Explicit Vim profile should start enabled"
         )
         XCTAssertTrue(
             manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.neovimTerminal && !$0.isEnabled },
@@ -635,21 +680,28 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
+        let collection = RuleCollection(
+            name: "Supported base conflict", summary: "q to right", category: .custom,
+            mappings: [KeyMapping(input: "q", action: .keystroke(key: "right"))],
+            isEnabled: false
+        )
+        await manager.addCollection(collection)
+
         manager.onConflictResolution = { _ in .keepNew }
 
-        var conflictingCustomRule = CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true)
+        var conflictingCustomRule = CustomRule(input: "q", action: .keystroke(key: "esc"), isEnabled: true)
         let initialRuleSaved = await manager.saveCustomRule(conflictingCustomRule)
         XCTAssertTrue(initialRuleSaved)
-        conflictingCustomRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.action.outputString == "esc" })
+        conflictingCustomRule = try XCTUnwrap(manager.customRules.first { $0.input == "q" && $0.action.outputString == "esc" })
 
         await manager.toggleCollection(
-            id: RuleCollectionIdentifier.capsLockRemap,
+            id: collection.id,
             isEnabled: true,
             bypassOwnershipCheck: true
         )
 
         XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
+            manager.ruleCollections.contains { $0.id == collection.id && $0.isEnabled },
             "Collection should be enabled after choosing keepNew"
         )
         XCTAssertTrue(
@@ -826,7 +878,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         defer { TestEnvironment.forceTestMode = false }
 
         // Baseline leader = default ("space"). The Leader Key collection asks to reconcile
-        // to "f" — but Home Row Arrows (enabled by default) already owns the base-layer "f"
+        // to "f" — but explicitly enabled Home Row Arrows already owns the base-layer "f"
         // activator (base → home-arrows). With no conflict-resolution handler registered,
         // generateConfiguration throws .mappingConflicts (#463 leader-vs-activator) and
         // regen returns false.
@@ -838,6 +890,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         let collections = RuleCollectionCatalog().defaultCollections().map { collection -> RuleCollection in
             var collection = collection
+            if collection.id == RuleCollectionIdentifier.homeRowArrows { collection.isEnabled = true }
             if collection.id == RuleCollectionIdentifier.leaderKey {
                 collection.isEnabled = true
                 collection.configuration.updateSelectedOutput("f")
@@ -882,22 +935,29 @@ final class RuleCollectionsManagerTests: XCTestCase {
         let (manager, _) = try await createTestManager()
         defer { TestEnvironment.forceTestMode = false }
 
+        let collection = RuleCollection(
+            name: "Supported base conflict", summary: "q to right", category: .custom,
+            mappings: [KeyMapping(input: "q", action: .keystroke(key: "right"))],
+            isEnabled: false
+        )
+        await manager.addCollection(collection)
+
         manager.onConflictResolution = { _ in .keepNew }
 
         await manager.toggleCollection(
-            id: RuleCollectionIdentifier.capsLockRemap,
+            id: collection.id,
             isEnabled: true,
             bypassOwnershipCheck: true
         )
         XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled },
+            manager.ruleCollections.contains { $0.id == collection.id && $0.isEnabled },
             "Collection should start enabled"
         )
 
-        var replacementRule = CustomRule(input: "caps", action: .keystroke(key: "tab"), isEnabled: false)
+        var replacementRule = CustomRule(input: "q", action: .keystroke(key: "tab"), isEnabled: false)
         let replacementRuleSaved = await manager.saveCustomRule(replacementRule)
         XCTAssertTrue(replacementRuleSaved)
-        replacementRule = try XCTUnwrap(manager.customRules.first { $0.input == "caps" && $0.action.outputString == "tab" })
+        replacementRule = try XCTUnwrap(manager.customRules.first { $0.input == "q" && $0.action.outputString == "tab" })
 
         await manager.toggleCustomRule(id: replacementRule.id, isEnabled: true)
 
@@ -906,7 +966,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
             "Custom rule should be enabled after choosing keepNew"
         )
         XCTAssertTrue(
-            manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && !$0.isEnabled },
+            manager.ruleCollections.contains { $0.id == collection.id && !$0.isEnabled },
             "Conflicting collection should be disabled after choosing keepNew"
         )
     }
@@ -1130,7 +1190,11 @@ final class RuleCollectionsManagerTests: XCTestCase {
             version: "1.0.0"
         ))
 
-        let defaults = RuleCollectionCatalog().defaultCollections()
+        let defaults = RuleCollectionCatalog().defaultCollections().map { collection in
+            var collection = collection
+            if collection.id == RuleCollectionIdentifier.homeRowArrows { collection.isEnabled = true }
+            return collection
+        }
         try await manager.ruleCollectionStore.saveCollections(defaults)
 
         await manager.bootstrap()
@@ -1144,7 +1208,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
 
         XCTAssertFalse(
             homeRowMods.isEnabled,
-            "Stale installed-pack state must not re-enable Home Row Mods over the default Home Row Arrows F-key activator"
+            "Stale installed-pack state must not re-enable Home Row Mods over the explicit Home Row Arrows F-key activator"
         )
         XCTAssertTrue(homeRowArrows.isEnabled)
     }

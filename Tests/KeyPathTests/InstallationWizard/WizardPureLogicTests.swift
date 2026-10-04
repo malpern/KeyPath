@@ -190,7 +190,7 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_emptyFallbackContextIsExplicitlyIncomplete() {
         XCTAssertEqual(SystemContext.empty.captureStatus, .cancelled)
-        XCTAssertEqual(SystemContext.empty.installerStateMatrixRow, .definitiveUnhealthyState)
+        XCTAssertEqual(SystemContext.empty.installerStateMatrixRow, .sessionRuntimeStopped)
         XCTAssertEqual(SystemContext.timedOut.captureStatus, .timedOut)
         XCTAssertTrue(SystemContext.timedOut.timedOut)
     }
