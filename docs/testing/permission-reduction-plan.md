@@ -1,3 +1,17 @@
+## Active checkpoint — October 4, 2026, 14:12 UTC
+
+Progress approximately **81%**: lab readiness and core driverless behavior verified; remaining lifecycle acceptance in progress. Active full-access/network-enabled/approval-never mode verified; original host/account/security restrictions remain. Owned lease cbx_51ce1622f58b/publicUID502/boot1791118107, hard expiry14:34:46UTC. Destroy before expiry and independently verify provider absence and exact fixture detached/ask/no binding.
+
+Full real-ESP32 D8 campaign PASSED on signed88: heldControl released across Secure Input before physicalq-up, distinct resumed worker without held-key resurrection, fresh tap/hold/chord balanced, fixednonsecret secure passthrough and boundedclear/normalrestore. Independent cleanup profilecmp0/noKeyPath/allup. Sanitized receipt committed/pushed7675d1536 experiment/d8-readonly-transport. Preserve prior failures as failures.
+
+Reusable lab adapter experiment/reusable-guest-setup now live-validates parameterized public account/home completion, frameworkPython installation, typed transport diagnostics, one-shot restart and private journals (705c693/225822c/ba85670). This is experimental branch validation, not a merge into canonical main. Signed typed-target producer fixes booleanJSON serialization (d853527); explicit readonly255 retry harness00065f2f4 leaves mutation/input one-shot. Missinghome repair is now reusable rather than another manual rediscovery. Publicsession/tool reconciliation sources still require durable integration. Unexpected second guesthalt and provider255rootcause remainunproven. HostneverSleep doesnotproveguestpowerpolicy.
+
+Actual OS event-tap timeout remainsunproven. Compile-gated hook4111b0de3 normalOFF/AppKitON and completeONdebugbuild passed using exact cachedsigned88shader; originalpluginrestored. ON signedmain7b4f5bd7 guestonly installed/deepstrictverified, prior88app preserved. No freshMetalcompile/notarization/hostdeployment. Reviewedcf5executor awaits new no-input measuredtiming receipt; require actualOS timeoutreason, terminal/exitedemptyledger and independenttargetup beforephysicalqup. Timer-only observation is inconclusive. Consoledeparture/return candidate source reviewed but actualroute and normalcanonicalrestart remainunverified. Sleep remains observedplatformrefusal.
+
+After these safety gates: implement/test Caps Lock via reviewed driverless workaround; then revisit installer/onboarding around verified reduced permissions. Keep runtime and pristine-installer lanes distinct. Source-only reduced-model agents can develop/review independently; root owns all liveVM/UI/HID. No PR/merge/release.
+
+Externalguide review adopted hostvisual+guestsemantic verification, launch-contextScreenRecordingattribution, shortscriptlaunchers and bootstrap/product separation (sharedlab386d846). Actualhostconsole screenshot caught unrelatedprltoolsdLocalNetworkprompt whiletargetsemanticstate remainedactive. Promptdismissedwithoutgrant; semanticfocusalonecannotproveunobstructedUI.
+
 ## Active checkpoint — October 4, 2026, 12:24 UTC
 
 **No active VM lease.** Owned `cbx_ef2006f98c37` was destroyed after the recurring-setup audit, before its hard deadline. Independent provider inventory confirms UUID `90ce4d38-bdba-4cdf-bd92-89b2d5e213e4` absent; exact fixture detached, ask routing, empty binding. Hydration stop-marker returned255 again, but deletion and fixture cleanup are independently verified. Receipt `/private/tmp/keypath-ef2006f9-provider-cleanup-check.json`. Preserve experimental worktrees and private receipts.

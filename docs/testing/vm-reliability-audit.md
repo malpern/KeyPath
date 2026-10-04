@@ -1,3 +1,11 @@
+## Follow-through — October 4, 2026, 14:12 UTC
+
+Reusable experimental vm-lab branch now includes live-validated public account/home, pinned usable Python, typed transport diagnostics and journaled restart support; canonical main remains unchanged. Frozen setup failures and reconciliation receipts are retained. Separate session/tools reconciliation still needs integration. Provider255 cause and the extra unrequested guesthalt remain unknown. Do not attribute either to hostneverSleep.
+
+New actual harness faults were fixed at their source: targetJSON semanticbooleans serialized as integers (typedproducerd853527,60serializationchecks), read-only255 transport failures (explicit15-call retryadapter00065f2f4; writes/inputunchanged), and securefield select-all cleanup (boundedknownnonsecretBackspaceclear7675d1536). Full D8 physical campaign subsequently passed with independent profile/process/allup cleanup. None of these demonstrates a product permission failure.
+
+[External VM-guide review](https://github.com/steipete/agent-scripts/blob/main/skills/vm-lab/SKILL.md) informed shared UI docs386d846. A host screenshot immediately found unrelated prltoolsdnetworkmodal covering a semanticallyactive target; dismissing the prompt independently restored an unobstructed testwindow. Add critical-transition visual checks alongside fresh target/process state, distinguish headless from GUI ScreenRecordingattribution, and use private short script launchers. Retain vm-lab lease controls and ESP32 physical proof.
+
 # Disposable VM reliability audit — October 4, 2026
 
 This is a source and record review, not a new physical product trial. Times are UTC unless marked Pacific.
