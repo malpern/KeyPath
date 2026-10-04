@@ -1,3 +1,13 @@
+## Active checkpoint — October 4, 2026, 14:32 UTC
+
+No active VM lease. Owned cbx_51ce1622f58b was destroyed before its 14:34:46 UTC deadline. Independent provider inventory confirms UUID ed86d8e3-700f-4e62-b6dd-ac1f33b8f767 absent. Exact fixture serial2884855553BC is detached, routing ask, empty automatic binding; global routing ask. Hydration-stop marker returned255, but deletion and cleanup were independently verified. Receipt `/private/tmp/keypath-51ce-provider-cleanup-check.json`. Preserve worktrees and frozen failed attempts. Approval danger-full-access/network enabled/never; original restrictions unchanged.
+
+No-input timing1427 passed initial and all three canonical readiness samples for corrected signed82 artifact, parent31746/worker31821/nonce18BDA68A-B868-4D5A-8BFB-0F17FFFBDB3E. Benchmark refused at directory-metadata/AssertionError BEFORE writing any timing files; no physical input or hook arm. Cleanup0/profile restored independently cmp0/no KeyPath PID. Root read-only metadata established directory owner502/mode0700/report identity exact; raw /var/folders path differs from pathlib canonical /private/var/folders solely by the standard /var alias. Thus Python benchmark canonical equality is the actual refusal. Executor arm_delay/receipt path checks share this source risk. Inert Foundation test retains /var spelling and passes existing equality, so a Swift hook defect is NOT proven; do not change product source on that inference.
+
+Next: preserve exact raw report identity/argv; admit only the known /var to /private/var alias with matching canonical expected path, owner0700, directory device/inode, and no descendant symlinks. Use validated canonical directory for scoped no-follow file I/O. Add regression and independent source review before new live timing/physical campaign. All prior timing attempts stay false; OS timeout/console acceptance remain unproven. Full Secure Input D8 acceptance remains passed7675; overall81%, Caps and onboarding later.
+
+External-guide adoption is committed/pushed in shared lab docs/ui-automation.md (386d846/0e985e2). Two-way guest semantic plus host visual checks caught obscuring network and launch-failure dialogs. Keep our vm-lab admission, normal consent, private-account boundaries, and ESP32 physical evidence.
+
 ## Active checkpoint — October 4, 2026, 14:25 UTC
 
 Owned51ce/public502/boot8107 stillrunning; expires14:34:46UTC. Full-access/networkenabled/never verified. Originalrestrictions apply. Overall81%; D8fullpass retained7675; timeout/consoleunproven.
