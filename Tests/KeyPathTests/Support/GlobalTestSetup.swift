@@ -12,6 +12,15 @@ enum TestSingletonReset {
     /// Reset all known mutable singletons to their default state.
     /// Call this in setUp() of any test that touches shared state.
     static func resetAll() {
+        #if DEBUG
+            // All configuration-writing harnesses exercise the same fresh real
+            // bridge, including services constructed indirectly by managers.
+            // An explicit missing/bad path remains a validation failure.
+            ConfigurationService.setSessionValidationRuntimeHostForTesting(
+                ProcessInfo.processInfo.environment["KEYPATH_SESSION_TEST_BRIDGE_PATH"] == nil
+                    ? nil : SessionBridgeTestFixture.runtimeHost
+            )
+        #endif
         // MainAppStateController — most common source of flakiness
         let controller = MainAppStateController.shared
         controller.validationState = nil

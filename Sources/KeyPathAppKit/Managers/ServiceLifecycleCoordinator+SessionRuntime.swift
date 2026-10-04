@@ -185,6 +185,9 @@ extension ServiceLifecycleCoordinator {
     }
 
     private func launchSessionProcess(capabilitiesOnly: Bool) async throws -> (NSRunningApplication, URL, String) {
+        guard !TestEnvironment.isTestMode else {
+            throw KeyPathError.process(.startFailed(reason: "Session application launches are disabled in unit tests"))
+        }
         let nonce = UUID().uuidString
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("keypath-session-\(nonce)", isDirectory: true)

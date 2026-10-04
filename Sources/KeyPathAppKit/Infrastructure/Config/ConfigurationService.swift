@@ -48,6 +48,26 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Protect shared state when accessed from multiple threads
     private let stateLock = NSLock()
 
+    #if DEBUG
+        private static let sessionValidationTestLock = NSLock()
+        /// Lock protects this test-only fixture. Validation still runs the real
+        /// parser and eligibility checks; no result can be forced to succeed.
+        private nonisolated(unsafe) static var sessionValidationTestHost: KanataRuntimeHost?
+
+        static func setSessionValidationRuntimeHostForTesting(_ host: KanataRuntimeHost?) {
+            sessionValidationTestLock.withLock { sessionValidationTestHost = host }
+        }
+    #endif
+
+    private static func defaultSessionValidationRuntimeHost() -> KanataRuntimeHost {
+        #if DEBUG
+            if let fixture = sessionValidationTestLock.withLock({ sessionValidationTestHost }) {
+                return fixture
+            }
+        #endif
+        return .current()
+    }
+
     // MARK: - Initialization
 
     public convenience init(configDirectory: String? = nil) {
@@ -66,13 +86,13 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollectionStore: RuleCollectionStore,
         customRulesStore: CustomRulesStore,
         deviceSelectionStore: DeviceSelectionStore = .shared,
-        sessionValidationRuntimeHost: KanataRuntimeHost = .current(),
+        sessionValidationRuntimeHost: KanataRuntimeHost? = nil,
         synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.deviceSelectionStore = deviceSelectionStore
-        self.sessionValidationRuntimeHost = sessionValidationRuntimeHost
+        self.sessionValidationRuntimeHost = sessionValidationRuntimeHost ?? Self.defaultSessionValidationRuntimeHost()
         self.synchronizePreferences = synchronizePreferences
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
