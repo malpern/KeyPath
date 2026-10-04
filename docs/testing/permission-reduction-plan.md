@@ -59,7 +59,9 @@ from opening or modifying host applications. No new VM has been admitted.
 Do not imply default media keys or raw Caps are now supported. Built-in definitions
 remain available, fresh enabled defaults are conservative, and existing profiles
 are preserved with explicit unsupported-profile failures. Caps automatic mapping
-ownership remains a separate product gate in the gap register. Onboarding UX
+ownership remains a planned follow-up after runtime stabilization (DL-01), not a
+removed feature. Restore a Caps-based first-success tour only after owned mapping,
+collision handling and recovery pass. Onboarding UX
 redesign follows verified reduced requirements, as requested.
 
 ## Previous bounded checkpoint — 2026-10-04 00:21 UTC (historical)
