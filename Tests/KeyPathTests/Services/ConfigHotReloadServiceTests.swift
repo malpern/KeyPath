@@ -12,7 +12,7 @@ import KeyPathRulesCore
 /// - Callback execution
 /// - Error handling
 @MainActor
-final class ConfigHotReloadServiceTests: XCTestCase {
+final class ConfigHotReloadServiceTests: KeyPathTestCase {
     var service: ConfigHotReloadService!
     var configService: ConfigurationService!
     var reloadHandlerCalled: Bool!
@@ -80,14 +80,13 @@ final class ConfigHotReloadServiceTests: XCTestCase {
     // MARK: - Validation Tests
 
     func testHandleExternalChangeValidatesConfig() async {
-        let validConfig = KanataConfigFixtures.capsToEscapeBare
+        let validConfig = KanataConfigFixtures.sessionQToA
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
-        // In test mode, ConfigurationService does lightweight validation
-        // Should succeed if config is parseable
-        XCTAssertTrue(result.success || !result.success, "Should return validation result")
+        XCTAssertTrue(result.success, result.message)
+        XCTAssertTrue(reloadHandlerCalled, "Supported profile should reach reload")
     }
 
     func testHandleExternalChangeFailsOnInvalidConfig() async {
@@ -96,15 +95,24 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
 
-        // May fail validation or succeed with test mode - either is acceptable
-        XCTAssertNotNil(result, "Should return a result")
+        XCTAssertFalse(result.success)
+        XCTAssertFalse(reloadHandlerCalled, "Invalid profile must never reload")
+    }
+
+    func testUnsupportedCapsConfigNeverInvokesReload() async {
+        let tempFile = createTempConfigFile(content: KanataConfigFixtures.capsToEscapeBare)
+        let result = await service.handleExternalChange(configPath: tempFile.path)
+        XCTAssertFalse(result.success)
+        XCTAssertFalse(result.pendingReload)
+        XCTAssertFalse(reloadHandlerCalled)
+        XCTAssertTrue(result.message.contains("driverless session"))
     }
 
     // MARK: - Reload Handler Tests
 
     func testHandleExternalChangeCallsReloadHandler() async {
         reloadHandlerResult = true
-        let validConfig = KanataConfigFixtures.capsToEscapeBare
+        let validConfig = KanataConfigFixtures.sessionQToA
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -120,7 +128,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         // we should return success:false + pendingReload:true because the config is valid
         // but was never applied to kanata.
         reloadHandlerResult = false
-        let validConfig = KanataConfigFixtures.capsToEscapeBare
+        let validConfig = KanataConfigFixtures.sessionQToA
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -151,7 +159,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
             isKanataProcessRunningProvider: { true }
         )
 
-        let validConfig = KanataConfigFixtures.capsToEscapeBare
+        let validConfig = KanataConfigFixtures.sessionQToA
         let tempFile = createTempConfigFile(content: validConfig)
 
         let result = await service.handleExternalChange(configPath: tempFile.path)
@@ -165,7 +173,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
 
     func testCallbacksInvokedOnSuccess() async {
         reloadHandlerResult = true
-        let validConfig = KanataConfigFixtures.capsToEscapeBare
+        let validConfig = KanataConfigFixtures.sessionQToA
         let tempFile = createTempConfigFile(content: validConfig)
 
         var detectedCalled = false
@@ -191,7 +199,7 @@ final class ConfigHotReloadServiceTests: XCTestCase {
         // Force reload handler to fail - in test environment this triggers
         // "service unavailable" path (process not running) which calls onReset
         reloadHandlerResult = false
-        let validConfig = KanataConfigFixtures.capsToEscapeBare
+        let validConfig = KanataConfigFixtures.sessionQToA
         let tempFile = createTempConfigFile(content: validConfig)
 
         var detectedCalled = false

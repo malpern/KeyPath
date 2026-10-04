@@ -89,8 +89,8 @@ final class KeyPathTests: KeyPathTestCase {
         XCTAssertTrue(config.contains("f12"), "Should include F-key mappings")
         XCTAssertTrue(config.contains("(deflayer base"))
         XCTAssertTrue(config.contains("esc"))
-        XCTAssertTrue(config.contains("brdn"), "Should map F1 to brightness down")
-        XCTAssertTrue(config.contains("volu"), "Should map F12 to volume up")
+        XCTAssertFalse(config.contains("brdn"), "Fresh profile must not generate brightness output")
+        XCTAssertFalse(config.contains("volu"), "Fresh profile must not generate media output")
         XCTAssertTrue(config.contains("macOS Function Key"), "Should document F-key workaround")
 
         // Ensure no invalid options
@@ -303,7 +303,7 @@ final class KeyPathTests: KeyPathTestCase {
                 // depending on whether bundled binary exists
                 let status = manager.getInstallationStatus()
                 XCTAssertTrue(
-                    status.contains("Not installed") || status.contains("corrupted"),
+                    status == "❌ Session runtime missing",
                     "Expected not-installed or corrupted status, got: \(status)"
                 )
             }
@@ -330,14 +330,7 @@ final class KeyPathTests: KeyPathTestCase {
         let status = manager.getInstallationStatus()
 
         // Should return one of the expected status messages
-        let validStatuses = [
-            "✅ Fully installed",
-            "⚠️ Driver missing",
-            "⚠️ Service & driver missing",
-            "⚠️ Bundled Kanata unsigned (needs Developer ID signature)",
-            "❌ Not installed",
-            "⚠️ CRITICAL: App bundle corrupted - reinstall KeyPath"
-        ]
+        let validStatuses = ["✅ Session runtime installed", "❌ Session runtime missing"]
 
         XCTAssertTrue(
             validStatuses.contains(status), "Status should be one of the valid options: \(status)"
@@ -379,7 +372,7 @@ final class KeyPathTests: KeyPathTestCase {
         XCTAssertTrue(config.contains("process-unmapped-keys yes"), "Should pass through unmapped keys")
         XCTAssertTrue(config.contains("macOS Function Key"), "Should document F-key workaround")
         XCTAssertTrue(config.contains("f1"), "Should include F-key mappings")
-        XCTAssertTrue(config.contains("brdn"), "Should map F1 to brightness down")
+        XCTAssertFalse(config.contains("brdn"), "Fresh profile must not generate brightness output")
 
         // Test that saveConfiguration handles the complete workflow
         do {
@@ -429,9 +422,9 @@ final class KeyPathTests: KeyPathTestCase {
 
         // Status messages should be user-friendly
         if status.contains("❌") {
-            XCTAssertTrue(status == "❌ Not installed", "Should have clear not installed message")
+            XCTAssertTrue(status == "❌ Session runtime missing", "Should have clear not installed message")
         } else if status.contains("✅") {
-            XCTAssertTrue(status == "✅ Fully installed", "Should have clear success message")
+            XCTAssertTrue(status == "✅ Session runtime installed", "Should have clear success message")
         }
 
         // Error messages should guide users without technical jargon
