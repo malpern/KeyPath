@@ -260,7 +260,7 @@ final class DurableConfigPreferenceRecoveryTests: KeyPathTestCase {
         XCTAssertEqual(ruleFiles(at: directory), before)
         XCTAssertEqual(manager.preferencesService.shortcutListGenerationInput, baseline)
         XCTAssertEqual(defaults.string(forKey: "KeyPath.ContextHUD.TriggerMode"), baseline.triggerMode.rawValue)
-        XCTAssertTrue(errors.contains { $0.contains("driverless session") })
+        XCTAssertTrue(errors.contains { $0.contains("driverless session") }, "Actual refusal: \(errors)")
         XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
     }
 

@@ -47,6 +47,9 @@ struct WindowSnappingActivationModeTests {
         )
         try await collections.saveCollections(manager.ruleCollections)
         try await rules.saveRules([])
+        manager.onError = { error in
+            Issue.record("Window activation generated profile refused: \(error)")
+        }
         return manager
     }
 

@@ -398,6 +398,8 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: KeyPathTestCase {
             candidate,
         ]
 
+        var saveErrors: [String] = []
+        manager.onError = { saveErrors.append($0) }
         var receivedContext: RulePrerequisiteResolutionContext?
         manager.onPrerequisiteResolution = { context in
             receivedContext = context
@@ -413,7 +415,7 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: KeyPathTestCase {
             config: layerConfig
         )
 
-        XCTAssertTrue(newlyEnabled)
+        XCTAssertTrue(newlyEnabled, "Generated profile failure: \(saveErrors)")
         XCTAssertEqual(regenerationCount, 1)
         XCTAssertEqual(
             Set(receivedContext?.recommendedProviderIDs ?? []),

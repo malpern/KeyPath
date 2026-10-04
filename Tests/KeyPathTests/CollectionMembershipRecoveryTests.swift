@@ -70,7 +70,7 @@ final class CollectionMembershipRecoveryTests: KeyPathTestCase {
             return Self.reload(reloads == 1 ? .rejected : .applied)
         }
         await mutate()
-        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(reloads, 2, "Mutation errors: \(errors)")
         XCTAssertEqual(try files(), before)
         XCTAssertEqual(manager.ruleCollections, snapshot.collections)
         XCTAssertEqual(manager.customRules, snapshot.customRules)
