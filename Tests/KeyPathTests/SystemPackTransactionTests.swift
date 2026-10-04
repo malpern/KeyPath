@@ -8,7 +8,33 @@ final class SystemPackTransactionTests: KeyPathTestCase {
     private var directory: URL!
     private var manager: RuleCollectionsManager!
     private var tracker: InstalledPackTracker!
-    private let pack = PackRegistry.launcher
+    // Exercise the real managed IDs/snapshot journal with a supported physical
+    // modifier. Actual Caps rejection is covered by GenericPackConfigTests.
+    private let pack: Pack = {
+        let original = PackRegistry.launcher
+        return Pack(
+            id: original.id, version: original.version, name: original.name,
+            tagline: original.tagline, shortDescription: original.shortDescription,
+            longDescription: original.longDescription, category: original.category,
+            iconSymbol: original.iconSymbol, bindings: original.bindings,
+            associatedCollectionID: original.associatedCollectionID,
+            dependencies: original.dependencies,
+            managedDefaults: original.managedDefaults.map { managed in
+                let configuration = managed.defaultConfiguration.map { configuration in
+                    guard let config = configuration.tapHoldPickerConfig else { return configuration }
+                    return RuleCollectionConfiguration.tapHoldPicker(TapHoldPickerConfig(
+                        inputKey: "rctl", tapOptions: config.tapOptions, holdOptions: config.holdOptions,
+                        selectedTapOutput: config.selectedTapOutput, selectedHoldOutput: config.selectedHoldOutput
+                    ))
+                }
+                return ManagedCollectionDefault(
+                    collectionID: managed.collectionID, enableOnInstall: managed.enableOnInstall,
+                    disableOnInstall: managed.disableOnInstall, defaultConfiguration: configuration,
+                    displayName: managed.displayName
+                )
+            }
+        )
+    }()
 
     override func setUp() async throws {
         try await super.setUp()
@@ -16,7 +42,7 @@ final class SystemPackTransactionTests: KeyPathTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections().map { collection in
             var value = collection
