@@ -197,3 +197,17 @@ complete Control-down/secure/release/normal/resume path. Physical execution stil
 requires measured completion before q-up, preserved phase anchors, actual secure
 focus, current firmware/USB ownership and the resumed canonical parent receipt.
 No live D8 acceptance, timing fit or installed script admissibility is claimed.
+
+
+Process discovery reads the wide PID/UID/comm table separately, selects the exact
+owned executable, then reads each selected PID's wide arguments. The observed
+macOS combined comm/args format can expose a basename where the separate comm
+query returns the full executable; combining those columns had omitted the owned
+parent. Before/after process comparisons and every ownership check are retained.
+Table/argument read failures propagate explicitly. Both the initial and final
+identity guards explicitly exit before batch completion on failure, preserving
+strict shell failure behavior without relying on AND-list `set -e` behavior.
+Thirty predicate/framework checks and fourteen readiness checks pass using inert
+fixtures, including generated-shell discovery, read-failure, argument-change and
+failed final-guard cases. These checks establish source contracts; no live D8
+acceptance or new physical result is claimed by this revision.

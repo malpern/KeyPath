@@ -410,6 +410,73 @@ class BatchBoundaryTests(unittest.TestCase):
         self.assertIn('test "$d8before" = "$d8after"', pilot.observations[0])
         self.assertNotIn('python', pilot.observations[0])
 
+    def test_actual_generated_snapshot_final_guard_failure_cannot_emit_complete(self):
+        import subprocess
+        import types
+        guest, pilot = self.batch_guest()
+        original = guest.guest_identity
+        # Snapshot constructs the final guard before its initial guard.
+        guards = iter(['false && true', 'true'])
+        guest.guest_identity = types.SimpleNamespace(guard=lambda: next(guards),
+            boot_epoch=original.boot_epoch, provider_uuid=original.provider_uuid,
+            lease=original.lease, receipt_path=None)
+        guest.snapshot()
+        expression = pilot.observations[-1]
+        lines = expression.splitlines()
+        # Execute the actual generated guards/emitter/completion with the middle
+        # observation body omitted, rather than querying a real host/guest.
+        emitter = next(line for line in lines if line.startswith('d8emit()'))
+        final = next(line for line in lines if line == 'if ! ( false && true ); then exit 79; fi')
+        completion = next(line for line in lines if line.startswith('printf D8_COMPLETE'))
+        script = lines[0].split('set -e;', 1)[0] + emitter + '; ' + final + '; ' + completion + '; }'
+        result = subprocess.run(['/bin/zsh', '-c', script], capture_output=True, text=True, timeout=3)
+        self.assertEqual(result.returncode, 79)
+        self.assertNotIn('D8\tcomplete\t', result.stdout)
+        self.assertIn('true; if ! ( true ); then exit 79; fi; {', expression)
+
+    def test_generated_discovery_uses_separate_comm_and_exact_per_pid_arguments(self):
+        import subprocess
+        import shlex
+        guest, pilot = self.batch_guest()
+        guest.snapshot()
+        expression = pilot.observations[-1]
+        function = next(line for line in expression.splitlines() if line.startswith('d8processes()'))
+        self.assertNotIn('comm=,args=', function)
+        # Model macOS's observed combined basename vs separate full executable.
+        # The old filter would discard the basename; the generated new function
+        # must instead select the exact separate comm and query only its PID.
+        table = '17 502 ' + guest.exe + '\n99 501 /foreign\n'
+        expected = guest.exe + ' --headless'
+        def generated(table_value=table, args_value=expected, fail=False):
+            script = function.replace('/bin/ps -ww -axo pid=,uid=,comm=',
+                                       "printf '%s' " + shlex.quote(table_value))
+            response = 'false' if fail else "printf '%s\\n' " + shlex.quote(args_value)
+            script = script.replace('/bin/ps -ww -p "$d8pid" -o args=', response)
+            return script
+        original_combined = '17 502 KeyPath ' + expected + '\n'
+        old_filter = subprocess.run(['/bin/zsh', '-c', "printf '%s' " + shlex.quote(original_combined)
+                                    + ' | /usr/bin/awk -v exe=' + shlex.quote(guest.exe) + " '$3 == exe'"],
+                                    capture_output=True, text=True, timeout=3)
+        self.assertEqual(old_filter.stdout, '')
+        result = subprocess.run(['/bin/zsh', '-c', generated() + '; d8processes'],
+                                capture_output=True, text=True, timeout=3)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, '17 502 ' + guest.exe + ' ' + expected + '\n')
+        self.assertNotIn('foreign', result.stdout)
+        for body in [generated(fail=True), generated(args_value='')]:
+            result = subprocess.run(['/bin/zsh', '-c', body
+                                    + '; d8before=$(d8processes) || exit $?; printf COMPLETE'],
+                                    capture_output=True, text=True, timeout=3)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn('COMPLETE', result.stdout)
+        # Independent before/after reads still refuse changing owned arguments.
+        script = generated() + '; before=$(d8processes) || exit $?; '
+        script += generated(args_value=expected + ' changed') + '; after=$(d8processes) || exit $?; '
+        script += 'test "$before" = "$after" || exit 79; printf COMPLETE'
+        result = subprocess.run(['/bin/zsh', '-c', script], capture_output=True, text=True, timeout=3)
+        self.assertEqual(result.returncode, 79)
+        self.assertNotIn('COMPLETE', result.stdout)
+
     def test_batch_shell_parses_and_a_failed_read_cannot_emit_completion(self):
         import subprocess
         guest, pilot = self.batch_guest()

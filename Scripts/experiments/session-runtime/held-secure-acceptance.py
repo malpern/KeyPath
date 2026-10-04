@@ -99,8 +99,16 @@ class Guest:
         commands = [
             'set -e; set -o pipefail',
             'd8emit() { printf "D8\\t%s\\t" "$1"; /usr/bin/base64 | /usr/bin/tr -d "\\n"; printf "\\n"; }',
-            'd8processes() { /bin/ps -ww -axo pid=,uid=,comm=,args= | /usr/bin/awk -v exe=' + q(self.exe) + ' \'$3 == exe\'; }',
-            'd8before=$(d8processes)',
+            'd8processes() { local d8selected d8pid d8uid d8comm d8args; '
+            + 'd8selected=$(/bin/ps -ww -axo pid=,uid=,comm= | /usr/bin/awk -v exe='
+            + q(self.exe) + ' \'$3 == exe\') || return $?; '
+            + 'while read -r d8pid d8uid d8comm; do '
+            + 'test -n "$d8pid" || continue; '
+            + 'd8args=$(/bin/ps -ww -p "$d8pid" -o args=) || return $?; '
+            + 'test -n "$d8args" || return 79; '
+            + 'printf "%s %s %s %s\\n" "$d8pid" "$d8uid" "$d8comm" "$d8args"; '
+            + 'done <<< "$d8selected"; }',
+            'd8before=$(d8processes) || exit $?',
             '{ /usr/bin/id -un ' + str(self.uid) + '; /usr/bin/id -u ' + q(self.account)
             + '; /usr/bin/dscl . -read /Users/' + q(self.account) + ' NFSHomeDirectory | /usr/bin/cut -d " " -f 2-'
             + '; /usr/bin/stat -f %Su /dev/console; /usr/bin/stat -f %u /dev/console'
@@ -146,9 +154,10 @@ class Guest:
             for option, _, _ in target_fields:
                 commands += ['test "$d8target' + option + '" = "$(/bin/ps -ww -p '
                              + str(self.target_identity['pid']) + ' -o ' + option + '=)"']
-        commands += ['d8after=$(d8processes)', 'test "$d8before" = "$d8after"',
-                     self.guest_identity.guard(), 'printf D8_COMPLETE | d8emit complete']
-        expression = ('true; ' + self.guest_identity.guard() + ' && { '
+        commands += ['d8after=$(d8processes) || exit $?', 'test "$d8before" = "$d8after"',
+                     'if ! ( ' + self.guest_identity.guard() + ' ); then exit 79; fi',
+                     'printf D8_COMPLETE | d8emit complete']
+        expression = ('true; if ! ( ' + self.guest_identity.guard() + ' ); then exit 79; fi; { '
                       + '\n'.join(commands) + '\n}')
         output = self.pilot.observe(self.lease, 'guest-root', '--', '/bin/zsh', '-lc', expression)
         fields = {}
