@@ -42,6 +42,14 @@ struct WindowSnappingActivationModeTests {
             }
         }
 
+        if !supportedEntrance,
+           let capsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        {
+            // Keep the historical rejection tied to a real unsupported physical
+            // Caps input, independently of supported layer-exit actions.
+            manager.ruleCollections[capsIndex].isEnabled = true
+        }
+
         manager.preferencesService.stageShortcutListGenerationInput(
             ShortcutListGenerationInput(triggerMode: .holdToShow, holdDelayPreset: .long, customHoldDelayMs: 200)
         )
@@ -57,6 +65,7 @@ struct WindowSnappingActivationModeTests {
     func unsupportedHyperEntranceRefusesBeforeJournalOrReload() async throws {
         let manager = try await createManagerWithWindowSnapping(supportedEntrance: false)
         let beforeCollections = manager.ruleCollections
+        #expect(beforeCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
         let directory = URL(fileURLWithPath: manager.configurationService.configurationPath).deletingLastPathComponent()
         let before = try Data(contentsOf: directory.appendingPathComponent("RuleCollections.json"))
         var reloads = 0

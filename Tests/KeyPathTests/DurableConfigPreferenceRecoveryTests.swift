@@ -202,7 +202,7 @@ final class DurableConfigPreferenceRecoveryTests: KeyPathTestCase {
             customHoldDelayMs: 200
         )
         let candidate = ShortcutListGenerationInput(
-            triggerMode: .holdToShow,
+            triggerMode: .tapToToggle,
             holdDelayPreset: .custom,
             customHoldDelayMs: 444
         )
@@ -236,32 +236,6 @@ final class DurableConfigPreferenceRecoveryTests: KeyPathTestCase {
             XCTAssertEqual(manager.preferencesService.shortcutListGenerationInput, expected)
             XCTAssertEqual(reloadCount, disposition == .rejected ? 2 : 1)
         }
-    }
-
-    @MainActor
-    func testUnsupportedTapToggleRefusesBeforePreferencesFilesOrJournalChange() async throws {
-        defaults.set(ContextHUDTriggerMode.holdToShow.rawValue, forKey: "KeyPath.ContextHUD.TriggerMode")
-        let (manager, _) = try await makeManager(at: directory)
-        manager.ruleCollections = try leaderCollections()
-        manager.preferencesService.reloadShortcutListGenerationInput(from: defaults)
-        let before = ruleFiles(at: directory)
-        let baseline = manager.preferencesService.shortcutListGenerationInput
-        var reloads = 0
-        var errors: [String] = []
-        manager.onError = { errors.append($0) }
-        manager.onRulesChanged = {
-            reloads += 1
-            return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied)
-        }
-        let candidate = ShortcutListGenerationInput(triggerMode: .tapToToggle, holdDelayPreset: .custom, customHoldDelayMs: 444)
-        let applied = await manager.applyShortcutListGenerationInput(candidate)
-        XCTAssertFalse(applied)
-        XCTAssertEqual(reloads, 0)
-        XCTAssertEqual(ruleFiles(at: directory), before)
-        XCTAssertEqual(manager.preferencesService.shortcutListGenerationInput, baseline)
-        XCTAssertEqual(defaults.string(forKey: "KeyPath.ContextHUD.TriggerMode"), baseline.triggerMode.rawValue)
-        XCTAssertTrue(errors.contains { $0.contains("driverless session") }, "Actual refusal: \(errors)")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
     }
 
     @MainActor
