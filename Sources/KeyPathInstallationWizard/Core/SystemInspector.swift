@@ -18,14 +18,16 @@ public enum SystemInspector {
         guard context.captureStatus.isComplete else { return (.serviceNotRunning, []) }
         var issues: [WizardIssue] = []
         var missing: [PermissionRequirement] = []
-        if !context.permissions.keyPath.accessibility.isReady || !context.permissions.kanata.accessibility.isReady {
+        if context.permissions.keyPath.accessibility == .denied || context.permissions.kanata.accessibility == .denied {
             missing.append(.keyPathAccessibility)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
                 title: "Allow KeyPath to remap keys", description: "Enable KeyPath in Accessibility, then retry.",
                 autoFixAction: nil, userAction: "Open Accessibility in System Settings"
             ))
-        } else if !context.permissions.kanata.inputMonitoring.isReady {
+        } else if !context.permissions.keyPath.accessibility.isReady || !context.permissions.kanata.accessibility.isReady {
+            return sessionPermissionEvidenceUnavailable()
+        } else if context.permissions.kanata.inputMonitoring == .denied {
             missing.append(.keyPathInputMonitoring)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
@@ -35,6 +37,9 @@ public enum SystemInspector {
             ))
         }
         if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }
+        if !context.permissions.kanata.inputMonitoring.isReady {
+            return sessionPermissionEvidenceUnavailable()
+        }
         if !context.components.requiredRuntimePayloadPresent {
             return (.missingComponents(missing: [.bundledKanataMissing]), [WizardIssue(
                 identifier: .component(.bundledKanataMissing), severity: .error, category: .installation,
@@ -46,6 +51,17 @@ public enum SystemInspector {
             identifier: .daemon, severity: .error, category: .daemon,
             title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
             autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+        )])
+    }
+
+    /// An absent or failed worker check is not proof that macOS refused consent.
+    /// Retry through the canonical runtime lifecycle to obtain fresh evidence.
+    private static func sessionPermissionEvidenceUnavailable() -> (WizardSystemState, [WizardIssue]) {
+        (.serviceNotRunning, [WizardIssue(
+            identifier: .daemon, severity: .error, category: .daemon,
+            title: "Check keyboard access",
+            description: "Keyboard access has not been verified by the session runtime. Start or retry the keyboard service to check access.",
+            autoFixAction: .restartCommServer, userAction: "Start or retry the keyboard service"
         )])
     }
 
