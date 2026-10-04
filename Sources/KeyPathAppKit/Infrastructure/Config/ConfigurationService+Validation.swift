@@ -7,11 +7,13 @@ extension ConfigurationService {
     /// Validate the unchanged candidate with the engine's parsed session contract.
     /// This gate runs before staging source/config files and before direct writes.
     func requireSessionEligibleConfiguration(_ config: String) async throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("keypath-session-validation-\(UUID().uuidString)")
+        // Kanata resolves relative includes beside the main file. Validate an
+        // isolated candidate in that same directory without replacing any user
+        // configuration or source store.
+        let directory = URL(fileURLWithPath: configDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let path = directory.appendingPathComponent("candidate.kbd")
+        let path = directory.appendingPathComponent(".keypath-session-validation-\(UUID().uuidString).kbd")
+        defer { try? FileManager.default.removeItem(at: path) }
         try await writeFileURLAsync(string: config, to: path)
         let result = KanataHostBridge.validateSessionConfig(
             runtimeHost: sessionValidationRuntimeHost, configPath: path.path,

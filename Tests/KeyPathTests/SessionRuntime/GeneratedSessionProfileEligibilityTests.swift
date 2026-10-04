@@ -137,6 +137,37 @@ final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
         XCTAssertEqual(try Data(contentsOf: rulesURL), ruleBytes)
     }
 
+    @MainActor
+    func testRelativeIncludeIsValidatedWithoutChangingCommittedFiles() async throws {
+        let host = try bridgeRuntimeHost()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("session-relative-include-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let includeURL = directory.appendingPathComponent("mapping.kbd")
+        let validInclude = "(deflayer base a)"
+        try validInclude.write(to: includeURL, atomically: true, encoding: .utf8)
+        let service = ConfigurationService(
+            configDirectory: directory.path,
+            ruleCollectionStore: .testStore(at: directory.appendingPathComponent("collections.json")),
+            customRulesStore: .testStore(at: directory.appendingPathComponent("rules.json")),
+            sessionValidationRuntimeHost: host
+        )
+        let candidate = "(defsrc q)(include mapping.kbd)"
+        try await service.requireSessionEligibleConfiguration(candidate)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: service.configurationPath))
+        XCTAssertEqual(try String(contentsOf: includeURL, encoding: .utf8), validInclude)
+        try "(deflayer base volu)".write(to: includeURL, atomically: true, encoding: .utf8)
+        do {
+            try await service.requireSessionEligibleConfiguration(candidate)
+            XCTFail("Unsupported included actions must be rejected")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("driverless session"))
+        }
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        XCTAssertEqual(remaining, ["mapping.kbd"], "Validation must remove its temporary candidate")
+    }
+
     private func originalCatalog() throws -> [RuleCollection] {
         let url = try XCTUnwrap(KeyPathAppKitResources.url(forResource: "rule-collection-catalog", withExtension: "json"))
         return try JSONDecoder().decode([RuleCollection].self, from: Data(contentsOf: url))
