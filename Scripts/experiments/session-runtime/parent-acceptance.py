@@ -2,11 +2,11 @@
 """Bounded parent-owned remap, Secure Input and resume acceptance in an owned guest."""
 import argparse,importlib.machinery,json,pathlib,shlex,subprocess,time,uuid
 ROOT=pathlib.Path(__file__).resolve().parents[3]
-a=argparse.ArgumentParser();a.add_argument('lease');a.add_argument('--binary-sha',required=True);args=a.parse_args()
+a=argparse.ArgumentParser();a.add_argument('lease');a.add_argument('--binary-sha',required=True);a.add_argument('--remap-only',action='store_true');args=a.parse_args()
 p=importlib.machinery.SourceFileLoader('parent_pilot','/private/tmp/vm-lab-hid-rig/rig/physical-baseline.py').load_module()
 t=importlib.machinery.SourceFileLoader('trial',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py')).load_module()
 lease=args.lease;app=t.APP;owner=None;worker=None;nonce=None;path=None;backup='/Users/keypathqa/.config/keypath/keypath.kbd.parent-backup-'+uuid.uuid4().hex;cfg='/Users/keypathqa/.config/keypath/keypath.kbd'
-r={'passed':False,'lease':lease,'binarySHA256':args.binary_sha}
+r={'passed':False,'lease':lease,'binarySHA256':args.binary_sha,'remapOnly':args.remap_only}
 def observe(cmd):return p.observe(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
 def run(cmd):return p.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
 def prepare(secure=False):
@@ -41,20 +41,21 @@ try:
   if c:worker,path,nonce,v=c;break
   time.sleep(.2)
  assert worker,'parent runtime not ready';r['initialWorker']=v
- for label,secure in [('parent-remap',False),('parent-secure',True)]:
+ for label,secure in ([('parent-remap',False)] if args.remap_only else [('parent-remap',False),('parent-secure',True)]):
   prepare(secure)
   subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label',label,'--mode','secure' if secure else 'remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
- prepare()
- old=worker
- for _ in range(20):
-  c=child()
-  if c and c[0]!=old:worker,path,nonce,v=c;break
-  time.sleep(.25)
- assert worker!=old,'secure recovery missing';r['resumedWorker']=v
- subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-resumed','--mode','remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
- prepare()
- subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-held-crash','--mode','held-crash','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
- r['workerCrashAccepted']=True
+ if not args.remap_only:
+  prepare()
+  old=worker
+  for _ in range(20):
+   c=child()
+   if c and c[0]!=old:worker,path,nonce,v=c;break
+   time.sleep(.25)
+  assert worker!=old,'secure recovery missing';r['resumedWorker']=v
+  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-resumed','--mode','remap','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+  prepare()
+  subprocess.run(['python3',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py'),lease,'--label','parent-held-crash','--mode','held-crash','--expected-input','1','--binary-sha',r['binarySHA256'],'--existing-report',path,'--existing-nonce',nonce,'--owner-pid',str(owner),'--expected-worker-pid',str(worker)],check=True)
+  r['workerCrashAccepted']=True
  r['passed']=True
 except Exception as e:r['error']=str(e)
 finally:

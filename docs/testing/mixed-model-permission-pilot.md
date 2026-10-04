@@ -16,6 +16,8 @@ retains gate decisions, source integration and hardware-operation ownership tran
 | Final signed build | Luna low | Reviewed-source build/signature/archive succeeded on 8fd1320b. | Root independently checked exact signature/source/binary/archive hashes before staging. |
 | Final physical parent campaign | Luna medium | All four cases passed on reviewed binary9f0e3435. | Root independently verified exact physical hold/release timing and trace; separate cleanup audit below. |
 | Parent cleanup evidence audit | Luna low, read-only and parallel to reboot | Correctly distinguished killed-worker durable ledger from live-process evidence; identified missing byte-verification of profile restoration and process scan completion. | Root added explicit process success sentinel and bytewise restored-profile comparison to the next campaign. First campaign restoration remains attempted, not byte-verified. |
+| Remaining safety case design | Sol high, read-only and parallel to reboot | Proposed five bounded held-modifier/timeout/sleep/session cases with explicit missing harness support. | Root checked actual worker exit paths and recorded cases as unexecuted in gap register. |
+| Postboot continuity | Luna medium | Initial focus guard refused before input; corrected target activation allowed app-managed remap and verified cleanup to pass. | Root independently checked new boot, binary hash, exact physical trace, stopped report, empty process list and bytewise profile restoration. |
 
 No precise input/output/reasoning token accounting was exposed by these agent
 results. Usage and cost savings remain unknown; no percentage is claimed. The

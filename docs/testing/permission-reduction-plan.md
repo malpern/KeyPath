@@ -4,7 +4,7 @@ Updated 2026-10-03 / 2026-10-04 UTC. Execution resumed at the user's request.
 Mixed-model delegation is active; the implementation record retains chronology
 and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 
-## Latest checkpoint — 2026-10-04 00:09 UTC
+## Latest checkpoint — 2026-10-04 00:17 UTC
 
 - Sol high independently found and corrected five crash-recovery/acceptance gaps.
   Root verified the diff and committed `8fd1320b`; 8 targeted regressions pass.
@@ -20,7 +20,13 @@ and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 - Luna medium has exclusive hardware-operation ownership for guarded staging and
   parent/Secure Input/resume/held-crash campaign. All four passed on the final
   signed source. Root independently verified held-crash release while the same
-  fixture run had submitted only its physical key-down. Reboot rerun underway.
+  fixture run had submitted only its physical key-down.
+- Unchanged-permission reboot continuity passed on final binary9f0e3435,
+  parent remap b091c2c6c4e44b9c. Boot1791066067 →1791072532. Explicit cleanup
+  confirms stopped/empty worker ledger, no exact app processes and bytewise
+  restored original configuration. First postboot target-focus refusal is excluded;
+  the rig now explicitly activates the target and independently checks its state.
+  Five final-source worker cases are running.
 - Both owned prepared candidates and the stopped source lease are destroyed;
   independent provider inventories confirm their three UUIDs absent. The one
   owned GUI lease remains for continuity and final worker cases.
@@ -101,10 +107,10 @@ without pretending the feature backlog is complete.
 | 4 | Build and sign frozen candidate; verify archive, executable identity and source provenance. Complete on frozen source8fd1320b. | Luna low using existing build script | Sol medium checks signature, explicit commit/hash record and no host deployment; no concurrent broad Swift build |
 | 5 | Stage exact signed artifact in owned guest and check effective approval after update. Complete, exact signed artifact staged without guest resigning. | Luna low using guarded staging harness | Sol medium checks ownership, signature/hash, independent process capability and no privilege contamination |
 | 6 | Re-run final-source physical ordinary remap, home-row tap/hold, unmapped typing and repeat. Earlier versions passed. | Luna medium, established harness only | Sol medium checks fixture trace, focus, fresh PID/nonce/hash/boot, counters and clean stopped report |
-| 7 | App-managed remap → Secure Input pass-through → automatic resume. Passed on final9f0e3435; unchanged-permission reboot rerun underway. | Luna medium, established harness only | Sol high checks lifecycle/report identity and independent physical result; protected-input remapping remains an accepted limitation |
+| 7 | App-managed remap → Secure Input pass-through → automatic resume. Passed on final9f0e3435; unchanged-permission reboot remap also passed. | Luna medium, established harness only | Sol high checks lifecycle/report identity and independent physical result; protected-input remapping remains an accepted limitation |
 | 8 | Held-output worker crash and parent release before physical key-up. Passed on final9f0e3435 with independent release-during-hold evidence. | Sol high owns experiment; Luna may run fixed harness | Sol high independently checks kill target, actual emitted-key release timing, fixture still held and empty target state; escalate ambiguous failure to Astra |
 | 9 | Held-modifier Secure Input transitions, tap timeout, sleep/wake and session recovery. Open. | Sol high designs bounded cases; Luna medium executes approved scripts | Sol high checks no stuck output, correct reset/restart and ordinary typing during failure; record hardware/session limits |
-| 10 | Controlled unchanged-permission reboot and USB reconnect continuity on final app. Research proof exists; integrated acceptance open. | Luna medium with existing lab controls | Sol high checks new boot, startup settling, exact attachment, same approved identity and actual remap without permission mutation |
+| 10 | Controlled unchanged-permission reboot and USB reconnect continuity on final app. Final-app reboot/remap passed; separate integrated reconnect remains open. | Luna medium with existing lab controls | Sol high checks new boot, startup settling, exact attachment, same approved identity and actual remap without permission mutation |
 | 11 | Evaluate generated/default profiles against parser-backed backend eligibility (DL-11). Open before enabling backend more broadly. | Luna medium enumerates profiles; Sol medium fixes eligibility | Sol high verifies supported semantics and explicit rejection; no silent feature removal or privileged fallback |
 | 12 | Close bounded prototype decision and reconcile current evidence. Open. | Luna low prepares evidence table | Sol high decides verified/failed/untested, remaining gates and customer permission claims; no default/release declaration while safety gates remain |
 | 13 | Collect artifacts and destroy/reconcile all four owned lab resources. Three resources destroyed/independently absent; GUI lease cleanup follows continuity. | Luna low, ownership-guarded controller only | Sol medium independently checks all four provider UUIDs absent and host fixture policy unchanged; preserve research/source/evidence |
