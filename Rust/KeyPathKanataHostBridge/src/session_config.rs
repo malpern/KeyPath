@@ -1,4 +1,4 @@
-use kanata_keyberon::action::{switch::OpCode, Action, SequenceEvent};
+use kanata_keyberon::action::{switch::OpCode, Action, ReleasableState, SequenceEvent};
 use kanata_keyberon::key_code::KeyCode;
 use kanata_parser::cfg::Cfg;
 use kanata_parser::custom_action::CustomAction;
@@ -42,6 +42,9 @@ fn action_supported(
         | Action::CancelSequences
         | Action::OneShotIgnoreEventsTicks(_)
         | Action::Repeat => true,
+        // Releasing a layer changes keyberon state only. Release-key remains
+        // unavailable; it has different emitted-key ownership semantics.
+        Action::ReleaseState(ReleasableState::Layer(_)) => true,
         Action::KeyCode(KeyCode::ErrorUndefined) => true, // Parser's unused-slot sentinel.
         Action::KeyCode(key) => key_supported(*key, usages) || OsCode::from(*key) == input,
         Action::MultipleKeyCodes(keys) => keys.iter().all(|key| key_supported(*key, usages)),
@@ -159,6 +162,30 @@ mod tests {
         assert!(!eligible("(unicode λ)", "((input virtual vk_test))"));
         assert!(!eligible("b", "((input real a))"));
         assert!(!eligible("b", "((input-history virtual vk_test 1))"));
+    }
+
+    #[test]
+    fn layer_release_keeps_recursive_output_and_release_key_restrictions() {
+        for (action, expected) in [
+            ("(release-layer nav)", true),
+            (
+                "(multi (release-layer nav) XX (push-msg \"layer:base\"))",
+                true,
+            ),
+            ("(multi (release-layer nav) volu)", false),
+            ("(multi (release-layer nav) (unicode λ))", false),
+            ("(release-key lctl)", false),
+            ("(release-key volu)", false),
+        ] {
+            let cfg = kanata_parser::cfg::new_from_str(
+                &format!(
+                    "(defsrc a b)(deflayer base (layer-while-held nav) b)(deflayer nav _ {action})"
+                ),
+                Default::default(),
+            )
+            .unwrap();
+            assert_eq!(supported(&cfg, &[4, 5, 224]), expected, "{action}");
+        }
     }
 
     #[test]

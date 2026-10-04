@@ -848,6 +848,103 @@ mod tests {
     }
 
     #[test]
+    fn passthru_release_layer_restores_base_and_preserves_held_key_release() {
+        use kanata_state_machine::oskbd::{KeyEvent, KeyValue};
+        use kanata_state_machine::OsCode;
+
+        let path =
+            std::env::temp_dir().join(format!("keypath-release-layer-{}.kbd", std::process::id()));
+        std::fs::write(
+            &path,
+            r#"
+            (defsrc a b c esc)
+            (deflayer base (multi lctl (layer-while-held nav)) b c esc)
+            (deflayer nav _ d e (multi (release-layer nav) XX (push-msg "layer:base")))
+        "#,
+        )
+        .unwrap();
+        let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+        let mut error = vec![0 as c_char; 512];
+        let usages = [4u32, 5, 6, 7, 8, 41, 224];
+        assert!(
+            keypath_kanata_bridge_validate_session_config(
+                cfg_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                error.as_mut_ptr(),
+                error.len()
+            ),
+            "{}",
+            read_error_buffer(&error)
+        );
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg_path.as_ptr(),
+            0,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+        // Advance real Kanata with explicit ticks. This needs neither wall-clock
+        // sleeps nor the macOS input event loop/DriverKit input backend.
+        let input = |code, value| {
+            let mut k = runtime.runtime.lock();
+            k.handle_input_event(&KeyEvent::new(code, value)).unwrap();
+            k.tick_ms(2, &None).unwrap();
+        };
+        let output = |value, code| {
+            let event = runtime
+                .output_rx
+                .try_recv()
+                .expect("expected emitted keyboard event");
+            assert_eq!((event.value, event.page, event.code), (value, 7, code));
+        };
+        let layer = || {
+            let k = runtime.runtime.lock();
+            k.layer_info[k.layout.b().current_layer()].name.clone()
+        };
+        input(OsCode::KEY_A, KeyValue::Press);
+        output(1, 224);
+        assert_eq!(layer(), "nav");
+        input(OsCode::KEY_B, KeyValue::Press);
+        output(1, 7); // b maps to d while nav is held.
+        input(OsCode::KEY_ESC, KeyValue::Press);
+        assert_eq!(layer(), "base");
+        assert!(matches!(
+            runtime.output_rx.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+        {
+            let k = runtime.runtime.lock();
+            let held: Vec<_> = k.layout.b().keycodes().collect();
+            assert!(held.contains(&kanata_keyberon::key_code::KeyCode::LCtrl));
+            assert!(held.contains(&kanata_keyberon::key_code::KeyCode::D));
+        }
+        // A new physical key uses base even while the former layer activator
+        // and a nav-mapped key remain physically held.
+        input(OsCode::KEY_C, KeyValue::Press);
+        output(1, 6);
+        input(OsCode::KEY_C, KeyValue::Release);
+        output(0, 6);
+        input(OsCode::KEY_ESC, KeyValue::Release);
+        assert!(matches!(
+            runtime.output_rx.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+        input(OsCode::KEY_B, KeyValue::Release);
+        output(0, 7); // Release the original nav output, not base b.
+        input(OsCode::KEY_A, KeyValue::Release);
+        output(0, 224);
+        assert_eq!(runtime.runtime.lock().layout.b().keycodes().count(), 0);
+        assert!(matches!(
+            runtime.output_rx.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
     fn create_passthru_runtime_returns_handle_and_empty_output_queue() {
         let cfg_path = passthru_cfg_path();
         let mut error_buffer = vec![0 as c_char; 512];
