@@ -226,21 +226,23 @@ struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("?", modifiers: .command)
 
-            Divider()
+            if FirstSuccessOnboardingGate.supportsTour() {
+                Divider()
 
-            Button(
-                action: {
-                    replayFirstSuccessTour()
-                },
-                label: {
-                    Text(
-                        "Replay KeyPath Tour…",
-                        bundle: KeyPathAppKitResources.bundle,
-                        comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
-                    )
-                }
-            )
-            .accessibilityIdentifier("menu-replay-keypath-tour")
+                Button(
+                    action: {
+                        replayFirstSuccessTour()
+                    },
+                    label: {
+                        Text(
+                            "Replay KeyPath Tour…",
+                            bundle: KeyPathAppKitResources.bundle,
+                            comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
+                        )
+                    }
+                )
+                .accessibilityIdentifier("menu-replay-keypath-tour")
+            }
         }
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathWizardCore
 
 /// Owns the one-shot eligibility for the post-setup learning path.
@@ -9,6 +10,11 @@ import KeyPathWizardCore
 public enum FirstSuccessOnboardingGate {
     public static let hasShownKey = "onboarding_first_success_shown"
 
+    /// The current tour installs Caps Lock actions that the session backend cannot emit.
+    public static func supportsTour(backend: KanataRuntimeBackend = .selected) -> Bool {
+        backend == .driverKit
+    }
+
     /// Decides whether the panel may be shown without consuming the one-shot
     /// opportunity. The presenter records success with `markPresented` only
     /// after the panel is actually visible.
@@ -17,9 +23,11 @@ public enum FirstSuccessOnboardingGate {
         didShowWelcomePage: Bool,
         wizardState: WizardSystemState,
         issues: [WizardIssue],
+        backend: KanataRuntimeBackend = .selected,
         defaults: UserDefaults = .standard
     ) -> Bool {
-        guard wizardState == .active,
+        guard supportsTour(backend: backend),
+              wizardState == .active,
               issues.isEmpty,
               didShowWelcomePage,
               !defaults.bool(forKey: hasShownKey)

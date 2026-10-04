@@ -25,6 +25,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         kanataViewModel: KanataViewModel?,
         source: FirstSuccessOnboardingPresentationSource
     ) {
+        guard FirstSuccessOnboardingGate.supportsTour() else { return }
         if let currentController {
             currentController.showWindow(nil)
             currentController.window?.makeKeyAndOrderFront(nil)

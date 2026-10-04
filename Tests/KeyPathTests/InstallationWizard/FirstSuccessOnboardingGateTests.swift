@@ -12,6 +12,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -27,6 +28,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: false,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -41,6 +43,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -49,6 +52,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -61,6 +65,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -68,7 +73,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
     }
 
     @MainActor
-    func testPostStartRefreshRequestsOnboardingOnlyAfterHealthyVerification() async {
+    func testSessionPostStartRefreshSuppressesUnsupportedTourAfterHealthyVerification() async {
         let defaults = UserDefaults.standard
         let previousShownValue = defaults.object(
             forKey: FirstSuccessOnboardingGate.hasShownKey
@@ -104,7 +109,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
         await view.refreshPostStartStateAndDismiss()
 
         XCTAssertEqual(view.stateMachine.wizardState, .active)
-        XCTAssertEqual(presentationCount, 1)
+        XCTAssertEqual(presentationCount, 0)
     }
 
     @MainActor
@@ -143,6 +148,20 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
 
         XCTAssertEqual(view.stateMachine.wizardState, .serviceNotRunning)
         XCTAssertEqual(presentationCount, 0)
+    }
+
+    @MainActor
+    func testSessionTourIsUnavailableWithoutConsumingFirstRunOpportunity() {
+        XCTAssertFalse(FirstSuccessOnboardingGate.supportsTour())
+        XCTAssertFalse(FirstSuccessOnboardingGate.supportsTour(backend: .session))
+        XCTAssertTrue(FirstSuccessOnboardingGate.supportsTour(backend: .driverKit))
+        withIsolatedDefaults { defaults in
+            XCTAssertFalse(FirstSuccessOnboardingGate.isEligible(
+                didShowWelcomePage: true, wizardState: .active, issues: [],
+                backend: .session, defaults: defaults
+            ))
+            XCTAssertFalse(defaults.bool(forKey: FirstSuccessOnboardingGate.hasShownKey))
+        }
     }
 
     @MainActor
