@@ -61,11 +61,10 @@ final class AppSpecificSourceRoutingTests: XCTestCase {
 
     private func blockTokens(_ name: String, in content: String) throws -> [String] {
         let range = try XCTUnwrap(content.range(of: "(?m)^\\(\(name)(?=\\s)", options: .regularExpression))
-        let remaining = content[range.upperBound...]
-        let end = try XCTUnwrap(remaining.firstIndex(of: ")"))
-        return remaining[..<end].split(separator: "\n").flatMap { line in
-            line.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false)[0]
-                .split(whereSeparator: \.isWhitespace).map(String.init)
-        }
+        let uncommented = content[range.upperBound...].split(separator: "\n").map { line in
+            String(line.split(separator: ";", maxSplits: 1, omittingEmptySubsequences: false)[0])
+        }.joined(separator: "\n")
+        let end = try XCTUnwrap(uncommented.firstIndex(of: ")"))
+        return uncommented[..<end].split(whereSeparator: \.isWhitespace).map(String.init)
     }
 }

@@ -107,7 +107,7 @@ final class GenericPackConfigTests: XCTestCase {
         let stateBefore = manager.snapshotRuleState()
         let trackerURL = tempDir.appendingPathComponent("caps-installed-packs.json")
         let tracker = InstalledPackTracker(fileURL: trackerURL)
-        let previousRecord = InstalledPackRecord(packID: PackRegistry.capsLockToEscape.id, version: "0.9.0")
+        let previousRecord = InstalledPackRecord(packID: PackRegistry.capsLockToEscape.id, version: "0.9.0", installedAt: Date(timeIntervalSince1970: 42))
         try await tracker.upsert(previousRecord)
         let files = ["keypath.kbd", "RuleCollections.json", "CustomRules.json", "caps-installed-packs.json"].map { tempDir.appendingPathComponent($0) }
         let before = try files.map { try Data(contentsOf: $0) }
@@ -1766,8 +1766,8 @@ final class GenericPackConfigTests: XCTestCase {
 
     // MARK: - Helpers
 
-    // Pure first-success planning tests deliberately model the historical
-    // enabled catalog. This never weakens runtime session admission.
+    /// Pure first-success planning tests deliberately model the historical
+    /// enabled catalog. This never weakens runtime session admission.
     private func historicalEnabledCatalog() -> [RuleCollection] {
         RuleCollectionCatalog().defaultCollections().map { collection in
             var collection = collection
@@ -1778,8 +1778,8 @@ final class GenericPackConfigTests: XCTestCase {
         }
     }
 
-    // Transaction tests retain managed collection IDs and all tap/hold outputs,
-    // but use a captured keyboard modifier instead of unsupported physical Caps.
+    /// Transaction tests retain managed collection IDs and all tap/hold outputs,
+    /// but use a captured keyboard modifier instead of unsupported physical Caps.
     private func supportedTapHold(_ configuration: RuleCollectionConfiguration, identityHold: Bool = false) -> RuleCollectionConfiguration {
         guard let config = configuration.tapHoldPickerConfig else { return configuration }
         return .tapHoldPicker(TapHoldPickerConfig(
