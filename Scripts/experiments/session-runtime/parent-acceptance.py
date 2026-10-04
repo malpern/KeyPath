@@ -6,7 +6,7 @@ a=argparse.ArgumentParser();a.add_argument('lease');a.add_argument('--binary-sha
 p=importlib.machinery.SourceFileLoader('parent_pilot','/private/tmp/vm-lab-hid-rig/rig/physical-baseline.py').load_module()
 t=importlib.machinery.SourceFileLoader('trial',str(ROOT/'Scripts/experiments/session-runtime/physical-trial.py')).load_module()
 lease=args.lease;app=t.APP;owner=None;worker=None;nonce=None;path=None;backup='/Users/keypathqa/.config/keypath/keypath.kbd.parent-backup-'+uuid.uuid4().hex;cfg='/Users/keypathqa/.config/keypath/keypath.kbd'
-r={'passed':False,'lease':lease,'binarySHA256':args.binary_sha,'remapOnly':args.remap_only}
+r={'passed':False,'lease':lease,'binarySHA256':args.binary_sha,'remapOnly':args.remap_only,'backendOptInFlagUsed':False}
 def observe(cmd):return p.observe(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
 def run(cmd):return p.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
 def prepare(secure=False):
@@ -29,10 +29,10 @@ def child():
  return None
 try:
  prepare();assert not discover(),'existing KeyPath process'
- cmd='test -f '+cfg+' && test ! -e '+backup+' && cp -p '+cfg+' '+backup+' && printf %s '+shlex.quote('(defcfg)\n(defsrc q a)\n(deflayer base a a)\n')+' > '+cfg+' && chown keypathqa '+cfg+' && launchctl asuser 501 sudo -H -u keypathqa open -g -n '+shlex.quote(app)+' --args --driverless --headless'
+ cmd='test -f '+cfg+' && test ! -e '+backup+' && cp -p '+cfg+' '+backup+' && printf %s '+shlex.quote('(defcfg)\n(defsrc q a)\n(deflayer base a a)\n')+' > '+cfg+' && chown keypathqa '+cfg+' && launchctl asuser 501 sudo -H -u keypathqa open -g -n '+shlex.quote(app)+' --args --headless'
  run(cmd)
  for _ in range(30):
-  parents=[pid for pid,args in discover() if '--driverless' in args and '--headless' in args]
+  parents=[pid for pid,args in discover() if '--headless' in args and '--session-runtime' not in args]
   if len(parents)==1:owner=parents[0];break
   time.sleep(.2)
  assert owner,'parent launch missing';r['parentPID']=owner
