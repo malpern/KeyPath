@@ -344,14 +344,13 @@ final class VHIDDeviceManagerTests: XCTestCase {
         )
     }
 
-    func testBundledDriverArtifactAndHelperFallbackMatchDeclaredVersion() throws {
+    func testSessionBundleOmitsDriverPackageAndHistoricalHelperVersionRemainsAligned() throws {
         let version = WizardSystemPaths.bundledVHIDDriverVersion
         let resources = LintScanner.path("Sources/KeyPathApp/Resources")
-        let expectedPackage = "Karabiner-DriverKit-VirtualHIDDevice-\(version).pkg"
         let bundledPackages = try FileManager.default.contentsOfDirectory(atPath: resources.path)
             .filter { $0.hasPrefix("Karabiner-DriverKit-VirtualHIDDevice-") && $0.hasSuffix(".pkg") }
 
-        XCTAssertEqual(bundledPackages, [expectedPackage], "KeyPath must ship exactly the declared VHID package.")
+        XCTAssertTrue(bundledPackages.isEmpty, "The session-only bundle must not ship a privileged driver installer.")
 
         let helper = try String(
             contentsOf: LintScanner.path("Sources/KeyPathHelper/HelperService.swift"),
@@ -359,7 +358,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
         )
         XCTAssertTrue(
             helper.contains(#"private static let requiredVHIDVersion = "\#(version)""#),
-            "The helper's deprecated download fallback must stay aligned with the bundled driver."
+            "Historical helper fallback metadata must stay aligned with its declared driver version."
         )
     }
 }

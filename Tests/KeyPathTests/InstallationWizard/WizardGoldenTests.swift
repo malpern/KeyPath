@@ -1,10 +1,11 @@
 import Foundation
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
-/// Golden tests that capture the current behavior of the SystemStateResult projection (issue generation)
+/// Historical DriverKit characterization tests that capture the behavior of the SystemStateResult projection (issue generation)
 /// and WizardRouter (page routing). These tests must pass both before and after the wizard
 /// simplification refactor — they prove behavioral equivalence.
 ///
@@ -35,7 +36,7 @@ final class WizardGoldenTests: XCTestCase {
                 confidence: .high,
                 timestamp: now
             ),
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
     }
 
@@ -52,11 +53,10 @@ final class WizardGoldenTests: XCTestCase {
     }
 
     private var healthyServices: HealthStatus {
-        HealthStatus(
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
-        )
+        HealthStatus(backend: .driverKit,
+                     kanataRunning: true,
+                     karabinerDaemonRunning: true,
+                     vhidHealthy: true)
     }
 
     private var healthyHelper: HelperStatus {
@@ -169,7 +169,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_kanataNotRunning_daemonRunning_stateIsServiceNotRunning() {
         let context = makeContext(
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
+            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
         )
         let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .serviceNotRunning)
@@ -177,7 +177,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_daemonNotRunning_stateIsDaemonNotRunning() {
         let context = makeContext(
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
+            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
         )
         let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .daemonNotRunning)
@@ -277,7 +277,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .active,
             issues: [],
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .summary)
     }
@@ -287,7 +287,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .active,
             issues: [],
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .helper)
     }
@@ -297,7 +297,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .active,
             issues: [],
             helperInstalled: true,
-            helperNeedsApproval: true
+            helperNeedsApproval: true, backend: .driverKit
         )
         XCTAssertEqual(page, .helper)
     }
@@ -316,7 +316,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .conflictsDetected(conflicts: []),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .conflicts)
     }
@@ -335,7 +335,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .conflictsDetected(conflicts: []),
             issues: issues,
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .conflicts, "Conflicts should take priority over helper")
     }
@@ -354,7 +354,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .missingPermissions(missing: [.keyPathInputMonitoring]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .inputMonitoring)
     }
@@ -373,7 +373,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .missingPermissions(missing: [.kanataAccessibility]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .accessibility)
     }
@@ -392,7 +392,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .active,
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .summary, "Warning-level permission issues should NOT route to permission pages")
     }
@@ -411,7 +411,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .missingComponents(missing: [.karabinerDriver]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .karabinerComponents)
     }
@@ -421,7 +421,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .serviceNotRunning,
             issues: [],
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .service)
     }
@@ -431,7 +431,7 @@ final class WizardGoldenTests: XCTestCase {
             state: .daemonNotRunning,
             issues: [],
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .service)
     }
@@ -445,7 +445,7 @@ final class WizardGoldenTests: XCTestCase {
             state: result.state,
             issues: result.issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .summary)
     }
@@ -457,7 +457,7 @@ final class WizardGoldenTests: XCTestCase {
             state: result.state,
             issues: result.issues,
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .helper)
     }
@@ -469,7 +469,7 @@ final class WizardGoldenTests: XCTestCase {
             state: result.state,
             issues: result.issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .inputMonitoring)
     }
@@ -490,21 +490,21 @@ final class WizardGoldenTests: XCTestCase {
             state: result.state,
             issues: result.issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .karabinerComponents)
     }
 
     func test_e2e_kanataNotRunning_routesToService() {
         let context = makeContext(
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
+            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
         )
         let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .service)
     }
@@ -522,7 +522,7 @@ final class WizardGoldenTests: XCTestCase {
             state: result.state,
             issues: result.issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .conflicts, "Conflicts should take priority over permissions")
     }
@@ -542,13 +542,13 @@ final class WizardGoldenTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .conflicts,
             state: .missingComponents(missing: [.karabinerDriver]),
-            issues: issues
+            issues: issues, backend: .driverKit
         )
         XCTAssertEqual(next, .karabinerComponents, "Should skip green pages and land on karabinerComponents")
     }
 
     func test_nextPage_allGreen_returnsSummary() {
-        let next = WizardRouter.nextPage(after: .helper, state: .active, issues: [])
+        let next = WizardRouter.nextPage(after: .helper, state: .active, issues: [], backend: .driverKit)
         XCTAssertEqual(next, .summary)
     }
 

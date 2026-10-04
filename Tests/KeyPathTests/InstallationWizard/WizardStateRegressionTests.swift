@@ -21,14 +21,13 @@ final class WizardStateRegressionTests: XCTestCase {
         let perms = PermissionOracle.Snapshot(
             keyPath: set,
             kanata: set,
-            timestamp: Date()
+            timestamp: Date(), backend: .driverKit
         )
 
-        let health = HealthStatus(
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
-        )
+        let health = HealthStatus(backend: .driverKit,
+                                  kanataRunning: true,
+                                  karabinerDaemonRunning: true,
+                                  vhidHealthy: true)
 
         let components = ComponentStatus(
             kanataBinaryInstalled: true,
@@ -76,16 +75,15 @@ final class WizardStateRegressionTests: XCTestCase {
         let perms = PermissionOracle.Snapshot(
             keyPath: set,
             kanata: set,
-            timestamp: Date()
+            timestamp: Date(), backend: .driverKit
         )
 
-        let health = HealthStatus(
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
-        )
+        let health = HealthStatus(backend: .driverKit,
+                                  kanataRunning: true,
+                                  karabinerDaemonRunning: true,
+                                  vhidHealthy: true,
+                                  kanataInputCaptureReady: false,
+                                  kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason)
 
         let components = ComponentStatus(
             kanataBinaryInstalled: true,
@@ -119,5 +117,35 @@ final class WizardStateRegressionTests: XCTestCase {
                 issue.identifier == .permission(.kanataInputMonitoring)
             }
         )
+    }
+
+    func testRunningSessionWithoutInputCaptureRoutesToRuntimeRepair() {
+        let now = Date()
+        let capabilities = PermissionOracle.PermissionSet(
+            accessibility: .granted, inputMonitoring: .granted,
+            source: "independent-session", confidence: .high, timestamp: now
+        )
+        let context = SystemContext(
+            permissions: .init(keyPath: capabilities, kanata: capabilities, timestamp: now, backend: .session),
+            services: HealthStatus(
+                backend: .session, kanataProcessRunning: true, kanataTCPResponding: true,
+                kanataRunning: true, karabinerDaemonRunning: false, vhidHealthy: false,
+                kanataInputCaptureReady: false,
+                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
+            ),
+            conflicts: .empty,
+            components: ComponentStatus(
+                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
+                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
+                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
+                vhidServicesHealthy: false, vhidVersionMismatch: false
+            ), helper: .empty, system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
+            timestamp: now
+        )
+        let result = SystemStateResult.projecting(context)
+        XCTAssertEqual(result.state, .serviceNotRunning)
+        XCTAssertEqual(result.autoFixActions, [.restartCommServer])
+        XCTAssertTrue(result.issues.contains { $0.identifier == .daemon })
+        XCTAssertFalse(result.issues.contains { $0.category == .permissions })
     }
 }

@@ -25,7 +25,7 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
     func test_emergencyStop_triggeredWhenKanataRunningWithoutVHID() {
         let result = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: true,
-            vhidDaemonHealthy: false
+            vhidDaemonHealthy: false, backend: .driverKit
         )
         XCTAssertTrue(result, "Should trigger emergency stop when kanata is running but VHID is unhealthy")
     }
@@ -33,7 +33,7 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
     func test_noEmergencyStop_whenVHIDHealthy() {
         let result = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: true,
-            vhidDaemonHealthy: true
+            vhidDaemonHealthy: true, backend: .driverKit
         )
         XCTAssertFalse(result, "Should NOT trigger emergency stop when VHID is healthy")
     }
@@ -42,14 +42,14 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
         // VHID unhealthy but kanata not running — nothing to stop
         let unhealthy = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: false,
-            vhidDaemonHealthy: false
+            vhidDaemonHealthy: false, backend: .driverKit
         )
         XCTAssertFalse(unhealthy, "Should NOT trigger emergency stop when kanata is not running (VHID unhealthy)")
 
         // VHID healthy and kanata not running — nothing to stop
         let healthy = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: false,
-            vhidDaemonHealthy: true
+            vhidDaemonHealthy: true, backend: .driverKit
         )
         XCTAssertFalse(healthy, "Should NOT trigger emergency stop when kanata is not running (VHID healthy)")
     }
@@ -64,7 +64,7 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
         XCTAssertFalse(
             VHIDSafetyCheck.shouldEmergencyStop(
                 kanataRunning: true,
-                confirmedFailureCount: count
+                confirmedFailureCount: count, backend: .driverKit
             )
         )
     }
@@ -77,7 +77,7 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
         XCTAssertFalse(
             VHIDSafetyCheck.shouldEmergencyStop(
                 kanataRunning: true,
-                confirmedFailureCount: first
+                confirmedFailureCount: first, backend: .driverKit
             )
         )
 
@@ -88,7 +88,7 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
         XCTAssertTrue(
             VHIDSafetyCheck.shouldEmergencyStop(
                 kanataRunning: true,
-                confirmedFailureCount: second
+                confirmedFailureCount: second, backend: .driverKit
             )
         )
     }

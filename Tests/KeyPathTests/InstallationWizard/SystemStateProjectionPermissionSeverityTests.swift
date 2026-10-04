@@ -29,11 +29,11 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
             timestamp: now
         )
 
-        let permissions = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let permissions = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
 
         let context = SystemContext(
             permissions: permissions,
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true),
+            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             components: ComponentStatus(
                 kanataBinaryInstalled: true,
@@ -69,7 +69,7 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
             state: result.state,
             issues: result.issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertNotEqual(page, .inputMonitoring, "Warning-only permission should NOT route to input monitoring page")
     }

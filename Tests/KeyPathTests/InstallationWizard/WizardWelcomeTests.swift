@@ -67,15 +67,23 @@ final class WizardWelcomeTests: XCTestCase {
         )
     }
 
-    func testNextPageFromWelcomeOnFreshInstallGoesToHelper() {
+    func testNextPageFromWelcomeHistoricalDriverKitInstallGoesToHelper() {
         let next = WizardRouter.nextPage(
             after: .welcome,
             state: .initializing,
             issues: [],
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(next, .helper, "Get Started on a fresh install should route to the helper page")
+    }
+
+    func testNextPageFromWelcomeSessionInstallGoesToRuntimeWithoutHelper() {
+        let next = WizardRouter.nextPage(
+            after: .welcome, state: .serviceNotRunning, issues: [],
+            helperInstalled: false, helperNeedsApproval: true, backend: .session
+        )
+        XCTAssertEqual(next, .service)
     }
 
     func testNextPageFromWelcomeOnHealthySystemFallsBackToSummary() {
