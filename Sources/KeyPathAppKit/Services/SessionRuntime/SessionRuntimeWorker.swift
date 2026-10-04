@@ -28,6 +28,9 @@ public final class SessionRuntimeWorker {
     private var physicalPassthroughFlags: UInt64 = 0
     private var physicalModifiers = SessionPhysicalModifierState()
     private var environmentObserver: SessionRuntimeEnvironmentObserver?
+    #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+        private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
+    #endif
 
     private init(
         reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
@@ -101,6 +104,11 @@ public final class SessionRuntimeWorker {
         guard case .valid = validation else {
             finish(.failed, reason: "config-requires-advanced-driver-backend-or-is-invalid")
         }
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            tapTimeoutExperiment = try? SessionTapTimeoutExperiment(
+                reportURL: reportURL, nonce: nonce, parentPID: ownerPID, configPath: configPath
+            )
+        #endif
         writeReport(.starting)
         let (_, handle) = KanataHostBridge.createPassthruRuntime(
             runtimeHost: .current(), configPath: configPath, tcpPort: port
@@ -181,6 +189,20 @@ public final class SessionRuntimeWorker {
         guard let usage = SessionKeyMap.keyCodeToUsage[UInt16(event.getIntegerValueField(.keyboardEventKeycode))] else {
             return original
         }
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            tapTimeoutExperiment?.delayIfAdmitted(
+                keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)), keyDown: type == .keyDown,
+                repeatEvent: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+                mapped: runtime?.isInputMapped(usagePage: 7, usage: usage) != false,
+                heldUsages: outputs.heldUsages.sorted(), reportAge: Date().timeIntervalSince(lastReport),
+                now: Date().timeIntervalSince1970, environmentCurrent: environmentObserver?.check() == true,
+                secureInput: IsSecureEventInputEnabled()
+            )
+            guard environmentObserver?.check() == true else {
+                finish(.failed, reason: "environment-observer-unavailable")
+            }
+            if IsSecureEventInputEnabled() { finish(.secureInput) }
+        #endif
         // Caps Lock's WindowServer toggle is upstream of the session tap. Leave
         // it physical and reject configurations that try to remap it.
         if usage == 57 { return original }
@@ -220,6 +242,9 @@ public final class SessionRuntimeWorker {
         if ownerPID > 0, !SystemStateProvider.shared.isProcessAlive(pid: ownerPID) { finish(.stopped, reason: "owner-exited") }
         guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled-observed") }
         guard let runtime else { finish(.failed, reason: "runtime-unavailable") }
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            tapTimeoutExperiment?.prepare(now: Date().timeIntervalSince1970)
+        #endif
         // Bound each drain so a runaway output queue cannot monopolize the tap.
         for _ in 0 ..< 256 {
             switch runtime.tryReceiveOutput() {
