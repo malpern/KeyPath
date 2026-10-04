@@ -49,8 +49,9 @@ Signed physical app-specific acceptance is still pending.
 The exact event-tap map currently supports F1–F20, not F21–F24. Symbolic outputs
 such as `at` can be rejected where explicit supported keyboard sequences such
 as `S-2` are eligible; no automatic layout-sensitive translation is claimed.
-Tap-to-toggle navigation and per-device filtering remain rejected before managed
-writes. Tests preserve old generator and journal-recovery coverage separately
+Per-device filtering remains rejected before managed writes. Some generated
+navigation/launcher test profiles still fail; individual toggle/one-shot actions
+are accepted in a real parser probe, so their exact composition is under review. Tests preserve old generator and journal-recovery coverage separately
 from supported session acceptance, without a validation bypass.
 
 ## Delivery order
