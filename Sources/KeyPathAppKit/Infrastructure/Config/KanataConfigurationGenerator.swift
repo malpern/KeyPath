@@ -128,7 +128,17 @@ public struct KanataConfiguration: Sendable {
             .log(
                 "📚 [KanataConfig] Total alias definitions: \(mergedAliasDefinitions.count) (before dedup: \(aliasDefinitions.count)), first 5: \(mergedAliasDefinitions.prefix(5).map(\.aliasName).joined(separator: ", "))"
             )
-        let blocks = deduplicateBlocks(rawBlocks)
+        // App-only keys must enter defsrc too. An alias in the include that no
+        // layer references is inert and absent from Kanata's parsed action tree,
+        // so validating that tree would otherwise miss unsupported app outputs.
+        let existingSources = Set(rawBlocks.flatMap { $0.entries.map { $0.sourceKey.lowercased() } })
+        let appOnlyEntries = inputs.appSpecificKeys.subtracting(existingSources).sorted().map { key in
+            LayerEntry(sourceKey: key, baseOutput: key, layerOutputs: [:])
+        }
+        let appOnlyBlocks = appOnlyEntries.isEmpty ? [] : [CollectionBlock(
+            metadata: ["  ;; === App-Specific Inputs ==="], entries: appOnlyEntries
+        )]
+        let blocks = deduplicateBlocks(rawBlocks + appOnlyBlocks)
         let enabledNames = enabledCollections.map(\.name).joined(separator: ", ")
 
         let macosDeviceTargeting = renderMacOSDeviceTargetingForDefcfg(inputs.deviceGenerationInput)
