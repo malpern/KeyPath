@@ -33,12 +33,20 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
 
 Current simplification estimate: **65%**, independent of the older 80% bounded
-checkpoint. Three earlier targeted runs narrowed source contract failures; the
-first broad run exposed missing local-bridge fixtures, obsolete privileged
-planner expectations, changed default golden files, and app-specific switch
-eligibility. The crash was in an obsolete test force unwrap, not the product.
-Generated actual golden outputs are preserved separately before restoring those
-tracked diagnostic files; reference changes require individual review.
+checkpoint. The second broad run completed without the obsolete assertion crash:
+102 XCTest cases still failed, plus eight Swift Testing assertions. The missing
+bridge harness issue is fixed; remaining failures are being reviewed individually
+for changed defaults, unsupported fixtures, and genuine source gaps. A focused
+follow-up passed203 cases/failed3, then the wider focused gate passed547/failed3.
+The latest three failures are assertion-parser/timestamp/router-fixture issues,
+with fixes pending independent recheck. No broad pass or signed acceptance yet.
+
+Source review found and fixed a real app-only input omission: generated app
+aliases were unused when their inputs were absent from global collections.
+Those inputs now enter the captured source/base map; the existing transactional
+Unicode-refusal regression passes before file/journal/reload changes. All six
+new default goldens were individually reviewed, with the original full catalog
+golden retained separately to preserve historical generator coverage.
 
 The narrow virtual-input switch fix is integrated: real TCP/passthrough engine
 tests prove fallback → active app branch → fallback with down/up output. All
