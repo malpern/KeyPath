@@ -33,6 +33,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
+    let sessionValidationRuntimeHost: KanataRuntimeHost
     private let deviceSelectionStore: DeviceSelectionStore
     private let synchronizePreferences: @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool
 
@@ -65,11 +66,13 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollectionStore: RuleCollectionStore,
         customRulesStore: CustomRulesStore,
         deviceSelectionStore: DeviceSelectionStore = .shared,
+        sessionValidationRuntimeHost: KanataRuntimeHost = .current(),
         synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.deviceSelectionStore = deviceSelectionStore
+        self.sessionValidationRuntimeHost = sessionValidationRuntimeHost
         self.synchronizePreferences = synchronizePreferences
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
@@ -566,6 +569,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                                mutationPermit: ConfigurationOperationGate.Permit) async throws -> RawConfigurationWrite
     {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await requireSessionEligibleConfiguration(content)
             let files = ["config": URL(fileURLWithPath: configurationPath)]
             let directory = URL(fileURLWithPath: configDirectory)
             try Task.checkCancellation()
@@ -1357,6 +1361,9 @@ extension ConfigurationService {
     }
 
     func writeFileAsync(string: String, to path: String) async throws {
+        if URL(fileURLWithPath: path).standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         // SAFETY: Prevent writing empty config files - this is a critical guard
         // against bugs that could wipe the user's config
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1398,6 +1405,9 @@ extension ConfigurationService {
     }
 
     func writeFileURLAsync(string: String, to url: URL) async throws {
+        if url.standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {

@@ -15,7 +15,7 @@ extension KanataConfiguration {
             RuleCollection(
                 id: RuleCollectionIdentifier.macFunctionKeys,
                 name: "macOS Function Keys",
-                summary: "Preserves brightness, volume, and media control keys (F1-F12).",
+                summary: "Preserves standard function keys (F1-F12).",
                 category: .system,
                 mappings: macFunctionKeyMappings,
                 isEnabled: true,
@@ -27,17 +27,7 @@ extension KanataConfiguration {
     }
 
     static var macFunctionKeyMappings: [KeyMapping] {
-        [
-            KeyMapping(input: "f1", action: .keystroke(key: "brdn")),
-            KeyMapping(input: "f2", action: .keystroke(key: "brup")),
-            KeyMapping(input: "f3", action: .keystroke(key: "f3")),
-            KeyMapping(input: "f4", action: .keystroke(key: "f4")),
-            KeyMapping(input: "f7", action: .keystroke(key: "prev")),
-            KeyMapping(input: "f8", action: .keystroke(key: "pp")),
-            KeyMapping(input: "f9", action: .keystroke(key: "next")),
-            KeyMapping(input: "f10", action: .keystroke(key: "mute")),
-            KeyMapping(input: "f11", action: .keystroke(key: "vold")),
-            KeyMapping(input: "f12", action: .keystroke(key: "volu"))
-        ]
+        // Automatic defaults must not introduce consumer output into a profile.
+        RuleCollectionCatalog.functionKeyMappings(for: .function)
     }
 }

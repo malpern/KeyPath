@@ -4,7 +4,17 @@ import KeyPathRulesCore
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {
     func defaultCollections() -> [RuleCollection] {
-        Self.builtInList
+        // Fresh profiles use conservative keyboard behavior. Keep every built-in
+        // definition available without silently changing persisted enable states.
+        Self.builtInList.map { collection in
+            var fresh = collection
+            fresh.isEnabled = collection.id == RuleCollectionIdentifier.macFunctionKeys
+            if fresh.id == RuleCollectionIdentifier.macFunctionKeys {
+                fresh.functionKeyMode = .function
+                fresh.mappings = Self.functionKeyMappings(for: .function)
+            }
+            return fresh
+        }
     }
 
     /// Returns the launcher collection (managed separately via overlay drawer)
@@ -65,11 +75,9 @@ struct RuleCollectionCatalog {
             }
         }
 
-        if existing.id == RuleCollectionIdentifier.macFunctionKeys,
-           let mode = existing.functionKeyMode
-        {
-            merged.functionKeyMode = mode
-            merged.mappings = Self.functionKeyMappings(for: mode)
+        if existing.id == RuleCollectionIdentifier.macFunctionKeys {
+            merged.functionKeyMode = existing.functionKeyMode
+            merged.mappings = existing.mappings
         }
 
         return merged

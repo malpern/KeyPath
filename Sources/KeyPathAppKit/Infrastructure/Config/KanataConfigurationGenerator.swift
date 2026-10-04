@@ -80,6 +80,8 @@ public struct KanataConfiguration: Sendable {
         inputs: KanataGenerationInputs
     ) -> String {
         var resolvedCollections = collections.isEmpty ? defaultSystemCollections : collections
+        // Add only standard keyboard defaults; preserve any explicit user-selected
+        // function-key collection, including its existing media semantics.
         if !resolvedCollections.contains(where: { $0.id == RuleCollectionIdentifier.macFunctionKeys }) {
             resolvedCollections.append(contentsOf: defaultSystemCollections)
         }

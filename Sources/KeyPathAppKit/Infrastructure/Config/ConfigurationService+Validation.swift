@@ -4,6 +4,29 @@ import KeyPathCore
 extension ConfigurationService {
     // MARK: - Validation
 
+    /// Validate the unchanged candidate with the engine's parsed session contract.
+    /// This gate runs before staging source/config files and before direct writes.
+    func requireSessionEligibleConfiguration(_ config: String) async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-session-validation-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("candidate.kbd")
+        try await writeFileURLAsync(string: config, to: path)
+        let result = KanataHostBridge.validateSessionConfig(
+            runtimeHost: sessionValidationRuntimeHost, configPath: path.path,
+            supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
+        )
+        switch result {
+        case .valid:
+            return
+        case let .invalid(reason), let .unavailable(reason):
+            let errors = ["This configuration cannot run in the driverless session: \(reason). Existing rules were preserved."]
+            notifyValidationFailure(errors, context: "session")
+            throw KeyPathError.configuration(.validationFailed(errors: errors))
+        }
+    }
+
     /// Validate configuration via file-based check
     public func validateConfigViaFile() async -> (isValid: Bool, errors: [String]) {
         if TestEnvironment.isTestMode {
@@ -64,6 +87,12 @@ extension ConfigurationService {
     public func validateConfiguration(_ config: String) async -> (isValid: Bool, errors: [String]) {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
+
+        do {
+            try await requireSessionEligibleConfiguration(config)
+        } catch {
+            return (false, [error.localizedDescription])
+        }
 
         if TestEnvironment.isTestMode {
             AppLogger.shared.log("🧪 [Validation] Test mode detected – using lightweight validation")

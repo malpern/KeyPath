@@ -1,11 +1,11 @@
 # Generated profile eligibility (DL-11)
 
-Source audit: 2026-10-03, base `234f7b87`. This is a bounded parser/test slice,
-not physical or runtime acceptance. It does not change generation or select a
-backend. Run the generated-profile tests against the freshly built bridge before
+Source audit: 2026-10-03, base `234f7b87`. This is a bounded generation/validation slice,
+not physical or runtime acceptance. Fresh profiles use standard function keys;
+persisted profiles keep their stored enable states and function mappings. Run the generated-profile tests against the freshly built bridge before
 accepting the predicted results below.
 
-## Actual profiles
+## Original bundled profiles
 
 `RuleCollectionCatalog.defaultCollections()` loads the bundled
 `rule-collection-catalog.json`. Six collections are enabled in that catalog:
@@ -24,11 +24,12 @@ Control, Window Snapping, Backup Caps Lock, Escape, Delete Enhancement, Home Row
 Mods, Home Row Layer Toggles, Chord Groups, Sequences, Numpad, Symbol, Function,
 Auto Shift Symbols, and Home Row Navigation System.
 
-The catalog profile is rejected: the media outputs and physical Caps remap each
-independently exceed the current session contract. Reset is a different profile:
-`RuntimeCoordinator` enables only macOS Function Keys, which still rejects.
-An empty collection list, or a simple custom mapping without the function-key
-collection ID, also receives enabled system media defaults and rejects.
+The unchanged original bundled catalog profile is rejected: the media outputs and physical Caps remap each
+independently exceed the current session contract. Fresh `defaultCollections()` now retains every catalog definition but enables
+only standard F1–F12 mappings. Reset follows those safe function-key defaults.
+Empty collection lists and custom-only profiles receive the same keyboard
+fallback without hidden consumer outputs. Explicit persisted function-key
+collections are preserved; their media semantics are rejected instead of removed.
 
 `KanataConfiguration.generateFromCollections` supplies deterministic empty
 inputs through its compatibility overload. Its actual service caller is
@@ -74,11 +75,28 @@ never remove collection semantics or silently fall back to the driver backend.
 A parser eligibility pass alone does not prove physical capture, injection,
 protected-input behavior, layer notifications or lifecycle acceptance.
 
+## Pre-write gate
+
+`ConfigurationService` validates the exact candidate through the canonical
+session validator before its normal syntax checks, raw staging, and direct main
+file writes. Test mode does not bypass eligibility. A missing bridge or validator
+is a refusal, not success. Validation files live in an isolated temporary
+directory; backup files are not mistaken for runnable candidates. Internal host
+injection lets tests use a fresh bridge without changing the installed app.
+
+Existing stored enable states and definitions are not rewritten merely because
+they exceed eligibility. Unsupported edits fail before source/config staging with
+an explanation. Journal recovery remains its existing preservation operation;
+this gate does not silently convert previously committed advanced profiles.
+
 ## Verification handoff
 
-`GeneratedSessionProfileEligibilityTests` tests the actual catalog and reset,
-implicit media-default insertion, explicit standard function keys, simple
-remapping, isolated Caps remap, and generated VirtualHID exclusion. Every case
+`GeneratedSessionProfileEligibilityTests` tests the unchanged bundled catalog,
+fresh catalog and reset, supported automatic defaults, explicit standard function
+keys, simple remapping, isolated Caps remap, generated VirtualHID exclusion, and
+preservation of an existing media/Caps profile. A real raw-write/staged-write test
+checks that Caps/media rejections leave the committed config and source stores
+unchanged and do not reach staging. Every case
 first requires ordinary Kanata validation to succeed; semantic rejections must
 carry the advanced-backend reason rather than a parse error.
 
