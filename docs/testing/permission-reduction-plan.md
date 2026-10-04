@@ -1,3 +1,11 @@
+## Active checkpoint — October 4, 2026, 14:39 UTC
+
+Progress remains approximately **81%**. Full D8 held-Control Secure Input acceptance is passed; actual OS timeout and console transition remain open. Caps Lock and reduced-permission onboarding follow runtime stability. Full access, network enabled and approval never are active; original restrictions unchanged.
+
+The previous owned51ce guest was destroyed with independent provider absence and fixture detached/ask/empty binding. Its corrected signed82 timeout artifact reached all three readiness samples. Timing then refused before writes: Python resolved declared /var/folders to /private/var/folders, rejecting a standard macOS alias. This is a harness defect; analogous Swift behavior is not proven defective. New separate alias candidates passed root review and11executor/33measurement inert tests, admitting only the known alias with exact identity/private metadata/no-follow safeguards. Executor now also requires timing passedtrue and verified cleanup, and uses accepted07 readiness collection. No actual timeout input released.
+
+Fresh e494 lease admitted normally for source4111/artifact0714. The reusable Python installer claim received transport255; independent observations found framework absent, no installer process or Python package receipt, and no matching install log. The failed journal is preserved, no install replay attempted. The guest is being destroyed; source-only saved-script/short-launch transport correction and reusable signed-artifact staging adapter are under preparation and independent review before another live guest. Provider255 exact cause remains unproven.
+
 ## Active checkpoint — October 4, 2026, 14:12 UTC
 
 Progress approximately **81%**: lab readiness and core driverless behavior verified; remaining lifecycle acceptance in progress. Active full-access/network-enabled/approval-never mode verified; original host/account/security restrictions remain. Owned lease cbx_51ce1622f58b/publicUID502/boot1791118107, hard expiry14:34:46UTC. Destroy before expiry and independently verify provider absence and exact fixture detached/ask/no binding.
