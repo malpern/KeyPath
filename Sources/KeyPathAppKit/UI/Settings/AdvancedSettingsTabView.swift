@@ -7,14 +7,9 @@ import SwiftUI
 struct AdvancedSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
 
-    @State private var helperInstalled: Bool = false
-    @State private var helperVersion: String?
-    @State private var helperInProgress = false
-    @State private var helperMessage: String?
     @State private var duplicateAppCopies: [String] = []
     @State private var removeDuplicatesInProgress = false
 
-    @State private var showingHelperUninstallConfirm = false
     @State private var showingRemoveDuplicatesConfirm = false
     @State private var showingResetEverythingConfirmation = false
     @State private var showingUninstallDialog = false
@@ -89,45 +84,9 @@ struct AdvancedSettingsTabView: View {
                             .accessibilityLabel("Reset Everything")
                         }
 
-                        // Privileged Helper
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Privileged Helper")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Text("Handles admin-only install and repair tasks without repeated password prompts.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            HStack(spacing: 10) {
-                                HelperStatusDot(color: helperInstalled ? .green : .orange)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    if helperInstalled {
-                                        Text("Installed\(helperVersion.map { " (v\($0))" } ?? "")")
-                                            .font(.body)
-                                            .fontWeight(.medium)
-                                    } else {
-                                        Text("Not Installed")
-                                            .font(.body)
-                                            .fontWeight(.medium)
-                                    }
-                                }
-                                Spacer()
-                            }
-
-                            HStack(spacing: 10) {
-                                Button(role: .destructive) {
-                                    showingHelperUninstallConfirm = true
-                                } label: {
-                                    Label("Uninstall Helper", systemImage: "trash")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .disabled(helperInProgress || !helperInstalled)
-                                .accessibilityIdentifier("settings-uninstall-helper-button")
-                                .accessibilityLabel("Uninstall Privileged Helper")
-                            }
-                        }
+                        Text("Privileged helper operations are unavailable in this driverless build.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
 
                         // Simulator
                         VStack(alignment: .leading, spacing: 8) {
@@ -182,19 +141,8 @@ struct AdvancedSettingsTabView: View {
                 .environment(kanataManager)
         }
         .task {
-            await refreshHelperStatus()
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
-        }
-        .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Uninstall", role: .destructive) {
-                Task { await uninstallHelper() }
-            }
-        } message: {
-            Text(
-                "The helper enables privileged actions without repeated admin prompts. You can reinstall it from the Setup Wizard."
-            )
         }
         .alert("Remove Extra Copies?", isPresented: $showingRemoveDuplicatesConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -346,44 +294,6 @@ struct AdvancedSettingsTabView: View {
     }
 
     // MARK: - Actions
-
-    private func refreshHelperStatus() async {
-        let installed = await HelperManager.shared.isHelperInstalled()
-        await MainActor.run {
-            helperInstalled = installed
-        }
-        let version = await HelperManager.shared.getHelperVersion()
-        await MainActor.run { helperVersion = version }
-    }
-
-    private func uninstallHelper() async {
-        await MainActor.run {
-            helperInProgress = true
-            helperMessage = nil
-        }
-        defer {
-            Task {
-                await MainActor.run {
-                    helperInProgress = false
-                    showingHelperUninstallConfirm = false
-                }
-            }
-        }
-
-        do {
-            try await HelperManager.shared.uninstallHelper()
-            await MainActor.run {
-                helperMessage = "Helper uninstalled"
-                settingsToastManager.showSuccess("Helper uninstalled")
-            }
-        } catch {
-            await MainActor.run {
-                helperMessage = "Uninstall failed: \(error.localizedDescription)"
-                settingsToastManager.showError("Uninstall failed")
-            }
-        }
-        await refreshHelperStatus()
-    }
 
     private func removeDuplicateAppCopies() async {
         await MainActor.run { removeDuplicatesInProgress = true }

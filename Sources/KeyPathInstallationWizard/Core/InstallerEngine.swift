@@ -281,6 +281,27 @@ public final class InstallerEngine {
             )
         }
 
+        // Validate the entire caller-built plan before the first operation. A
+        // permitted session start must not run ahead of a forbidden later step.
+        guard plan.recipes.allSatisfy(isSupportedSessionRecipe) else {
+            let failure = "Recipes unavailable in the driverless build: "
+                + plan.recipes.filter { !isSupportedSessionRecipe($0) }.map(\.id).joined(separator: ", ")
+            let finalContext = await captureFreshContext()
+            let telemetry = InstallerRepairTelemetryEvent(
+                runID: runID, planID: plan.id, beforeSnapshotID: plan.sourceSnapshotID,
+                afterSnapshotID: finalContext.snapshotID, trigger: trigger,
+                intent: plan.intent.telemetryValue, stateMatrixRow: plan.metadata.stateMatrixRow,
+                stateMatrixPlan: plan.metadata.stateMatrixPlan, action: nil,
+                recipeID: nil, recipeType: nil, postconditionResult: .failed, error: failure
+            )
+            return InstallerReport(
+                runID: runID, planID: plan.id, beforeSnapshotID: plan.sourceSnapshotID,
+                afterSnapshotID: finalContext.snapshotID, success: false,
+                completionState: .executionFailed, failureReason: failure,
+                executedRecipes: [], finalContext: finalContext, logs: [failure], repairTelemetry: [telemetry]
+            )
+        }
+
         // Execute recipes in order
         var executedRecipes: [RecipeResult] = []
         var firstFailure: (recipe: ServiceRecipe, error: Error)?

@@ -246,11 +246,11 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         let event = report.repairTelemetry[0]
         XCTAssertEqual(event.intent, "repair")
         XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
-        XCTAssertEqual(event.action, "unknown-test-recipe")
-        XCTAssertEqual(event.recipeID, "unknown-test-recipe")
-        XCTAssertEqual(event.recipeType, "install-component")
+        XCTAssertNil(event.action)
+        XCTAssertNil(event.recipeID)
+        XCTAssertNil(event.recipeType)
         XCTAssertEqual(event.postconditionResult, .failed)
-        XCTAssertTrue(event.error?.contains("Unknown component recipe") == true)
+        XCTAssertTrue(event.error?.contains("unavailable in the driverless build") == true)
     }
 
     func testExecuteRecordsStructuredRepairTelemetryForNoopPlan() async {

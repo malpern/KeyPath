@@ -479,13 +479,19 @@ struct ActionDispatcherSystemWindowTests {
         }
     }
 
-    @Test("Dispatches repair helper action")
+    @Test("Rejects retired helper repair actions")
     @MainActor
-    func dispatchesRepairHelperAction() throws {
-        let uri = try #require(KeyPathActionURI(string: "keypath://system/repair-helper?applescript=0"))
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
+    func rejectsRepairHelperAction() throws {
+        for suffix in ["", "?applescript=0", "?applescript=1"] {
+            let uri = try #require(KeyPathActionURI(string: "keypath://system/repair-helper\(suffix)"))
+            let result = ActionDispatcher.shared.dispatch(uri)
+            if case let .failed(action, error) = result {
+                #expect(action == "system")
+                #expect(error.localizedDescription.contains("unavailable in the driverless build"))
+            } else {
+                Issue.record("Retired helper repair must fail")
+            }
+        }
     }
 
     @Test("Returns missingTarget for window without action")

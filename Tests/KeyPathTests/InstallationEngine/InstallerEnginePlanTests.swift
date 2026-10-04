@@ -52,6 +52,6 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
         XCTAssertFalse(report.success, "Failure should propagate")
         XCTAssertFalse(coordinator.calls.contains("downloadAndInstallCorrectVHIDDriver"), "Later recipes should not execute after failure")
         XCTAssertFalse(coordinator.calls.contains("restartKarabinerDaemonVerified"), "Later recipes should not execute after failure")
-        XCTAssertEqual(report.executedRecipes.count, 1, "Execution should stop immediately after first failure")
+        XCTAssertTrue(report.executedRecipes.isEmpty, "Preflight must refuse the whole unsupported plan")
     }
 }

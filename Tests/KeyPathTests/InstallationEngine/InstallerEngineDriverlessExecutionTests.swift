@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathWizardCore
 import XCTest
@@ -61,11 +62,32 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
             let report = await engine.execute(plan: plan, using: PrivilegeBroker(coordinator: coordinator))
             XCTAssertFalse(report.success, "Malformed recipe must never execute")
             XCTAssertTrue(report.failureReason?.contains("unavailable in the driverless build") ?? false)
-            XCTAssertEqual(report.executedRecipes.count, 1)
+            XCTAssertTrue(report.executedRecipes.isEmpty)
             XCTAssertNotNil(report.finalContext)
         }
         XCTAssertEqual(runtime.starts, 0)
         XCTAssertTrue(coordinator.calls.isEmpty)
+    }
+
+    func testMixedPlanRefusesBeforePermittedSessionStart() async {
+        let runtime = RuntimeStub()
+        let previous = WizardDependencies.runtimeCoordinator
+        WizardDependencies.runtimeCoordinator = runtime
+        defer { WizardDependencies.runtimeCoordinator = previous }
+        let coordinator = StubPrivilegedOperationsCoordinator()
+        let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
+        let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
+                                     systemValidator: StubSystemValidator(context: context))
+        let permitted = engine.recipeForAction(.restartCommServer, context: context)!
+        let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-helper", type: .repairPrivilegedHelper)],
+                               status: .ready, intent: .repair)
+        let report = await engine.execute(plan: plan, using: PrivilegeBroker(coordinator: coordinator))
+        XCTAssertFalse(report.success)
+        XCTAssertTrue(report.executedRecipes.isEmpty)
+        XCTAssertEqual(runtime.starts, 0)
+        XCTAssertTrue(coordinator.calls.isEmpty)
+        XCTAssertEqual(report.planID, plan.id)
+        XCTAssertEqual(report.finalContext?.snapshotID, context.snapshotID)
     }
 
     func testExternallyConstructedInspectionAndUninstallPlansCannotStartRuntime() async {

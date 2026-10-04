@@ -33,18 +33,6 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://script/{path}` - Execute a script (requires security approval)
 @MainActor
 public final class ActionDispatcher {
-    private static let helperRepairOutputPath = "/var/tmp/keypath-helper-repair.txt"
-    private static let diagnosticSystemActions: Set<String> = [
-        "repair-helper"
-    ]
-
-    private static var diagnosticActionsEnabled: Bool {
-        if TestEnvironment.isRunningTests {
-            return true
-        }
-        return ProcessInfo.processInfo.environment["KEYPATH_ENABLE_DIAGNOSTIC_ACTIONS"] == "1"
-    }
-
     // MARK: - Singleton
 
     public static let shared = ActionDispatcher()
@@ -79,7 +67,6 @@ public final class ActionDispatcher {
     private var fakeKeyTask: Task<Void, Never>?
     private var notifyTask: Task<Void, Never>?
     private var scriptTask: Task<Void, Never>?
-    private var repairHelperTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -445,57 +432,13 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("⚙️ [ActionDispatcher] System action: \(action)")
 
-        if Self.diagnosticSystemActions.contains(action.lowercased()), !Self.diagnosticActionsEnabled {
-            let message = "Diagnostic system action '\(action)' is disabled in this build context."
-            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+        switch action.lowercased() {
+        case "repair-helper":
+            let message = "Helper repair is unavailable in the driverless build."
             onError?(message)
             return .failed("system", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message
             ]))
-        }
-
-        switch action.lowercased() {
-        case "repair-helper":
-            if TestEnvironment.isRunningTests {
-                return .success
-            }
-
-            let useAppleScriptFallbackRaw = uri.queryItems["applescript"]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let useAppleScriptFallback = useAppleScriptFallbackRaw == nil
-                || useAppleScriptFallbackRaw == "1"
-                || useAppleScriptFallbackRaw == "true"
-                || useAppleScriptFallbackRaw == "yes"
-
-            repairHelperTask?.cancel()
-            repairHelperTask = Task { @MainActor in
-                let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
-                    useAppleScriptFallback: useAppleScriptFallback
-                )
-                let details = HelperMaintenance.shared.logLines.joined(separator: " | ")
-                let payload = """
-                success=\(repaired)
-                use_apple_script_fallback=\(useAppleScriptFallback)
-                details=\(details)
-                """
-                do {
-                    try payload.write(
-                        toFile: Self.helperRepairOutputPath,
-                        atomically: true,
-                        encoding: .utf8
-                    )
-                    AppLogger.shared.info(
-                        "🧪 [ActionDispatcher] Helper repair completed success=\(repaired) output=\(Self.helperRepairOutputPath)"
-                    )
-                } catch {
-                    AppLogger.shared.error(
-                        "❌ [ActionDispatcher] Failed to write helper repair output: \(error.localizedDescription)"
-                    )
-                    self.onError?("Failed to write helper repair output: \(error.localizedDescription)")
-                }
-            }
-            return .success
 
         case "mission-control", "missioncontrol", "expose":
             // Mission Control - open the expose launcher app
