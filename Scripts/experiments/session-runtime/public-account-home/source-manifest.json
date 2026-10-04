@@ -1,0 +1,31 @@
+{
+  "files": {
+    "README.md": "0045bb13e64de88dc91937eb586ddb5554cb43e075aff0c6e1ff902e3d2b9b2e",
+    "create_home.py": "4171321586ddbef4a1ae3d9427847980c2b86b4ad2aa1cab515daf88075a0450",
+    "selected_account.py": "377020a007232130bfb7ce1e0b872706408d51c17859a19d240aac3834932a5a",
+    "test_create_home.py": "fea2be51afd0cbb4d0ba035236b8f50eef3b5ade07d30c7952cd3ee61e4fc6ae"
+  },
+  "frozenReferenceSources": {
+    "/private/tmp/keypath-public-guest-bootstrap-883343c6/bootstrap_protocol.py": "7cd0ecc8c604d0fec621c5759d1b7cd36a7f0bba9da6d0b46c370c919c435bf0",
+    "/private/tmp/keypath-public-guest-bootstrap-883343c6/guest_observer.py": "68d1339bba5673835dea9c660b3d3eb83441a3bf19d700c8a96138be0db60479",
+    "/private/tmp/keypath-public-guest-bootstrap-883343c6/wrapper.py": "5112f10e9878d490c7353a96de5ea0ef9dc7f9530848a1d2024893b414770a55",
+    "/private/tmp/keypath-public-guest-bootstrap-ef2006f9/bootstrap_protocol.py": "ec14db2a5893a48d39ab85e4971a29ca058d9f7b4ae44a3f061ecbee9c6be2e6",
+    "/private/tmp/keypath-public-guest-bootstrap-ef2006f9/guest_observer.py": "68d1339bba5673835dea9c660b3d3eb83441a3bf19d700c8a96138be0db60479",
+    "/private/tmp/keypath-public-guest-bootstrap-ef2006f9/wrapper.py": "5112f10e9878d490c7353a96de5ea0ef9dc7f9530848a1d2024893b414770a55"
+  },
+  "limitations": [
+    "No VM executor or private journal adapter included",
+    "Canonical provider ownership adapter and guest pre-syscall guard required",
+    "Original journals and frozen packets unchanged"
+  ],
+  "liveRelease": false,
+  "sourceOnly": true,
+  "tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_create_home.py",
+    "passed": 10
+  },
+  "version": 1,
+  "publicationNotes": [
+    "README updated to refer to the corrected shared guide; runtime sources unchanged from reviewed candidate."
+  ]
+}
