@@ -351,6 +351,11 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
 </plist>
 EOF
 
+# Check the completed bundle after direct and SwiftPM resource bundles have
+# been copied. This gate runs even for unsigned candidates, so stale build-cache
+# resources cannot reintroduce privileged or DriverKit payloads.
+"$SCRIPT_DIR/verify-identity-contract.sh" --payload-only "$APP_BUNDLE"
+
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
 

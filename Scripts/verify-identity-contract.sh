@@ -20,7 +20,7 @@ APP_PATH=""
 
 usage() {
     cat <<'EOF'
-Usage: Scripts/verify-identity-contract.sh [--source] [--app PATH]
+Usage: Scripts/verify-identity-contract.sh [--source] [--payload-only PATH] [--app PATH]
 
 Verifies the driverless packaging boundary and the stable Developer ID
 identities of KeyPath, its CLI, Kanata Engine, simulator, and host bridge.
@@ -30,6 +30,12 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --source) MODE="source"; APP_PATH="" ;;
+        --payload-only)
+            MODE="payload"
+            APP_PATH="${2:-}"
+            if [[ -z "$APP_PATH" ]]; then echo "Missing path after --payload-only" >&2; usage >&2; exit 2; fi
+            shift
+            ;;
         --app)
             MODE="app"
             APP_PATH="${2:-}"
@@ -69,6 +75,23 @@ expect_codesign_identity() {
 }
 expect_no_forbidden_payloads() {
     local root=$1 found=0 path
+    if [[ ! -d "$root/Contents" ]]; then
+        fail "app Contents directory missing at $root/Contents"
+        return
+    fi
+    local main_info="$root/Contents/Info.plist"
+    if [[ ! -f "$main_info" ]]; then
+        fail "main app Info.plist missing at $main_info"
+        found=1
+    elif ! plutil -lint "$main_info" >/dev/null 2>&1; then
+        fail "main app Info.plist is invalid at $main_info"
+        found=1
+    elif /usr/libexec/PlistBuddy -c 'Print :SMPrivilegedExecutables' "$main_info" >/dev/null 2>&1; then
+        fail "SMPrivilegedExecutables remains in packaged main app Info.plist"
+        found=1
+    else
+        pass "packaged main app Info.plist omits SMPrivilegedExecutables"
+    fi
     for path in "$root"/Contents/Library/HelperTools "$root"/Contents/Library/LaunchDaemons; do
         if [[ -e "$path" ]]; then fail "forbidden privileged packaging directory exists: $path"; found=1; fi
     done
@@ -76,6 +99,14 @@ expect_no_forbidden_payloads() {
         find "$root/Contents" \( -name 'KeyPathHelper' -o -name 'com.keypath.helper.plist' -o -name 'com.keypath.kanata.plist' -o -name 'Karabiner-DriverKit-VirtualHIDDevice-*.pkg' -o -name 'uninstall.sh' -o -name 'kanata-launcher' \) -print0
     )
     [[ $found -eq 0 ]] && pass "no helper, launch daemon, launcher, Karabiner pkg, or uninstall script packaged"
+}
+
+verify_payload_only_contract() {
+    if [[ ! -d "$APP_PATH" ]]; then
+        fail "KeyPath.app artifact missing at $APP_PATH"
+        return
+    fi
+    expect_no_forbidden_payloads "$APP_PATH"
 }
 
 verify_source_contract() {
@@ -115,6 +146,10 @@ verify_app_contract() {
     expect_codesign_identity "$simulator" "$SIMULATOR_ID" "$SIMULATOR_REQ" "Kanata simulator"
 }
 
-if [[ "$MODE" == "source" ]]; then verify_source_contract; else verify_app_contract; fi
+case "$MODE" in
+    source) verify_source_contract ;;
+    payload) verify_payload_only_contract ;;
+    app) verify_app_contract ;;
+esac
 if (( failures > 0 )); then echo "[identity-contract] ${failures} failure(s)" >&2; exit 1; fi
 echo "[identity-contract] all checks passed"

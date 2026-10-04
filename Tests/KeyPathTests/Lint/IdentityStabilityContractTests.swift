@@ -26,6 +26,8 @@ final class IdentityStabilityContractTests: XCTestCase {
             "kanata-launcher",
             "LaunchDaemons",
             "SMPrivilegedExecutables",
+            "--payload-only",
+            "verify_payload_only_contract",
             "com.keypath.KeyPath.CLI",
             "com.keypath.kanata-host-bridge",
             "com.keypath.kanata-simulator",
@@ -59,6 +61,42 @@ final class IdentityStabilityContractTests: XCTestCase {
         XCTAssertNil(mainInfo["SMPrivilegedExecutables"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/Resources/Karabiner-DriverKit-VirtualHIDDevice-8.0.0.pkg").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/Resources/uninstall.sh").path))
+    }
+
+    func testPayloadOnlyVerifierRejectsNestedForbiddenPackageWithoutCodeSigning() throws {
+        let temporaryRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("driverless-payload-contract-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: temporaryRoot) }
+
+        let app = temporaryRoot.appendingPathComponent("KeyPath.app", isDirectory: true)
+        let contentsURL = app.appendingPathComponent("Contents", isDirectory: true)
+        let resourceBundle = contentsURL
+            .appendingPathComponent("Resources/KeyPath_KeyPathApp.bundle/Contents/Resources", isDirectory: true)
+        try FileManager.default.createDirectory(at: resourceBundle, withIntermediateDirectories: true)
+        let info = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.keypath.KeyPath</string></dict></plist>
+        """
+        try info.write(to: contentsURL.appendingPathComponent("Info.plist"), atomically: true, encoding: .utf8)
+        let forbiddenPackage = resourceBundle.appendingPathComponent("Karabiner-DriverKit-VirtualHIDDevice-99.0.pkg")
+        XCTAssertTrue(FileManager.default.createFile(atPath: forbiddenPackage.path, contents: Data()))
+
+        let verifier = root.appendingPathComponent("Scripts/verify-identity-contract.sh")
+        let process = Process()
+        process.executableURL = verifier
+        process.arguments = ["--payload-only", app.path]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = output
+        try process.run()
+        process.waitUntilExit()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let result = String(decoding: data, as: UTF8.self)
+
+        XCTAssertEqual(process.terminationStatus, 1, result)
+        XCTAssertTrue(result.contains("forbidden packaged driver/helper asset exists"), result)
+        XCTAssertTrue(result.contains(forbiddenPackage.lastPathComponent), result)
     }
 
     private func contents(_ relativePath: String) throws -> String {

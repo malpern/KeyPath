@@ -141,6 +141,7 @@ require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/Kanata Engi
 require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --identifier "com.keypath.kanata-host-bridge" --sign "$SIGNING_IDENTITY"' "Kanata host bridge has a stable hardened-runtime identity"
 require_contains "$build_script" 'kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --identifier "com.keypath.kanata-simulator" --sign "$SIGNING_IDENTITY"' "Kanata simulator has a stable hardened-runtime identity"
 require_contains "$build_script" 'for product in KeyPath keypath-cli KeyPathInsights' "release builds explicitly select only app, CLI, and Insights products"
+require_contains "$build_script" '"$SCRIPT_DIR/verify-identity-contract.sh" --payload-only "$APP_BUNDLE"' "completed app payload is checked after resource copying, including unsigned builds"
 if grep -Fq './Scripts/build-helper.sh' "$build_script"; then fail "release build must not build the privileged helper"; else pass "release build does not build the privileged helper"; fi
 if grep -Fq 'kanata-launcher' "$build_script"; then fail "release build must not package or sign kanata-launcher"; else pass "release build does not package or sign kanata-launcher"; fi
 if grep -Fq 'HelperTools' "$build_script" || grep -Fq 'LaunchDaemons' "$build_script"; then fail "release build must not package privileged helper or launch daemon directories"; else pass "release build omits privileged helper and LaunchDaemon packaging"; fi
