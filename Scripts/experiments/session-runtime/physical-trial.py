@@ -22,7 +22,7 @@ def report(lease,path,nonce,fresh=True):
 def stop(lease,pid,nonce=None,owner=None):
  IDENTITY.verify(pilot,lease)
  if type(pid) is not int or pid<=0:raise RuntimeError('invalid owned stop PID')
- process_command='true; rows=$(ps -axo pid=) || exit 79; if printf \'%s\\n\' "$rows" | awk -v expected=__PID__ \'$1 == expected {found=1} END {exit !found}\'; then ps -p __PID__ -o args= || exit 79; printf \'\\nKEYPATH_PROCESS_PRESENT\\n\'; else printf KEYPATH_PROCESS_ABSENT; fi'.replace('__PID__',str(pid))
+ process_command='true; rows=$(ps -axo pid=) || exit 79; printf \'%s\\n\' "$rows" | awk -v expected=__PID__ -v observer=$$ \'NF != 1 || $1 !~ /^[1-9][0-9]*$/ {bad=1} $1 == observer {seen=1} $1 == expected {found=1} END {if (bad || !seen) exit 2; exit !found}\'; scan_result=$?; if test "$scan_result" = 0; then ps -p __PID__ -o args= || exit 79; printf \'\\nKEYPATH_PROCESS_PRESENT\\n\'; elif test "$scan_result" = 1; then printf KEYPATH_PROCESS_ABSENT; else exit 79; fi'.replace('__PID__',str(pid))
  process_observation=pilot.observe(lease,'guest-root','--','/bin/zsh','-lc',process_command).strip()
  if process_observation=='KEYPATH_PROCESS_ABSENT':return
  if not process_observation.endswith('\nKEYPATH_PROCESS_PRESENT'):raise RuntimeError('owned stop process observation unavailable')
