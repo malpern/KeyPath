@@ -4,7 +4,7 @@ import KeyPathRulesCore
 import XCTest
 
 @MainActor
-final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
+final class RuleCollectionsManagerPrerequisiteResolutionTests: KeyPathTestCase {
     func testEnableRequiredProvidersAppliesOneAtomicRegeneration() async throws {
         let manager = try makeManager()
         defer { TestEnvironment.forceTestMode = false }
@@ -792,7 +792,7 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
     }
 
     private func makeManager() throws -> RuleCollectionsManager {
-        TestEnvironment.forceTestMode = true
+        try SessionBridgeTestFixture.requireAvailable()
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("prerequisite-resolution-\(UUID().uuidString)")
         try FileManager.default.createDirectory(
@@ -800,17 +800,21 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: XCTestCase {
             withIntermediateDirectories: true
         )
 
-        return RuleCollectionsManager(
+        let manager = RuleCollectionsManager(
             ruleCollectionStore: RuleCollectionStore(
                 fileURL: directory.appendingPathComponent("RuleCollections.json")
             ),
             customRulesStore: CustomRulesStore(
                 fileURL: directory.appendingPathComponent("CustomRules.json")
             ),
-            configurationService: ConfigurationService(
+            configurationService: ConfigurationService.sessionTestService(
                 configDirectory: directory.path
             )
         )
+        manager.preferencesService.stageShortcutListGenerationInput(
+            ShortcutListGenerationInput(triggerMode: .holdToShow, holdDelayPreset: .long, customHoldDelayMs: 200)
+        )
+        return manager
     }
 
     private func homeRowToggles(
