@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathAppKit
 import SwiftUI
@@ -8,6 +9,11 @@ struct KeyPath {
     static func main() {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--session-runtime") || arguments.contains("--session-capabilities") {
+            // NSWorkspace waits for actual AppKit launch completion. This worker
+            // bypasses SwiftUI, so complete launch before starting its run loop.
+            let application = NSApplication.shared
+            application.setActivationPolicy(.prohibited)
+            application.finishLaunching()
             Task { await SessionRuntimeWorker.runIfRequested() }
             RunLoop.main.run()
             return

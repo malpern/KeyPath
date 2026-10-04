@@ -88,11 +88,17 @@ extension ServiceLifecycleCoordinator {
                             _ = await stopSessionRuntime()
                             return false
                         }
-                        AppLogger.shared.log("Session runtime ready (\(reason))")
                         onError?(nil)
                         onWarning?(nil)
                         onStateChanged?()
+                        guard sessionStartIsCurrent(generation), sessionApplication === application,
+                              sessionNonce == nonce, !application.isTerminated else { return false }
                         superviseSessionRuntime(generation: generation)
+                        guard sessionStartIsCurrent(generation), sessionApplication === application,
+                              sessionNonce == nonce, !application.isTerminated else { return false }
+                        AppLogger.shared.log(
+                            "Session runtime ready (\(reason)) parentPID=\(getpid()) workerPID=\(application.processIdentifier) nonce=\(nonce)"
+                        )
                         return true
                     }
                     if report.state == .failed || report.state == .secureInput { break }
@@ -284,12 +290,27 @@ extension ServiceLifecycleCoordinator {
             "--session-owner", String(getpid()), "--session-port", "37001",
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
+        AppLogger.shared.log(
+            "Session application launch requested parentPID=\(getpid()) nonce=\(nonce) capabilitiesOnly=\(capabilitiesOnly)"
+        )
         do {
             let application = try await NSWorkspace.shared.openApplication(
                 at: URL(fileURLWithPath: Bundle.main.bundlePath), configuration: configuration
             )
+            AppLogger.shared.log(
+                "Session application launch returned parentPID=\(getpid()) workerPID=\(application.processIdentifier) nonce=\(nonce) capabilitiesOnly=\(capabilitiesOnly)"
+            )
             return (application, url, nonce)
         } catch {
+            let launchError = error as NSError
+            let redactedPaths = [directory.path, KeyPathConstants.Config.mainConfigPath,
+                                 Bundle.main.bundlePath, NSHomeDirectory()]
+            let description = redactedPaths.reduce(launchError.localizedDescription) {
+                $0.replacingOccurrences(of: $1, with: "[redacted-path]")
+            }.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+            AppLogger.shared.log(
+                "Session application launch failed parentPID=\(getpid()) nonce=\(nonce) capabilitiesOnly=\(capabilitiesOnly) domain=\(launchError.domain.prefix(128)) code=\(launchError.code) description=\(description.prefix(256))"
+            )
             try? FileManager.default.removeItem(at: directory)
             throw error
         }
