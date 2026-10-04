@@ -2,12 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Disable sandboxing (required for system-level operations like launching kanata, managing LaunchDaemons) -->
+    <!-- Global keyboard interception and session process supervision require an unsandboxed app -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
 
-    <!-- Required for AppleScript admin prompts (DEBUG mode fallback) -->
-    <!-- Note: This is only used as a fallback in development; production uses SMAppService -->
+    <!-- Apple Events support for application actions -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
 
