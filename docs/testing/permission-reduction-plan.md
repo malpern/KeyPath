@@ -1,10 +1,29 @@
-# Permission reduction: paused plan and model routing
+# Permission reduction: execution plan and model routing
 
-Updated 2026-10-03. Execution paused at the user's request. This is the current
-delivery plan; the implementation record retains chronology and artifact hashes.
-No agents have been launched under this routing plan. Resume only when requested.
+Updated 2026-10-03 / 2026-10-04 UTC. Execution resumed at the user's request.
+Mixed-model delegation is active; the implementation record retains chronology
+and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 
-## Current position
+## Latest checkpoint — 2026-10-04 00:03 UTC
+
+- Sol high independently found and corrected five crash-recovery/acceptance gaps.
+  Root verified the diff and committed `8fd1320b`; 8 targeted regressions pass.
+- Full safe gate completed normally: main target 4,314 tests / 0 failures / 28
+  skips. Only the 3 known home-row snapshots failed. The formerly stalled repair
+  snapshot passed; the earlier 5 ownership/matrix/test-seam failures are gone.
+  No full-suite pass is claimed. Baseline classification of the snapshots is open.
+- Luna low built the frozen signed artifact; root independently verified it.
+  Product source `8fd1320bc8123f1537e80bf6ea1c02f02d4e376a`, Kanata `0853689`.
+  Executable `9f0e34353bab238d8d87e10692463b5332e58a5b0fe74da958fa8bbcec62251c`;
+  archive `/private/tmp/keypath-session-mixed-crash.zip`, SHA256
+  `83a3845bd458c299c055d3c721c452d5e3b91572be6bf710879eb6f44741b4a2`.
+- Luna medium has exclusive hardware-operation ownership for guarded staging and
+  parent/Secure Input/resume/held-crash campaign. Final physical results pending.
+- A second bounded Luna analysis located DL-11's missing generated-profile
+  eligibility check. Existing default-catalog validation checks Kanata syntax,
+  not session eligibility. No generated-profile support claim has been made.
+
+## Position at pause (historical)
 
 `Research complete → limited prototype acceptance about 70% → product hardening → onboarding`
 
