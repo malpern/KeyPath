@@ -73,7 +73,7 @@ class GuestIdentity:
         if self.provider_uuid is not None:
             verify_provider(pilot.lab(lease, 'status'), lease, self.provider_uuid, time.time())
         result = pilot.observe(lease, 'guest-root', '--', '/bin/zsh', '-lc',
-                               self.guard() + ' && printf KEYPATH_GUEST_IDENTITY_VERIFIED')
+                               'true; ' + self.guard() + ' && printf KEYPATH_GUEST_IDENTITY_VERIFIED')
         if result.strip() != 'KEYPATH_GUEST_IDENTITY_VERIFIED':
             raise RuntimeError('guest account/home/UID/console identity mismatch')
         return {'account': self.account, 'uid': self.uid, 'home': self.home,

@@ -9,7 +9,7 @@ def check(lease,identity=None):
  identity=identity or identity_module.GuestIdentity();identity.verify(pilot,lease);app=identity.app
  nonce=str(uuid.uuid4());path=identity.home+'/keypath-capability-'+nonce+'.json'
  pilot.lab(lease,'guest-root','--','/bin/zsh','-lc',
-  identity.guard()+' && launchctl asuser '+str(identity.uid)+' sudo -H -u '+identity.account+' open -g -n "'+app+'" --args --session-capabilities --session-report '+path+' --session-nonce '+nonce)
+  'true; '+identity.guard()+' && launchctl asuser '+str(identity.uid)+' sudo -H -u '+identity.account+' open -g -n "'+app+'" --args --session-capabilities --session-report '+path+' --session-nonce '+nonce)
  for attempt in range(20):
   time.sleep(.2)
   identity.verify(pilot,lease)
@@ -19,7 +19,7 @@ def check(lease,identity=None):
    if value.get('nonce')!=nonce or value.get('uid')!=identity.uid or value.get('state')!='capabilities' or not 0<=time.time()-(value.get('timestamp',0)+978307200)<5:
     raise RuntimeError('independent final-identity report mismatch')
    identity.verify(pilot,lease)
-   pilot.lab(lease,'guest-root','--','/bin/zsh','-lc',identity.guard()+' && /bin/rm -f '+path)
+   pilot.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+identity.guard()+' && /bin/rm -f '+path)
    return value
  raise RuntimeError('independent KeyPath capability report unavailable')
 if __name__=='__main__':

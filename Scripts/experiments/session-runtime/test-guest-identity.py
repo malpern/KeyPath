@@ -92,4 +92,29 @@ class IdentityEvidenceTests(unittest.TestCase):
    self.assertEqual(identity.verify(Observer(),identity.lease)['uid'],502)
  def tearDown(self):os.environ.pop('KEYPATH_GUEST_IDENTITY_RECEIPT',None)
 
+class StopBoundaryTests(unittest.TestCase):
+ def setUp(self):
+  self.trial=importlib.machinery.SourceFileLoader('identity_stop_trial',str(pathlib.Path(__file__).with_name('physical-trial.py'))).load_module()
+  self.old_identity,self.old_pilot=self.trial.IDENTITY,self.trial.pilot
+  class Identity:
+   def verify(self,*args):pass
+  self.trial.IDENTITY=Identity()
+ def tearDown(self):self.trial.IDENTITY,self.trial.pilot=self.old_identity,self.old_pilot
+ def pilot(self,output):
+  class Pilot:
+   def observe(self,*args):
+    assert args[-1].startswith('true; '),'missing provider no-op prefix'
+    return output
+   def lab(self,*args):raise AssertionError('refused/absent PID reached signal operation')
+  self.trial.pilot=Pilot()
+ def test_already_exited_worker_never_signaled(self):
+  self.pilot('KEYPATH_PROCESS_ABSENT')
+  self.trial.stop('cbx_896c0d2d8565',123,'known-owned-nonce')
+ def test_unverified_process_scan_is_not_absence(self):
+  self.pilot('')
+  with self.assertRaises(RuntimeError):self.trial.stop('cbx_896c0d2d8565',123,'known-owned-nonce')
+ def test_foreign_worker_nonce_never_signaled(self):
+  self.pilot('/Users/keypathqa/Applications/KeyPath.app/Contents/MacOS/KeyPath --session-runtime --session-nonce other-nonce\nKEYPATH_PROCESS_PRESENT')
+  with self.assertRaises(RuntimeError):self.trial.stop('cbx_896c0d2d8565',123,'known-owned-nonce')
+
 if __name__=='__main__':unittest.main()

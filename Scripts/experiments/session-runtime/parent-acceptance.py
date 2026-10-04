@@ -14,7 +14,7 @@ r={'passed':False,'lease':lease,'binarySHA256':args.binary_sha,'remapOnly':args.
 def observe(cmd):return p.observe(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+'; true')
 def run(cmd):
  identity.verify(p,lease)
- return p.lab(lease,'guest-root','--','/bin/zsh','-lc',identity.guard()+' && '+cmd)
+ return p.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+identity.guard()+' && '+cmd)
 def prepare(secure=False):
  identity.verify(p,lease)
  subprocess.run(['python3',str(RIG/'rig/prepare-target.py'),lease,'--account',identity.account]+(['--secure-test'] if secure else []),check=True)

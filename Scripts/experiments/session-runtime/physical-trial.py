@@ -13,7 +13,7 @@ def configure_identity(identity):
  IDENTITY=identity;APP=identity.app
 def report(lease,path,nonce,fresh=True):
  IDENTITY.verify(pilot,lease)
- values=pilot.objects(pilot.observe(lease,'guest-root','--','/bin/zsh','-lc',IDENTITY.guard()+' && cat '+shlex.quote(path)+' 2>/dev/null; printf "\\n"; true'))
+ values=pilot.objects(pilot.observe(lease,'guest-root','--','/bin/zsh','-lc','true; '+IDENTITY.guard()+' && cat '+shlex.quote(path)+' 2>/dev/null; printf "\\n"; true'))
  if len(values)!=1:raise RuntimeError('session report unavailable')
  value=values[0]
  if value.get('nonce')!=nonce or value.get('uid')!=IDENTITY.uid or type(value.get('pid')) is not int or value['pid']<=0:raise RuntimeError('worker identity mismatch')
@@ -22,13 +22,17 @@ def report(lease,path,nonce,fresh=True):
 def stop(lease,pid,nonce=None,owner=None):
  IDENTITY.verify(pilot,lease)
  if type(pid) is not int or pid<=0:raise RuntimeError('invalid owned stop PID')
- process_args_raw=pilot.observe(lease,'guest-root','--','/bin/zsh','-lc','ps -p '+str(pid)+' -o args=').strip()
+ process_command='true; rows=$(ps -axo pid=) || exit 79; if printf \'%s\\n\' "$rows" | awk -v expected=__PID__ \'$1 == expected {found=1} END {exit !found}\'; then ps -p __PID__ -o args= || exit 79; printf \'\\nKEYPATH_PROCESS_PRESENT\\n\'; else printf KEYPATH_PROCESS_ABSENT; fi'.replace('__PID__',str(pid))
+ process_observation=pilot.observe(lease,'guest-root','--','/bin/zsh','-lc',process_command).strip()
+ if process_observation=='KEYPATH_PROCESS_ABSENT':return
+ if not process_observation.endswith('\nKEYPATH_PROCESS_PRESENT'):raise RuntimeError('owned stop process observation unavailable')
+ process_args_raw=process_observation.removesuffix('\nKEYPATH_PROCESS_PRESENT').strip()
  process_args=shlex.split(process_args_raw)
  if nonce is not None:
   if '--session-nonce' not in process_args or process_args[process_args.index('--session-nonce')+1]!=nonce:raise RuntimeError('owned stop nonce mismatch')
  elif '--headless' not in process_args or '--session-runtime' in process_args:raise RuntimeError('owned parent stop arguments mismatch')
  if owner is not None and ('--session-owner' not in process_args or process_args[process_args.index('--session-owner')+1]!=str(owner)):raise RuntimeError('owned stop parent mismatch')
- pilot.lab(lease,'guest-root','--','/bin/zsh','-lc',IDENTITY.guard()+' && if test "$(ps -p '+str(pid)+' -o uid= | tr -d " ")" = '+str(IDENTITY.uid)+' && test "$(ps -p '+str(pid)+' -o comm=)" = '+shlex.quote(APP+'/Contents/MacOS/KeyPath')+' && test "$(ps -p '+str(pid)+' -o args=)" = '+shlex.quote(process_args_raw)+'; then kill -TERM '+str(pid)+'; else exit 79; fi')
+ pilot.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+IDENTITY.guard()+' && if test "$(ps -p '+str(pid)+' -o uid= | tr -d " ")" = '+str(IDENTITY.uid)+' && test "$(ps -p '+str(pid)+' -o comm=)" = '+shlex.quote(APP+'/Contents/MacOS/KeyPath')+' && test "$(ps -p '+str(pid)+' -o args=)" = '+shlex.quote(process_args_raw)+'; then kill -TERM '+str(pid)+'; else exit 79; fi')
  for attempt in range(10):
   alive=pilot.observe(lease,'guest-root','--','/bin/zsh','-lc','true; kill -0 '+str(pid)+' 2>/dev/null && echo live; true').strip()
   if not alive:return
@@ -74,7 +78,7 @@ def main():
   if client.status().get('state') not in ('idle','complete','aborted'):raise RuntimeError('foreign fixture campaign')
   owned=True;client.load_script(script);client.arm(run)
   text='(defcfg)\n(defsrc '+('f18' if a.caps_via_f18 else 'q')+' a)\n(deflayer base '+('(tap-hold 200 200 q lctl) a' if a.mode.startswith('hrm') else 'a a')+')\n'
-  command=IDENTITY.guard()+' && printf %s '+shlex.quote(text)+' > '+config+' && chown '+IDENTITY.account+' '+config+' && launchctl asuser '+str(IDENTITY.uid)+' sudo -H -u '+IDENTITY.account+' open -g -n "'+APP+'" --args --session-runtime --session-report '+path+' --session-nonce '+nonce+' --session-config '+config+' --session-port 37001'
+  command='true; '+IDENTITY.guard()+' && printf %s '+shlex.quote(text)+' > '+config+' && chown '+IDENTITY.account+' '+config+' && launchctl asuser '+str(IDENTITY.uid)+' sudo -H -u '+IDENTITY.account+' open -g -n "'+APP+'" --args --session-runtime --session-report '+path+' --session-nonce '+nonce+' --session-config '+config+' --session-port 37001'
   if not external:IDENTITY.verify(pilot,a.lease);pilot.lab(a.lease,'guest-root','--','/bin/zsh','-lc',command)
   record['stage']='worker-start'
   for attempt in range(30):
@@ -113,7 +117,7 @@ def main():
    args=pilot.observe(a.lease,'guest-root','--','/bin/zsh','-lc','true; ps -p '+str(pid)+' -o uid=,comm=; ps -p '+str(pid)+' -o args=; true')
    if args.splitlines()[0].split(maxsplit=1)!=[str(IDENTITY.uid),APP+'/Contents/MacOS/KeyPath'] or '--session-nonce '+nonce+' ' not in args or '--session-owner '+str(a.owner_pid)+' ' not in args:raise RuntimeError('owned worker crash guard failed')
    IDENTITY.verify(pilot,a.lease)
-   command=IDENTITY.guard()+' && test "$(ps -p '+str(pid)+' -o uid= | tr -d " ")" = '+str(IDENTITY.uid)+' && test "$(ps -p '+str(pid)+' -o comm=)" = '+shlex.quote(APP+'/Contents/MacOS/KeyPath')+' && test "$(ps -p '+str(pid)+' -o args=)" = '+shlex.quote(args.splitlines()[1])+' && kill -KILL '+str(pid)
+   command='true; '+IDENTITY.guard()+' && test "$(ps -p '+str(pid)+' -o uid= | tr -d " ")" = '+str(IDENTITY.uid)+' && test "$(ps -p '+str(pid)+' -o comm=)" = '+shlex.quote(APP+'/Contents/MacOS/KeyPath')+' && test "$(ps -p '+str(pid)+' -o args=)" = '+shlex.quote(args.splitlines()[1])+' && kill -KILL '+str(pid)
    pilot.lab(a.lease,'guest-root','--','/bin/zsh','-lc',command)
    deadline=time.monotonic()+2
    while time.monotonic()<deadline:
