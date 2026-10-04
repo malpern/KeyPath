@@ -9,25 +9,29 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
 
     @MainActor
     private final class Pause {
-        private var entered = false
-        private var entryWaiter: CheckedContinuation<Void, Never>?
+        private let entry = XCTestExpectation(description: "Lifecycle seam entered")
+        private var released = false
         private var releaseWaiter: CheckedContinuation<Void, Never>?
 
         func suspend() async {
+            // A timed-out entry wait may release before the seam finally enters.
+            guard !released else { return }
             await withCheckedContinuation { continuation in
                 releaseWaiter = continuation
-                entered = true
-                entryWaiter?.resume()
-                entryWaiter = nil
+                entry.fulfill()
             }
         }
 
         func waitUntilEntered() async {
-            if entered { return }
-            await withCheckedContinuation { entryWaiter = $0 }
+            let outcome = await XCTWaiter.fulfillment(of: [entry], timeout: 5)
+            if outcome != .completed {
+                release()
+                XCTFail("Lifecycle seam did not enter within five seconds")
+            }
         }
 
         func release() {
+            released = true
             releaseWaiter?.resume()
             releaseWaiter = nil
         }
@@ -42,15 +46,36 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
     }
 
     private func nextRequest(_ operation: @escaping @MainActor () async -> Bool) async -> Task<Bool, Never> {
-        var task: Task<Bool, Never>!
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            coordinator.testSessionRequestObserved = { [self] _ in
-                coordinator.testSessionRequestObserved = nil
-                continuation.resume()
-            }
-            task = Task { @MainActor in await operation() }
+        let observed = XCTestExpectation(description: "Lifecycle request observed")
+        coordinator.testSessionRequestObserved = { [self] _ in
+            coordinator.testSessionRequestObserved = nil
+            observed.fulfill()
+        }
+        let task = Task { @MainActor in await operation() }
+        let outcome = await XCTWaiter.fulfillment(of: [observed], timeout: 5)
+        if outcome != .completed {
+            coordinator.testSessionRequestObserved = nil
+            task.cancel()
+            XCTFail("Lifecycle request was not observed within five seconds")
         }
         return task
+    }
+
+    private func completion<Value: Sendable>(of task: Task<Value, Never>, fallback: Value) async -> Value {
+        let completed = XCTestExpectation(description: "Lifecycle task completed")
+        var result: Value?
+        let observer = Task { @MainActor in
+            result = await task.value
+            completed.fulfill()
+        }
+        let outcome = await XCTWaiter.fulfillment(of: [completed], timeout: 5)
+        guard outcome == .completed else {
+            task.cancel()
+            observer.cancel()
+            XCTFail("Lifecycle task did not complete within five seconds")
+            return fallback
+        }
+        return result ?? fallback
     }
 
     func testRepeatedHealthyStartTransfersSupervisionToLatestIntent() async {
@@ -97,8 +122,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertEqual(events, ["start:old"])
         XCTAssertTrue(coordinator.isStartingKanata)
         pause.release()
-        let oldResult = await old.value
-        let newResult = await new.value
+        let oldResult = await completion(of: old, fallback: false)
+        let newResult = await completion(of: new, fallback: false)
         XCTAssertFalse(oldResult, "Superseded startup cannot report success")
         XCTAssertTrue(newResult)
         XCTAssertEqual(events, ["start:old", "cleanup:old", "start:new"])
@@ -118,8 +143,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let stop = await nextRequest { await self.coordinator.stopKanata() }
         XCTAssertFalse(coordinator.sessionWantsRunning)
         pause.release()
-        let startResult = await start.value
-        let stopResult = await stop.value
+        let startResult = await completion(of: start, fallback: false)
+        let stopResult = await completion(of: stop, fallback: false)
         XCTAssertFalse(startResult)
         XCTAssertTrue(stopResult)
         XCTAssertFalse(held)
@@ -140,8 +165,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let stop = await nextRequest { await self.coordinator.stopKanata() }
         XCTAssertEqual(events, ["stop"], "New stop cannot enter the active restart")
         pause.release()
-        let restartResult = await restart.value
-        let stopResult = await stop.value
+        let restartResult = await completion(of: restart, fallback: false)
+        let stopResult = await completion(of: stop, fallback: false)
         XCTAssertFalse(restartResult)
         XCTAssertTrue(stopResult)
         XCTAssertEqual(events, ["stop", "stop"])
@@ -162,8 +187,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let queued = await nextRequest { await self.coordinator.startKanata() }
         queued.cancel()
         pause.release()
-        _ = await firstStop.value
-        let result = await queued.value
+        _ = await completion(of: firstStop, fallback: false)
+        let result = await completion(of: queued, fallback: false)
         XCTAssertFalse(result)
         XCTAssertEqual(starts, 0)
         XCTAssertFalse(held)
@@ -186,8 +211,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let stop = await nextRequest { await self.coordinator.stopKanata() }
         stop.cancel()
         pause.release()
-        _ = await restart.value
-        let stopped = await stop.value
+        _ = await completion(of: restart, fallback: false)
+        let stopped = await completion(of: stop, fallback: false)
         XCTAssertTrue(stopped, "Accepted stop cleanup survives caller cancellation")
         XCTAssertFalse(held)
         XCTAssertEqual(stopCalls, 2)
@@ -203,7 +228,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         await pause.waitUntilEntered()
         start.cancel()
         pause.release()
-        let result = await start.value
+        let result = await completion(of: start, fallback: false)
         XCTAssertFalse(result)
         XCTAssertFalse(held)
         XCTAssertFalse(coordinator.sessionWantsRunning)
@@ -227,9 +252,9 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let resume = await nextRequest { await self.coordinator.resumeSessionRuntime(expectedGeneration: oldGeneration) }
         let stop = await nextRequest { await self.coordinator.stopKanata() }
         pause.release()
-        _ = await blocker.value
-        let resumed = await resume.value
-        let stopped = await stop.value
+        _ = await completion(of: blocker, fallback: ())
+        let resumed = await completion(of: resume, fallback: false)
+        let stopped = await completion(of: stop, fallback: false)
         XCTAssertFalse(resumed)
         XCTAssertTrue(stopped)
         XCTAssertEqual(starts, 1)
