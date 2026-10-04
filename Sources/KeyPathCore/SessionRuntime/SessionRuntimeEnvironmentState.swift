@@ -26,7 +26,9 @@ public struct SessionRuntimeEnvironmentState: Sendable {
     public let expectedUID: UInt32
     public private(set) var boundary: Boundary?
 
-    public init(expectedUID: UInt32) { self.expectedUID = expectedUID }
+    public init(expectedUID: UInt32) {
+        self.expectedUID = expectedUID
+    }
 
     @discardableResult
     public mutating func retire(_ reason: Boundary) -> Boundary {
@@ -39,7 +41,8 @@ public struct SessionRuntimeEnvironmentState: Sendable {
         if let boundary { return boundary }
         guard let observation else { return retire(.consoleObservationUnavailable) }
         guard expectedUID != 0, observation.uid == expectedUID,
-              observation.onConsole, observation.loginDone else {
+              observation.onConsole, observation.loginDone
+        else {
             return retire(.consoleSessionInactive)
         }
         return nil

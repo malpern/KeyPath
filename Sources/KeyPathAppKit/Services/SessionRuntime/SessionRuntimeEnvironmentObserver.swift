@@ -26,7 +26,8 @@ final class SessionRuntimeEnvironmentObserver {
     init(expectedUID: UInt32,
          readConsole: (() -> SessionRuntimeConsoleObservation?)? = nil,
          readNotification: ((Int32) -> Bool?)? = nil,
-         onBoundary: @escaping (Boundary, (() -> Void)?) -> Void) {
+         onBoundary: @escaping (Boundary, (() -> Void)?) -> Void)
+    {
         state = SessionRuntimeEnvironmentState(expectedUID: expectedUID)
         self.readConsole = readConsole ?? Self.currentConsole
         self.onBoundary = onBoundary
@@ -48,7 +49,8 @@ final class SessionRuntimeEnvironmentObserver {
             }, &powerNotifier
         )
         guard powerConnection != 0, let powerPort,
-              let source = IONotificationPortGetRunLoopSource(powerPort)?.takeUnretainedValue() else {
+              let source = IONotificationPortGetRunLoopSource(powerPort)?.takeUnretainedValue()
+        else {
             stop()
             return false
         }
@@ -70,7 +72,8 @@ final class SessionRuntimeEnvironmentObserver {
         }
         let center = NSWorkspace.shared.notificationCenter
         for (name, reason) in [(NSWorkspace.willSleepNotification, Boundary.systemWillSleep),
-                               (NSWorkspace.sessionDidResignActiveNotification, Boundary.sessionResignedActive)] {
+                               (NSWorkspace.sessionDidResignActiveNotification, Boundary.sessionResignedActive)]
+        {
             workspaceObservers.append(center.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
                 // Workspace callbacks are not assumed to have main-thread delivery.
                 if Thread.isMainThread {
@@ -87,10 +90,14 @@ final class SessionRuntimeEnvironmentObserver {
     }
 
     func stop() {
-        for token in notifyTokens { KPSessionCancelNotification(token) }
+        for token in notifyTokens {
+            KPSessionCancelNotification(token)
+        }
         notifyTokens.removeAll()
         let center = NSWorkspace.shared.notificationCenter
-        for observer in workspaceObservers { center.removeObserver(observer) }
+        for observer in workspaceObservers {
+            center.removeObserver(observer)
+        }
         workspaceObservers.removeAll()
         if let powerSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), powerSource, .commonModes) }
         powerSource = nil

@@ -87,7 +87,7 @@ public final class SessionRuntimeWorker {
         }
         let environmentObserver = SessionRuntimeEnvironmentObserver(expectedUID: getuid()) { [weak self] reason, acknowledge in
             guard let self else { acknowledge?(); return }
-            self.finish(.failed, reason: reason.rawValue, acknowledge: acknowledge)
+            finish(.failed, reason: reason.rawValue, acknowledge: acknowledge)
         }
         self.environmentObserver = environmentObserver
         guard environmentObserver.start() else {

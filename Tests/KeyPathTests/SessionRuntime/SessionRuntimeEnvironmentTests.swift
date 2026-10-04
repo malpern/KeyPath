@@ -120,7 +120,7 @@ final class SessionRuntimeEnvironmentTests: XCTestCase {
         let onConsoleKey = "kCGSSessionOnConsoleKey"
         let loginDoneKey = "kCGSessionLoginDoneKey"
         let dictionary: [String: Any] = [uidKey: NSNumber(value: 502),
-                                       onConsoleKey: NSNumber(value: true), loginDoneKey: NSNumber(value: true)]
+                                         onConsoleKey: NSNumber(value: true), loginDoneKey: NSNumber(value: true)]
         XCTAssertEqual(SessionRuntimeEnvironmentObserver.parseConsole(dictionary), active)
         XCTAssertNil(SessionRuntimeEnvironmentObserver.parseConsole(nil))
         for key in [uidKey, onConsoleKey, loginDoneKey] {
@@ -129,7 +129,8 @@ final class SessionRuntimeEnvironmentTests: XCTestCase {
             XCTAssertNil(SessionRuntimeEnvironmentObserver.parseConsole(incomplete))
         }
         for badUID: Any in [NSNumber(value: true), NSNumber(value: -1), NSNumber(value: 502.5),
-                           NSNumber(value: UInt64(UInt32.max) + 1), "502"] {
+                            NSNumber(value: UInt64(UInt32.max) + 1), "502"]
+        {
             var malformed = dictionary
             malformed[uidKey] = badUID
             XCTAssertNil(SessionRuntimeEnvironmentObserver.parseConsole(malformed))
@@ -145,7 +146,8 @@ final class SessionRuntimeEnvironmentTests: XCTestCase {
         var replies: [Bool?] = [true, false, true]
         var causes: [SessionRuntimeEnvironmentState.Boundary] = []
         let observer = SessionRuntimeEnvironmentObserver(expectedUID: 502, readConsole: { self.active },
-                                                        readNotification: { _ in replies.removeFirst() }) { reason, _ in
+                                                         readNotification: { _ in replies.removeFirst() })
+        { reason, _ in
             causes.append(reason)
         }
         XCTAssertTrue(observer.baselineNotification(123))
@@ -162,7 +164,8 @@ final class SessionRuntimeEnvironmentTests: XCTestCase {
     func testNotificationUnavailableAtBaselineOrPollingNeverAdmitsOldOutput() {
         var causes: [SessionRuntimeEnvironmentState.Boundary] = []
         let observer = SessionRuntimeEnvironmentObserver(expectedUID: 502, readConsole: { self.active },
-                                                        readNotification: { _ in nil }) { reason, _ in
+                                                         readNotification: { _ in nil })
+        { reason, _ in
             causes.append(reason)
         }
         XCTAssertFalse(observer.baselineNotification(123))
