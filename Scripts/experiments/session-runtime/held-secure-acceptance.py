@@ -1,0 +1,489 @@
+#!/usr/bin/env python3
+"""Review-gated D8 campaign. Import is inert; only main performs guest operations."""
+import argparse
+import importlib.util
+import json
+import pathlib
+import re
+import shlex
+import subprocess
+import time
+import uuid
+import zlib
+
+from held_secure_predicates import (TargetHistory, Refusal, applied, control_down,
+                                   control_released, exact_trace, focus, no_resurrection,
+                                   physical_hold, require, worker)
+
+ROOT = pathlib.Path(__file__).resolve().parents[3]
+CONFIG = '(defcfg)\n(defsrc q a)\n(deflayer base (tap-hold 200 200 q lctl) a)\n'
+
+
+def load_module(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    require(spec is not None and spec.loader is not None, 'dependency module unavailable')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class Guest:
+    def __init__(self, lease, pilot, binary_sha, target_sha, account, uid, home):
+        self.lease, self.pilot = lease, pilot
+        self.binary_sha, self.target_sha = binary_sha, target_sha
+        self.account, self.uid, self.home = account, uid, home
+        self.app = home + "/Applications/KeyPath.app"
+        self.exe = self.app + "/Contents/MacOS/KeyPath"
+        self.profile = home + "/.config/keypath/keypath.kbd"
+        self.parent = None
+        self.generations = {}
+        self.backup = self.profile + '.held-secure-' + uuid.uuid4().hex
+        self.backed_up = False
+        self.parent_args = None
+
+    def check_account(self):
+        value = self.run('dscl . -read /Users/' + shlex.quote(self.account) + ' UniqueID NFSHomeDirectory')
+        fields = dict(line.split(': ', 1) for line in value.strip().splitlines())
+        require(fields == {'UniqueID': str(self.uid), 'NFSHomeDirectory': self.home}, 'frozen account record changed')
+        require(self.run('stat -f %u /dev/console').strip() == str(self.uid), 'owned console UID changed')
+
+    def run(self, command):
+        # No mutation retries and no trailing `true` masking failed guards.
+        return self.pilot.lab(self.lease, 'guest-root', '--', '/bin/zsh', '-lc', command)
+
+    def target(self):
+        return json.loads(self.run('cat ' + shlex.quote(self.home + '/rig-target.json')))
+
+    def processes(self):
+        rows = self.run('ps -axo pid=,uid=,comm=').splitlines()
+        result = []
+        for row in rows:
+            fields = row.split(maxsplit=2)
+            if len(fields) == 3 and fields[2] == self.exe:
+                result.append((int(fields[0]), int(fields[1]),
+                               shlex.split(self.run(f'ps -p {int(fields[0])} -o args='))))
+        return result
+
+    def identity(self, pid, expected_args):
+        self.check_account()
+        require(type(pid) is int and pid > 0, 'invalid owned PID')
+        result = self.run(f'ps -p {pid} -o uid=,comm=').strip().split(maxsplit=1)
+        require(result == [str(self.uid), self.exe], 'owned process executable or UID changed')
+        args = shlex.split(self.run(f'ps -p {pid} -o args='))
+        require(args == expected_args, 'owned process arguments changed')
+        digest = self.run('shasum -a 256 ' + shlex.quote(self.exe)).split()[0]
+        require(digest == self.binary_sha, 'owned executable hash changed')
+        return {'pid': pid, 'uid': self.uid, 'arguments': args, 'binarySHA256': digest}
+
+    def alive(self, pid):
+        # ps returning no row is an explicit exit observation, not a masked transport failure.
+        return bool(self.run(f'ps -axo pid= | awk \'$1 == {pid} {{print $1}}\'').strip())
+
+    def preflight(self, target):
+        require(not self.processes(), 'existing KeyPath process; campaign refuses adoption')
+        require(self.run('stat -f %Su /dev/console').strip() == self.account, 'wrong owned console')
+        self.check_account()
+        self.run('codesign --verify --strict ' + shlex.quote(self.app))
+        require(self.run('shasum -a 256 ' + shlex.quote(self.exe)).split()[0] == self.binary_sha,
+                'frozen parent/worker binary mismatch')
+        target_exe = self.run(f'ps -p {target["pid"]} -o comm=').strip()
+        require(self.run(f'ps -p {target["pid"]} -o uid=').strip() == str(self.uid), 'target UID mismatch')
+        require(self.run('shasum -a 256 ' + shlex.quote(target_exe)).split()[0] == self.target_sha,
+                'reviewed target binary mismatch')
+        return {'pid': target['pid'], 'uid': self.uid, 'nonce': target['nonce'],
+                'executable': target_exe, 'binarySHA256': self.target_sha}
+
+    def start(self):
+        self.check_account()
+        self.run('test -f ' + shlex.quote(self.profile) + ' && test ! -e ' + shlex.quote(self.backup)
+                 + ' && cp -p ' + shlex.quote(self.profile) + ' ' + shlex.quote(self.backup))
+        self.backed_up = True
+        self.check_account()
+        self.run('printf %s ' + shlex.quote(CONFIG) + ' > ' + shlex.quote(self.profile)
+                 + ' && chown ' + shlex.quote(self.account) + ' ' + shlex.quote(self.profile)
+                 + ' && launchctl asuser ' + str(self.uid) + ' sudo -H -u ' + shlex.quote(self.account) + ' open -g -n '
+                 + shlex.quote(self.app) + ' --args --headless')
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            rows = self.processes()
+            parents = [(pid, args) for pid, uid, args in rows
+                       if uid == self.uid and '--headless' in args and '--session-runtime' not in args]
+            require(len(parents) <= 1, 'ambiguous parent launch')
+            if parents:
+                self.parent, self.parent_args = parents[0]
+                return self.identity(self.parent, self.parent_args)
+            time.sleep(.2)
+        raise Refusal('parent launch deadline')
+
+    def current_worker(self):
+        self.identity(self.parent, self.parent_args)
+        found = []
+        for pid, uid, args in self.processes():
+            if '--session-runtime' not in args:
+                continue
+            require(uid == self.uid and '--session-owner' in args
+                    and args[args.index('--session-owner') + 1] == str(self.parent), 'foreign worker')
+            path = args[args.index('--session-report') + 1]
+            nonce = args[args.index('--session-nonce') + 1]
+            uuid.UUID(nonce)
+            require(re.fullmatch(r'/var/folders/[A-Za-z0-9_/-]+/T/keypath-session-'
+                                 + re.escape(nonce) + r'/report.json', path), 'unsafe worker report path')
+            identity = self.identity(pid, args)
+            identity.update(nonce=nonce, reportPath=path)
+            self.generations[pid] = identity
+            found.append((identity, self.read_worker(identity)))
+        require(len(found) <= 1, 'multiple live workers')
+        return found[0] if found else None
+
+    def read_worker(self, identity):
+        self.check_account()
+        value = json.loads(self.run('cat ' + shlex.quote(identity['reportPath'])))
+        require(tuple(value.get(k) for k in ('pid', 'uid', 'nonce'))
+                == tuple(identity[k] for k in ('pid', 'uid', 'nonce')), 'report ownership mismatch')
+        return value
+
+    def command(self, before, mode):
+        # Trusted owned guest directory; target independently verifies O_NOFOLLOW,
+        # owner, links, mode, exact shape and PID/UID/nonce/sequence before applying.
+        path = before['commandPath']
+        require(re.fullmatch(re.escape(self.home) + r'/rig-target-control-'
+                             + str(before['pid']) + '-' + re.escape(before['nonce'])
+                             + r'/command.json', path), 'unexpected target command path')
+        command = {k: before[k] for k in ('pid', 'uid', 'nonce')}
+        command.update(sequence=before['commandSequence'] + 1, mode=mode)
+        code = '''import json,os,pathlib,stat,sys,tempfile
+p=pathlib.Path(sys.argv[1]); d=p.parent
+s=d.lstat()
+assert stat.S_ISDIR(s.st_mode) and s.st_uid==int(sys.argv[3]) and stat.S_IMODE(s.st_mode)==0o700
+fd,tmp=tempfile.mkstemp(prefix='.held-command-',dir=d)
+try:
+ os.fchmod(fd,0o600); os.fchown(fd,int(sys.argv[3]),s.st_gid)
+ with os.fdopen(fd,'w') as f: f.write(sys.argv[2]); f.flush(); os.fsync(f.fileno())
+ os.replace(tmp,p)
+finally:
+ if os.path.exists(tmp): os.unlink(tmp)
+'''
+        self.run('/usr/bin/python3 -c ' + shlex.quote(code) + ' ' + shlex.quote(path)
+                 + ' ' + shlex.quote(json.dumps(command, separators=(',', ':'))) + ' ' + str(self.uid))
+        return command['sequence']
+
+    def cleanup(self):
+        errors = []
+        # Only owned, fully revalidated processes can receive a signal. No global kill.
+        owned = list(self.generations.values())
+        if self.parent:
+            owned.insert(0, {'pid': self.parent, 'arguments': self.parent_args})
+        for identity in owned:
+            try:
+                if self.alive(identity['pid']):
+                    self.identity(identity['pid'], identity['arguments'])
+                    self.run(f'kill -TERM {identity["pid"]}')
+            except Exception as error:
+                errors.append(str(error))
+        try:
+            deadline = time.monotonic() + 5
+            while any(self.alive(v['pid']) for v in owned) and time.monotonic() < deadline:
+                time.sleep(.2)
+            if any(self.alive(v['pid']) for v in owned):
+                errors.append('owned process remains after graceful cleanup')
+        except Exception as error:
+            errors.append('owner exit observation failed: ' + str(error))
+        if self.backed_up:
+            try:
+                self.check_account()
+                self.run('cp -p ' + shlex.quote(self.backup) + ' ' + shlex.quote(self.profile)
+                         + ' && cmp -s ' + shlex.quote(self.backup) + ' ' + shlex.quote(self.profile))
+                # Retain backup as evidence; do not delete the only original on a failed campaign.
+            except Exception as error:
+                errors.append('bytewise profile restore failed: ' + str(error))
+        return {'errors': errors, 'profileBackup': self.backup,
+                'profileBytewiseRestored': self.backed_up and not any('restore' in e for e in errors)}
+
+
+def script(run, timed):
+    payload = ''.join(str(at) + ' ' + ' '.join(map(str, row)) + '\n' for at, row in timed)
+    duration = timed[-1][0] + 300000
+    return f'KPHID1 {run} {len(timed)} 1 {duration} {zlib.crc32(payload.encode()) & 0xffffffff:08x}\n' + payload
+
+
+class Campaign:
+    def __init__(self, guest, client, destination):
+        self.guest, self.client, self.destination = guest, client, destination
+        self.history = None
+        self.active_run = None
+        self.receipt_count = 0
+        self.last_target_read = 0
+        self.record = {'passed': False, 'untested': ['actual OS tap timeout', 'sleep/wake',
+                                                  'console departure/return'], 'phases': []}
+
+    def save(self, label, value):
+        self.receipt_count += 1
+        name = f'{self.receipt_count:04d}-{label}.json'
+        with (self.destination / name).open('x') as output:
+            json.dump(value, output, indent=2)
+            output.write('\n')
+        self.record['phases'].append({'label': label, 'receipt': name})
+
+    def target(self):
+        remaining = .2 - (time.monotonic() - self.last_target_read)
+        if remaining > 0:
+            time.sleep(remaining)
+        value = self.guest.target()
+        self.last_target_read = time.monotonic()
+        if self.history is None:
+            self.history = TargetHistory(value, time.time(), self.guest.uid)
+        else:
+            self.history.check(value, time.time())
+        self.save('target', value)
+        return value
+
+    def wait(self, label, predicate, seconds=5):
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            time.sleep(.2)
+            target = self.target()  # stale, focus or instance failures are never retried
+            value = predicate(target)
+            if value is not None:
+                self.history.anchor(target)
+                self.save(label, value)
+                return target, value
+        raise Refusal(label + ' deadline')
+
+    def switch(self, mode):
+        before = self.target()
+        sequence = self.guest.command(before, mode)
+        self.save('command', {'sequence': sequence, 'mode': mode, 'anchor': before['monotonicAt']})
+        def switched(target):
+            require(target['commandSequence'] <= sequence, 'unexpected target command consumed')
+            if target['commandSequence'] == sequence:
+                applied(target, mode, sequence)
+                return target
+            require(target['commandStatus'] in ('applied', 'awaitingCommand'), 'target rejected mode command')
+            return None
+        after, _ = self.wait('mode-' + mode, switched)
+        return before, after
+
+    def start_input(self, timed):
+        status = self.client.status()
+        require(status.get('state') in ('idle', 'complete', 'aborted'), 'foreign fixture campaign')
+        run = 'held-secure-' + uuid.uuid4().hex[:16]
+        self.client.load_script(script(run, timed))
+        self.active_run = run  # set before arm/start so cleanup covers partial owned operations
+        self.client.arm(run)
+        self.client.start(run, 500)
+        self.save('physical-script', {'runId': run, 'timedReports': timed})
+        return run
+
+    def finish_input(self, timed, seconds=50):
+        run = self.active_run
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            status = self.client.status()
+            require(status.get('runId') == run, 'fixture ownership changed')
+            if status.get('state') == 'complete':
+                break
+            require(status.get('state') == 'running', 'fixture stopped before all-up')
+            # Continue retaining fresh target/focus/journals across the physical hold.
+            time.sleep(.2)
+            self.target()
+        else:
+            raise Refusal('fixture completion deadline')
+        trace = self.client.trace_all(retry_seconds=0)
+        exact_trace(trace, [row for _, row in timed], status, run)
+        self.save('physical-trace', {'status': status, 'trace': trace})
+        self.active_run = None
+
+    def execute(self):
+        initial = self.target()
+        require(initial['secureTest'] is False and initial['secureInputEnabled'] is False
+                and initial['modifiers'] == 0 and initial['combinedSessionControl'] is False
+                and initial['held'] == [] and initial['downs'] == initial['ups'] == 0
+                and initial['text'] == '' and initial['secureLength'] == 0, 'fresh empty normal target required')
+        self.record['targetIdentity'] = self.guest.preflight(initial)
+        self.record['usbBefore'] = self.guest.pilot.verify_usb(self.guest.lease)
+        self.record['parentIdentity'] = self.guest.start()
+        def ready(_):
+            found = self.guest.current_worker()
+            if found and found[1].get('state') == 'running':
+                worker(found[1], tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
+                require(found[1].get('heldOutputUsages') == [], 'initial worker ledger not empty')
+                return {'identity': found[0], 'report': found[1]}
+            return None
+        _, old = self.wait('initial-worker', ready, 8)
+        anchor = self.history.previous['flagsChangedJournal']
+        anchor = anchor[-1]['sequence'] if anchor else 0
+        timed = [(0, [0, 20, 0, 0, 0, 0, 0]), (45000000, [0] * 7)]
+        run = self.start_input(timed)
+        def held(target):
+            ledger = self.guest.read_worker(old['identity'])
+            worker(ledger, tuple(old['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
+            if ledger.get('heldOutputUsages') != [224]:
+                return None
+            down = control_down(target, ledger, anchor)
+            status = self.client.status()
+            physical_hold(status, run)
+            return {'down': down, 'worker': ledger, 'fixture': status}
+        _, hold = self.wait('control-held', held)
+        command_before, secure = self.switch('secure')
+        def released(target):
+            applied(target, 'secure', secure['commandSequence'])
+            stopped = self.guest.read_worker(old['identity'])
+            if self.guest.alive(old['identity']['pid']):
+                return None
+            worker(stopped, tuple(old['identity'][k] for k in ('pid', 'uid', 'nonce')),
+                   time.time(), 'secureInput')
+            up = control_released(target, stopped, hold['down'], command_before['monotonicAt'], True)
+            status = self.client.status()
+            physical_hold(status, run)
+            return {'up': up, 'worker': stopped, 'oldWorkerExited': True, 'fixture': status}
+        _, release = self.wait('control-released-before-q-up', released)
+        self.switch('normal')
+        def resumed(target):
+            found = self.guest.current_worker()
+            if not found or found[1].get('state') != 'running':
+                return None
+            require(found[0]['pid'] != old['identity']['pid']
+                    and found[0]['nonce'] != old['identity']['nonce'], 'worker generation was reused')
+            worker(found[1], tuple(found[0][k] for k in ('pid', 'uid', 'nonce')), time.time())
+            no_resurrection(target, found[1], release['up']['sequence'])
+            physical_hold(self.client.status(), run)
+            return {'identity': found[0], 'report': found[1]}
+        _, new = self.wait('resumed-worker', resumed, 8)
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            time.sleep(.2)
+            target = self.target()
+            ledger = self.guest.read_worker(new['identity'])
+            worker(ledger, tuple(new['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
+            no_resurrection(target, ledger, release['up']['sequence'])
+            physical_hold(self.client.status(), run)
+            self.save('held-no-resurrection', {'worker': ledger, 'fixture': self.client.status()})
+        self.finish_input(timed)
+        time.sleep(.3)
+        baseline = self.target()
+        ledger = self.guest.read_worker(new['identity'])
+        worker(ledger, tuple(new['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
+        no_resurrection(baseline, ledger, release['up']['sequence'])
+        require(baseline['held'] == [] and baseline['combinedSessionControl'] is False
+                and baseline['modifiers'] == 0, 'physical all-up did not reconcile target')
+        # Fresh tap, modifier hold, then Control+a chord; every sample ends all-up.
+        for label, rows in (
+            ('tap', [(0, [0, 20, 0, 0, 0, 0, 0]), (80000, [0] * 7)]),
+            ('hold', [(0, [0, 20, 0, 0, 0, 0, 0]), (350000, [0] * 7)]),
+            ('chord', [(0, [0, 20, 0, 0, 0, 0, 0]), (300000, [0, 20, 4, 0, 0, 0, 0]),
+                       (350000, [0, 20, 0, 0, 0, 0, 0]), (400000, [0] * 7)])):
+            before = self.target()
+            self.start_input(rows)
+            self.finish_input(rows, 8)
+            time.sleep(.3)
+            after = self.target()
+            ledger = self.guest.read_worker(new['identity'])
+            worker(ledger, tuple(new['identity'][k] for k in ('pid', 'uid', 'nonce')), time.time())
+            require(ledger['heldOutputUsages'] == [] and after['held'] == []
+                    and after['combinedSessionControl'] is False and after['modifiers'] == 0,
+                    'fresh sample output not released')
+            require(after['downs'] - before['downs'] == after['ups'] - before['ups']
+                    == (0 if label == 'hold' else 1), 'fresh sample keyboard delivery not balanced')
+            if label == 'tap':
+                require(after['qDowns'] - before['qDowns'] == 1, 'fresh q tap not delivered')
+            else:
+                recent = [r for r in after['flagsChangedJournal'] if r['monotonicAt'] > before['monotonicAt']
+                          and r.get('keyCode') == 59]
+                require([r['control'] for r in recent] == [True, False], 'fresh Control hold not balanced')
+            if label == 'chord':
+                require(after['controlA'] - before['controlA'] == 1, 'fresh Control+a chord missing')
+            self.save('fresh-' + label, {'before': before, 'after': after, 'worker': ledger})
+        # No secret text is collected. This fixed sample occurs only after reconciled all-up.
+        _, secure = self.switch('secure')
+        # Native repeats from the original q hold may have populated this same
+        # secure field. Clear that fixed nonsecret input physically after all-up;
+        # commands never carry text, and cumulative target counters stay intact.
+        clear = [(0, [8, 4, 0, 0, 0, 0, 0]), (80000, [0] * 7),
+                 (160000, [0, 42, 0, 0, 0, 0, 0]), (240000, [0] * 7)]
+        self.start_input(clear)
+        self.finish_input(clear, 8)
+        time.sleep(.3)
+        cleared = self.target()
+        applied(cleared, 'secure', secure['commandSequence'])
+        require(cleared['secureLength'] == 0 and cleared['held'] == []
+                and cleared['combinedSessionControl'] is False, 'secure field clear did not reconcile all-up')
+        keys = [20, 4, 29, 30, 31, 32]  # qaz123
+        rows = []
+        for index, key in enumerate(keys):
+            rows.extend([(index * 120000, [0, key, 0, 0, 0, 0, 0]),
+                         (index * 120000 + 40000, [0] * 7)])
+        self.start_input(rows)
+        self.finish_input(rows, 8)
+        time.sleep(.3)
+        after = self.target()
+        applied(after, 'secure', secure['commandSequence'])
+        require(after['secureLength'] == 6 and after['secureSampleMatches'] is True
+                and after['held'] == [] and after['combinedSessionControl'] is False,
+                'fixed nonsecret secure sample did not pass through cleanly')
+        self.record['usbAfter'] = self.guest.pilot.verify_usb(self.guest.lease)
+        self.record['passed'] = True
+
+    def cleanup(self):
+        errors = []
+        try:
+            status = self.client.status()
+            if self.active_run and status.get('runId') == self.active_run:
+                if status.get('state') in ('loaded', 'armed', 'running'):
+                    self.client.abort()  # only this campaign's exact run; never abort a foreign run
+            elif self.active_run:
+                errors.append('fixture ownership changed; foreign run was not aborted')
+        except Exception as error:
+            errors.append(str(error))
+        finally:
+            self.client.close()
+        try:
+            self.record['ownerCleanup'] = self.guest.cleanup()
+            errors.extend(self.record['ownerCleanup']['errors'])
+        except Exception as error:
+            errors.append(str(error))
+        if errors:
+            self.record.update(passed=False, cleanupErrors=errors)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('lease')
+    parser.add_argument('--account', required=True)
+    parser.add_argument('--uid', type=int, required=True)
+    parser.add_argument('--home', required=True)
+    parser.add_argument('--binary-sha', required=True)
+    parser.add_argument('--target-sha', required=True)
+    parser.add_argument('--fixture-factory', type=pathlib.Path, required=True,
+                        help='Reviewed module create_client(); returns preauthenticated persistent scoped client')
+    parser.add_argument('--reviewed-execution', action='store_true',
+                        help='Required explicit gate after high review and guest target release')
+    args = parser.parse_args()
+    require(re.fullmatch(r'[a-z][a-z0-9_]{1,63}', args.account) and args.uid > 500
+            and args.home == '/Users/' + args.account, 'invalid explicit frozen account identity')
+    require(args.reviewed_execution, 'source-only harness requires review and guest-release gate')
+    require(re.fullmatch(r'cbx_[0-9a-f]{12}', args.lease), 'invalid owned lease')
+    require(all(re.fullmatch(r'[0-9a-f]{64}', v) for v in (args.binary_sha, args.target_sha)),
+            'invalid frozen binary hashes')
+    destination = ROOT / 'evidence/session-runtime' / ('held-secure-' + uuid.uuid4().hex)
+    destination.mkdir(parents=True, exist_ok=False)
+    pilot = load_module('/private/tmp/vm-lab-hid-rig/rig/physical-baseline.py', 'held_pilot')
+    factory = load_module(args.fixture_factory, 'held_fixture_factory')
+    guest = Guest(args.lease, pilot, args.binary_sha, args.target_sha, args.account, args.uid, args.home)
+    campaign = Campaign(guest, factory.create_client(), destination)
+    campaign.record.update(account=args.account, uid=args.uid, home=args.home, lease=args.lease, binarySHA256=args.binary_sha,
+                           targetSHA256=args.target_sha, profile=CONFIG)
+    try:
+        campaign.execute()
+    except Exception as error:
+        campaign.record.update(passed=False, error=str(error), failureType=type(error).__name__)
+    finally:
+        campaign.cleanup()
+        with (destination / 'campaign.json').open('x') as output:
+            json.dump(campaign.record, output, indent=2)
+            output.write('\n')
+    print(json.dumps({'passed': campaign.record['passed'], 'evidence': str(destination)}))
+    return 0 if campaign.record['passed'] else 79
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
