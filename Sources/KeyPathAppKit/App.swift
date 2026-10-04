@@ -20,6 +20,9 @@ public struct KeyPathApp: App {
     private let isOneShotProbeMode: Bool
 
     public init() {
+        // Read the existing wrapper storage before bootstrap touches AppKit.
+        // The wrapped property getter requires all other fields initialized first.
+        let delegate = _appDelegate.wrappedValue
         let result = CompositionRoot.bootstrap()
         kanataManager = result.kanataManager
         viewModel = result.viewModel
@@ -27,10 +30,7 @@ public struct KeyPathApp: App {
         isHeadlessMode = result.isHeadlessMode
         isOneShotProbeMode = result.isOneShotProbeMode
 
-        appDelegate.kanataManager = result.kanataManager
-        appDelegate.viewModel = result.viewModel
-        appDelegate.serviceContainer = result.serviceContainer
-        appDelegate.isHeadlessMode = result.isHeadlessMode
+        delegate.configureForLaunch(result)
     }
 
     public var body: some Scene {
@@ -134,6 +134,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var initialMainWindowShown = false
     private var suppressLaunchSplashAutoHide = false
     private var keyboardCapture: KeyboardCapture?
+    private var launchGate = ApplicationLaunchGate()
+
+    override init() {
+        super.init()
+        // The adaptor creates its delegate before KeyPathApp bootstraps services.
+        // Capture the real launch event even before SwiftUI installs the delegate.
+        observeApplicationLaunch()
+    }
+
+    private func observeApplicationLaunch() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(observedApplicationDidFinishLaunching(_:)),
+            name: NSApplication.didFinishLaunchingNotification,
+            object: nil
+        )
+    }
+
+    func configureForLaunch(_ result: CompositionRootResult) {
+        kanataManager = result.kanataManager
+        viewModel = result.viewModel
+        serviceContainer = result.serviceContainer
+        isHeadlessMode = result.isHeadlessMode
+        if launchGate.didConfigure() {
+            finishApplicationLaunch()
+        }
+    }
+
+    @objc private func observedApplicationDidFinishLaunching(_: Notification) {
+        recordApplicationLaunch()
+    }
+
+    private func recordApplicationLaunch() {
+        if launchGate.didFinishLaunching() {
+            finishApplicationLaunch()
+        }
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
@@ -197,6 +234,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        recordApplicationLaunch()
+    }
+
+    private func finishApplicationLaunch() {
+        NotificationCenter.default.removeObserver(
+            self, name: NSApplication.didFinishLaunchingNotification, object: nil
+        )
         AppLogger.shared.info("🔍 [AppDelegate] applicationDidFinishLaunching called")
 
         #if DEBUG
