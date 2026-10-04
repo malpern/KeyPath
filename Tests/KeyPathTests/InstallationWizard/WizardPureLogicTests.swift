@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
@@ -35,7 +36,7 @@ final class WizardPureLogicTests: XCTestCase {
                 confidence: .high,
                 timestamp: now
             ),
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
     }
 
@@ -52,16 +53,15 @@ final class WizardPureLogicTests: XCTestCase {
     }
 
     private var healthyServices: HealthStatus {
-        HealthStatus(
-            kanataLaunchdLoaded: true,
-            kanataProcessRunning: true,
-            kanataTCPResponding: true,
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            kanataSMAppServiceRegistered: true,
-            loginItemsApprovalRequired: false
-        )
+        HealthStatus(backend: .driverKit,
+                     kanataLaunchdLoaded: true,
+                     kanataProcessRunning: true,
+                     kanataTCPResponding: true,
+                     kanataRunning: true,
+                     karabinerDaemonRunning: true,
+                     vhidHealthy: true,
+                     kanataSMAppServiceRegistered: true,
+                     loginItemsApprovalRequired: false)
     }
 
     private var healthyHelper: HelperStatus {
@@ -123,18 +123,17 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture() {
         let context = makeContext(
-            services: HealthStatus(
-                kanataLaunchdLoaded: true,
-                kanataProcessRunning: false,
-                kanataTCPResponding: false,
-                kanataRunning: false,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
-                kanataSMAppServiceRegistered: true,
-                loginItemsApprovalRequired: false
-            )
+            services: HealthStatus(backend: .driverKit,
+                                   kanataLaunchdLoaded: true,
+                                   kanataProcessRunning: false,
+                                   kanataTCPResponding: false,
+                                   kanataRunning: false,
+                                   karabinerDaemonRunning: true,
+                                   vhidHealthy: true,
+                                   kanataInputCaptureReady: false,
+                                   kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+                                   kanataSMAppServiceRegistered: true,
+                                   loginItemsApprovalRequired: false)
         )
 
         XCTAssertEqual(context.installerStateMatrixRow, .staleInputCaptureIssueWithKanataStopped)
@@ -148,7 +147,7 @@ final class WizardPureLogicTests: XCTestCase {
 
         XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
         XCTAssertEqual(result.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
-        XCTAssertEqual(result.autoFixActions, [.installPrivilegedHelper])
+        XCTAssertEqual(result.autoFixActions, [], "Historical helper classification must not produce an executable helper repair")
     }
 
     func test_systemStateProjectionPublishesCapturedHelperRoutingFacts() {
@@ -224,30 +223,28 @@ final class WizardPureLogicTests: XCTestCase {
             vhidServicesHealthy: true,
             vhidVersionMismatch: false
         )
-        let stoppedWithStaleDiagnostic = HealthStatus(
-            kanataLaunchdLoaded: true,
-            kanataProcessRunning: false,
-            kanataTCPResponding: false,
-            kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
-            kanataSMAppServiceRegistered: true,
-            loginItemsApprovalRequired: false
-        )
-        let driverApprovalPending = HealthStatus(
-            kanataLaunchdLoaded: true,
-            kanataProcessRunning: false,
-            kanataTCPResponding: false,
-            kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: false,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
-            kanataSMAppServiceRegistered: true,
-            loginItemsApprovalRequired: false
-        )
+        let stoppedWithStaleDiagnostic = HealthStatus(backend: .driverKit,
+                                                      kanataLaunchdLoaded: true,
+                                                      kanataProcessRunning: false,
+                                                      kanataTCPResponding: false,
+                                                      kanataRunning: false,
+                                                      karabinerDaemonRunning: true,
+                                                      vhidHealthy: true,
+                                                      kanataInputCaptureReady: false,
+                                                      kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+                                                      kanataSMAppServiceRegistered: true,
+                                                      loginItemsApprovalRequired: false)
+        let driverApprovalPending = HealthStatus(backend: .driverKit,
+                                                 kanataLaunchdLoaded: true,
+                                                 kanataProcessRunning: false,
+                                                 kanataTCPResponding: false,
+                                                 kanataRunning: false,
+                                                 karabinerDaemonRunning: true,
+                                                 vhidHealthy: false,
+                                                 kanataInputCaptureReady: false,
+                                                 kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+                                                 kanataSMAppServiceRegistered: true,
+                                                 loginItemsApprovalRequired: false)
         let fixtures = [
             DecisionFixture(
                 name: "healthy repair",
@@ -263,7 +260,7 @@ final class WizardPureLogicTests: XCTestCase {
                 context: makeContext(helper: .empty),
                 assessment: .helperMissing,
                 matrixActions: [.installHelper],
-                autoFixActions: [.installPrivilegedHelper]
+                autoFixActions: []
             ),
             DecisionFixture(
                 name: "fresh install missing component",
@@ -271,7 +268,7 @@ final class WizardPureLogicTests: XCTestCase {
                 context: makeContext(components: missingComponents),
                 assessment: .freshInstallMissingComponents,
                 matrixActions: [.installMissingComponents],
-                autoFixActions: [.installMissingComponents]
+                autoFixActions: []
             ),
             DecisionFixture(
                 name: "stale diagnostic after stopped runtime",
@@ -279,7 +276,7 @@ final class WizardPureLogicTests: XCTestCase {
                 context: makeContext(services: stoppedWithStaleDiagnostic),
                 assessment: .staleInputCaptureIssueWithKanataStopped,
                 matrixActions: [.installRequiredRuntimeServices],
-                autoFixActions: [.installRequiredRuntimeServices]
+                autoFixActions: [.restartCommServer]
             ),
             DecisionFixture(
                 name: "driver approval pending",
@@ -287,7 +284,7 @@ final class WizardPureLogicTests: XCTestCase {
                 context: makeContext(services: driverApprovalPending),
                 assessment: .driverKitApprovalPendingWithKanataStopped,
                 matrixActions: [.surfaceDriverKitApproval],
-                autoFixActions: []
+                autoFixActions: [.restartCommServer]
             ),
         ]
 
@@ -525,7 +522,7 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_inspect_daemonNotRunning_producesServiceIssue() {
         let context = makeContext(
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
+            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
         )
         let (state, issues) = SystemInspector.inspect(context: context)
         XCTAssertEqual(state, .daemonNotRunning)
@@ -562,12 +559,11 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_inspect_kanataNotRunningWithPermissionRejected_producesPermissionIssue() {
         let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: false,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataPermissionRejected: true
-            )
+            services: HealthStatus(backend: .driverKit,
+                                   kanataRunning: false,
+                                   karabinerDaemonRunning: true,
+                                   vhidHealthy: true,
+                                   kanataPermissionRejected: true)
         )
         let (state, issues) = SystemInspector.inspect(context: context)
         if case let .missingPermissions(missing) = state {
@@ -586,13 +582,12 @@ final class WizardPureLogicTests: XCTestCase {
         // problem. A grab failure (driver crash / another app) routes to the service
         // page instead — covered by SystemInspectorInputCaptureTests.
         let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: true,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
-            )
+            services: HealthStatus(backend: .driverKit,
+                                   kanataRunning: true,
+                                   karabinerDaemonRunning: true,
+                                   vhidHealthy: true,
+                                   kanataInputCaptureReady: false,
+                                   kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason)
         )
         let (state, issues) = SystemInspector.inspect(context: context)
         if case let .missingPermissions(missing) = state {
@@ -620,7 +615,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .active,
             issues: [],
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .summary)
     }
@@ -635,7 +630,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .conflictsDetected(conflicts: []),
             issues: issues,
             helperInstalled: false,
-            helperNeedsApproval: true
+            helperNeedsApproval: true, backend: .driverKit
         )
         XCTAssertEqual(page, .conflicts, "Conflicts should take priority even with helper and permission issues")
     }
@@ -648,7 +643,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .missingPermissions(missing: [.keyPathInputMonitoring]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: true
+            helperNeedsApproval: true, backend: .driverKit
         )
         XCTAssertEqual(page, .helper, "Helper approval should take priority over permissions")
     }
@@ -661,7 +656,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .missingPermissions(missing: [.kanataInputMonitoring]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .inputMonitoring)
     }
@@ -674,7 +669,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .missingPermissions(missing: [.keyPathAccessibility]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .accessibility)
     }
@@ -688,7 +683,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .missingPermissions(missing: [.keyPathInputMonitoring, .keyPathAccessibility]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .accessibility, "Resolve AX before requesting separate input access")
     }
@@ -701,7 +696,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .active,
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .communication)
     }
@@ -714,7 +709,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .active,
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .communication)
     }
@@ -727,7 +722,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .missingComponents(missing: [.vhidDriverVersionMismatch]),
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .karabinerComponents)
     }
@@ -740,7 +735,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .active,
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .karabinerComponents)
     }
@@ -750,7 +745,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .ready,
             issues: [],
             helperInstalled: true,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(page, .service)
     }
@@ -759,7 +754,7 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_nextPage_fromSummary_staysAtSummary() {
         // Summary is first in orderedPages; after it, we walk forward
-        let next = WizardRouter.nextPage(after: .summary, state: .active, issues: [])
+        let next = WizardRouter.nextPage(after: .summary, state: .active, issues: [], backend: .driverKit)
         // With no issues, should skip everything and land on summary (end of list fallback)
         // But summary is at index 0, so it walks forward and finds no relevant pages, returns .summary
         XCTAssertEqual(next, .summary)
@@ -769,7 +764,7 @@ final class WizardPureLogicTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .helper,
             state: .serviceNotRunning,
-            issues: []
+            issues: [], backend: .driverKit
         )
         XCTAssertEqual(next, .service, "Should skip green pages and land on service")
     }
@@ -785,7 +780,7 @@ final class WizardPureLogicTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .inputMonitoring,
             state: .active,
-            issues: issues
+            issues: issues, backend: .driverKit
         )
         // After inputMonitoring comes karabinerComponents, service, communication, then end -> summary
         XCTAssertEqual(next, .summary)
@@ -798,7 +793,7 @@ final class WizardPureLogicTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .conflicts,
             state: .missingComponents(missing: [.karabinerDriver]),
-            issues: issues
+            issues: issues, backend: .driverKit
         )
         XCTAssertEqual(next, .karabinerComponents)
     }
@@ -810,7 +805,7 @@ final class WizardPureLogicTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .communication,
             state: .active,
-            issues: []
+            issues: [], backend: .driverKit
         )
         XCTAssertEqual(next, .summary, "Last page should fall through to summary")
     }
@@ -827,7 +822,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .serviceNotRunning,
             issues: issues,
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(next, .helper,
                        "Must stop at helper page — karabiner repair needs the helper")
@@ -841,7 +836,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .accessibility,
             state: .serviceNotRunning,
             issues: issues,
-            helperInstalled: true
+            helperInstalled: true, backend: .driverKit
         )
         XCTAssertEqual(next, .karabinerComponents,
                        "Must stop at karabiner page — service needs VirtualHID")
@@ -855,7 +850,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .helper,
             state: .serviceNotRunning,
             issues: issues,
-            helperInstalled: true
+            helperInstalled: true, backend: .driverKit
         )
         XCTAssertEqual(next, .karabinerComponents,
                        "Helper resolved — should advance to karabiner")
@@ -870,7 +865,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .serviceNotRunning,
             issues: issues,
             helperInstalled: true,
-            helperNeedsApproval: true
+            helperNeedsApproval: true, backend: .driverKit
         )
         XCTAssertEqual(next, .helper,
                        "Helper needs approval — must stop there")
@@ -890,7 +885,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .summary,
             state: .serviceNotRunning,
             issues: allIssues,
-            helperInstalled: false
+            helperInstalled: false, backend: .driverKit
         )
         XCTAssertEqual(next, .conflicts, "Conflicts must be resolved before anything else")
     }
@@ -905,7 +900,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .summary,
             state: .serviceNotRunning,
             issues: issues,
-            helperInstalled: false
+            helperInstalled: false, backend: .driverKit
         )
         XCTAssertEqual(next, .helper, "Helper must be installed before karabiner repair")
     }
@@ -919,7 +914,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .summary,
             state: .serviceNotRunning,
             issues: issues,
-            helperInstalled: false
+            helperInstalled: false, backend: .driverKit
         )
         XCTAssertEqual(next, .helper, "Helper must be installed before starting service")
     }
@@ -933,7 +928,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .inputMonitoring,
             state: .serviceNotRunning,
             issues: issues,
-            helperInstalled: true
+            helperInstalled: true, backend: .driverKit
         )
         XCTAssertEqual(next, .karabinerComponents,
                        "Karabiner must be healthy before starting service")
@@ -945,7 +940,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .helper,
             state: .active,
             issues: [],
-            helperInstalled: true
+            helperInstalled: true, backend: .driverKit
         )
         XCTAssertEqual(next, .summary, "All resolved — should reach summary")
     }
@@ -959,7 +954,7 @@ final class WizardPureLogicTests: XCTestCase {
             after: .inputMonitoring,
             state: .active,
             issues: issues,
-            helperInstalled: true
+            helperInstalled: true, backend: .driverKit
         )
         // Accessibility comes before inputMonitoring in page order,
         // so walking forward from IM won't find it — goes to summary
@@ -977,7 +972,7 @@ final class WizardPureLogicTests: XCTestCase {
                 after: page,
                 state: .serviceNotRunning,
                 issues: issues,
-                helperInstalled: false
+                helperInstalled: false, backend: .driverKit
             )
             XCTAssertEqual(next, .helper,
                            "From \(page): helper not installed must redirect to helper page")
@@ -996,7 +991,7 @@ final class WizardPureLogicTests: XCTestCase {
             state: .serviceNotRunning,
             issues: issues,
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(target, .conflicts, "Conflicts are highest priority in route()")
     }
@@ -1174,373 +1169,63 @@ final class WizardPureLogicTests: XCTestCase {
 
     // MARK: - InstallerDecisionPipeline: Repair Actions
 
-    func test_determineRepairActions_allHealthy_returnsEmpty() {
-        let context = makeContext()
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.isEmpty, "Healthy system should need no repair actions")
-    }
-
-    func test_determineRepairActions_conflictsAutoResolvable_includesTerminate() {
-        let context = makeContext(
-            conflicts: ConflictStatus(
-                conflicts: [.kanataProcessRunning(pid: 1, command: "kanata")],
-                canAutoResolve: true
+    /// Executable plans use session readiness regardless of historical helper/driver facts.
+    func test_sessionPlansOnlyStartWhenRuntimeReadinessIsMissing() {
+        let cases: [(Bool, Bool, Bool)] = [
+            (true, true, true), (false, false, false),
+            (true, false, true), (true, true, false),
+        ]
+        for (running, responding, inputReady) in cases {
+            let health = HealthStatus(
+                backend: .session, kanataProcessRunning: running,
+                kanataTCPResponding: responding, kanataRunning: running,
+                karabinerDaemonRunning: false, vhidHealthy: false,
+                kanataInputCaptureReady: inputReady
             )
-        )
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.terminateConflictingProcesses))
+            let context = makeContext(services: health, components: .empty, helper: .empty)
+            let expected: [AutoFixAction] = running && responding && inputReady ? [] : [.restartCommServer]
+            for intent in [InstallIntent.install, .repair] {
+                XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: intent, context: context), expected)
+            }
+        }
     }
 
-    func test_determineRepairActions_conflictsNotAutoResolvable_excludesTerminate() {
-        let context = makeContext(
-            conflicts: ConflictStatus(
-                conflicts: [.kanataProcessRunning(pid: 1, command: "kanata")],
-                canAutoResolve: false
+    func test_readySessionNeverRepairsHistoricalHelperDriverOrConflicts() {
+        let health = HealthStatus(
+            backend: .session, kanataProcessRunning: true, kanataTCPResponding: true,
+            kanataRunning: true, karabinerDaemonRunning: false, vhidHealthy: false,
+            kanataInputCaptureReady: true,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+        )
+        for canAutoResolve in [false, true] {
+            let context = makeContext(
+                services: health,
+                conflicts: ConflictStatus(conflicts: [.kanataProcessRunning(pid: 1, command: "historical")], canAutoResolve: canAutoResolve),
+                components: .empty, helper: .empty
             )
+            XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [])
+            XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [])
+        }
+    }
+
+    func test_missingSessionDoesNotPlanPrivilegedFallbackForLegacyApproval() {
+        let health = HealthStatus(
+            backend: .session, kanataProcessRunning: false, kanataTCPResponding: false,
+            kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false,
+            kanataInputCaptureReady: false,
+            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
+            loginItemsApprovalRequired: true
         )
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertFalse(actions.contains(.terminateConflictingProcesses))
+        let context = makeContext(services: health, components: .empty, helper: .empty)
+        XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [.restartCommServer])
+        XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [.restartCommServer])
     }
 
-    func test_determineRepairActions_vhidVersionMismatch_includesFix() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: true
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.fixDriverVersionMismatch))
-    }
-
-    func test_determineRepairActions_missingDriver_includesInstallAndActivate() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: false,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: false,
-            vhidDeviceHealthy: false,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.installMissingComponents))
-        XCTAssertTrue(actions.contains(.activateVHIDDeviceManager),
-                      "Should activate manager when driver is missing")
-    }
-
-    func test_determineRepairActions_daemonNotRunning_includesStartDaemon() {
-        let context = makeContext(
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
-        )
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.startKarabinerDaemon))
-    }
-
-    func test_determineRepairActions_vhidDriverNotActivatedWaitsForManualApproval() {
-        let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: true,
-                karabinerDaemonRunning: true,
-                vhidHealthy: false,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
-            )
-        )
-
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-
-        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
-        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
-        XCTAssertTrue(actions.isEmpty, "A disabled DriverKit extension needs user approval, not another repair loop")
-    }
-
-    func test_determineRepairActions_stoppedKanataWithVHIDIssueWaitsForManualApproval() {
-        let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: false,
-                karabinerDaemonRunning: true,
-                vhidHealthy: false,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
-            )
-        )
-
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-
-        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
-        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
-        XCTAssertFalse(actions.contains(.installRequiredRuntimeServices))
-        XCTAssertTrue(actions.isEmpty, "Kanata should not be restarted until the DriverKit extension is enabled")
-    }
-
-    func test_determineRepairActions_staleVHIDIssueAfterDriverEnabledRestartsKanata() {
-        let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: false,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
-            )
-        )
-
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-
-        XCTAssertTrue(actions.contains(.activateVHIDDeviceManager))
-        XCTAssertTrue(actions.contains(.repairVHIDDaemonServices))
-        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
-    }
-
-    func test_determineRepairActions_stoppedKanataWithNonApprovalInputIssueInstallsRuntimeServicesFirst() {
-        let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: false,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason
-            )
-        )
-
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-
-        XCTAssertTrue(
-            actions.contains(.installRequiredRuntimeServices),
-            "Matrix row: stopped Kanata plus non-approval input-capture evidence must restore runtime before chasing stale diagnostics"
-        )
-        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
-    }
-
-    func test_determineRepairActions_helperInstalledButBroken_includesReinstall() {
-        let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.reinstallPrivilegedHelper),
-                      "Repair should reinstall (not install) existing broken helper")
-        XCTAssertFalse(actions.contains(.installPrivilegedHelper))
-    }
-
-    func test_determineRepairActions_helperMissing_includesInstall() {
-        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.installPrivilegedHelper))
-    }
-
-    func test_determineRepairActions_vhidServicesUnhealthy_includesInstallRuntimeServices() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: false,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
-        XCTAssertFalse(
-            actions.contains(.installMissingComponents),
-            "Installed-but-unhealthy VHID services should repair runtime services, not reinstall missing components"
-        )
-    }
-
-    func test_determineRepairActions_vhidDeviceUnhealthy_excludesInstallMissingComponents() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: false,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertFalse(
-            actions.contains(.installMissingComponents),
-            "A present but unhealthy VHID device should not be planned as a missing component"
-        )
-    }
-
-    func test_determineRepairActions_vhidDaemonPlistMisconfigured_includesInstallRuntimeServices() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidDaemonPlistMisconfigured: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
-                      "Stale VHID daemon plist needs the runtime-services rewrite even when the daemon is healthy")
-    }
-
-    // MARK: - InstallerDecisionPipeline: Install Actions
-
-    func test_determineInstallActions_vhidDaemonPlistMisconfigured_includesInstallRuntimeServices() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidDaemonPlistMisconfigured: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
-        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices),
-                      "Install plans share the vhidRuntimeServicesNeedRepair trigger with repair plans")
-    }
-
-    func test_determineInstallActions_vhidServicesUnhealthy_excludesInstallMissingComponents() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: false,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
-        XCTAssertTrue(actions.contains(.installRequiredRuntimeServices))
-        XCTAssertFalse(
-            actions.contains(.installMissingComponents),
-            "Install planning should not reinstall components just because installed VHID services are unhealthy"
-        )
-    }
-
-    func test_determineInstallActions_vhidDriverNotActivatedWaitsForManualApproval() {
-        let context = makeContext(
-            services: HealthStatus(
-                kanataRunning: true,
-                karabinerDaemonRunning: true,
-                vhidHealthy: false,
-                kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
-            )
-        )
-
-        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
-
-        XCTAssertFalse(actions.contains(.activateVHIDDeviceManager))
-        XCTAssertFalse(actions.contains(.repairVHIDDaemonServices))
-        XCTAssertTrue(actions.isEmpty, "Install should wait for DriverKit approval before scheduling runtime service repair")
-    }
-
-    func test_determineInstallActions_allHealthy_returnsEmpty() {
-        let context = makeContext()
-        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
-        XCTAssertTrue(actions.isEmpty, "Healthy system should need no install actions")
-    }
-
-    func test_determineInstallActions_helperMissing_usesInstallNotReinstall() {
-        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
-        XCTAssertTrue(actions.contains(.installPrivilegedHelper),
-                      "Fresh install should use installPrivilegedHelper")
-        XCTAssertFalse(actions.contains(.reinstallPrivilegedHelper),
-                       "Fresh install should NOT use reinstall")
-    }
-
-    func test_determineInstallActions_helperInstalledButBroken_stillUsesInstall() {
-        let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let actions = InstallerDecisionPipeline.determineInstallActions(context: context)
-        // For install intent, it always uses install (not reinstall)
-        XCTAssertTrue(actions.contains(.installPrivilegedHelper))
-    }
-
-    // MARK: - InstallerDecisionPipeline: Uninstall Actions
-
-    func test_determineUninstallActions_returnsEmpty() {
-        let context = makeContext()
-        let actions = InstallerDecisionPipeline.determineUninstallActions(context: context)
-        XCTAssertTrue(actions.isEmpty, "Uninstall is handled by UninstallCoordinator, not InstallerDecisionPipeline")
-    }
-
-    // MARK: - InstallerDecisionPipeline: determineActions with Intent
-
-    func test_determineActions_inspectOnly_returnsEmpty() {
-        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = InstallerDecisionPipeline.determineActions(for: .inspectOnly, context: context)
-        XCTAssertTrue(actions.isEmpty, "Inspect-only should never produce actions")
-    }
-
-    func test_determineActions_repairIntent_delegatesToRepairActions() {
-        let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let actions = InstallerDecisionPipeline.determineActions(for: .repair, context: context)
-        XCTAssertTrue(actions.contains(.reinstallPrivilegedHelper))
-    }
-
-    func test_determineActions_installIntent_delegatesToInstallActions() {
-        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let actions = InstallerDecisionPipeline.determineActions(for: .install, context: context)
-        XCTAssertTrue(actions.contains(.installPrivilegedHelper))
-    }
-
-    // MARK: - InstallerDecisionPipeline: Ordering Guarantees
-
-    func test_determineRepairActions_conflictsBeforeComponents() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: false,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: false,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(
-            conflicts: ConflictStatus(
-                conflicts: [.kanataProcessRunning(pid: 1, command: "kanata")],
-                canAutoResolve: true
-            ),
-            components: components
-        )
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        let terminateIdx = actions.firstIndex(of: .terminateConflictingProcesses)
-        let installIdx = actions.firstIndex(of: .installMissingComponents)
-        XCTAssertNotNil(terminateIdx)
-        XCTAssertNotNil(installIdx)
-        XCTAssertTrue(terminateIdx! < installIdx!,
-                      "Terminate conflicts should come before installing components")
-    }
-
-    func test_determineRepairActions_activateManagerBeforeStartDaemon() throws {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: false,
-            karabinerDaemonRunning: false,
-            vhidDeviceInstalled: false,
-            vhidDeviceHealthy: false,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(
-            services: HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true),
-            components: components
-        )
-        let actions = InstallerDecisionPipeline.determineRepairActions(context: context)
-        let activateIdx = try XCTUnwrap(actions.firstIndex(of: .activateVHIDDeviceManager))
-        let startIdx = try XCTUnwrap(actions.firstIndex(of: .startKarabinerDaemon))
-        XCTAssertLessThan(
-            activateIdx,
-            startIdx,
-            "Activate VHIDDeviceManager should come before starting daemon"
-        )
+    func test_inspectionAndUninstallNeverPlanRuntimeMutations() {
+        let context = makeContext(services: .empty, components: .empty, helper: .empty)
+        XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: .inspectOnly, context: context), [])
+        XCTAssertEqual(InstallerDecisionPipeline.determineUninstallActions(context: context), [])
+        XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: .uninstall, context: context), [])
     }
 
     // MARK: - Timeout Issue Handling (ADR-critical: timeouts must not suppress real issues)
