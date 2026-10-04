@@ -1,3 +1,13 @@
+## Active checkpoint — October 4, 2026, 15:00 UTC
+
+Approval verified: danger-full-access, network enabled, approval never; original host/account/security/fixture restrictions remain. Owned lease cbx_438d6abc050a, provider UUID889c43d1-54b7-49af-8c07-69380a2ef0a6, expires16:40:05UTC. Public keypathqa_438d6abc UID502 normal desktop and fresh boot1791125354 identity verified; QA501 preserved, autologin off. Short-launch Python candidate live-passed3.13.16; pinned Peekaboo tools installed. Ordinary Screen Recording consent completed; Accessibility and fresh complete permission verification remain pending. No KeyPath installation or fixture attachment/input in this lease.
+
+A further root halt at07:49:05Pacific followed the single claimed restart; root did not dispatch a second restart. Cause remains unknown and predates product installation. Do not attribute to KeyPath or host awake policy. Identity receipt binds the actual later boot. Portable short-launch publication is a separate source variant: local commit1a67460, push failed DNS, independent root portability review/live validation pending.
+
+Artifact adapter review caught two integration faults before guest mutation: literal-backslash newline handling and a UID502 archive path inconsistent with provider hydration into QA501. Corrected isolated candidate uses scoped one-shot private-interface transfer without reading QA501's repository. Eight inert tests pass; new network delta review and guest reachability remain prerequisites. No live staging acceptance follows from these tests.
+
+Progress is now reported by verified milestones rather than treating the earlier approximate81% as a measured completion figure. Core physical remap, Secure Input recovery and held-output crash release passed; full held-Control D8 passed. Actual OS timeout and console transition remain open. Caps Lock implementation and reduced-permission onboarding follow stabilization. Guest sleep is platform-refused; genuine sleep/wake coverage remains a separate gap.
+
 ## Active checkpoint — October 4, 2026, 14:39 UTC
 
 Progress remains approximately **81%**. Full D8 held-Control Secure Input acceptance is passed; actual OS timeout and console transition remain open. Caps Lock and reduced-permission onboarding follow runtime stability. Full access, network enabled and approval never are active; original restrictions unchanged.

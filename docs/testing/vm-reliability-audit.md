@@ -1,3 +1,17 @@
+## Debugging effectiveness review — October 4, 2026, 15:00 UTC
+
+We should continue the driverless experiment, while changing the lab workflow. Real product integration defects were found and corrected (legacy driver polling, startup ordering and packaged framework search path). Accepted physical remap, Secure Input recovery, held-output crash release and full held-Control D8 provide evidence that the architecture is viable in those tested cases. No fundamental architecture blocker is established. Timeout, console transitions and broader device/application compatibility are still unproven; accepted password-field limitations remain a product tradeoff.
+
+Recurring cost is dominated by rebuilding Python/account/home/tools/consent, uncertain provider responses, duplicated lease-specific scripts, and observation contracts that inert mocks missed. Latest examples: a generated newline predicate rejected real framing; archive staging assumed a public-account path while provider hydration used QA501; macOS /var aliases were rejected; JSON booleans and bounded readiness logs caused false refusals. These are harness or packaging failures, not evidence of permission requirements. Missing-home completion is now reusable experimentally; other changes still need canonical integration.
+
+Prioritize three changes:
+
+1. **Versioned test-ready runtime baseline through vm-lab.** Prepare tooling and ordinary desktop setup once, verify admission before each campaign, retain clean product permission state, and keep a distinct pristine-installer lane. Do not bypass capacity controls or user restrictions. This remains a proposed baseline, not an implemented shared template.
+2. **Exercise generated commands end to end with inert transport.** Test actual framing, paths, types and archive layout, then require a guest launch smoke test of the exact signed artifact before physical input. Test wrapper output and effects, not merely helper functions or mocked happy paths. Preserve fail-closed ownership and cleanup gates.
+3. **Freeze one campaign and answer one product question.** Parameterize fresh identity as validated data, reuse reviewed transport, classify failures as lab/packaging/harness/product, and stop expanding infrastructure inside a product campaign unless its admission fails. Use source author/reviewer agents in parallel; one owner operates VM/UI/HID.
+
+Measure setup-to-ready time, product trials per lease, harness-caused refusals, and recurrence of already-fixed failures. A roughly2x throughput improvement is plausible, but unmeasured. More agents alone will not double speed because live VM/UI/HID work is serial. Report verified/open milestones rather than a coarse percentage. Near-term order remains bounded timeout acceptance, console transition, Caps Lock, then installer/onboarding UX.
+
 ## Follow-through — October 4, 2026, 14:12 UTC
 
 Reusable experimental vm-lab branch now includes live-validated public account/home, pinned usable Python, typed transport diagnostics and journaled restart support; canonical main remains unchanged. Frozen setup failures and reconciliation receipts are retained. Separate session/tools reconciliation still needs integration. Provider255 cause and the extra unrequested guesthalt remain unknown. Do not attribute either to hostneverSleep.
