@@ -62,7 +62,6 @@ class MainAppStateController {
     @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
     @ObservationIgnored private var onSystemHealthy: (() -> Void)?
     @ObservationIgnored private var hasRunInitialValidation = false
-    @ObservationIgnored private var vhidConfirmedFailureCount = 0
 
     /// Returns true if configure() has been called.
     /// Use this to assert initialization order invariants.
@@ -293,31 +292,6 @@ class MainAppStateController {
                         "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
                     await revalidate()
-                }
-
-                // VHID safety invariant: if kanata is running but VirtualHID daemon
-                // is not healthy, emergency-stop kanata to release the keyboard.
-                // W3 safety exception: this background mutation only stops remapping
-                // to prevent unsafe keyboard capture; it must not perform repair.
-                if isHealthy, KanataRuntimeBackend.selected.requiresPrivilegedServices {
-                    let vhidStatus = await ServiceHealthChecker.shared.vhidSafetyStatus()
-                    vhidConfirmedFailureCount = VHIDSafetyCheck.confirmedFailureCount(
-                        after: vhidStatus,
-                        previousCount: vhidConfirmedFailureCount
-                    )
-                    if VHIDSafetyCheck.shouldEmergencyStop(
-                        kanataRunning: true,
-                        confirmedFailureCount: vhidConfirmedFailureCount,
-                        backend: KanataRuntimeBackend.selected
-                    ) {
-                        AppLogger.shared.error(
-                            "🚨 [MainAppStateController] SAFETY: Kanata running after repeated confirmed VirtualHID failures — emergency stop"
-                        )
-                        await serviceLifecycle.stopKanata(reason: "Emergency: VirtualHID not running")
-                        vhidConfirmedFailureCount = 0
-                    }
-                } else {
-                    vhidConfirmedFailureCount = 0
                 }
 
                 try? await Task.sleep(for: .seconds(2))
@@ -809,16 +783,7 @@ class MainAppStateController {
             }
         #endif
 
-        let recentlyRestarted = ServiceBootstrapper.wasRecentlyRestarted(
-            ServiceHealthChecker.kanataServiceID,
-            within: startupGateTiming().transientGrace
-        )
-        if recentlyRestarted {
-            return true
-        }
-
-        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        return managementState == .smappservicePending
+        return await serviceLifecycle?.isInTransientRuntimeStartupWindow() ?? false
     }
 
     #if DEBUG

@@ -4,10 +4,11 @@ public enum KanataRuntimeBackend: String, Codable, Sendable {
     case driverKit
     case session
 
-    /// Remains opt-in until final signed-app and hardware acceptance passes.
+    /// This experimental build always uses the unprivileged session runtime.
+    /// `driverKit` remains decodable for historical snapshots and explicit test fixtures;
+    /// neither legacy environment variables nor command-line flags can select it.
     public static var selected: Self {
-        ProcessInfo.processInfo.environment["KEYPATH_EXPERIMENTAL_SESSION_RUNTIME"] == "1"
-            || ProcessInfo.processInfo.arguments.contains("--driverless") ? .session : .driverKit
+        .session
     }
 
     public var requiresPrivilegedServices: Bool {

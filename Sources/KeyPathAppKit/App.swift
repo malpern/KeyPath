@@ -243,11 +243,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
         }
 
-        // Check for pending service bounce (skip on fresh install)
-        Task { @MainActor in
-            await handleServiceBounceIfNeeded()
-        }
-
         if isHeadlessMode {
             handleHeadlessAutoStart()
         }
@@ -544,38 +539,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // MARK: - Private: Service Bounce
-
-    private func handleServiceBounceIfNeeded() async {
-        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return }
-        let isFreshInstall = await Self.checkIsFreshInstall()
-        if isFreshInstall {
-            AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
-            PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-            return
-        }
-
-        let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
-
-        if shouldBounce {
-            if let timeSince {
-                AppLogger.shared.info(
-                    "🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce"
-                )
-            } else {
-                AppLogger.shared.info("🔄 [AppDelegate] Service bounce requested - performing bounce")
-            }
-
-            let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
-            if bounceSuccess {
-                AppLogger.shared.info("✅ [AppDelegate] Service bounce completed successfully")
-                PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-            } else {
-                AppLogger.shared.warn("❌ [AppDelegate] Service bounce failed - flag remains for retry")
-            }
-        }
-    }
-
     // MARK: - Private: Headless Auto-Start
 
     private func handleHeadlessAutoStart() {
@@ -681,11 +644,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
 
-            let setupReady: Bool = if KanataRuntimeBackend.selected == .session {
-                await InstallerEngine().inspectSystem().isReady
-            } else {
-                await HelperManager.shared.testHelperFunctionality()
-            }
+            let setupReady = await InstallerEngine().inspectSystem().isReady
             AppLogger.shared.info("🆕 [AppDelegate] Backend setup ready: \(setupReady)")
             if !setupReady {
                 AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
@@ -698,32 +657,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Fresh Install Check
 
     private static func checkIsFreshInstall() async -> Bool {
-        // Session startup has no helper/daemon registration step to defer.
-        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return false }
-        // Route SMAppService.status through SystemStateProvider (issue #853):
-        // these two reads used to be direct synchronous IPC on the MainActor during
-        // app init, which could stall the UI for up to 30s under load.
-        let helperStatus = await SystemStateProvider.shared.freshSMAppServiceStatus(
-            for: HelperManager.helperPlistName
-        )
-        let daemonStatus = await SystemStateProvider.shared.freshSMAppServiceStatus(
-            for: KanataDaemonManager.kanataPlistName
-        )
-
-        // SMAppService status persists across uninstall/reinstall, so .notRegistered
-        // is only true on a truly virgin system. Also check if the daemon plist
-        // actually exists — if not, there's nothing to auto-launch.
-        let daemonPlistExists = Foundation.FileManager.default.fileExists(
-            atPath: KanataDaemonManager.getActivePlistPath()
-        )
-
-        let isFresh = (helperStatus == .notRegistered && daemonStatus == .notRegistered)
-            || !daemonPlistExists
-
-        AppLogger.shared.log(
-            "🔍 [AppDelegate] Fresh install check: helper=\(helperStatus), daemon=\(daemonStatus), plistExists=\(daemonPlistExists), isFresh=\(isFresh)"
-        )
-        return isFresh
+        false // Session startup has no helper/daemon registration step to defer.
     }
 
     // MARK: - Private: Menu Bar

@@ -62,23 +62,6 @@ final class ConfigReloadCoordinator {
         notifyOnFailure: Bool = true,
         scheduleRetryOnPending: Bool = true
     ) async -> ReloadResult {
-        // Use the manager refresh path instead of the unbounded synchronous
-        // currentManagementState cache; the underlying SMAppService provider
-        // still coalesces IPC with a short TTL.
-        let smState = KanataRuntimeBackend.selected == .session ? nil : await KanataDaemonManager.shared.refreshManagementStateInternal()
-        if smState == .smappservicePending {
-            AppLogger.shared.warn(
-                "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval"
-            )
-            return ReloadResult(
-                success: false,
-                response: nil,
-                errorMessage: "Approve KeyPath in Login Items before reloading config",
-                protocol: nil,
-                disposition: .pending
-            )
-        }
-
         // Skip reloads if Kanata service isn't healthy yet
         let healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
         if !healthStatus.isHealthy {
@@ -343,15 +326,6 @@ final class ConfigReloadCoordinator {
 
     /// TCP-based config reload (no authentication required - see ADR-013)
     func triggerTCPReload() async -> TCPReloadResult {
-        if KanataRuntimeBackend.selected == .session {
-            let validation = KanataHostBridge.validateSessionConfig(
-                runtimeHost: .current(), configPath: KeyPathConstants.Config.mainConfigPath,
-                supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
-            )
-            guard case .valid = validation else {
-                return .failure(error: "This configuration requires the advanced driver backend or contains an error", response: "")
-            }
-        }
         if let tcpReloadOverride {
             return await tcpReloadOverride()
         }
@@ -359,6 +333,14 @@ final class ConfigReloadCoordinator {
         if TestEnvironment.isRunningTests {
             AppLogger.shared.debug("🧪 [TCP Reload] Skipping TCP reload in test environment")
             return .networkError("Test environment - TCP disabled")
+        }
+
+        let validation = KanataHostBridge.validateSessionConfig(
+            runtimeHost: .current(), configPath: KeyPathConstants.Config.mainConfigPath,
+            supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
+        )
+        guard case .valid = validation else {
+            return .failure(error: "This configuration is unsupported by the session runtime or contains an error", response: "")
         }
 
         // Check reload safety first
