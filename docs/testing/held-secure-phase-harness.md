@@ -32,7 +32,12 @@ nonsecret q repeats with Command+A / Backspace and type fixed nonsecret `qaz123`
 The same field and cumulative counters remain intact; mode commands carry no text.
 
 Every target poll is written once to a new unique evidence directory, including
-raw journals and dropped counts. Lifetime drops before the campaign are allowed;
+raw journals and dropped counts. The signed target's single `receiptSequence`
+is incremented for both `flagsChangedJournal` and
+`combinedSessionControlJournal` (reviewed `capture-target.m` lines59/77/125).
+Their cross-journal ordering is deliberate; `modeTransitions` uses a separate
+command sequence and is never compared to that shared receipt sequence.
+Lifetime drops before the campaign are allowed;
 eviction or alteration of any retained phase anchor fails. Publication failure,
 wrong focus, missing delivery or unexpected ownership stops acceptance without
 replaying input/commands. Finally, only the campaign's exact fixture run can be
@@ -41,12 +46,28 @@ restored with a bytewise comparison. The original profile backup is retained.
 
 ## Explicit transport and identity seam
 
-Execution requires `--reviewed-execution`, explicit frozen `--account`, `--uid`,
-`--home`, parent/worker `--binary-sha`, target `--target-sha`, and a reviewed
-`--fixture-factory` module. Account names are constrained; home must equal
-`/Users/<account>`. Independent directory-service UID/home and console UID are
-rechecked at launch, worker-report, signal and profile-restore boundaries. There
-is no QA501 assumption and no credential loader in this harness.
+Execution requires `--reviewed-execution`, parent/worker `--binary-sha`, target
+`--target-sha`, and a reviewed `--fixture-factory` module. D8 imports the reviewed
+shared module at
+`/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py`;
+it does not maintain a separate identity schema. Use its
+`--guest-identity-receipt` argument (or `KEYPATH_GUEST_IDENTITY_RECEIPT` environment)
+and optional matching `--guest-account` / `--guest-uid`. Its exact seven fields
+are `version`, `lease`, `providerUUID`, `account`, `uid`, `home`, `bootEpoch`.
+
+Without a declared receipt, the retained canonical default is `keypathqa` UID501.
+A noncanonical lease-derived UID502 account requires a complete owned private
+receipt; freely declaring its name and UID is rejected. Before guest commands,
+the shared module checks frozen receipt contents, live owned lease manifest
+provider UUID/owner/readiness/expiry and guest account/home/UID/console/boot.
+D8 additionally puts the live guest identity guard directly around each command,
+including launch, reports, signals and bytewise restoration. A leading `true;`
+is required by the established `prlctl` transport's first-command behavior; it
+never masks the guard or operation's final failure. There is no credential loader.
+
+`VM_LAB_RIG_ROOT` selects only the original `/private/tmp/vm-lab-hid-rig` or the
+reviewed identity adapter `/private/tmp/vm-lab-guest-identity`; other roots refuse.
+The factory receives the inherited validated receipt environment.
 
 The factory exports `create_client()` returning a preauthenticated, persistent,
 scoped client with `status`, `load_script`, `arm`, `start`, `abort`, `trace_all`
@@ -62,6 +83,10 @@ Sol high source review, signed target guest release and explicit owner admission
 are required before execution. Review the factory and its fixture trace schema,
 command directory ownership, signed target identity, guest Python availability,
 process-report lifecycle and cleanup races together with this harness. The
+shared module is an external reviewed-path dependency; its source must remain
+at the reviewed checkpoint. PID start-time proof and round-trip batching remain
+review topics, while UID/executable/exact observed arguments and worker nonce
+are checked before owned signals. The
 45-second sample must fit measured guest/fixture round-trip latency and the
 512-entry target rings; deadline or anchor eviction is a failed/untested campaign,
 never permission to lengthen or replay physical input automatically.

@@ -3,19 +3,22 @@
 import argparse
 import importlib.util
 import json
+import os
+import sys
 import pathlib
 import re
 import shlex
-import subprocess
 import time
 import uuid
 import zlib
 
 from held_secure_predicates import (TargetHistory, Refusal, applied, control_down,
-                                   control_released, exact_trace, focus, no_resurrection,
+                                   control_released, exact_trace, no_resurrection,
                                    physical_hold, require, worker)
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
+IDENTITY_MODULE = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
+RIG_ROOTS = ('/private/tmp/vm-lab-hid-rig', '/private/tmp/vm-lab-guest-identity')
 CONFIG = '(defcfg)\n(defsrc q a)\n(deflayer base (tap-hold 200 200 q lctl) a)\n'
 
 
@@ -23,18 +26,20 @@ def load_module(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     require(spec is not None and spec.loader is not None, 'dependency module unavailable')
     module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module  # dataclasses with postponed annotations resolve this entry
     spec.loader.exec_module(module)
     return module
 
 
 class Guest:
-    def __init__(self, lease, pilot, binary_sha, target_sha, account, uid, home):
+    def __init__(self, lease, pilot, binary_sha, target_sha, identity):
         self.lease, self.pilot = lease, pilot
         self.binary_sha, self.target_sha = binary_sha, target_sha
-        self.account, self.uid, self.home = account, uid, home
-        self.app = home + "/Applications/KeyPath.app"
+        self.guest_identity = identity
+        self.account, self.uid, self.home = identity.account, identity.uid, identity.home
+        self.app = identity.app
         self.exe = self.app + "/Contents/MacOS/KeyPath"
-        self.profile = home + "/.config/keypath/keypath.kbd"
+        self.profile = self.home + "/.config/keypath/keypath.kbd"
         self.parent = None
         self.generations = {}
         self.backup = self.profile + '.held-secure-' + uuid.uuid4().hex
@@ -42,14 +47,14 @@ class Guest:
         self.parent_args = None
 
     def check_account(self):
-        value = self.run('dscl . -read /Users/' + shlex.quote(self.account) + ' UniqueID NFSHomeDirectory')
-        fields = dict(line.split(': ', 1) for line in value.strip().splitlines())
-        require(fields == {'UniqueID': str(self.uid), 'NFSHomeDirectory': self.home}, 'frozen account record changed')
-        require(self.run('stat -f %u /dev/console').strip() == str(self.uid), 'owned console UID changed')
+        return self.guest_identity.verify(self.pilot, self.lease)
 
     def run(self, command):
-        # No mutation retries and no trailing `true` masking failed guards.
-        return self.pilot.lab(self.lease, 'guest-root', '--', '/bin/zsh', '-lc', command)
+        self.check_account()
+        # prlctl drops/mangles the first shell command; retain its established
+        # no-op prefix, while leaving guard/mutation failure as the final status.
+        return self.pilot.lab(self.lease, 'guest-root', '--', '/bin/zsh', '-lc',
+                              'true; ' + self.guest_identity.guard() + ' && { ' + command + '; }')
 
     def target(self):
         return json.loads(self.run('cat ' + shlex.quote(self.home + '/rig-target.json')))
@@ -69,11 +74,12 @@ class Guest:
         require(type(pid) is int and pid > 0, 'invalid owned PID')
         result = self.run(f'ps -p {pid} -o uid=,comm=').strip().split(maxsplit=1)
         require(result == [str(self.uid), self.exe], 'owned process executable or UID changed')
-        args = shlex.split(self.run(f'ps -p {pid} -o args='))
+        raw_args = self.run(f'ps -p {pid} -o args=').strip()
+        args = shlex.split(raw_args)
         require(args == expected_args, 'owned process arguments changed')
         digest = self.run('shasum -a 256 ' + shlex.quote(self.exe)).split()[0]
         require(digest == self.binary_sha, 'owned executable hash changed')
-        return {'pid': pid, 'uid': self.uid, 'arguments': args, 'binarySHA256': digest}
+        return {'pid': pid, 'uid': self.uid, 'arguments': args, 'rawArguments': raw_args, 'binarySHA256': digest}
 
     def alive(self, pid):
         # ps returning no row is an explicit exit observation, not a masked transport failure.
@@ -176,8 +182,12 @@ finally:
         for identity in owned:
             try:
                 if self.alive(identity['pid']):
-                    self.identity(identity['pid'], identity['arguments'])
-                    self.run(f'kill -TERM {identity["pid"]}')
+                    checked = self.identity(identity['pid'], identity['arguments'])
+                    pid = identity['pid']
+                    self.run(f'test "$(ps -p {pid} -o uid= | tr -d \" \")" = {self.uid}'
+                             + f' && test "$(ps -p {pid} -o comm=)" = ' + shlex.quote(self.exe)
+                             + f' && test "$(ps -p {pid} -o args=)" = ' + shlex.quote(checked['rawArguments'])
+                             + f' && kill -TERM {pid}')
             except Exception as error:
                 errors.append(str(error))
         try:
@@ -264,12 +274,14 @@ class Campaign:
         return before, after
 
     def start_input(self, timed):
+        self.guest.check_account()
         status = self.client.status()
         require(status.get('state') in ('idle', 'complete', 'aborted'), 'foreign fixture campaign')
         run = 'held-secure-' + uuid.uuid4().hex[:16]
         self.client.load_script(script(run, timed))
         self.active_run = run  # set before arm/start so cleanup covers partial owned operations
         self.client.arm(run)
+        self.guest.check_account()
         self.client.start(run, 500)
         self.save('physical-script', {'runId': run, 'timedReports': timed})
         return run
@@ -448,9 +460,8 @@ class Campaign:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('lease')
-    parser.add_argument('--account', required=True)
-    parser.add_argument('--uid', type=int, required=True)
-    parser.add_argument('--home', required=True)
+    identity_module = load_module(IDENTITY_MODULE, 'held_shared_guest_identity')
+    identity_module.add_arguments(parser)
     parser.add_argument('--binary-sha', required=True)
     parser.add_argument('--target-sha', required=True)
     parser.add_argument('--fixture-factory', type=pathlib.Path, required=True,
@@ -458,19 +469,24 @@ def main():
     parser.add_argument('--reviewed-execution', action='store_true',
                         help='Required explicit gate after high review and guest target release')
     args = parser.parse_args()
-    require(re.fullmatch(r'[a-z][a-z0-9_]{1,63}', args.account) and args.uid > 500
-            and args.home == '/Users/' + args.account, 'invalid explicit frozen account identity')
+    identity = identity_module.from_arguments(args)
+    require(identity.lease is None or identity.lease == args.lease, 'identity receipt belongs to another lease')
     require(args.reviewed_execution, 'source-only harness requires review and guest-release gate')
     require(re.fullmatch(r'cbx_[0-9a-f]{12}', args.lease), 'invalid owned lease')
     require(all(re.fullmatch(r'[0-9a-f]{64}', v) for v in (args.binary_sha, args.target_sha)),
             'invalid frozen binary hashes')
     destination = ROOT / 'evidence/session-runtime' / ('held-secure-' + uuid.uuid4().hex)
     destination.mkdir(parents=True, exist_ok=False)
-    pilot = load_module('/private/tmp/vm-lab-hid-rig/rig/physical-baseline.py', 'held_pilot')
+    rig_root = os.environ.get('VM_LAB_RIG_ROOT', RIG_ROOTS[0])
+    require(rig_root in RIG_ROOTS, 'unreviewed rig root')
+    pilot = load_module(pathlib.Path(rig_root) / 'rig/physical-baseline.py', 'held_pilot')
     factory = load_module(args.fixture_factory, 'held_fixture_factory')
-    guest = Guest(args.lease, pilot, args.binary_sha, args.target_sha, args.account, args.uid, args.home)
+    guest = Guest(args.lease, pilot, args.binary_sha, args.target_sha, identity)
     campaign = Campaign(guest, factory.create_client(), destination)
-    campaign.record.update(account=args.account, uid=args.uid, home=args.home, lease=args.lease, binarySHA256=args.binary_sha,
+    campaign.record.update(account=identity.account, uid=identity.uid, home=identity.home,
+                           identityReceipt=identity.receipt_path, identityReceiptSHA256=identity.receipt_sha256,
+                           providerUUID=identity.provider_uuid, bootEpoch=identity.boot_epoch,
+                           rigRoot=rig_root, lease=args.lease, binarySHA256=args.binary_sha,
                            targetSHA256=args.target_sha, profile=CONFIG)
     try:
         campaign.execute()

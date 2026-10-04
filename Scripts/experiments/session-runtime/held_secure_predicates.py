@@ -22,6 +22,9 @@ def focus(receipt, mode):
             and receipt.get('focusedMode') == mode, 'actual target focus lost or wrong responder')
 
 
+# Reviewed capture-target.m shares one receiptSequence between flagsChanged
+# and combined-session journals; modeTransitions uses separate commandSequence.
+# Cross-journal comparisons below rely on that signed target protocol invariant.
 JOURNALS = (('flagsChangedJournal', 'flagsChangedDropped'),
             ('combinedSessionControlJournal', 'combinedSessionControlDropped'),
             ('modeTransitions', 'modeTransitionsDropped'))

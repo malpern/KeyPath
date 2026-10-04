@@ -133,5 +133,141 @@ class HeldSecureEvidenceTests(unittest.TestCase):
             worker(dict(value, state='secureInput', tapActive=False), (29, 502, 'generation-2'), 1014, 'secureInput')
 
 
+
+class SharedIdentityBoundaryTests(unittest.TestCase):
+    """Exercise the actual shared receipt reader at the D8 transport boundary."""
+    @classmethod
+    def setUpClass(cls):
+        import importlib.machinery
+        import pathlib
+        cls.harness = importlib.machinery.SourceFileLoader(
+            'held_secure_harness_test', str(pathlib.Path(__file__).with_name('held-secure-acceptance.py'))).load_module()
+        cls.shared = cls.harness.load_module(cls.harness.IDENTITY_MODULE, 'held_identity_boundary_test')
+
+    def receipt(self):
+        return dict(version=1, lease='cbx_896c0d2d8565',
+                    providerUUID='62017a62-8774-4bf6-8754-bbafe7c27c1f',
+                    account='keypathqa_896c0d2d', uid=502,
+                    home='/Users/keypathqa_896c0d2d', bootEpoch=1791077561)
+
+    def load(self, path):
+        import argparse
+        return self.shared.from_arguments(argparse.Namespace(
+            guest_account=None, guest_uid=None, guest_identity_receipt=str(path)))
+
+    def pilot(self, provider=None, live_result='KEYPATH_GUEST_IDENTITY_VERIFIED'):
+        fields = self.receipt()
+        class Pilot:
+            mutations = []
+            observations = []
+            def lab(self, lease, verb, *args):
+                if verb == 'status':
+                    return ('lease_id\t' + fields['lease'] + '\nowner\tkeypath-installer-lab-v1\n'
+                            'status\tready\nprovider\tparallels\nprovider_resource\t'
+                            + (provider or fields['providerUUID'])
+                            + '\nexpires_epoch\t9999999999\nprovider_inventory_begin\n')
+                self.mutations.append(args[-1])
+                return ''
+            def observe(self, lease, verb, *args):
+                self.observations.append(args[-1])
+                return live_result
+        return Pilot()
+
+    def test_foreign_lease_or_provider_cannot_reach_d8_mutation(self):
+        import json
+        import pathlib
+        import tempfile
+        import unittest.mock
+        with tempfile.TemporaryDirectory() as folder, unittest.mock.patch.dict('os.environ', {}, clear=False):
+            path = pathlib.Path(folder) / 'identity.json'
+            path.write_text(json.dumps(self.receipt()))
+            path.chmod(0o600)
+            identity = self.load(path)
+            for lease, provider in (('cbx_deadbeef1234', None),
+                                    (identity.lease, 'e2017a62-8774-4bf6-8754-bbafe7c27c1f')):
+                pilot = self.pilot(provider)
+                guest = self.harness.Guest(lease, pilot, 'a' * 64, 'b' * 64, identity)
+                with self.assertRaises(RuntimeError):
+                    guest.run('printf unauthorized')
+                self.assertEqual(pilot.mutations, [])
+                self.assertEqual(pilot.observations, [])
+
+    def test_live_console_or_boot_refusal_cannot_reach_d8_mutation(self):
+        import json
+        import pathlib
+        import tempfile
+        import unittest.mock
+        with tempfile.TemporaryDirectory() as folder, unittest.mock.patch.dict('os.environ', {}, clear=False):
+            path = pathlib.Path(folder) / 'identity.json'
+            path.write_text(json.dumps(self.receipt()))
+            path.chmod(0o600)
+            identity = self.load(path)
+            for failure in ('wrong console', 'changed boot'):
+                pilot = self.pilot(live_result=failure)
+                guest = self.harness.Guest(identity.lease, pilot, 'a' * 64, 'b' * 64, identity)
+                with self.assertRaises(RuntimeError):
+                    guest.run('printf unauthorized')
+                self.assertEqual(pilot.mutations, [])
+                guard = pilot.observations[-1]
+                self.assertIn('/dev/console', guard)
+                self.assertIn(str(identity.boot_epoch), guard)
+                self.assertIn(str(identity.uid), guard)
+                self.assertIn(identity.home, guard)
+
+    def test_replaced_receipt_refuses_before_provider_or_guest_calls(self):
+        import json
+        import pathlib
+        import tempfile
+        import unittest.mock
+        with tempfile.TemporaryDirectory() as folder, unittest.mock.patch.dict('os.environ', {}, clear=False):
+            path = pathlib.Path(folder) / 'identity.json'
+            path.write_text(json.dumps(self.receipt()))
+            path.chmod(0o600)
+            identity = self.load(path)
+            replacement = pathlib.Path(folder) / 'replacement.json'
+            changed = self.receipt()
+            changed['bootEpoch'] += 1
+            replacement.write_text(json.dumps(changed))
+            replacement.chmod(0o600)
+            replacement.replace(path)
+            pilot = self.pilot()
+            guest = self.harness.Guest(identity.lease, pilot, 'a' * 64, 'b' * 64, identity)
+            with self.assertRaisesRegex(RuntimeError, 'receipt changed'):
+                guest.run('printf unauthorized')
+            self.assertEqual(pilot.mutations, [])
+            self.assertEqual(pilot.observations, [])
+
+    def test_noncanonical_account_cannot_be_freely_declared_without_receipt(self):
+        import argparse
+        with self.assertRaises(ValueError):
+            self.shared.from_arguments(argparse.Namespace(guest_account='keypathqa_896c0d2d',
+                                                          guest_uid=502, guest_identity_receipt=None))
+        default = self.shared.from_arguments(argparse.Namespace(guest_account=None, guest_uid=None,
+                                                               guest_identity_receipt=None))
+        self.assertEqual((default.account, default.uid), ('keypathqa', 501))
+
+    def test_transport_noop_does_not_mask_a_failed_guard_or_final_command(self):
+        # Evaluate only a harmless synthetic shell expression locally, never a
+        # guest/OS identity command. This checks grouped list/pipeline semantics.
+        import subprocess
+        class Identity:
+            account, uid, home = 'keypathqa', 501, '/Users/keypathqa'
+            app = home + '/Applications/KeyPath.app'
+            def verify(self, *_):
+                return {}
+            def guard(self):
+                return 'false'
+        pilot = self.pilot()
+        guest = self.harness.Guest('cbx_896c0d2d8565', pilot, 'a' * 64, 'b' * 64, Identity())
+        guest.run('printf unauthorized; printf tail')
+        expression = pilot.mutations[-1]
+        self.assertTrue(expression.startswith('true; '))
+        result = subprocess.run(['/bin/sh', '-c', expression], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, '')
+        result = subprocess.run(['/bin/sh', '-c', 'true; true && { false; }'], capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+
+
 if __name__ == '__main__':
     unittest.main()
