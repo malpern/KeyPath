@@ -741,6 +741,113 @@ mod tests {
     }
 
     #[test]
+    fn passthru_virtual_switch_follows_tcp_app_context_without_event_loop() {
+        use kanata_keyberon::layout::State;
+        use std::io::{BufRead, BufReader, Write};
+        use std::net::{TcpListener, TcpStream};
+
+        let path = std::env::temp_dir().join(format!("keypath-switch-{}.kbd", std::process::id()));
+        std::fs::write(&path, "(defvirtualkeys vk_test XX)(defalias kp-a (switch ((input virtual vk_test)) b break () a break))(defsrc a)(deflayer base @kp-a)").unwrap();
+        let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+        let mut error = vec![0 as c_char; 512];
+        let usages = [4u32, 5];
+        assert!(keypath_kanata_bridge_validate_session_config(
+            cfg_path.as_ptr(),
+            usages.as_ptr(),
+            usages.len(),
+            error.as_mut_ptr(),
+            error.len()
+        ));
+        let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = reservation.local_addr().unwrap().port();
+        drop(reservation);
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg_path.as_ptr(),
+            port,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        assert!(keypath_kanata_bridge_start_passthru_runtime(
+            handle,
+            error.as_mut_ptr(),
+            error.len()
+        ));
+        let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut initial = String::new();
+        reader.read_line(&mut initial).unwrap();
+        assert!(initial.contains("LayerChange"));
+
+        let output = |expected_value, expected_code| {
+            let event = runtime
+                .output_rx
+                .recv_timeout(Duration::from_secs(2))
+                .unwrap();
+            assert_eq!(
+                (event.value, event.page, event.code),
+                (expected_value, 7, expected_code)
+            );
+        };
+        let physical = |value| {
+            let mut error = vec![0 as c_char; 512];
+            assert!(keypath_kanata_bridge_passthru_send_input(
+                handle,
+                value,
+                7,
+                4,
+                error.as_mut_ptr(),
+                error.len()
+            ));
+        };
+        // No frontmost-app signal uses the literal fallback.
+        physical(1);
+        output(1, 4);
+        physical(0);
+        output(0, 4);
+        for (action, expected_active, expected_code) in [("Press", true, 5), ("Release", false, 4)]
+        {
+            writeln!(
+                stream,
+                "{{\"ActOnFakeKey\":{{\"name\":\"vk_test\",\"action\":\"{action}\"}}}}"
+            )
+            .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(2);
+            loop {
+                let k = runtime.runtime.lock();
+                let index = k.virtual_keys["vk_test"] as u16;
+                let active = k.layout.b().states.iter().any(|state| matches!(state, State::NoOpInput { coord } if *coord == (kanata_parser::cfg::FAKE_KEY_ROW, index)));
+                if active == expected_active {
+                    break;
+                }
+                drop(k);
+                assert!(
+                    Instant::now() < deadline,
+                    "TCP virtual {action} was not processed"
+                );
+                std::thread::yield_now();
+            }
+            // XX supplies condition state without emitting a synthetic key.
+            assert!(matches!(
+                runtime.output_rx.try_recv(),
+                Err(mpsc::TryRecvError::Empty)
+            ));
+            physical(1);
+            output(1, expected_code);
+            physical(0);
+            output(0, expected_code);
+        }
+        drop(stream);
+        drop(reader);
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
     fn create_passthru_runtime_returns_handle_and_empty_output_queue() {
         let cfg_path = passthru_cfg_path();
         let mut error_buffer = vec![0 as c_char; 512];
