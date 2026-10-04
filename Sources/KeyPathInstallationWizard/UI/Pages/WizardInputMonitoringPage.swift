@@ -62,17 +62,6 @@ public struct WizardInputMonitoringPage: View {
         }
     }
 
-    private func kanataSubtitle(for status: InstallationStatus) -> String {
-        switch status {
-        case .completed:
-            " - Remapping engine processes keyboard events"
-        case .warning, .unverified:
-            " - Not yet added — add in System Settings"
-        case .failed, .notStarted, .inProgress:
-            " - Remapping engine needs permission"
-        }
-    }
-
     public var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -101,20 +90,7 @@ public struct WizardInputMonitoringPage: View {
                                         Text("KeyPath.app")
                                             .font(.headline)
                                             .fontWeight(.semibold)
-                                        Text(" - Main application captures keyboard input")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("kanata-launcher")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Remapping engine processes keyboard events")
+                                        Text(" - Session captures keyboard input")
                                             .font(.headline)
                                             .fontWeight(.regular)
                                     }
@@ -179,45 +155,11 @@ public struct WizardInputMonitoringPage: View {
                             }
                             .help(keyPathInputMonitoringIssues.asTooltipText())
 
-                            HStack(spacing: 12) {
-                                let icon = statusIcon(for: kanataInputMonitoringStatus)
-                                Image(systemName: icon.name)
-                                    .foregroundColor(icon.color)
-                                HStack(spacing: 0) {
-                                    Text("kanata-launcher")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(kanataSubtitle(for: kanataInputMonitoringStatus))
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                                Spacer()
-                                if kanataInputMonitoringStatus != .completed {
-                                    Button("Add in Settings") {
-                                        Task {
-                                            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-                                            if snapshot.kanata.inputMonitoring.isReady {
-                                                AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Fix clicked — permission already granted, navigating to summary")
-                                                await onRefresh()
-                                                onNavigateToPage?(.summary)
-                                                return
-                                            }
-                                            AppLogger.shared.log("🔧 [WizardInputMonitoringPage] Kanata Fix clicked — presenting drag-to-authorize overlay")
-                                            DragToAuthorizeController.shared.present(for: .inputMonitoring)
-                                        }
-                                    }
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                    .accessibilityIdentifier("wizard-input-monitoring-kanata-add-settings")
-                                }
-                            }
-                            .help(kanataInputMonitoringIssues.asTooltipText())
-
                             // Escalation: if the automatic prompt for KeyPath.app
                             // never registered a grant, augment the "Turn On" retry
                             // (whose deep-linked Settings row may not exist on macOS
                             // 26/27) with accurate manual "+"-to-add steps (#931).
-                            if keyPathGuidance == .manualFallback {
+                            if !sessionInputNeedsVerification, keyPathGuidance == .manualFallback {
                                 InputMonitoringManualFallbackCard()
                             }
                         }
@@ -262,7 +204,7 @@ public struct WizardInputMonitoringPage: View {
     // MARK: - Computed Properties
 
     private var hasInputMonitoringIssues: Bool {
-        keyPathInputMonitoringStatus != .completed || kanataInputMonitoringStatus != .completed
+        keyPathInputMonitoringStatus != .completed
     }
 
     private var nextStepButtonTitle: String {
@@ -271,13 +213,20 @@ public struct WizardInputMonitoringPage: View {
 
     private var keyPathInputMonitoringStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
-        return installationStatus(for: snapshot.keyPath.inputMonitoring)
+        return installationStatus(for: snapshot.kanata.inputMonitoring)
+    }
+
+    private var sessionInputNeedsVerification: Bool {
+        guard let snapshot = permissionSnapshot else { return true }
+        if case .unknown = snapshot.kanata.inputMonitoring { return true }
+        return false
     }
 
     private var keyPathSubtitle: String {
-        switch keyPathGuidance {
+        if sessionInputNeedsVerification { return " - Verify keyboard access by starting the session" }
+        return switch keyPathGuidance {
         case .granted:
-            " - Main application can capture keyboard input"
+            " - Session can capture keyboard input"
         case .offerAutomatic:
             " - Main application needs permission"
         case .awaitingGrant:
@@ -288,7 +237,8 @@ public struct WizardInputMonitoringPage: View {
     }
 
     private var keyPathActionTitle: String {
-        switch keyPathGuidance {
+        if sessionInputNeedsVerification { return "Check Access" }
+        return switch keyPathGuidance {
         case .manualFallback:
             "Add in Settings"
         case .granted:
@@ -298,23 +248,18 @@ public struct WizardInputMonitoringPage: View {
         }
     }
 
-    /// Escalation state for KeyPath.app's own Input Monitoring grant. Recomputed
+    /// Escalation state for the session tap's effective input access. Recomputed
     /// on every render (the 1s poll updates `permissionSnapshot`), so once the
     /// automatic-prompt wait window elapses without a grant the manual-add card
     /// appears instead of leaving the user stranded at the "Turn On" button (#931).
     private var keyPathGuidance: AutomaticPromptGuidance {
         resolveAutomaticPromptGuidance(
             AutomaticPromptGuidanceInput(
-                keyPathReady: permissionSnapshot?.keyPath.inputMonitoring.isReady ?? false,
+                keyPathReady: permissionSnapshot?.kanata.inputMonitoring.isReady ?? false,
                 requestAttempted: keyPathRequestAttemptedAt != nil,
                 secondsSinceRequest: keyPathRequestAttemptedAt.map { Date().timeIntervalSince($0) }
             )
         )
-    }
-
-    private var kanataInputMonitoringStatus: InstallationStatus {
-        guard let snapshot = permissionSnapshot else { return .inProgress }
-        return installationStatus(for: snapshot.kanata.inputMonitoring)
     }
 
     private func installationStatus(for status: PermissionOracle.Status) -> InstallationStatus {
@@ -329,16 +274,7 @@ public struct WizardInputMonitoringPage: View {
     private var keyPathInputMonitoringIssues: [WizardIssue] {
         issues.filter { issue in
             if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathInputMonitoring
-            }
-            return false
-        }
-    }
-
-    private var kanataInputMonitoringIssues: [WizardIssue] {
-        issues.filter { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .kanataInputMonitoring
+                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
             }
             return false
         }
@@ -420,9 +356,8 @@ public struct WizardInputMonitoringPage: View {
                 let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                 permissionSnapshot = snapshot
 
-                let bothGranted = snapshot.keyPath.inputMonitoring.isReady
-                    && snapshot.kanata.inputMonitoring.isReady
-                if bothGranted, !hasEverCelebrated {
+                let inputReady = snapshot.kanata.inputMonitoring.isReady
+                if inputReady, !hasEverCelebrated {
                     hasEverCelebrated = true
                     WizardWindowManager.shared.bounceDocIcon()
                     withAnimation(.spring(response: 0.3)) {
@@ -456,9 +391,9 @@ public struct WizardInputMonitoringPage: View {
                 let hasPermission: Bool =
                     switch type {
                     case .accessibility:
-                        snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+                        snapshot.keyPath.accessibility.isReady
                     case .inputMonitoring:
-                        snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                        snapshot.kanata.inputMonitoring.isReady
                     }
                 if hasPermission {
                     // Bounce dock icon to get user's attention back to KeyPath
@@ -488,7 +423,21 @@ public struct WizardInputMonitoringPage: View {
         }
     }
 
+    private func verifySessionInputAccess() {
+        Task { @MainActor in
+            _ = await kanataManager.startKanata(reason: "Wizard verifying session input access")
+            permissionSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
+            await onRefresh()
+        }
+    }
+
     private func openInputMonitoringSettings() {
+        // Missing worker evidence is not a macOS permission denial.
+        if sessionInputNeedsVerification {
+            verifySessionInputAccess()
+            return
+        }
+        if keyPathInputMonitoringStatus == .completed { return }
         AppLogger.shared.log(
             "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting"
         )
@@ -514,7 +463,7 @@ public struct WizardInputMonitoringPage: View {
                 return
             }
 
-            // Poll for grant (KeyPath + Kanata) using the shared system-state facade.
+            // Poll the session tap's effective input access through the canonical snapshot.
             startPermissionPolling(for: .inputMonitoring)
 
             // Fallback: if still not granted shortly after, open System Settings panel
@@ -522,7 +471,7 @@ public struct WizardInputMonitoringPage: View {
                 _ = await WizardSleep.ms(250)
                 let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                 let granted =
-                    snapshot.keyPath.inputMonitoring.isReady && snapshot.kanata.inputMonitoring.isReady
+                    snapshot.kanata.inputMonitoring.isReady
                 if granted { return }
             }
             AppLogger.shared.info(
@@ -533,6 +482,10 @@ public struct WizardInputMonitoringPage: View {
     }
 
     private func handleKeyPathInputMonitoringAction() {
+        if sessionInputNeedsVerification {
+            verifySessionInputAccess()
+            return
+        }
         switch keyPathGuidance {
         case .manualFallback:
             AppLogger.shared.log("🔧 [WizardInputMonitoringPage] KeyPath manual-add clicked")
@@ -607,18 +560,6 @@ private struct InputMonitoringManualFallbackCard: View {
     }
 }
 
-// MARK: - Helpers for Kanata add flow
-
-@MainActor
-private func revealKanataInFinder() {
-    WizardPermissionFinderHelper.revealKanataLauncher()
-}
-
-@MainActor
-private func copyKanataEngineAppPathToClipboard() {
-    WizardPermissionFinderHelper.copyPathToClipboard()
-}
-
 // MARK: - Stale Entry Cleanup Instructions View
 
 public struct StaleEntryCleanupInstructions: View {
@@ -678,7 +619,6 @@ public struct StaleEntryCleanupInstructions: View {
                 )
                 CleanupStep(number: 4, text: "Remove any duplicate KeyPath entries")
                 CleanupStep(number: 5, text: "Add the current KeyPath using the '+' button")
-                CleanupStep(number: 6, text: "Also add 'kanata-launcher' if needed")
             }
             .padding()
             .background(Color.blue.opacity(0.05))

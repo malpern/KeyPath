@@ -47,17 +47,6 @@ public struct WizardAccessibilityPage: View {
         }
     }
 
-    private func kanataSubtitle(for status: InstallationStatus) -> String {
-        switch status {
-        case .completed:
-            " - Keyboard monitoring engine"
-        case .warning, .unverified:
-            " - Not yet added — add in System Settings"
-        case .failed, .notStarted, .inProgress:
-            " - Keyboard monitoring engine"
-        }
-    }
-
     public init(
         onRefresh: @escaping () async -> Void,
         onNavigateToPage: ((WizardPage) -> Void)?,
@@ -104,19 +93,6 @@ public struct WizardAccessibilityPage: View {
                                             .fontWeight(.regular)
                                     }
                                 }
-
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("kanata-launcher")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Keyboard monitoring and remapping engine")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
                             }
                             Spacer()
                         }
@@ -142,7 +118,7 @@ public struct WizardAccessibilityPage: View {
                         WizardHeroSection.setup(
                             icon: "accessibility",
                             title: "Enable Keyboard Control",
-                            subtitle: "Allow KeyPath to monitor safety shortcuts and let Kanata Engine apply your remaps.",
+                            subtitle: "Allow KeyPath to apply your remaps and monitor safety shortcuts.",
                             iconTapAction: {
                                 Task {
                                     await onRefresh()
@@ -184,10 +160,6 @@ public struct WizardAccessibilityPage: View {
                                 Spacer()
                                 if keyPathAccessibilityStatus != .completed {
                                     Button("Turn On") {
-                                        // Set service bounce flag before showing permission grant
-                                        PermissionGrantCoordinator.shared.setServiceBounceNeeded(
-                                            reason: "Accessibility permission fix for KeyPath.app"
-                                        )
                                         openAccessibilityPermissionGrant()
                                     }
                                     .buttonStyle(WizardDesign.Component.SecondaryButton())
@@ -196,40 +168,6 @@ public struct WizardAccessibilityPage: View {
                                 }
                             }
                             .help(keyPathAccessibilityIssues.asTooltipText())
-
-                            HStack(spacing: 12) {
-                                let icon = statusIcon(for: kanataAccessibilityStatus)
-                                Image(systemName: icon.name)
-                                    .foregroundColor(icon.color)
-                                HStack(spacing: 0) {
-                                    Text("kanata-launcher")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(kanataSubtitle(for: kanataAccessibilityStatus))
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                                Spacer()
-                                if kanataAccessibilityStatus != .completed {
-                                    Button("Add in Settings") {
-                                        Task {
-                                            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-                                            if snapshot.kanata.accessibility.isReady {
-                                                AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — permission already granted, navigating to summary")
-                                                await onRefresh()
-                                                onNavigateToPage?(.summary)
-                                                return
-                                            }
-                                            AppLogger.shared.log("🔘 [WizardAccessibilityPage] Fix clicked — presenting drag-to-authorize overlay")
-                                            DragToAuthorizeController.shared.present(for: .accessibility)
-                                        }
-                                    }
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                    .accessibilityIdentifier("wizard-accessibility-kanata-add-settings")
-                                }
-                            }
-                            .help(kanataAccessibilityIssues.asTooltipText())
 
                             // Escalation: if the automatic prompt for KeyPath.app never
                             // registered a grant, offer the drag-to-authorize helper
@@ -278,9 +216,8 @@ public struct WizardAccessibilityPage: View {
                     let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                     permissionSnapshot = snapshot
 
-                    let bothGranted = snapshot.keyPath.accessibility.isReady
-                        && snapshot.kanata.accessibility.isReady
-                    if bothGranted, !hasEverCelebrated {
+                    let accessibilityReady = snapshot.keyPath.accessibility.isReady
+                    if accessibilityReady, !hasEverCelebrated {
                         hasEverCelebrated = true
                         WizardWindowManager.shared.bounceDocIcon()
                         withAnimation(.spring(response: 0.3)) {
@@ -304,7 +241,7 @@ public struct WizardAccessibilityPage: View {
     // MARK: - Computed Properties
 
     private var hasAccessibilityIssues: Bool {
-        keyPathAccessibilityStatus != .completed || kanataAccessibilityStatus != .completed
+        keyPathAccessibilityStatus != .completed
     }
 
     private var nextStepButtonTitle: String {
@@ -318,11 +255,6 @@ public struct WizardAccessibilityPage: View {
     private var keyPathAccessibilityStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
         return installationStatus(for: snapshot.keyPath.accessibility)
-    }
-
-    private var kanataAccessibilityStatus: InstallationStatus {
-        guard let snapshot = permissionSnapshot else { return .inProgress }
-        return installationStatus(for: snapshot.kanata.accessibility)
     }
 
     /// Escalation state for KeyPath.app's own Accessibility grant. Uses the shared
@@ -357,15 +289,6 @@ public struct WizardAccessibilityPage: View {
         }
     }
 
-    private var kanataAccessibilityIssues: [WizardIssue] {
-        issues.filter { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .kanataAccessibility
-            }
-            return false
-        }
-    }
-
     // MARK: - Actions
 
     private func openAccessibilityPermissionGrant() {
@@ -389,13 +312,12 @@ public struct WizardAccessibilityPage: View {
                 await onRefresh()
                 return
             }
-            // Poll for grant (KeyPath + Kanata) using the shared system-state facade.
+            // Poll for KeyPath.app's grant using the canonical permission snapshot.
             permissionPollingTask?.cancel()
             permissionPollingTask = Task { @MainActor [onRefresh] in
                 var attempts = 0
                 let maxAttempts = 30
                 var lastKeyPathGranted: Bool?
-                var lastKanataGranted: Bool?
                 while attempts < maxAttempts {
                     _ = await WizardSleep.ms(1000)
                     attempts += 1
@@ -404,20 +326,18 @@ public struct WizardAccessibilityPage: View {
                     // #933 escalation card can appear once the wait window elapses.
                     permissionSnapshot = snapshot
                     let kpGranted = snapshot.keyPath.accessibility.isReady
-                    let kaGranted = snapshot.kanata.accessibility.isReady
 
-                    // Incremental refresh: update UI when either flips, not only when both are ready
-                    if lastKeyPathGranted != kpGranted || lastKanataGranted != kaGranted {
+                    // Refresh the UI whenever KeyPath.app's grant changes.
+                    if lastKeyPathGranted != kpGranted {
                         AppLogger.shared.log(
-                            "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted), Kanata: \(kaGranted). Refreshing UI."
+                            "🔁 [WizardAccessibilityPage] Detected permission change (AX) - KeyPath: \(kpGranted). Refreshing UI."
                         )
                         lastKeyPathGranted = kpGranted
-                        lastKanataGranted = kaGranted
                         await onRefresh()
                     }
 
-                    if kpGranted, kaGranted {
-                        // Both ready – stop polling
+                    if kpGranted {
+                        // Ready — stop polling
                         return
                     }
                     if Task.isCancelled { return }
@@ -427,7 +347,7 @@ public struct WizardAccessibilityPage: View {
             _ = await WizardSleep.ms(1500) // 1.5s
             let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
             let granted =
-                snapshot.keyPath.accessibility.isReady && snapshot.kanata.accessibility.isReady
+                snapshot.keyPath.accessibility.isReady
             if !granted {
                 AppLogger.shared.info(
                     "ℹ️ [WizardAccessibilityPage] Opening System Settings (fallback) for Accessibility"
@@ -463,8 +383,7 @@ public struct WizardAccessibilityPage: View {
         // since the user won't need to visit it again for permissions
         Task { @MainActor in
             let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-            let inputMonitoringGranted = snapshot.keyPath.inputMonitoring.isReady
-                && snapshot.kanata.inputMonitoring.isReady
+            let inputMonitoringGranted = snapshot.kanata.inputMonitoring.isReady
 
             if inputMonitoringGranted {
                 // User already has Input Monitoring - clean up now since they won't need Settings again
@@ -487,14 +406,6 @@ public struct WizardAccessibilityPage: View {
                 stateMachine.navigateToPage(.summary)
             }
         }
-    }
-
-    private func revealKanataInFinder() {
-        WizardPermissionFinderHelper.revealKanataLauncher()
-    }
-
-    private func copyKanataEngineAppPathToClipboard() {
-        WizardPermissionFinderHelper.copyPathToClipboard()
     }
 }
 
