@@ -31,6 +31,8 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Pending. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
 | D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
 | D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
+| D10 | Caps substitution ownership/integration after runtime stabilization. Planned follow-up, feature retained. | Sol high design/recovery review; Sol medium implementation; Luna hardware execution | Collision-safe device-scoped mapping, restore only owned state, stop/crash/reconnect/reboot/protected-input acceptance |
+| D11 | Revisit onboarding UX after reduced permissions and Caps prerequisites are verified. Deferred. | Sol medium implementation; design review at appropriate level | Normal fresh installer flow reflects actual consent and supported first win; no unavailable Caps retry loop |
 
 Current simplification estimate: **65%**, independent of the older 80% bounded
 checkpoint. The second broad run completed without the obsolete assertion crash:
