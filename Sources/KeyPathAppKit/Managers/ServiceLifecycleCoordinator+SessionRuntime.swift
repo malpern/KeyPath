@@ -35,36 +35,64 @@ extension ServiceLifecycleCoordinator {
         return nil
     }
 
-    func startSessionRuntime(reason: String) async -> Bool {
+    func startSessionRuntime(reason: String, generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
+        #if DEBUG
+            if let readiness = testSessionRunningReadiness {
+                let responding = await readiness()
+                return await adoptRunningSession(generation: generation, responding: responding)
+            }
+        #endif
         if let report = currentSessionReport(), report.state == .running, report.tapActive {
-            return await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300)
+            let responding = await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300)
+            return await adoptRunningSession(generation: generation, responding: responding)
         }
-        guard await stopSessionRuntime() else { return false }
+        guard await stopSessionRuntime(), sessionStartIsCurrent(generation) else { return false }
         // A legacy runtime cannot coexist with a modifying session tap. Do not
         // terminate or migrate a privileged installation implicitly.
-        if await kanataDaemonService.isDaemonRunning() {
+        let legacyRunning = await kanataDaemonService.isDaemonRunning()
+        guard sessionStartIsCurrent(generation) else { return false }
+        if legacyRunning {
             onError?("Stop the existing keyboard service before trying driverless mode.")
             return false
         }
-        isStartingKanata = true
-        defer { isStartingKanata = false }
+        var didLaunch = false
         do {
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: false)
             sessionApplication = application
             sessionReportURL = url
             sessionNonce = nonce
             sessionOutputsRecovered = false
+            didLaunch = true
+            // NSWorkspace can finish a launch despite task cancellation. Retain
+            // its ownership first, then clean it before releasing admission.
+            guard sessionStartIsCurrent(generation) else {
+                _ = await stopSessionRuntime()
+                return false
+            }
             for _ in 0 ..< 40 {
+                guard sessionStartIsCurrent(generation) else {
+                    _ = await stopSessionRuntime()
+                    return false
+                }
                 if let report = currentSessionReport() {
                     if report.state == .running, report.tapActive,
                        await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300)
                     {
-                        AppLogger.shared.log("Session runtime ready (\(reason))")
+                        guard sessionStartIsCurrent(generation) else {
+                            _ = await stopSessionRuntime()
+                            return false
+                        }
                         await AppContextService.shared.start()
+                        guard sessionStartIsCurrent(generation) else {
+                            _ = await stopSessionRuntime()
+                            return false
+                        }
+                        AppLogger.shared.log("Session runtime ready (\(reason))")
                         onError?(nil)
                         onWarning?(nil)
                         onStateChanged?()
-                        superviseSessionRuntime()
+                        superviseSessionRuntime(generation: generation)
                         return true
                     }
                     if report.state == .failed || report.state == .secureInput { break }
@@ -74,31 +102,46 @@ extension ServiceLifecycleCoordinator {
             }
             let failure = sessionReportURL.flatMap(Self.readSessionReport)?.failure
             _ = await stopSessionRuntime()
-            onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")")
+            if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
         } catch {
-            onError?("Driverless runtime launch failed: \(error.localizedDescription)")
+            if didLaunch { _ = await stopSessionRuntime() }
+            if sessionStartIsCurrent(generation) { onError?("Driverless runtime launch failed: \(error.localizedDescription)") }
         }
         onStateChanged?()
         return false
     }
 
+    private func adoptRunningSession(generation: UInt64, responding: Bool) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
+        guard responding else {
+            _ = await stopSessionAdmitted(reason: "Existing session did not respond")
+            return false
+        }
+        // Public starts change intent even when the same process remains live.
+        // Transfer supervision to that intent instead of abandoning the worker.
+        superviseSessionRuntime(generation: generation)
+        return true
+    }
+
+    /// Called only under lifecycle admission. Cancellation never skips cleanup.
     func stopSessionRuntime() async -> Bool {
+        let application = sessionApplication
+        let reportURL = sessionReportURL
+        let nonce = sessionNonce
         sessionSupervisionTask?.cancel()
         sessionSupervisionTask = nil
         await AppContextService.shared.stop()
-        if let application = sessionApplication, !application.isTerminated {
+        if let application, !application.isTerminated {
             kill(application.processIdentifier, SIGTERM)
             for _ in 0 ..< 40 {
                 if application.isTerminated { break }
-                try? await Task.sleep(for: .milliseconds(50))
+                await waitForSessionTermination()
             }
             if !application.isTerminated {
-                // Only this launch's NSRunningApplication is eligible. Read its
-                // final emitted-key ledger after termination, not before SIGKILL.
                 kill(application.processIdentifier, SIGKILL)
                 for _ in 0 ..< 20 {
                     if application.isTerminated { break }
-                    try? await Task.sleep(for: .milliseconds(50))
+                    await waitForSessionTermination()
                 }
                 guard application.isTerminated else {
                     onError?("Driverless runtime did not stop; restart was refused.")
@@ -106,13 +149,12 @@ extension ServiceLifecycleCoordinator {
                 }
             }
         }
-        // Also recover workers already dead on entry or killed during the TERM
-        // wait. Replay before deleting the only durable emitted-output evidence.
-        if let application = sessionApplication {
-            _ = recoverSessionOutputs(for: application)
-        }
-        if let url = sessionReportURL {
-            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        // Never clear a different launch's fields or delete its durable ledger.
+        guard sessionApplication === application, sessionNonce == nonce,
+              sessionReportURL == reportURL else { return false }
+        if let application { _ = recoverSessionOutputs(for: application) }
+        if let reportURL {
+            try? FileManager.default.removeItem(at: reportURL.deletingLastPathComponent())
         }
         sessionApplication = nil
         sessionReportURL = nil
@@ -122,17 +164,37 @@ extension ServiceLifecycleCoordinator {
         return true
     }
 
-    private func superviseSessionRuntime() {
+    private func waitForSessionTermination() async {
+        // A cancelled start still owns its late launch. Give shutdown the same
+        // bounded grace instead of cancelled sleeps racing straight to SIGKILL.
+        await Task.detached {
+            try? await Task.sleep(for: .milliseconds(50))
+            return ()
+        }.value
+    }
+
+    private func superviseSessionRuntime(generation: UInt64) {
+        #if DEBUG
+            if let observe = testSessionSupervisionStarted {
+                observe(generation)
+                return
+            }
+        #endif
+        guard let ownedApplication = sessionApplication, let ownedNonce = sessionNonce else { return }
         sessionSupervisionTask?.cancel()
-        sessionSupervisionTask = Task { [weak self] in
+        // Do not inherit ConfigurationOperationGate's active TaskLocal permit.
+        sessionSupervisionTask = Task.detached { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(250))
-                guard !Task.isCancelled, let self, let application = sessionApplication else { return }
+                guard !Task.isCancelled, let self,
+                      sessionStartIsCurrent(generation),
+                      sessionApplication === ownedApplication, sessionNonce == ownedNonce else { return }
+                let application = ownedApplication
                 if !application.isTerminated {
                     if currentSessionReport() == nil {
-                        sessionSupervisionTask = nil
-                        _ = await stopSessionRuntime()
-                        onError?("Driverless remapping stopped after its heartbeat was lost. Restart to recover.")
+                        _ = try? await sessionOperationGate.withOperation { [self] _ in
+                            await stopUnresponsiveSession(expectedGeneration: generation, nonce: ownedNonce)
+                        }
                         return
                     }
                     continue
@@ -143,11 +205,11 @@ extension ServiceLifecycleCoordinator {
                         while IsSecureEventInputEnabled(), !Task.isCancelled {
                             try? await Task.sleep(for: .milliseconds(250))
                         }
-                        guard !Task.isCancelled else { return }
+                        guard sessionStartIsCurrent(generation),
+                              sessionApplication === ownedApplication, sessionNonce == ownedNonce else { return }
                         // The same lifecycle owner resumes only after Secure Input
                         // ends. Other failures require explicit recovery.
-                        sessionSupervisionTask = nil
-                        _ = await startSessionRuntime(reason: "Secure typing ended")
+                        _ = await resumeSessionRuntime(expectedGeneration: generation)
                         return
                     }
                 }
@@ -156,6 +218,16 @@ extension ServiceLifecycleCoordinator {
                 return
             }
         }
+    }
+
+    private func stopUnresponsiveSession(expectedGeneration: UInt64, nonce: String) async -> Bool {
+        guard sessionStartIsCurrent(expectedGeneration), sessionNonce == nonce else { return false }
+        sessionSupervisionTask = nil
+        let stopped = await stopSessionRuntime()
+        if expectedGeneration == sessionIntentGeneration {
+            onError?("Driverless remapping stopped after its heartbeat was lost. Restart to recover.")
+        }
+        return stopped
     }
 
     private func recoverSessionOutputs(for application: NSRunningApplication) -> SessionRuntimeReport? {

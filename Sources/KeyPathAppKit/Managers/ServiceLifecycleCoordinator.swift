@@ -16,6 +16,19 @@ final class ServiceLifecycleCoordinator {
     var sessionNonce: String?
     var sessionOutputsRecovered = false
     var sessionSupervisionTask: Task<Void, Never>?
+    // Process ownership is serialized across suspension points, independently of
+    // configuration persistence. Intent changes immediately, before admission.
+    let sessionOperationGate = ConfigurationOperationGate()
+    private(set) var sessionIntentGeneration: UInt64 = 0
+    private(set) var sessionWantsRunning = false
+
+    enum SessionLifecycleOperation: Sendable {
+        case start(String), stop(String), restart(String)
+    }
+
+    func sessionStartIsCurrent(_ generation: UInt64) -> Bool {
+        generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
+    }
 
     // MARK: - Runtime Status
 
@@ -40,6 +53,9 @@ final class ServiceLifecycleCoordinator {
         /// Lifecycle tests inject session operations without launching an application.
         nonisolated(unsafe) static var testSessionStart: (@MainActor (String) async -> Bool)?
         nonisolated(unsafe) static var testSessionStop: (@MainActor () async -> Bool)?
+        var testSessionRequestObserved: ((UInt64) -> Void)?
+        var testSessionRunningReadiness: (@MainActor () async -> Bool)?
+        var testSessionSupervisionStarted: ((UInt64) -> Void)?
     #endif
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
@@ -118,18 +134,103 @@ final class ServiceLifecycleCoordinator {
 
     @discardableResult
     func startKanata(reason: String = "Manual start") async -> Bool {
+        await requestSessionOperation(.start(reason))
+    }
+
+    @discardableResult
+    func stopKanata(reason: String = "Manual stop") async -> Bool {
+        await requestSessionOperation(.stop(reason))
+    }
+
+    @discardableResult
+    func restartKanata(reason: String = "Manual restart") async -> Bool {
+        await requestSessionOperation(.restart(reason))
+    }
+
+    private func requestSessionOperation(_ operation: SessionLifecycleOperation) async -> Bool {
+        // A request already cancelled before entry changes no intent. An accepted
+        // stop must still release held outputs even if its caller later cancels.
+        if case .stop = operation {} else if Task.isCancelled { return false }
+        sessionIntentGeneration &+= 1
+        let generation = sessionIntentGeneration
+        if case .stop = operation { sessionWantsRunning = false } else { sessionWantsRunning = true }
+        #if DEBUG
+            testSessionRequestObserved?(generation)
+        #endif
+        if case .stop = operation {
+            return await Task.detached { @MainActor [self] in
+                await admitSessionOperation(operation, generation: generation)
+            }.value
+        }
+        let result = await admitSessionOperation(operation, generation: generation)
+        if Task.isCancelled, generation == sessionIntentGeneration {
+            // A cancelled queued start has already invalidated supervision of
+            // the previous worker. Finish with an admitted stop, never abandon it.
+            _ = await requestSessionOperation(.stop("Cancelled lifecycle request"))
+            return false
+        }
+        return generation == sessionIntentGeneration && sessionWantsRunning && result
+    }
+
+    private func admitSessionOperation(_ operation: SessionLifecycleOperation, generation: UInt64) async -> Bool {
+        do {
+            return try await sessionOperationGate.withOperation { [self] _ in
+                await performSessionOperation(operation, generation: generation)
+            }
+        } catch {
+            return false
+        }
+    }
+
+    /// Automatic recovery carries the old intent; it cannot replace a newer
+    /// manual stop/start request while waiting for admission.
+    func resumeSessionRuntime(expectedGeneration: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(expectedGeneration) else { return false }
+        #if DEBUG
+            testSessionRequestObserved?(expectedGeneration)
+        #endif
+        let resumed = await Task.detached { @MainActor [self] in
+            await admitSessionOperation(.start("Secure typing ended"), generation: expectedGeneration)
+        }.value
+        return sessionStartIsCurrent(expectedGeneration) && resumed
+    }
+
+    private func performSessionOperation(_ operation: SessionLifecycleOperation, generation: UInt64) async -> Bool {
+        guard generation == sessionIntentGeneration else { return false }
+        switch operation {
+        case let .start(reason):
+            return await startSessionAdmitted(reason: reason, generation: generation)
+        case let .stop(reason):
+            return await stopSessionAdmitted(reason: reason)
+        case let .restart(reason):
+            guard await stopSessionAdmitted(reason: "\(reason) (stop for restart)"),
+                  sessionStartIsCurrent(generation) else { return false }
+            return await startSessionAdmitted(reason: "\(reason) (restart)", generation: generation)
+        }
+    }
+
+    private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
         stopGraceUntil = nil
         lastStartAttemptAt = Date()
         isStartingKanata = true
         defer { isStartingKanata = false }
         #if DEBUG
-            if let start = Self.testSessionStart { return await start(reason) }
+            if let start = Self.testSessionStart {
+                let result = await start(reason)
+                guard sessionStartIsCurrent(generation) else {
+                    // The seam represents a launch that can complete after
+                    // cancellation, just like NSWorkspace. Cleanup stays admitted.
+                    _ = await stopSessionAdmitted(reason: "Superseded start")
+                    return false
+                }
+                return result
+            }
         #endif
-        return await startSessionRuntime(reason: reason)
+        return await startSessionRuntime(reason: reason, generation: generation)
     }
 
-    @discardableResult
-    func stopKanata(reason: String = "Manual stop") async -> Bool {
+    func stopSessionAdmitted(reason: String) async -> Bool {
         AppLogger.shared.log("Stopping session runtime (\(reason))")
         intentionalStopDepth += 1
         defer {
@@ -142,13 +243,6 @@ final class ServiceLifecycleCoordinator {
             if let stop = Self.testSessionStop { return await stop() }
         #endif
         return await stopSessionRuntime()
-    }
-
-    @discardableResult
-    func restartKanata(reason: String = "Manual restart") async -> Bool {
-        let stopped = await stopKanata(reason: "\(reason) (stop for restart)")
-        guard stopped else { return false }
-        return await startKanata(reason: "\(reason) (restart)")
     }
 
     func isInTransientRuntimeStartupWindow() async -> Bool {
