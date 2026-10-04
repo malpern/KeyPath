@@ -32,6 +32,27 @@ not authorization to flash the ESP32 or alter the host.
 | DL-11 | Not every Kanata custom action is implemented by the adapter whitelist. | Implement supported action outputs through canonical owners, expand parser-backed preflight only after testing semantics. | Layers, tap/hold, chords, one-shots and ordinary key macros do not inherently need a virtual device. Existing parser whitelist is authoritative for current eligibility; full feature parity is not asserted. Evaluate generated default packs against this whitelist before enabling the backend. |
 | DL-12 | Ordinary remapped keys must repeat while held; the first physical trial emitted only one character. | Preserve explicit repeat values across the session ABI and host output queue. | Reproduced with exact ESP32 trace: 10 input events, 2 output events and one character. Root cause: physical DriverKit conversion decoded repeat as release. Repeat ABI fix committed (bc6b0d7d/local Kanata 0853689); press/repeat/release and unsupported-value real-engine regressions pass. Signed physical retest passed on binary 32c5781f: session-3826bf9efd914cae, 10 input/10 output events, nine characters, exact trace and clean stop. Final-source artifact rerun remains part of acceptance. |
 
+## Driverless-only follow-up — October 3, 2026 Pacific
+
+Caps remains a planned feature after runtime stabilization, confirmed by the
+user. The current raw Caps refusal and temporary suppression of its welcome
+tour do not cancel DL-01. Re-enable that first-win flow only when owned
+substitution, collisions, restoration and recovery are verified.
+
+DL-11 now has narrow generated app-specific virtual-input switch support.
+Real TCP/passthrough tests prove fallback/active-app/fallback output, and the
+managed save regression rejects nested Unicode before changing sources,
+journals or reload state. App-only inputs also enter the captured source map;
+unreferenced aliases previously hid their actions from parsed validation.
+Signed physical app-specific acceptance is still pending.
+
+The exact event-tap map currently supports F1–F20, not F21–F24. Symbolic outputs
+such as `at` can be rejected where explicit supported keyboard sequences such
+as `S-2` are eligible; no automatic layout-sensitive translation is claimed.
+Tap-to-toggle navigation and per-device filtering remain rejected before managed
+writes. Tests preserve old generator and journal-recovery coverage separately
+from supported session acceptance, without a validation bypass.
+
 ## Delivery order
 
 1. Finish current reduced-permission product acceptance: stable signed identity,
