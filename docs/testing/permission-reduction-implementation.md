@@ -1,3 +1,5 @@
+> Execution resumed 2026-10-04 00:09 UTC. Final signed source8fd1320b / Kanata0853689 / binary9f0e3435 passed parent remap, Secure Input pass-through, automatic resume and independently verified held-output crash recovery. Reboot continuity and five final worker modes remain in progress. Main safe target4314 tests /0 failures /28 skips; three unchanged home-row snapshots fail, so full-suite pass is not claimed. Three source/candidate VM resources are destroyed and independently absent; final GUI lease still owned. Mixed-model pilot active; original restrictions unchanged. Earlier paused checkpoint below is historical.
+>
 # KeyPath permission reduction implementation — 2026-10-03
 
 ## Paused execution — 2026-10-03

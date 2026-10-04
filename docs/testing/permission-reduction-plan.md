@@ -4,7 +4,7 @@ Updated 2026-10-03 / 2026-10-04 UTC. Execution resumed at the user's request.
 Mixed-model delegation is active; the implementation record retains chronology
 and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 
-## Latest checkpoint — 2026-10-04 00:03 UTC
+## Latest checkpoint — 2026-10-04 00:09 UTC
 
 - Sol high independently found and corrected five crash-recovery/acceptance gaps.
   Root verified the diff and committed `8fd1320b`; 8 targeted regressions pass.
@@ -18,7 +18,12 @@ and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
   archive `/private/tmp/keypath-session-mixed-crash.zip`, SHA256
   `83a3845bd458c299c055d3c721c452d5e3b91572be6bf710879eb6f44741b4a2`.
 - Luna medium has exclusive hardware-operation ownership for guarded staging and
-  parent/Secure Input/resume/held-crash campaign. Final physical results pending.
+  parent/Secure Input/resume/held-crash campaign. All four passed on the final
+  signed source. Root independently verified held-crash release while the same
+  fixture run had submitted only its physical key-down. Reboot rerun underway.
+- Both owned prepared candidates and the stopped source lease are destroyed;
+  independent provider inventories confirm their three UUIDs absent. The one
+  owned GUI lease remains for continuity and final worker cases.
 - A second bounded Luna analysis located DL-11's missing generated-profile
   eligibility check. Existing default-catalog validation checks Kanata syntax,
   not session eligibility. No generated-profile support claim has been made.
@@ -90,19 +95,19 @@ without pretending the feature backlog is complete.
 
 | Step | Work / status | Worker level | Orchestrator verification before proceeding |
 | --- | --- | --- | --- |
-| 1 | Reconcile pause state, stopped build, source hashes, VM ownership/expiry and fixture state. Pending on resume. | Luna low; Sol owns any recovery decision | Known lease identities only; no worker/build still active; no stale artifact accepted; preserve worktrees |
+| 1 | Reconcile pause state, stopped build, source hashes, VM ownership/expiry and fixture state. Complete. | Luna low; Sol owns any recovery decision | Known lease identities only; no worker/build still active; no stale artifact accepted; preserve worktrees |
 | 2 | Triage three home-row snapshot differences against an isolated baseline. Open; unrelated source/reference files unchanged. | Luna medium for reproduction; Sol medium for diagnosis/fix | Compare actual images and baseline; keep references unless an intentional visual change is established; record unrelated blocker if unresolved |
-| 3 | Consolidate and freeze remaining source changes; run appropriate safe tests and broad gate after the hang fix. Partly passed. | Sol medium for edits; Luna low for existing checks | Review canonical permission/installer/liveness ownership, targeted results and broad-gate failures; no claim of a full pass after timeout |
-| 4 | Build and sign frozen candidate; verify archive, executable identity and source provenance. Interrupted at pause. | Luna low using existing build script | Sol medium checks signature, explicit commit/hash record and no host deployment; no concurrent broad Swift build |
-| 5 | Stage exact signed artifact in owned guest and check effective approval after update. Pending final source. | Luna low using guarded staging harness | Sol medium checks ownership, signature/hash, independent process capability and no privilege contamination |
+| 3 | Consolidate and freeze remaining source changes; run appropriate safe tests and broad gate after the hang fix. Main target passed; three unchanged snapshots remain failed. | Sol medium for edits; Luna low for existing checks | Review canonical permission/installer/liveness ownership, targeted results and broad-gate failures; no claim of a full pass after timeout |
+| 4 | Build and sign frozen candidate; verify archive, executable identity and source provenance. Complete on frozen source8fd1320b. | Luna low using existing build script | Sol medium checks signature, explicit commit/hash record and no host deployment; no concurrent broad Swift build |
+| 5 | Stage exact signed artifact in owned guest and check effective approval after update. Complete, exact signed artifact staged without guest resigning. | Luna low using guarded staging harness | Sol medium checks ownership, signature/hash, independent process capability and no privilege contamination |
 | 6 | Re-run final-source physical ordinary remap, home-row tap/hold, unmapped typing and repeat. Earlier versions passed. | Luna medium, established harness only | Sol medium checks fixture trace, focus, fresh PID/nonce/hash/boot, counters and clean stopped report |
-| 7 | App-managed remap → Secure Input pass-through → automatic resume. Passed on 32c5781f; final-source rerun pending. | Luna medium, established harness only | Sol high checks lifecycle/report identity and independent physical result; protected-input remapping remains an accepted limitation |
-| 8 | Held-output worker crash and parent release before physical key-up. Open; last attempt refused before input. | Sol high owns experiment; Luna may run fixed harness | Sol high independently checks kill target, actual emitted-key release timing, fixture still held and empty target state; escalate ambiguous failure to Astra |
+| 7 | App-managed remap → Secure Input pass-through → automatic resume. Passed on final9f0e3435; unchanged-permission reboot rerun underway. | Luna medium, established harness only | Sol high checks lifecycle/report identity and independent physical result; protected-input remapping remains an accepted limitation |
+| 8 | Held-output worker crash and parent release before physical key-up. Passed on final9f0e3435 with independent release-during-hold evidence. | Sol high owns experiment; Luna may run fixed harness | Sol high independently checks kill target, actual emitted-key release timing, fixture still held and empty target state; escalate ambiguous failure to Astra |
 | 9 | Held-modifier Secure Input transitions, tap timeout, sleep/wake and session recovery. Open. | Sol high designs bounded cases; Luna medium executes approved scripts | Sol high checks no stuck output, correct reset/restart and ordinary typing during failure; record hardware/session limits |
 | 10 | Controlled unchanged-permission reboot and USB reconnect continuity on final app. Research proof exists; integrated acceptance open. | Luna medium with existing lab controls | Sol high checks new boot, startup settling, exact attachment, same approved identity and actual remap without permission mutation |
 | 11 | Evaluate generated/default profiles against parser-backed backend eligibility (DL-11). Open before enabling backend more broadly. | Luna medium enumerates profiles; Sol medium fixes eligibility | Sol high verifies supported semantics and explicit rejection; no silent feature removal or privileged fallback |
 | 12 | Close bounded prototype decision and reconcile current evidence. Open. | Luna low prepares evidence table | Sol high decides verified/failed/untested, remaining gates and customer permission claims; no default/release declaration while safety gates remain |
-| 13 | Collect artifacts and destroy/reconcile all four owned lab resources. Pending; also required if expiry occurs while paused. | Luna low, ownership-guarded controller only | Sol medium independently checks all four provider UUIDs absent and host fixture policy unchanged; preserve research/source/evidence |
+| 13 | Collect artifacts and destroy/reconcile all four owned lab resources. Three resources destroyed/independently absent; GUI lease cleanup follows continuity. | Luna low, ownership-guarded controller only | Sol medium independently checks all four provider UUIDs absent and host fixture policy unchanged; preserve research/source/evidence |
 | 14 | Caps product mapping ownership and recovery (DL-01/DL-09). Feasibility passed; integration open. | Sol high; Astra only for unresolved OS/lifecycle design | Independent Sol high review of existing-map preservation, F18 conflicts, stop/crash, protected input, reconnect and reboot; no host map changes |
 | 15 | Common media/brightness/international coverage and Apple Fn equivalents (DL-04/DL-05). Follow-up. | Sol medium for adapter/action work; Sol high for Fn semantics | Luna medium collects device cases; Sol high reviews actual input/output separately and permission impact; firmware-only Fn remains a boundary |
 | 16 | Mouse output (DL-06). Follow-up implementation gap. | Sol medium; Sol high reviews held buttons/async cleanup | Physical output and dragging/scroll/multi-display checks, generated-event tagging and crash release; record added requirements |

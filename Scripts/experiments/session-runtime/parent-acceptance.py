@@ -12,7 +12,9 @@ def run(cmd):return p.lab(lease,'guest-root','--','/bin/zsh','-lc','true; '+cmd+
 def prepare(secure=False):
  subprocess.run(['python3','/private/tmp/vm-lab-hid-rig/rig/prepare-target.py',lease,'--account','keypathqa']+(['--secure-test'] if secure else []),check=True)
 def discover():
- rows=observe('ps -axo pid=,uid=,comm=').splitlines();found=[]
+ result=observe('ps -axo pid=,uid=,comm= && echo KEYPATH_PROCESS_SCAN_COMPLETE').splitlines()
+ if not result or result[-1]!='KEYPATH_PROCESS_SCAN_COMPLETE':raise RuntimeError('guest process scan not verified')
+ rows=result[:-1];found=[]
  for row in rows:
   pieces=row.split(maxsplit=2)
   if len(pieces)==3 and pieces[1]=='501' and pieces[2]==app+'/Contents/MacOS/KeyPath':
@@ -65,6 +67,13 @@ finally:
    v=t.report(lease,path,nonce,False);r['finalWorker']=v
    if not r.get('workerCrashAccepted') and (v.get('state')!='stopped' or v.get('heldOutputUsages')!=[]):r.update(passed=False,cleanupError='worker not cleanly stopped')
   except Exception as e:r.update(passed=False,cleanupError=str(e))
- if discover():r.update(passed=False,cleanupError='KeyPath process remains')
- if observe('test -f '+backup+' && echo saved').strip()=='saved':run('cp -p '+backup+' '+cfg+' && rm '+backup)
+ try:
+  remaining=discover();r['cleanupProcessScanVerified']=True;r['remainingKeyPathPIDs']=[pid for pid,_ in remaining]
+  if remaining:r.update(passed=False,cleanupError='KeyPath process remains')
+ except Exception as e:r.update(passed=False,cleanupError=str(e))
+ if observe('test -f '+backup+' && echo saved').strip()=='saved':
+  restored=run('cp -p '+backup+' '+cfg+' && cmp -s '+backup+' '+cfg+' && rm '+backup+' && test ! -e '+backup+' && echo KEYPATH_PROFILE_RESTORED')
+  r['profileRestoredVerified']=restored.strip()=='KEYPATH_PROFILE_RESTORED'
+  if not r['profileRestoredVerified']:r.update(passed=False,profileCleanupError='profile restoration not independently verified')
+ else:r.update(passed=False,profileCleanupError='saved original profile missing')
  destination=ROOT/'evidence/session-runtime'/('parent-campaign-'+str(int(time.time()))+'.json');destination.write_text(json.dumps(r,indent=2)+'\n');print(json.dumps(r));raise SystemExit(0 if r['passed'] else 79)

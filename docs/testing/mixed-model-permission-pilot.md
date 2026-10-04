@@ -14,7 +14,8 @@ retains gate decisions, source integration and hardware-operation ownership tran
 | Bounded crash correction | Sol high | Corrected gaps, documented durable bug, 8 targeted tests passed. | Root reviewed diff and actual test log, committed 8fd1320b; full main target then passed all 4,314 tests. |
 | Default-profile eligibility analysis | Luna medium, two-minute limit | Located missing eligibility assertion in canonical generated-profile test and existing validator entry points. | Root inspected parser whitelist and generation test. Still requires actual generated-profile execution. |
 | Final signed build | Luna low | Reviewed-source build/signature/archive succeeded on 8fd1320b. | Root independently checked exact signature/source/binary/archive hashes before staging. |
-| Final physical parent campaign | Luna medium | In progress at 00:03 UTC. | Root must inspect actual hardware/report evidence before accepting and dispatching dependent work. |
+| Final physical parent campaign | Luna medium | All four cases passed on reviewed binary9f0e3435. | Root independently verified exact physical hold/release timing and trace; separate cleanup audit below. |
+| Parent cleanup evidence audit | Luna low, read-only and parallel to reboot | Correctly distinguished killed-worker durable ledger from live-process evidence; identified missing byte-verification of profile restoration and process scan completion. | Root added explicit process success sentinel and bytewise restored-profile comparison to the next campaign. First campaign restoration remains attempted, not byte-verified. |
 
 No precise input/output/reasoning token accounting was exposed by these agent
 results. Usage and cost savings remain unknown; no percentage is claimed. The
