@@ -14,7 +14,7 @@ new physical trials require fresh vm-lab admission. Approval is `never`, full
 filesystem access and network enabled; the original guest-only restrictions
 still apply. No host deployment, permission changes, upstream push, or PR.
 
-`Research ✓ → driverless-only simplification ✓ → validation [active] → safety hardening → onboarding`
+`Research ✓ → driverless-only simplification ✓ → validation [active] → clean VM/safety acceptance → Caps integration → onboarding`
 
 Earlier bounded acceptance is estimated at 80%, not shipping readiness. The new
 simplification has its own gates; source edits alone do not inherit old physical
@@ -35,13 +35,17 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | D11 | Revisit onboarding UX after reduced permissions and Caps prerequisites are verified. Deferred. | Sol medium implementation; design review at appropriate level | Normal fresh installer flow reflects actual consent and supported first win; no unavailable Caps retry loop |
 
 Current simplification estimate: **65%**, independent of the older 80% bounded
-checkpoint. The second broad run completed without the obsolete assertion crash:
-102 XCTest cases still failed, plus eight Swift Testing assertions. The missing
-bridge harness issue is fixed; remaining failures are being reviewed individually
-for changed defaults, unsupported fixtures, and genuine source gaps. A focused
-follow-up passed203 cases/failed3, then the wider focused gate passed547/failed3.
-The latest three failures are assertion-parser/timestamp/router-fixture issues,
-with fixes pending independent recheck. No broad pass or signed acceptance yet.
+checkpoint. The third broad safe gate completed at frozen source `be065a71a`
+with **5,267 passing checks and four failures**, without a test crash or compiler
+warnings. Remaining failures concern the graph-derived home-row profile's
+Kanata parsing and Quick Launcher mode/provider synchronization. They are under
+individual review; no broad pass or new signed acceptance is claimed.
+
+The original three home-row snapshot failures are excluded from this safe gate.
+Read-only comparison found their UI source, mock inputs and reference images
+byte-identical to verified `origin/master` (`d5581754`). A matching baseline run
+is still needed to establish rendering parity; do not update references merely
+to remove these failures.
 
 Source review found and fixed a real app-only input omission: generated app
 aliases were unused when their inputs were absent from global collections.
@@ -53,8 +57,9 @@ golden retained separately to preserve historical generator coverage.
 The narrow virtual-input switch fix is integrated: real TCP/passthrough engine
 tests prove fallback → active app branch → fallback with down/up output. All
 branches and virtual definitions remain validated; unsupported media/Unicode
-and other predicates remain rejected. Root must rebuild the bridge and verify
-Swift transactions and the broad gate. Signed/physical app-specific acceptance
+and other predicates remain rejected. The rebuilt bridge also accepts only layer release (not key release), with
+real-engine ownership tests. The core save/pack/rollback gate passed 176 cases;
+the third broad gate verifies these changes but retains the four failures above. Signed/physical app-specific acceptance
 is still pending. Unit-test application launches are blocked to keep this gate
 from opening or modifying host applications. No new VM has been admitted.
 

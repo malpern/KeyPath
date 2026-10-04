@@ -49,9 +49,13 @@ Signed physical app-specific acceptance is still pending.
 The exact event-tap map currently supports F1–F20, not F21–F24. Symbolic outputs
 such as `at` can be rejected where explicit supported keyboard sequences such
 as `S-2` are eligible; no automatic layout-sensitive translation is claimed.
-Per-device filtering remains rejected before managed writes. Some generated
-navigation/launcher test profiles still fail; individual toggle/one-shot actions
-are accepted in a real parser probe, so their exact composition is under review. Tests preserve old generator and journal-recovery coverage separately
+Per-device filtering remains rejected before managed writes. Generated navigation layer exit now has narrow
+`ReleaseState::Layer` support: a real passthrough engine test proves that exiting
+the layer preserves physical ownership of already-held keys and modifiers until
+their releases. Key release, media and Unicode remain rejected. Individual
+toggle/one-shot actions are eligible; the original tap-toggle transaction test is
+retained. Remaining graph-profile parsing and launcher synchronization failures
+are under review. Tests preserve old generator and journal-recovery coverage separately
 from supported session acceptance, without a validation bypass.
 
 ## Delivery order
