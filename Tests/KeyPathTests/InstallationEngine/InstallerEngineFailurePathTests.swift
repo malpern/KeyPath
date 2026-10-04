@@ -45,69 +45,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         XCTAssertTrue(report.executedRecipes.isEmpty)
     }
 
-    func testMakePlan_BlockedWhenDriverIncompatible() async {
-        let context = SystemContextBuilder(
-            permissionsStatus: .granted,
-            helperReady: true,
-            servicesHealthy: false,
-            componentsInstalled: false,
-            driverCompatible: false
-        ).build()
-
-        let plan = await engine.makePlan(for: .install, context: context)
-        if case .blocked = plan.status {
-            XCTAssertNotNil(plan.blockedBy)
-        } else {
-            XCTFail("Plan should be blocked when driver is incompatible")
-        }
-    }
-
-    func testMakePlan_BlockedWhenVHIDDriverExtensionDisabled() async {
-        let context = SystemContextBuilder(
-            permissionsStatus: .granted,
-            helperReady: true,
-            servicesHealthy: false,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
-            componentsInstalled: true,
-            driverCompatible: true
-        ).build()
-
-        let plan = await engine.makePlan(for: .repair, context: context)
-
-        guard case let .blocked(requirement) = plan.status else {
-            return XCTFail("Plan should be blocked until the DriverKit extension is enabled")
-        }
-        XCTAssertEqual(plan.blockedBy, requirement)
-        XCTAssertTrue(requirement.name.contains("Driver Extensions"))
-        XCTAssertTrue(plan.recipes.isEmpty)
-    }
-
-    func testMakePlan_ReadyWhenVHIDHealthyButKanataHasStaleDriverDisabledIssue() async {
-        let context = SystemContextBuilder(
-            permissionsStatus: .granted,
-            helperReady: true,
-            servicesHealthy: false,
-            kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
-            componentsInstalled: true,
-            driverCompatible: true
-        ).build()
-
-        let plan = await engine.makePlan(for: .repair, context: context)
-
-        guard case .ready = plan.status else {
-            return XCTFail("Plan should repair stale Kanata state after DriverKit approval is enabled")
-        }
-        XCTAssertNil(plan.blockedBy)
-        XCTAssertTrue(plan.recipes.contains(where: { recipe in
-            recipe.id == InstallerRecipeID.installRequiredRuntimeServices
-        }))
-    }
-
     // MARK: - Recipe Execution Failure Tests
 
     func testExecute_StopsOnFirstRecipeFailure() async throws {
@@ -134,29 +71,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let failedRecipes = report.executedRecipes.filter { !$0.success }
         XCTAssertEqual(failedRecipes.count, 1, "Exactly one recipe should have failed")
         XCTAssertNotNil(failedRecipes.first?.error)
-    }
-
-    func testExecute_SuccessfulRecipesBeforeFailureAreRecorded() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "repairVHIDDaemonServices"
-        let broker = PrivilegeBroker(coordinator: stub)
-
-        let context = SystemContextBuilder.degradedRepair()
-        let plan = await engine.makePlan(for: .repair, context: context)
-
-        guard plan.status == .ready, plan.recipes.count > 1 else {
-            throw XCTSkip("Need multi-recipe plan for this test")
-        }
-
-        let report = await engine.execute(plan: plan, using: broker)
-
-        let succeeded = report.executedRecipes.filter(\.success)
-        let failed = report.executedRecipes.filter { !$0.success }
-
-        if !failed.isEmpty {
-            XCTAssertFalse(report.success)
-            XCTAssertTrue(succeeded.count + failed.count <= plan.recipes.count)
-        }
     }
 
     func testExecute_FailedRecipeIncludesErrorDescription() async throws {
@@ -258,99 +172,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     }
 
     // MARK: - Uninstall Failure Tests
-
-    func testUninstall_FailsWhenCoordinatorNotConfigured() async {
-        let savedFactory = WizardDependencies.createUninstallCoordinator
-        WizardDependencies.createUninstallCoordinator = nil
-        defer { WizardDependencies.createUninstallCoordinator = savedFactory }
-        let validator = StubSystemValidator(context: SystemContextBuilder.cleanInstall())
-        let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
-            systemValidator: validator
-        )
-
-        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
-        let report = await engine.uninstall(deleteConfig: false, using: broker)
-
-        XCTAssertFalse(report.success)
-        XCTAssertTrue(report.failureReason?.contains("not configured") ?? false)
-        XCTAssertTrue(validator.freshnessRequests.isEmpty)
-        XCTAssertEqual(validator.cacheInvalidationCount, 0)
-    }
-
-    func testRun_UninstallDelegatesToUninstallMethod() async {
-        let savedFactory = WizardDependencies.createUninstallCoordinator
-        WizardDependencies.createUninstallCoordinator = nil
-        defer { WizardDependencies.createUninstallCoordinator = savedFactory }
-
-        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
-        let report = await engine.run(intent: .uninstall, using: broker)
-
-        XCTAssertFalse(report.success)
-        XCTAssertTrue(report.failureReason?.contains("not configured") ?? false)
-    }
-
-    func testUninstall_PreservesStructuredRecoveryAndComponentResults() async {
-        let savedFactory = WizardDependencies.createUninstallCoordinator
-        let coordinator = StubWizardUninstaller(result: WizardUninstallResult(
-            success: false,
-            failureReason: "The system helper could not be repaired.",
-            recommendedRecovery: .emergencyCleanup,
-            steps: [
-                WizardUninstallStepResult(
-                    id: "repair-uninstall-helper",
-                    success: false,
-                    error: "The system helper could not be repaired."
-                ),
-            ],
-            logs: ["helper repair failed"]
-        ))
-        WizardDependencies.createUninstallCoordinator = { coordinator }
-        defer { WizardDependencies.createUninstallCoordinator = savedFactory }
-
-        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
-        let report = await engine.uninstall(deleteConfig: false, using: broker)
-
-        XCTAssertFalse(report.success)
-        XCTAssertEqual(report.recommendedRecovery, .emergencyCleanup)
-        XCTAssertEqual(report.logs, ["helper repair failed"])
-        XCTAssertEqual(report.executedRecipes.map(\.recipeID), ["repair-uninstall-helper"])
-        XCTAssertFalse(report.executedRecipes[0].success)
-    }
-
-    func testUninstallCorrelatesFreshBeforeAndAfterEvidence() async {
-        let savedFactory = WizardDependencies.createUninstallCoordinator
-        let coordinator = StubWizardUninstaller(result: WizardUninstallResult(
-            success: true,
-            steps: [WizardUninstallStepResult(id: "verify-uninstall", success: true)]
-        ))
-        WizardDependencies.createUninstallCoordinator = { coordinator }
-        defer { WizardDependencies.createUninstallCoordinator = savedFactory }
-
-        let beforeContext = SystemContextBuilder(snapshotID: UUID()).build()
-        let afterContext = SystemContextBuilder(snapshotID: UUID()).build()
-        let validator = StubSystemValidator(contexts: [beforeContext, afterContext])
-        let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
-            systemValidator: validator
-        )
-
-        let report = await engine.uninstall(
-            deleteConfig: false,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
-        )
-
-        XCTAssertTrue(report.success)
-        XCTAssertEqual(report.beforeSnapshotID, beforeContext.snapshotID)
-        XCTAssertEqual(report.afterSnapshotID, afterContext.snapshotID)
-        XCTAssertEqual(report.finalContext?.snapshotID, afterContext.snapshotID)
-        XCTAssertEqual(report.completionState, .completed)
-        XCTAssertEqual(validator.freshnessRequests, [.fresh, .fresh])
-        XCTAssertEqual(validator.cacheInvalidationCount, 2)
-        XCTAssertEqual(report.repairTelemetry.first?.runID, report.runID)
-        XCTAssertEqual(report.repairTelemetry.first?.beforeSnapshotID, beforeContext.snapshotID)
-        XCTAssertEqual(report.repairTelemetry.first?.afterSnapshotID, afterContext.snapshotID)
-    }
 
     // MARK: - Report Structure Tests
 

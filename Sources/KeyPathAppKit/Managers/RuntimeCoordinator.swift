@@ -705,6 +705,15 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         systemRequirementsChecker.revealKanataInFinder(onRevealed: nil)
     }
 
+    /// Compatibility query: this build has no DriverKit backend.
+    public func isKarabinerDriverInstalled() -> Bool {
+        false
+    }
+
+    public func getVirtualHIDBreakageSummary() async -> String {
+        "VirtualHID is unavailable in the driverless build"
+    }
+
     func isKarabinerDriverExtensionEnabled() async -> Bool {
         await systemRequirementsChecker.isKarabinerDriverExtensionEnabled()
     }

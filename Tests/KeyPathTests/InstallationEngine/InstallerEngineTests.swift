@@ -159,44 +159,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         }
     }
 
-    func testMakePlanCanBeBlocked() async {
-        // Create a context that would block (e.g., non-writable directory)
-        // Note: This test may not actually block in test environment
-        let plan = await engine.makePlan(for: .install, context: engine.inspectSystem())
-
-        // Plan should either be ready or blocked
-        switch plan.status {
-        case .ready:
-            XCTAssertTrue(true, "Plan is ready")
-        case let .blocked(requirement):
-            XCTAssertNotNil(requirement, "Blocked plan should have requirement")
-            XCTAssertNotNil(plan.blockedBy, "Blocked plan should have blockedBy")
-        }
-    }
-
-    func testMakePlanBlocksWhenDriverIsIncompatible() async {
-        let context = SystemContextBuilder(
-            permissionsStatus: .granted,
-            helperReady: true,
-            servicesHealthy: false,
-            componentsInstalled: false,
-            conflicts: [],
-            driverCompatible: false
-        ).build()
-
-        let plan = await engine.makePlan(for: .install, context: context)
-        switch plan.status {
-        case .ready:
-            XCTFail("Plan should be blocked when driver compatibility fails")
-        case let .blocked(requirement):
-            XCTAssertTrue(
-                requirement.name.contains("VirtualHID driver"),
-                "Blocked requirement should explain driver compatibility failure"
-            )
-            XCTAssertEqual(plan.blockedBy, requirement)
-        }
-    }
-
     func testMakePlanRecipesHaveValidStructure() async {
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .install, context: context)
@@ -261,38 +223,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.repairTelemetry.first?.error, "Test requirement")
     }
 
-    func testExecuteRecordsStructuredRepairTelemetryForSuccessfulRecipe() async {
-        let plan = InstallPlan(
-            recipes: [
-                ServiceRecipe(
-                    id: InstallerRecipeID.createConfigDirectories,
-                    type: .installComponent
-                ),
-            ],
-            status: .ready,
-            intent: .repair,
-            metadata: PlanMetadata(
-                stateMatrixRow: InstallerStateMatrixRow.freshInstallMissingComponents.rawValue,
-                stateMatrixPlan: [InstallerStateMatrixAction.installMissingComponents.rawValue]
-            )
-        )
-
-        let report = await engine.execute(plan: plan, using: PrivilegeBroker())
-
-        XCTAssertTrue(report.success)
-        XCTAssertEqual(report.repairTelemetry.count, 1)
-        let event = report.repairTelemetry[0]
-        XCTAssertEqual(event.trigger, .executePlan)
-        XCTAssertEqual(event.intent, "repair")
-        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.freshInstallMissingComponents.rawValue)
-        XCTAssertEqual(event.stateMatrixPlan, [InstallerStateMatrixAction.installMissingComponents.rawValue])
-        XCTAssertEqual(event.action, InstallerRecipeID.createConfigDirectories)
-        XCTAssertEqual(event.recipeID, InstallerRecipeID.createConfigDirectories)
-        XCTAssertEqual(event.recipeType, "install-component")
-        XCTAssertEqual(event.postconditionResult, .succeeded)
-        XCTAssertNil(event.error)
-    }
-
     func testExecuteRecordsStructuredRepairTelemetryForFailedRecipe() async {
         let plan = InstallPlan(
             recipes: [
@@ -346,38 +276,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         XCTAssertNil(event.recipeID)
         XCTAssertNil(event.recipeType)
         XCTAssertEqual(event.postconditionResult, .succeeded)
-    }
-
-    func testExecuteExecutesRecipesInOrder() async {
-        let context = await engine.inspectSystem()
-        let plan = await engine.makePlan(for: .install, context: context)
-        let broker = PrivilegeBroker()
-
-        // Phase 4: Execute plan and verify recipes are executed
-        let report = await engine.execute(plan: plan, using: broker)
-
-        // Verify report has executed recipes
-        XCTAssertNotNil(report.executedRecipes, "Report should have executedRecipes")
-        if case .ready = plan.status {
-            // If plan has recipes, verify they were executed (or attempted)
-            if plan.recipes.count > 0 {
-                XCTAssertGreaterThanOrEqual(report.executedRecipes.count, 0, "Should have recipe results")
-            }
-        }
-    }
-
-    func testExecuteRecordsRecipeResults() async {
-        let context = await engine.inspectSystem()
-        let plan = await engine.makePlan(for: .install, context: context)
-        let broker = PrivilegeBroker()
-
-        let report = await engine.execute(plan: plan, using: broker)
-
-        // Verify recipe results are recorded
-        for result in report.executedRecipes {
-            XCTAssertFalse(result.recipeID.isEmpty, "Recipe result should have ID")
-            XCTAssertGreaterThanOrEqual(result.duration, 0, "Recipe duration should be non-negative")
-        }
     }
 
     func testExecuteStopsOnFirstFailure() async {
@@ -472,22 +370,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         XCTAssertNotNil(report.success, "Report should indicate success or failure")
     }
 
-    func testRunPropagatesBlockedPlans() async {
-        // Phase 5: Verify that if makePlan() returns a blocked plan, run() propagates it
-        let broker = PrivilegeBroker()
-
-        // Run with install intent (may be blocked if requirements unmet)
-        let report = await engine.run(intent: .install, using: broker)
-
-        // If plan was blocked, report should reflect that
-        if !report.success, !report.unmetRequirements.isEmpty {
-            XCTAssertNotNil(report.failureReason, "Blocked plan should have failure reason")
-            XCTAssertEqual(
-                report.executedRecipes.count, 0, "Blocked plan should have no executed recipes"
-            )
-        }
-    }
-
     func testRunReturnsCompleteReport() async {
         // Phase 5: Verify run() returns a complete report with all fields
         let broker = PrivilegeBroker()
@@ -514,118 +396,4 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
     }
 
     // MARK: - runSingleAction() Tests
-
-    func testRunSingleActionForRepairActions() async {
-        // Test that repair-specific actions work correctly
-        let broker = PrivilegeBroker()
-
-        // Test with a repair action (should be in repair plan)
-        let report = await engine.runSingleAction(.startKarabinerDaemon, using: broker)
-
-        XCTAssertNotNil(report, "runSingleAction should return a report")
-        XCTAssertNotNil(report.timestamp, "Report should have timestamp")
-        XCTAssertNotNil(report.executedRecipes, "Report should have executedRecipes array")
-
-        // Should not fail with "No repair recipes found"
-        if !report.success {
-            XCTAssertNotNil(report.failureReason, "Failed report should have a reason")
-            XCTAssertFalse(
-                report.failureReason?.contains("No repair recipes found") ?? false,
-                "Repair actions should not fail with 'No repair recipes found'"
-            )
-        }
-    }
-
-    func testRunSingleActionMapsInstallCorrectVHIDDriver() async {
-        // Regression: ensure driver install action always has a recipe (no "No recipe available")
-        let broker = PrivilegeBroker()
-
-        let report = await engine.runSingleAction(.installCorrectVHIDDriver, using: broker)
-
-        XCTAssertNotNil(report, "runSingleAction should return a report")
-
-        if !report.success {
-            XCTAssertNotNil(report.failureReason, "Failed report should have a reason")
-            XCTAssertFalse(
-                report.failureReason?.contains("No recipe available") ?? false,
-                "installCorrectVHIDDriver should always map to a recipe"
-            )
-        }
-    }
-
-    func testAllAutoFixActionsHaveRecipes() async {
-        // Table-driven coverage to prevent "No recipe available" regressions
-        let actions: [AutoFixAction] = [
-            .installPrivilegedHelper,
-            .reinstallPrivilegedHelper,
-            .terminateConflictingProcesses,
-            .startKarabinerDaemon,
-            .restartVirtualHIDDaemon,
-            .installMissingComponents,
-            .createConfigDirectories,
-            .activateVHIDDeviceManager,
-            .installRequiredRuntimeServices,
-            .repairVHIDDaemonServices,
-            .synchronizeConfigPaths,
-            .installLogRotation,
-            .enableTCPServer,
-            .setupTCPAuthentication,
-            .regenerateCommServiceConfiguration,
-            .restartCommServer,
-            .fixDriverVersionMismatch,
-            .installCorrectVHIDDriver
-        ]
-        let finalPostconditionExemptions: Set<String> = [
-            InstallerRecipeID.installLogRotation,
-            InstallerRecipeID.createConfigDirectories,
-            InstallerRecipeID.synchronizeConfigPaths
-        ]
-
-        let context = await engine.inspectSystem()
-
-        for action in actions {
-            let id = engine.recipeIDForAction(action)
-            XCTAssertNotEqual(id, "unknown-action", "Action \(action) should map to a recipe ID")
-
-            let recipe = engine.recipeForAction(action, context: context)
-            XCTAssertNotNil(recipe, "Action \(action) should produce a ServiceRecipe")
-            if let recipe, !finalPostconditionExemptions.contains(recipe.id) {
-                XCTAssertFalse(
-                    recipe.expectedPostconditions.isEmpty,
-                    "Mutating recipe \(recipe.id) must declare final observable state"
-                )
-            }
-        }
-    }
-
-    func testRecipeIDsAreCentralizedForRuntimeServicesAndKanata() async {
-        let context = await engine.inspectSystem()
-
-        XCTAssertEqual(
-            engine.recipeIDForAction(.installRequiredRuntimeServices),
-            InstallerRecipeID.installRequiredRuntimeServices
-        )
-
-        let runtimeServicesRecipe = engine.recipeForAction(.installRequiredRuntimeServices, context: context)
-        XCTAssertEqual(runtimeServicesRecipe?.id, InstallerRecipeID.installRequiredRuntimeServices)
-
-        let installHelperRecipe = engine.recipeForAction(.installPrivilegedHelper, context: context)
-        XCTAssertEqual(installHelperRecipe?.id, InstallerRecipeID.installPrivilegedHelper)
-        XCTAssertEqual(installHelperRecipe?.type, .repairPrivilegedHelper)
-
-        let reinstallHelperRecipe = engine.recipeForAction(.reinstallPrivilegedHelper, context: context)
-        XCTAssertEqual(reinstallHelperRecipe?.id, InstallerRecipeID.reinstallPrivilegedHelper)
-        XCTAssertEqual(reinstallHelperRecipe?.type, .repairPrivilegedHelper)
-
-        let karabinerStartRecipe = engine.recipeForAction(.startKarabinerDaemon, context: context)
-        XCTAssertEqual(karabinerStartRecipe?.id, InstallerRecipeID.startKarabinerDaemon)
-        XCTAssertEqual(karabinerStartRecipe?.serviceID, KeyPathConstants.Bundle.vhidDaemonID)
-        XCTAssertEqual(
-            karabinerStartRecipe?.healthCheck?.serviceID,
-            KeyPathConstants.Bundle.vhidDaemonID
-        )
-
-        let terminateRecipe = engine.recipeForAction(.terminateConflictingProcesses, context: context)
-        XCTAssertEqual(terminateRecipe?.id, InstallerRecipeID.terminateConflictingProcesses)
-    }
 }

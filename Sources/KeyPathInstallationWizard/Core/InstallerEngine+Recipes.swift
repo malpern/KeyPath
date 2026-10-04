@@ -34,172 +34,17 @@ public extension InstallerEngine {
     }
 
     /// Convert an AutoFixAction to a ServiceRecipe
-    func recipeForAction(_ action: AutoFixAction, context: SystemContext) -> ServiceRecipe? {
+    func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
         switch action {
-        case .installRequiredRuntimeServices:
-            ServiceRecipe(
-                id: InstallerRecipeID.installRequiredRuntimeServices,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [
-                    .runtimeReadyOrApprovalPending,
-                    .runtimeFreshOrApprovalPending,
-                    .vhidServicesHealthy,
-                ]
-            )
-
-        case .installCorrectVHIDDriver:
-            ServiceRecipe(
-                id: InstallerRecipeID.installCorrectVHIDDriver,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.virtualHIDDriverInstalled]
-            )
-
-        case .installLogRotation:
-            ServiceRecipe(
-                id: InstallerRecipeID.installLogRotation,
-                type: .installComponent,
-                serviceID: nil
-            )
-
-        case .installPrivilegedHelper:
-            ServiceRecipe(
-                id: InstallerRecipeID.installPrivilegedHelper,
-                type: .repairPrivilegedHelper,
-                serviceID: KeyPathConstants.Bundle.helperID,
-                expectedPostconditions: [
-                    .helperReadyOrApprovalPending,
-                    .helperFreshOrApprovalPending
-                ]
-            )
-
-        case .reinstallPrivilegedHelper:
-            ServiceRecipe(
-                id: InstallerRecipeID.reinstallPrivilegedHelper,
-                type: .repairPrivilegedHelper,
-                serviceID: KeyPathConstants.Bundle.helperID,
-                expectedPostconditions: [
-                    .helperReadyOrApprovalPending,
-                    .helperFreshOrApprovalPending
-                ]
-            )
-
-        case .startKarabinerDaemon:
-            ServiceRecipe(
-                id: InstallerRecipeID.startKarabinerDaemon,
-                type: .restartService,
-                serviceID: KeyPathConstants.Bundle.vhidDaemonID,
-                launchctlActions: [.kickstart(serviceID: KeyPathConstants.Bundle.vhidDaemonID)],
-                healthCheck: HealthCheckCriteria(
-                    serviceID: KeyPathConstants.Bundle.vhidDaemonID,
-                    shouldBeRunning: true
-                ),
-                expectedPostconditions: [.karabinerDaemonRunning]
-            )
-
-        case .restartVirtualHIDDaemon:
-            ServiceRecipe(
-                id: InstallerRecipeID.repairVHIDDaemonServices,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.vhidServicesHealthy]
-            )
-
-        case .terminateConflictingProcesses:
-            ServiceRecipe(
-                id: InstallerRecipeID.terminateConflictingProcesses,
-                type: .resolveRequirement,
-                serviceID: nil,
-                expectedPostconditions: [.conflictsResolved],
-                conflictsToResolve: context.conflicts.conflicts
-            )
-
-        case .fixDriverVersionMismatch:
-            ServiceRecipe(
-                id: InstallerRecipeID.fixDriverVersionMismatch,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.virtualHIDDriverInstalled]
-            )
-
-        case .installMissingComponents:
-            ServiceRecipe(
-                id: InstallerRecipeID.installMissingComponents,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.virtualHIDDriverInstalled]
-            )
-
-        case .createConfigDirectories:
-            ServiceRecipe(
-                id: InstallerRecipeID.createConfigDirectories,
-                type: .installComponent,
-                serviceID: nil
-            )
-
-        case .activateVHIDDeviceManager:
-            ServiceRecipe(
-                id: InstallerRecipeID.activateVHIDManager,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.virtualHIDDeviceActivated]
-            )
-
-        case .repairVHIDDaemonServices:
-            ServiceRecipe(
-                id: InstallerRecipeID.repairVHIDDaemonServices,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.vhidServicesHealthy]
-            )
-
-        case .enableTCPServer:
-            ServiceRecipe(
-                id: InstallerRecipeID.enableTCPServer,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.runtimeReadyOrApprovalPending]
-            )
-
-        case .setupTCPAuthentication:
-            ServiceRecipe(
-                id: InstallerRecipeID.setupTCPAuthentication,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.runtimeReadyOrApprovalPending]
-            )
-
-        case .regenerateCommServiceConfiguration:
-            ServiceRecipe(
-                id: InstallerRecipeID.regenerateCommServiceConfig,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.runtimeReadyOrApprovalPending]
-            )
-
-        case .regenerateServiceConfiguration:
-            ServiceRecipe(
-                id: InstallerRecipeID.regenerateServiceConfig,
-                type: .installComponent,
-                serviceID: nil,
-                expectedPostconditions: [.runtimeReadyOrApprovalPending]
-            )
-
         case .restartCommServer:
             ServiceRecipe(
-                id: context.permissions.backend == .session ? "start-session-runtime" : InstallerRecipeID.restartCommServer,
-                type: .installComponent,
-                serviceID: nil,
+                id: "start-session-runtime", type: .installComponent,
                 expectedPostconditions: [.runtimeReadyOrApprovalPending]
             )
-
         case .synchronizeConfigPaths:
-            ServiceRecipe(
-                id: InstallerRecipeID.synchronizeConfigPaths,
-                type: .checkRequirement,
-                serviceID: nil
-            )
+            ServiceRecipe(id: InstallerRecipeID.synchronizeConfigPaths, type: .checkRequirement)
+        default:
+            nil // Legacy helper, DriverKit, and system-service actions are unavailable.
         }
     }
 
@@ -274,7 +119,7 @@ public extension InstallerEngine {
         case .regenerateServiceConfiguration:
             InstallerRecipeID.regenerateServiceConfig
         case .restartCommServer:
-            InstallerRecipeID.restartCommServer
+            "start-session-runtime"
         case .synchronizeConfigPaths:
             InstallerRecipeID.synchronizeConfigPaths
         }

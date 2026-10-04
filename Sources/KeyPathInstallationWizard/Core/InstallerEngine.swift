@@ -186,7 +186,7 @@ public final class InstallerEngine {
         guard context.captureStatus.isComplete else { return nil }
         let postconditions = Set(recipes.flatMap(\.expectedPostconditions))
         return Dictionary(uniqueKeysWithValues: postconditions.map { postcondition in
-            (postcondition, postcondition.isSatisfied(by: context))
+            (postcondition, sessionPostconditionSatisfied(postcondition, by: context))
         })
     }
 
@@ -194,30 +194,10 @@ public final class InstallerEngine {
 
     /// Check if requirements are met for the given intent
     /// Returns: Blocking requirement if any, nil if all requirements met
-    private func checkRequirements(for intent: InstallIntent, context: SystemContext) -> Requirement? {
-        // For inspectOnly, no requirements needed
-        if intent == .inspectOnly || context.permissions.backend == .session {
-            return nil
+    private func checkRequirements(for intent: InstallIntent, context _: SystemContext) -> Requirement? {
+        if intent == .uninstall {
+            return Requirement(name: "System uninstall is unavailable in the driverless build", status: .blocked)
         }
-
-        // Check helper registration (for install/repair)
-        if intent == .install || intent == .repair {
-            if !context.system.driverCompatible {
-                return Requirement(
-                    name: "System compatibility check failed for VirtualHID driver on macOS \(context.system.macOSVersion)",
-                    status: .blocked
-                )
-            }
-
-            if context.requiresManualVHIDDriverApproval {
-                return Requirement(
-                    name: "Enable Karabiner-VirtualHIDDevice in System Settings > General > Login Items & Extensions > Driver Extensions",
-                    status: .blocked
-                )
-            }
-        }
-
-        // All requirements met
         return nil
     }
 
@@ -236,13 +216,8 @@ public final class InstallerEngine {
     // MARK: - Helper Methods
 
     /// Check if an action needs user prompts
-    private func actionNeedsPrompt(_ action: AutoFixAction) -> Bool {
-        switch action {
-        case .installPrivilegedHelper, .reinstallPrivilegedHelper:
-            true // May need SMAppService approval
-        default:
-            false
-        }
+    private func actionNeedsPrompt(_: AutoFixAction) -> Bool {
+        false
     }
 
     /// Execute the planned operations
@@ -265,6 +240,14 @@ public final class InstallerEngine {
     ) async -> InstallerReport {
         AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
         let runID = UUID()
+
+        if plan.intent == .uninstall || (plan.intent == .inspectOnly && !plan.recipes.isEmpty) {
+            return InstallerReport(
+                runID: runID, planID: plan.id, beforeSnapshotID: plan.sourceSnapshotID,
+                success: false, completionState: .executionFailed,
+                failureReason: "Mutating recipes are unavailable for this intent in the driverless build"
+            )
+        }
 
         // Check if plan is blocked
         if case let .blocked(requirement) = plan.status {
@@ -411,7 +394,7 @@ public final class InstallerEngine {
             .filter { seenPostconditions.insert($0).inserted }
 
         let failedPostconditions: [InstallerPostcondition] = if let finalContext {
-            executedPostconditions.filter { !$0.isSatisfied(by: finalContext) }
+            executedPostconditions.filter { !sessionPostconditionSatisfied($0, by: finalContext) }
         } else {
             executedPostconditions
         }
@@ -491,12 +474,13 @@ public final class InstallerEngine {
                                                               let finalContext,
                                                               let initialStates = plan.initialPostconditionStates
         {
-            !firstFailure.recipe.expectedPostconditions.isEmpty
+            isSupportedSessionRecipe(firstFailure.recipe)
+                && !firstFailure.recipe.expectedPostconditions.isEmpty
                 && firstFailure.recipe.expectedPostconditions.allSatisfy {
                     !earlierExecutedPostconditions.contains($0)
                 }
                 && firstFailure.recipe.expectedPostconditions.allSatisfy {
-                    initialStates[$0] == false && $0.isSatisfied(by: finalContext)
+                    initialStates[$0] == false && sessionPostconditionSatisfied($0, by: finalContext)
                 }
         } else {
             false
@@ -563,10 +547,8 @@ public final class InstallerEngine {
         return report
     }
 
-    private func requiresManualApproval(_ context: SystemContext) -> Bool {
-        context.helper.requiresApproval
-            || context.services.loginItemsApprovalRequired == true
-            || context.requiresManualVHIDDriverApproval
+    private func requiresManualApproval(_: SystemContext) -> Bool {
+        false // Session readiness never depends on privileged service approval.
     }
 
     private func verifyNoOpPlan(
@@ -622,246 +604,55 @@ public final class InstallerEngine {
         let commands: [String]
     }
 
-    /// Execute a single recipe and capture execution details
-    private func executeRecipeWithDetails(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws -> RecipeExecutionResult {
-        var logs: [String] = []
-        var commands: [String] = []
-
-        switch recipe.type {
-        case .installService:
-            logs.append("Installing LaunchDaemon services...")
-            commands.append("launchctl bootstrap system /Library/LaunchDaemons/com.keypath.*")
-            try await executeInstallService(recipe, using: broker)
-            logs.append("LaunchDaemon services installed")
-
-        case .repairPrivilegedHelper:
-            logs.append("Repairing privileged helper registration...")
-            try await executeRepairPrivilegedHelper(recipe: recipe)
-            logs.append("Privileged helper repair completed")
-
-        case .restartService:
-            if let serviceID = recipe.serviceID {
-                logs.append("Restarting service: \(serviceID)")
-                commands.append("launchctl kickstart -k system/\(serviceID)")
-            } else {
-                logs.append("Restarting unhealthy services...")
-                commands.append("launchctl kickstart -k system/com.keypath.*")
-            }
-            try await executeRestartService(recipe, using: broker)
-            logs.append("Service restart completed")
-
-        case .installComponent:
-            logs.append("Installing component: \(recipe.id)")
-            try await executeInstallComponent(recipe, using: broker)
-            logs.append("Component installed: \(recipe.id)")
-
-        case .checkRequirement:
-            logs.append("Checking requirement: \(recipe.id)")
-            try await executeCheckRequirement(recipe, using: broker)
-            logs.append("Requirement satisfied")
-
-        case .resolveRequirement:
-            logs.append("Resolving requirement: \(recipe.id)")
-            try await executeCheckRequirement(recipe, using: broker)
-            logs.append("Requirement resolved")
-        }
-
-        return RecipeExecutionResult(logs: logs, commands: commands)
-    }
-
-    /// Execute a single recipe (legacy method for backward compatibility)
-    private func executeRecipe(_ recipe: ServiceRecipe, using broker: PrivilegeBroker) async throws {
-        _ = try await executeRecipeWithDetails(recipe, using: broker)
-    }
-
-    /// Execute privileged helper repair via the helper-maintenance workflow.
-    private func executeRepairPrivilegedHelper(recipe: ServiceRecipe) async throws {
-        guard let helperMaintenance = WizardDependencies.helperMaintenance else {
-            throw InstallerError.healthCheckFailed("Helper maintenance is not configured")
-        }
-
-        let repaired = switch recipe.id {
-        case InstallerRecipeID.installPrivilegedHelper:
-            await helperMaintenance.installOrRefresh()
-        case InstallerRecipeID.reinstallPrivilegedHelper:
-            await helperMaintenance.runCleanupAndRepair(
-                useAppleScriptFallback: false,
-                forceFullRepair: true
-            )
+    /// Only exact user-session recipe shapes may execute, including caller-built plans.
+    private func isSupportedSessionRecipe(_ recipe: ServiceRecipe) -> Bool {
+        guard recipe.serviceID == nil, recipe.plistContent == nil,
+              recipe.launchctlActions.isEmpty, recipe.healthCheck == nil,
+              recipe.dependencies.isEmpty, recipe.conflictsToResolve.isEmpty
+        else { return false }
+        switch recipe.id {
+        case "start-session-runtime":
+            return recipe.type == .installComponent
+                && recipe.expectedPostconditions == [.runtimeReadyOrApprovalPending]
+        case InstallerRecipeID.synchronizeConfigPaths:
+            return recipe.type == .checkRequirement && recipe.expectedPostconditions.isEmpty
         default:
-            await helperMaintenance.runCleanupAndRepair(
-                useAppleScriptFallback: false,
-                forceFullRepair: true
-            )
-        }
-        guard repaired else {
-            let failure = helperMaintenance.lastErrorLine
-                ?? helperMaintenance.logLines.last
-                ?? "Privileged helper repair failed"
-            throw InstallerError.healthCheckFailed(failure)
+            return false
         }
     }
 
-    /// Execute the exact service-install operation declared by the plan.
-    private func executeInstallService(_: ServiceRecipe, using broker: PrivilegeBroker) async throws {
-        // Ensure canonical Kanata binary exists at /Library/KeyPath/bin/kanata before installing services.
-        // This prevents "service installed" while the daemon runs with a different path (bundle fallback),
-        // which would cause permission identity drift (AX/IM entries keyed by executable path).
-        try await broker.installRequiredRuntimeServices()
-    }
-
-    /// Execute the exact service-restart operation declared by the plan.
-    private func executeRestartService(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-        async throws
-    {
-        if let serviceID = recipe.serviceID, serviceID == KeyPathConstants.Bundle.vhidDaemonID {
-            // Restart Karabiner daemon with verification
-            let success = try await broker.restartKarabinerDaemonVerified()
-            if !success {
-                throw InstallerError.healthCheckFailed("Karabiner daemon restart verification failed")
-            }
-        } else {
-            throw InstallerError.healthCheckFailed("Unsupported restart recipe: \(recipe.id)")
+    private func sessionPostconditionSatisfied(
+        _ postcondition: InstallerPostcondition, by context: SystemContext
+    ) -> Bool {
+        if postcondition == .runtimeReadyOrApprovalPending {
+            return context.captureStatus.isComplete && context.services.kanataRuntimeReadiness.isReady
         }
+        return postcondition.isSatisfied(by: context)
     }
 
-    /// Execute installComponent recipe
-    private func executeInstallComponent(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-        async throws
-    {
-        // Map recipe ID to component installation method
+    /// Execute without a privileged broker or any system-service fallback.
+    private func executeRecipeWithDetails(_ recipe: ServiceRecipe, using _: PrivilegeBroker) async throws -> RecipeExecutionResult {
+        guard isSupportedSessionRecipe(recipe) else {
+            throw InstallerError.unknownRecipe("Recipe unavailable in the driverless build: \(recipe.id)")
+        }
         switch recipe.id {
         case "start-session-runtime":
             guard await WizardDependencies.runtimeCoordinator?.startKanata(reason: "Driverless setup") == true else {
                 throw InstallerError.healthCheckFailed("Session runtime did not become ready")
             }
-
-        case InstallerRecipeID.installCorrectVHIDDriver:
-            try await broker.downloadAndInstallCorrectVHIDDriver()
-
-        case InstallerRecipeID.installLogRotation:
-            try await broker.installNewsyslogConfig()
-
-        case InstallerRecipeID.fixDriverVersionMismatch:
-            try await broker.downloadAndInstallCorrectVHIDDriver()
-
-        case InstallerRecipeID.installMissingComponents:
-            // Fail fast if the bundled kanata binary is missing — this means the app bundle
-            // itself is corrupted and requires a full reinstall, not a component install.
-            let detector = KanataBinaryDetector.shared
-            if !detector.isInstalled() {
-                throw KeyPathError.coordination(.systemDetectionFailed(
-                    component: "kanata",
-                    reason: "Bundled kanata binary is missing or unsigned. Please reinstall KeyPath."
-                ))
-            }
-            // Install missing driver components
-            try await broker.downloadAndInstallCorrectVHIDDriver()
-
-        case InstallerRecipeID.createConfigDirectories:
-            // No privileged work needed; treated as success (idempotent)
-            return
-
-        case InstallerRecipeID.activateVHIDManager:
-            try await broker.activateVirtualHIDManager()
-
-        case InstallerRecipeID.installRequiredRuntimeServices:
-            try await broker.installRequiredRuntimeServices()
-
-        case InstallerRecipeID.repairVHIDDaemonServices:
-            try await broker.repairVHIDDaemonServices()
-
-        case InstallerRecipeID.enableTCPServer,
-             InstallerRecipeID.setupTCPAuthentication,
-             InstallerRecipeID.regenerateCommServiceConfig,
-             InstallerRecipeID.regenerateServiceConfig:
-            try await broker.regenerateServiceConfiguration()
-
-        case InstallerRecipeID.restartCommServer:
-            try await broker.regenerateServiceConfiguration()
-
-        default:
-            // Unknown component recipe
-            AppLogger.shared.log("⚠️ [InstallerEngine] Unknown component recipe: \(recipe.id)")
-            throw InstallerError.unknownRecipe("Unknown component recipe: \(recipe.id)")
-        }
-    }
-
-    /// Execute checkRequirement recipe
-    private func executeCheckRequirement(_ recipe: ServiceRecipe, using broker: PrivilegeBroker)
-        async throws
-    {
-        // Check requirement recipes (e.g., terminate conflicting processes)
-        switch recipe.id {
-        case InstallerRecipeID.terminateConflictingProcesses:
-            // A directly requested stale-runtime termination may come from a
-            // trusted identity check that is more specific than the general
-            // conflict snapshot. Preserve that explicit Kanata fallback when
-            // planning did not capture a conflict list.
-            if recipe.conflictsToResolve.isEmpty {
-                try await broker.killAllKanataProcesses()
-                return
-            }
-
-            var terminatedKanata = false
-            var disabledKarabinerGrabber = false
-            var unsupportedConflicts: [SystemConflict] = []
-            for conflict in recipe.conflictsToResolve {
-                switch conflict {
-                case .kanataProcessRunning:
-                    if !terminatedKanata {
-                        try await broker.killAllKanataProcesses()
-                        terminatedKanata = true
-                    }
-                case .karabinerGrabberRunning:
-                    if !disabledKarabinerGrabber {
-                        try await broker.disableKarabinerGrabber()
-                        disabledKarabinerGrabber = true
-                    }
-                case .karabinerVirtualHIDDeviceRunning,
-                     .karabinerVirtualHIDDaemonRunning,
-                     .exclusiveDeviceAccess:
-                    unsupportedConflicts.append(conflict)
-                }
-            }
-            if !unsupportedConflicts.isEmpty {
-                throw InstallerError.healthCheckFailed(
-                    "Unsupported automatic conflict resolution: \(unsupportedConflicts)"
-                )
-            }
-
         case InstallerRecipeID.synchronizeConfigPaths:
-            // No privileged action required; treat as satisfied
-            return
-
+            guard FileManager.default.fileExists(atPath: KeyPathConstants.Config.mainConfigPath) else {
+                throw InstallerError.healthCheckFailed("User configuration is missing")
+            }
         default:
-            AppLogger.shared.log("⚠️ [InstallerEngine] Unknown requirement check recipe: \(recipe.id)")
-            throw InstallerError.unknownRecipe("Unknown requirement check recipe: \(recipe.id)")
+            throw InstallerError.unknownRecipe("Recipe unavailable in the driverless build: \(recipe.id)")
         }
+        return RecipeExecutionResult(logs: ["[\(recipe.id)] Session operation completed"], commands: [])
     }
 
-    /// Verify health check criteria
-    private func verifyHealthCheck(_ criteria: HealthCheckCriteria) async -> Bool {
-        if criteria.serviceID == KeyPathConstants.Bundle.daemonID,
-           criteria.shouldBeRunning
-        {
-            let managementState = await WizardDependencies.daemonManager?.refreshManagementState()
-            if managementState == .smappservicePending {
-                AppLogger.shared.log(
-                    "🔍 [InstallerEngine] Kanata health check accepted pending Login Items approval (state=\(managementState?.description ?? "nil"))"
-                )
-                return true
-            }
-
-            let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
-            let ready = ServiceHealthChecker.decideKanataHealth(for: runtimeSnapshot).isHealthy
-            AppLogger.shared.log(
-                "🔍 [InstallerEngine] Kanata strict health check: state=\(managementState?.description ?? "nil"), running=\(runtimeSnapshot.isRunning), responding=\(runtimeSnapshot.isResponding), inputCaptureReady=\(runtimeSnapshot.inputCaptureReady), ready=\(ready)"
-            )
-            return ready
-        }
-
-        return await isServiceHealthy(serviceID: criteria.serviceID)
+    /// Caller-supplied health checks cannot route to privileged service metadata.
+    private func verifyHealthCheck(_: HealthCheckCriteria) async -> Bool {
+        false
     }
 
     // MARK: - Public Health Check API
@@ -943,85 +734,24 @@ public final class InstallerEngine {
     }
 
     private func uninstallWithinTransaction(
-        deleteConfig: Bool,
-        removeVirtualHID: Bool,
-        allowAdminFallback: Bool
+        deleteConfig _: Bool,
+        removeVirtualHID _: Bool,
+        allowAdminFallback _: Bool
     ) async -> InstallerReport {
         let runID = UUID()
-        AppLogger.shared.log(
-            "🗑️ [InstallerEngine] Starting uninstall (deleteConfig: \(deleteConfig), removeVirtualHID: \(removeVirtualHID), allowAdminFallback: \(allowAdminFallback))"
-        )
-
-        var componentResults: [RecipeResult] = []
-
-        let start = Date()
-        guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
-            AppLogger.shared.log("⚠️ [InstallerEngine] createUninstallCoordinator not configured")
-            return InstallerReport(
-                runID: runID,
-                success: false,
-                completionState: .executionFailed,
-                failureReason: "Uninstall coordinator not configured"
-            )
-        }
-        let beforeContext = await captureFreshContext()
-        let result = await coordinator.performUninstall(
-            deleteConfig: deleteConfig,
-            removeVirtualHID: removeVirtualHID,
-            allowAdminFallback: allowAdminFallback
-        )
-        let duration = Date().timeIntervalSince(start)
-        let failure = result.failureReason ?? "Uninstall failed"
-
-        componentResults.append(contentsOf: result.steps.map { step in
-            RecipeResult(
-                recipeID: step.id,
-                success: step.success,
-                error: step.error,
-                duration: step.id == "verify-uninstall" ? duration : 0
-            )
-        })
-
-        let finalContext = await captureFreshContext()
-        let afterSnapshotID = finalContext.snapshotID
+        let context = await captureFreshContext()
+        let failure = "System uninstall is unavailable in the driverless build; no services or user configuration were removed"
         let telemetry = InstallerRepairTelemetryEvent(
-            runID: runID,
-            beforeSnapshotID: beforeContext.snapshotID,
-            afterSnapshotID: afterSnapshotID,
-            trigger: .uninstall,
-            intent: InstallIntent.uninstall.telemetryValue,
-            stateMatrixRow: nil,
-            stateMatrixPlan: [],
-            action: deleteConfig ? "uninstall-with-config" : "uninstall",
-            recipeID: deleteConfig ? "uninstall-with-config" : "uninstall",
-            recipeType: "uninstall",
-            postconditionResult: result.success ? .succeeded : .failed,
-            error: result.success ? nil : failure
+            runID: runID, beforeSnapshotID: context.snapshotID, afterSnapshotID: context.snapshotID,
+            trigger: .uninstall, intent: InstallIntent.uninstall.telemetryValue,
+            stateMatrixRow: nil, stateMatrixPlan: [], action: "uninstall", recipeID: nil,
+            recipeType: "uninstall", postconditionResult: .failed, error: failure
         )
-        let completionState: InstallerCompletionState = if result.success {
-            .completed
-        } else if result.recommendedRecovery != nil {
-            .recoveryRequired
-        } else {
-            .executionFailed
-        }
-
-        let report = InstallerReport(
-            runID: runID,
-            beforeSnapshotID: beforeContext.snapshotID,
-            afterSnapshotID: afterSnapshotID,
-            success: result.success,
-            completionState: completionState,
-            failureReason: result.success ? nil : failure,
-            executedRecipes: componentResults,
-            finalContext: finalContext,
-            logs: result.logs,
-            repairTelemetry: [telemetry],
-            recommendedRecovery: result.recommendedRecovery
+        return InstallerReport(
+            runID: runID, beforeSnapshotID: context.snapshotID, afterSnapshotID: context.snapshotID,
+            success: false, completionState: .executionFailed, failureReason: failure,
+            executedRecipes: [], finalContext: context, logs: [failure], repairTelemetry: [telemetry]
         )
-
-        AppLogger.shared.log("🗑️ [InstallerEngine] uninstall complete - success: \(result.success)")
-        return report
     }
 
     /// Execute a single AutoFixAction by generating a plan that includes that specific action
@@ -1121,44 +851,24 @@ public final class InstallerEngine {
         return report
     }
 
-    // MARK: - Direct Broker Operations (for operations without AutoFixAction mapping)
+    // MARK: - Unavailable compatibility APIs
 
-    /// Uninstall VirtualHID drivers (removes VHID daemon plists)
-    /// Routes via InstallerEngine per AGENTS.md
-    public func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws {
-        try await withInstallerTransaction {
-            AppLogger.shared.log("🗑️ [InstallerEngine] Uninstalling VirtualHID drivers")
-            try await broker.uninstallVirtualHIDDrivers()
-        }
+    public func uninstallVirtualHIDDrivers(using _: PrivilegeBroker) async throws {
+        throw InstallerError.unknownRecipe("VirtualHID uninstall is unavailable in the driverless build")
     }
 
-    /// Disable Karabiner grabber (stops conflicting processes)
-    /// Routes via InstallerEngine per AGENTS.md
-    public func disableKarabinerGrabber(using broker: PrivilegeBroker) async throws {
-        try await withInstallerTransaction {
-            AppLogger.shared.log("🔧 [InstallerEngine] Disabling Karabiner grabber")
-            try await broker.disableKarabinerGrabber()
-        }
+    public func disableKarabinerGrabber(using _: PrivilegeBroker) async throws {
+        throw InstallerError.unknownRecipe("Karabiner mutation is unavailable in the driverless build")
     }
 
-    /// Restart Karabiner daemon with verification
-    /// Routes via InstallerEngine per AGENTS.md
-    public func restartKarabinerDaemon(using broker: PrivilegeBroker) async throws -> Bool {
-        try await withInstallerTransaction {
-            AppLogger.shared.log("🔄 [InstallerEngine] Restarting Karabiner daemon")
-            return try await broker.restartKarabinerDaemonVerified()
-        }
+    public func restartKarabinerDaemon(using _: PrivilegeBroker) async throws -> Bool {
+        throw InstallerError.unknownRecipe("Karabiner restart is unavailable in the driverless build")
     }
 
-    /// Execute a privileged command via sudo/osascript
-    /// Routes via InstallerEngine per AGENTS.md
     public func sudoExecuteCommand(
-        _ command: String,
-        description: String,
-        using broker: PrivilegeBroker
+        _: String, description _: String, using _: PrivilegeBroker
     ) async throws {
-        AppLogger.shared.log("🔐 [InstallerEngine] Executing privileged command: \(description)")
-        try await broker.sudoExecuteCommand(command, description: description)
+        throw InstallerError.unknownRecipe("Privileged commands are unavailable in the driverless build")
     }
 }
 
