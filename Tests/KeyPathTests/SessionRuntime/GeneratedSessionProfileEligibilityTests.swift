@@ -7,7 +7,7 @@ import XCTest
 /// Exercises generated profiles through Kanata's parsed action-tree validator.
 /// Supply the freshly built bridge explicitly for acceptance evidence; these tests
 /// never load the installed app's library or start a capture/output runtime.
-final class GeneratedSessionProfileEligibilityTests: XCTestCase {
+final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
     func testOriginalBundledCatalogRequiresAdvancedBackend() throws {
         let collections = try originalCatalog()
         XCTAssertFalse(collections.isEmpty, "The actual bundled catalog must load")

@@ -19,12 +19,13 @@ final class RawConfigurationRecoveryTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try original.write(to: config, atomically: true, encoding: .utf8)
-        service = ConfigurationService(configDirectory: directory.path,
-                                       ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
-                                       customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
+        service = ConfigurationService.sessionTestService(configDirectory: directory.path,
+                                                          ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
+                                                          customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
         coordinator = SaveCoordinator(configurationService: service)
     }
 
@@ -84,9 +85,9 @@ final class RawConfigurationRecoveryTests: KeyPathTestCase {
 
     func testFreshServiceRecoversInterruptedRawWriteBeforeEditing() async throws {
         try await interruptRawWrite()
-        let fresh = ConfigurationService(configDirectory: directory.path,
-                                         ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
-                                         customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
+        let fresh = ConfigurationService.sessionTestService(configDirectory: directory.path,
+                                                            ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
+                                                            customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
         var reloads = 0
         let result = await SaveCoordinator(configurationService: fresh).editConfiguration(transform: { content in
             XCTAssertEqual(content, self.original)

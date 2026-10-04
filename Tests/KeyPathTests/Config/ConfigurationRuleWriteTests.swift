@@ -13,11 +13,12 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         collections = .testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         customRules = .testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: customRules)
+        service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: customRules)
     }
 
     override func tearDown() async throws {
@@ -188,77 +189,45 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
     }
 
-    func testFreshServiceReproducesPersistedDeviceAndShortcutInputs() async throws {
-        let defaultsName = "ConfigurationRuleWriteTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: defaultsName))
-        defer { defaults.removePersistentDomain(forName: defaultsName) }
-        defaults.set(ContextHUDTriggerMode.tapToToggle.rawValue,
-                     forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key)
-        defaults.set(ContextHUDHoldDelayPreset.custom.rawValue,
-                     forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key)
-        defaults.set(321, forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key)
-        let shortcut = ShortcutListGenerationInput(
-            triggerMode: .tapToToggle,
-            holdDelayPreset: .custom,
-            customHoldDelayMs: 321
+    func testDeviceScopedCandidateIsRejectedBeforeAnySourceStoreChanges() async throws {
+        try await service.saveRuleState(
+            ruleCollections: [collection("Original")], customRules: [],
+            collectionStore: collections, customStore: customRules
         )
+        let configBefore = try Data(contentsOf: URL(fileURLWithPath: service.configurationPath))
+        let collectionsURL = await collections.persistenceURL
+        let customURL = await customRules.persistenceURL
+        let collectionsBefore = try Data(contentsOf: collectionsURL)
+        let customBefore = try Data(contentsOf: customURL)
         let connectedCache = DeviceSelectionCache()
         connectedCache.updateConnectedDevices([
             ConnectedDevice(hash: "disabled-device", vendorID: 1, productID: 2,
                             productKey: "Example Keyboard", isVirtualHID: false)
         ])
-        let deviceStore = DeviceSelectionStore(
-            fileURL: directory.appendingPathComponent("DeviceSelection.json"),
-            cache: connectedCache
+        let deviceURL = directory.appendingPathComponent("DeviceSelection.json")
+        let deviceStore = DeviceSelectionStore(fileURL: deviceURL, cache: connectedCache)
+        let candidateService = ConfigurationService.sessionTestService(
+            configDirectory: directory.path, ruleCollectionStore: collections,
+            customRulesStore: customRules, deviceSelectionStore: deviceStore
         )
-        let service = ConfigurationService(
-            configDirectory: directory.path,
-            ruleCollectionStore: collections,
-            customRulesStore: customRules,
-            deviceSelectionStore: deviceStore
-        )
-        let selection = DeviceSelection(
-            hash: "disabled-device", productKey: "Example Keyboard",
-            isEnabled: false, lastSeen: .distantPast
-        )
-        let original = collection("Original")
-        try await service.operationGate.withOperation { @MainActor permit in
-            let write = try await service.stageRuleState(
-                ruleCollections: [original], customRules: [],
-                collectionStore: self.collections, customStore: self.customRules,
-                mutationPermit: permit, preferenceDefaults: defaults,
-                shortcutListGenerationInput: shortcut, deviceSelections: [selection]
-            )
-            try await service.settleRuleWrite(write, commit: true, mutationPermit: permit)
+        let selection = DeviceSelection(hash: "disabled-device", productKey: "Example Keyboard", isEnabled: false, lastSeen: Date())
+        do {
+            try await candidateService.operationGate.withOperation { @MainActor permit in
+                _ = try await candidateService.stageRuleState(
+                    ruleCollections: [collection("Candidate")], customRules: [],
+                    collectionStore: self.collections, customStore: self.customRules,
+                    mutationPermit: permit, deviceSelections: [selection]
+                )
+            }
+            XCTFail("Device-scoped candidate must not be staged")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
         }
-        XCTAssertTrue(
-            try String(contentsOfFile: service.configurationPath, encoding: .utf8)
-                .contains("macos-dev-names-include")
-        )
-
-        let freshDeviceStore = DeviceSelectionStore(
-            fileURL: directory.appendingPathComponent("DeviceSelection.json"),
-            cache: DeviceSelectionCache()
-        )
-        let freshService = ConfigurationService(
-            configDirectory: directory.path,
-            ruleCollectionStore: collections,
-            customRulesStore: customRules,
-            deviceSelectionStore: freshDeviceStore
-        )
-        try await freshService.operationGate.withOperation { @MainActor permit in
-            let write = try await freshService.stageRuleState(
-                ruleCollections: [collection("Candidate")], customRules: [],
-                collectionStore: self.collections, customStore: self.customRules,
-                mutationPermit: permit, preferenceDefaults: defaults
-            )
-            try await freshService.settleRuleWrite(write, commit: true, mutationPermit: permit)
-        }
-
-        let content = try String(contentsOfFile: freshService.configurationPath, encoding: .utf8)
-        let persistedSelections = try await deviceStore.loadForMutation()
-        XCTAssertEqual(persistedSelections, [selection])
-        XCTAssertTrue(content.contains("321"))
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: service.configurationPath)), configBefore)
+        XCTAssertEqual(try Data(contentsOf: collectionsURL), collectionsBefore)
+        XCTAssertEqual(try Data(contentsOf: customURL), customBefore)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: deviceURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .deviceRules).path))
     }
 
     func testManualDeviceDirectiveIsPreservedBeforeSourceWrites() async throws {
@@ -270,7 +239,7 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
         let deviceStore = DeviceSelectionStore(
             fileURL: directory.appendingPathComponent("DeviceSelection.json"), cache: cache
         )
-        let service = ConfigurationService(
+        let service = ConfigurationService.sessionTestService(
             configDirectory: directory.path, ruleCollectionStore: collections,
             customRulesStore: customRules, deviceSelectionStore: deviceStore
         )
@@ -317,7 +286,7 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
                 collectionStore: self.collections, customStore: self.customRules, mutationPermit: permit
             )
         }
-        let fresh = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: customRules)
+        let fresh = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: customRules)
         try await fresh.recoverPendingRuleWrite(collectionStore: collections, customStore: customRules)
         XCTAssertEqual(try snapshot(), before)
     }

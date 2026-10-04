@@ -13,7 +13,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
         return url
     }()
 
-    private lazy var configService: ConfigurationService = .init(configDirectory: tempDirectory.path)
+    private lazy var configService: ConfigurationService = .sessionTestService(configDirectory: tempDirectory.path)
 
     override func tearDown() async throws {
         try? FileManager.default.removeItem(at: tempDirectory)
@@ -22,7 +22,8 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
 
     // MARK: - Conflict Rejection Tests
 
-    func testSaveConfiguration_ThrowsOnMappingConflict() async {
+    func testSaveConfiguration_ThrowsOnMappingConflict() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collectionA = RuleCollection(
             name: "Collection A",
             summary: "Maps caps to esc",
@@ -63,7 +64,8 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
         }
     }
 
-    func testSaveConfiguration_ConflictReportsCorrectLayer() async {
+    func testSaveConfiguration_ConflictReportsCorrectLayer() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let nav1 = RuleCollection(
             name: "Nav A",
             summary: "Nav layer A",
@@ -98,6 +100,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testSaveConfiguration_NoConflictWhenDifferentLayers() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let baseCollection = RuleCollection(
             name: "Base Keys",
             summary: "Base layer",
@@ -127,11 +130,12 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testSaveConfiguration_NoConflictWhenOneCollectionDisabled() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collectionA = RuleCollection(
             name: "Collection A",
             summary: "Maps caps",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -139,7 +143,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             name: "Collection B",
             summary: "Also maps caps but disabled",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "tab"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "tab"))],
             isEnabled: false,
             isSystemDefault: false
         )
@@ -152,7 +156,8 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: configPath.path))
     }
 
-    func testSaveConfiguration_MultipleConflictsReportedTogether() async {
+    func testSaveConfiguration_MultipleConflictsReportedTogether() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collectionA = RuleCollection(
             name: "Collection A",
             summary: "Maps a and b",
@@ -197,7 +202,8 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
 
     // MARK: - Validate-Before-Write Invariant Tests
 
-    func testSaveConfiguration_DoesNotWriteWhenValidationFails() async {
+    func testSaveConfiguration_DoesNotWriteWhenValidationFails() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         XCTAssertFalse(
             FileManager.default.fileExists(atPath: configPath.path),
@@ -236,6 +242,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testSaveConfiguration_ExistingConfigPreservedOnConflict() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let initialCollection = RuleCollection(
             name: "Initial",
             summary: "Initial config",
@@ -253,7 +260,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             name: "Conflict A",
             summary: "A",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -261,7 +268,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             name: "Conflict B",
             summary: "B",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "tab"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "tab"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -338,7 +345,8 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testWriteFileAsync_AcceptsKbdWithDefsrc() async throws {
-        let validContent = KanataConfigFixtures.capsToEscapeInlineDefcfg
+        try SessionBridgeTestFixture.requireAvailable()
+        let validContent = KanataConfigFixtures.capsToEscapeInlineDefcfg.replacingOccurrences(of: "caps", with: "tab")
         try await configService.writeFileAsync(
             string: validContent,
             to: tempDirectory.appendingPathComponent("keypath.kbd").path
@@ -352,6 +360,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testWriteFileAsync_AllowsNonKbdFileWithoutDefsrc() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let content = "some log content"
         let logPath = tempDirectory.appendingPathComponent("test.log").path
         try await configService.writeFileAsync(string: content, to: logPath)
@@ -376,6 +385,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testSaveConfiguration_NotifiesObservers() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let exp = expectation(description: "Observer notified")
         let flag = ObserverFlag()
 
@@ -390,7 +400,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             name: "Test",
             summary: "test",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -399,12 +409,13 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
         await fulfillment(of: [exp], timeout: 2)
         let result = await flag.get()
         XCTAssertTrue(result.fired)
-        XCTAssertTrue(result.content?.contains("caps") ?? false)
+        XCTAssertTrue(result.content?.contains("tab") ?? false)
 
         _ = token
     }
 
-    func testSaveConfiguration_DoesNotNotifyOnConflict() async {
+    func testSaveConfiguration_DoesNotNotifyOnConflict() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let flag = ObserverFlag()
 
         let token = configService.observe { _ in
@@ -469,11 +480,12 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testLoadPreservedChordGroups_ReturnsCachedGroupsWhenAvailable() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collection = RuleCollection(
             name: "Test",
             summary: "test",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -507,6 +519,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     // MARK: - Neovim Terminal Exclusion Tests
 
     func testSaveConfiguration_ExcludesNeovimTerminalMappings() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let neovimCollection = RuleCollection(
             id: RuleCollectionIdentifier.neovimTerminal,
             name: "Neovim Terminal",
@@ -521,7 +534,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             name: "Regular",
             summary: "Normal collection",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -536,12 +549,13 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             savedContent.contains("Neovim Terminal"),
             "Neovim Terminal should be excluded from config"
         )
-        XCTAssertTrue(savedContent.contains("caps"))
+        XCTAssertTrue(savedContent.contains("tab"))
     }
 
     // MARK: - Custom Rules Priority Tests
 
     func testSaveConfiguration_CustomRulesTakePriorityOverPresets() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let preset = RuleCollection(
             name: "Preset",
             summary: "Preset",
@@ -695,8 +709,9 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
 
     // MARK: - Validation Test Mode Tests
 
-    func testValidationInTestMode_PassesValidConfig() async {
-        let validConfig = KanataConfigFixtures.capsToEscapeInlineDefcfg
+    func testValidationInTestMode_PassesValidConfig() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        let validConfig = KanataConfigFixtures.capsToEscapeInlineDefcfg.replacingOccurrences(of: "caps", with: "tab")
         let result = await configService.validateConfiguration(validConfig)
         XCTAssertTrue(result.isValid)
         XCTAssertTrue(result.errors.isEmpty)
@@ -711,11 +726,12 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     // MARK: - Config Content After Successful Save Tests
 
     func testSaveConfiguration_UpdatesCachedConfig() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collection = RuleCollection(
             name: "Test",
             summary: "test",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -723,17 +739,18 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
 
         let cached = configService.withLockedCurrentConfig()
         XCTAssertNotNil(cached)
-        XCTAssertTrue(cached?.content.contains("caps") ?? false)
+        XCTAssertTrue(cached?.content.contains("tab") ?? false)
         XCTAssertTrue(cached?.content.contains("esc") ?? false)
     }
 
     func testSaveConfiguration_CachedMappingsMatchSavedContent() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collection = RuleCollection(
             name: "Test",
             summary: "test",
             category: .custom,
             mappings: [
-                KeyMapping(input: "caps", action: .keystroke(key: "esc")),
+                KeyMapping(input: "tab", action: .keystroke(key: "esc")),
                 KeyMapping(input: "a", action: .keystroke(key: "b")),
             ],
             isEnabled: true,
@@ -744,7 +761,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
         let cached = configService.withLockedCurrentConfig()
         XCTAssertNotNil(cached)
         let mappingInputs = Set(cached?.keyMappings.map(\.input) ?? [])
-        XCTAssertTrue(mappingInputs.contains("caps"))
+        XCTAssertTrue(mappingInputs.contains("tab"))
         XCTAssertTrue(mappingInputs.contains("a"))
     }
 
@@ -756,7 +773,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
         try? FileManager.default.createDirectory(at: emptyDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: emptyDir) }
 
-        let service = ConfigurationService(configDirectory: emptyDir.path)
+        let service = ConfigurationService.sessionTestService(configDirectory: emptyDir.path)
         do {
             _ = try await service.reload()
         } catch let error as KeyPathError {
@@ -877,6 +894,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     // MARK: - Edge Case Tests
 
     func testSaveConfiguration_EmptyCollectionsList() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         try await configService.saveConfiguration(ruleCollections: [])
 
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
@@ -886,11 +904,12 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
     }
 
     func testSaveConfiguration_EmptyCustomRules() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let collection = RuleCollection(
             name: "Test",
             summary: "test",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )

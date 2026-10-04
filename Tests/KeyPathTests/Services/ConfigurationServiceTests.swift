@@ -5,7 +5,7 @@ import KeyPathRulesCore
 @preconcurrency import XCTest
 
 @MainActor
-class ConfigurationServiceTests: XCTestCase {
+class ConfigurationServiceTests: KeyPathTestCase {
     lazy var tempDirectory: URL = {
         let url = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("KeyPathConfigTests_\(UUID().uuidString)")
@@ -15,7 +15,7 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// Temp-backed stores keep these tests hermetic: the shared singletons read the
     /// real user stores, whose collections can conflict on developer machines.
-    lazy var configService: ConfigurationService = .init(
+    lazy var configService: ConfigurationService = .sessionTestService(
         configDirectory: tempDirectory.path,
         ruleCollectionStore: .testStore(at: tempDirectory.appendingPathComponent("RuleCollections.json")),
         customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json"))
@@ -48,7 +48,7 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(config.contains("caps"), "Config should contain caps key")
         XCTAssertTrue(config.contains("esc"), "Config should contain esc key")
         XCTAssertTrue(config.contains("f1"), "Config should include F-key mappings")
-        XCTAssertTrue(config.contains("brdn"), "Config should map F1 to brightness down")
+        XCTAssertFalse(config.contains("brdn"), "Automatic defaults must not introduce media output")
     }
 
     func testGenerateFromMappings_MultipleMappings() {
@@ -306,7 +306,8 @@ class ConfigurationServiceTests: XCTestCase {
     // MARK: - Configuration Saving Tests
 
     func testSaveConfiguration_WithKeyMappings() async throws {
-        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
+        try SessionBridgeTestFixture.requireAvailable()
+        let mappings = [KeyMapping(input: "tab", action: .keystroke(key: "esc"))]
 
         try await configService.saveConfiguration(keyMappings: mappings)
 
@@ -318,11 +319,12 @@ class ConfigurationServiceTests: XCTestCase {
 
         // Verify content
         let savedContent = try String(contentsOfFile: configPath.path, encoding: .utf8)
-        XCTAssertTrue(savedContent.contains("caps"), "Saved config should contain mapping")
+        XCTAssertTrue(savedContent.contains("tab"), "Saved config should contain mapping")
         XCTAssertTrue(savedContent.contains("esc"), "Saved config should contain mapping")
     }
 
     func testSaveConfiguration_WithInputOutput() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         try await configService.saveConfiguration(input: "a", output: "b")
 
         // Verify file was created
@@ -338,11 +340,12 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testSaveConfiguration_WithRuleCollections() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let enabled = RuleCollection(
             name: "Test",
             summary: "Enabled collection",
             category: .custom,
-            mappings: [KeyMapping(input: "caps", action: .keystroke(key: "esc"))],
+            mappings: [KeyMapping(input: "tab", action: .keystroke(key: "esc"))],
             isEnabled: true,
             isSystemDefault: false
         )
@@ -359,7 +362,7 @@ class ConfigurationServiceTests: XCTestCase {
 
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         let savedContent = try String(contentsOfFile: configPath.path, encoding: .utf8)
-        XCTAssertTrue(savedContent.contains("caps"))
+        XCTAssertTrue(savedContent.contains("tab"))
         XCTAssertTrue(savedContent.contains("esc"))
         XCTAssertTrue(
             savedContent.contains(";; === Collection: macOS Function Keys (enabled) ==="),
@@ -372,7 +375,7 @@ class ConfigurationServiceTests: XCTestCase {
         )
 
         let parsed = try configService.parseConfigurationFromString(savedContent)
-        let capsMappings = parsed.keyMappings.filter { $0.input == "caps" }
+        let capsMappings = parsed.keyMappings.filter { $0.input == "tab" }
         XCTAssertEqual(capsMappings.count, 1)
         XCTAssertEqual(capsMappings.first?.action.outputString, "esc")
         XCTAssertTrue(
@@ -382,16 +385,17 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testSaveConfiguration_WithCustomRules() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let preset = RuleCollection(
             name: "Preset",
             summary: "Preset summary",
             category: .system,
-            mappings: [KeyMapping(input: "f1", action: .keystroke(key: "brdn"))],
+            mappings: [KeyMapping(input: "f1", action: .keystroke(key: "f1"))],
             isEnabled: true,
             isSystemDefault: true
         )
         let customRules = [
-            CustomRule(title: "Caps Escape", input: "caps", action: .keystroke(key: "esc")),
+            CustomRule(title: "Caps Escape", input: "tab", action: .keystroke(key: "esc")),
             CustomRule(
                 title: "Space Layer", input: "space", action: .keystroke(key: "nav"), isEnabled: false,
                 notes: "Disabled nav layer"
@@ -405,13 +409,30 @@ class ConfigurationServiceTests: XCTestCase {
         XCTAssertTrue(
             savedContent.contains("Caps Escape"), "Custom rule title should be rendered in metadata"
         )
-        XCTAssertTrue(savedContent.contains("caps"), "Enabled custom rule input should be present")
+        XCTAssertTrue(savedContent.contains("tab"), "Enabled custom rule input should be present")
         XCTAssertTrue(savedContent.contains("esc"), "Enabled custom rule output should be present")
         // ADR-025: Disabled rules are NOT written to config (JSON stores are source of truth)
         XCTAssertFalse(
             savedContent.contains("Space Layer"),
             "Disabled custom rules should not appear in config output"
         )
+    }
+
+    func testSaveConfigurationRejectsPhysicalCapsWithoutChangingCommittedConfig() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        try await configService.saveConfiguration(input: "tab", output: "esc")
+        let before = try Data(contentsOf: URL(fileURLWithPath: configService.configurationPath))
+        let observer = configService.observe { _ in
+            XCTFail("Rejected candidate must not publish a saved configuration")
+        }
+        defer { observer.cancel() }
+        do {
+            try await configService.saveConfiguration(input: "caps", output: "esc")
+            XCTFail("Physical Caps remapping must be rejected before writing")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
+        }
+        XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: configService.configurationPath)), before)
     }
 
     // MARK: - Error Parsing Tests
@@ -448,7 +469,8 @@ class ConfigurationServiceTests: XCTestCase {
 
     // MARK: - Test-Mode Validation
 
-    func testValidateConfigurationInTestModePasses() async {
+    func testValidateConfigurationInTestModePasses() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -458,7 +480,7 @@ class ConfigurationServiceTests: XCTestCase {
         )
 
         (defsrc
-          caps
+          tab
         )
 
         (deflayer base
@@ -490,6 +512,7 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testCreateInitialConfigWritesDefaultFile() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         try? FileManager.default.removeItem(at: configPath)
 
@@ -501,6 +524,7 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testCreateInitialConfigReadsInjectedStores() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let storeURL = tempDirectory.appendingPathComponent("SeededRuleCollections.json")
         let seededStore = RuleCollectionStore.testStore(at: storeURL)
         // f16 is not mapped by any default catalog collection, so the marker
@@ -515,7 +539,7 @@ class ConfigurationServiceTests: XCTestCase {
         )
         try await seededStore.saveCollections([marker])
 
-        let service = ConfigurationService(
+        let service = ConfigurationService.sessionTestService(
             configDirectory: tempDirectory.path,
             ruleCollectionStore: seededStore,
             customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json"))
@@ -532,7 +556,8 @@ class ConfigurationServiceTests: XCTestCase {
         )
     }
 
-    func testCreateInitialConfigPreservesPersistedAppKeysAndDeviceSnapshot() async throws {
+    func testCreateInitialConfigRejectsUnsupportedDeviceSnapshotWithoutRewritingAppKeys() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let appKeymapStore = AppKeymapStore(fileURL: tempDirectory.appendingPathComponent("AppKeymaps.json"))
         try await appKeymapStore.saveKeymaps([
             AppKeymap(
@@ -552,7 +577,7 @@ class ConfigurationServiceTests: XCTestCase {
                 isVirtualHID: true
             )
         ])
-        let service = ConfigurationService(
+        let service = ConfigurationService.sessionTestService(
             configDirectory: tempDirectory.path,
             ruleCollectionStore: .testStore(at: tempDirectory.appendingPathComponent("RuleCollections.json")),
             customRulesStore: .testStore(at: tempDirectory.appendingPathComponent("CustomRules.json")),
@@ -562,17 +587,22 @@ class ConfigurationServiceTests: XCTestCase {
             )
         )
 
-        try await service.createInitialConfigIfNeeded()
-
-        let contents = try String(contentsOf: tempDirectory.appendingPathComponent("keypath.kbd"), encoding: .utf8)
-        XCTAssertTrue(contents.contains("(include keypath-apps.kbd)"))
-        XCTAssertTrue(contents.contains("@kp-f1"))
-        XCTAssertTrue(contents.contains("test-virtual-hid"))
+        let appKeysURL = tempDirectory.appendingPathComponent("AppKeymaps.json")
+        let originalAppKeys = try Data(contentsOf: appKeysURL)
+        do {
+            try await service.createInitialConfigIfNeeded()
+            XCTFail("Device-scoped profiles must be refused by session generation")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: service.configurationPath))
+        XCTAssertEqual(try Data(contentsOf: appKeysURL), originalAppKeys)
     }
 
     /// #929: a pre-existing 0-byte keypath.kbd (left behind by old helper
     /// scaffolding) must be treated as missing and replaced with the default.
     func testCreateInitialConfigRewritesEmptyFile() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         try "".write(to: configPath, atomically: true, encoding: .utf8)
 
@@ -588,6 +618,7 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// A valid existing config must NOT be overwritten by the empty-file repair.
     func testCreateInitialConfigPreservesNonEmptyFile() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         let sentinel = """
         (defcfg)
@@ -604,8 +635,9 @@ class ConfigurationServiceTests: XCTestCase {
     }
 
     func testBackupFailedConfigAppliesSafeDefaults() async throws {
-        let original = KanataConfigFixtures.capsToEscapeBare
-        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
+        try SessionBridgeTestFixture.requireAvailable()
+        let original = KanataConfigFixtures.capsToEscapeBare.replacingOccurrences(of: "caps", with: "tab")
+        let mappings = [KeyMapping(input: "tab", action: .keystroke(key: "esc"))]
 
         let backupPath = try await configService.backupFailedConfigAndApplySafe(
             failedConfig: original, mappings: mappings
@@ -836,12 +868,13 @@ class ConfigurationServiceTests: XCTestCase {
     // MARK: - Backup and Recovery Tests
 
     func testBackupFailedConfigAndApplySafe() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let failedConfig = """
         (defcfg
           invalid-option
         )
         """
-        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
+        let mappings = [KeyMapping(input: "tab", action: .keystroke(key: "esc"))]
 
         let backupPath = try await configService.backupFailedConfigAndApplySafe(
             failedConfig: failedConfig,
@@ -860,7 +893,7 @@ class ConfigurationServiceTests: XCTestCase {
         // Verify safe config was applied
         let configPath = tempDirectory.appendingPathComponent("keypath.kbd")
         let safeContent = try String(contentsOfFile: configPath.path, encoding: .utf8)
-        XCTAssertTrue(safeContent.contains("caps"), "Safe config should be applied")
+        XCTAssertTrue(safeContent.contains("tab"), "Safe config should be applied")
         XCTAssertTrue(safeContent.contains("esc"), "Safe config should use escape key")
     }
 
@@ -1554,7 +1587,8 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// Test that saveConfiguration succeeds with valid content
     func testSaveConfiguration_ValidContentSucceeds() async throws {
-        let mappings = [KeyMapping(input: "caps", action: .keystroke(key: "esc"))]
+        try SessionBridgeTestFixture.requireAvailable()
+        let mappings = [KeyMapping(input: "tab", action: .keystroke(key: "esc"))]
 
         // Should not throw
         try await configService.saveConfiguration(keyMappings: mappings)
@@ -1614,7 +1648,8 @@ class ConfigurationServiceTests: XCTestCase {
 
     /// Test that writeConfigurationContent accepts valid content
     func testWriteConfigurationContent_AcceptsValidContent() async throws {
-        let validContent = KanataConfigFixtures.capsToEscape
+        try SessionBridgeTestFixture.requireAvailable()
+        let validContent = KanataConfigFixtures.capsToEscape.replacingOccurrences(of: "caps", with: "tab")
 
         // Should not throw
         try await configService.writeConfigurationContent(validContent)
@@ -1628,6 +1663,7 @@ class ConfigurationServiceTests: XCTestCase {
     // MARK: - Observer/Notification Tests
 
     func testObserverFiresOnMainActor_OnSave() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let exp = expectation(description: "Observer fired on save")
         actor Flag {
             var value = false
@@ -1648,7 +1684,7 @@ class ConfigurationServiceTests: XCTestCase {
             }
         }
 
-        try await configService.saveConfiguration(input: "caps", output: "esc")
+        try await configService.saveConfiguration(input: "tab", output: "esc")
 
         await fulfillment(of: [exp], timeout: 2.0)
         let fired = await flag.get()

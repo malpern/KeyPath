@@ -12,11 +12,12 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("SaveCoordinatorTests_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        configService = ConfigurationService(
+        configService = ConfigurationService.sessionTestService(
             configDirectory: tempDir.path,
             ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
             customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json"))
@@ -598,7 +599,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
     }
 
     func testRestoreLastGoodConfig_RestoresBackup_WhenBackupExists() async throws {
-        let backupContent = "(defcfg)\n(defsrc caps)\n(deflayer base esc)"
+        let backupContent = "(defcfg)\n(defsrc tab)\n(deflayer base esc)"
         coordinator.backupCurrentConfig(backupContent)
 
         XCTAssertTrue(coordinator.hasBackup(), "Should have backup after setting one")

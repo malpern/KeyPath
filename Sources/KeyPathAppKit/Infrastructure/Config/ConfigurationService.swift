@@ -1361,9 +1361,6 @@ extension ConfigurationService {
     }
 
     func writeFileAsync(string: String, to path: String) async throws {
-        if URL(fileURLWithPath: path).standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
-            try await requireSessionEligibleConfiguration(string)
-        }
         // SAFETY: Prevent writing empty config files - this is a critical guard
         // against bugs that could wipe the user's config
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1380,6 +1377,9 @@ extension ConfigurationService {
             }
         }
 
+        if URL(fileURLWithPath: path).standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
