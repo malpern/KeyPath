@@ -25,27 +25,47 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | D1 | Separate checkpoint/worktree. Complete. | Sol medium | Existing checkpoint unchanged; isolated branch and local Kanata revision recorded |
 | D2 | Session is the sole selectable runtime; privileged lifecycle and installer execution removed. Source integrated, checks pending. | Sol medium; Sol high reviews boundaries | Tests prove flag/env cannot select DriverKit, malformed plans cannot invoke broker actions, and success requires current session readiness |
 | D3 | Fresh supported profile defaults; existing profiles preserved; canonical eligibility before managed writes. Source integrated, checks pending. | Sol medium | Actual fresh generated profile accepted by real Kanata bridge; Caps/media/filter candidates rejected before config/store mutations |
-| D4 | Driver/helper/daemon/launcher absent from signed artifact. Source integrated, signed artifact pending. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
-| D5 | Combined targeted and broad safe tests. First broad run: 4,817 passing assertions/tests reported, 294 failures and obsolete wizard-test force-unwrap crash; no broad pass. Test migration and shared real-bridge fixture integrated, rerun pending. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
-| D6 | Freeze source and build signed candidate without host deployment. Pending. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
+| D4 | Driver/helper/daemon/launcher absent from frozen signed comparison artifact; root independently verified. Final corrected artifact pending. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
+| D5 | Broad safe gate4 passed 5,271 checks / zero failures at f274374e9; final focused28 passed. Lifecycle concurrency correction now requires focused and broad rechecks. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
+| D6 | Frozen f274374e9 comparison build signed and root-verified, no host deployment. Do not release for physical acceptance until lifecycle race correction and new artifact verification. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
 | D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Pending. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
 | D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
 | D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
 | D10 | Caps substitution ownership/integration after runtime stabilization. Planned follow-up, feature retained. | Sol high design/recovery review; Sol medium implementation; Luna hardware execution | Collision-safe device-scoped mapping, restore only owned state, stop/crash/reconnect/reboot/protected-input acceptance |
 | D11 | Revisit onboarding UX after reduced permissions and Caps prerequisites are verified. Deferred. | Sol medium implementation; design review at appropriate level | Normal fresh installer flow reflects actual consent and supported first win; no unavailable Caps retry loop |
 
-Current simplification estimate: **65%**, independent of the older 80% bounded
-checkpoint. The third broad safe gate completed at frozen source `be065a71a`
-with **5,267 passing checks and four failures**, without a test crash or compiler
-warnings. Remaining failures concern the graph-derived home-row profile's
-Kanata parsing and Quick Launcher mode/provider synchronization. They are under
-individual review; no broad pass or new signed acceptance is claimed.
+Current simplification estimate: **70%**, independent of the older 80% bounded
+checkpoint. Broad safe gate4 at frozen `f274374e9` passed **5,271 checks / zero
+failures** without compiler warnings; final focused28 passed. Earlier graph/
+launcher failures were test premises: reserved nav identity, persisted disabled
+launcher, and a nonconflicting navigation entrance. Assertions remain intact.
 
-The original three home-row snapshot failures are excluded from this safe gate.
-Read-only comparison found their UI source, mock inputs and reference images
-byte-identical to verified `origin/master` (`d5581754`). A matching baseline run
-is still needed to establish rendering parity; do not update references merely
-to remove these failures.
+The three original home-row snapshot failures are excluded from the safe gate.
+Their UI source, mock inputs and reference images are byte-identical to verified
+`origin/master` (`d5581754`); rendering parity still needs a matching baseline run.
+
+Frozen signed comparison archive `/private/tmp/keypath-driverless-only-f274374e9.zip`
+SHA256 `ae522ffb1de27c22fb5393d050b5b7c0a66b5b07d62470772d47b68016e47a01`,
+main executable `6cbe01a2a95412e2ea1874832efb9fb8e1da076bdb7348df15ad3d36bbc7fc1d`.
+Root independently verified strict deep signing, stable Developer ID/hardened
+identities and forbidden-payload absence. Not notarized; guest-only, not deployed.
+
+Safety review found and root confirmed a new source hazard: asynchronous session
+start/stop/restart operations can interleave across MainActor awaits and overwrite
+worker ownership. Correction is isolated in `/private/tmp/keypath-session-lifecycle-epoch`.
+Required invariant: one admitted complete lifecycle operation, current intent after
+awaits, cleanup of late launches before releasing admission, generation-bound
+supervision, and atomic restart. Add controlled interleaving/cancellation tests,
+including repeated healthy start adopting supervision. Do not release the comparison
+artifact for new physical acceptance; rebuild after correction and regression gates.
+
+A read-only dependency audit estimates roughly10,000–11,000 additional legacy
+Swift lines may be removed after wiring changes. Removal sequence: helper/launcher
+executables, helper adapters (preserve duplicate-app discovery), daemon adapters,
+legacy wizard/VHID pages, privileged install implementations, PID leftovers.
+Preserve Karabiner import/conversion, app launcher UI, shared utilities, historical
+pure contracts and all session cleanup/transaction machinery. No bulk deletion
+before signed VM stabilization.
 
 Source review found and fixed a real app-only input omission: generated app
 aliases were unused when their inputs were absent from global collections.
