@@ -25,9 +25,10 @@ public enum SystemInspector {
                 title: "Allow KeyPath to remap keys", description: "Enable KeyPath in Accessibility, then retry.",
                 autoFixAction: nil, userAction: "Open Accessibility in System Settings"
             ))
-        } else if !context.permissions.keyPath.accessibility.isReady || !context.permissions.kanata.accessibility.isReady {
-            return sessionPermissionEvidenceUnavailable()
-        } else if context.permissions.kanata.inputMonitoring == .denied {
+        } else if context.permissions.keyPath.accessibility.isReady,
+                  context.permissions.kanata.accessibility.isReady,
+                  context.permissions.kanata.inputMonitoring == .denied
+        {
             missing.append(.keyPathInputMonitoring)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
@@ -37,14 +38,17 @@ public enum SystemInspector {
             ))
         }
         if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }
-        if !context.permissions.kanata.inputMonitoring.isReady {
-            return sessionPermissionEvidenceUnavailable()
-        }
         if !context.components.requiredRuntimePayloadPresent {
             return (.missingComponents(missing: [.bundledKanataMissing]), [WizardIssue(
                 identifier: .component(.bundledKanataMissing), severity: .error, category: .installation,
                 title: "Bundled runtime missing", description: "Reinstall this KeyPath build.", autoFixAction: nil, userAction: "Reinstall KeyPath"
             )])
+        }
+        if !context.permissions.keyPath.accessibility.isReady
+            || !context.permissions.kanata.accessibility.isReady
+            || !context.permissions.kanata.inputMonitoring.isReady
+        {
+            return sessionPermissionEvidenceUnavailable()
         }
         if context.services.kanataRuntimeReadiness.isReady { return (.active, []) }
         return (.serviceNotRunning, [WizardIssue(

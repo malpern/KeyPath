@@ -27,6 +27,28 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
         XCTAssertNil(result.1.first?.autoFixAction)
     }
 
+    func testMissingPayloadOutranksUnavailableWorkerEvidence() {
+        for status: PermissionOracle.Status in [.unknown, .error("worker unavailable")] {
+            for workerAX in [true, false] {
+                let result = inspect(workerAX: workerAX ? status : .granted,
+                                     workerIM: workerAX ? .granted : status,
+                                     payloadPresent: false)
+                XCTAssertEqual(result.0, .missingComponents(missing: [.bundledKanataMissing]))
+                XCTAssertEqual(result.1.first?.identifier, .component(.bundledKanataMissing))
+                XCTAssertNil(result.1.first?.autoFixAction)
+            }
+        }
+        let appDenied = inspect(appAX: .denied, workerAX: .unknown, workerIM: .unknown, payloadPresent: false)
+        XCTAssertEqual(appDenied.0, .missingPermissions(missing: [.keyPathAccessibility]))
+    }
+
+    func testUnknownAppAccessibilityRequestsEvidenceWhenPayloadIsPresent() {
+        let result = inspect(appAX: .unknown)
+        XCTAssertEqual(result.0, .serviceNotRunning)
+        XCTAssertEqual(result.1.first?.identifier, .daemon)
+        XCTAssertEqual(result.1.first?.autoFixAction, .restartCommServer)
+    }
+
     func testConfirmedWorkerDenialsStillRequestConsent() {
         let ax = inspect(workerAX: .denied)
         XCTAssertEqual(ax.0, .missingPermissions(missing: [.keyPathAccessibility]))
@@ -53,7 +75,8 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
         appAX: PermissionOracle.Status = .granted,
         workerAX: PermissionOracle.Status = .granted,
         workerIM: PermissionOracle.Status = .granted,
-        tapActive: Bool = true
+        tapActive: Bool = true,
+        payloadPresent: Bool = true
     ) -> (WizardSystemState, [WizardIssue]) {
         let now = Date()
         func permissions(_ ax: PermissionOracle.Status, _ im: PermissionOracle.Status) -> PermissionOracle.PermissionSet {
@@ -67,7 +90,7 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
                                    karabinerDaemonRunning: false, vhidHealthy: false,
                                    kanataInputCaptureReady: tapActive),
             conflicts: .empty,
-            components: ComponentStatus(kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
+            components: ComponentStatus(kanataBinaryInstalled: payloadPresent, requiredRuntimePayloadPresent: payloadPresent,
                                         karabinerDriverInstalled: false, karabinerDaemonRunning: false,
                                         vhidDeviceInstalled: false, vhidDeviceHealthy: false,
                                         vhidServicesHealthy: false, vhidVersionMismatch: false),
