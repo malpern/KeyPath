@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "status": "source-only raw target argv correction; no live acceptance",
+  "originalManifestSHA256": "db8a502472fe4b9387a198851d707478c3d7d8015341dd877338a6862ef55858",
+  "previousTimingManifestSHA256": "2d69b1d78ac9cb258c0607ed60cfeb20651309a4d6d803c91889bce794590b64",
+  "inertTests": 60,
+  "files": {
+    "README-raw-argv.md": "5be3768f84b563df625e22dab20c25c8dcec52f7a25e2b2bfe736f652b8e5d44",
+    "README.md": "41aeda23efc7da7bd86f30cae3c5641afd1c905684c3f379aab8c404ee18c5f8",
+    "clean-archive.patch": "89858ceb7fdd8d8a8c6c93e2ccb75613fabb4bdf0de5365d194d06557081372c",
+    "executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+    "fresh-capture.patch": "50eb74032c71d533b141a890a9411035ec99e7e6e605b8f4746c1820c051b3fa",
+    "fresh_capture.py": "3dde8c2e256b84b52f89307a5967e9cec41b9656f13e95fa7d1cc232cc5c98cc",
+    "inert-tests-default.txt": "ad750c15185d3612c84e464baa1af78dae59b3bdcef6084f4d55f4cd0319e179",
+    "inert-tests.txt": "a72cf41dc1a7144eb823a9df443af49a9a8f8c97b6eb1390316ed30305b7b73f",
+    "initial-inert-tests.txt": "da4cb63252f603525d0268be390907f3349b3c084da5bf8ba30803f941e9773d",
+    "local-binding.txt": "2c7fd3324128c535fbc5597f2bc9c20b4e5171aa2c7127cf5cb64fb7f677779a",
+    "measurement.py": "33b242dafdfcf2c425010df34ff137b63f46f28f89ec693c0137d009cc129cda",
+    "parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
+    "prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
+    "raw-argv.patch": "2ef8a8817ef4130bcd19b10e0534cde50418f959632cfe2fd4bc2d55a92df0f3",
+    "refusal-reasons.json": "f9c36a207e07fd4aff0e9a57623e66fbd70c588601c546f2f3df81021343d442",
+    "scope-6eed.json": "33ce1ab2ef9faf90dedc43f68cb5f2553c8f03ad65a44796ef0f0c3fca26f8d0",
+    "scope-fdce.json": "f9de7d9d34e1a2119186501d0ac355855c6f9928c6b3e9a9b8dbc2c8d197faeb",
+    "source-pins.json": "87217ca0531722cdb65be33f1b19242e4eb5748524816d303dded14bbc34032c",
+    "test_executor.py": "e3283da0180519a2019aca8a5f29f29e173615c8b2877d2b1d822c982cb7e17e",
+    "test_foreground_route.py": "4a71e9d9f2f837d32d17ef1563a8682cf7b2519f5ae9e8c879c6efd4a189113d",
+    "test_fresh_capture.py": "aa5d3b36b09c954ffde962d9424e631a68b53296237878b386cf92ffe833ee70",
+    "test_measurement.py": "64a00e458e25f2efa760cc92798b8623434ea1a768ffdf0f7362d834d49bf6a7",
+    "test_prepared_identity.py": "9244072cf8b35972614f0e06336dc281892655d8c619d7813f8f0a23c6127a75"
+  }
+}

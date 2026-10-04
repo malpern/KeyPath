@@ -1,0 +1,25 @@
+..............E.E.................................
+======================================================================
+ERROR: testActualStartStagesAtMutationAndSlowDiscoveryWithoutReplay (test_measurement.DiagnosticTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/keypath-timeout-fresh-capture-6ed4/test_measurement.py", line 335, in testActualStartStagesAtMutationAndSlowDiscoveryWithoutReplay
+    G=m.diagnostic_guest(Base,RuntimeError,'inert config')
+  File "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py", line 194, in diagnostic_guest
+    class Guest(Base):
+  File "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py", line 195, in Guest
+    READ_STAGES=Base.READ_STAGES+('capture.preflight','capture.observe')
+AttributeError: type object 'Base' has no attribute 'READ_STAGES'
+
+======================================================================
+ERROR: testFailureFieldsCapturedBeforeCleanupCanChangeReadStage (test_measurement.DiagnosticTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/private/tmp/keypath-timeout-fresh-capture-6ed4/test_measurement.py", line 351, in testFailureFieldsCapturedBeforeCleanupCanChangeReadStage
+    f.startup_preflight=fail;r=f.run();self.assertFalse(r['passed']);self.assertEqual(r['transportExitCode'],255);self.assertEqual(r['read_failure_stage'],'preflight.signature.command');self.assertEqual(f.cleanup_count,1)
+KeyError: 'transportExitCode'
+
+----------------------------------------------------------------------
+Ran 50 tests in 1.757s
+
+FAILED (errors=2)

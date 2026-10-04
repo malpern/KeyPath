@@ -1,0 +1,92 @@
+--- old/fresh_capture.py
++++ new/fresh_capture.py
+@@ -72,7 +72,7 @@
+   ck(str(__import__('uuid').UUID(t['nonce'])).upper()==t['nonce'].upper())
+   stamp=t.get('observedAt');ck(type(stamp)in(int,float) and math.isfinite(stamp) and v['requestedAt']<=stamp<=time.time() and time.time()-stamp<3)
+   rows=processes();ck([x for x in rows if pathlib.PurePosixPath(x[2]).name=='RigTarget']==[(t['pid'],502,str(exe))])
+-  args=subprocess.run(['/bin/ps','-ww','-p',str(t['pid']),'-o','args='],capture_output=True,text=True,check=True,timeout=5).stdout.strip();ck(shlex.split(args)==[str(exe)])
++  args=subprocess.run(['/bin/ps','-ww','-p',str(t['pid']),'-o','args='],capture_output=True,text=True,check=True,timeout=5).stdout.strip();ck(args==str(exe))
+   command=home/('rig-target-control-'+str(t['pid'])+'-'+t['nonce']);s=command.lstat()
+   ck(command==command.resolve() and stat.S_ISDIR(s.st_mode) and s.st_uid==502 and stat.S_IMODE(s.st_mode)==0o700 and t.get('commandPath')==str(command/'command.json'))
+   parent();guard();print(json.dumps(dict(target=t,identity=dict(pid=t['pid'],uid=502,nonce=t['nonce'],executable=str(exe),binarySHA256=v['targetSHA256'],rawArguments=args))))
+--- old/test_fresh_capture.py
++++ new/test_fresh_capture.py
+@@ -30,7 +30,7 @@
+         return g
+     def observation(self):
+         target=Fake().target();target['observedAt']=100
+-        return dict(target=target,identity=dict(pid=50,uid=502,nonce='target',executable=SCOPE.target_executable,binarySHA256=SCOPE.target_sha256,rawArguments=shlex.quote(SCOPE.target_executable)))
++        return dict(target=target,identity=dict(pid=50,uid=502,nonce='target',executable=SCOPE.target_executable,binarySHA256=SCOPE.target_sha256,rawArguments=SCOPE.target_executable))
+     def test_null_then_ready_single_claim_launch_and_exact_binding(self):
+         g=self.guest([None,self.observation()]);claims=[]
+         t=f.capture(g,SCOPE,claims.append,m.target_check,g.mono,g.wall,g.sleep)
+@@ -76,6 +76,9 @@
+     def test_actual_prelaunch_hash_parent_uid_ownership_and_expiry_refuse(self):
+         for fault in ('hash','parent','uid','mode','link','expired'):
+             with self.subTest(fault=fault):self.exercise(fault)
++    def test_actual_generated_raw_space_path_rejects_extra_arguments(self):
++        for fault in ('target-extra','target-prefix','target-quoted'):
++            with self.subTest(fault=fault):self.exercise(fault)
+     def exercise(self,fault=None):
+         with tempfile.TemporaryDirectory(dir='/private/tmp') as directory:
+             home=pathlib.Path(directory);exe=home/'Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget';exe.parent.mkdir(parents=True);exe.write_bytes(b'inert target');exe.chmod(0o755)
+@@ -101,7 +104,7 @@
+                     if fault=='expired':now[0]=1000
+                 elif args[:3]==['/bin/ps','-ww','-axo']:out='10 502 /parent\n'+''.join(str(pid)+' 502 '+str(exe)+'\n' for pid in live)
+                 elif args[:3]==['/bin/ps','-ww','-p']:
+-                    out='/parent --foreign' if fault=='parent' else ('/parent --headless' if args[3]=='10' else shlex.quote(str(exe)))
++                    out='/parent --foreign' if fault=='parent' else ('/parent --headless' if args[3]=='10' else (str(exe)+' --foreign' if fault=='target-extra' else ('foreign '+str(exe) if fault=='target-prefix' else (shlex.quote(str(exe)) if fault=='target-quoted' else str(exe)))))
+                 elif args[0]=='/usr/bin/open':
+                     self.assertEqual(args,['/usr/bin/open','-n',str(exe.parents[2])]);live.append(50);out=''
+                 else:raise AssertionError(args)
+@@ -115,7 +118,7 @@
+                 with mock.patch.dict(os.environ,HOME=str(home)),mock.patch.object(os,'getuid',return_value=501 if fault=='uid' else 502),mock.patch.object(os,'stat',side_effect=stat),mock.patch.object(os,'fstat',side_effect=lambda fd:owned(original_fstat(fd))),mock.patch.object(pathlib.Path,'lstat',lstat),mock.patch('subprocess.run',side_effect=run),mock.patch('time.time',side_effect=lambda:now[0]),mock.patch('sys.argv',['inert',json.dumps(value),op]),redirect_stdout(out):
+                     exec(compile(f.TARGET_CODE,'actual-generated-fresh-capture','exec'),{})
+                 return json.loads(out.getvalue())
+-            if fault:
++            if fault and not fault.startswith('target-'):
+                 with self.assertRaises(RuntimeError):execute('launch')
+                 self.assertFalse(any(x[0]=='/usr/bin/open'for x in calls));return
+             self.assertEqual(execute('preflight')['binarySHA256'],value['targetSHA256'])
+@@ -124,7 +127,13 @@
+             nonce='12345678-1234-4234-8234-123456789012';control=home/('rig-target-control-50-'+nonce);control.mkdir(mode=0o700)
+             t=Fake().target();t.update(pid=50,nonce=nonce,observedAt=100,commandPath=str(control/'command.json'))
+             (home/'rig-target.json').write_text(json.dumps(t));(home/'rig-target.json').chmod(0o644)
++            if fault and fault.startswith('target-'):
++                with self.assertRaisesRegex(RuntimeError,'fresh capture guard refused'):execute('observe')
++                self.assertEqual(calls[-1],['/bin/ps','-ww','-p','50','-o','args='])
++                self.assertEqual(sum(x[0]=='/usr/bin/open'for x in calls),1)
++                return
+             r=execute('observe');self.assertEqual(r['identity']['pid'],50)
++            self.assertEqual(r['identity']['rawArguments'],str(exe))
+             self.assertEqual(sum(x[0]=='/usr/bin/open'for x in calls),1)
+             with self.assertRaises(RuntimeError):execute('launch')
+             self.assertEqual(sum(x[0]=='/usr/bin/open'for x in calls),1)
+--- old/measurement.py
++++ new/measurement.py
+@@ -21,7 +21,7 @@
+ HARNESS = pathlib.Path('/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py')
+ IDENTITY = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
+ RIG = pathlib.Path('/private/tmp/vm-lab-guest-identity')
+-SOURCE_PINS_SHA = '53cee011914802a56d66eeb5afa6f6c651ab236702ce166bea102b469dfb2332'
++SOURCE_PINS_SHA = '87217ca0531722cdb65be33f1b19242e4eb5748524816d303dded14bbc34032c'
+ BASE_SCOPE=dict(version=1,account='keypathqa_438d6abc',uid=502,home='/Users/keypathqa_438d6abc',productSource='6ed4ea99052c19bc94e99517cfe9827377b17af7',binarySHA256='d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682',targetSHA256='55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858',targetArchiveSHA256='26e5b024f561ebd6ccee43f2d4b07056d9da8d09c5be5aab9a61553380a52fb8',targetExecutable='/Users/keypathqa_438d6abc/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget')
+ EXECUTOR=ROOT/'executor.py'
+ BINDING_FIELDS=('identityReceipt','identityReceiptSHA256','lease','providerUUID','bootEpoch','deadline','baselineInventory','baselineInventorySHA256')
+--- old/source-pins.json
++++ new/source-pins.json
+@@ -11,10 +11,10 @@
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py": "d2907c9e0d9b62c0a555273e14cd3aef12491aa53507f4633dcd06fea75dabf2",
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py": "14fbed279df894085a39350e26d9de05528bdacbdf4a36306ecaed6b849d2de5",
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/parent_readiness.py": "69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/fresh_capture.py": "2b7c284ee8eb615a3f58f5ece1b1c50d81bcb231d078f86c42640ff2bb0cd06d",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-raw-argv/fresh_capture.py": "3dde8c2e256b84b52f89307a5967e9cec41b9656f13e95fa7d1cc232cc5c98cc",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathApp/Main.swift": "9d5d020ce04d7f138ae4e5cd76911b4b27e9438b9dae113d960bca0b4ba70904",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/App.swift": "9c654a4b6dcf64ca21251f702622db761ff5a0db709f506186d51c5dc8ab2492",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator+SessionRuntime.swift": "186394b2fdb5077d2b71c9d41f22c5c193d4e66a2314dda899906c89f0156303",
