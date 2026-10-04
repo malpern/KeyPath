@@ -90,6 +90,9 @@ extension ConfigurationService {
         AppLogger.shared.log("🔍 [Validation] ========== CONFIG VALIDATION START ==========")
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
 
+        guard !config.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return (false, ["Configuration content is empty"])
+        }
         do {
             try await requireSessionEligibleConfiguration(config)
         } catch {

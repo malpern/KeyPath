@@ -248,16 +248,20 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
             isEnabled: false, lastSeen: .distantPast
         )
         let original = collection("Original")
-        try await service.operationGate.withOperation { @MainActor permit in
-            let write = try await service.stageRuleState(
-                ruleCollections: [original], customRules: [],
-                collectionStore: self.collections, customStore: self.customRules,
-                mutationPermit: permit, deviceSelections: [selection]
+        try await service.saveRuleState(
+            ruleCollections: [original], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        // Model an existing advanced profile written before the driverless
+        // experiment. New device-scoped writes must never be used as setup.
+        let legacy = try await service.generateConfiguration(
+            ruleCollections: [original], customRules: [],
+            deviceGenerationInput: DeviceGenerationInput(
+                selections: [selection], connectedDevices: cache.getConnectedDevices()
             )
-            try await service.settleRuleWrite(write, commit: true, mutationPermit: permit)
-        }
+        )
         let configURL = URL(fileURLWithPath: service.configurationPath)
-        let handwritten = try String(contentsOf: configURL, encoding: .utf8)
+        let handwritten = legacy.content
             .replacingOccurrences(of: "__keypath_no_devices__", with: "Handwritten Keyboard")
         try handwritten.write(to: configURL, atomically: true, encoding: .utf8)
         let collectionURL = await collections.persistenceURL
