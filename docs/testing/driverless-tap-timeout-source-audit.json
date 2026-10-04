@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "productSource": "88e6674e13ca2f1cdd4c3d6737a42da22f66c98c",
+  "status": "cause-observability-resolved-experiment-not-implemented",
+  "actualOSTimeoutAccepted": false,
+  "liveActions": false,
+  "files": {
+    "worker": {
+      "path": "/private/tmp/keypath-session-observers/Sources/KeyPathAppKit/Services/SessionRuntime/SessionRuntimeWorker.swift",
+      "sha256": "aad1c1340b7ac8c34bbcdd096a8984fbb4490e7ba3fd2f74bae61868982ce578",
+      "matchesFrozenCommit": true
+    },
+    "coordinator": {
+      "path": "/private/tmp/keypath-session-observers/Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator+SessionRuntime.swift",
+      "sha256": "c23d39b576a05807a4d94046670a8bcbb2980bfaa74f1ca8e5f472c602603d7d",
+      "matchesFrozenCommit": true
+    },
+    "report": {
+      "path": "/private/tmp/keypath-session-observers/Sources/KeyPathCore/SessionRuntime/SessionRuntimeReport.swift",
+      "sha256": "fcdc3f75d0d4c9dcf67ba3860b3a18dbcf47e34b4e29f398b862082cbb623994",
+      "matchesFrozenCommit": true
+    },
+    "runtime": {
+      "path": "/private/tmp/keypath-session-observers/Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift",
+      "sha256": "f6c3b1382dd0d1f8c7d7a5cbf49fcc3f2f71fca91261f295807a669502595e0d",
+      "matchesFrozenCommit": true
+    }
+  },
+  "causeLines": {
+    "actualRegisteredCallback": [
+      118,
+      126
+    ],
+    "actualTimeout": [
+      160,
+      162
+    ],
+    "actualUserInput": [
+      163,
+      165
+    ],
+    "timerOnly": 221,
+    "nominalReportPublication": 227,
+    "finish": [
+      319,
+      338
+    ],
+    "reportFreshness": [
+      51,
+      54
+    ],
+    "supervisionPoll": 197,
+    "secureOnlyResume": [
+      218,
+      229
+    ],
+    "explicitRecovery": [
+      232,
+      234
+    ]
+  }
+}
