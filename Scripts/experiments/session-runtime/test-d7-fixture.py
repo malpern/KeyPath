@@ -1,4 +1,5 @@
 import importlib.util
+import ast
 import pathlib
 import json
 import types
@@ -20,6 +21,28 @@ class FactoryTests(unittest.TestCase):
         client = factory.ScopedClient(backend)
         client.load_script(SCRIPT)
         return client, backend
+
+    def test_trial_preserves_simultaneous_cleanup_and_close_failures(self):
+        # Execute the production cleanup statement without importing the trial's
+        # guest/hardware entrypoint. No duplicate cleanup implementation here.
+        source = pathlib.Path(__file__).with_name('physical-trial.py').read_text()
+        tree = ast.parse(source)
+        main = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'main')
+        trial = next(node for node in main.body if isinstance(node, ast.Try))
+        statement = trial.finalbody[0]
+        fragment = ast.fix_missing_locations(ast.Module(body=[statement], type_ignores=[]))
+        for failure_stage in ('status', 'abort'):
+            backend = Mock()
+            backend.status.return_value = {'runId': RUN, 'state': 'running'}
+            getattr(backend, failure_stage).side_effect = RuntimeError('inert cleanup failure')
+            backend.close.side_effect = RuntimeError('inert close failure')
+            record = {'passed': True}
+            exec(compile(fragment, 'production-cleanup', 'exec'),
+                 {'client': backend, 'record': record, 'owned': True, 'run': RUN})
+            self.assertFalse(record['passed'])
+            self.assertEqual(record['fixtureCleanupError'], 'fixture cleanup failed; diagnostics suppressed')
+            self.assertEqual(record['fixtureCloseError'], 'fixture transport close failed')
+            backend.close.assert_called_once_with()
 
     def test_construction_only_extracts_selected_scalar_and_has_no_network(self):
         backend = Mock(token='synthetic-fixture-test-token')

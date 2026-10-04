@@ -155,7 +155,7 @@ def main():
    except Exception:record.update(passed=False,fixtureCleanupError='fixture cleanup failed; diagnostics suppressed')
    finally:
     try:client.close()
-    except Exception:record.update(passed=False,fixtureCleanupError='fixture transport close failed')
+    except Exception:record.update(passed=False,fixtureCloseError='fixture transport close failed')
   if pid and not external:
    try:stop(a.lease,pid,nonce)
    except Exception as cleanup_error:
