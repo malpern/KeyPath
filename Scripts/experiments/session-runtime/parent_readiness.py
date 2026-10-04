@@ -49,6 +49,7 @@ def log_command(identity, parent, worker, nonce, path, worker_args, marker):
         raise ValueError('invalid read completion marker')
     log = identity.home + '/Library/Logs/KeyPath/keypath-debug.log'
     q = shlex.quote
+    ready_filter = q('index($0, "Session runtime ready (") {print}')
     # An intermediate failed command in an AND-list is exempt from set -e.
     # Explicitly refuse the whole identity chain before any log/process read.
     checks = ['if ! ( ' + identity.guard() + ' ); then exit 79; fi']
@@ -66,7 +67,7 @@ def log_command(identity, parent, worker, nonce, path, worker_args, marker):
                f'test "$(/usr/bin/stat -f %z {q(path)})" -le 16384']
     return ('true; set -euo pipefail; ' + '; '.join(checks)
             + '; printf "KEYPATH_PARENT_LOG_V1 %s %s\\n" "$(/bin/date +%s)" "$(/bin/date +%z)"; '
-            + f'/usr/bin/tail -c 65536 {q(log)} | /usr/bin/tail -n 128; '
+            + f'/usr/bin/tail -c 65536 {q(log)} | /usr/bin/awk {ready_filter} | /usr/bin/tail -n 128; '
             + f'printf "\\n%s\\n" {q(marker + "_WORKER_REPORT")}; /usr/bin/head -c 16385 {q(path)}; '
             + f'printf "\\n%s\\n" {q(marker)}')
 

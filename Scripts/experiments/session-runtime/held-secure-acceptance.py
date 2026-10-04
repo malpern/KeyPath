@@ -21,7 +21,7 @@ from held_secure_predicates import (TargetHistory, Refusal, applied, control_dow
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 IDENTITY_MODULE = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
 RIG_ROOTS = ('/private/tmp/vm-lab-hid-rig', '/private/tmp/vm-lab-guest-identity')
-PARENT_READINESS_SHA256 = '69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b'
+PARENT_READINESS_SHA256 = '07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074'
 _READINESS_MODULE = None
 GUEST_PYTHON = '/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13'
 CONFIG = '(defcfg)\n(defsrc q a)\n(deflayer base (tap-hold 200 200 q lctl) a)\n'
