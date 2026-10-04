@@ -18,6 +18,7 @@ public struct SessionRuntimeEnvironmentState: Sendable {
         case systemWillSleep = "system-will-sleep"
         case systemWakeObserved = "system-wake-observed"
         case sessionResignedActive = "session-resigned-active"
+        case consoleSessionChangeObserved = "console-session-change-observed"
         case consoleObservationUnavailable = "console-observation-unavailable"
         case consoleSessionInactive = "console-session-inactive"
     }

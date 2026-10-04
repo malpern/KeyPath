@@ -140,4 +140,68 @@ final class SessionRuntimeEnvironmentTests: XCTestCase {
             XCTAssertNil(SessionRuntimeEnvironmentObserver.parseConsole(malformed))
         }
     }
+
+    func testNotificationBaselineDrainsFirstTrueAndLaterChangeRetiresAfterReturn() {
+        var replies: [Bool?] = [true, false, true]
+        var causes: [SessionRuntimeEnvironmentState.Boundary] = []
+        let observer = SessionRuntimeEnvironmentObserver(expectedUID: 502, readConsole: { self.active },
+                                                        readNotification: { _ in replies.removeFirst() }) { reason, _ in
+            causes.append(reason)
+        }
+        XCTAssertTrue(observer.baselineNotification(123))
+        XCTAssertTrue(causes.isEmpty)
+        XCTAssertTrue(observer.checkNotification(123))
+        XCTAssertTrue(observer.check())
+        // Coalesced departure+return leaves current evidence active, but a
+        // post-baseline notification still permanently retires old queues.
+        XCTAssertFalse(observer.checkNotification(123))
+        XCTAssertFalse(observer.check())
+        XCTAssertEqual(causes, [.consoleSessionChangeObserved])
+    }
+
+    func testNotificationUnavailableAtBaselineOrPollingNeverAdmitsOldOutput() {
+        var causes: [SessionRuntimeEnvironmentState.Boundary] = []
+        let observer = SessionRuntimeEnvironmentObserver(expectedUID: 502, readConsole: { self.active },
+                                                        readNotification: { _ in nil }) { reason, _ in
+            causes.append(reason)
+        }
+        XCTAssertFalse(observer.baselineNotification(123))
+        XCTAssertFalse(observer.checkNotification(123))
+        XCTAssertFalse(observer.check())
+        XCTAssertEqual(causes, [.consoleObservationUnavailable])
+    }
+
+    func testFailedControlReleaseRetainsOnlyUnpostedLedgerAndDoesNotSkipPowerAck() throws {
+        var outputs = SessionOutputState()
+        _ = try outputs.translate(.init(value: 1, usagePage: 7, usage: 224))
+        _ = try outputs.translate(.init(value: 1, usagePage: 7, usage: 4))
+        var posted: [UInt16] = []
+        var reported: Set<UInt32> = []
+        var sequence: [String] = []
+        SessionRuntimeWorker.completeTermination(releaseOutputs: {
+            SessionRuntimeWorker.releaseOwnedOutputs(&outputs) { output in
+                posted.append(output.keyCode)
+                return output.keyCode != 59 // Allocation fails for Control up.
+            }
+            sequence.append("release")
+        }, publishTerminalReport: {
+            reported = outputs.heldUsages
+            sequence.append("report")
+        }, acknowledge: {
+            sequence.append("ack")
+        }, unregisterObservers: {
+            sequence.append("unregister")
+        })
+        XCTAssertEqual(posted, [0, 59])
+        XCTAssertEqual(reported, [224])
+        XCTAssertEqual(outputs.heldUsages, [224])
+        XCTAssertEqual(sequence, ["release", "report", "ack", "unregister"])
+        posted.removeAll()
+        SessionRuntimeWorker.releaseOwnedOutputs(&outputs) { output in
+            posted.append(output.keyCode)
+            return true
+        }
+        XCTAssertEqual(posted, [59], "Only the preserved release is eligible for later recovery")
+        XCTAssertTrue(outputs.heldUsages.isEmpty)
+    }
 }

@@ -302,6 +302,20 @@ public final class SessionRuntimeWorker {
         unregisterObservers()
     }
 
+    /// Failed event allocation retains exactly the unreleased owned ledger.
+    /// The injected posting closure lets tests exercise this production loop
+    /// without creating a CGEvent or terminating a host process.
+    static func releaseOwnedOutputs(
+        _ outputs: inout SessionOutputState, post: (SessionKeyOutput) -> Bool
+    ) {
+        var pending = outputs
+        for output in pending.releaseAll() {
+            if post(output), let usage = SessionKeyMap.keyCodeToUsage[output.keyCode] {
+                _ = try? outputs.translate(.init(value: 0, usagePage: 7, usage: usage))
+            }
+        }
+    }
+
     private func finish(
         _ state: SessionRuntimeReport.State, reason: String? = nil,
         acknowledge: (() -> Void)? = nil
@@ -312,12 +326,9 @@ public final class SessionRuntimeWorker {
         Self.completeTermination(releaseOutputs: {
             // Allocation failure during shutdown cannot recursively exit before
             // the power ACK. Preserve unposted releases in the crash ledger.
-            var pending = outputs
-            for output in pending.releaseAll() {
-                if post(output), let usage = SessionKeyMap.keyCodeToUsage[output.keyCode] {
-                    _ = try? outputs.translate(.init(value: 0, usagePage: 7, usage: usage))
-                }
-            }
+            var remaining = outputs
+            Self.releaseOwnedOutputs(&remaining, post: post)
+            outputs = remaining
         }, publishTerminalReport: {
             writeReport(state, failure: reason)
         }, acknowledge: acknowledge, unregisterObservers: {

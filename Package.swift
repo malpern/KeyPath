@@ -89,6 +89,12 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
     ],
     targets: [
+        // Public C APIs/macros not exposed by the Swift Darwin/IOKit importer.
+        .target(
+            name: "KeyPathSessionNative",
+            path: "Sources/KeyPathSessionNative",
+            publicHeadersPath: "include"
+        ),
         // Core library with shared types/utilities
         .target(
             name: "KeyPathSystemProbes",
@@ -184,6 +190,7 @@ let package = Package(
         .target(
             name: "KeyPathAppKit",
             dependencies: [
+                "KeyPathSessionNative",
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",

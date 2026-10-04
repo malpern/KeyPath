@@ -3,6 +3,7 @@ import Darwin
 import IOKit
 import IOKit.pwr_mgt
 import KeyPathCore
+import KeyPathSessionNative
 
 /// Owned by one standalone worker; callbacks run on its main CFRunLoop.
 /// Uses public SDK power/session APIs and never requests a permission.
@@ -13,6 +14,7 @@ final class SessionRuntimeEnvironmentObserver {
     private var state: SessionRuntimeEnvironmentState
     private let readConsole: () -> SessionRuntimeConsoleObservation?
     private let onBoundary: (Boundary, (() -> Void)?) -> Void
+    private let readNotification: (Int32) -> Bool?
     private var powerConnection: io_connect_t = 0
     private var powerPort: IONotificationPortRef?
     private var powerNotifier: io_object_t = 0
@@ -23,10 +25,15 @@ final class SessionRuntimeEnvironmentObserver {
 
     init(expectedUID: UInt32,
          readConsole: (() -> SessionRuntimeConsoleObservation?)? = nil,
+         readNotification: ((Int32) -> Bool?)? = nil,
          onBoundary: @escaping (Boundary, (() -> Void)?) -> Void) {
         state = SessionRuntimeEnvironmentState(expectedUID: expectedUID)
         self.readConsole = readConsole ?? Self.currentConsole
         self.onBoundary = onBoundary
+        self.readNotification = readNotification ?? { token in
+            var changed = false
+            return KPSessionNotificationChanged(token, &changed) ? changed : nil
+        }
     }
 
     func start() -> Bool {
@@ -49,14 +56,17 @@ final class SessionRuntimeEnvironmentObserver {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         // CGSession.h specifies notify_post names. Polling check tokens keeps
         // their handling on the same run loop as input/output (no actor hop).
-        for name in ["com.apple.coregraphics.GUIConsoleSessionChanged",
-                     "com.apple.coregraphics.GUISessionUserChanged"] {
+        for userChanged in [false, true] {
             var token: Int32 = 0
-            guard notify_register_check(name, &token) == NOTIFY_STATUS_OK else {
+            guard KPSessionRegisterConsoleNotification(userChanged, &token) else {
                 stop()
                 return false
             }
             notifyTokens.append(token)
+            // notify.h: the first check is always true, not a new event.
+            // Drain it before this worker can accept input/output. Any later
+            // true retires conservatively, even if the session already returned.
+            guard baselineNotification(token) else { stop(); return false }
         }
         let center = NSWorkspace.shared.notificationCenter
         for (name, reason) in [(NSWorkspace.willSleepNotification, Boundary.systemWillSleep),
@@ -77,7 +87,7 @@ final class SessionRuntimeEnvironmentObserver {
     }
 
     func stop() {
-        for token in notifyTokens { notify_cancel(token) }
+        for token in notifyTokens { KPSessionCancelNotification(token) }
         notifyTokens.removeAll()
         let center = NSWorkspace.shared.notificationCenter
         for observer in workspaceObservers { center.removeObserver(observer) }
@@ -97,14 +107,29 @@ final class SessionRuntimeEnvironmentObserver {
     @discardableResult
     func check() -> Bool {
         for token in notifyTokens {
-            var changed: Int32 = 0
-            if notify_check(token, &changed) != NOTIFY_STATUS_OK {
-                retire(.consoleObservationUnavailable)
-                return false
-            }
+            guard checkNotification(token) else { return false }
         }
         if let reason = state.observe(readConsole()) {
             retire(reason)
+            return false
+        }
+        return true
+    }
+
+    /// Baseline and polling share the same injected public-API reader in tests.
+    /// Check-token false positives are allowed by notify.h: they stop safely,
+    /// but this cause is never proof that an actual console departure occurred.
+    func baselineNotification(_ token: Int32) -> Bool {
+        readNotification(token) != nil
+    }
+
+    func checkNotification(_ token: Int32) -> Bool {
+        guard let changed = readNotification(token) else {
+            retire(.consoleObservationUnavailable)
+            return false
+        }
+        if changed {
+            retire(.consoleSessionChangeObserved)
             return false
         }
         return true
@@ -120,13 +145,13 @@ final class SessionRuntimeEnvironmentObserver {
     private func powerMessage(_ message: UInt32, notificationID: Int) {
         let connection = powerConnection
         switch message {
-        case UInt32(kIOMessageCanSystemSleep):
+        case KPSystemCanSleepMessage():
             observePowerEvent(.canSleep) { IOAllowPowerChange(connection, notificationID) }
-        case UInt32(kIOMessageSystemWillSleep):
+        case KPSystemWillSleepMessage():
             observePowerEvent(.willSleep) { IOAllowPowerChange(connection, notificationID) }
-        case UInt32(kIOMessageSystemWillPowerOn):
+        case KPSystemWillPowerOnMessage():
             observePowerEvent(.willPowerOn)
-        case UInt32(kIOMessageSystemHasPoweredOn):
+        case KPSystemHasPoweredOnMessage():
             observePowerEvent(.hasPoweredOn)
         default:
             break
