@@ -2,6 +2,10 @@ import AppKit
 import Carbon
 import KeyPathCore
 import KeyPathPermissions
+#if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+    import CryptoKit
+    import Darwin
+#endif
 
 /// Runs before SwiftUI/bootstrap in a separate instance of the same signed app.
 /// Process isolation is intentional: the current Kanata TCP/processing APIs do
@@ -30,6 +34,8 @@ public final class SessionRuntimeWorker {
     private var environmentObserver: SessionRuntimeEnvironmentObserver?
     #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
         private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
+        private var rawTapCallbackCount: UInt64 = 0
+        private var startupTapDiagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
     #endif
 
     private init(
@@ -116,6 +122,14 @@ public final class SessionRuntimeWorker {
         guard let handle else { finish(.failed, reason: "runtime-creation-failed") }
         guard handle.hasSessionInputMap else { finish(.failed, reason: "runtime-input-map-unavailable") }
         runtime = handle
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            startupTapDiagnostics = .init(
+                rawTapCallbackCount: 0,
+                qMapped: handle.isInputMapped(usagePage: 7, usage: 20),
+                aMapped: handle.isInputMapped(usagePage: 7, usage: 4),
+                configSHA256: Self.experimentalConfigSHA256(configPath: configPath)
+            )
+        #endif
         guard case .success = handle.start() else {
             finish(.failed, reason: "runtime-start-failed")
         }
@@ -163,6 +177,11 @@ public final class SessionRuntimeWorker {
     }
 
     private func receive(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            // Includes tagged output, disabled notifications and unmapped input.
+            // No event content is retained; saturation avoids counter wraparound.
+            if rawTapCallbackCount < UInt64.max { rawTapCallbackCount += 1 }
+        #endif
         let original = Unmanaged.passUnretained(event)
         if finished || event.getIntegerValueField(.eventSourceUserData) == Self.outputTag { return original }
         if type == .tapDisabledByTimeout {
@@ -297,14 +316,42 @@ public final class SessionRuntimeWorker {
         return true
     }
 
+    #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+        /// A bounded file sample, not an attestation of the parser's in-memory bytes.
+        nonisolated static func experimentalConfigSHA256(configPath: String) -> String? {
+            let descriptor = Darwin.open(configPath, O_RDONLY | O_NONBLOCK | O_NOFOLLOW)
+            guard descriptor >= 0 else { return nil }
+            let file = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+            defer { try? file.close() }
+            var metadata = stat()
+            guard fstat(file.fileDescriptor, &metadata) == 0,
+                  metadata.st_mode & S_IFMT == S_IFREG,
+                  metadata.st_size >= 0, metadata.st_size <= 65536,
+                  let data = try? file.read(upToCount: 65537), data.count <= 65536
+            else { return nil }
+            return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        }
+    #endif
+
     private func writeReport(_ state: SessionRuntimeReport.State, failure: String? = nil) {
+        var diagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            if let startupTapDiagnostics {
+                diagnostics = .init(
+                    rawTapCallbackCount: rawTapCallbackCount,
+                    qMapped: startupTapDiagnostics.qMapped, aMapped: startupTapDiagnostics.aMapped,
+                    configSHA256: startupTapDiagnostics.configSHA256
+                )
+            }
+        #endif
         let report = SessionRuntimeReport(
             nonce: nonce, pid: getpid(), uid: getuid(), state: state,
             accessibility: capabilities.accessibility.isReady,
             effectiveInputAccess: capabilities.inputMonitoring.isReady,
             tapActive: tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
-            heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source
+            heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
+            experimentalTapDiagnostics: diagnostics
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)
