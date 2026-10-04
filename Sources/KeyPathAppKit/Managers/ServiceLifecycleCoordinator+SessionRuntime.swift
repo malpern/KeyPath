@@ -180,44 +180,52 @@ extension ServiceLifecycleCoordinator {
                 return
             }
         #endif
-        guard let ownedApplication = sessionApplication, let ownedNonce = sessionNonce else { return }
+        guard let application = sessionApplication, let nonce = sessionNonce else { return }
+        let pid = application.processIdentifier
         sessionSupervisionTask?.cancel()
         // Do not inherit ConfigurationOperationGate's active TaskLocal permit.
-        sessionSupervisionTask = Task.detached { @MainActor [weak self] in
+        // Only scalar launch identity crosses this detached boundary. The weak
+        // coordinator is promoted for one actor hop, not retained between polls.
+        sessionSupervisionTask = Task.detached { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(250))
-                guard !Task.isCancelled, let self,
-                      sessionStartIsCurrent(generation),
-                      sessionApplication === ownedApplication, sessionNonce == ownedNonce else { return }
-                let application = ownedApplication
-                if !application.isTerminated {
-                    if currentSessionReport() == nil {
-                        _ = try? await sessionOperationGate.withOperation { [self] _ in
-                            await stopUnresponsiveSession(expectedGeneration: generation, nonce: ownedNonce)
-                        }
-                        return
-                    }
-                    continue
-                }
-                if let report = recoverSessionOutputs(for: application) {
-                    if report.state == .secureInput {
-                        onWarning?("Remapping is paused during secure typing.")
-                        while IsSecureEventInputEnabled(), !Task.isCancelled {
-                            try? await Task.sleep(for: .milliseconds(250))
-                        }
-                        guard sessionStartIsCurrent(generation),
-                              sessionApplication === ownedApplication, sessionNonce == ownedNonce else { return }
-                        // The same lifecycle owner resumes only after Secure Input
-                        // ends. Other failures require explicit recovery.
-                        _ = await resumeSessionRuntime(expectedGeneration: generation)
-                        return
-                    }
-                }
-                onError?("Driverless remapping stopped. Original keyboard input remains available; restart to recover.")
-                onStateChanged?()
-                return
+                guard !Task.isCancelled,
+                      await self?.superviseSessionTick(expectedNonce: nonce, pid: pid, generation: generation) == true else { return }
             }
         }
+    }
+
+    /// All process/report ownership and recovery remain on the main actor.
+    /// Returns true only when this exact launch still needs another poll.
+    private func superviseSessionTick(expectedNonce: String, pid: Int32, generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation), sessionNonce == expectedNonce,
+              let application = sessionApplication, application.processIdentifier == pid else { return false }
+        if !application.isTerminated {
+            if currentSessionReport() == nil {
+                _ = try? await sessionOperationGate.withOperation { [self] _ in
+                    await stopUnresponsiveSession(expectedGeneration: generation, nonce: expectedNonce)
+                }
+                return false
+            }
+            return true
+        }
+        if let report = recoverSessionOutputs(for: application), report.state == .secureInput {
+            onWarning?("Remapping is paused during secure typing.")
+            while IsSecureEventInputEnabled() {
+                guard sessionStartIsCurrent(generation), sessionApplication === application,
+                      sessionNonce == expectedNonce else { return false }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            guard sessionStartIsCurrent(generation), sessionApplication === application,
+                  sessionNonce == expectedNonce else { return false }
+            // The same lifecycle owner resumes only after Secure Input ends.
+            // Other failures require explicit recovery.
+            _ = await resumeSessionRuntime(expectedGeneration: generation)
+            return false
+        }
+        onError?("Driverless remapping stopped. Original keyboard input remains available; restart to recover.")
+        onStateChanged?()
+        return false
     }
 
     private func stopUnresponsiveSession(expectedGeneration: UInt64, nonce: String) async -> Bool {
