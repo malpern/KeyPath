@@ -78,12 +78,22 @@ final class WizardWelcomeTests: XCTestCase {
         XCTAssertEqual(next, .helper, "Get Started on a fresh install should route to the helper page")
     }
 
-    func testNextPageFromWelcomeSessionInstallGoesToRuntimeWithoutHelper() {
+    func testWelcomeSessionDoesNotUseLegacyHelperPrerequisite() {
+        let runtimeIssue = WizardIssue(
+            identifier: .daemon, severity: .error, category: .daemon,
+            title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
+            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+        )
         let next = WizardRouter.nextPage(
-            after: .welcome, state: .serviceNotRunning, issues: [],
+            after: .welcome, state: .serviceNotRunning, issues: [runtimeIssue],
             helperInstalled: false, helperNeedsApproval: true, backend: .session
         )
-        XCTAssertEqual(next, .service)
+        // Welcome is outside the ordered steps, so Get Started reaches the summary.
+        XCTAssertEqual(next, .summary)
+        XCTAssertEqual(WizardRouter.route(
+            state: .serviceNotRunning, issues: [runtimeIssue],
+            helperInstalled: false, helperNeedsApproval: true, backend: .session
+        ), .service)
     }
 
     func testNextPageFromWelcomeOnHealthySystemFallsBackToSummary() {
