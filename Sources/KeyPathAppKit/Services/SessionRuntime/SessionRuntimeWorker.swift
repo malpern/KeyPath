@@ -304,7 +304,7 @@ public final class SessionRuntimeWorker {
             effectiveInputAccess: capabilities.inputMonitoring.isReady,
             tapActive: tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
-            heldOutputUsages: outputs.heldUsages.sorted()
+            heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)

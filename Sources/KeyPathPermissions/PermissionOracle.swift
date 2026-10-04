@@ -19,13 +19,36 @@ public actor PermissionOracle {
         lastSnapshot = nil
     }
 
-    /// A non-prompting report from the executable that will own a session tap.
-    /// No cross-process TCC inference or database access is needed here.
+    /// Raw non-prompting AX and Input Monitoring facts for this process.
     public func currentProcessCapabilities() -> PermissionSet {
         PermissionSet(
             accessibility: Self.checkKeyPathAccessibilityStatus(),
             inputMonitoring: Self.checkKeyPathInputMonitoringStatus(),
             source: "current-process.apple-api", confidence: .high, timestamp: Date()
+        )
+    }
+
+    /// Passive authorization checks for the worker's modifying session tap and
+    /// synthesized output. ListenEvent is a separate Input Monitoring capability.
+    public func currentProcessSessionCapabilities() -> PermissionSet {
+        let posting: Status = switch IOHIDCheckAccess(kIOHIDRequestTypePostEvent) {
+        case kIOHIDAccessTypeGranted: .granted
+        case kIOHIDAccessTypeDenied: .denied
+        default: .unknown
+        }
+        return Self.sessionPermissionSet(
+            accessibility: Self.checkKeyPathAccessibilityStatus(), eventPosting: posting,
+            timestamp: Date()
+        )
+    }
+
+    nonisolated static func sessionPermissionSet(
+        accessibility: Status, eventPosting: Status, timestamp: Date
+    ) -> PermissionSet {
+        PermissionSet(
+            accessibility: accessibility, inputMonitoring: eventPosting,
+            source: "current-process.apple-api.modifying-tap-post-event",
+            confidence: .high, timestamp: timestamp
         )
     }
 

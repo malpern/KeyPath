@@ -325,7 +325,7 @@ extension ServiceLifecycleCoordinator {
         .init(
             accessibility: report.accessibility ? .granted : .denied,
             inputMonitoring: report.effectiveInputAccess ? .granted : .denied,
-            source: "session-process.apple-api", confidence: .high, timestamp: report.timestamp
+            source: report.inputAccessSource ?? "session-process.apple-api.legacy-listen-event", confidence: .high, timestamp: report.timestamp
         )
     }
 }

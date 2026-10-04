@@ -140,6 +140,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         super.init()
         // The adaptor creates its delegate before KeyPathApp bootstraps services.
         // Capture the real launch event even before SwiftUI installs the delegate.
+        AppLogger.shared.info("[LaunchTrace] delegate init instance=\(ObjectIdentifier(self))")
         observeApplicationLaunch()
     }
 
@@ -153,6 +154,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func configureForLaunch(_ result: CompositionRootResult) {
+        AppLogger.shared.info("[LaunchTrace] configure instance=\(ObjectIdentifier(self)) headless=\(result.isHeadlessMode)")
         kanataManager = result.kanataManager
         viewModel = result.viewModel
         serviceContainer = result.serviceContainer
@@ -163,6 +165,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func observedApplicationDidFinishLaunching(_: Notification) {
+        AppLogger.shared.info("[LaunchTrace] notification instance=\(ObjectIdentifier(self))")
         recordApplicationLaunch()
     }
 
@@ -234,6 +237,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        AppLogger.shared.info("[LaunchTrace] delegate callback instance=\(ObjectIdentifier(self))")
         recordApplicationLaunch()
     }
 

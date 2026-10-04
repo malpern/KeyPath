@@ -12,7 +12,10 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let uid: UInt32
     public let state: State
     public let accessibility: Bool
+    /// Effective session output authorization; inputAccessSource identifies the API.
+    /// Older reports used ListenEvent; new modifying-tap workers use PostEvent.
     public let effectiveInputAccess: Bool
+    public let inputAccessSource: String?
     public let tapActive: Bool
     public let tcpPort: UInt16
     public let inputCount: UInt64
@@ -25,7 +28,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         nonce: String, pid: Int32, uid: UInt32, state: State,
         accessibility: Bool, effectiveInputAccess: Bool, tapActive: Bool,
         tcpPort: UInt16, inputCount: UInt64, outputCount: UInt64,
-        timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = []
+        timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
+        inputAccessSource: String? = nil
     ) {
         self.nonce = nonce
         self.pid = pid
@@ -33,6 +37,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.state = state
         self.accessibility = accessibility
         self.effectiveInputAccess = effectiveInputAccess
+        self.inputAccessSource = inputAccessSource
         self.tapActive = tapActive
         self.tcpPort = tcpPort
         self.inputCount = inputCount

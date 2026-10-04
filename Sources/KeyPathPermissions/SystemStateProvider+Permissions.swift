@@ -3,7 +3,7 @@ import KeyPathCore
 public extension SystemStateProvider {
     /// Passive capabilities of the independently launched remapper executable.
     func currentProcessPermissionCapabilities() async -> PermissionOracle.PermissionSet {
-        await PermissionOracle.shared.currentProcessCapabilities()
+        await PermissionOracle.shared.currentProcessSessionCapabilities()
     }
 
     /// Bind session evidence through the canonical permission snapshot owner.
