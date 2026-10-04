@@ -51,6 +51,30 @@ final class AppKeymapSaveTests: KeyPathTestCase {
         }
     }
 
+    func testUnsupportedAppSpecificOutputIsRejectedWithoutChangingFilesOrReloading() async throws {
+        try await withFixture { fixture in
+            var reloads = 0
+            var refreshed = false
+            let result = await fixture.coordinator.saveAppKeymaps(
+                store: fixture.store,
+                mutate: { keymaps in
+                    keymaps[0].overrides.append(AppKeyOverride(inputKey: "c", action: .rawKanata("(unicode ä)")))
+                }, runtimeDidApply: { refreshed = true }
+            ) {
+                reloads += 1
+                return Self.reload(.applied)
+            }
+            XCTAssertFalse(result.success)
+            XCTAssertTrue(result.error?.localizedDescription.contains("driverless session") == true)
+            XCTAssertEqual(reloads, 0)
+            XCTAssertFalse(refreshed)
+            try self.assertOriginalFiles(fixture)
+            let keymaps = try await fixture.store.loadForMutation()
+            XCTAssertEqual(keymaps.first?.overrides.count, 1)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(fixture.directory, scope: .appKeymaps).path))
+        }
+    }
+
     func testDuplicateKeyRejectionLeavesEveryFileUntouchedAndDoesNotReload() async throws {
         try await withFixture { fixture in
             let result = await fixture.coordinator.saveAppKeymaps(store: fixture.store, mutate: { keymaps in
@@ -70,7 +94,7 @@ final class AppKeymapSaveTests: KeyPathTestCase {
                 _ = try await fixture.service.stageAppKeymapChange(store: fixture.store, mutationPermit: permit, mutate: Self.addOverride)
             }
             XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(fixture.directory, scope: .appKeymaps).path))
-            let fresh = ConfigurationService(configDirectory: fixture.directory.path)
+            let fresh = ConfigurationService.sessionTestService(configDirectory: fixture.directory.path)
             try await fresh.recoverPendingAppKeymapWrite(store: fixture.store)
             try self.assertOriginalFiles(fixture)
         }
@@ -396,6 +420,7 @@ final class AppKeymapSaveTests: KeyPathTestCase {
     }
 
     private func withFixture(collections initialCollections: [RuleCollection] = [], customRules initialRules: [CustomRule] = [], _ body: (Fixture) async throws -> Void) async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("app-keymap-save-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer {
@@ -408,7 +433,7 @@ final class AppKeymapSaveTests: KeyPathTestCase {
         try await collections.saveCollections(initialCollections)
         try await rules.saveRules(initialRules)
         try await store.saveKeymaps([AppKeymap(bundleIdentifier: "test.app", displayName: "Test App", overrides: [AppKeyOverride(inputKey: "a", action: .keystroke(key: "b"))])])
-        let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         let generated = try await service.generateConfiguration(ruleCollections: collections.loadCollections(), customRules: initialRules, appSpecificKeys: ["a"])
         try generated.content.write(to: directory.appendingPathComponent("keypath.kbd"), atomically: true, encoding: .utf8)
         let include = try await AppConfigGenerator.generate(from: store.loadForMutation())
