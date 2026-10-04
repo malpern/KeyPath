@@ -1,0 +1,590 @@
+{
+  "Carbon Secure Input state differs": {
+    "reason": "Carbon Secure Input state differs",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:108"
+  },
+  "Control down occurred in Secure Input": {
+    "reason": "Control down occurred in Secure Input",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:134"
+  },
+  "Control resurrected while original q remained held": {
+    "reason": "Control resurrected while original q remained held",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:156"
+  },
+  "Guest source shape changed": {
+    "reason": "Guest source shape changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:171"
+  },
+  "accepted secure sample cleanup did not reconcile all-up": {
+    "reason": "accepted secure sample cleanup did not reconcile all-up",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:681"
+  },
+  "accepted stopped worker evidence changed": {
+    "reason": "accepted stopped worker evidence changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:188"
+  },
+  "actual target focus lost or wrong responder": {
+    "reason": "actual target focus lost or wrong responder",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:20"
+  },
+  "ambiguous command sequence": {
+    "reason": "ambiguous command sequence",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:75"
+  },
+  "ambiguous parent launch": {
+    "reason": "ambiguous parent launch",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:335"
+  },
+  "ambiguous worker report arguments": {
+    "reason": "ambiguous worker report arguments",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:208"
+  },
+  "batched account/home/console/boot identity changed": {
+    "reason": "batched account/home/console/boot identity changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:181"
+  },
+  "binding arguments require binding mode": {
+    "reason": "binding arguments require binding mode",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:499"
+  },
+  "binding mode cannot release guest setup": {
+    "reason": "binding mode cannot release guest setup",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:492"
+  },
+  "candidate scope namespace required": {
+    "reason": "candidate scope namespace required",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:122"
+  },
+  "combined Control resurrected": {
+    "reason": "combined Control resurrected",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:160"
+  },
+  "combined-session Control clear did not corroborate delivery": {
+    "reason": "combined-session Control clear did not corroborate delivery",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:150"
+  },
+  "complete bounded log/report observation unavailable": {
+    "reason": "complete bounded log/report observation unavailable",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:82"
+  },
+  "complete owned parent log read unavailable": {
+    "reason": "complete owned parent log read unavailable",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:106"
+  },
+  "current running worker report required": {
+    "reason": "current running worker report required",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:126"
+  },
+  "delivered Control down and owned ledger 224 required": {
+    "reason": "delivered Control down and owned ledger 224 required",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:131"
+  },
+  "delivered Control resurrected": {
+    "reason": "delivered Control resurrected",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:158"
+  },
+  "dependency module unavailable": {
+    "reason": "dependency module unavailable",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:32"
+  },
+  "duplicate process receipt": {
+    "reason": "duplicate process receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:195"
+  },
+  "existing KeyPath process; campaign refuses adoption": {
+    "reason": "existing KeyPath process; campaign refuses adoption",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:286"
+  },
+  "fixed nonsecret secure sample did not pass through cleanly": {
+    "reason": "fixed nonsecret secure sample did not pass through cleanly",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:671"
+  },
+  "fixture completion deadline": {
+    "reason": "fixture completion deadline",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:515"
+  },
+  "fixture ownership changed": {
+    "reason": "fixture ownership changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:507"
+  },
+  "fixture status overran completion deadline": {
+    "reason": "fixture status overran completion deadline",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:506"
+  },
+  "fixture stopped before all-up": {
+    "reason": "fixture stopped before all-up",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:510"
+  },
+  "fixture trace overran completion deadline": {
+    "reason": "fixture trace overran completion deadline",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:517"
+  },
+  "foreign fixture campaign": {
+    "reason": "foreign fixture campaign",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:487"
+  },
+  "foreign process": {
+    "reason": "foreign process",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:202"
+  },
+  "foreign worker": {
+    "reason": "foreign worker",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:206"
+  },
+  "fresh Control hold not balanced": {
+    "reason": "fresh Control hold not balanced",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:641"
+  },
+  "fresh Control+a chord missing": {
+    "reason": "fresh Control+a chord missing",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:643"
+  },
+  "fresh empty normal target required": {
+    "reason": "fresh empty normal target required",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:524"
+  },
+  "fresh q tap not delivered": {
+    "reason": "fresh q tap not delivered",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:637"
+  },
+  "fresh sample keyboard delivery not balanced": {
+    "reason": "fresh sample keyboard delivery not balanced",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:634"
+  },
+  "fresh sample output not released": {
+    "reason": "fresh sample output not released",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:631"
+  },
+  "frozen identity receipt changed": {
+    "reason": "frozen identity receipt changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:84"
+  },
+  "frozen parent/worker binary mismatch": {
+    "reason": "frozen parent/worker binary mismatch",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:290"
+  },
+  "frozen source changed": {
+    "reason": "frozen source changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:138"
+  },
+  "frozen timing scope changed": {
+    "reason": "frozen timing scope changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:86"
+  },
+  "held worker disappeared": {
+    "reason": "held worker disappeared",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:550"
+  },
+  "identity lease changed": {
+    "reason": "identity lease changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:81"
+  },
+  "identity receipt belongs to another lease": {
+    "reason": "identity receipt belongs to another lease",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:732"
+  },
+  "identity receipt parent must be owned private directory": {
+    "reason": "identity receipt parent must be owned private directory",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:99"
+  },
+  "identity tuple changed": {
+    "reason": "identity tuple changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:108"
+  },
+  "incomplete batch receipt": {
+    "reason": "incomplete batch receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:178"
+  },
+  "incomplete or ambiguous batch receipt": {
+    "reason": "incomplete or ambiguous batch receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:166"
+  },
+  "incomplete or foreign physical run": {
+    "reason": "incomplete or foreign physical run",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:166"
+  },
+  "incomplete or malformed exit observation": {
+    "reason": "incomplete or malformed exit observation",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:234"
+  },
+  "incomplete worker batch receipt": {
+    "reason": "incomplete worker batch receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:219"
+  },
+  "initial worker ledger not empty": {
+    "reason": "initial worker ledger not empty",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:540"
+  },
+  "invalid campaign clock": {
+    "reason": "invalid campaign clock",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:112"
+  },
+  "invalid frozen binary hashes": {
+    "reason": "invalid frozen binary hashes",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:735"
+  },
+  "invalid guest timezone observation": {
+    "reason": "invalid guest timezone observation",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:117"
+  },
+  "invalid journal timestamp": {
+    "reason": "invalid journal timestamp",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:93"
+  },
+  "invalid owned PID": {
+    "reason": "invalid owned PID",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:271"
+  },
+  "invalid owned lease": {
+    "reason": "invalid owned lease",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:734"
+  },
+  "invalid target identity": {
+    "reason": "invalid target identity",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:38"
+  },
+  "invalid timing scope schema": {
+    "reason": "invalid timing scope schema",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:55"
+  },
+  "journal drop accounting regressed": {
+    "reason": "journal drop accounting regressed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:87"
+  },
+  "journal timestamps regressed": {
+    "reason": "journal timestamps regressed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:95"
+  },
+  "lease dispatch cutoff reached": {
+    "reason": "lease dispatch cutoff reached",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:364"
+  },
+  "lease response crossed cutoff; no replay": {
+    "reason": "lease response crossed cutoff; no replay",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:367"
+  },
+  "malformed batch receipt": {
+    "reason": "malformed batch receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:171"
+  },
+  "malformed bounded parent log observation": {
+    "reason": "malformed bounded parent log observation",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:109"
+  },
+  "malformed current worker report": {
+    "reason": "malformed current worker report",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:96"
+  },
+  "malformed process observation": {
+    "reason": "malformed process observation",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:190"
+  },
+  "matching current parent startup completion not observed": {
+    "reason": "matching current parent startup completion not observed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:142"
+  },
+  "missing journal accounting": {
+    "reason": "missing journal accounting",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:81"
+  },
+  "missing target monotonic receipt": {
+    "reason": "missing target monotonic receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:68"
+  },
+  "mode command not applied exactly once": {
+    "reason": "mode command not applied exactly once",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:104"
+  },
+  "mode transition receipt unavailable": {
+    "reason": "mode transition receipt unavailable",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:110"
+  },
+  "new worker disappeared": {
+    "reason": "new worker disappeared",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:607"
+  },
+  "no independent delivered Control up before physical release": {
+    "reason": "no independent delivered Control up before physical release",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:145"
+  },
+  "normal target focus lost": {
+    "reason": "normal target focus lost",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:339"
+  },
+  "observation budget exceeded": {
+    "reason": "observation budget exceeded",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:415"
+  },
+  "old worker PID reused": {
+    "reason": "old worker PID reused",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:252"
+  },
+  "old worker did not stop and clear its ledger": {
+    "reason": "old worker did not stop and clear its ledger",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:139"
+  },
+  "oversized worker report": {
+    "reason": "oversized worker report",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:85"
+  },
+  "owned executable hash changed": {
+    "reason": "owned executable hash changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:187"
+  },
+  "owned parent identity changed": {
+    "reason": "owned parent identity changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:370"
+  },
+  "owned process arguments changed": {
+    "reason": "owned process arguments changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:276"
+  },
+  "owned process executable or UID changed": {
+    "reason": "owned process executable or UID changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:273"
+  },
+  "owned target executable binding required": {
+    "reason": "owned target executable binding required",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:67"
+  },
+  "owned worker process identity changed": {
+    "reason": "owned worker process identity changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:216"
+  },
+  "parent launch deadline": {
+    "reason": "parent launch deadline",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:340"
+  },
+  "parent launch evidence unavailable": {
+    "reason": "parent launch evidence unavailable",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:306"
+  },
+  "phase already active": {
+    "reason": "phase already active",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:47"
+  },
+  "phase is not active": {
+    "reason": "phase is not active",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:52"
+  },
+  "phase retirement lacks accepted evidence": {
+    "reason": "phase retirement lacks accepted evidence",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:59"
+  },
+  "physical all-up did not reconcile target": {
+    "reason": "physical all-up did not reconcile target",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:611"
+  },
+  "physical q hold not proven before key-up": {
+    "reason": "physical q hold not proven before key-up",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:116"
+  },
+  "physical run lacks terminal all-up": {
+    "reason": "physical run lacks terminal all-up",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:170"
+  },
+  "physical trace differs from exact submitted reports": {
+    "reason": "physical trace differs from exact submitted reports",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:168"
+  },
+  "private attempt namespace required": {
+    "reason": "private attempt namespace required",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:506"
+  },
+  "private identity receipt namespace required": {
+    "reason": "private identity receipt namespace required",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:97"
+  },
+  "release/cutoff missing": {
+    "reason": "release/cutoff missing",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:504"
+  },
+  "report ownership mismatch": {
+    "reason": "report ownership mismatch",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:222"
+  },
+  "required phase journal anchor evicted or changed": {
+    "reason": "required phase journal anchor evicted or changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:90"
+  },
+  "reviewed parent readiness source changed": {
+    "reason": "reviewed parent readiness source changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:42"
+  },
+  "reviewed target binary mismatch": {
+    "reason": "reviewed target binary mismatch",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:294"
+  },
+  "reviewed target deployment changed": {
+    "reason": "reviewed target deployment changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:388"
+  },
+  "reviewed timing runner changed": {
+    "reason": "reviewed timing runner changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:488"
+  },
+  "secure field clear did not reconcile all-up": {
+    "reason": "secure field clear did not reconcile all-up",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:659"
+  },
+  "source pin manifest changed": {
+    "reason": "source pin manifest changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:136"
+  },
+  "source-only harness requires review and guest-release gate": {
+    "reason": "source-only harness requires review and guest-release gate",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:733"
+  },
+  "stale parent log observation": {
+    "reason": "stale parent log observation",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:114"
+  },
+  "stale target": {
+    "reason": "stale target",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:334"
+  },
+  "stale target receipt": {
+    "reason": "stale target receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:66"
+  },
+  "stale worker": {
+    "reason": "stale worker",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:350"
+  },
+  "stale worker receipt": {
+    "reason": "stale worker receipt",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:122"
+  },
+  "target UID mismatch": {
+    "reason": "target UID mismatch",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:293"
+  },
+  "target absent from exit observation": {
+    "reason": "target absent from exit observation",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:238"
+  },
+  "target cleanup retained output": {
+    "reason": "target cleanup retained output",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:688"
+  },
+  "target cumulative counter regressed": {
+    "reason": "target cumulative counter regressed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:73"
+  },
+  "target identity unavailable": {
+    "reason": "target identity unavailable",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:335"
+  },
+  "target instance changed": {
+    "reason": "target instance changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:338"
+  },
+  "target not empty/all-up": {
+    "reason": "target not empty/all-up",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:343"
+  },
+  "target process or hash changed": {
+    "reason": "target process or hash changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:228"
+  },
+  "target publication did not advance": {
+    "reason": "target publication did not advance",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:70"
+  },
+  "target receipt ownership changed": {
+    "reason": "target receipt ownership changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:241"
+  },
+  "target rejected mode command": {
+    "reason": "target rejected mode command",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:479"
+  },
+  "terminal report predates command or retains output": {
+    "reason": "terminal report predates command or retains output",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:194"
+  },
+  "timing scope binding incomplete": {
+    "reason": "timing scope binding incomplete",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:61"
+  },
+  "timing scope identity/product/deadline changed": {
+    "reason": "timing scope identity/product/deadline changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:57"
+  },
+  "transport source shape changed": {
+    "reason": "transport source shape changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:155"
+  },
+  "unexpected or ambiguous batch records": {
+    "reason": "unexpected or ambiguous batch records",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:226"
+  },
+  "unexpected target command consumed": {
+    "reason": "unexpected target command consumed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:475"
+  },
+  "unexpected target command path": {
+    "reason": "unexpected target command path",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:346"
+  },
+  "unexpected worker state": {
+    "reason": "unexpected worker state",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:124"
+  },
+  "unordered journal receipts": {
+    "reason": "unordered journal receipts",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:83"
+  },
+  "unreviewed rig root": {
+    "reason": "unreviewed rig root",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:740"
+  },
+  "unsafe worker report path": {
+    "reason": "unsafe worker report path",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:212"
+  },
+  "unsupported spaced KeyPath discovery path": {
+    "reason": "unsupported spaced KeyPath discovery path",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:57"
+  },
+  "verified identity tuple changed": {
+    "reason": "verified identity tuple changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:420"
+  },
+  "worker disappeared": {
+    "reason": "worker disappeared",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:424"
+  },
+  "worker generation changed": {
+    "reason": "worker generation changed",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:349"
+  },
+  "worker generation was reused": {
+    "reason": "worker generation was reused",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:580"
+  },
+  "worker identity changed": {
+    "reason": "worker identity changed",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py:121"
+  },
+  "worker identity mismatch": {
+    "reason": "worker identity mismatch",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:122"
+  },
+  "worker not idle/running": {
+    "reason": "worker not idle/running",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:355"
+  },
+  "worker report must be an object": {
+    "reason": "worker report must be an object",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/parent_readiness.py:98"
+  },
+  "worker startup deadline": {
+    "reason": "worker startup deadline",
+    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:378"
+  },
+  "wrong owned console": {
+    "reason": "wrong owned console",
+    "source": "/private/tmp/keypath-d8-discovery-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py:287"
+  }
+}

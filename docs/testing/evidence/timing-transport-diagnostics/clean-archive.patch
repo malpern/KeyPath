@@ -1,0 +1,321 @@
+--- /private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py
+@@ -21,7 +21,7 @@
+ HARNESS = pathlib.Path('/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py')
+ IDENTITY = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
+ RIG = pathlib.Path('/private/tmp/vm-lab-guest-identity')
+-SOURCE_PINS_SHA = '3bc108433dd1c7bce2b5c8c26dc751b9fbf2f0e3c0a1d0f837c5d511e97f40b3'
++SOURCE_PINS_SHA = '53cee011914802a56d66eeb5afa6f6c651ab236702ce166bea102b469dfb2332'
+ BASE_SCOPE=dict(version=1,account='keypathqa_438d6abc',uid=502,home='/Users/keypathqa_438d6abc',productSource='6ed4ea99052c19bc94e99517cfe9827377b17af7',binarySHA256='d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682',targetSHA256='55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858',targetArchiveSHA256='26e5b024f561ebd6ccee43f2d4b07056d9da8d09c5be5aab9a61553380a52fb8',targetExecutable='/Users/keypathqa_438d6abc/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget')
+ EXECUTOR=ROOT/'executor.py'
+ BINDING_FIELDS=('identityReceipt','identityReceiptSHA256','lease','providerUUID','bootEpoch','deadline','baselineInventory','baselineInventorySHA256')
+@@ -379,7 +379,7 @@
+         sleep(min(.2, remaining))
+ 
+ def measure(guest, identity, pilot, scope, scope_sha, monotonic=time.monotonic, wall=time.time, sleep=time.sleep, claim=None):
+-    receipt = dict(passed=False, productArchiveSHA256='7bfd007cbe3631c16aee1a55bbf65b45d7269758da033b7636fb224373dd3ded', lease=scope.lease, baselineInventorySHA256=scope.baseline_sha,hardCutoffEpoch=scope.deadline,scopeSHA256=scope_sha, identityReceiptSHA256=scope.receipt_sha256,
++    receipt = dict(passed=False, productArchiveSHA256='dc0dfd52ad83c8c75af5f49e3653a8ba2dc269f17ac00e1b376e7b47156bf9fa', lease=scope.lease, baselineInventorySHA256=scope.baseline_sha,hardCutoffEpoch=scope.deadline,scopeSHA256=scope_sha, identityReceiptSHA256=scope.receipt_sha256,
+                    productSource=scope.product_source, binarySHA256=scope.binary_sha256, targetSHA256=scope.target_sha256,
+                    samples=[], stage='setup', hardwareCalls=False)
+     try:
+--- /private/tmp/keypath-timeout-fresh-capture-6ed4/source-pins.json
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/source-pins.json
+@@ -11,11 +11,10 @@
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py": "d2907c9e0d9b62c0a555273e14cd3aef12491aa53507f4633dcd06fea75dabf2",
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py": "14fbed279df894085a39350e26d9de05528bdacbdf4a36306ecaed6b849d2de5",
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/parent_readiness.py": "69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4/executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4/parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4/prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
+-  "/private/tmp/keypath-timeout-fresh-capture-6ed4/fresh_capture.py": "2b7c284ee8eb615a3f58f5ece1b1c50d81bcb231d078f86c42640ff2bb0cd06d",
+-  "/private/tmp/keypath-post-event-6ed4-artifact/artifact-manifest.json": "aa72dec3f55bd7b0464b876d630ebc40da527d4c7998f86e1554836a72d9ebfe",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/fresh_capture.py": "2b7c284ee8eb615a3f58f5ece1b1c50d81bcb231d078f86c42640ff2bb0cd06d",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathApp/Main.swift": "9d5d020ce04d7f138ae4e5cd76911b4b27e9438b9dae113d960bca0b4ba70904",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/App.swift": "9c654a4b6dcf64ca21251f702622db761ff5a0db709f506186d51c5dc8ab2492",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator+SessionRuntime.swift": "186394b2fdb5077d2b71c9d41f22c5c193d4e66a2314dda899906c89f0156303",
+@@ -24,5 +23,6 @@
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathCore/SystemStateProvider.swift": "e99f8dfc63f34441a8c01ca2d348c062548ba251b8f3d54f4a42b56026933073",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathPermissions/PermissionOracle.swift": "9a24f7581a3c1b36dc6bbdf9e471e22c148aacba1fee1f993c3ef1e1fb9aa37d",
+   "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathPermissions/SystemStateProvider+Permissions.swift": "767be0b9e31cae754ebf6eb8f0115f9a75628bd3441326bd1143de709426f0a3",
+-  "/private/tmp/vm-lab-target-typed-booleans/rig/capture-target.m": "ec98a707195c3a732ada926f0f1ec8c12b2d497f1497dbb4ea6744334582b8bc"
++  "/private/tmp/vm-lab-target-typed-booleans/rig/capture-target.m": "ec98a707195c3a732ada926f0f1ec8c12b2d497f1497dbb4ea6744334582b8bc",
++  "/private/tmp/keypath-post-event-6ed4-artifact/artifact-clean-manifest.json": "02153dc14f961145ddd9bee03f9feb7b6fe99d4d368ca086d4b01b61dfa81fee"
+ }
+--- /private/tmp/keypath-timeout-fresh-capture-6ed4/README.md
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/README.md
+@@ -8,18 +8,20 @@
+ 
+ **Physical executor is pending.** The copied executor is retained as a pinned Guest-class dependency; its CLI still pins old82/4111 and is not a new-artifact physical release. Initial and recovery physical trials need independently reviewed parent-first fresh capture after retaining all old release/fail-open evidence. Do not run the old foreground physical executor against this new artifact. This packet does not arm the timeout hook or send input. Passing timing proves sampled host observations and a Python filesystem proxy; it does not prove Swift callback latency, future worst case, or actual OS timeout recovery.
+ 
+-New artifact: source6ed4ea99052c19bc94e99517cfe9827377b17af7, main d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682, archive7bfd007cbe3631c16aee1a55bbf65b45d7269758da033b7636fb224373dd3ded. Signed typed target55 and baseline728438 remain fixed. Fresh fdce identity9ca3/providerb122/boot1791140719/public502 and earlier cutoff1791142532 are bound locally; no prior4ce scope is copied. Provider admission remains required at runtime and the later manifest expiry is not authority.
++New artifact: source6ed4ea99052c19bc94e99517cfe9827377b17af7, main d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682, archivedc0dfd52ad83c8c75af5f49e3653a8ba2dc269f17ac00e1b376e7b47156bf9fa. Signed typed target55 and baseline728438 remain fixed. Fresh fdce identity9ca3/providerb122/boot1791140719/public502 and earlier cutoff1791142532 are bound locally; no prior4ce scope is copied. Provider admission remains required at runtime and the later manifest expiry is not authority.
+ 
+ 59 inert tests pass on /usr/bin/python3 (3.9) and default Python, including actual generated-child filesystem/process stubs and launch ordering/no-replay tests. Logs: inert-tests.txt and inert-tests-default.txt. No listener/network/VM calls were made in tests.
+ 
+ Only after independent root review, root's single released attempt would be:
+ 
+ ```sh
+-PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -B /private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py \
+-  --runner-sha256 68a1d2410d5071a4164baacd886ae112e3867d3d618329cb7a0e3de5a43fbcb0 \
++PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -B /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py \
++  --runner-sha256 e9b2418abf50ff6801da24f6f67b9065d3b6e4250ef96ad527b86331a49d3d5b \
+   --root-reviewed-timing-setup \
+-  --scope /private/tmp/keypath-timeout-fresh-capture-6ed4/scope-fdce.json --scope-sha256 f9de7d9d34e1a2119186501d0ac355855c6f9928c6b3e9a9b8dbc2c8d197faeb \
++  --scope /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/scope-fdce.json --scope-sha256 f9de7d9d34e1a2119186501d0ac355855c6f9928c6b3e9a9b8dbc2c8d197faeb \
+   --attempt-dir /private/tmp/keypath-post-event-fdce-timing-NEW-UNUSED
+ ```
+ 
+ The attempt directory must be private, new, and unused; refusal never authorizes mutation replay. A different future lease needs a separately pinned fresh identity/baseline/cutoff binding through the existing local --bind-scope mode, not a copied fdce scope.
++
++Cleanarchive variant: removes only AppleDouble packaging metadata; exact signed main/source unchanged. Original7bfd packet and v1 timing packet remain preserved. Clean artifact manifest02153dc14f961145ddd9bee03f9feb7b6fe99d4d368ca086d4b01b61dfa81fee is now dependency-pinned.
+--- /private/tmp/keypath-timeout-fresh-capture-6ed4/refusal-reasons.json
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/refusal-reasons.json
+@@ -13,7 +13,7 @@
+   },
+   "Guest source shape changed": {
+     "reason": "Guest source shape changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:171"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:171"
+   },
+   "accepted secure sample cleanup did not reconcile all-up": {
+     "reason": "accepted secure sample cleanup did not reconcile all-up",
+@@ -45,15 +45,15 @@
+   },
+   "binding arguments require binding mode": {
+     "reason": "binding arguments require binding mode",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:499"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:499"
+   },
+   "binding mode cannot release guest setup": {
+     "reason": "binding mode cannot release guest setup",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:492"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:492"
+   },
+   "candidate scope namespace required": {
+     "reason": "candidate scope namespace required",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:122"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:122"
+   },
+   "combined Control resurrected": {
+     "reason": "combined Control resurrected",
+@@ -165,11 +165,11 @@
+   },
+   "frozen source changed": {
+     "reason": "frozen source changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:138"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:138"
+   },
+   "frozen timing scope changed": {
+     "reason": "frozen timing scope changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:86"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:86"
+   },
+   "held worker disappeared": {
+     "reason": "held worker disappeared",
+@@ -185,11 +185,11 @@
+   },
+   "identity receipt parent must be owned private directory": {
+     "reason": "identity receipt parent must be owned private directory",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:99"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:99"
+   },
+   "identity tuple changed": {
+     "reason": "identity tuple changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:108"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:108"
+   },
+   "incomplete batch receipt": {
+     "reason": "incomplete batch receipt",
+@@ -245,7 +245,7 @@
+   },
+   "invalid timing scope schema": {
+     "reason": "invalid timing scope schema",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:55"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:55"
+   },
+   "journal drop accounting regressed": {
+     "reason": "journal drop accounting regressed",
+@@ -257,11 +257,11 @@
+   },
+   "lease dispatch cutoff reached": {
+     "reason": "lease dispatch cutoff reached",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:364"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:364"
+   },
+   "lease response crossed cutoff; no replay": {
+     "reason": "lease response crossed cutoff; no replay",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:367"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:367"
+   },
+   "malformed batch receipt": {
+     "reason": "malformed batch receipt",
+@@ -309,11 +309,11 @@
+   },
+   "normal target focus lost": {
+     "reason": "normal target focus lost",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:339"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:339"
+   },
+   "observation budget exceeded": {
+     "reason": "observation budget exceeded",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:415"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:415"
+   },
+   "old worker PID reused": {
+     "reason": "old worker PID reused",
+@@ -333,7 +333,7 @@
+   },
+   "owned parent identity changed": {
+     "reason": "owned parent identity changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:370"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:370"
+   },
+   "owned process arguments changed": {
+     "reason": "owned process arguments changed",
+@@ -345,7 +345,7 @@
+   },
+   "owned target executable binding required": {
+     "reason": "owned target executable binding required",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:67"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:67"
+   },
+   "owned worker process identity changed": {
+     "reason": "owned worker process identity changed",
+@@ -389,15 +389,15 @@
+   },
+   "private attempt namespace required": {
+     "reason": "private attempt namespace required",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:506"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:506"
+   },
+   "private identity receipt namespace required": {
+     "reason": "private identity receipt namespace required",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:97"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:97"
+   },
+   "release/cutoff missing": {
+     "reason": "release/cutoff missing",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:504"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:504"
+   },
+   "report ownership mismatch": {
+     "reason": "report ownership mismatch",
+@@ -417,11 +417,11 @@
+   },
+   "reviewed target deployment changed": {
+     "reason": "reviewed target deployment changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:388"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:388"
+   },
+   "reviewed timing runner changed": {
+     "reason": "reviewed timing runner changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:488"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:488"
+   },
+   "secure field clear did not reconcile all-up": {
+     "reason": "secure field clear did not reconcile all-up",
+@@ -429,7 +429,7 @@
+   },
+   "source pin manifest changed": {
+     "reason": "source pin manifest changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:136"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:136"
+   },
+   "source-only harness requires review and guest-release gate": {
+     "reason": "source-only harness requires review and guest-release gate",
+@@ -441,7 +441,7 @@
+   },
+   "stale target": {
+     "reason": "stale target",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:334"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:334"
+   },
+   "stale target receipt": {
+     "reason": "stale target receipt",
+@@ -449,7 +449,7 @@
+   },
+   "stale worker": {
+     "reason": "stale worker",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:350"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:350"
+   },
+   "stale worker receipt": {
+     "reason": "stale worker receipt",
+@@ -473,15 +473,15 @@
+   },
+   "target identity unavailable": {
+     "reason": "target identity unavailable",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:335"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:335"
+   },
+   "target instance changed": {
+     "reason": "target instance changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:338"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:338"
+   },
+   "target not empty/all-up": {
+     "reason": "target not empty/all-up",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:343"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:343"
+   },
+   "target process or hash changed": {
+     "reason": "target process or hash changed",
+@@ -505,15 +505,15 @@
+   },
+   "timing scope binding incomplete": {
+     "reason": "timing scope binding incomplete",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:61"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:61"
+   },
+   "timing scope identity/product/deadline changed": {
+     "reason": "timing scope identity/product/deadline changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:57"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:57"
+   },
+   "transport source shape changed": {
+     "reason": "transport source shape changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:155"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:155"
+   },
+   "unexpected or ambiguous batch records": {
+     "reason": "unexpected or ambiguous batch records",
+@@ -549,15 +549,15 @@
+   },
+   "verified identity tuple changed": {
+     "reason": "verified identity tuple changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:420"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:420"
+   },
+   "worker disappeared": {
+     "reason": "worker disappeared",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:424"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:424"
+   },
+   "worker generation changed": {
+     "reason": "worker generation changed",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:349"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:349"
+   },
+   "worker generation was reused": {
+     "reason": "worker generation was reused",
+@@ -573,7 +573,7 @@
+   },
+   "worker not idle/running": {
+     "reason": "worker not idle/running",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:355"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:355"
+   },
+   "worker report must be an object": {
+     "reason": "worker report must be an object",
+@@ -581,7 +581,7 @@
+   },
+   "worker startup deadline": {
+     "reason": "worker startup deadline",
+-    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4/measurement.py:378"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:378"
+   },
+   "wrong owned console": {
+     "reason": "wrong owned console",

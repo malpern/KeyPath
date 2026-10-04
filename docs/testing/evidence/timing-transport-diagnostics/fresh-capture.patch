@@ -1,0 +1,732 @@
+--- /private/tmp/keypath-timeout-foreground-route/measurement.py
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py
+@@ -21,11 +21,12 @@
+ HARNESS = pathlib.Path('/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py')
+ IDENTITY = pathlib.Path('/private/tmp/keypath-guest-identity/Scripts/experiments/session-runtime/guest-identity.py')
+ RIG = pathlib.Path('/private/tmp/vm-lab-guest-identity')
+-SOURCE_PINS_SHA = 'a537bced9879210d9988f3cb92fb1595c672aae74617e060bf35d4037b182708'
+-BASE_SCOPE=dict(version=1,account='keypathqa_438d6abc',uid=502,home='/Users/keypathqa_438d6abc',productSource='4111b0de3e149bbe458ce527d959a78d1e2a1b42',binarySHA256='82a8d104093b8080daa97d02f26e004dd257b784f57247ca224797885bc7a6d2',targetSHA256='55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858',targetArchiveSHA256='26e5b024f561ebd6ccee43f2d4b07056d9da8d09c5be5aab9a61553380a52fb8',targetExecutable='/Users/keypathqa_438d6abc/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget')
++SOURCE_PINS_SHA = '53cee011914802a56d66eeb5afa6f6c651ab236702ce166bea102b469dfb2332'
++BASE_SCOPE=dict(version=1,account='keypathqa_438d6abc',uid=502,home='/Users/keypathqa_438d6abc',productSource='6ed4ea99052c19bc94e99517cfe9827377b17af7',binarySHA256='d3420624a492016df316fa6285e932470bbc49d25ff538639a2d19c31e196682',targetSHA256='55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858',targetArchiveSHA256='26e5b024f561ebd6ccee43f2d4b07056d9da8d09c5be5aab9a61553380a52fb8',targetExecutable='/Users/keypathqa_438d6abc/Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget')
+ EXECUTOR=ROOT/'executor.py'
+ BINDING_FIELDS=('identityReceipt','identityReceiptSHA256','lease','providerUUID','bootEpoch','deadline','baselineInventory','baselineInventorySHA256')
+ import prepared_identity as prepared
++import fresh_capture
+ 
+ @dataclass(frozen=True)
+ class Scope:
+@@ -184,11 +185,24 @@
+     adapter=type('Adapter',(),dict(Guest=ns['Guest'],Campaign=object,Refusal=predicates.Refusal,GUEST_PYTHON=ns['GUEST_PYTHON']))
+     Guest,_=executor.classes(adapter)
+     Guest=diagnostic_guest(Guest,predicates.Refusal,ns['CONFIG'])
+-    return Guest(scope.lease, pilot, scope.binary_sha256, scope.target_sha256, identity), identity, pilot
++    guest=Guest(scope.lease, pilot, scope.binary_sha256, scope.target_sha256, identity)
++    guest.capture_scope=scope
++    return guest, identity, pilot
+ 
+ START_STAGES=('parent.initial-identity','parent.backup-dispatch','parent.profile-identity','parent.profile-launch-dispatch','parent.discovery','parent.identity')
+ def diagnostic_guest(Base,Refusal,CONFIG):
+     class Guest(Base):
++        READ_STAGES=Base.READ_STAGES+('capture.preflight','capture.observe')
++        def startup_preflight(self):
++            require(not self.processes(), 'existing KeyPath process; campaign refuses adoption')
++            require(self.read('stat -f %Su /dev/console', 'preflight.console').strip()==self.account,'wrong owned console')
++            self.check_account()
++            self.read('codesign --verify --deep --strict -R='+shlex.quote('anchor apple generic and certificate leaf[subject.OU] = "X2RKZ5TG99"')+' '+shlex.quote(self.app),'preflight.signature')
++            require(self.read('shasum -a 256 '+shlex.quote(self.exe),'preflight.hash').split()[0]==self.binary_sha,'frozen parent/worker binary mismatch')
++            self.read('/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13 -I -B -c '+shlex.quote('import json,os,pathlib,stat,sys; assert sys.version_info[:3] == (3,13,16)'),'preflight.python')
++            return fresh_capture.preflight(self,self.capture_scope)
++        def fresh_capture(self, claim):
++            return fresh_capture.capture(self,self.capture_scope,claim,target_check)
+         def start(self):
+             self.start_stage='parent.initial-identity';self.check_account()
+             self.start_stage='parent.backup-dispatch'
+@@ -335,6 +349,9 @@
+     require(tuple(report.get(k) for k in ('pid', 'uid', 'nonce')) == binding, 'worker generation changed')
+     require(number(report.get('timestamp')) and 0 <= now - (report['timestamp'] + 978307200) < 3,
+             'stale worker')
++    require(report.get('inputAccessSource') == 'current-process.apple-api.modifying-tap-post-event'
++            and report.get('accessibility') is True and report.get('effectiveInputAccess') is True,
++            'reviewed modifying-tap permission source unavailable')
+     require(report.get('state') == 'running' and report.get('tapActive') is True
+             and report.get('heldOutputUsages') == [] and report.get('inputCount') == report.get('outputCount') == 0,
+             'worker not idle/running')
+@@ -361,22 +378,24 @@
+         require(remaining > 0, 'worker startup deadline')
+         sleep(min(.2, remaining))
+ 
+-def measure(guest, identity, pilot, scope, scope_sha, monotonic=time.monotonic, wall=time.time, sleep=time.sleep):
+-    receipt = dict(passed=False, lease=scope.lease, baselineInventorySHA256=scope.baseline_sha,hardCutoffEpoch=scope.deadline,scopeSHA256=scope_sha, identityReceiptSHA256=scope.receipt_sha256,
++def measure(guest, identity, pilot, scope, scope_sha, monotonic=time.monotonic, wall=time.time, sleep=time.sleep, claim=None):
++    receipt = dict(passed=False, productArchiveSHA256='dc0dfd52ad83c8c75af5f49e3653a8ba2dc269f17ac00e1b376e7b47156bf9fa', lease=scope.lease, baselineInventorySHA256=scope.baseline_sha,hardCutoffEpoch=scope.deadline,scopeSHA256=scope_sha, identityReceiptSHA256=scope.receipt_sha256,
+                    productSource=scope.product_source, binarySHA256=scope.binary_sha256, targetSHA256=scope.target_sha256,
+                    samples=[], stage='setup', hardwareCalls=False)
+     try:
+-        receipt['stage']='setup.target-read'
+-        first = guest.target()
+-        receipt['stage']='setup.target-check'
+-        target_binding = target_check(first, wall(), uid=scope.uid)
+         receipt['stage']='setup.preflight'
+-        deployed_target = guest.preflight(first)
++        deployed_target = guest.startup_preflight()
+         require(deployed_target['executable'] == scope.target_executable
+                 and deployed_target['binarySHA256'] == scope.target_sha256, 'reviewed target deployment changed')
+         receipt['stage']='setup.parent-start'
+         parent = guest.start()
+         receipt['parentIdentity'] = {key: parent[key] for key in ('pid', 'uid', 'binarySHA256')}
++        receipt['stage']='setup.fresh-target-launch'
++        first = guest.fresh_capture(claim)
++        receipt['stage']='setup.target-check'
++        target_binding = target_check(first, wall(), uid=scope.uid)
++        receipt['targetIdentity']=dict(zip(('pid','uid','nonce'),target_binding))
++        receipt['targetCleanupOwner']='root; no target signal in no-input measurement'
+         current = startup_worker(guest, parent, target_binding, scope, receipt, monotonic, wall, sleep)
+         binding = tuple(current[k] for k in ('pid', 'uid', 'nonce'))
+         receipt['stage']='setup.parent-ready'
+@@ -498,7 +517,7 @@
+         try:os.fsync(parentfd)
+         finally:os.close(parentfd)
+         guest, identity, pilot = dependencies(scope)
+-        receipt = measure(guest, identity, pilot, scope, scope_sha)
++        receipt = measure(guest, identity, pilot, scope, scope_sha, claim=lambda value:fresh_capture.private_claim(path,value))
+         os.lseek(fd,0,os.SEEK_SET);os.ftruncate(fd,0)
+         with os.fdopen(fd, 'w') as output:
+             fd = None
+--- /private/tmp/keypath-timeout-foreground-route/fresh_capture.py
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/fresh_capture.py
+@@ -0,0 +1,153 @@
++"""One normal LS target launch after the admitted foreground parent; no input."""
++import json
++import pathlib
++import shlex
++import time
++import uuid
++
++TARGET_CODE = r'''import hashlib,json,math,os,pathlib,re,shlex,stat,subprocess,sys,time
++v=json.loads(sys.argv[1]);op=sys.argv[2]
++home=pathlib.Path(v['home']);exe=home/'Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget';app=exe.parents[2]
++report=home/'rig-target.json'
++def ck(value):
++ if not value:raise RuntimeError('fresh capture guard refused')
++def guard():
++ ck(os.getuid()==502 and os.environ.get('HOME')==str(home) and os.stat('/dev/console').st_uid==502 and time.time()<v['deadline'])
++ boot=subprocess.run(['/usr/sbin/sysctl','-n','kern.boottime'],capture_output=True,text=True,check=True,timeout=5).stdout
++ m=re.search(r'sec = ([0-9]+),',boot);ck(m and int(m[1])==v['bootEpoch'] and time.time()<v['deadline'])
++def paths():
++ ck(str(exe)==v['targetExecutable'])
++ for p in (home,home/'Applications',app,app/'Contents',app/'Contents/MacOS'):
++  s=p.lstat();ck(p==p.resolve() and stat.S_ISDIR(s.st_mode) and s.st_uid==502 and not s.st_mode&0o7022)
++ fd=os.open(exe,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
++ try:
++  s=os.fstat(fd);ck(stat.S_ISREG(s.st_mode) and s.st_uid==502 and s.st_nlink==1 and s.st_mode&0o111 and not s.st_mode&0o7022)
++  h=hashlib.sha256()
++  while True:
++   b=os.read(fd,1048576)
++   if not b:break
++   h.update(b)
++  meta=lambda x:(x.st_dev,x.st_ino,x.st_mode,x.st_uid,x.st_nlink,x.st_size,x.st_mtime_ns,x.st_ctime_ns)
++  ck(meta(s)==meta(os.fstat(fd))==meta(exe.lstat()) and h.hexdigest()==v['targetSHA256'])
++ finally:os.close(fd)
++ subprocess.run(['/usr/bin/codesign','--verify','--deep','--strict','-R=anchor apple generic and certificate leaf[subject.OU] = "X2RKZ5TG99"',str(app)],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,timeout=20)
++def processes():
++ raw=subprocess.run(['/bin/ps','-ww','-axo','pid=,uid=,comm='],capture_output=True,text=True,check=True,timeout=5).stdout
++ ck(len(raw)<262144);rows=[]
++ for line in raw.splitlines():
++  a=line.split(maxsplit=2);ck(len(a)==3 and a[0].isdigit() and a[1].isdigit());rows.append((int(a[0]),int(a[1]),a[2]))
++ return rows
++def parent():
++ p=v['parent'];ck(type(p['pid'])is int and p['pid']>0)
++ rows=processes();ck([x for x in rows if x[0]==p['pid']]==[(p['pid'],502,v['parentExecutable'])])
++ raw=subprocess.run(['/bin/ps','-ww','-p',str(p['pid']),'-o','args='],capture_output=True,text=True,check=True,timeout=5).stdout.strip()
++ ck(shlex.split(raw)==p['arguments'])
++def absent():
++ ck(not any(pathlib.PurePosixPath(x[2]).name=='RigTarget' for x in processes()) and not os.path.lexists(report))
++guard()
++if op in ('preflight','launch'):
++ paths();absent()
++ if op=='launch':
++  parent();guard();requested=time.time()
++  # One dispatch, no -g, no input, no args, no fallback or mutation retry.
++  subprocess.run(['/usr/bin/open','-n',str(app)],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,timeout=8)
++  guard();print(json.dumps(dict(requestedAt=requested)))
++ else:
++  guard();print(json.dumps(dict(executable=str(exe),binarySHA256=v['targetSHA256'])))
++elif op=='observe':
++ parent();guard()
++ if not os.path.lexists(report):print('null')
++ else:
++  fd=os.open(report,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
++  try:
++   s=os.fstat(fd);ck(stat.S_ISREG(s.st_mode) and s.st_uid==502 and s.st_nlink==1 and not s.st_mode&0o7022 and 0<s.st_size<=65536)
++   raw=os.read(fd,65537);meta=lambda x:(x.st_dev,x.st_ino,x.st_mode,x.st_uid,x.st_nlink,x.st_size,x.st_mtime_ns,x.st_ctime_ns)
++   ck(len(raw)==s.st_size and meta(s)==meta(os.fstat(fd))==meta(report.lstat()))
++  finally:os.close(fd)
++  def unique(pairs):
++   out={}
++   for k,value in pairs:ck(k not in out);out[k]=value
++   return out
++  t=json.loads(raw,object_pairs_hook=unique);ck(type(t)is dict and type(t.get('pid'))is int and t['pid']>0 and type(t.get('uid'))is int and t['uid']==502 and type(t.get('nonce'))is str)
++  ck(str(__import__('uuid').UUID(t['nonce'])).upper()==t['nonce'].upper())
++  stamp=t.get('observedAt');ck(type(stamp)in(int,float) and math.isfinite(stamp) and v['requestedAt']<=stamp<=time.time() and time.time()-stamp<3)
++  rows=processes();ck([x for x in rows if pathlib.PurePosixPath(x[2]).name=='RigTarget']==[(t['pid'],502,str(exe))])
++  args=subprocess.run(['/bin/ps','-ww','-p',str(t['pid']),'-o','args='],capture_output=True,text=True,check=True,timeout=5).stdout.strip();ck(shlex.split(args)==[str(exe)])
++  command=home/('rig-target-control-'+str(t['pid'])+'-'+t['nonce']);s=command.lstat()
++  ck(command==command.resolve() and stat.S_ISDIR(s.st_mode) and s.st_uid==502 and stat.S_IMODE(s.st_mode)==0o700 and t.get('commandPath')==str(command/'command.json'))
++  parent();guard();print(json.dumps(dict(target=t,identity=dict(pid=t['pid'],uid=502,nonce=t['nonce'],executable=str(exe),binarySHA256=v['targetSHA256'],rawArguments=args))))
++else:raise RuntimeError('fresh capture operation refused')
++'''
++
++
++def payload(guest, scope):
++    value = dict(home=scope.home, bootEpoch=scope.boot_epoch, deadline=scope.deadline,
++                 targetExecutable=scope.target_executable, targetSHA256=scope.target_sha256)
++    if guest.parent is not None:
++        value.update(parentExecutable=guest.exe,
++                     parent=dict(pid=guest.parent, arguments=guest.parent_args))
++    return value
++
++
++def command(guest, value, operation):
++    return ('launchctl asuser 502 sudo -H -u ' + shlex.quote(guest.account)
++            + ' /Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13 -I -B -c '
++            + shlex.quote(TARGET_CODE) + ' ' + shlex.quote(json.dumps(value, sort_keys=True))
++            + ' ' + shlex.quote(operation))
++
++
++def preflight(guest, scope):
++    return json.loads(guest.read(command(guest, payload(guest, scope), 'preflight'), 'capture.preflight'))
++
++
++def capture(guest, scope, claim, target_check, monotonic=time.monotonic, wall=time.time, sleep=time.sleep):
++    if getattr(guest, 'capture_claimed', False):
++        raise RuntimeError('fresh capture replay refused')
++    guest.identity(guest.parent, guest.parent_args)
++    value = payload(guest, scope)
++    guest.capture_claimed = True
++    claim(dict(state='fresh-target-launch-claimed', lease=scope.lease,
++               parentPID=guest.parent, targetExecutable=scope.target_executable,
++               targetSHA256=scope.target_sha256, deadline=scope.deadline))
++    if wall() >= scope.deadline:
++        raise RuntimeError('lease dispatch cutoff reached')
++    launched = json.loads(guest.run(command(guest, value, 'launch')))
++    if type(launched) is not dict or set(launched) != {'requestedAt'} or type(launched['requestedAt']) not in (int, float):
++        raise RuntimeError('fresh capture launch receipt refused')
++    value['requestedAt'] = launched['requestedAt']
++    deadline = monotonic() + 8
++    while True:
++        if monotonic() >= deadline or wall() >= scope.deadline:
++            raise RuntimeError('fresh capture startup deadline')
++        observed = json.loads(guest.read(command(guest, value, 'observe'), 'capture.observe'))
++        if monotonic() > deadline or wall() >= scope.deadline:
++            raise RuntimeError('fresh capture startup deadline')
++        if observed is not None:
++            if type(observed) is not dict or set(observed) != {'target', 'identity'}:
++                raise RuntimeError('fresh capture observation refused')
++            binding = target_check(observed['target'], wall(), uid=scope.uid)
++            identity = observed['identity']
++            if tuple(identity.get(k) for k in ('pid', 'uid', 'nonce')) != binding or identity.get('executable') != scope.target_executable or identity.get('binarySHA256') != scope.target_sha256:
++                raise RuntimeError('fresh capture identity refused')
++            guest.target_identity = identity
++            return observed['target']
++        sleep(min(.2, deadline - monotonic(), scope.deadline - wall()))
++
++
++def private_claim(directory, value):
++    """Exclusive durable host intent before the sole target launch dispatch."""
++    import os
++    path = pathlib.Path(directory) / 'target-launch-claim.json'
++    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
++    try:
++        raw = (json.dumps(value, sort_keys=True) + '\n').encode()
++        if os.write(fd, raw) != len(raw):
++            raise RuntimeError('fresh capture claim write refused')
++        os.fsync(fd)
++    finally:
++        os.close(fd)
++    fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
++    try:
++        os.fsync(fd)
++    finally:
++        os.close(fd)
+--- /private/tmp/keypath-timeout-foreground-route/test_measurement.py
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/test_measurement.py
+@@ -38,10 +38,12 @@
+                     downs=0, ups=0, text='', secureLength=0)
+     def report(self):
+         return dict(pid=20, uid=502, nonce='worker', timestamp=self.wall()-978307200-(4 if self.stale else 0),
+-                    state='running', tapActive=True, heldOutputUsages=[], inputCount=0, outputCount=0)
+-    def preflight(self, target):
++                    state='running', tapActive=True, heldOutputUsages=[], inputCount=0, outputCount=0, accessibility=True,effectiveInputAccess=True,inputAccessSource='current-process.apple-api.modifying-tap-post-event')
++    def startup_preflight(self):
+         self.tick('preflight')
+         return dict(executable=SCOPE.target_executable, binarySHA256=SCOPE.target_sha256)
++    def fresh_capture(self, claim):
++        self.calls.append('capture');return self.target()
+     def start(self):
+         self.tick('start')
+         return dict(pid=10, uid=502, arguments=['KeyPath','--headless'], binarySHA256=SCOPE.binary_sha256)
+@@ -94,7 +96,7 @@
+     def testTargetDeploymentMismatchCannotStartParent(self):
+         f=Fake()
+         def different(_): return dict(executable=SCOPE.target_executable+'-foreign',binarySHA256=SCOPE.target_sha256)
+-        f.preflight=different
++        f.startup_preflight=lambda:different(None)
+         r=f.run()
+         self.assertFalse(r['passed']);self.assertNotIn('start',f.calls)
+         self.assertEqual(r['errorStage'],'setup.preflight');self.assertEqual(f.cleanup_count,1)
+@@ -199,13 +201,13 @@
+         self.assertTrue(r['passed'])
+         self.assertEqual([v['stage'] for v in r['samples']],
+                          [str(n)+'.'+operation for n in range(1,4) for operation in ('identity','snapshot','parent_ready')])
+-        self.assertEqual(f.calls, ['preflight','start','snapshot','ready']+['identity','snapshot','ready']*3+['snapshot','ready'])
++        self.assertEqual(f.calls, ['preflight','start','capture','snapshot','ready']+['identity','snapshot','ready']*3+['snapshot','ready'])
+         self.assertEqual(f.cleanup_count, 1)
+         self.assertNotIn('target', r)
+     def testStartupTransientNoneThenReadyKeepsOneLaunch(self):
+         f=Fake();f.worker_none_left=2;r=f.run()
+         self.assertTrue(r['passed']);self.assertEqual(f.calls.count('start'),1)
+-        self.assertEqual(f.calls[:6],['preflight','start','snapshot','snapshot','snapshot','ready'])
++        self.assertEqual(f.calls[:7],['preflight','start','capture','snapshot','snapshot','snapshot','ready'])
+         self.assertEqual(r['workerIdentity'],dict(pid=20,uid=502,nonce='worker'))
+         self.assertEqual(f.cleanup_count,1)
+     def testStartupNeverReadyStopsAtEightSecondsWithoutReadinessOrRelaunch(self):
+@@ -251,9 +253,9 @@
+         self.assertFalse(r['passed']);self.assertEqual(r['refusalReason'],'stale target')
+         self.assertEqual(f.calls.count('snapshot'),2);self.assertNotIn('ready',f.calls)
+         self.assertEqual(f.cleanup_count,1)
+-    def testFocusRefusalCannotStartParent(self):
++    def testFreshCaptureFocusRefusalStopsBeforeStartupSnapshot(self):
+         f=Fake();f.target_bad=True;r=f.run()
+-        self.assertFalse(r['passed']);self.assertEqual(f.calls,[]);self.assertEqual(f.cleanup_count,1)
++        self.assertFalse(r['passed']);self.assertEqual(f.calls,['preflight','start','capture']);self.assertEqual(f.cleanup_count,1)
+     def testStaleReportRefusesBeforeMeasurement(self):
+         f=Fake();f.stale=True;r=f.run()
+         self.assertFalse(r['passed']);self.assertEqual(r['samples'],[]);self.assertEqual(f.cleanup_count,1)
+@@ -329,7 +331,7 @@
+         guest.read_stage='SECRET';guest.read_failure_stage='SECRET';guest.start_stage='SECRET'
+         self.assertEqual(m.selected_failure(guest,RuntimeError('SECRET')),{})
+     def testActualStartStagesAtMutationAndSlowDiscoveryWithoutReplay(self):
+-        class Base:pass
++        class Base:READ_STAGES=()
+         G=m.diagnostic_guest(Base,RuntimeError,'inert config')
+         for fault,wanted in (('backup','parent.backup-dispatch'),('launch','parent.profile-launch-dispatch'),('discovery','parent.discovery'),('identity','parent.identity')):
+             g=G();g.profile='/inert/profile';g.backup='/inert/backup';g.account='inert';g.uid=502;g.app='/inert/app';g.check_account=lambda:None;calls=[]
+@@ -344,9 +346,9 @@
+             self.assertEqual(len(calls),1 if fault=='backup'else 2)
+     def testFailureFieldsCapturedBeforeCleanupCanChangeReadStage(self):
+         f=Fake();f.READ_STAGES=('preflight.signature',)
+-        def fail(_):
++        def fail(*_):
+             f.read_failure_stage='preflight.signature.command';raise RuntimeError('owned guest operation failed: guest-root exit=255; diagnostics suppressed')
+-        f.preflight=fail;r=f.run();self.assertFalse(r['passed']);self.assertEqual(r['transportExitCode'],255);self.assertEqual(r['read_failure_stage'],'preflight.signature.command');self.assertEqual(f.cleanup_count,1)
++        f.startup_preflight=fail;r=f.run();self.assertFalse(r['passed']);self.assertEqual(r['transportExitCode'],255);self.assertEqual(r['read_failure_stage'],'preflight.signature.command');self.assertEqual(f.cleanup_count,1)
+ 
+ class ReadyFilterTests(unittest.TestCase):
+     def testGeneratedBoundedCollectorPreservesReadyBefore187NoiseRows(self):
+--- /private/tmp/keypath-timeout-foreground-route/test_fresh_capture.py
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/test_fresh_capture.py
+@@ -0,0 +1,132 @@
++import hashlib
++import json
++import os
++import pathlib
++import shlex
++import tempfile
++import types
++import unittest
++from unittest import mock
++import fresh_capture as f
++import measurement as m
++from test_measurement import Fake, SCOPE
++
++class CaptureTests(unittest.TestCase):
++    def test_serial_parent_then_new_capture_before_any_snapshot(self):
++        g=Fake();r=g.run()
++        self.assertTrue(r['passed']);self.assertEqual(g.calls[:4],['preflight','start','capture','snapshot'])
++        self.assertEqual(r['targetCleanupOwner'],'root; no target signal in no-input measurement')
++    def guest(self, observations):
++        g=types.SimpleNamespace(parent=10,parent_args=['/parent','--headless'],exe='/parent',account=SCOPE.account,target_identity=None)
++        g.identity=lambda *a:dict(pid=10);g.calls=[];g.elapsed=0
++        def run(command):g.calls.append(('launch',command));return json.dumps(dict(requestedAt=100))
++        def read(command,stage):
++            g.calls.append(('observe',command))
++            v=observations.pop(0)
++            if isinstance(v,Exception):raise v
++            return json.dumps(v)
++        g.run=run;g.read=read;g.wall=lambda:100+g.elapsed;g.mono=lambda:g.elapsed
++        g.sleep=lambda s:setattr(g,'elapsed',g.elapsed+s)
++        return g
++    def observation(self):
++        target=Fake().target();target['observedAt']=100
++        return dict(target=target,identity=dict(pid=50,uid=502,nonce='target',executable=SCOPE.target_executable,binarySHA256=SCOPE.target_sha256,rawArguments=shlex.quote(SCOPE.target_executable)))
++    def test_null_then_ready_single_claim_launch_and_exact_binding(self):
++        g=self.guest([None,self.observation()]);claims=[]
++        t=f.capture(g,SCOPE,claims.append,m.target_check,g.mono,g.wall,g.sleep)
++        self.assertEqual(t['pid'],50);self.assertEqual(len(claims),1);self.assertEqual([x[0] for x in g.calls],['launch','observe','observe'])
++        self.assertEqual(g.target_identity['binarySHA256'],SCOPE.target_sha256)
++        with self.assertRaisesRegex(RuntimeError,'replay'):f.capture(g,SCOPE,claims.append,m.target_check,g.mono,g.wall,g.sleep)
++        self.assertEqual(len(g.calls),3)
++    def test_never_ready_deadline_and_error_have_no_relaunch(self):
++        for rows,expected in ([None]*45,'deadline'),([ValueError('bad JSON')],'bad JSON'):
++            g=self.guest(rows);claims=[]
++            with self.assertRaisesRegex((RuntimeError,ValueError),expected):f.capture(g,SCOPE,claims.append,m.target_check,g.mono,g.wall,g.sleep)
++            self.assertEqual(len(claims),1);self.assertEqual(sum(x[0]=='launch' for x in g.calls),1)
++            self.assertIsNone(g.target_identity);self.assertLessEqual(g.elapsed,8.00001)
++    def test_bad_focus_or_identity_refuses_without_another_read(self):
++        for field,value in [('focusLost',True),('active',False),('identity',None)]:
++            o=self.observation()
++            if field=='identity':o['identity']['binarySHA256']='0'*64
++            else:o['target'][field]=value
++            g=self.guest([o]);claims=[]
++            with self.assertRaises(RuntimeError):f.capture(g,SCOPE,claims.append,m.target_check,g.mono,g.wall,g.sleep)
++            self.assertEqual(len(g.calls),2);self.assertIsNone(g.target_identity)
++    def test_claim_crosses_cutoff_no_launch_and_no_replay(self):
++        from dataclasses import replace
++        g=self.guest([]);scope=replace(SCOPE,deadline=101)
++        def claim(_):g.elapsed=2
++        with self.assertRaisesRegex(RuntimeError,'cutoff'):f.capture(g,scope,claim,m.target_check,g.mono,g.wall,g.sleep)
++        self.assertEqual(g.calls,[])
++        with self.assertRaisesRegex(RuntimeError,'replay'):f.capture(g,scope,claim,m.target_check,g.mono,g.wall,g.sleep)
++    def test_claim_exclusive_private_and_durable(self):
++        with tempfile.TemporaryDirectory() as d:
++            f.private_claim(d,dict(state='claimed'))
++            p=pathlib.Path(d)/'target-launch-claim.json';self.assertEqual(p.stat().st_mode&0o777,0o600)
++            with self.assertRaises(FileExistsError):f.private_claim(d,dict(state='changed'))
++            self.assertEqual(json.loads(p.read_bytes()),dict(state='claimed'))
++    def test_worker_requires_new_typed_permission_provenance(self):
++        v=Fake().report();m.worker_check(v,(20,502,'worker'),Fake().wall())
++        for field,value in [('inputAccessSource',None),('inputAccessSource',1),('inputAccessSource','legacy'),('accessibility',False),('effectiveInputAccess',1)]:
++            with self.assertRaisesRegex(RuntimeError,'permission'):m.worker_check(dict(v,**{field:value}),(20,502,'worker'),Fake().wall())
++
++class ActualBodyTests(unittest.TestCase):
++    def test_actual_generated_public_launch_and_poll_no_input_or_second_launch(self):
++        self.exercise()
++    def test_actual_prelaunch_hash_parent_uid_ownership_and_expiry_refuse(self):
++        for fault in ('hash','parent','uid','mode','link','expired'):
++            with self.subTest(fault=fault):self.exercise(fault)
++    def exercise(self,fault=None):
++        with tempfile.TemporaryDirectory(dir='/private/tmp') as directory:
++            home=pathlib.Path(directory);exe=home/'Applications/VM Lab Rig Target.app/Contents/MacOS/RigTarget';exe.parent.mkdir(parents=True);exe.write_bytes(b'inert target');exe.chmod(0o755)
++            for directory_path in (home/'Applications',exe.parents[2],exe.parents[1],exe.parent):directory_path.chmod(0o755)
++            original_lstat=pathlib.Path.lstat;original_stat=os.stat;original_fstat=os.fstat;calls=[];live=[];now=[100]
++            def owned(s):
++                fields=('st_dev','st_ino','st_mode','st_uid','st_gid','st_nlink','st_size','st_mtime_ns','st_ctime_ns')
++                values={key:getattr(s,key) for key in fields};values['st_uid']=502
++                return types.SimpleNamespace(**values)
++            def lstat(p):
++                s=owned(original_lstat(p))
++                if fault=='mode' and p==exe:s.st_mode|=0o020
++                if fault=='link' and p==exe:s.st_nlink=2
++                return s
++            def stat(p,*args,**kwargs):
++                if str(p)=='/dev/console':return types.SimpleNamespace(st_uid=502)
++                return original_stat(p,*args,**kwargs)
++            def run(args,**kwargs):
++                calls.append(args)
++                if args[0]=='/usr/sbin/sysctl':out='{ sec = 90, usec = 0 }'
++                elif args[0]=='/usr/bin/codesign':
++                    out=''
++                    if fault=='expired':now[0]=1000
++                elif args[:3]==['/bin/ps','-ww','-axo']:out='10 502 /parent\n'+''.join(str(pid)+' 502 '+str(exe)+'\n' for pid in live)
++                elif args[:3]==['/bin/ps','-ww','-p']:
++                    out='/parent --foreign' if fault=='parent' else ('/parent --headless' if args[3]=='10' else shlex.quote(str(exe)))
++                elif args[0]=='/usr/bin/open':
++                    self.assertEqual(args,['/usr/bin/open','-n',str(exe.parents[2])]);live.append(50);out=''
++                else:raise AssertionError(args)
++                return types.SimpleNamespace(stdout=out,returncode=0)
++            value=dict(home=str(home),bootEpoch=90,deadline=900,targetExecutable=str(exe),targetSHA256=hashlib.sha256(exe.read_bytes()).hexdigest(),parent=dict(pid=10,arguments=['/parent','--headless']),parentExecutable='/parent')
++            if fault=='hash':value['targetSHA256']='0'*64
++            from contextlib import redirect_stdout
++            import io
++            def execute(op):
++                out=io.StringIO()
++                with mock.patch.dict(os.environ,HOME=str(home)),mock.patch.object(os,'getuid',return_value=501 if fault=='uid' else 502),mock.patch.object(os,'stat',side_effect=stat),mock.patch.object(os,'fstat',side_effect=lambda fd:owned(original_fstat(fd))),mock.patch.object(pathlib.Path,'lstat',lstat),mock.patch('subprocess.run',side_effect=run),mock.patch('time.time',side_effect=lambda:now[0]),mock.patch('sys.argv',['inert',json.dumps(value),op]),redirect_stdout(out):
++                    exec(compile(f.TARGET_CODE,'actual-generated-fresh-capture','exec'),{})
++                return json.loads(out.getvalue())
++            if fault:
++                with self.assertRaises(RuntimeError):execute('launch')
++                self.assertFalse(any(x[0]=='/usr/bin/open'for x in calls));return
++            self.assertEqual(execute('preflight')['binarySHA256'],value['targetSHA256'])
++            launched=execute('launch');value.update(launched)
++            self.assertIsNone(execute('observe'))
++            nonce='12345678-1234-4234-8234-123456789012';control=home/('rig-target-control-50-'+nonce);control.mkdir(mode=0o700)
++            t=Fake().target();t.update(pid=50,nonce=nonce,observedAt=100,commandPath=str(control/'command.json'))
++            (home/'rig-target.json').write_text(json.dumps(t));(home/'rig-target.json').chmod(0o644)
++            r=execute('observe');self.assertEqual(r['identity']['pid'],50)
++            self.assertEqual(sum(x[0]=='/usr/bin/open'for x in calls),1)
++            with self.assertRaises(RuntimeError):execute('launch')
++            self.assertEqual(sum(x[0]=='/usr/bin/open'for x in calls),1)
++
++if __name__=='__main__':unittest.main()
+--- /private/tmp/keypath-timeout-foreground-route/source-pins.json
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/source-pins.json
+@@ -11,7 +11,18 @@
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held-secure-acceptance.py": "d2907c9e0d9b62c0a555273e14cd3aef12491aa53507f4633dcd06fea75dabf2",
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/held_secure_predicates.py": "14fbed279df894085a39350e26d9de05528bdacbdf4a36306ecaed6b849d2de5",
+   "/private/tmp/keypath-d8-readonly-transport-candidate/Scripts/experiments/session-runtime/parent_readiness.py": "69e69782c338a36768233fddcdadac54ea2b908a25d39ec84b9b4bcd6ee19f6b",
+-  "/private/tmp/keypath-timeout-foreground-route/executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
+-  "/private/tmp/keypath-timeout-foreground-route/parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
+-  "/private/tmp/keypath-timeout-foreground-route/prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d"
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/executor.py": "41b0c21872e45ef4805e465ed8c46aaa34a11fa16e8c92e2b1dfe6194eb2f5b9",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/parent_readiness.py": "07bccc32ac73ab7984eae1d76136174b35da97e3fd79c80b7169daca904c8074",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/prepared_identity.py": "575bd1a5d3d7057f216f2abcc4da1d5bf511ba88362da71ddb6e7f8d4ff7100d",
++  "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/fresh_capture.py": "2b7c284ee8eb615a3f58f5ece1b1c50d81bcb231d078f86c42640ff2bb0cd06d",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathApp/Main.swift": "9d5d020ce04d7f138ae4e5cd76911b4b27e9438b9dae113d960bca0b4ba70904",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/App.swift": "9c654a4b6dcf64ca21251f702622db761ff5a0db709f506186d51c5dc8ab2492",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/Managers/ServiceLifecycleCoordinator+SessionRuntime.swift": "186394b2fdb5077d2b71c9d41f22c5c193d4e66a2314dda899906c89f0156303",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathAppKit/Services/SessionRuntime/SessionRuntimeWorker.swift": "17f2f61ad59b56d1a3a08f593f3c1c43d9c57db667afba999f40ec8886fe924b",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathCore/SessionRuntime/SessionRuntimeReport.swift": "40ca3bcc42804c9e3b0cc3609e3d7701f6fc3e2e035de66e32b1bc991b6ae8a0",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathCore/SystemStateProvider.swift": "e99f8dfc63f34441a8c01ca2d348c062548ba251b8f3d54f4a42b56026933073",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathPermissions/PermissionOracle.swift": "9a24f7581a3c1b36dc6bbdf9e471e22c148aacba1fee1f993c3ef1e1fb9aa37d",
++  "/private/tmp/keypath-tap-timeout-hook-build/Sources/KeyPathPermissions/SystemStateProvider+Permissions.swift": "767be0b9e31cae754ebf6eb8f0115f9a75628bd3441326bd1143de709426f0a3",
++  "/private/tmp/vm-lab-target-typed-booleans/rig/capture-target.m": "ec98a707195c3a732ada926f0f1ec8c12b2d497f1497dbb4ea6744334582b8bc",
++  "/private/tmp/keypath-post-event-6ed4-artifact/artifact-clean-manifest.json": "02153dc14f961145ddd9bee03f9feb7b6fe99d4d368ca086d4b01b61dfa81fee"
+ }
+--- /private/tmp/keypath-timeout-foreground-route/refusal-reasons.json
++++ /private/tmp/keypath-timeout-fresh-capture-6ed4-clean/refusal-reasons.json
+@@ -13,7 +13,7 @@
+   },
+   "Guest source shape changed": {
+     "reason": "Guest source shape changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:169"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:171"
+   },
+   "accepted secure sample cleanup did not reconcile all-up": {
+     "reason": "accepted secure sample cleanup did not reconcile all-up",
+@@ -45,15 +45,15 @@
+   },
+   "binding arguments require binding mode": {
+     "reason": "binding arguments require binding mode",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:325"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:499"
+   },
+   "binding mode cannot release guest setup": {
+     "reason": "binding mode cannot release guest setup",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:318"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:492"
+   },
+   "candidate scope namespace required": {
+     "reason": "candidate scope namespace required",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:122"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:122"
+   },
+   "combined Control resurrected": {
+     "reason": "combined Control resurrected",
+@@ -165,11 +165,11 @@
+   },
+   "frozen source changed": {
+     "reason": "frozen source changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:138"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:138"
+   },
+   "frozen timing scope changed": {
+     "reason": "frozen timing scope changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:87"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:86"
+   },
+   "held worker disappeared": {
+     "reason": "held worker disappeared",
+@@ -185,11 +185,11 @@
+   },
+   "identity receipt parent must be owned private directory": {
+     "reason": "identity receipt parent must be owned private directory",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:100"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:99"
+   },
+   "identity tuple changed": {
+     "reason": "identity tuple changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:110"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:108"
+   },
+   "incomplete batch receipt": {
+     "reason": "incomplete batch receipt",
+@@ -245,7 +245,7 @@
+   },
+   "invalid timing scope schema": {
+     "reason": "invalid timing scope schema",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:57"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:55"
+   },
+   "journal drop accounting regressed": {
+     "reason": "journal drop accounting regressed",
+@@ -257,11 +257,11 @@
+   },
+   "lease dispatch cutoff reached": {
+     "reason": "lease dispatch cutoff reached",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:211"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:364"
+   },
+   "lease response crossed cutoff; no replay": {
+     "reason": "lease response crossed cutoff; no replay",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:214"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:367"
+   },
+   "malformed batch receipt": {
+     "reason": "malformed batch receipt",
+@@ -309,11 +309,11 @@
+   },
+   "normal target focus lost": {
+     "reason": "normal target focus lost",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:189"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:339"
+   },
+   "observation budget exceeded": {
+     "reason": "observation budget exceeded",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:260"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:415"
+   },
+   "old worker PID reused": {
+     "reason": "old worker PID reused",
+@@ -333,7 +333,7 @@
+   },
+   "owned parent identity changed": {
+     "reason": "owned parent identity changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:217"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:370"
+   },
+   "owned process arguments changed": {
+     "reason": "owned process arguments changed",
+@@ -345,7 +345,7 @@
+   },
+   "owned target executable binding required": {
+     "reason": "owned target executable binding required",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:68"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:67"
+   },
+   "owned worker process identity changed": {
+     "reason": "owned worker process identity changed",
+@@ -389,15 +389,15 @@
+   },
+   "private attempt namespace required": {
+     "reason": "private attempt namespace required",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:332"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:506"
+   },
+   "private identity receipt namespace required": {
+     "reason": "private identity receipt namespace required",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:98"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:97"
+   },
+   "release/cutoff missing": {
+     "reason": "release/cutoff missing",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:330"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:504"
+   },
+   "report ownership mismatch": {
+     "reason": "report ownership mismatch",
+@@ -417,11 +417,11 @@
+   },
+   "reviewed target deployment changed": {
+     "reason": "reviewed target deployment changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:239"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:388"
+   },
+   "reviewed timing runner changed": {
+     "reason": "reviewed timing runner changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:314"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:488"
+   },
+   "secure field clear did not reconcile all-up": {
+     "reason": "secure field clear did not reconcile all-up",
+@@ -429,7 +429,7 @@
+   },
+   "source pin manifest changed": {
+     "reason": "source pin manifest changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:136"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:136"
+   },
+   "source-only harness requires review and guest-release gate": {
+     "reason": "source-only harness requires review and guest-release gate",
+@@ -441,7 +441,7 @@
+   },
+   "stale target": {
+     "reason": "stale target",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:184"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:334"
+   },
+   "stale target receipt": {
+     "reason": "stale target receipt",
+@@ -449,7 +449,7 @@
+   },
+   "stale worker": {
+     "reason": "stale worker",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:200"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:350"
+   },
+   "stale worker receipt": {
+     "reason": "stale worker receipt",
+@@ -473,15 +473,15 @@
+   },
+   "target identity unavailable": {
+     "reason": "target identity unavailable",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:185"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:335"
+   },
+   "target instance changed": {
+     "reason": "target instance changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:188"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:338"
+   },
+   "target not empty/all-up": {
+     "reason": "target not empty/all-up",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:193"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:343"
+   },
+   "target process or hash changed": {
+     "reason": "target process or hash changed",
+@@ -505,15 +505,15 @@
+   },
+   "timing scope binding incomplete": {
+     "reason": "timing scope binding incomplete",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:62"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:61"
+   },
+   "timing scope identity/product/deadline changed": {
+     "reason": "timing scope identity/product/deadline changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:59"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:57"
+   },
+   "transport source shape changed": {
+     "reason": "transport source shape changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:155"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:155"
+   },
+   "unexpected or ambiguous batch records": {
+     "reason": "unexpected or ambiguous batch records",
+@@ -549,15 +549,15 @@
+   },
+   "verified identity tuple changed": {
+     "reason": "verified identity tuple changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:265"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:420"
+   },
+   "worker disappeared": {
+     "reason": "worker disappeared",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:269"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:424"
+   },
+   "worker generation changed": {
+     "reason": "worker generation changed",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:199"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:349"
+   },
+   "worker generation was reused": {
+     "reason": "worker generation was reused",
+@@ -573,7 +573,7 @@
+   },
+   "worker not idle/running": {
+     "reason": "worker not idle/running",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:202"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:355"
+   },
+   "worker report must be an object": {
+     "reason": "worker report must be an object",
+@@ -581,7 +581,7 @@
+   },
+   "worker startup deadline": {
+     "reason": "worker startup deadline",
+-    "source": "/private/tmp/keypath-d8-timing-51ce-startup-wait/measurement.py:225"
++    "source": "/private/tmp/keypath-timeout-fresh-capture-6ed4-clean/measurement.py:378"
+   },
+   "wrong owned console": {
+     "reason": "wrong owned console",

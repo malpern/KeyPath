@@ -1,0 +1,185 @@
+#!/bin/zsh
+set -euo pipefail
+
+die() { print -u2 "desktop-bootstrap: $*"; exit 1; }
+
+# Desktop bases are supposed to carry Peekaboo, but treating a missing base
+# tool as a product failure makes the whole lab unavailable when an old image
+# slips through. This fallback is deliberately narrow: it installs only the
+# pinned UI host and CLI into the disposable console user's home, never into a
+# shared template or /Applications.
+PEEKABOO_VERSION=3.10.0
+PEEKABOO_CLI_URL="https://github.com/openclaw/Peekaboo/releases/download/v${PEEKABOO_VERSION}/peekaboo-macos-universal.tar.gz"
+PEEKABOO_CLI_SHA256=87af985e9617b9b6bc3f21036b5cc7d42c99293bd2df614b6d4e6872162787b3
+PEEKABOO_APP_URL="https://github.com/openclaw/Peekaboo/releases/download/v${PEEKABOO_VERSION}/Peekaboo-${PEEKABOO_VERSION}.app.zip"
+PEEKABOO_APP_SHA256=1ca3d5101a6ee47cecf0ee362c9550899fa16b0316419102cdab6a6545087261
+PEEKABOO_PORTABLE_ROOT="$HOME/.local/share/vm-lab/peekaboo-${PEEKABOO_VERSION}"
+PEEKABOO_PORTABLE_BIN="$PEEKABOO_PORTABLE_ROOT/peekaboo-macos-universal/peekaboo"
+
+sha256_matches() {
+  local expected=$1 file=$2 actual
+  actual=$(/usr/bin/shasum -a 256 "$file" | /usr/bin/awk '{print $1}')
+  [[ "$actual" == "$expected" ]]
+}
+
+is_peekaboo3() {
+  local candidate=$1
+  [[ -x "$candidate" ]] && [[ "$("$candidate" --version 2>/dev/null | head -1)" == Peekaboo\ 3.* ]]
+}
+
+install_portable_peekaboo() {
+  local staging cli_archive app_archive
+  command -v /usr/bin/curl >/dev/null || die "curl is required to repair the missing Peekaboo desktop tool"
+  staging=$(/usr/bin/mktemp -d /tmp/vm-lab-peekaboo.XXXXXXXX) || die "could not create Peekaboo staging directory"
+  trap "rm -rf '$staging'" EXIT
+  cli_archive="$staging/peekaboo-cli.tar.gz"
+  app_archive="$staging/Peekaboo.app.zip"
+
+  /usr/bin/curl -fL --retry 3 --connect-timeout 20 "$PEEKABOO_CLI_URL" -o "$cli_archive" \
+    || die "could not download pinned Peekaboo CLI"
+  sha256_matches "$PEEKABOO_CLI_SHA256" "$cli_archive" || die "Peekaboo CLI checksum mismatch"
+  /bin/rm -rf "$PEEKABOO_PORTABLE_ROOT"
+  /bin/mkdir -p "$PEEKABOO_PORTABLE_ROOT"
+  /usr/bin/tar -xzf "$cli_archive" -C "$PEEKABOO_PORTABLE_ROOT" || die "could not unpack Peekaboo CLI"
+  [[ -x "$PEEKABOO_PORTABLE_BIN" ]] || die "Peekaboo CLI archive did not contain its executable"
+
+  /usr/bin/curl -fL --retry 3 --connect-timeout 20 "$PEEKABOO_APP_URL" -o "$app_archive" \
+    || die "could not download pinned Peekaboo app host"
+  sha256_matches "$PEEKABOO_APP_SHA256" "$app_archive" || die "Peekaboo app checksum mismatch"
+  /bin/mkdir -p "$HOME/Applications"
+  /usr/bin/ditto -x -k "$app_archive" "$HOME/Applications" || die "could not unpack Peekaboo app host"
+  [[ -d "$HOME/Applications/Peekaboo.app" ]] || die "Peekaboo app archive did not contain its app host"
+  /usr/bin/open "$HOME/Applications/Peekaboo.app"
+}
+
+usage() {
+  print -u2 "Usage: desktop-bootstrap --output DIR [--install-tools|--ensure-tools]"
+  exit 2
+}
+
+output=
+install_tools=0
+ensure_tools=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output) [[ -n ${2:-} ]] || usage; output=$2; shift 2 ;;
+    --install-tools) install_tools=1; shift ;;
+    --ensure-tools) ensure_tools=1; shift ;;
+    *) usage ;;
+  esac
+done
+[[ -n "$output" && "$output" != -* ]] || usage
+mkdir -p "$output"
+
+console_user=$(stat -f '%Su' /dev/console)
+[[ "$console_user" != root && "$console_user" != loginwindow ]] || die "no logged-in console user"
+[[ "$console_user" == "$USER" ]] || die "command user $USER does not own console session $console_user"
+
+if (( install_tools )); then
+  if command -v brew >/dev/null; then
+    command -v python3 >/dev/null || brew install python
+    command -v peekaboo >/dev/null || brew install steipete/tap/peekaboo
+    command -v mcporter >/dev/null || brew install steipete/tap/mcporter
+  fi
+  # Homebrew currently provides Peekaboo 4, while the guest bridge and the
+  # lab's pinned automation contract require Peekaboo 3. Keep the broad,
+  # explicit developer-tool bootstrap for its other utilities, but always
+  # provision the verified portable 3.x bridge when no compatible binary is
+  # already available.
+  if ! is_peekaboo3 "$(command -v peekaboo || true)" && ! is_peekaboo3 "$PEEKABOO_PORTABLE_BIN"; then
+    install_portable_peekaboo
+  fi
+elif (( ensure_tools )) && ! is_peekaboo3 "$(command -v peekaboo || true)" && ! is_peekaboo3 "$PEEKABOO_PORTABLE_BIN"; then
+  # UI calls need only Peekaboo. Never let automatic repair install unrelated
+  # packages or use a mutable package-manager version.
+  install_portable_peekaboo
+fi
+
+# Peekaboo is the only requirement.
+#
+# mcporter was required because the lab began on the Tart lane, where secure
+# dialog input drives Peekaboo through mcporter's MCP bridge under
+# /opt/homebrew. The Parallels lanes carry neither path and deliver credentials
+# by key event instead, so requiring it blocked desktop bootstrap on macOS 26
+# and 27 over a dependency nothing here invokes. The Tart lane still checks it
+# where it is actually used.
+#
+# python3 was required for two pieces of JSON handling. The Parallels bases have
+# no real python3: /usr/bin/python3 is the Command Line Tools stub, so calling
+# it exits non-zero and raises a developer-tools install dialog on the guest
+# desktop -- inside the very session this script exists to prepare. Both uses
+# are gone; nothing below needs an interpreter.
+peekaboo_bin=$(command -v peekaboo || true)
+is_peekaboo3 "$peekaboo_bin" || peekaboo_bin="$PEEKABOO_PORTABLE_BIN"
+[[ -x "$peekaboo_bin" ]] || die "Peekaboo 3 is required"
+[[ "$("$peekaboo_bin" --version | head -1)" == Peekaboo\ 3.* ]] || die "Peekaboo 3 is required"
+
+if (( ensure_tools )); then
+  peekaboo_version=$("$peekaboo_bin" --version | head -1)
+  printf '{\n  "status": "tools-ready",\n  "peekaboo": "%s"\n}\n' "$peekaboo_version" > "$output/tools-ready.json"
+  cat "$output/tools-ready.json"
+  exit 0
+fi
+
+"$peekaboo_bin" permissions status --json > "$output/peekaboo-permissions-before.json" || true
+# Ensure there is a normal shareable window. A bare Finder desktop has no
+# eligible window, so it cannot trigger or verify capture consent.
+open -a "System Settings"
+sleep 2
+# The first capture can display macOS's private-picker bypass consent sheet.
+"$peekaboo_bin" see --app "System Settings" --json > "$output/initial-desktop.json" || true
+"$peekaboo_bin" see --app UserNotificationCenter --json > "$output/user-notification-center.json" || true
+
+# Dismiss the consent sheet if macOS raised one. Target the button by label
+# rather than resolving an element id out of the snapshot: label targeting is
+# what the lab's UI guidance prescribes for guests, precisely because parsing
+# `see --json` would need an interpreter these images do not have.
+#
+# The sheet is optional, so a failure here is not an error -- it usually means
+# there was nothing to consent to. The result is still recorded, so a run that
+# expected consent and silently got none is visible in the evidence.
+"$peekaboo_bin" click "Allow" --app UserNotificationCenter --no-auto-focus --json \
+  > "$output/peekaboo-consent-click.json" 2>&1 || true
+
+# Take macOS's text assistance out of the loop before any test types into an
+# app. Autocorrect will silently rewrite typed characters into a real word, and
+# autocapitalization changes the first letter of a line, so a test that reads
+# text back out of a target app can report a passing result as a failure or the
+# reverse. Press-and-hold is the same hazard for held keys: it opens the accent
+# picker instead of repeating the character. These are per-user defaults, so
+# they are set for the console user on each disposable lease rather than baked
+# into a shared base image.
+for text_assist_key in \
+  NSAutomaticSpellingCorrectionEnabled \
+  NSAutomaticCapitalizationEnabled \
+  NSAutomaticTextCompletionEnabled \
+  NSAutomaticQuoteSubstitutionEnabled \
+  NSAutomaticDashSubstitutionEnabled \
+  NSAutomaticPeriodSubstitutionEnabled \
+  ApplePressAndHoldEnabled
+do
+  /usr/bin/defaults write -g "$text_assist_key" -bool false || true
+done
+# Applications read these at launch, so anything already running keeps the old
+# behaviour. Record the values so a surprising transcript can be checked against
+# what was actually in effect.
+{
+  printf '{\n'
+  printf '  "autocorrect": "%s",\n' "$(/usr/bin/defaults read -g NSAutomaticSpellingCorrectionEnabled 2>/dev/null || echo unset)"
+  printf '  "autocapitalization": "%s",\n' "$(/usr/bin/defaults read -g NSAutomaticCapitalizationEnabled 2>/dev/null || echo unset)"
+  printf '  "pressAndHold": "%s"\n' "$(/usr/bin/defaults read -g ApplePressAndHoldEnabled 2>/dev/null || echo unset)"
+  printf '}\n'
+} > "$output/text-input-assistance.json"
+
+"$peekaboo_bin" see --app "System Settings" --json > "$output/desktop-ready.json"
+"$peekaboo_bin" permissions status --json > "$output/peekaboo-permissions-after.json"
+
+# None of these values can contain a quote or backslash: the console user comes
+# from stat on /dev/console, the OS version from sw_vers, and the version string
+# is matched against "Peekaboo 3.*" above. Emitting the JSON directly is
+# therefore safe and removes the last interpreter dependency.
+peekaboo_version=$("$peekaboo_bin" --version | head -1)
+macos_version=$(/usr/bin/sw_vers -productVersion)
+printf '{\n  "status": "ready",\n  "consoleUser": "%s",\n  "macOS": "%s",\n  "peekaboo": "%s"\n}\n' \
+  "$console_user" "$macos_version" "$peekaboo_version" > "$output/bootstrap.json"
+cat "$output/bootstrap.json"
