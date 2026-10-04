@@ -6,7 +6,7 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import XCTest
 
-final class CLIOutputContractTests: XCTestCase {
+final class CLIOutputContractTests: KeyPathTestCase {
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.outputFormatting = [.sortedKeys]
@@ -320,7 +320,7 @@ final class CLIOutputContractTests: XCTestCase {
         XCTAssertFalse(unknownIssues.contains(where: \.requiresUserAction))
         XCTAssertTrue(unknownIssues.contains { $0.title == "Kanata Input Monitoring permission not verified" })
         XCTAssertFalse(unknownIssues.contains { $0.title.contains(" needs ") })
-        XCTAssertTrue(SystemFacade.isOperational(unknown))
+        XCTAssertFalse(SystemFacade.isOperational(unknown))
     }
 
     func testKeyPathInputMonitoringDenialIsSoftForCoreOperation() {
@@ -345,6 +345,105 @@ final class CLIOutputContractTests: XCTestCase {
         XCTAssertTrue(decoded.reloadSuccess)
         XCTAssertEqual(decoded.changeset?.enabledCollections, ["A"])
         XCTAssertEqual(decoded.changeset?.customRules, ["caps → esc"])
+    }
+
+    func testSessionIsOperationalWithoutHelperDriverOrGUIInputMonitoring() {
+        let context = sessionContext(guiInput: .denied)
+        XCTAssertTrue(SystemFacade.isOperational(context))
+        let issues = SystemFacade.issues(from: context)
+        XCTAssertTrue(issues.isEmpty)
+        XCTAssertFalse(context.helper.isInstalled)
+        XCTAssertFalse(context.components.karabinerDriverInstalled)
+    }
+
+    func testSessionInputMonitoringIsConditionalOnEffectiveAccess() {
+        let context = sessionContext(guiInput: .denied, effectiveInput: .denied)
+        XCTAssertFalse(SystemFacade.isOperational(context))
+        let issues = SystemFacade.issues(from: context)
+        let inputIssues = issues.filter { $0.title.contains("Input Monitoring") }
+        XCTAssertEqual(inputIssues.count, 1)
+        XCTAssertTrue(inputIssues[0].action.contains("only if macOS requires it"))
+        XCTAssertFalse(issues.contains { $0.title.contains("Kanata") || $0.category == "helper" })
+    }
+
+    func testSessionUnknownPermissionIsNotReadyAndNeverRequestsFullDiskAccess() {
+        let context = sessionContext(appAX: .unknown, effectiveAX: .unknown, effectiveInput: .unknown)
+        XCTAssertFalse(SystemFacade.isOperational(context))
+        let issues = SystemFacade.issues(from: context)
+        XCTAssertEqual(issues.first?.title, "KeyPath Accessibility permission not verified")
+        XCTAssertTrue(issues.contains { $0.action.contains("active session") })
+        XCTAssertFalse(issues.contains {
+            $0.action.contains("Full Disk Access") || $0.remediationURL == WizardSystemPaths.fullDiskAccessSettings
+        })
+    }
+
+    func testSessionAccessibilityRemediationComesBeforeInputMonitoring() {
+        let issues = SystemFacade.issues(from: sessionContext(appAX: .denied, effectiveInput: .denied))
+        XCTAssertEqual(issues.first?.title, "KeyPath needs Accessibility permission")
+        XCTAssertEqual(issues.filter { $0.title.contains("Accessibility") }.count, 1)
+        XCTAssertFalse(issues.contains { $0.title.contains("Kanata Engine") })
+    }
+
+    func testSessionConflictsRequireManualResolutionAndNeverAdvertiseDriverRepair() {
+        let context = sessionContext(conflicts: [.karabinerGrabberRunning(pid: 123)])
+        XCTAssertFalse(SystemFacade.isOperational(context))
+        let issues = SystemFacade.issues(from: context)
+        let conflict = issues.first { $0.category == "conflict" }
+        XCTAssertEqual(conflict?.canAutoFix, false)
+        XCTAssertTrue(conflict?.action.contains("manually") ?? false)
+        XCTAssertFalse(issues.contains { $0.category == "helper" || $0.action.contains("Install the bundled VirtualHID") })
+    }
+
+    func testSessionReadinessRequiresResponsiveRuntimeAndPreservesConfigDiagnostics() {
+        let unresponsive = sessionContext(responding: false)
+        XCTAssertFalse(SystemFacade.isOperational(unresponsive))
+        XCTAssertTrue(SystemFacade.issues(from: unresponsive).contains { $0.title == "KeyPath session is not responding" })
+        let invalid = sessionContext(running: false, responding: false, configError: "unsupported media action")
+        let issue = SystemFacade.issues(from: invalid).first { $0.category == "configuration" }
+        XCTAssertEqual(issue?.action, "unsupported media action")
+        XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.configurationTroubleshooting)
+    }
+
+    func testSessionRepairArtifactsExcludePrivilegedPayload() {
+        let paths = SystemFacade.sessionRepairRequiredPaths(bundlePath: "/tmp/KeyPath.app")
+        XCTAssertEqual(paths.count, 3)
+        XCTAssertTrue(paths.contains("/tmp/KeyPath.app/Contents/MacOS/keypath-cli"))
+        XCTAssertTrue(paths.contains { $0.hasSuffix("libkeypath_kanata_host_bridge.dylib") })
+        XCTAssertFalse(paths.contains { $0.contains("HelperTools") || $0.contains("LaunchDaemons") || $0.hasSuffix("kanata-launcher") })
+    }
+
+    private func sessionContext(
+        appAX: PermissionOracle.Status = .granted,
+        guiInput: PermissionOracle.Status = .granted,
+        effectiveAX: PermissionOracle.Status = .granted,
+        effectiveInput: PermissionOracle.Status = .granted,
+        running: Bool = true, responding: Bool = true,
+        configError: String? = nil, conflicts: [SystemConflict] = []
+    ) -> SystemContext {
+        let now = Date()
+        let permissions = PermissionOracle.Snapshot(
+            keyPath: .init(accessibility: appAX, inputMonitoring: guiInput,
+                           source: "test.app", confidence: .high, timestamp: now),
+            kanata: .init(accessibility: effectiveAX, inputMonitoring: effectiveInput,
+                          source: "test.session", confidence: .high, timestamp: now),
+            timestamp: now, backend: .session
+        )
+        let components = ComponentStatus(
+            kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
+            karabinerDriverInstalled: false, karabinerDaemonRunning: false,
+            vhidDeviceInstalled: false, vhidDeviceHealthy: false,
+            vhidServicesHealthy: false, vhidVersionMismatch: false
+        )
+        let health = HealthStatus(
+            backend: .session, kanataProcessRunning: running, kanataTCPResponding: responding,
+            kanataRunning: running && responding, karabinerDaemonRunning: false,
+            vhidHealthy: false, configParseError: configError
+        )
+        return SystemContext(snapshot: SystemSnapshot(
+            permissions: permissions, components: components,
+            conflicts: ConflictStatus(conflicts: conflicts, canAutoResolve: true),
+            health: health, helper: .empty, timestamp: now
+        ))
     }
 
     // MARK: - Helpers

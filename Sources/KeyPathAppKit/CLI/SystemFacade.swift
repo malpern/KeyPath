@@ -325,9 +325,10 @@ public struct SystemFacade: Sendable {
     }
 
     static func isOperational(_ context: SystemContext) -> Bool {
-        !context.permissions.keyPath.accessibility.isBlocking
-            && !context.permissions.kanata.accessibility.isBlocking
-            && !context.permissions.kanata.inputMonitoring.isBlocking
+        if context.permissions.backend == .session { return context.isReady }
+        return context.permissions.keyPath.accessibility.isReady
+            && context.permissions.kanata.accessibility.isReady
+            && context.permissions.kanata.inputMonitoring.isReady
             && context.helper.isReady
             && context.components.hasAllRequired
             && context.services.isHealthy
@@ -336,13 +337,15 @@ public struct SystemFacade: Sendable {
 
     fileprivate static func systemRepairBundleIssue() -> CLISystemIssue? {
         let bundlePath = Bundle.main.bundlePath
-        let requiredPaths = [
-            "\(bundlePath)/Contents/MacOS/keypath-cli",
-            "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.kanata.plist",
-            "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper",
-            WizardSystemPaths.bundledKanataPath,
-            WizardSystemPaths.bundledKanataLauncherPath,
-        ]
+        let requiredPaths = KanataRuntimeBackend.selected == .session
+            ? sessionRepairRequiredPaths(bundlePath: bundlePath)
+            : [
+                "\(bundlePath)/Contents/MacOS/keypath-cli",
+                "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.kanata.plist",
+                "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper",
+                WizardSystemPaths.bundledKanataPath,
+                WizardSystemPaths.bundledKanataLauncherPath,
+            ]
         if requiredPaths.allSatisfy({ FileManager.default.fileExists(atPath: $0) }) {
             return nil
         }
@@ -355,7 +358,13 @@ public struct SystemFacade: Sendable {
         )
     }
 
+    static func sessionRepairRequiredPaths(bundlePath: String) -> [String] {
+        let host = KanataRuntimeHost.current(bundlePath: bundlePath)
+        return ["\(bundlePath)/Contents/MacOS/keypath-cli", host.bridgeLibraryPath, host.bundledCorePath]
+    }
+
     static func issues(from context: SystemContext) -> [CLISystemIssue] {
+        if context.permissions.backend == .session { return sessionIssues(from: context) }
         var issues: [CLISystemIssue] = []
 
         if !context.helper.isInstalled {
@@ -457,6 +466,65 @@ public struct SystemFacade: Sendable {
         return issues
     }
 
+    private static func sessionIssues(from context: SystemContext) -> [CLISystemIssue] {
+        var issues: [CLISystemIssue] = []
+        let appAX = context.permissions.keyPath.accessibility
+        appendPermissionIssue(
+            status: appAX.isReady ? context.permissions.kanata.accessibility : appAX,
+            subject: "KeyPath", permission: "Accessibility",
+            deniedAction: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
+            remediationURL: WizardSystemPaths.accessibilitySettings, to: &issues
+        )
+        // This status is effective input access from the process that owns the
+        // session tap. A denied GUI-only IM check must not add another grant.
+        appendPermissionIssue(
+            status: context.permissions.kanata.inputMonitoring,
+            subject: "KeyPath session", permission: "Input Monitoring",
+            deniedAction: "Open KeyPath.app and verify session input access; grant Input Monitoring only if macOS requires it",
+            remediationURL: WizardSystemPaths.inputMonitoringSettings, to: &issues
+        )
+        for conflict in context.conflicts.conflicts {
+            issues.append(.init(
+                title: conflictTitle(conflict), category: "conflict",
+                action: "Quit the conflicting remapper manually, then retry KeyPath",
+                canAutoFix: false
+            ))
+        }
+        if !context.components.requiredRuntimePayloadPresent || !context.components.kanataBinaryInstalled {
+            issues.append(.init(
+                title: "KeyPath session runtime payload is missing", category: "component",
+                action: "Reinstall KeyPath to restore its bundled runtime", canAutoFix: false
+            ))
+        }
+        if let configError = context.services.configParseError {
+            issues.append(.init(
+                title: "Configuration error prevents remapping", category: "configuration",
+                action: configError, canAutoFix: false,
+                remediationURL: KeyPathConstants.URLs.configurationTroubleshooting
+            ))
+        } else if !context.services.kanataRuntimeReadiness.isReady {
+            let readiness = context.services.kanataRuntimeReadiness
+            issues.append(.init(
+                title: !readiness.isRunning ? "KeyPath session is not running"
+                    : !readiness.isResponding ? "KeyPath session is not responding"
+                    : "KeyPath session cannot capture keyboard input",
+                category: "service",
+                action: context.services.kanataPermissionRejected
+                    ? "Open KeyPath.app to verify current-session Accessibility permission"
+                    : context.services.kanataInputCaptureIssue
+                    ?? "Open KeyPath.app to verify permissions and restart the session",
+                canAutoFix: false
+            ))
+        }
+        if !context.captureStatus.isComplete {
+            issues.append(.init(
+                title: "KeyPath session readiness is not verified", category: "service",
+                action: "Open KeyPath.app and retry the system check", canAutoFix: false
+            ))
+        }
+        return issues
+    }
+
     private static func appendPermissionIssues(from context: SystemContext, to issues: inout [CLISystemIssue]) {
         appendPermissionIssue(
             status: context.permissions.keyPath.accessibility,
@@ -535,9 +603,9 @@ public struct SystemFacade: Sendable {
             issues.append(.init(
                 title: "\(subject) \(permission) permission not verified",
                 category: "permissions",
-                action: "Grant Full Disk Access to KeyPath to verify this permission",
+                action: "Open KeyPath.app to verify this permission in the active session",
                 canAutoFix: false,
-                remediationURL: WizardSystemPaths.fullDiskAccessSettings,
+                remediationURL: remediationURL,
                 severity: .warning
             ))
         }
