@@ -38,6 +38,17 @@ guest, host, UI, fixture or credential actions.
 | Product lifecycle and sleep | Oct 3 **23:32**: legacy VHID polling stopped valid driverless input. Oct 4: AppDelegate completion failed, then worker LaunchServices completion failed; signed88 ultimately passed the full parent campaign. Sleep first returned wrapper79 without underlying result; later actual request returned71/NotPermitted, no cycle. | **Implemented:** backend-scoped safety polling, genuine AppKit startup completion, canonical parent readiness and preserved OS-command diagnostics. **Open:** actual timeout/console transitions. Sleep is an observed platform refusal consistent with the recorded sleep-disabled flag; provider suspend is not replacement proof. |
 | Lease deadlines | Oct 4 **06:17**: `f9cd` was destroyed before the earliest provider expiry. By **10:41**, exact-binary review established `keep=true` bypasses that provider expiry predicate. `8833` was still destroyed before the actual lab deadline **12:06:38**. | **Implemented/documented:** distinction between provider printed idle deadline and hard lab authorization expiry. **Gap:** admission should expose that distinction clearly, without treating keep=true as a lab extension or universal provider guarantee. |
 
+## Host awake policy versus guest sleep
+
+The user deliberately keeps the mini awake for remote availability. That host
+policy is preserved. It is not an established cause of the guest's refusal:
+the guest separately exposed `/defaults/sleep-disabled=1`, while its user-level
+`SleepDisabled=No` did not exclude that platform flag. Apple's published kernel
+loads the device-tree property separately from user-disabled sleep. The observed
+flag is consistent with the rejected guest request, but who supplied it and
+exact running-kernel equivalence remain unproven. Do not change host sleep policy
+or count provider suspension as guest OS sleep/wake acceptance.
+
 ## Why fixes keep being rediscovered
 
 The canonical lab guide explicitly says experimental adapter commands are not
