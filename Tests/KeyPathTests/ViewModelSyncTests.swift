@@ -27,12 +27,14 @@ struct WindowSnappingActivationModeTests {
         let catalog = RuleCollectionCatalog()
         manager.ruleCollections = catalog.defaultCollections()
 
-        // Mode changes need an unambiguous navigation provider. Fresh profiles
-        // leave these providers disabled, so seed the one this fixture uses.
-        if supportedEntrance,
-           let navIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.vimNavigation })
-        {
-            manager.ruleCollections[navIndex].isEnabled = true
+        // Mode changes need one enabled navigation provider. Keep l and w
+        // free for the launcher/window entrances exercised by this fixture.
+        if supportedEntrance {
+            manager.ruleCollections.append(RuleCollection(
+                id: UUID(), name: "Test Navigation", summary: "", category: .custom,
+                mappings: [KeyMapping(input: "q", action: .keystroke(key: "esc"))],
+                isEnabled: true, targetLayer: .navigation
+            ))
         }
 
         // Enable Window Snapping and Quick Launcher
