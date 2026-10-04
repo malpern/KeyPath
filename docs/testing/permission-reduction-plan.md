@@ -9,8 +9,9 @@ and artifact hashes. See [pilot outcomes](mixed-model-permission-pilot.md).
 The user approved a separate driverless-only experiment. Active worktree:
 `/private/tmp/keypath-driverless-only`, branch `experiment/driverless-only`,
 branched from preserved checkpoint `234f7b87`. The accepted implementation,
-research, rig, and agent worktrees remain intact. No active VM lease remains;
-new physical trials require fresh vm-lab admission. Approval is `never`, full
+research, rig, and agent worktrees remain intact. Fresh owned lease `cbx_896c0d2d8565` is active on `malpern@mini`,
+expiring 2026-10-04 03:32:41 UTC. The corrected frozen product source is
+`6a35b48dd1c5895a572414d0453594c14e8f7f58`. Approval is `never`, full
 filesystem access and network enabled; the original guest-only restrictions
 still apply. No host deployment, permission changes, upstream push, or PR.
 
@@ -23,22 +24,27 @@ or test passes. The prior artifact remains the rollback/comparison checkpoint.
 | Gate | Work / current state | Worker level | Required independent verification |
 | --- | --- | --- | --- |
 | D1 | Separate checkpoint/worktree. Complete. | Sol medium | Existing checkpoint unchanged; isolated branch and local Kanata revision recorded |
-| D2 | Session is the sole selectable runtime; privileged lifecycle and installer execution removed. Source integrated, checks pending. | Sol medium; Sol high reviews boundaries | Tests prove flag/env cannot select DriverKit, malformed plans cannot invoke broker actions, and success requires current session readiness |
-| D3 | Fresh supported profile defaults; existing profiles preserved; canonical eligibility before managed writes. Source integrated, checks pending. | Sol medium | Actual fresh generated profile accepted by real Kanata bridge; Caps/media/filter candidates rejected before config/store mutations |
-| D4 | Driver/helper/daemon/launcher absent from frozen signed comparison artifact; root independently verified. Final corrected artifact pending. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
-| D5 | Broad safe gate4 passed 5,271 checks / zero failures at f274374e9; final focused28 passed. Lifecycle concurrency correction now requires focused and broad rechecks. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
-| D6 | Frozen f274374e9 comparison build signed and root-verified, no host deployment. Do not release for physical acceptance until lifecycle race correction and new artifact verification. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
-| D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Pending. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
-| D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
+| D2 | Session is the sole selectable runtime; privileged lifecycle and installer execution removed. Source integrated; safe regression checks passed. | Sol medium; Sol high reviews boundaries | Tests prove flag/env cannot select DriverKit, malformed plans cannot invoke broker actions, and success requires current session readiness |
+| D3 | Fresh supported profile defaults; existing profiles preserved; canonical eligibility before managed writes. Source integrated; safe regression checks passed. | Sol medium | Actual fresh generated profile accepted by real Kanata bridge; Caps/media/filter candidates rejected before config/store mutations |
+| D4 | Driver/helper/daemon/launcher absent from frozen signed comparison artifact; root independently verified. Corrected artifact signed and independently verified in the fresh guest. | Luna medium for bounded edits; Sol reviews | Strict source/artifact contract, Developer ID/team/hardened signatures on remaining components, recursive forbidden-resource absence |
+| D5 | Corrected source6a35b48dd passed broad safe gate5: 5,292 checks, zero failures/warnings; focused lifecycle24 passed. Three old snapshots remain separately unresolved. | Sol owns fixes; deterministic scripts execute | No skipped real-bridge acceptance; classify failures rather than copy expectations blindly; old snapshot failures remain separately unresolved |
+| D6 | Frozen corrected6a35b48dd build signed and root-verified; released for owned guest testing. Earlier f274 artifact remains comparison only. No host deployment. | Luna low with fixed script | Root records commit/Kanata/archive/binary identity and verifies actual artifact |
+| D7 | New clean admitted VM; normal app launch without opt-in backend flag; first-run remap and unchanged-permission continuity. Active: guest artifact identity/payload passed; desktop login waiting for compliant credential transport fix. | Luna medium established harness; Sol owns anomalies | Owned lease, genuine ESP32 events, fresh nonce/PID/hash/boot, correct output and cleanup; no inherited driver/helper installation |
+| D8 | Held-modifier transitions, tap timeout, sleep/wake and session departure. Open. Persistent target sourcea3b0847 independently reviewed; Foundation guard checks passed, isolated build/sign underway; physical phase harness pending. | Sol high designs/reviews; Luna executes bounded scripts | Physical output release and fail-open behavior; no timeout/SIGKILL substitution or provider suspend claimed as OS sleep |
 | D9 | Decision and cleanup. Pending. | Sol high decision; Luna low cleanup | Separate verified/failed/untested semantics, preserve profile/worktree, independently absent owned resources and unchanged USB policy |
 | D10 | Caps substitution ownership/integration after runtime stabilization. Planned follow-up, feature retained. | Sol high design/recovery review; Sol medium implementation; Luna hardware execution | Collision-safe device-scoped mapping, restore only owned state, stop/crash/reconnect/reboot/protected-input acceptance |
 | D11 | Revisit onboarding UX after reduced permissions and Caps prerequisites are verified. Deferred. | Sol medium implementation; design review at appropriate level | Normal fresh installer flow reflects actual consent and supported first win; no unavailable Caps retry loop |
 
 Current simplification estimate: **70%**, independent of the older 80% bounded
-checkpoint. Broad safe gate4 at frozen `f274374e9` passed **5,271 checks / zero
-failures** without compiler warnings; final focused28 passed. Earlier graph/
-launcher failures were test premises: reserved nav identity, persisted disabled
-launcher, and a nonconflicting navigation entrance. Assertions remain intact.
+checkpoint. Corrected frozen source `6a35b48dd` passed **5,292 safe checks / zero
+failures / zero compiler warnings**, plus 24 focused lifecycle checks. Lifecycle
+ownership fixes are integrated and independently reviewed. The fresh guest
+verified the exact binary hash, strict signing and absence of driver/helper
+payloads and system extensions. Physical runtime and reboot checks remain.
+
+The guest login helper was stopped before credential loading because its existing
+transport writes a plaintext temporary file. A reviewed memory/stdin-only fix is
+required before continuing desktop setup; no password was written or exposed.
 
 The three original home-row snapshot failures are excluded from the safe gate.
 Their UI source, mock inputs and reference images are byte-identical to verified
@@ -50,14 +56,11 @@ main executable `6cbe01a2a95412e2ea1874832efb9fb8e1da076bdb7348df15ad3d36bbc7fc1
 Root independently verified strict deep signing, stable Developer ID/hardened
 identities and forbidden-payload absence. Not notarized; guest-only, not deployed.
 
-Safety review found and root confirmed a new source hazard: asynchronous session
-start/stop/restart operations can interleave across MainActor awaits and overwrite
-worker ownership. Correction is isolated in `/private/tmp/keypath-session-lifecycle-epoch`.
-Required invariant: one admitted complete lifecycle operation, current intent after
-awaits, cleanup of late launches before releasing admission, generation-bound
-supervision, and atomic restart. Add controlled interleaving/cancellation tests,
-including repeated healthy start adopting supervision. Do not release the comparison
-artifact for new physical acceptance; rebuild after correction and regression gates.
+Safety review found and corrected asynchronous lifecycle reentrancy. Complete
+start/stop/restart admission, intent generations, cleanup of late launches,
+cancellation-safe accepted stops and generation/PID/nonce-bound supervision are
+integrated. Healthy repeated start re-adopts supervision. Source tests and signing
+passed; actual output release remains a physical acceptance requirement.
 
 A read-only dependency audit estimates roughly10,000–11,000 additional legacy
 Swift lines may be removed after wiring changes. Removal sequence: helper/launcher
@@ -81,7 +84,7 @@ and other predicates remain rejected. The rebuilt bridge also accepts only layer
 real-engine ownership tests. The core save/pack/rollback gate passed 176 cases;
 the third broad gate verifies these changes but retains the four failures above. Signed/physical app-specific acceptance
 is still pending. Unit-test application launches are blocked to keep this gate
-from opening or modifying host applications. No new VM has been admitted.
+from opening or modifying host applications. The fresh VM is admitted; only the established validated rig is released for D7.
 
 Do not imply default media keys or raw Caps are now supported. Built-in definitions
 remain available, fresh enabled defaults are conservative, and existing profiles
