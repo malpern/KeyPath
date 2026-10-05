@@ -40,6 +40,9 @@ public struct SessionOutputState: Sendable {
         _ event: KanataHostBridgePassthruOutputEvent
     ) throws -> SessionKeyOutput {
         guard event.usagePage == SessionKeyMap.keyboardPage,
+              // Caps changes WindowServer's latch upstream of this tap. Even
+              // a managed Caps input must never synthesize a Caps output.
+              event.usage != 57,
               let code = SessionKeyMap.keyCode(forUsage: event.usage), event.value <= 2
         else {
             throw Failure.unsupportedEvent(page: event.usagePage, usage: event.usage, value: event.value)

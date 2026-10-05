@@ -79,6 +79,21 @@ final class SessionOutputStateTests: XCTestCase {
         XCTAssertEqual(state.releaseAll().count, 1)
     }
 
+    func testCapsOutputCannotEnterOrDisturbOwnedReleaseLedger() throws {
+        var state = SessionOutputState()
+        _ = try state.translate(event(224, 1))
+        _ = try state.translate(event(4, 1))
+        for value: UInt64 in [1, 2, 0] {
+            XCTAssertThrowsError(try state.translate(event(57, value))) { error in
+                XCTAssertEqual(error as? SessionOutputState.Failure,
+                               .unsupportedEvent(page: 7, usage: 57, value: value))
+            }
+            XCTAssertEqual(state.heldUsages, [224, 4])
+        }
+        XCTAssertEqual(state.releaseAll().map(\.keyCode), [0, 59])
+        XCTAssertTrue(state.heldUsages.isEmpty)
+    }
+
     func testReportRejectsStaleForeignAndFutureEvidence() throws {
         let now = Date(timeIntervalSince1970: 1000)
         let report = SessionRuntimeReport(
