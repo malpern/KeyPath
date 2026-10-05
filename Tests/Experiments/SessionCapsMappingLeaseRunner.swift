@@ -185,7 +185,7 @@ struct SessionCapsMappingLeaseRunner {
         let row = "{ HIDKeyboardModifierMappingDst = 30064771181; HIDKeyboardModifierMappingSrc = 30064771129; }"
         try check(SessionCapsHIDUtilTransport.parseProperty(header + "(\n)", device: device).mappings == [])
         try check(SessionCapsHIDUtilTransport.parseProperty(header + "(" + row + ")", device: device).mappings == [.init(source: Policy.caps, destination: Policy.f18)])
-        for bad in ["", header + "(null)", header + "(" + row + ") trailing",
+        for bad in ["", header + "(null, {})", header + "(" + row + ") trailing",
                     header + "(" + row + ")\n2a UserKeyMapping ()",
                     header + "({ HIDKeyboardModifierMappingSrc = 30064771129; HIDKeyboardModifierMappingSrc = 30064771129; })",
                     header + "({ Unknown = 1; HIDKeyboardModifierMappingSrc = 30064771129; })",
@@ -197,6 +197,49 @@ struct SessionCapsMappingLeaseRunner {
         try check(args.count == 5 && args[0] == "property" && args[4] == "UserKeyMapping")
         let match = try JSONSerialization.jsonObject(with: Data(args[2].utf8)) as! [String: Any]
         try check(match["SerialNumber"] == nil && (match["IOPropertyMatch"] as? [String: String])?["SerialNumber"] == "fixture")
+        let liveDevice = Policy.DeviceIdentity(registryEntryID: 4294968825, vendorID: 51966, productID: 16400,
+                                                serialNumber: nil, locationID: 261095424)
+        // Exact output from the public-UID 502 owned guest qualification.
+        let service = #"{"Product":"KeyPath Physical HID Fixture","VendorID":51966,"IOUserClass":"AppleUserHIDEventDriver","IOClass":"AppleUserHIDEventService","type":"service","PrimaryUsage":6,"PrimaryUsagePage":1,"IORegistryEntryID":4294968825,"Transport":"USB","LocationID":261095424,"ProductID":16400}"#
+        let deviceRow = #"{"IOClass":"AppleUserHIDDevice","VendorID":51966,"Product":"KeyPath Physical HID Fixture","type":"device","PrimaryUsage":6,"LocationID":261095424,"IORegistryEntryID":4294968819,"ProductID":16400,"Transport":"USB","Manufacturer":"KeyPath Lab","PrimaryUsagePage":1,"IOUserClass":"AppleUserUSBHostHIDDevice"}"#
+        let liveNull = "RegistryID  Key                   Value\n1000005f9   UserKeyMapping   (null)\n"
+        try check(try SessionCapsHIDUtilTransport.parseServices(service + "\n" + deviceRow + "\n") == [liveDevice])
+        try check(try SessionCapsHIDUtilTransport.parseProperty(liveNull, device: liveDevice).mappings == [])
+        for malformed in ["{", "[]", service + "\n{}", service + "\n" + service,
+                          service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service,
+                          service.replacingOccurrences(of: "51966", with: "true"),
+                          service.replacingOccurrences(of: "51966", with: "51966.0"),
+                          service.replacingOccurrences(of: "51966", with: "65536"),
+                          service.replacingOccurrences(of: "261095424", with: "4294967296"),
+                          service.replacingOccurrences(of: "261095424", with: "0"),
+                          service.replacingOccurrences(of: "4294968825", with: "18446744073709551616"),
+                          service.replacingOccurrences(of: "AppleUserHIDEventService", with: "AppleUserHIDDevice")] {
+            refused { _ = try SessionCapsHIDUtilTransport.parseServices(malformed) }
+        }
+        let mouse = service.replacingOccurrences(of: "\"PrimaryUsage\":6", with: "\"PrimaryUsage\":2")
+        try check(try SessionCapsHIDUtilTransport.parseServices(mouse) == [])
+        var commands: [[String]] = []
+        let backend = SessionCapsHIDUtilTransport.backend { arguments in
+            commands.append(arguments)
+            if arguments[0] == "list" { return service + "\n" + deviceRow }
+            if arguments.contains("--get") { return liveNull }
+            return "RegistryID  Key                   Value\n1000005f9 UserKeyMapping (" + row + ")"
+        }
+        try check(try backend.enumerate() == [liveDevice])
+        try check(try backend.read(liveDevice).mappings == [])
+        try backend.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)])
+        try check(commands.count == 3 && commands[0] == ["list", "--ndjson", "--matching", "keyboard"])
+        let selector = try JSONSerialization.jsonObject(with: Data(commands[1][2].utf8)) as! [String: Any]
+        try check((selector["LocationID"] as? NSNumber)?.uint32Value == 261095424 && selector["IOPropertyMatch"] == nil)
+        let falseWrite = SessionCapsHIDUtilTransport.backend { _ in liveNull }
+        refused { try falseWrite.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)]) }
+        let overLimit = SessionCapsHIDUtilTransport.backend { _ in String(repeating: "x", count: 65537) }
+        refused { _ = try overLimit.enumerate() }
+        refused { _ = try overLimit.read(liveDevice) }
+        let failed = SessionCapsHIDUtilTransport.backend { _ in throw Failure.simulated }
+        refused { _ = try failed.enumerate() }
+        refused { _ = try failed.read(liveDevice) }
+        refused { try failed.write(liveDevice, []) }
         print("PASS: durable Caps lease fake transport scenarios")
     }
 }
