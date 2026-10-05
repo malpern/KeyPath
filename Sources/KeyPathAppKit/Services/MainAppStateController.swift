@@ -180,8 +180,8 @@ class MainAppStateController {
 
         AppLogger.shared.log("🎯 [MainAppStateController] Configured (Phase 3)")
 
-        // Check for orphaned installation (leftover files from manual deletion)
-        OrphanDetector.shared.checkForOrphans()
+        // Existing user data is expected on relaunch, not evidence of app deletion.
+        // Keep legacy cleanup out of startup: a modal alert here blocks bootstrap.
 
         // Start service health monitoring to fix stale overlay state
         if TestEnvironment.isRunningTests {
