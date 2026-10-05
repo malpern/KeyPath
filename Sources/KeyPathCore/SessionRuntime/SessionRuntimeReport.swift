@@ -204,4 +204,47 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             && timestamp <= now.addingTimeInterval(1)
             && now.timeIntervalSince(timestamp) <= 2
     }
+
+    #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+        /// Formats a bounded terminal-startup record for local diagnostics only.
+        /// This never authorizes startup or changes cleanup behavior.
+        public func experimentalTerminalStartupDiagnosticJSON(
+            parentPID: Int32, expectedWorkerPID: Int32, expectedUID: UInt32,
+            expectedNonce: String, launchGeneration: UInt64, now: Date
+        ) -> String? {
+            let age = now.timeIntervalSince(timestamp)
+            guard state == .failed, let failure, !failure.isEmpty,
+                  inputCount == 0, outputCount == 0, heldOutputUsages.isEmpty,
+                  age >= 0, age <= 2,
+                  isCurrent(nonce: expectedNonce, pid: expectedWorkerPID, uid: expectedUID, now: now)
+            else { return nil }
+
+            let safeFailure = failure.unicodeScalars.prefix(160).map { scalar in
+                let value = scalar.value
+                return (0x20 ... 0x7E).contains(value) ? String(scalar) : "_"
+            }.joined()
+            guard let reportData = try? JSONEncoder().encode(self),
+                  let reportObject = try? JSONSerialization.jsonObject(with: reportData) as? [String: Any]
+            else { return nil }
+            let payload: [String: Any] = [
+                "schema": "keypath.session-start-terminal.v1",
+                "parentPID": parentPID,
+                "workerPID": expectedWorkerPID,
+                "uid": expectedUID,
+                "launchGeneration": launchGeneration,
+                "nonce": expectedNonce,
+                "capturedAtUnixMilliseconds": Int64((now.timeIntervalSince1970 * 1000).rounded()),
+                "reportTimestampUnixMilliseconds": Int64((timestamp.timeIntervalSince1970 * 1000).rounded()),
+                "reportAgeMilliseconds": Int((age * 1000).rounded()),
+                "failureSummary": safeFailure,
+                "report": reportObject
+            ]
+
+            guard JSONSerialization.isValidJSONObject(payload),
+                  let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]),
+                  data.count <= 16384,
+                  let json = String(data: data, encoding: .utf8) else { return nil }
+            return json
+        }
+    #endif
 }

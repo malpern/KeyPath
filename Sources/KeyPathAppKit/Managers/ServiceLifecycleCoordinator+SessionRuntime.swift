@@ -106,7 +106,25 @@ extension ServiceLifecycleCoordinator {
                 if application.isTerminated { break }
                 try await Task.sleep(for: .milliseconds(100))
             }
-            let failure = sessionReportURL.flatMap(Self.readSessionReport)?.failure
+            let terminalReport = sessionReportURL.flatMap(Self.readSessionReport)
+            let failure = terminalReport?.failure
+            #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+                if let terminalReport,
+                   sessionStartIsCurrent(generation),
+                   sessionApplication === application,
+                   sessionReportURL == url,
+                   sessionNonce == nonce,
+                   let diagnostic = terminalReport.experimentalTerminalStartupDiagnosticJSON(
+                       parentPID: getpid(), expectedWorkerPID: application.processIdentifier,
+                       expectedUID: getuid(), expectedNonce: nonce,
+                       launchGeneration: generation, now: Date()
+                   )
+                {
+                    // This is evidence only. The original failure and cleanup path
+                    // proceeds unchanged even when the diagnostic is absent.
+                    AppLogger.shared.error("SESSION_TERMINAL_STARTUP \(diagnostic)")
+                }
+            #endif
             _ = await stopSessionRuntime()
             if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
         } catch {
