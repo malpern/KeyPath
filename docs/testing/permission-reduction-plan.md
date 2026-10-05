@@ -1,3 +1,11 @@
+## Active checkpoint — October 5, 2026, 05:48 UTC
+
+Fresh lookback trial cbx_a66cf10875e1 is destroyed; independent cleanup PASS confirms provider absent, prepared template retained stopped, exact ESP32 detached/present/ask/empty binding. No physical input. Frozen4338 source passed51 inert checks on both Python versions and independent review;12file/113dependency pins verified. Normal public502 login, signed595 staging, Finder launch and AX+Input Monitoring consent/restart passed. Finite auth0/1/79/255 passed0.896–0.982sec.
+
+Readiness reader correction LIVE VERIFIED: exact current ready tuple admitted from bounded1MiB scan, initial full7168 enabled startup6.6634sec within8sec. Positive then failed stale target at1.parent_ready: measured identity3.1053sec/snapshot3.5522sec/parent_ready3.3914sec; original measurement rechecks the old target snapshot after the latter, exceeding unchanged3sec freshness. Nine serial operations at these latencies already project~30sec against20sec budget, before fsync/final. Do not hide this by increasing budgets/freshness or caching acceptance. Source-only review examines fresh guarded batching and redundant same-operation provider reads before another VM.
+
+Native cleanup0errors/profile restored; independent reconciliation confirms product absent, original profile restored, exact retained target3920 all-up/modifiers0/focusLostfalse. Private receipts `/private/tmp/keypath-physical-ssh-lookback-595-guest/positive-receipt.json`, `failure-reconciliation.json`, `provider-cleanup-check.json`. Positive remains failed; progress2/6(33%). No active VM/driver. Continue physical remap→actual timeout/recovery/session transitions→Caps Lock→installer/onboarding after the timing architecture is reviewed. Hydration-stop255 warning preserved.
+
 ## Active checkpoint — October 5, 2026, 05:30 UTC
 
 No active VM. Reviewed b820/47 inert-check trial cbx_35af753ad720 passed normal Finder launch, normal AX+Input Monitoring consent, independent public502/original-profile/product-absence preflight and finite auth0/1/79/255. All70 SSH calls completed; no transport failure. Positive remained FAILED at the later parent-readiness log query before samples/input. Initial readiness7.3568sec within8sec and registered modifying tapfull7168 enabled were observed; no physical input or USB attachment.
