@@ -1,6 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+source "$repo_root/Scripts/lib/xcode.sh"
+keypath_use_stable_xcode
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-caps-lease.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 swiftc -module-cache-path "$tmp_dir/module-cache" -emit-library -emit-module -module-name KeyPathCore \

@@ -386,16 +386,36 @@ public enum KanataHostBridge {
 
     public static func validateSessionConfig(
         runtimeHost: KanataRuntimeHost, configPath: String,
-        supportedUsages: [UInt32], fileManager: FileManager = .default
+        supportedUsages: [UInt32], managedCaps: Bool = false,
+        fileManager: FileManager = .default
     ) -> KanataHostBridgeValidationResult {
         typealias ValidateSessionFunction = @convention(c) (
             UnsafePointer<CChar>?, UnsafePointer<UInt32>?, Int,
+            UnsafeMutablePointer<CChar>?, Int
+        ) -> Bool
+        typealias ValidateManagedCapsFunction = @convention(c) (
+            UnsafePointer<CChar>?, UnsafePointer<UInt32>?, Int, Bool,
             UnsafeMutablePointer<CChar>?, Int
         ) -> Bool
         guard let handle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else {
             return .unavailable(reason: unavailableReason(runtimeHost: runtimeHost, fileManager: fileManager))
         }
         defer { dlclose(handle) }
+        // Older bridges must fail closed for managed Caps; the legacy validator
+        // does not distinguish a supported input from an unsafe Caps output.
+        if managedCaps {
+            guard let symbol = dlsym(handle, "keypath_kanata_bridge_validate_session_config_with_managed_caps") else {
+                return .unavailable(reason: "managed Caps profile validator missing")
+            }
+            let validate = unsafeBitCast(symbol, to: ValidateManagedCapsFunction.self)
+            var buffer = [CChar](repeating: 0, count: 2048)
+            let valid = supportedUsages.withUnsafeBufferPointer { usages in
+                configPath.withCString { path in
+                    validate(path, usages.baseAddress, usages.count, true, &buffer, buffer.count)
+                }
+            }
+            return valid ? .valid : .invalid(reason: decodeCStringBuffer(buffer) ?? "managed Caps config rejected")
+        }
         guard let symbol = dlsym(handle, "keypath_kanata_bridge_validate_session_config") else {
             return .unavailable(reason: "session profile validator missing")
         }

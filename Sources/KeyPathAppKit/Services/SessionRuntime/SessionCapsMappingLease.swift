@@ -23,7 +23,8 @@ public final class SessionCapsMappingLease {
         public let write: (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void
         public init(enumerate: @escaping () throws -> [Policy.DeviceIdentity],
                     read: @escaping (Policy.DeviceIdentity) throws -> Snapshot,
-                    write: @escaping (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void) {
+                    write: @escaping (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void)
+        {
             self.enumerate = enumerate
             self.read = read
             self.write = write
@@ -33,6 +34,7 @@ public final class SessionCapsMappingLease {
     public enum Refusal: Error, Equatable {
         case unsafeDirectory, unsafeFile, busy, pendingIntent, wrongOwner, unverifiedWrite, journalIO
     }
+
     private let directory: URL
     private let backend: Backend
     private let journal = "caps-mapping-intent.json"
@@ -44,13 +46,14 @@ public final class SessionCapsMappingLease {
     }
 
     public func pendingRecord() throws -> Policy.Record? {
-        try locked { try load($0) }
+        try locked { try load($0)?.record }
     }
 
     /// A durable journal is fsynced before the first HID mutation. Any thrown
     /// write/readback error leaves intent pending, even if the write took effect.
     public func acquire(owner: Policy.Owner, configSHA256: String,
-                        device: Policy.DeviceIdentity) throws -> Policy.Record {
+                        device: Policy.DeviceIdentity) throws -> Policy.Record
+    {
         try locked { fd in
             guard try load(fd) == nil else { throw Refusal.pendingIntent }
             guard owner.uid == getuid() else { throw Refusal.wrongOwner }
@@ -77,7 +80,8 @@ public final class SessionCapsMappingLease {
     /// that owner dead externally, then pass the recorded owner here.
     public func restore(expectedOwner: Policy.Owner, bootSessionUUID: String) throws {
         try locked { fd in
-            guard let record = try load(fd) else { return }
+            guard let loaded = try load(fd) else { return }
+            let record = loaded.record
             guard record.owner == expectedOwner, record.owner.uid == getuid() else { throw Refusal.wrongOwner }
             guard bootSessionUUID == record.owner.bootSessionUUID else { throw Policy.Refusal.differentBoot }
             try verifyInstance(record)
@@ -88,10 +92,12 @@ public final class SessionCapsMappingLease {
             if snapshot.mappings != record.original {
                 let original = try Policy.restore(record: record, current: snapshot.mappings,
                                                   device: snapshot.device, bootSessionUUID: bootSessionUUID)
+                try verifyJournal(loaded, directoryFD: fd)
                 try backend.write(record.device, original)
                 let restored = try backend.read(record.device)
                 guard restored.device == record.device, restored.mappings == original else { throw Refusal.unverifiedWrite }
             }
+            try verifyJournal(loaded, directoryFD: fd)
             guard unlinkat(fd, journal, 0) == 0, fsync(fd) == 0 else { throw Refusal.journalIO }
         }
     }
@@ -128,14 +134,36 @@ public final class SessionCapsMappingLease {
               info.st_size >= 0, info.st_size <= maximumSize else { throw Refusal.unsafeFile }
     }
 
-    private func load(_ dir: Int32) throws -> Policy.Record? {
-        let fd = openat(dir, journal, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+    private struct JournalEntry {
+        let record: Policy.Record
+        let metadata: stat
+    }
+
+    private func sameEntry(_ lhs: stat, _ rhs: stat) -> Bool {
+        lhs.st_dev == rhs.st_dev && lhs.st_ino == rhs.st_ino && lhs.st_mode == rhs.st_mode
+            && lhs.st_uid == rhs.st_uid && lhs.st_gid == rhs.st_gid && lhs.st_nlink == rhs.st_nlink
+            && lhs.st_size == rhs.st_size
+            && lhs.st_mtimespec.tv_sec == rhs.st_mtimespec.tv_sec && lhs.st_mtimespec.tv_nsec == rhs.st_mtimespec.tv_nsec
+            && lhs.st_ctimespec.tv_sec == rhs.st_ctimespec.tv_sec && lhs.st_ctimespec.tv_nsec == rhs.st_ctimespec.tv_nsec
+    }
+
+    private func verifyJournal(_ entry: JournalEntry, directoryFD: Int32) throws {
+        var current = stat()
+        guard fstatat(directoryFD, journal, &current, AT_SYMLINK_NOFOLLOW) == 0,
+              sameEntry(entry.metadata, current) else { throw Refusal.unsafeFile }
+    }
+
+    private func load(_ dir: Int32) throws -> JournalEntry? {
+        // A foreign FIFO must fail fstat, not block the lifecycle while opening.
+        let fd = openat(dir, journal, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
         if fd < 0 {
             if errno == ENOENT { return nil }
             throw Refusal.unsafeFile
         }
         defer { close(fd) }
         try checkFile(fd)
+        var before = stat()
+        guard fstat(fd, &before) == 0 else { throw Refusal.journalIO }
         var bytes = [UInt8](repeating: 0, count: maximumSize + 1)
         var count = 0
         while count < bytes.count {
@@ -145,7 +173,11 @@ public final class SessionCapsMappingLease {
             count += n
         }
         guard count > 0, count <= maximumSize else { throw Refusal.unsafeFile }
-        return try JSONDecoder().decode(Policy.Record.self, from: Data(bytes.prefix(count)))
+        var after = stat()
+        guard fstat(fd, &after) == 0, sameEntry(before, after), count == before.st_size else { throw Refusal.unsafeFile }
+        let entry = try JournalEntry(record: JSONDecoder().decode(Policy.Record.self, from: Data(bytes.prefix(count))), metadata: before)
+        try verifyJournal(entry, directoryFD: dir)
+        return entry
     }
 
     private func persist(_ record: Policy.Record, directoryFD: Int32) throws {
