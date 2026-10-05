@@ -58,3 +58,20 @@ canonical consent guidance, and retained granted/unknown startup polling. Log:
 failed guidance assertions before the inspector projection correction; no failure was
 waived. Diff whitespace check passed. No guest validation of these new source bytes has
 been performed.
+
+Fresh signed f7678dacb acceptance on October5: canonical missing-listening failure
+was initially published, but the visible status returned to checking. A wizard
+capabilities refresh briefly returned workerPID=-1/unknown; the next validation
+entered the startup gate, which checked permissions only once. Later definitive
+denial could not interrupt that wait. The same guest passed normal IM consent and
+reopen plus all eight physical q-to-a checks. Original profile and process cleanup,
+VM destruction, preserved template and detached fixture were independently verified.
+Raw receipts: `/private/tmp/keypath-status-live-01`.
+
+The existing startup loop now rechecks the canonical session snapshot while waiting.
+No additional timer, lab wrapper or runtime owner was introduced. Regression covers
+unknown→denied evidence interrupting the gate after one health poll and publishing
+consent/reopen guidance during lifecycle grace; immediate denial takes zero health
+polls. Canonical focused runner passed eight XCTest plus33 Swift Testing cases,
+log `/private/tmp/keypath-status-recheck-safe-01.log`. Fresh signed validation of
+this additional correction remains pending.

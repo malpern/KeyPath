@@ -408,7 +408,7 @@ struct MainAppStateControllerBehaviorTests {
         let controller = MainAppStateController()
         #if DEBUG
             controller.configureStartupGateTestingState(
-                permissionsOverride: sessionPermissions(inputMonitoring: .granted),
+                permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
                 healthOverride: {
                     KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
@@ -578,7 +578,7 @@ struct MainAppStateControllerBehaviorTests {
             let controller = MainAppStateController()
             var healthProbes = 0
             controller.configureStartupGateTestingState(
-                permissionsOverride: sessionPermissions(inputMonitoring: status),
+                permissionsOverride: { sessionPermissions(inputMonitoring: status) },
                 healthOverride: {
                     healthProbes += 1
                     return KanataRuntimeReadiness(isRunning: false, isResponding: false)
@@ -593,43 +593,50 @@ struct MainAppStateControllerBehaviorTests {
         }
     }
 
-    @Test("Denied listening publishes actionable failure during startup grace without polling runtime")
+    @Test("Initial unknown or denied listening publishes actionable failure during startup grace")
     func deniedSessionPermissionPublishesDuringStartupGrace() async {
-        let permissions = sessionPermissions(inputMonitoring: .denied)
-        let context = SystemContextBuilder(componentsInstalled: true).build()
-        let snapshot = SystemSnapshot(
-            id: context.snapshotID, permissions: permissions, components: context.components,
-            conflicts: context.conflicts, health: context.services, helper: context.helper,
-            compatibility: SystemCompatibilityStatus(macOSVersion: "26.0", driverCompatible: true),
-            timestamp: Date(), captureStatus: .complete
-        )
-        let controller = MainAppStateController()
-        let manager = RuntimeCoordinator()
-        controller.configure(serviceLifecycle: manager.serviceLifecycleCoordinator, onSystemHealthy: {})
-        controller.setValidator(StubSystemValidator(snapshot: snapshot))
-        var healthProbes = 0
-        controller.configureStartupGateTestingState(
-            permissionsOverride: permissions,
-            healthOverride: {
-                healthProbes += 1
-                return KanataRuntimeReadiness(isRunning: false, isResponding: false)
-            },
-            transientWindowOverride: { true },
-            timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
-        )
-        defer { controller.resetStartupGateTestingState() }
-        #expect(await controller.isInRuntimeStartupWindow())
-        await controller.revalidate()
-        #expect(healthProbes == 0)
-        #expect(controller.validationState?.hasCriticalIssues == true)
-        #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
-        #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
-            "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
-        #expect(controller.issues.contains {
-            $0.identifier == .permission(.keyPathInputMonitoring) &&
-                $0.description.contains("quit and reopen KeyPath") &&
-                $0.userAction?.contains("quit and reopen KeyPath") == true
-        })
+        for initialStatus in [PermissionOracle.Status.unknown, .denied] {
+            let permissions = sessionPermissions(inputMonitoring: .denied)
+            let context = SystemContextBuilder(componentsInstalled: true).build()
+            let snapshot = SystemSnapshot(
+                id: context.snapshotID, permissions: permissions, components: context.components,
+                conflicts: context.conflicts, health: context.services, helper: context.helper,
+                compatibility: SystemCompatibilityStatus(macOSVersion: "26.0", driverCompatible: true),
+                timestamp: Date(), captureStatus: .complete
+            )
+            let controller = MainAppStateController()
+            let manager = RuntimeCoordinator()
+            controller.configure(serviceLifecycle: manager.serviceLifecycleCoordinator, onSystemHealthy: {})
+            controller.setValidator(StubSystemValidator(snapshot: snapshot))
+            var permissionProbes = 0
+            var healthProbes = 0
+            controller.configureStartupGateTestingState(
+                permissionsOverride: {
+                    permissionProbes += 1
+                    return permissionProbes == 1 ? sessionPermissions(inputMonitoring: initialStatus) : permissions
+                },
+                healthOverride: {
+                    healthProbes += 1
+                    return KanataRuntimeReadiness(isRunning: false, isResponding: false)
+                },
+                transientWindowOverride: { true },
+                timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
+            )
+            defer { controller.resetStartupGateTestingState() }
+            #expect(await controller.isInRuntimeStartupWindow())
+            await controller.revalidate()
+            #expect(healthProbes == (initialStatus == .unknown ? 1 : 0))
+            #expect(permissionProbes == (initialStatus == .unknown ? 2 : 1))
+            #expect(controller.validationState?.hasCriticalIssues == true)
+            #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
+            #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
+                "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
+            #expect(controller.issues.contains {
+                $0.identifier == .permission(.keyPathInputMonitoring) &&
+                    $0.description.contains("quit and reopen KeyPath") &&
+                    $0.userAction?.contains("quit and reopen KeyPath") == true
+            })
+        }
     }
 
     private func sessionPermissions(

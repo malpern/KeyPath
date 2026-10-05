@@ -127,7 +127,7 @@ class MainAppStateController {
     @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
     #if DEBUG
-        @ObservationIgnored private var startupGatePermissionsOverride: PermissionOracle.Snapshot?
+        @ObservationIgnored private var startupGatePermissionsOverride: (() async -> PermissionOracle.Snapshot)?
         @ObservationIgnored private var startupGateHealthOverride:
             (() async -> KanataRuntimeReadiness)?
         @ObservationIgnored private var startupGateTransientWindowOverride:
@@ -136,7 +136,7 @@ class MainAppStateController {
             (definitiveGrace: TimeInterval, transientGrace: TimeInterval, checkInterval: TimeInterval)?
 
         func configureStartupGateTestingState(
-            permissionsOverride: PermissionOracle.Snapshot? = nil,
+            permissionsOverride: (() async -> PermissionOracle.Snapshot)? = nil,
             healthOverride: (() async -> KanataRuntimeReadiness)? = nil,
             transientWindowOverride: (() async -> Bool)? = nil,
             timingOverride: (
@@ -733,21 +733,6 @@ class MainAppStateController {
     }
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
-        if KanataRuntimeBackend.selected == .session {
-            let permissions: PermissionOracle.Snapshot
-            #if DEBUG
-                if let override = startupGatePermissionsOverride {
-                    permissions = override
-                } else {
-                    permissions = await PermissionOracle.shared.currentSnapshot()
-                }
-            #else
-                permissions = await PermissionOracle.shared.currentSnapshot()
-            #endif
-            if Self.hasDefinitiveSessionPermissionFailure(permissions) {
-                return .missingSessionPermissions
-            }
-        }
         let timing = startupGateTiming()
         let start = Date()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
@@ -755,6 +740,21 @@ class MainAppStateController {
         var checks = 0
 
         while Date() < transientDeadline {
+            if KanataRuntimeBackend.selected == .session {
+                let permissions: PermissionOracle.Snapshot
+                #if DEBUG
+                    if let override = startupGatePermissionsOverride {
+                        permissions = await override()
+                    } else {
+                        permissions = await PermissionOracle.shared.currentSnapshot()
+                    }
+                #else
+                    permissions = await PermissionOracle.shared.currentSnapshot()
+                #endif
+                if Self.hasDefinitiveSessionPermissionFailure(permissions) {
+                    return .missingSessionPermissions
+                }
+            }
             let health = await currentKanataStartupHealth()
             let isReady = health.isReady
             if isReady {
