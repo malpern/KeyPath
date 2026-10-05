@@ -141,3 +141,14 @@ startup journal recovery. Simultaneous parent/worker loss cannot promise immedia
 restoration. Require initial physical all-up and Caps-off state and independently
 observe latch/modifier state during transitions. These are design requirements,
 not implemented features or new test passes.
+
+
+## Minimal Caps ownership integration boundary — October 5 review
+
+Source-only review confirmed that logical Caps inputs are deliberately rejected in configuration validation, reload admission and the worker; raw Caps also passes through. Preserve those gates until explicit managed Caps inputs compile into a validated effective F18 input configuration. Continue rejecting Caps output and unsupported raw configurations.
+
+Use the existing ServiceLifecycleCoordinator/sessionOperationGate and worker owner-exit cleanup. A small substitution lease helper may read/write device-scoped UserKeyMapping through the evidenced hidutil interface; no new daemon, watchdog or permission grant. Preserve unrelated mapping entries. Refuse existing Caps sources, mappings involving F18, meaningful F18 profile usage and ambiguous device identity. Extend existing device identity with serial/location and current registry identity before writing. Native F18 on another keyboard is still indistinguishable at the event tap and must be an explicit eligibility limitation.
+
+Persist only the owned device/generation, effective config hash, original map and verified applied map. Restore only when current device and map still match the owned applied state. Never clear the whole map or restore a stale snapshot over foreign changes. Read/write races are not solved by hidutil; test them rather than claiming atomic ownership.
+
+A surviving parent restores after worker failure; a surviving worker restores after parent failure. If both die, durable restoration occurs on next launch; immediate restoration is not promised. During Secure Input pause, restore native Caps before resuming, then reapply only after physical release reconciliation and verified runtime recovery. Product support remains unimplemented. Required tests include preservation/conflicts, native F18/two keyboards, reconnect/ambiguous identity, normal stop, each crash, both-process crash/next launch, failed activation/reload rollback, reboot and Secure Input with Caps held. This narrows implementation scope and does not declare any new acceptance pass.
