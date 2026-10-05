@@ -217,7 +217,7 @@ struct ConfigReloadCoordinatorTests {
         let (coordinator, engine, _) = Self.makeSUT(
             tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
             restartForManagedCapsChange: { state.restartCount += 1; return true },
-            sessionValidationOverride: { (.invalid("Caps is not eligible"), true) }
+            sessionValidationOverride: { (.invalid(reason: "Caps is not eligible"), true) }
         )
         let result = await coordinator.triggerTCPReload()
         #expect(!result.isSuccess)

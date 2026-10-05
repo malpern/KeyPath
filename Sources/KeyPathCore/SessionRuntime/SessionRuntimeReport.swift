@@ -42,15 +42,24 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         private enum CodingKeys: String, CodingKey, CaseIterable { case initialization, preparation, callbackFirstResult }
         private struct Field: CodingKey {
             let stringValue: String
-            var intValue: Int? { nil }
-            init?(stringValue: String) { self.stringValue = stringValue }
-            init?(intValue _: Int) { return nil }
+            var intValue: Int? {
+                nil
+            }
+
+            init?(stringValue: String) {
+                self.stringValue = stringValue
+            }
+
+            init?(intValue _: Int) {
+                nil
+            }
         }
+
         public init(from decoder: Decoder) throws {
             let all = try decoder.container(keyedBy: Field.self)
             guard Set(all.allKeys.map(\.stringValue)) == Set(CodingKeys.allCases.map(\.rawValue)) else {
                 throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
-                    debugDescription: "Unexpected tap-timeout diagnostic fields"))
+                                                        debugDescription: "Unexpected tap-timeout diagnostic fields"))
             }
             let values = try decoder.container(keyedBy: CodingKeys.self)
             initialization = try values.decode(Initialization.self, forKey: .initialization)
@@ -220,6 +229,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let failure: String?
     public let heldOutputUsages: [UInt32]
     public let experimentalTapDiagnostics: ExperimentalTapDiagnostics?
+    public let managedCapsGeneration: String?
     public let experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic?
 
     public init(
@@ -228,7 +238,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         tcpPort: UInt16, inputCount: UInt64, outputCount: UInt64,
         timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
         inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil,
-        experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil
+        experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil,
+        managedCapsGeneration: String? = nil
     ) {
         self.nonce = nonce
         self.pid = pid
@@ -246,6 +257,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.heldOutputUsages = heldOutputUsages
         self.experimentalTapDiagnostics = experimentalTapDiagnostics
         self.experimentalTapTimeout = experimentalTapTimeout
+        self.managedCapsGeneration = managedCapsGeneration
     }
 
     /// Cleanup evidence remains useful after a stalled worker dies. Callers must

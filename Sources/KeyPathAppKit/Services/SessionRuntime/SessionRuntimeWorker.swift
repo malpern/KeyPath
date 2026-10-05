@@ -25,6 +25,12 @@ public final class SessionRuntimeWorker {
     private var signals: [DispatchSourceSignal] = []
     private var outputs = SessionOutputState()
     private var inputs: Set<UInt32> = []
+    private var capsRecord: SessionCapsMappingPolicy.Record?
+    private var capsOwner: SessionCapsMappingPolicy.Owner?
+    private var capsDirectory: URL?
+    private var capsInput = SessionCapsInputState()
+    private var capsCheckInFlight = false
+    private var lastCapsCheck = Date.distantPast
     private var inputCount: UInt64 = 0
     private var outputCount: UInt64 = 0
     private var lastReport = Date.distantPast
@@ -113,12 +119,21 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "environment-observer-registration-failed")
         }
         guard !IsSecureEventInputEnabled() else { finish(.secureInput) }
-        let validation = KanataHostBridge.validateSessionConfig(
-            runtimeHost: .current(), configPath: configPath,
-            supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
-        )
-        guard case .valid = validation else {
+        let capsDigest: String?
+        do {
+            capsDigest = try SessionCapsRuntimeSupport.experimentalDevice() != nil
+                ? SessionCapsRuntimeSupport.configSHA256(configPath) : nil
+        } catch { finish(.failed, reason: "managed-caps-config-identity-unavailable") }
+        let admission = SessionCapsRuntimeSupport.validate(configPath: configPath, runtimeHost: .current())
+        guard case .valid = admission.result else {
             finish(.failed, reason: "config-requires-advanced-driver-backend-or-is-invalid")
+        }
+        if admission.managedCaps {
+            do {
+                guard let capsDigest, try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest else {
+                    throw SessionCapsRuntimeSupport.Refusal.configIdentity
+                }
+            } catch { finish(.failed, reason: "managed-caps-config-changed-during-validation") }
         }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             do {
@@ -168,6 +183,35 @@ public final class SessionRuntimeWorker {
             }, userInfo: Unmanaged.passUnretained(self).toOpaque()
         )
         guard let tap else { finish(.failed, reason: "modifying-tap-unavailable") }
+        CGEvent.tapEnable(tap: tap, enable: false)
+        if admission.managedCaps {
+            do {
+                guard runtime?.isInputMapped(usagePage: 7, usage: 57) == true,
+                      let device = try SessionCapsRuntimeSupport.experimentalDevice(), let capsDigest,
+                      try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest
+                else {
+                    throw SessionCapsRuntimeSupport.Refusal.configIdentity
+                }
+                try SessionCapsRuntimeSupport.requirePhysicalAllUp()
+                let directory = SessionCapsRuntimeSupport.journalDirectory(configPath: configPath)
+                let owner = try SessionCapsMappingPolicy.Owner(uid: getuid(), parentPID: ownerPID, workerPID: getpid(),
+                                                               nonce: nonce, generation: nonce,
+                                                               bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID())
+                capsOwner = owner
+                capsDirectory = directory
+                // The tap is disabled. Keep the main run loop out of startup
+                // acquisition; environment shutdown cannot race this writer.
+                // Ownership is retained even when write/readback throws.
+                capsRecord = try DispatchQueue.global(qos: .userInitiated).sync {
+                    let backend = SessionCapsHIDUtilTransport.backend()
+                    guard try backend.enumerate() == [device] else { throw SessionCapsRuntimeSupport.Refusal.selection }
+                    let lease = SessionCapsMappingLease(directory: directory, backend: backend)
+                    return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device)
+                }
+                try SessionCapsRuntimeSupport.requirePhysicalAllUp()
+                capsInput.activate(generation: owner.generation)
+            } catch { finish(.failed, reason: "managed-caps-activation-refused") }
+        }
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         guard let source else { finish(.failed, reason: "tap-runloop-unavailable") }
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
@@ -239,14 +283,14 @@ public final class SessionRuntimeWorker {
                 physicalPassthroughFlags |= SessionKeyMap.modifierFlags(for: modifier)
             }
         }
-        guard let usage = SessionKeyMap.keyCodeToUsage[UInt16(event.getIntegerValueField(.keyboardEventKeycode))] else {
+        guard let capturedUsage = SessionKeyMap.keyCodeToUsage[UInt16(event.getIntegerValueField(.keyboardEventKeycode))] else {
             return original
         }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.delayIfAdmitted(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)), keyDown: type == .keyDown,
                 repeatEvent: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-                mapped: runtime?.isInputMapped(usagePage: 7, usage: usage) != false,
+                mapped: runtime?.isInputMapped(usagePage: 7, usage: capturedUsage) != false,
                 heldUsages: outputs.heldUsages.sorted(), reportAge: Date().timeIntervalSince(lastReport),
                 now: Date().timeIntervalSince1970, environmentCurrent: environmentObserver?.check() == true,
                 secureInput: IsSecureEventInputEnabled()
@@ -256,24 +300,31 @@ public final class SessionRuntimeWorker {
             }
             if IsSecureEventInputEnabled() { finish(.secureInput) }
         #endif
-        // Caps Lock's WindowServer toggle is upstream of the session tap. Leave
-        // it physical and reject configurations that try to remap it.
-        if usage == 57 { return original }
+        let value: UInt64
+        if type == .flagsChanged {
+            guard SessionKeyMap.isModifier(capturedUsage) else { return original }
+            value = event.flags.rawValue & SessionKeyMap.deviceModifierFlag(for: capturedUsage) != 0 ? 1 : 0
+        } else {
+            value = type == .keyUp ? 0 : (event.getIntegerValueField(.keyboardEventAutorepeat) == 0 ? 1 : 2)
+        }
+        let usage: UInt32
+        if capsRecord == nil {
+            guard capturedUsage != 57 else { return original }
+            usage = capturedUsage
+        } else {
+            guard let logical = capsInput.logicalUsage(capturedUsage: capturedUsage, value: value) else { return original }
+            usage = logical
+        }
         guard runtime?.isInputMapped(usagePage: 7, usage: usage) == true else {
             event.flags = CGEventFlags(rawValue: outputs.modifierFlags | physicalPassthroughFlags)
             return original
         }
-        let value: UInt64
-        if type == .flagsChanged {
-            guard SessionKeyMap.isModifier(usage) else { return original }
-            let deviceFlag = SessionKeyMap.deviceModifierFlag(for: usage)
-            value = event.flags.rawValue & deviceFlag != 0 ? 1 : 0
-        } else {
-            value = type == .keyUp ? 0 : (event.getIntegerValueField(.keyboardEventAutorepeat) == 0 ? 1 : 2)
-        }
         // Do not consume a release/repeat for a press that preceded this tap.
         if value != 1, !inputs.contains(usage) { return original }
         guard send(value: value, usage: usage) else { return original }
+        if let owner = capsRecord?.owner {
+            capsInput.didAdmit(capturedUsage: capturedUsage, value: value, generation: owner.generation)
+        }
         if value == 0 { inputs.remove(usage) } else { inputs.insert(usage) }
         return nil
     }
@@ -298,6 +349,7 @@ public final class SessionRuntimeWorker {
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.prepare(now: Date().timeIntervalSince1970)
         #endif
+        checkCapsOwnershipIfNeeded()
         // Bound each drain so a runaway output queue cannot monopolize the tap.
         for _ in 0 ..< 256 {
             switch runtime.tryReceiveOutput() {
@@ -305,6 +357,9 @@ public final class SessionRuntimeWorker {
                 if Date().timeIntervalSince(lastReport) >= 0.5 { writeReport(.running) }
                 return
             case let .success(event?):
+                if capsRecord != nil, event.usagePage == 7, event.usage == 109 {
+                    finish(.failed, reason: "managed-caps-reserved-output")
+                }
                 do {
                     // Refresh immediately before each queued event as well as
                     // before the drain; a console change can race a long drain.
@@ -337,6 +392,27 @@ public final class SessionRuntimeWorker {
             }
         }
         finish(.failed, reason: "output-queue-overrun")
+    }
+
+    private func checkCapsOwnershipIfNeeded() {
+        guard let record = capsRecord, !capsCheckInFlight,
+              Date().timeIntervalSince(lastCapsCheck) >= 0.5 else { return }
+        capsCheckInFlight = true
+        lastCapsCheck = Date()
+        guard let directory = capsDirectory else { finish(.failed, reason: "managed-caps-directory-unavailable") }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let valid: Bool
+            do { try SessionCapsRuntimeSupport.verifyActive(directory: directory, owner: record.owner); valid = true }
+            catch { valid = false }
+            CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, !self.finished, self.capsRecord?.owner == record.owner else { return }
+                    self.capsCheckInFlight = false
+                    if !valid { self.finish(.failed, reason: "managed-caps-ownership-lost") }
+                }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
     }
 
     private func post(_ output: SessionKeyOutput) -> Bool {
@@ -462,7 +538,8 @@ public final class SessionRuntimeWorker {
             tapActive: tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
-            experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic
+            experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic,
+            managedCapsGeneration: capsRecord?.owner.generation
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)
@@ -504,6 +581,9 @@ public final class SessionRuntimeWorker {
         acknowledge: (() -> Void)? = nil
     ) -> Never {
         finished = true
+        capsInput.revoke()
+        var terminalState = state
+        var terminalReason = reason
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
         timer?.invalidate()
         Self.completeTermination(releaseOutputs: {
@@ -512,12 +592,25 @@ public final class SessionRuntimeWorker {
             var remaining = outputs
             Self.releaseOwnedOutputs(&remaining, post: post)
             outputs = remaining
+            if let owner = capsOwner, let directory = capsDirectory {
+                do {
+                    try DispatchQueue.global(qos: .userInitiated).sync {
+                        try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
+                    }
+                    capsRecord = nil
+                    capsOwner = nil
+                    capsDirectory = nil
+                } catch {
+                    terminalState = .failed
+                    terminalReason = "managed-caps-restoration-pending"
+                }
+            }
         }, publishTerminalReport: {
-            writeReport(state, failure: reason)
+            writeReport(terminalState, failure: terminalReason)
         }, acknowledge: acknowledge, unregisterObservers: {
             environmentObserver?.stop()
         })
         // Process exit is the shutdown boundary for all detached bridge threads.
-        exit(state == .failed ? 1 : 0)
+        exit(terminalState == .failed ? 1 : 0)
     }
 }

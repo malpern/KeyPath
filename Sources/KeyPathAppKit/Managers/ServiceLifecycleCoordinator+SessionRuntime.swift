@@ -13,6 +13,12 @@ extension ServiceLifecycleCoordinator {
         return report
     }
 
+    var sessionManagedCapsActive: Bool {
+        guard let report = currentSessionReport(), report.state == .running, report.tapActive,
+              let generation = report.managedCapsGeneration else { return false }
+        return generation == sessionNonce
+    }
+
     func sessionCapabilities() async -> PermissionOracle.PermissionSet? {
         if let report = currentSessionReport() { return Self.permissionSet(report) }
         do {
@@ -179,6 +185,7 @@ extension ServiceLifecycleCoordinator {
         guard sessionApplication === application, sessionNonce == nonce,
               sessionReportURL == reportURL else { return false }
         if let application { _ = recoverSessionOutputs(for: application) }
+        guard await restoreSessionCaps(for: application) else { return false }
         if let reportURL {
             try? FileManager.default.removeItem(at: reportURL.deletingLastPathComponent())
         }
@@ -235,7 +242,15 @@ extension ServiceLifecycleCoordinator {
             }
             return true
         }
-        if let report = recoverSessionOutputs(for: application), report.state == .secureInput {
+        let terminalReport = recoverSessionOutputs(for: application)
+        let restored = await (try? sessionOperationGate.withOperation { @MainActor [self] _ in
+            guard sessionStartIsCurrent(generation), sessionApplication === application,
+                  sessionNonce == expectedNonce else { return false }
+            return await restoreSessionCaps(for: application)
+        }) ?? false
+        guard restored, sessionStartIsCurrent(generation), sessionApplication === application,
+              sessionNonce == expectedNonce else { return false }
+        if terminalReport?.state == .secureInput {
             onWarning?("Remapping is paused during secure typing.")
             while IsSecureEventInputEnabled() {
                 guard sessionStartIsCurrent(generation), sessionApplication === application,
@@ -262,6 +277,26 @@ extension ServiceLifecycleCoordinator {
             onError?("Driverless remapping stopped after its heartbeat was lost. Restart to recover.")
         }
         return stopped
+    }
+
+    private func restoreSessionCaps(for application: NSRunningApplication?) async -> Bool {
+        let directory = SessionCapsRuntimeSupport.journalDirectory()
+        let nonce = sessionNonce
+        let pid = application?.processIdentifier
+        let parentPID = getpid(), uid = getuid()
+        do {
+            try await Task.detached {
+                let owner: SessionCapsMappingPolicy.Owner? = if let nonce, let pid {
+                    try .init(uid: uid, parentPID: parentPID, workerPID: pid, nonce: nonce,
+                              generation: nonce, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID())
+                } else { nil }
+                try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
+            }.value
+            return true
+        } catch {
+            onError?("Caps mapping could not be restored safely. Restart was refused; its recovery record was retained.")
+            return false
+        }
     }
 
     private func recoverSessionOutputs(for application: NSRunningApplication) -> SessionRuntimeReport? {
@@ -310,6 +345,13 @@ extension ServiceLifecycleCoordinator {
             "--session-owner", String(getpid()), "--session-port", "37001",
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
+        if !capabilitiesOnly, let device = try SessionCapsRuntimeSupport.experimentalDevice() {
+            let encoded = try JSONEncoder().encode(device)
+            configuration.environment = [
+                "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE": String(decoding: encoded, as: UTF8.self),
+                "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18": "1"
+            ]
+        }
         AppLogger.shared.log(
             "Session application launch requested parentPID=\(getpid()) nonce=\(nonce) capabilitiesOnly=\(capabilitiesOnly)"
         )
