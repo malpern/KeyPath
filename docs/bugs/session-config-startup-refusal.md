@@ -25,8 +25,11 @@ requests remain available.
 An owned running tap takes precedence over a rejected edited file. Invalid
 restart admission does not stop that runtime, and an explicit stop still uses
 the existing owned restoration path. Because each request advances intent, a
-refused start or restart rebinds the retained tap to supervision under the new
-generation. Cancellation and newer stops still supersede that generation.
+refused start or restart rebinds retained worker ownership to supervision under
+the new generation, even with a missing/stale heartbeat or a terminated worker.
+The existing supervisor checks application/nonce identity and owns cleanup; no
+identity remains a no-op. Cancellation and newer stops still supersede that
+generation.
 Worker validation remains unchanged as the
 execution-time safety check.
 

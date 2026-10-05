@@ -140,6 +140,32 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(supervised, [1, 2, 3], "A stop must not rebind running supervision")
     }
 
+    func testRejectedConfigurationRetainsSupervisionWithoutCurrentHeartbeat() async {
+        // The supervisor seam observes transfer before production checks the
+        // retained application/nonce. A missing report must not suppress it.
+        coordinator.testSessionCurrentReport = { nil }
+        coordinator.testSessionConfigurationValidation = { .valid }
+        coordinator.testSessionRunningReadiness = { true }
+        var supervised: [UInt64] = []
+        coordinator.testSessionSupervisionStarted = { supervised.append($0) }
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        let adopted = await coordinator.startKanata(reason: "adopt retained ownership")
+        XCTAssertTrue(adopted)
+
+        var starts = 0, stops = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported edit") }
+        let refusedStart = await coordinator.startKanata()
+        let refusedRestart = await coordinator.restartKanata()
+        XCTAssertFalse(refusedStart)
+        XCTAssertFalse(refusedRestart)
+        XCTAssertEqual(supervised, [1, 2, 3], "Stale or terminal workers still need cleanup under current intent")
+        XCTAssertEqual(supervised.last, coordinator.sessionIntentGeneration)
+        XCTAssertEqual(starts, 0)
+        XCTAssertEqual(stops, 0)
+    }
+
     // MARK: - Session lifecycle routing
 
     func testStartUsesSessionOwnerWithoutPrivilegedFallbackOnFailure() async {

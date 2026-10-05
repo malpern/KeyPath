@@ -257,7 +257,7 @@ final class ServiceLifecycleCoordinator {
     private func admitSessionConfiguration(generation: UInt64) -> Bool {
         let admission = refreshSessionConfigurationAdmission()
         guard case .valid = admission else {
-            retainRunningSessionSupervision(generation: generation)
+            retainOwnedSessionSupervision(generation: generation)
             onError?(SessionCapsRuntimeSupport.startupFailureMessage(admission))
             onStateChanged?()
             return false

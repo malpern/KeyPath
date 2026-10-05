@@ -146,11 +146,10 @@ extension ServiceLifecycleCoordinator {
         return false
     }
 
-    /// Refusing an edited config retains the current worker under the new intent.
-    /// Reuse its existing supervision; no readiness failure can stop it here.
-    func retainRunningSessionSupervision(generation: UInt64) {
-        guard sessionStartIsCurrent(generation),
-              let report = currentSessionReport(), report.state == .running, report.tapActive else { return }
+    /// A retained worker needs supervision even with stale or terminal health.
+    /// The existing supervisor checks launch identity and owns cleanup/recovery.
+    func retainOwnedSessionSupervision(generation: UInt64) {
+        guard sessionStartIsCurrent(generation) else { return }
         superviseSessionRuntime(generation: generation)
     }
 
