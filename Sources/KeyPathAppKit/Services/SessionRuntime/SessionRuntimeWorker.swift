@@ -171,20 +171,10 @@ public final class SessionRuntimeWorker {
 
         let mask = (1 << CGEventType.keyDown.rawValue)
             | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-        tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
-            eventsOfInterest: CGEventMask(mask), callback: { _, type, event, context in
-                guard let context else { return Unmanaged.passUnretained(event) }
-                let consume = MainActor.assumeIsolated {
-                    let worker = Unmanaged<SessionRuntimeWorker>.fromOpaque(context).takeUnretainedValue()
-                    return worker.receive(type: type, event: event) == nil
-                }
-                return consume ? nil : Unmanaged.passUnretained(event)
-            }, userInfo: Unmanaged.passUnretained(self).toOpaque()
-        )
-        guard let tap else { finish(.failed, reason: "modifying-tap-unavailable") }
-        CGEvent.tapEnable(tap: tap, enable: false)
+        tap = createModifyingTap(eventsOfInterest: CGEventMask(mask))
+        guard let startupTap = tap else { finish(.failed, reason: "modifying-tap-unavailable") }
         if admission.managedCaps {
+            CGEvent.tapEnable(tap: startupTap, enable: false)
             do {
                 guard runtime?.isInputMapped(usagePage: 7, usage: 57) == true,
                       let device = try SessionCapsRuntimeSupport.experimentalDevice(), let capsDigest,
@@ -211,7 +201,14 @@ public final class SessionRuntimeWorker {
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
                 capsInput.activate(generation: owner.generation)
             } catch { finish(.failed, reason: "managed-caps-activation-refused") }
+            // Explicitly disabling the preflight tap can queue a user-disable
+            // notification. Retire its port before installing a fresh live tap;
+            // every disable notification from the live port remains fatal.
+            CFMachPortInvalidate(startupTap)
+            tap = nil
+            tap = createModifyingTap(eventsOfInterest: CGEventMask(mask))
         }
+        guard let tap else { finish(.failed, reason: "modifying-tap-unavailable") }
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         guard let source else { finish(.failed, reason: "tap-runloop-unavailable") }
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
@@ -252,6 +249,20 @@ public final class SessionRuntimeWorker {
         }
         RunLoop.main.add(timer!, forMode: .common)
         writeReport(.running)
+    }
+
+    private func createModifyingTap(eventsOfInterest: CGEventMask) -> CFMachPort? {
+        CGEvent.tapCreate(
+            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+            eventsOfInterest: eventsOfInterest, callback: { _, type, event, context in
+                guard let context else { return Unmanaged.passUnretained(event) }
+                let consume = MainActor.assumeIsolated {
+                    let worker = Unmanaged<SessionRuntimeWorker>.fromOpaque(context).takeUnretainedValue()
+                    return worker.receive(type: type, event: event) == nil
+                }
+                return consume ? nil : Unmanaged.passUnretained(event)
+            }, userInfo: Unmanaged.passUnretained(self).toOpaque()
+        )
     }
 
     private func receive(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
