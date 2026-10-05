@@ -1,0 +1,841 @@
+{
+  "artifactManifest": {
+    "archive": "keypath-caps-runtime-d80b5b9cb-rpath.zip",
+    "archiveMetadataExcluded": true,
+    "archiveRootVerified": "KeyPath.app",
+    "archiveSHA256": "bec7a1e38b337af899121eaad3d7df1a9fbdb0287238ff204b98a3305f97b5ae",
+    "archiveSizeBytes": 97761346,
+    "artifactKind": "isolated debug managed-Caps guest candidate",
+    "baseBundle": "/private/tmp/keypath-caps-runtime-053792f35-feature-artifact/KeyPath.app",
+    "bridgeFeatures": [
+      "passthru-output-spike"
+    ],
+    "buildLog": "/private/tmp/keypath-caps-fresh-tap-tests.log",
+    "buildVerifiedByActualPackageTests": 82,
+    "changedBundlePaths": [
+      "Contents/_CodeSignature/CodeResources",
+      "Contents/MacOS/KeyPath",
+      "Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
+    ],
+    "diagnosticFlagBuildLimitation": "Additional diagnostic-flag build encountered previously documented missing Metal Toolchain; candidate uses the successful final actual-package app build without that optional flag",
+    "entitlementsUnchanged": true,
+    "experimentalDiagnostics": false,
+    "guestAcceptanceClaimed": false,
+    "hardenedRuntime": true,
+    "hostInstalled": false,
+    "managedCapsDefaultEnabled": false,
+    "notarized": false,
+    "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+    "packagedFrameworkRpathVerified": true,
+    "packagedMainSHA256": "27ce7b8a70fa0d89f9e1057239ae14aa2dab1ae17c322115252676544595d059",
+    "packagedMainSize": 107355632,
+    "packagedPassthruCreationVerified": true,
+    "packagedSessionInputMapSymbolVerified": true,
+    "packagingCorrection": "Feature-disabled library from default-feature test artifact refused runtime creation. Explicit feature-enabled cargo build replaces bridge.",
+    "packagingRpathCorrection": true,
+    "preservedFileCount": 235,
+    "priorArchiveRootIssue": "Initial Contents-root ZIP retained as archive-invalid-root.zip; replaced with verified parent-root artifact before use",
+    "rawBridgeSHA256": "92c65d797f48c46b2928a07a0fe140c9851bbece96e22ee17943cf8c4a24fc32",
+    "rawMainSHA256": "5ec815804e97d11afa02e18fc21b0a7696d6e4fb91c46608264d40b2693626c3",
+    "resources": "Preserved resources/frameworks/cached Metal from previous candidate; not a fresh Metal build",
+    "rustSourceHashes": {
+      "lib.rs": "2c3556a999ec86e962ccadcf0481245be6dc59be0846853c168f855d472e82a8",
+      "session_config.rs": "7c1cf4943cd945116fe4b065a7eef1df6a04f391f44317dca127558c3528b2e4"
+    },
+    "sourceCommit": "d80b5b9cb949339b0337d691efb4c7055ecd9b75",
+    "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+    "startupCorrection": "Fresh live tap replaces self-disabled managed preflight; ordinary tap never self-disables.",
+    "strictSignatureVerified": true,
+    "supersedes": "/private/tmp/keypath-caps-runtime-053792f35-artifact",
+    "teamID": "X2RKZ5TG99",
+    "timestamped": false,
+    "version": 1
+  },
+  "date": "2026-10-05",
+  "failuresPreserved": [
+    "Disabled-feature packaged bridge; fixed by explicit feature build and source ABI/create gate.",
+    "Self-generated tap-disabled startup event; fixed by fresh live tap after managed preflight.",
+    "Repackaging omitted Sparkle rpath; corrected before final artifact.",
+    "AppleDouble package entries invalidated target signature before replacement; distinct clean package passed.",
+    "Observation journal expected serialNumber:null while Swift omitted nil optional; helper normalized nil only.",
+    "Observer secure-input JSON integer0 mismatched strict booleanFalse checker; narrowed checker accepts only false or integer0.",
+    "Worker crash observer refused a transient in-flight restoration marker; later independent read verified clean mapping."
+  ],
+  "guestCleanup": {
+    "debugEnvironment": {
+      "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE": "",
+      "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18": ""
+    },
+    "journal": null,
+    "matchesApplied": false,
+    "matchesOriginal": false,
+    "runtime": {
+      "parents": [],
+      "target": null,
+      "workers": []
+    },
+    "selectedMapping": {
+      "device": {
+        "locationID": 261095424,
+        "productID": 16400,
+        "registryEntryID": 4294969250,
+        "serialNumber": null,
+        "vendorID": 51966
+      },
+      "mappings": [],
+      "raw": "RegistryID  Key                   Value\n1000007a2   UserKeyMapping   (\n)\n"
+    }
+  },
+  "independentReceiptReview": {
+    "artifact": "/private/tmp/keypath-caps-runtime-live-01/caps-acceptance-audit-final.json",
+    "passedWithinScope": true,
+    "sha256": "5ec5e080c352a1fe1f78bc537e4a7172fce743e3b0ff11e64155ef22f15e638d"
+  },
+  "limitations": [
+    "All crash tests here began with empty held-output ledgers; managed-Caps held-key crashes remain unverified.",
+    "Both-owner recovery was same boot/device with no mutation-in-flight marker; forced death during mapping write is not covered.",
+    "Secure Input held-Caps reconciliation, configuration mode transitions, reconnect/reboot and uncertain-marker refusal remain live acceptance gaps.",
+    "600ms hold produced Ctrl autorepeat notifications and clean release; exact-two-output checker refused. Source review explains repeat preservation; no full long-hold acceptance claimed.",
+    "Default launch without managed selection produced no active worker, mapping or journal. Exact refusal reason and prompt user-facing error were not verified; startup log showed transient polling.",
+    "Not notarized, no host product installation or release acceptance.",
+    "Genuine OS tap timeout and observer-specific session retirement remain separate unverified gaps."
+  ],
+  "passed": {
+    "allUpBothOwnerSameBootNextLaunchRecovery": true,
+    "allUpParentSIGKILLRestoresMapping": true,
+    "allUpWorkerSIGKILLRestoresMapping": true,
+    "caps350msHoldControl": true,
+    "caps80msTapEscape": true,
+    "guestStateClean": true,
+    "normalQuitRestoresMapping": true,
+    "ordinaryPhysicalBaseline": true,
+    "originalProfileRestored": true,
+    "physicalCapsTapAfterBothOwnerRecovery": true,
+    "providerCleanupVerified": true
+  },
+  "physicalSamples": {
+    "keytrace3/capsTap02-sample-result.json": {
+      "attachmentObservedAt": 1791234941.412747,
+      "capsProof": {
+        "journal": {
+          "applied": [
+            {
+              "HIDKeyboardModifierMappingDst": 30064771181,
+              "HIDKeyboardModifierMappingSrc": 30064771129
+            }
+          ],
+          "device": {
+            "locationID": 261095424,
+            "productID": 16400,
+            "registryEntryID": 4294969250,
+            "serialNumber": null,
+            "vendorID": 51966
+          },
+          "effectiveConfigSHA256": "62550ca9c13aabd129af7d7b0bfb37ce78925914416f7bbff6fc294e1ab7b035",
+          "original": [],
+          "owner": {
+            "bootSessionUUID": "D691F2D3-80A3-4681-9FD1-ACF0E2C01F1B",
+            "generation": "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+            "nonce": "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+            "parentPID": 3603,
+            "uid": 502,
+            "workerPID": 3612
+          },
+          "version": 1
+        },
+        "matchesApplied": true,
+        "selectedMapping": {
+          "device": {
+            "locationID": 261095424,
+            "productID": 16400,
+            "registryEntryID": 4294969250,
+            "serialNumber": null,
+            "vendorID": 51966
+          },
+          "mappings": [
+            {
+              "HIDKeyboardModifierMappingDst": 30064771181,
+              "HIDKeyboardModifierMappingSrc": 30064771129
+            }
+          ],
+          "raw": "RegistryID  Key                   Value\n1000007a2   UserKeyMapping   (\n        {\n        HIDKeyboardModifierMappingDst = 30064771181;\n        HIDKeyboardModifierMappingSrc = 30064771129;\n    }\n)\n"
+        }
+      },
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTargetLedger": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "noUnexpectedKeys": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedKeyCode": 53,
+      "expectedText": "",
+      "expectedUsage": 41,
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "caps-6593a448a12b470f9663d30f6d833e29",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791234946.117959
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791234947.413429,
+        "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 3603,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-C4BC2851-5695-4909-BC67-C5C7F3FF7442/report.json",
+        "targetNonce": "A62CAEEA-0D9B-4148-B505-562820001853",
+        "targetPID": 4900,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-C4BC2851-5695-4909-BC67-C5C7F3FF7442/report.json",
+          "--session-nonce",
+          "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+          "--session-owner",
+          "3603",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+        "workerPID": 3612
+      },
+      "lease": "cbx_5a64b8570ec7",
+      "passed": true,
+      "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+      "runId": "caps-6593a448a12b470f9663d30f6d833e29",
+      "sample": "caps-tap",
+      "target": {
+        "downs": 1,
+        "flagsChangedDropped": 0,
+        "flagsChangedJournal": [],
+        "held": [],
+        "keyEventsDropped": 0,
+        "keyEventsJournal": [
+          {
+            "active": true,
+            "eventTimestamp": 2481.783768791,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [
+              53
+            ],
+            "isRepeat": false,
+            "keyCode": 53,
+            "modifiers": 0,
+            "monotonicAt": 2481.7859135833337,
+            "observedAt": 1791234948.730424,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 1,
+            "type": "down",
+            "windowKey": true
+          },
+          {
+            "active": true,
+            "eventTimestamp": 2481.78771075,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "isRepeat": false,
+            "keyCode": 53,
+            "modifiers": 0,
+            "monotonicAt": 2481.800770625,
+            "observedAt": 1791234948.745281,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 2,
+            "type": "up",
+            "windowKey": true
+          }
+        ],
+        "modifiers": 0,
+        "observedAt": 1791234949.719099,
+        "text": "",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            57,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 26,
+          "modifiers": 0,
+          "scheduledUs": 720777180537,
+          "sequence": 1,
+          "submittedUs": 720777180563
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 6,
+          "modifiers": 0,
+          "scheduledUs": 720777260537,
+          "sequence": 2,
+          "submittedUs": 720777260543
+        }
+      ]
+    },
+    "keytrace4/capsHold02-sample-result.json": {
+      "attachmentObservedAt": 1791234976.114478,
+      "capsProof": {
+        "journal": {
+          "applied": [
+            {
+              "HIDKeyboardModifierMappingDst": 30064771181,
+              "HIDKeyboardModifierMappingSrc": 30064771129
+            }
+          ],
+          "device": {
+            "locationID": 261095424,
+            "productID": 16400,
+            "registryEntryID": 4294969250,
+            "serialNumber": null,
+            "vendorID": 51966
+          },
+          "effectiveConfigSHA256": "62550ca9c13aabd129af7d7b0bfb37ce78925914416f7bbff6fc294e1ab7b035",
+          "original": [],
+          "owner": {
+            "bootSessionUUID": "D691F2D3-80A3-4681-9FD1-ACF0E2C01F1B",
+            "generation": "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+            "nonce": "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+            "parentPID": 3603,
+            "uid": 502,
+            "workerPID": 3612
+          },
+          "version": 1
+        },
+        "matchesApplied": true,
+        "selectedMapping": {
+          "device": {
+            "locationID": 261095424,
+            "productID": 16400,
+            "registryEntryID": 4294969250,
+            "serialNumber": null,
+            "vendorID": 51966
+          },
+          "mappings": [
+            {
+              "HIDKeyboardModifierMappingDst": 30064771181,
+              "HIDKeyboardModifierMappingSrc": 30064771129
+            }
+          ],
+          "raw": "RegistryID  Key                   Value\n1000007a2   UserKeyMapping   (\n        {\n        HIDKeyboardModifierMappingDst = 30064771181;\n        HIDKeyboardModifierMappingSrc = 30064771129;\n    }\n)\n"
+        }
+      },
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTargetLedger": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "noUnexpectedKeys": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedKeyCode": 59,
+      "expectedText": "",
+      "expectedUsage": 224,
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "caps-626079f76aa840958c2ae9c079a7356d",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791234980.399613
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791234981.650918,
+        "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 3603,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-C4BC2851-5695-4909-BC67-C5C7F3FF7442/report.json",
+        "targetNonce": "8A7D4A85-5A87-4A12-A104-A994E9F38E8F",
+        "targetPID": 5148,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-C4BC2851-5695-4909-BC67-C5C7F3FF7442/report.json",
+          "--session-nonce",
+          "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+          "--session-owner",
+          "3603",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "C4BC2851-5695-4909-BC67-C5C7F3FF7442",
+        "workerPID": 3612
+      },
+      "lease": "cbx_5a64b8570ec7",
+      "passed": true,
+      "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+      "runId": "caps-626079f76aa840958c2ae9c079a7356d",
+      "sample": "caps-hold",
+      "target": {
+        "downs": 0,
+        "flagsChangedDropped": 0,
+        "flagsChangedJournal": [
+          {
+            "active": true,
+            "control": 1,
+            "downs": 0,
+            "eventTimestamp": 2516.144700458,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "keyCode": 59,
+            "mode": "normal",
+            "modifiers": 262144,
+            "monotonicAt": 2516.1457578333334,
+            "observedAt": 1791234983.090126,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 124,
+            "ups": 0,
+            "windowKey": true
+          },
+          {
+            "active": true,
+            "control": 0,
+            "downs": 0,
+            "eventTimestamp": 2516.299581291,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "keyCode": 59,
+            "mode": "normal",
+            "modifiers": 0,
+            "monotonicAt": 2516.30177425,
+            "observedAt": 1791234983.246142,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 127,
+            "ups": 0,
+            "windowKey": true
+          }
+        ],
+        "held": [],
+        "keyEventsDropped": 0,
+        "keyEventsJournal": [],
+        "modifiers": 0,
+        "observedAt": 1791234984.22359,
+        "text": "",
+        "ups": 0
+      },
+      "trace": [
+        {
+          "keys": [
+            57,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 3,
+          "modifiers": 0,
+          "scheduledUs": 720811422880,
+          "sequence": 1,
+          "submittedUs": 720811422883
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 24,
+          "modifiers": 0,
+          "scheduledUs": 720811772880,
+          "sequence": 2,
+          "submittedUs": 720811772904
+        }
+      ]
+    },
+    "keytrace4/capsRecoveryTap01-sample-result.json": {
+      "attachmentObservedAt": 1791235272.996928,
+      "capsProof": {
+        "journal": {
+          "applied": [
+            {
+              "HIDKeyboardModifierMappingDst": 30064771181,
+              "HIDKeyboardModifierMappingSrc": 30064771129
+            }
+          ],
+          "device": {
+            "locationID": 261095424,
+            "productID": 16400,
+            "registryEntryID": 4294969250,
+            "serialNumber": null,
+            "vendorID": 51966
+          },
+          "effectiveConfigSHA256": "62550ca9c13aabd129af7d7b0bfb37ce78925914416f7bbff6fc294e1ab7b035",
+          "original": [],
+          "owner": {
+            "bootSessionUUID": "D691F2D3-80A3-4681-9FD1-ACF0E2C01F1B",
+            "generation": "EA1C1FBB-594C-4DAD-B088-26F78EC4E6E3",
+            "nonce": "EA1C1FBB-594C-4DAD-B088-26F78EC4E6E3",
+            "parentPID": 6278,
+            "uid": 502,
+            "workerPID": 6292
+          },
+          "version": 1
+        },
+        "matchesApplied": true,
+        "selectedMapping": {
+          "device": {
+            "locationID": 261095424,
+            "productID": 16400,
+            "registryEntryID": 4294969250,
+            "serialNumber": null,
+            "vendorID": 51966
+          },
+          "mappings": [
+            {
+              "HIDKeyboardModifierMappingDst": 30064771181,
+              "HIDKeyboardModifierMappingSrc": 30064771129
+            }
+          ],
+          "raw": "RegistryID  Key                   Value\n1000007a2   UserKeyMapping   (\n        {\n        HIDKeyboardModifierMappingDst = 30064771181;\n        HIDKeyboardModifierMappingSrc = 30064771129;\n    }\n)\n"
+        }
+      },
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTargetLedger": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "noUnexpectedKeys": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedKeyCode": 53,
+      "expectedText": "",
+      "expectedUsage": 41,
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "caps-9dfa3e175f2d46b4bd9671b3685ffe13",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791235277.745406
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791235278.9596858,
+        "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 6278,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-EA1C1FBB-594C-4DAD-B088-26F78EC4E6E3/report.json",
+        "targetNonce": "548B2C9A-3BFA-4435-9E09-3A946AFFE7CE",
+        "targetPID": 6429,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-EA1C1FBB-594C-4DAD-B088-26F78EC4E6E3/report.json",
+          "--session-nonce",
+          "EA1C1FBB-594C-4DAD-B088-26F78EC4E6E3",
+          "--session-owner",
+          "6278",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "EA1C1FBB-594C-4DAD-B088-26F78EC4E6E3",
+        "workerPID": 6292
+      },
+      "lease": "cbx_5a64b8570ec7",
+      "passed": true,
+      "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+      "runId": "caps-9dfa3e175f2d46b4bd9671b3685ffe13",
+      "sample": "caps-tap",
+      "target": {
+        "downs": 1,
+        "flagsChangedDropped": 0,
+        "flagsChangedJournal": [],
+        "held": [],
+        "keyEventsDropped": 0,
+        "keyEventsJournal": [
+          {
+            "active": true,
+            "eventTimestamp": 2813.386093708,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [
+              53
+            ],
+            "isRepeat": false,
+            "keyCode": 53,
+            "modifiers": 0,
+            "monotonicAt": 2813.3892226666667,
+            "observedAt": 1791235280.332356,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 1,
+            "type": "down",
+            "windowKey": true
+          },
+          {
+            "active": true,
+            "eventTimestamp": 2813.387305541,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "isRepeat": false,
+            "keyCode": 53,
+            "modifiers": 0,
+            "monotonicAt": 2813.400767791667,
+            "observedAt": 1791235280.3439012,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 2,
+            "type": "up",
+            "windowKey": true
+          }
+        ],
+        "modifiers": 0,
+        "observedAt": 1791235281.324562,
+        "text": "",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            57,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 3,
+          "modifiers": 0,
+          "scheduledUs": 721108771361,
+          "sequence": 1,
+          "submittedUs": 721108771364
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 9,
+          "modifiers": 0,
+          "scheduledUs": 721108851361,
+          "sequence": 2,
+          "submittedUs": 721108851370
+        }
+      ]
+    },
+    "rpath/qbaseline01-sample-result.json": {
+      "attachmentObservedAt": 1791234153.9489448,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-81410eea6c974c5aa78bc5564e6e19c7",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791234155.2514648
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791234156.491373,
+        "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 3334,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-FC8E256E-CAF4-43F2-8378-F223C57BB0F4/report.json",
+        "targetNonce": "B9687CC4-9514-4D6B-81DE-81422CE4C1E7",
+        "targetPID": 3372,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-FC8E256E-CAF4-43F2-8378-F223C57BB0F4/report.json",
+          "--session-nonce",
+          "FC8E256E-CAF4-43F2-8378-F223C57BB0F4",
+          "--session-owner",
+          "3334",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "FC8E256E-CAF4-43F2-8378-F223C57BB0F4",
+        "workerPID": 3343
+      },
+      "lease": "cbx_5a64b8570ec7",
+      "passed": true,
+      "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+      "runId": "restart-81410eea6c974c5aa78bc5564e6e19c7",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791234158.922571,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 19,
+          "modifiers": 0,
+          "scheduledUs": 719986244312,
+          "sequence": 1,
+          "submittedUs": 719986244331
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 5,
+          "modifiers": 0,
+          "scheduledUs": 719986284312,
+          "sequence": 2,
+          "submittedUs": 719986284317
+        }
+      ]
+    }
+  },
+  "providerCleanup": {
+    "fixture": [
+      {
+        "Autoconnect-Action": "ask",
+        "Autoconnect-Vm-Uuid": "",
+        "Compatible-with-macOS-VM": "YES",
+        "Connected-To-Vm": "NO",
+        "Name": "KeyPath Physical HID Fixture",
+        "Present-On-Host": "YES",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC"
+      }
+    ],
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true
+  },
+  "rawEvidenceRoot": "/private/tmp/keypath-caps-runtime-live-01",
+  "rawSHA256": {
+    "caps-acceptance-audit-final.json": "5ec5e080c352a1fe1f78bc537e4a7172fce743e3b0ff11e64155ef22f15e638d",
+    "caps-acceptance-audit.json": "37559ef46f8d6c79aca10f170a85771553aa359291f4144b47b78b69d74d1ca9",
+    "destroy-result.json": "125020ee80efa9c7844bd9a27e827d0bc29332687854fbe4d3a4a97d9806dbeb",
+    "independent-provider-cleanup.json": "daa856c377db667fd8acb86175c557d7b83838fd7751b37d0ce4e4b9a8c10822",
+    "keytrace3/capsTap02-sample-result.json": "818d932ecd57a87c85c90be21983ab0c4c16198eb56e3008a52483c16af796a2",
+    "keytrace4/capsBothKill01-result.json": "7318b1dcf8e40495e1386f60e9cf73b796282e72ea641bb19e38cc1a7122ece4",
+    "keytrace4/capsBothRecover01-result.json": "6374c2bd599d35db7ad677d34e9ae7ec181a9bfd11b3f5464452f4aa518c6749",
+    "keytrace4/capsBothRecoveredObserve01-result.json": "a31f1f601f07345db99f91ef0cfadbbe15045c698a8479667065e12c82298d3d",
+    "keytrace4/capsDefaultObserve01-result.json": "56f14aceff81bda376101bec83be7af8c1d94761c07144e8976194e3d94e4592",
+    "keytrace4/capsFinalObserve01-result.json": "d78b5d01cfae9382c62795191d22baec98e8ec8fa438583f2895e2fef742d07c",
+    "keytrace4/capsGuestCleanup01-result.json": "a37059e36565945160fdde7fdb667d9fa6f27162efc89d25d7def8428bb71acd",
+    "keytrace4/capsHold02-sample-result.json": "9d367e97d19e4f59ad1896401a7202a0991a40c5b6e75837110912eef257865d",
+    "keytrace4/capsParentKill01-result.json": "f580d9c1f75e2163c8f7dd1a635a17e854b43d67c878850849a74abf873320a2",
+    "keytrace4/capsQuitObserve01-result.json": "c7ba948c0ea31a871298cbdbef53919e57d3a75cb89bdb88b61ba2ff21b6c979",
+    "keytrace4/capsRecoveryTap01-sample-result.json": "5c272196a1f9e8baf9c8e766c89dcf9fca37af2c1f5c5759f8e98574dd55631d",
+    "keytrace4/capsWorkerKill01-result.json": "192be93ae69f4683b2286ed74c2a1cd39cb60d1c10b09f71be05515d700a050b",
+    "keytrace4/capsWorkerKillObserve01-result.json": "75a1fbe8b45a0144d5308acb29ca2eddba6fe4899ce56b4727d4bb0b2775dfa1",
+    "keytrace4/originalProfileRestore01-result.json": "e83b5df484bcc8e525ec2bbaab7aa183983754080243e0e97a25a554159c4caf",
+    "rpath/qbaseline01-sample-result.json": "faca250870995ce4c6675e19e7067d35229a24b2f75c505f7fcaf0ef524cd977"
+  },
+  "scope": {
+    "driverInstalled": false,
+    "guestOnly": true,
+    "lease": "cbx_5a64b8570ec7",
+    "managedCapsDEBUGOnly": true,
+    "permissions": [
+      "Accessibility",
+      "Input Monitoring"
+    ],
+    "providerUUID": "13c56d6f-5de5-4fbe-84ea-2b334bcd6d99",
+    "uid": 502
+  },
+  "sourceCommit": "d80b5b9cb949339b0337d691efb4c7055ecd9b75"
+}
