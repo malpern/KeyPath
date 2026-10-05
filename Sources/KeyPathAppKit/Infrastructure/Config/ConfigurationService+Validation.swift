@@ -15,10 +15,9 @@ extension ConfigurationService {
         let path = directory.appendingPathComponent(".keypath-session-validation-\(UUID().uuidString).kbd")
         defer { try? FileManager.default.removeItem(at: path) }
         try await writeFileURLAsync(string: config, to: path)
-        let result = KanataHostBridge.validateSessionConfig(
-            runtimeHost: sessionValidationRuntimeHost, configPath: path.path,
-            supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
-        )
+        let result = SessionCapsRuntimeSupport.validate(
+            configPath: path.path, runtimeHost: sessionValidationRuntimeHost
+        ).result
         switch result {
         case .valid:
             return

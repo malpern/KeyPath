@@ -20,6 +20,9 @@ final class ConfigReloadCoordinator {
     private let transitionRetryMaximumPolls: Int
     private let transitionRetryWait: @MainActor @Sendable () async -> Void
     private let automaticDeferredRetriesEnabled: Bool
+    private let currentManagedCaps: @MainActor @Sendable () -> Bool
+    private let restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)?
+    private let sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))?
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -41,7 +44,10 @@ final class ConfigReloadCoordinator {
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             try? await Task.sleep(for: .milliseconds(500))
         },
-        automaticDeferredRetriesEnabled: Bool = true
+        automaticDeferredRetriesEnabled: Bool = true,
+        currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
+        restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil
     ) {
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
@@ -52,6 +58,9 @@ final class ConfigReloadCoordinator {
         self.transitionRetryMaximumPolls = transitionRetryMaximumPolls
         self.transitionRetryWait = transitionRetryWait
         self.automaticDeferredRetriesEnabled = automaticDeferredRetriesEnabled
+        self.currentManagedCaps = currentManagedCaps
+        self.restartForManagedCapsChange = restartForManagedCapsChange
+        self.sessionValidationOverride = sessionValidationOverride
     }
 
     // MARK: - Reload Operations
@@ -326,21 +335,33 @@ final class ConfigReloadCoordinator {
 
     /// TCP-based config reload (no authentication required - see ADR-013)
     func triggerTCPReload() async -> TCPReloadResult {
-        if let tcpReloadOverride {
+        if let tcpReloadOverride, sessionValidationOverride == nil {
             return await tcpReloadOverride()
         }
 
-        if TestEnvironment.isRunningTests {
+        if TestEnvironment.isRunningTests, sessionValidationOverride == nil {
             AppLogger.shared.debug("🧪 [TCP Reload] Skipping TCP reload in test environment")
             return .networkError("Test environment - TCP disabled")
         }
 
-        let validation = KanataHostBridge.validateSessionConfig(
-            runtimeHost: .current(), configPath: KeyPathConstants.Config.mainConfigPath,
-            supportedUsages: SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
+        let validation = sessionValidationOverride?() ?? SessionCapsRuntimeSupport.validate(
+            configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current()
         )
-        guard case .valid = validation else {
+        guard case .valid = validation.result else {
             return .failure(error: "This configuration is unsupported by the session runtime or contains an error", response: "")
+        }
+
+        if validation.managedCaps != currentManagedCaps() {
+            guard let restartForManagedCapsChange else {
+                return .failure(error: "Changing the Caps runtime mode requires a session restart", response: "")
+            }
+            guard await restartForManagedCapsChange(), currentManagedCaps() == validation.managedCaps else {
+                return .failure(error: "The session did not restart in the required Caps runtime mode", response: "")
+            }
+            return .success(response: "Session restarted for Caps runtime mode change")
+        }
+        if let tcpReloadOverride {
+            return await tcpReloadOverride()
         }
 
         // Check reload safety first
@@ -355,6 +376,9 @@ final class ConfigReloadCoordinator {
             return .networkError("Reload blocked: \(reason)")
         }
 
+        guard currentManagedCaps() == validation.managedCaps else {
+            return .failure(error: "The Caps runtime mode changed during reload; retry after the session settles", response: "")
+        }
         AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
         let res = await engineClient.reloadConfig()
         let mapped = mapEngineToTCP(res)

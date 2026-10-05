@@ -44,6 +44,8 @@ private final class MutableRuntimeTransition {
     var waitCount = 0
     var reloadCount = 0
     var tcpReloadCount = 0
+    var managedCaps = false
+    var restartCount = 0
 
     init(isTransitioning: Bool) {
         self.isTransitioning = isTransitioning
@@ -99,7 +101,10 @@ struct ConfigReloadCoordinatorTests {
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             await Task.yield()
         },
-        automaticDeferredRetriesEnabled: Bool = true
+        automaticDeferredRetriesEnabled: Bool = true,
+        currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
+        restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -133,10 +138,92 @@ struct ConfigReloadCoordinatorTests {
             tcpReloadOverride: tcpReloadOverride,
             transitionRetryMaximumPolls: transitionRetryMaximumPolls,
             transitionRetryWait: transitionRetryWait,
-            automaticDeferredRetriesEnabled: automaticDeferredRetriesEnabled
+            automaticDeferredRetriesEnabled: automaticDeferredRetriesEnabled,
+            currentManagedCaps: currentManagedCaps,
+            restartForManagedCapsChange: restartForManagedCapsChange,
+            sessionValidationOverride: sessionValidationOverride
         )
 
         return (coordinator, engine, healthStatus)
+    }
+
+    @Test("Crossing Caps runtime modes restarts and never sends a TCP reload", arguments: [false, true])
+    func capsModeChangeRestarts(current: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        state.managedCaps = current
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { state.managedCaps },
+            restartForManagedCapsChange: {
+                state.restartCount += 1
+                state.managedCaps = !current
+                return true
+            },
+            sessionValidationOverride: { (.valid, !current) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(result.isSuccess)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 0)
+        #expect(engine.reloadCallCount == 0)
+        #expect(state.managedCaps == !current)
+    }
+
+    @Test("A Caps mode change without a restart owner is refused")
+    func capsModeChangeRequiresRestartOwner() async {
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadResult: .success(response: "tcp"),
+            sessionValidationOverride: { (.valid, true) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(!result.isSuccess)
+        #expect(result.errorMessage?.contains("requires a session restart") == true)
+        #expect(engine.reloadCallCount == 0)
+    }
+
+    @Test("A failed restart or an unconfirmed Caps report blocks the reload", arguments: [false, true])
+    func capsRestartMustConfirmMode(restartResult: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            restartForManagedCapsChange: { state.restartCount += 1; return restartResult },
+            sessionValidationOverride: { (.valid, true) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(!result.isSuccess)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 0)
+        #expect(engine.reloadCallCount == 0)
+    }
+
+    @Test("Same Caps mode uses TCP without restarting", arguments: [false, true])
+    func unchangedCapsModeReloads(current: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { current },
+            restartForManagedCapsChange: { state.restartCount += 1; return false },
+            sessionValidationOverride: { (.valid, current) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(result.isSuccess)
+        #expect(state.tcpReloadCount == 1)
+        #expect(state.restartCount == 0)
+    }
+
+    @Test("Invalid admission cannot restart or TCP reload")
+    func invalidCapsProfileCannotApply() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            restartForManagedCapsChange: { state.restartCount += 1; return true },
+            sessionValidationOverride: { (.invalid("Caps is not eligible"), true) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(!result.isSuccess)
+        #expect(state.tcpReloadCount == 0)
+        #expect(state.restartCount == 0)
+        #expect(engine.reloadCallCount == 0)
     }
 
     // MARK: - triggerConfigReload: unhealthy service
