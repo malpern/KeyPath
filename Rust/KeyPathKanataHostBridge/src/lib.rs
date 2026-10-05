@@ -55,6 +55,60 @@ pub extern "C" fn keypath_kanata_bridge_validate_session_config(
     }
 }
 
+/// Additive admission API. supported_usages is the OUTPUT key map; managed Caps
+/// supplies logical HID 57 input without authorizing Caps Lock or F18 output.
+#[cfg(target_os = "macos")]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_validate_session_config_with_managed_caps(
+    config_path: *const c_char,
+    supported_usages: *const u32,
+    supported_count: usize,
+    managed_caps: bool,
+    error_buffer: *mut c_char,
+    error_buffer_len: usize,
+) -> bool {
+    let Some(path) = parse_config_path(config_path, error_buffer, error_buffer_len) else {
+        return false;
+    };
+    if supported_usages.is_null() || supported_count == 0 || supported_count > 512 {
+        write_error(error_buffer, error_buffer_len, "invalid session key map");
+        return false;
+    }
+    let usages = unsafe { std::slice::from_raw_parts(supported_usages, supported_count) };
+    match kanata_parser::cfg::new_from_file(Path::new(&path)) {
+        Ok(cfg)
+            if if managed_caps {
+                session_config::supported_with_managed_caps(&cfg, usages)
+            } else {
+                session_config::supported(&cfg, usages)
+            } =>
+        {
+            write_error(error_buffer, error_buffer_len, "");
+            true
+        }
+        Ok(_) => {
+            write_error(
+                error_buffer,
+                error_buffer_len,
+                if managed_caps {
+                    "configuration is unsafe for managed Caps Lock (Caps/F18 output, reserved input, unresolved source/repeat, overrides/chords, or unsupported keys/actions)"
+                } else {
+                    "configuration requires the advanced driver backend (device filters, Caps Lock remapping, unsupported keys or actions)"
+                },
+            );
+            false
+        }
+        Err(_) => {
+            write_error(
+                error_buffer,
+                error_buffer_len,
+                "configuration could not be parsed by Kanata",
+            );
+            false
+        }
+    }
+}
+
 #[cfg(target_os = "macos")]
 unsafe extern "C" {
     #[link_name = "\u{1}__Z9init_sinkv"]
@@ -1097,5 +1151,80 @@ mod tests {
         ));
 
         keypath_kanata_bridge_destroy_passthru_runtime(runtime);
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod managed_caps_admission_tests {
+    use super::*;
+    use std::ffi::CString;
+
+    #[test]
+    fn additive_managed_caps_api_preserves_legacy_result_and_reports_failures() {
+        let path =
+            std::env::temp_dir().join(format!("keypath-managed-caps-{}.kbd", std::process::id()));
+        let c_path = CString::new(path.to_str().unwrap()).unwrap();
+        let usages = [4, 41, 224];
+        let mut error = [0 as c_char; 256];
+        std::fs::write(&path, "(defsrc caps)(deflayer base esc)").unwrap();
+        assert!(!keypath_kanata_bridge_validate_session_config(
+            c_path.as_ptr(),
+            usages.as_ptr(),
+            usages.len(),
+            error.as_mut_ptr(),
+            error.len()
+        ));
+        assert!(
+            !keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                c_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                false,
+                error.as_mut_ptr(),
+                error.len()
+            )
+        );
+        assert!(
+            keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                c_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                true,
+                error.as_mut_ptr(),
+                error.len()
+            )
+        );
+        assert_eq!(error[0], 0);
+        std::fs::write(&path, "(defsrc caps)(deflayer base (macro caps))").unwrap();
+        assert!(
+            !keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                c_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                true,
+                error.as_mut_ptr(),
+                error.len()
+            )
+        );
+        assert!(unsafe { CStr::from_ptr(error.as_ptr()) }
+            .to_str()
+            .unwrap()
+            .contains("unsafe for managed Caps Lock"));
+        std::fs::write(&path, "(invalid").unwrap();
+        assert!(
+            !keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                c_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                true,
+                error.as_mut_ptr(),
+                error.len()
+            )
+        );
+        assert!(unsafe { CStr::from_ptr(error.as_ptr()) }
+            .to_str()
+            .unwrap()
+            .contains("could not be parsed"));
+        std::fs::remove_file(path).unwrap();
     }
 }
