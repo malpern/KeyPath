@@ -29,3 +29,17 @@ require exactly pid+nonce; omitted identity or an extra uid safely refused befor
 mutation. Use the documented two-field binding on the first attempt.
 
 October5 completed acceptance: [permission and session receipt](evidence/2026-10-05-permission-and-session-acceptance.json). One all-up logout/login cycle passed with new runtime identities and real q→a. Owner-exited cleanup occurred first, so observer-specific retirement remains unproven. Read-only TCP Hello succeeded; Status is unsupported by the preserved bridge. Classify this as protocol compatibility, not a VM transport failure. Cleanup and independent provider/template/fixture checks passed; no owned VM remains active.
+
+
+October5 held/crash gate: [selected results](evidence/2026-10-05-held-crash-recovery.json). Worker TERM/KILL and parent KILL passed generated-A release before physical Q-up, final all-up and real remapping after each relaunch; independent source/receipt review and cleanup passed.
+
+| Failure / observation | Layer | Demonstrated cause or limit | Correction / evidence |
+| --- | --- | --- | --- |
+| Held observation missed physical window | Harness timing | Fixture hostname resolution took about5sec on every request; numeric control was fast. | Resolve once, enforce unique expected local IP and subsecond numeric probe; fresh TERM/KILL/parent-KILL campaigns passed. |
+| Graceful stop marked failed with raw Q held | Harness assertion | A-up occurred promptly, but physical Q autorepeat resumed after tap death. Requiring every key empty before physical Q-up was wrong. | Require generated A absent and exactly one up while fixture has one down report; permit only raw Q12 before physical all-up; require completely empty afterward. Original failed receipt preserved, fresh trial passed. |
+| Selected executable verification refused | Harness process query | macOS combined ps comm column truncated executable despite wide mode. | Dedicated full-path inventory plus exact args, PID birth, UID and nonce checks; fresh preflight passed. |
+| Eight-second hold compile refused | Harness fixture parameters | Hold8000ms exceeded initial120ms interval. | Fixed interval9000ms with hold8000ms; inert compile verifies exactly two reports. |
+| Restart sample refused before input | Harness timing | Older caller repeated slow hostname resolution, aging the30sec attachment proof. | Fresh numeric-client caller passed all three restart samples; no stale proof accepted. |
+| Worker SIGKILL leaves running/[4] report | Observation limit | Dead worker cannot publish terminal state. | Independent target proves A-up; retain stale ledger, never claim terminal report cleanup for SIGKILL. |
+
+TCP compatibility fix64a1e52a3 was committed/pushed: no mapping-success Status request; status operation refuses missing cached capability before network recovery.69 focused tests passed with a real bridge fixture; live tests on signed247 remain distinct from this later source correction.

@@ -18,8 +18,8 @@ KEYPATH_LAB_CREATE_POSIX_BINARY_FILE=/private/tmp/keypath-create-posix-sdk-build
 KEYPATH_LAB_CREATE_POSIX_BINARY_SHA256=fd2671373f626f8e762559f6e58c06b04277f32ac02db670d41b4803be63a179 \
 /private/tmp/vm-lab-reusable-setup/bin/vm-lab --host malpern@mini keypath create \
   --macos 26 --lane unmanaged-ui --desktop --ttl 1h \
-  --commit dabf769ee5f76ee73532abd1f515b290e83f9261 \
-  --installer /private/tmp/keypath-terminal-gate-dabf769ee-artifact/keypath-terminal-gate-dabf769ee-artifact-clean.zip
+  --commit 247822796ab7a8e3cfccaa755902238c9ecdddc2 \
+  --installer /private/tmp/keypath-terminal-gate-247822796-artifact/keypath-terminal-gate-247822796-artifact-clean.zip
 ```
 
 `NEW-TRIAL` is a newly allocated owned0700 directory, not a literal reuse path. Its registry is a private0600 copy of the reviewed keypath tenant mapping. Clear inherited testing, capacity, clone-root, inline-payload and diagnostic overrides; keep the exact selected template and provider settings. Record the returned status unchanged. Unknown completion means reconcile the owned resource, not dispatch CREATE again. Never bypass admission using raw provider creation.
@@ -53,4 +53,11 @@ Use `guest-root` for the prepared public UID502 account; the generic `run` route
 
 October 5 trial `cbx_d54246816bd3` passed physical q→a, the app menu’s **Quit KeyPath**, observed parent/worker absence, ordinary LaunchServices relaunch, and a second physical q→a. Both samples had exactly one captured down/up and worker input/output increments of two; all held-key ledgers were empty. Root used a small trial-local coordinator, not the timeout driver or the retired QA501 scripts. A fresh capture target is necessary after menu focus changes because `focusLost` is sticky. Original profile restoration, process/report absence, VM deletion, retained stopped template and detached nonpersistent USB all passed. The hydration-stop255 warning is preserved separately from successful deletion. [Selected receipt](evidence/2026-10-05-normal-restart.json).
 
-This single cycle earns a narrow product pass. It does not qualify held-key quit, console/session transitions, genuine timeout recovery or sustained reliability. Keep those gates separate. The AX-only core readiness false positive is corrected and live-tested on signed dabf769ee. Immediate status UI publication still needs the small startup-gate correction, then session continuity and Caps Lock ownership.
+This earlier single cycle earns a narrow product pass. It does not qualify held-key quit, console/session transitions, genuine timeout recovery or sustained reliability. Keep those gates separate. The AX-only core readiness false positive is corrected and live-tested on signed dabf769ee. Immediate status UI publication still needs the small startup-gate correction, then session continuity and Caps Lock ownership.
+
+
+## Current recovery gate — October 5
+
+Signed247822796 passed held physical Q / generated A recovery for worker SIGTERM, worker SIGKILL and parent SIGKILL, each followed by normal relaunch and physical q→a passing all eight checks. Independent target A-up was observed before the fixture submitted Q-up. Raw Q autorepeat after tap death is expected fallback; distinguish it from stuck generated A. Require generated key absent before physical release, then every key absent after physical all-up. A SIGKILL worker cannot publish a terminal report; retain its stale ledger as historical evidence. Selected [held/crash receipt](evidence/2026-10-05-held-crash-recovery.json). Cleanup passed; no owned VM remains.
+
+Resolve the fixture hostname once per campaign, require one expected local address, use that address through the authenticated existing client, and check control latency before input. Repeated mDNS resolution cost approximately five seconds per request and invalidated the hold window; it was a harness timing fault, not guest failure. Exact physical trace, identity, freshness, consent and cleanup requirements remain in force. Product64a1e52a3 protocol correction passed69 focused tests but still needs acceptance on its own signed artifact. Genuine timeout and observer-specific retirement remain separate gaps; no broad lab rebuild is warranted.

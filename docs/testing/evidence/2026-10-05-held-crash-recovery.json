@@ -1,0 +1,949 @@
+{
+  "bootEpoch": 1791224641,
+  "claim": "Generated A released before physical Q-up on worker SIGTERM, worker SIGKILL, and parent SIGKILL; normal relaunch restored physical q-to-a after each.",
+  "cleanupPassed": true,
+  "date": "2026-10-05",
+  "destroy": {
+    "actualStatus": 0,
+    "at": 1791226056.094904,
+    "stderr": "",
+    "stdout": "warning: could not stop GitHub Actions hydration for cbx_89f4d63dbdd3: write GitHub Actions hydration stop marker on 10.211.55.160: exit status 255\ndeleted lease=cbx_89f4d63dbdd3 server=e24aa109-367e-4619-ae6b-8685f52d4cc6 name=crabbox-cbx-89f4d63dbdd3-keypath26-24782279-20261005182345-27313\n"
+  },
+  "independent-guest-cleanup": {
+    "actualStatus": 0,
+    "at": 1791226041.942594,
+    "stderr": "",
+    "stdout": "{\"bootEpoch\": 1791224641, \"cutoff\": 1791227865, \"originalProfileSHA256\": \"65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573\", \"passed\": true, \"phase\": \"post-consent-cleanup\", \"products\": {\"focus\": {\"sha256\": \"a41258da97ccb31acc3794797142b8e589ad939e7b822a1e99579753e7c30d8d\", \"uid\": 502}, \"main\": {\"sha256\": \"faa54231b70034b46538c4b2c9e4d22cefece9967353d066e45387cf06573b2b\", \"uid\": 502}, \"target\": {\"sha256\": \"55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858\", \"uid\": 502}}, \"reportAbsent\": true, \"selectedProcesses\": []}\n"
+  },
+  "independent-provider-cleanup": {
+    "actualStatus": 0,
+    "observedAtEpoch": 1791226079.953901,
+    "readOnly": true,
+    "stderr": "",
+    "stdout": "{\"providerAbsent\": true, \"templateStoppedRetained\": true, \"fixture\": [{\"Name\": \"KeyPath Physical HID Fixture\", \"System name\": \"3110000|cafe|4010|full|--|2884855553BC\", \"Autoconnect-Vm-Uuid\": \"\", \"Autoconnect-Action\": \"ask\", \"Present-On-Host\": \"YES\", \"Connected-To-Vm\": \"NO\", \"Compatible-with-macOS-VM\": \"YES\"}], \"passed\": true}\n"
+  },
+  "lease": "cbx_89f4d63dbdd3",
+  "limits": [
+    "One sample per stop/crash action, not sustained reliability.",
+    "Raw physical Q autorepeat resumes after the event tap disappears; immediate all-key release is not claimed.",
+    "SIGKILL worker ledger remains stale; independent target proves release, not terminal ledger publication.",
+    "No genuine OS tap-disable, observer-specific session retirement, Caps ownership, or onboarding acceptance.",
+    "Protocol fix 64a1e52a3 passed 69 focused source tests but is not in this signed artifact."
+  ],
+  "mainSHA256": "faa54231b70034b46538c4b2c9e4d22cefece9967353d066e45387cf06573b2b",
+  "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+  "rawEvidenceRoot": "/private/tmp/keypath-held-recovery-live-01",
+  "rawReceiptSHA256": {
+    "destroy-result.json": "cf38909536246ae43be2427b6f6d3bfeb32ad099e195401585f816543f4099df",
+    "held-kill-01-sample-result.json": "8eea29bfa00a85df10b0f0820dfb8645bd3f02e36e64e685e4bec1231744cc90",
+    "held-parent-01-sample-result.json": "2515c3e0afce345b7b73e21883c11726c2690c20d5fc66dc0136743a9628162d",
+    "held-term-05-sample-result.json": "77391068ab1c4f22dc86042f365ae8b6667c4b31dd3b0e13975c2a217f3b9e46",
+    "held-term-06-sample-result.json": "2e87048409bca4b0a0078d6929e32f56dceaa8027a5a04b5336a580a91d98c81",
+    "held_guest_v4.py": "79a59cf796922f7c74b23cdd6bb6363c8250158bfacba8a67abce39be9c689b6",
+    "held_sample_v7.py": "f887b73c1d489e0cd2e852e13ae6025a42d7e7edc2cdfc1a2d6e9809fafb8680",
+    "independent-guest-cleanup-result.json": "5971f7f84a8dad74d027c069aa960c9b79ad2658bbf57d07f4b1d6cb6c5fa813",
+    "independent-provider-cleanup-result.json": "ad3faa2edf7a9560635b2128e4e463d9ad4f0c0ea74cf3a8f5684cfe69cf8083",
+    "kill-restart-sample-result.json": "7612f082015d8c6f6f791f0d73fb20d82fdf749e7ce03b832feddda868e96441",
+    "parent-restart-sample-result.json": "cf6a56cfe0550a1da6f226df3cffb066d3c1ee9e34964d1a198141134d7ef810",
+    "sample_numeric_v1.py": "44a0ab4f4d76ab0f16ae8f80b9c0dd86f21f7ee7b5b3802fee9193294f859c0b",
+    "term-restart-sample-result.json": "8363c6ffcc2c8943366c7f9b111c5eaa21932082a2b704e947fc38b2f557be41",
+    "term-restart2-sample-result.json": "e13b2d6147988a7810feaebcc312e3e0abb192114608677298655f18e46d8ad0"
+  },
+  "restarts": [
+    {
+      "attachmentObservedAt": 1791225781.60587,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-99b6f5edd87b4e2689956322664e1f4c",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791225787.0348349
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791225788.3173,
+        "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 2858,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-D193CFB4-46D4-4E00-B2EF-BE99E887D0B2/report.json",
+        "targetNonce": "11307043-B81C-45AF-9CC0-FC2220127AC5",
+        "targetPID": 2956,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-D193CFB4-46D4-4E00-B2EF-BE99E887D0B2/report.json",
+          "--session-nonce",
+          "D193CFB4-46D4-4E00-B2EF-BE99E887D0B2",
+          "--session-owner",
+          "2858",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "D193CFB4-46D4-4E00-B2EF-BE99E887D0B2",
+        "workerPID": 2867
+      },
+      "lease": "cbx_89f4d63dbdd3",
+      "passed": true,
+      "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+      "runId": "restart-99b6f5edd87b4e2689956322664e1f4c",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791225790.6446161,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 2,
+          "modifiers": 0,
+          "scheduledUs": 711617779357,
+          "sequence": 1,
+          "submittedUs": 711617779359
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 21,
+          "modifiers": 0,
+          "scheduledUs": 711617819357,
+          "sequence": 2,
+          "submittedUs": 711617819378
+        }
+      ]
+    },
+    {
+      "attachmentObservedAt": 1791225875.909537,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-4742beb850e34c2388937f6766d2a92c",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791225882.529411
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791225883.6905541,
+        "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 3184,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-44CC3F4A-A9C4-4254-A48D-1DD30EE24D98/report.json",
+        "targetNonce": "9F57C49F-A14D-4CB2-BEED-7154DC85869A",
+        "targetPID": 3212,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-44CC3F4A-A9C4-4254-A48D-1DD30EE24D98/report.json",
+          "--session-nonce",
+          "44CC3F4A-A9C4-4254-A48D-1DD30EE24D98",
+          "--session-owner",
+          "3184",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "44CC3F4A-A9C4-4254-A48D-1DD30EE24D98",
+        "workerPID": 3193
+      },
+      "lease": "cbx_89f4d63dbdd3",
+      "passed": true,
+      "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+      "runId": "restart-4742beb850e34c2388937f6766d2a92c",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791225885.843987,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 17,
+          "modifiers": 0,
+          "scheduledUs": 711713149432,
+          "sequence": 1,
+          "submittedUs": 711713149449
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 25,
+          "modifiers": 0,
+          "scheduledUs": 711713189432,
+          "sequence": 2,
+          "submittedUs": 711713189457
+        }
+      ]
+    },
+    {
+      "attachmentObservedAt": 1791225972.130945,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-512fc31a272e4750a00bdc90c28cba61",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791225979.980334
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791225981.217165,
+        "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 3430,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-525335F7-055A-4786-91F1-69A6631D756A/report.json",
+        "targetNonce": "31BAA004-E3FD-4724-9A91-0EFABC158A80",
+        "targetPID": 3457,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-525335F7-055A-4786-91F1-69A6631D756A/report.json",
+          "--session-nonce",
+          "525335F7-055A-4786-91F1-69A6631D756A",
+          "--session-owner",
+          "3430",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "525335F7-055A-4786-91F1-69A6631D756A",
+        "workerPID": 3439
+      },
+      "lease": "cbx_89f4d63dbdd3",
+      "passed": true,
+      "providerUUID": "e24aa109-367e-4619-ae6b-8685f52d4cc6",
+      "runId": "restart-512fc31a272e4750a00bdc90c28cba61",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791225983.3468308,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 2,
+          "modifiers": 0,
+          "scheduledUs": 711810703620,
+          "sequence": 1,
+          "submittedUs": 711810703622
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 27,
+          "modifiers": 0,
+          "scheduledUs": 711810743620,
+          "sequence": 2,
+          "submittedUs": 711810743647
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "sourceArtifactCommit": "247822796ab7a8e3cfccaa755902238c9ecdddc2",
+  "trials": [
+    {
+      "action": "worker-term",
+      "finalTarget": {
+        "aDowns": 10,
+        "active": true,
+        "downs": 90,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [],
+        "modifiers": 0,
+        "nonce": "E4374E7A-9A6B-4E68-BB9F-0788A0600FDD",
+        "observedAt": 1791225652.876692,
+        "pid": 2709,
+        "qDowns": 80,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": false,
+        "secureTest": false,
+        "uid": 502,
+        "ups": 2,
+        "windowKey": true
+      },
+      "label": "held-term-06",
+      "observationDelaySeconds": 0.45335817337036133,
+      "parentAlive": true,
+      "parentPID": 2682,
+      "passed": true,
+      "physicalStillHeld": {
+        "address": "192.168.1.221",
+        "build": "fc98a5acc0a5",
+        "currentRepeat": 0,
+        "diagnostics": {
+          "freeHeapBytes": 8332959,
+          "httpServerStarts": 1,
+          "lastStatusLatencyUs": 3236,
+          "lastWifiDisconnectReason": 0,
+          "maximumStatusLatencyUs": 4942,
+          "minimumFreeHeapBytes": 8273896,
+          "resetReason": 1,
+          "statusFailures": 0,
+          "statusRequests": 571,
+          "statusResponses": 570,
+          "uptimeMs": 711474077,
+          "wifiConnects": 1,
+          "wifiDisconnects": 0
+        },
+        "displayFrame": 4621804,
+        "displayHealthy": true,
+        "displayLastFrameMs": 711473907,
+        "error": "",
+        "eventCount": 2,
+        "firmware": "0.3.2-esp32s3",
+        "lateReports": 0,
+        "maximumLatenessUs": 23,
+        "network": "Alpern-Home-5G",
+        "ok": true,
+        "otaSlot": "ota_1",
+        "otaState": "valid",
+        "platform": "waveshare-esp32-s3-touch-lcd-1.69",
+        "presentation": {
+          "brand": "none",
+          "detail": "",
+          "dropped": 0,
+          "duplicated": 0,
+          "latencyP95Us": 0,
+          "next": "",
+          "phase": "auto",
+          "progress": 0,
+          "repeated": 0,
+          "reportsExpected": 0,
+          "reportsObserved": 0,
+          "result": "none",
+          "safeRelease": false,
+          "title": ""
+        },
+        "repeatCount": 1,
+        "reportsSubmitted": 1,
+        "runId": "restart-28caad5c607642c9a01cdffb42d2fd3a",
+        "scriptCRC32": "e665b59a",
+        "silent": true,
+        "splashComplete": true,
+        "splashEnabled": true,
+        "state": "running",
+        "submittedCRC32": "052b9ff4",
+        "transfersCompleted": 2,
+        "updateInProgress": false,
+        "updateReady": false,
+        "usbMounted": true,
+        "wifiConnected": true
+      },
+      "releaseObservedAtEpoch": 1791225645.761413,
+      "releaseTarget": {
+        "aDowns": 10,
+        "active": true,
+        "downs": 14,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [
+          12
+        ],
+        "modifiers": 0,
+        "nonce": "E4374E7A-9A6B-4E68-BB9F-0788A0600FDD",
+        "observedAt": 1791225645.676615,
+        "pid": 2709,
+        "qDowns": 4,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": false,
+        "secureTest": false,
+        "uid": 502,
+        "ups": 1,
+        "windowKey": true
+      },
+      "signal": 15,
+      "signalPID": 2691,
+      "signalRequestedAtEpoch": 1791225645.308055,
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 23,
+          "modifiers": 0,
+          "scheduledUs": 711472366620,
+          "sequence": 1,
+          "submittedUs": 711472366643
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 22,
+          "modifiers": 0,
+          "scheduledUs": 711480366620,
+          "sequence": 2,
+          "submittedUs": 711480366642
+        }
+      ],
+      "workerAlive": false,
+      "workerLedger": {
+        "ageSeconds": 0.426861047744751,
+        "alive": false,
+        "fresh": true,
+        "report": {
+          "accessibility": true,
+          "effectiveInputAccess": true,
+          "experimentalTapDiagnostics": {
+            "aMapped": true,
+            "configSHA256": "4cf78f9e44b5fe0e58c4bfce714b619e82d018268465acf6e660bba771a91631",
+            "qMapped": true,
+            "rawTapCallbackCount": 20,
+            "registeredTap": {
+              "enumerationAttempted": true,
+              "outcome": "observed",
+              "queryLimit": 128,
+              "rawAccessibility": "granted",
+              "rawListenEvent": "granted",
+              "rawPostEvent": "granted",
+              "requestedMask": 7168,
+              "rows": [
+                {
+                  "enabled": true,
+                  "mask": 7168
+                }
+              ]
+            }
+          },
+          "experimentalTapTimeout": {
+            "callbackFirstResult": "notObserved",
+            "initialization": "initialized",
+            "preparation": "commandUnavailable"
+          },
+          "heldOutputUsages": [],
+          "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+          "inputCount": 10,
+          "nonce": "5534BEDC-F75E-4C4D-BA9E-EBA3CB281578",
+          "outputCount": 10,
+          "pid": 2691,
+          "state": "stopped",
+          "tapActive": false,
+          "tcpPort": 37001,
+          "timestamp": 812918445.308545,
+          "uid": 502
+        }
+      },
+      "workerNonce": "5534BEDC-F75E-4C4D-BA9E-EBA3CB281578",
+      "workerPID": 2691
+    },
+    {
+      "action": "worker-kill",
+      "finalTarget": {
+        "aDowns": 9,
+        "active": true,
+        "downs": 90,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [],
+        "modifiers": 0,
+        "nonce": "3231012E-1CB7-43BA-9129-5967A4BABAF6",
+        "observedAt": 1791225835.998774,
+        "pid": 3046,
+        "qDowns": 81,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": false,
+        "secureTest": false,
+        "uid": 502,
+        "ups": 2,
+        "windowKey": true
+      },
+      "label": "held-kill-01",
+      "observationDelaySeconds": 0.48331284523010254,
+      "parentAlive": true,
+      "parentPID": 2858,
+      "passed": true,
+      "physicalStillHeld": {
+        "address": "192.168.1.221",
+        "build": "fc98a5acc0a5",
+        "currentRepeat": 0,
+        "diagnostics": {
+          "freeHeapBytes": 8332959,
+          "httpServerStarts": 1,
+          "lastStatusLatencyUs": 3253,
+          "lastWifiDisconnectReason": 0,
+          "maximumStatusLatencyUs": 4942,
+          "minimumFreeHeapBytes": 8273896,
+          "resetReason": 1,
+          "statusFailures": 0,
+          "statusRequests": 626,
+          "statusResponses": 625,
+          "uptimeMs": 711657388,
+          "wifiConnects": 1,
+          "wifiDisconnects": 0
+        },
+        "displayFrame": 4622976,
+        "displayHealthy": true,
+        "displayLastFrameMs": 711657305,
+        "error": "",
+        "eventCount": 2,
+        "firmware": "0.3.2-esp32s3",
+        "lateReports": 0,
+        "maximumLatenessUs": 3,
+        "network": "Alpern-Home-5G",
+        "ok": true,
+        "otaSlot": "ota_1",
+        "otaState": "valid",
+        "platform": "waveshare-esp32-s3-touch-lcd-1.69",
+        "presentation": {
+          "brand": "none",
+          "detail": "",
+          "dropped": 0,
+          "duplicated": 0,
+          "latencyP95Us": 0,
+          "next": "",
+          "phase": "auto",
+          "progress": 0,
+          "repeated": 0,
+          "reportsExpected": 0,
+          "reportsObserved": 0,
+          "result": "none",
+          "safeRelease": false,
+          "title": ""
+        },
+        "repeatCount": 1,
+        "reportsSubmitted": 1,
+        "runId": "restart-0575070901194884bf15a5156592dbf5",
+        "scriptCRC32": "e665b59a",
+        "silent": true,
+        "splashComplete": true,
+        "splashEnabled": true,
+        "state": "running",
+        "submittedCRC32": "052b9ff4",
+        "transfersCompleted": 2,
+        "updateInProgress": false,
+        "updateReady": false,
+        "usbMounted": true,
+        "wifiConnected": true
+      },
+      "releaseObservedAtEpoch": 1791225829.067049,
+      "releaseTarget": {
+        "aDowns": 9,
+        "active": true,
+        "downs": 14,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [
+          12
+        ],
+        "modifiers": 0,
+        "nonce": "3231012E-1CB7-43BA-9129-5967A4BABAF6",
+        "observedAt": 1791225829.0002499,
+        "pid": 3046,
+        "qDowns": 5,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": false,
+        "secureTest": false,
+        "uid": 502,
+        "ups": 1,
+        "windowKey": true
+      },
+      "signal": 9,
+      "signalPID": 2867,
+      "signalRequestedAtEpoch": 1791225828.5837362,
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 3,
+          "modifiers": 0,
+          "scheduledUs": 711655748222,
+          "sequence": 1,
+          "submittedUs": 711655748225
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 15,
+          "modifiers": 0,
+          "scheduledUs": 711663748222,
+          "sequence": 2,
+          "submittedUs": 711663748237
+        }
+      ],
+      "workerAlive": false,
+      "workerLedger": {
+        "ageSeconds": 0.479686975479126,
+        "alive": false,
+        "fresh": true,
+        "report": {
+          "accessibility": true,
+          "effectiveInputAccess": true,
+          "experimentalTapDiagnostics": {
+            "aMapped": true,
+            "configSHA256": "4cf78f9e44b5fe0e58c4bfce714b619e82d018268465acf6e660bba771a91631",
+            "qMapped": true,
+            "rawTapCallbackCount": 21,
+            "registeredTap": {
+              "enumerationAttempted": true,
+              "outcome": "observed",
+              "queryLimit": 128,
+              "rawAccessibility": "granted",
+              "rawListenEvent": "granted",
+              "rawPostEvent": "granted",
+              "requestedMask": 7168,
+              "rows": [
+                {
+                  "enabled": true,
+                  "mask": 7168
+                }
+              ]
+            }
+          },
+          "experimentalTapTimeout": {
+            "callbackFirstResult": "notObserved",
+            "initialization": "initialized",
+            "preparation": "commandUnavailable"
+          },
+          "heldOutputUsages": [
+            4
+          ],
+          "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+          "inputCount": 11,
+          "nonce": "D193CFB4-46D4-4E00-B2EF-BE99E887D0B2",
+          "outputCount": 10,
+          "pid": 2867,
+          "state": "running",
+          "tapActive": true,
+          "tcpPort": 37001,
+          "timestamp": 812918628.558944,
+          "uid": 502
+        }
+      },
+      "workerNonce": "D193CFB4-46D4-4E00-B2EF-BE99E887D0B2",
+      "workerPID": 2867
+    },
+    {
+      "action": "parent-kill",
+      "finalTarget": {
+        "aDowns": 10,
+        "active": true,
+        "downs": 90,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [],
+        "modifiers": 0,
+        "nonce": "AEFA2BE6-5E6D-4AA1-8E64-4A0E53D432AF",
+        "observedAt": 1791225935.14684,
+        "pid": 3300,
+        "qDowns": 80,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": false,
+        "secureTest": false,
+        "uid": 502,
+        "ups": 2,
+        "windowKey": true
+      },
+      "label": "held-parent-01",
+      "observationDelaySeconds": 0.5212399959564209,
+      "parentAlive": false,
+      "parentPID": 3184,
+      "passed": true,
+      "physicalStillHeld": {
+        "address": "192.168.1.221",
+        "build": "fc98a5acc0a5",
+        "currentRepeat": 0,
+        "diagnostics": {
+          "freeHeapBytes": 8332959,
+          "httpServerStarts": 1,
+          "lastStatusLatencyUs": 3283,
+          "lastWifiDisconnectReason": 0,
+          "maximumStatusLatencyUs": 4942,
+          "minimumFreeHeapBytes": 8273896,
+          "resetReason": 1,
+          "statusFailures": 0,
+          "statusRequests": 673,
+          "statusResponses": 672,
+          "uptimeMs": 711756690,
+          "wifiConnects": 1,
+          "wifiDisconnects": 0
+        },
+        "displayFrame": 4623604,
+        "displayHealthy": true,
+        "displayLastFrameMs": 711756487,
+        "error": "",
+        "eventCount": 2,
+        "firmware": "0.3.2-esp32s3",
+        "lateReports": 0,
+        "maximumLatenessUs": 9,
+        "network": "Alpern-Home-5G",
+        "ok": true,
+        "otaSlot": "ota_1",
+        "otaState": "valid",
+        "platform": "waveshare-esp32-s3-touch-lcd-1.69",
+        "presentation": {
+          "brand": "none",
+          "detail": "",
+          "dropped": 0,
+          "duplicated": 0,
+          "latencyP95Us": 0,
+          "next": "",
+          "phase": "auto",
+          "progress": 0,
+          "repeated": 0,
+          "reportsExpected": 0,
+          "reportsObserved": 0,
+          "result": "none",
+          "safeRelease": false,
+          "title": ""
+        },
+        "repeatCount": 1,
+        "reportsSubmitted": 1,
+        "runId": "restart-09a1e874a11c4ed68325f6f5f5043cd4",
+        "scriptCRC32": "e665b59a",
+        "silent": true,
+        "splashComplete": true,
+        "splashEnabled": true,
+        "state": "running",
+        "submittedCRC32": "052b9ff4",
+        "transfersCompleted": 2,
+        "updateInProgress": false,
+        "updateReady": false,
+        "usbMounted": true,
+        "wifiConnected": true
+      },
+      "releaseObservedAtEpoch": 1791225928.357813,
+      "releaseTarget": {
+        "aDowns": 10,
+        "active": true,
+        "downs": 15,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [
+          12
+        ],
+        "modifiers": 0,
+        "nonce": "AEFA2BE6-5E6D-4AA1-8E64-4A0E53D432AF",
+        "observedAt": 1791225928.2465281,
+        "pid": 3300,
+        "qDowns": 5,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": false,
+        "secureTest": false,
+        "uid": 502,
+        "ups": 1,
+        "windowKey": true
+      },
+      "signal": 9,
+      "signalPID": 3184,
+      "signalRequestedAtEpoch": 1791225927.836573,
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 9,
+          "modifiers": 0,
+          "scheduledUs": 711754884850,
+          "sequence": 1,
+          "submittedUs": 711754884859
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 16,
+          "modifiers": 0,
+          "scheduledUs": 711762884850,
+          "sequence": 2,
+          "submittedUs": 711762884866
+        }
+      ],
+      "workerAlive": false,
+      "workerLedger": {
+        "ageSeconds": 0.4801480770111084,
+        "alive": false,
+        "fresh": true,
+        "report": {
+          "accessibility": true,
+          "effectiveInputAccess": true,
+          "experimentalTapDiagnostics": {
+            "aMapped": true,
+            "configSHA256": "4cf78f9e44b5fe0e58c4bfce714b619e82d018268465acf6e660bba771a91631",
+            "qMapped": true,
+            "rawTapCallbackCount": 24,
+            "registeredTap": {
+              "enumerationAttempted": true,
+              "outcome": "observed",
+              "queryLimit": 128,
+              "rawAccessibility": "granted",
+              "rawListenEvent": "granted",
+              "rawPostEvent": "granted",
+              "requestedMask": 7168,
+              "rows": [
+                {
+                  "enabled": true,
+                  "mask": 7168
+                }
+              ]
+            }
+          },
+          "experimentalTapTimeout": {
+            "callbackFirstResult": "notObserved",
+            "initialization": "initialized",
+            "preparation": "commandUnavailable"
+          },
+          "failure": "owner-exited",
+          "heldOutputUsages": [],
+          "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+          "inputCount": 12,
+          "nonce": "44CC3F4A-A9C4-4254-A48D-1DD30EE24D98",
+          "outputCount": 12,
+          "pid": 3193,
+          "state": "stopped",
+          "tapActive": false,
+          "tcpPort": 37001,
+          "timestamp": 812918727.846057,
+          "uid": 502
+        }
+      },
+      "workerNonce": "44CC3F4A-A9C4-4254-A48D-1DD30EE24D98",
+      "workerPID": 3193
+    }
+  ]
+}
