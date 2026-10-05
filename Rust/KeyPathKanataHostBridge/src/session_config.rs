@@ -40,9 +40,10 @@ fn action_supported(
         | Action::DefaultLayer(_)
         | Action::CancelSequences
         | Action::OneShotIgnoreEventsTicks(_) => true,
-        Action::Trans | Action::Src | Action::Repeat => {
-            !managed_caps || input != OsCode::KEY_CAPSLOCK
-        }
+        // Src and transparency can resolve using a replay/virtual coordinate,
+        // and Repeat can replay such an action at a different coordinate. A
+        // managed profile cannot prove these safe from the defining input alone.
+        Action::Trans | Action::Src | Action::Repeat => !managed_caps,
         // Releasing a layer changes keyberon state only. Release-key remains
         // unavailable; it has different emitted-key ownership semantics.
         Action::ReleaseState(ReleasableState::Layer(_)) => true,
@@ -177,12 +178,13 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
                 } else {
                     OsCode::KEY_RESERVED
                 };
-                // Kanata generates identity slots for keys outside defsrc. They are
-                // not emitted by processing mapped input and must not reserve F18
-                // merely because the parser generated a full-width layer.
+                // Kanata generates identity/transparent slots outside mapped
+                // physical input. They cannot be processed by captured input;
+                // repeat is refused globally, so cannot replay them either.
                 if row == 0
                     && !cfg.mapped_keys.contains(&input)
-                    && matches!(action, Action::KeyCode(key) if OsCode::from(*key) == input)
+                    && (matches!(action, Action::KeyCode(key) if OsCode::from(*key) == input)
+                        || matches!(action, Action::Trans))
                 {
                     return true;
                 }
@@ -193,10 +195,7 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
                         .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
                 {
                     return matches!(action, Action::KeyCode(key) if OsCode::from(*key) == input)
-                        || matches!(
-                            action,
-                            Action::Trans | Action::Src | Action::KeyCode(KeyCode::ErrorUndefined)
-                        )
+                        || matches!(action, Action::KeyCode(KeyCode::ErrorUndefined))
                         || (input == OsCode::KEY_RESERVED && matches!(action, Action::NoOp));
                 }
                 action_supported(action, input, &usages, &virtual_inputs, true)
@@ -278,6 +277,25 @@ mod tests {
             "(defvirtualkeys vk_bad (macro caps))(defsrc caps)(deflayer base esc)"
         ));
         assert!(!managed("(defvirtualkeys vk_test XX)(defsrc caps)(deflayer base (switch ((input virtual vk_test)) esc break () caps break))"));
+    }
+
+    #[test]
+    fn managed_caps_rejects_virtual_source_coordinates_and_non_caps_replay() {
+        for reserved in [OsCode::KEY_CAPSLOCK, OsCode::KEY_F18] {
+            let index = u16::from(reserved);
+            let mut text = String::from("(defvirtualkeys ");
+            for n in 0..index {
+                text.push_str(&format!("vk_{n} XX "));
+            }
+            text.push_str("vk_reserved use-defsrc)(defsrc caps)(deflayer base esc)");
+            assert!(!managed(&text), "virtual source index {index}");
+        }
+        assert!(!managed("(defsrc caps a)(deflayer base esc use-defsrc)"));
+        assert!(!managed("(defsrc caps a)(deflayer base esc _)"));
+        assert!(!managed("(defsrc caps a)(deflayer base esc rpt-any)"));
+        assert!(!managed(
+            "(defsrc caps a b)(deflayer base esc (multi a use-defsrc) rpt-any)"
+        ));
     }
 
     #[test]

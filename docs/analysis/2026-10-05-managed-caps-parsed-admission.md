@@ -7,7 +7,8 @@ outputs. Logical Caps (HID 57) is admitted independently as mapped input. Caps a
 F18 (HID 109) remain prohibited outputs even when supplied in the output usage array.
 
 Managed admission requires mapped Caps, reserves mapped F18, and rejects source,
-transparency and repeat at the Caps coordinate, including nested actions. Existing
+transparency and repeat at every coordinate, including nested actions: virtual source
+resolution and replay can change the effective source coordinate. Existing
 recursive traversal validates tap, hold, timeout, macro, virtual-key, switch and
 legacy chord branches. Generated unmapped identity slots do not count as meaningful
 outputs. Nonempty global overrides, chords-v2, zippy and startup aliases are refused
