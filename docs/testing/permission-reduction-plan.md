@@ -1,3 +1,11 @@
+## Active checkpoint — October 5, 2026, 10:19 UTC
+
+**3/6 milestones (50%) verified. No active owned VM.** Signed595 short-route installation and normal AX+Input Monitoring startup passed again. Fresh timing and independent positive target cleanup passed, but physical release arrived after the unchanged120-second gate expired. No timeout arm or HID input; timeout/recovery milestone remains open. Root must forward the next phase notification immediately; no old seal/timing reuse or replay.
+
+Final read-only reconciliation now captured the exact Parallels `PrlJob_GetRetCode: Invalid argument` symptom identified upstream. A narrow retained-handle SDK guest-root adapter is source-only pending independent review, inert tests and harmless live qualification. Canonical412e destroy and independent provider/template/ESP32 cleanup passed. Evidence `/private/tmp/keypath-timeout-reviewed-595-guest`; detailed handoff in the permission-footprint worktree.
+
+Next: qualify transport → genuine timeout/fail-open/new-parent recovery → separate session/restart transitions → Caps Lock mapping ownership/recovery → installer/onboarding. Caps→F18 is demonstrated on the ESP32, but product ownership/journal/crash recovery are not implemented. Preserve DL-01 in `driverless-gap-register.md`; keep unsupported Caps preflight/tour gates until accepted. Current flow still needs Accessibility and Input Monitoring, while eliminating the Karabiner driver/system extension/root daemon/admin-installation burden. Accessibility alone gives a generic runtime failure: onboarding must explain the missing grant after stabilization.
+
 ## Active checkpoint — October 5, 2026, 09:31 UTC
 
 **Physical driverless remap PASSED; verified progress 3/6 (50%). No active owned VM or driver.** Research/permission behavior and signed startup gates were previously accepted; this checkpoint adds physical delivery on the current signed595 artifact. Remaining milestones: actual OS timeout/recovery and session transitions; Caps Lock; reduced-permission installer/onboarding. Earlier higher percentage estimates are historical and retired.
