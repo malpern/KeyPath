@@ -1,4 +1,4 @@
-## October 5, 2026, 12:29 UTC — diagnostic trial cleanup and reliability checkpoint
+## October 5, 2026, 12:27 UTC — diagnostic trial cleanup and reliability checkpoint
 
 Verified progress remains **3/6 (50%)**. No active owned guest or driver. Diagnostic d9 trial91f7 stopped before hardware input: positive receipt SHA`ea8d7465cf72e7e37080f3192016ba789d2ca06050ba555df66098ee09c073ae` reports timing measurement refused / receipt-write-fsync, nested AssertionError at receipt-open, with complete transport actual0. Worker diagnostics consistently initialized / commandUnavailable / notObserved; no command or callback admission and no actual timeout acceptance.
 
