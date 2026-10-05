@@ -167,6 +167,12 @@ public final class SessionRuntimeWorker {
                     posting: Self.fact(capabilities.inputMonitoring), listening: Self.fact(raw.inputMonitoring)
                 )
             }
+            if let failure = Self.registeredTapStartupFailure(registeredTapObservation) {
+                finish(.failed, reason: failure)
+            }
+            guard CGEvent.tapIsEnabled(tap: tap) else {
+                finish(.failed, reason: "modifying-tap-not-enabled")
+            }
         #endif
 
         for number in [SIGTERM, SIGINT, SIGHUP] {
@@ -372,7 +378,19 @@ public final class SessionRuntimeWorker {
                                           abiIsExpected: true, ownPID: getpid(), accessibility: accessibility, posting: posting, listening: listening)
         }
 
-        /// Pure interpretation of the single bounded query; never changes runtime readiness.
+        /// Experimental admission uses registration evidence, not an unconditional permission rule.
+        /// Full registered bits are necessary here; they do not prove physical delivery.
+        static func registeredTapStartupFailure(_ observation: SessionRuntimeReport.RegisteredTapObservation?) -> String? {
+            guard let observation else { return "modifying-tap-registration-unavailable" }
+            guard observation.outcome == .observed, observation.rows.count == 1 else {
+                return "modifying-tap-registration-unverified"
+            }
+            guard observation.requestedBitsPresent else { return "modifying-tap-missing-requested-events" }
+            guard observation.rows[0].enabled else { return "modifying-tap-not-enabled" }
+            return nil
+        }
+
+        /// Pure interpretation of the single bounded query; does not itself decide readiness.
         static func classifyRegisteredTaps(requestedMask: UInt64, taps: [CGEventTapInformation], count: UInt32,
                                            error: CGError, abiIsExpected: Bool, ownPID: pid_t, accessibility: String, posting: String,
                                            listening: String) -> SessionRuntimeReport.RegisteredTapObservation

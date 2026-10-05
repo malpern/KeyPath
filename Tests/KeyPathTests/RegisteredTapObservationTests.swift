@@ -83,6 +83,30 @@ struct RegisteredTapObservationTests {
             let noQuery = classify([], 0, .failure, false); precondition(noQuery.outcome == .unexpectedABI && !noQuery.enumerationAttempted)
         }
 
+        @Test @MainActor func startupAdmissionDistinguishesClippedUnverifiedAndDisabledRegistration() {
+            #expect(SessionRuntimeWorker.registeredTapStartupFailure(observation()) == nil)
+            #expect(SessionRuntimeWorker.registeredTapStartupFailure(observation(rows: [.init(mask: 4096, enabled: true)])) == "modifying-tap-missing-requested-events")
+            let disabled = observation(rows: [.init(mask: 7168, enabled: false)])
+            #expect(disabled.requestedBitsPresent)
+            #expect(SessionRuntimeWorker.registeredTapStartupFailure(disabled) == "modifying-tap-not-enabled")
+            for outcome in [Observation.Outcome.absent, .apiFailure, .capacityExceeded, .unexpectedABI] {
+                #expect(SessionRuntimeWorker.registeredTapStartupFailure(observation(outcome, rows: [])) == "modifying-tap-registration-unverified")
+            }
+            #expect(SessionRuntimeWorker
+                .registeredTapStartupFailure(observation(.multiple, rows: [.init(mask: 7168, enabled: true), .init(mask: 7168, enabled: true)])) == "modifying-tap-registration-unverified")
+            #expect(SessionRuntimeWorker.registeredTapStartupFailure(nil) == "modifying-tap-registration-unavailable")
+        }
+
+        @Test @MainActor func startupAdmissionUsesRegisteredMaskInsteadOfListenPermission() {
+            let fullListenDenied = observation()
+            #expect(fullListenDenied.rawListenEvent == "denied")
+            #expect(SessionRuntimeWorker.registeredTapStartupFailure(fullListenDenied) == nil)
+            let clippedListenGranted = Observation(outcome: .observed, requestedMask: 7168,
+                                                   rows: [.init(mask: 4096, enabled: true)], rawAccessibility: "granted", rawPostEvent: "granted",
+                                                   rawListenEvent: "granted", enumerationAttempted: true)
+            #expect(SessionRuntimeWorker.registeredTapStartupFailure(clippedListenGranted) == "modifying-tap-missing-requested-events")
+        }
+
         @Test @MainActor func actualSDKLayoutMatchesCheckedWorkerABI() {
             #expect(SessionRuntimeWorker.experimentalTapABIIsExpected)
         }
