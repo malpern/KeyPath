@@ -1,5 +1,7 @@
 # Active driverless testing workflow
 
+Latest checkpoint: signed01df87bc9 held-worker/parent crash and physical Caps tap passed; no active lease. See the handoff for scope and remaining gates. Preserve raw failures; template verification uses an explicit template query.
+
 ## Operating rule
 
 Use one canonical lab route and one signed product artifact. Root owns all VM/UI/HID actions. Agents may independently review source or run inert checks. Do not add a wrapper when an existing command already handles the operation. Keep historical packets immutable, but do not require obsolete historical hashes as current caller configuration.
@@ -18,8 +20,8 @@ KEYPATH_LAB_CREATE_POSIX_BINARY_FILE=/private/tmp/keypath-create-posix-sdk-build
 KEYPATH_LAB_CREATE_POSIX_BINARY_SHA256=fd2671373f626f8e762559f6e58c06b04277f32ac02db670d41b4803be63a179 \
 /private/tmp/vm-lab-reusable-setup/bin/vm-lab --host malpern@mini keypath create \
   --macos 26 --lane unmanaged-ui --desktop --ttl 1h \
-  --commit d80b5b9cb949339b0337d691efb4c7055ecd9b75 \
-  --installer /private/tmp/keypath-caps-runtime-d80b5b9cb-rpath-artifact/keypath-caps-runtime-d80b5b9cb-rpath.zip
+  --commit 01df87bc9598350df92295f407e839f6cb057568 \
+  --installer /private/tmp/keypath-config-refusal-01df87bc9-entitlements-artifact/keypath-config-refusal-01df87bc9.zip
 ```
 
 This example names the last live-tested candidate, not a standing authorization to replay CREATE. Before a new run, substitute the reviewed current commit and signed artifact together and verify their manifest hashes. No owned VM remains from that trial. `NEW-TRIAL` is a newly allocated owned0700 directory, not a literal reuse path. Its registry is a private0600 copy of the reviewed keypath tenant mapping. Clear inherited testing, capacity, clone-root, inline-payload and diagnostic overrides; keep the exact selected template and provider settings. Record the returned status unchanged. Unknown completion means reconcile the owned resource, not dispatch CREATE again. Never bypass admission using raw provider creation.

@@ -59,3 +59,16 @@ October5 integrated Caps acceptance: [selected live receipt](evidence/2026-10-05
 |600ms hold had four Ctrl notifications | Harness expectation / product repeat behavior | Two physical reports cause OS autorepeat; Kanata preserves repeat value2. Three down/repeat flags then one up, final all-up. |350ms exact down/up passes.600ms raw receipt/source review retained; no full long-hold acceptance claimed. |
 | Worker-crash observer refused transient marker | Harness timing | Read occurred during product restoration's legitimate mutation marker. No crash retry; later independent read confirms restored map and cleared journal. | Original status1 retained plus separate clean-state receipt. |
 | Default Caps launch had no active worker | Product diagnostic gap | No managed selection, map or journal, but precise validation reason was not captured. Startup log continued transient polling. | Do not call this complete failed-activation/UI acceptance. Verify actionable refusal before onboarding. |
+
+October5 held-Caps/config acceptance: [selected receipt](evidence/2026-10-05-caps-held-config-acceptance.json). Signed01df87bc9 passed physical Caps tap, actionable default refusal and held-Control worker/parent SIGKILL. Control release preceded physical release by conservative213/389ms bounds. Native F18 handback retains Function flags; do not label this full modifier all-up. Cleanup independently passed.
+
+| Repeated failure | Proven cause / durable practice | Scope |
+| --- | --- | --- |
+| Profile preparation before first launch | Default profile does not exist yet; initialize once through normal launch, Quit, then back up exact original. | Harness sequencing. |
+| Copied helper refused | umask002 made copied source664; own immutable trial source must be600 before admission. | Refusal preceded input. |
+| Target history overflow | Idle combined-control journal exceeded512 rows. Start a fresh target immediately before each held trial. | No physical start in refused prearm. |
+| Post-crash observer rejected F18/Function | Native reserved F18 returns after tap retirement. Permit only bounded exact-key handback after dispatch; retain Function limitation. | Other keys/modifiers still refused. |
+| Exiting owner looked foreign | Process inspection caught the bound owner during exit. Only exact owned PID/UID zombies may be ignored after dispatch. | New or foreign processes remain refused. |
+| Report changed during stable read | Normal atomic replacement. Retry only the two exact known report paths, at most4 reads. | No mutation/crash replay. |
+| Conservative onset timing failed by14ms | Observation uncertainty, not proven product failure or firmware drift. Wait150ms then revalidate exact held state before crash. | Passing receipts retain conservative clock bounds. |
+| Cleanup template absent from VM list | Ordinary provider inventory excludes templates. Query exact template ID separately and verify Template=yes/State=stopped. | First failed read-only receipt retained. |

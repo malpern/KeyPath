@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-05",
+  "sourceCommit": "01df87bc9598350df92295f407e839f6cb057568",
+  "rawEvidenceRoot": "/private/tmp/keypath-caps-held-config-live-01",
+  "lease": "cbx_41de44bef5d0",
+  "providerUUID": "ce3f8703-5550-4ff6-b8b9-24e2f4d89549",
+  "candidateMainSHA256": "7ffc322bab9259d55dc12ee59fe4e3e02a6a6dcee301fa52fcaa602d84786292",
+  "candidateArchiveSHA256": "65b5233648501cb8f5d84302ecda73f3a94318bdd6e8ae765c63983ce3ca703a",
+  "focusedProductTestsPassed": 65,
+  "normalAccessibilityAndInputMonitoringConsentObserved": true,
+  "defaultCapsActionableRefusalObserved": true,
+  "physicalCaps80msToEscapePassed": true,
+  "heldCrashAcceptance": {
+    "heldWorker05result.json": {
+      "passed": true,
+      "triggerRelativeFirstReportSeconds": [
+        0.022466182708740234,
+        0.5200698375701904
+      ],
+      "releaseBeforeHardwareUpMarginSeconds": 0.21288824081420898,
+      "repeatsAccepted": true,
+      "nativeF18HandbackObserved": true,
+      "finalEventModifierFlags": 8388608,
+      "finalCombinedFlags": 8388864,
+      "fullModifierAllUpClaim": false
+    },
+    "heldParent03result.json": {
+      "passed": true,
+      "triggerRelativeFirstReportSeconds": [
+        0.0757291316986084,
+        0.6058731079101562
+      ],
+      "releaseBeforeHardwareUpMarginSeconds": 0.3890397548675537,
+      "repeatsAccepted": true,
+      "nativeF18HandbackObserved": true,
+      "finalEventModifierFlags": 8388608,
+      "finalCombinedFlags": 8388864,
+      "fullModifierAllUpClaim": false
+    }
+  },
+  "cleanup": {
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ]
+  },
+  "limitations": [
+    "Native F18 handback left Function flags; Control released, Caps latch off, no physical key held. Full modifier all-up is not claimed.",
+    "Secure Input held-Caps, mode transitions, reconnect/reboot identity and death during mapping mutation remain unverified.",
+    "Default Caps still requires explicit DEBUG device selection and F18 reservation; not production onboarding.",
+    "Legacy driver/helper/Full Disk Access labels remain in status UI."
+  ],
+  "rawReceipts": {
+    "permissionobserve01-result.json": "a8f2c79875ceebd493430e797e86aed985532f39c18bf2246451c69041c18ccc",
+    "defaultcapsinspect02-result.json": "05ca0d9263d79c29a2f421e03b28b3735b45acf8dfa6646e69898618bb7874aa",
+    "capsTap01-sample-result.json": "58737fd3156476ec36af19e1375fc491b8d8a60cd6d04ab10251a38649db1ea7",
+    "heldWorker05result.json": "8438e2f3e1080eeb16bbf7f1c182304d1fdd1308a1474235b8462d43b2084274",
+    "heldParent03result.json": "ff651cf0515224f31c433f5764dcbb346f7f1b1ede76ebc1e1cf66c61ed4de08",
+    "finaltargetretire01-result.json": "9037ac835fb98ecd5b8bb336430191ad0dcf0acd30889923afb4a7f16b477b80",
+    "finalenvclear01-result.json": "9f68ae78248282d4beb03dfb8603e1b015db1133e71c05a25b28cad72903aef0",
+    "finalprofilerestore01-result.json": "736364aea92d77ea4a41bd660e780434d10237118284b0bc2d29768eb77fda33",
+    "finalobserve01-result.json": "81d92733efcd046819e84b9c409856c40a286a6726e14faa284e3678db7c83d5",
+    "destroy-result.json": "59dcaa9d21c86922a18370b4f828f477aba4af772e94b268371f920557aaf4d3",
+    "independent-provider-cleanup02.json": "a22028bffc2e067157913c0a9a4c4334817a6014e529a8790aebd869b3be99fd"
+  }
+}
