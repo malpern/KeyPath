@@ -17,3 +17,14 @@ Only proven causes are stated as causes. A refusal without sufficient evidence r
 | Destroy reported hydration-stop255 warning | Infrastructure warning | Final provider deletion succeeded; warning alone is not proof of leaked VM. Hydration warning cause remains unresolved. | Preserve warning; independently check provider absence/template/USB after destroy. | Latest destroy0 and independent cleanup PASS. |
 
 Evidence roots under `/private/tmp`: `keypath-timeout-1000ms-fresh`, `keypath-timeout-d9fc-qualified-fresh`, `keypath-reliability-d9fc-sdk-run2`, `keypath-reliability-d9fc-sdk-run3`. Detailed receipt hashes remain in those directories and the archived handoff. No credentials or protected image are included here.
+
+October5 f767 status acceptance: initial known denial was published, then a wizard
+refresh temporarily returned unknown worker capabilities. A new validation entered
+a startup wait that checked permissions only once; later known denial could not
+interrupt it. This is a product polling race, not lab infrastructure failure.
+247822796 moves the existing canonical check into the existing loop; source
+regression unknown→denied passed within the41focused cases. Fresh signed validation
+pending. The f767 consent/physical sample and independent cleanup all passed.
+Receipt: [status recheck](evidence/2026-10-05-status-recheck.json). Cleanup callers
+require exactly pid+nonce; omitted identity or an extra uid safely refused before
+mutation. Use the documented two-field binding on the first attempt.

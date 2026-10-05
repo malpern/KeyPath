@@ -1,0 +1,149 @@
+{
+  "cause": "Temporary capabilities refresh unknown entered one-time permission preflight; later definitive denial did not interrupt startup polling.",
+  "cleanupVerified": true,
+  "corePermissionNegative": true,
+  "followup": "247822796: canonical permission check moved into existing wait loop; 8 XCTest +33 Swift Testing passed; signed validation pending.",
+  "lease": "cbx_6d4c9decfb47",
+  "limitations": [
+    "No separate TCP request/response",
+    "No session departure or Caps Lock integration acceptance",
+    "No genuine tap-timeout acceptance"
+  ],
+  "normalConsentReopen": true,
+  "physicalRemap": {
+    "attachmentObservedAt": 1791222733.991294,
+    "checks": {
+      "allUp": true,
+      "downs": true,
+      "exactTrace": true,
+      "inputDelta": true,
+      "outputDelta": true,
+      "reportsSubmitted": true,
+      "text": true,
+      "ups": true
+    },
+    "expectedText": "a",
+    "fixture": {
+      "reportsSubmitted": 2,
+      "runId": "restart-679f981d8f4b4f80a489e45d1b848256",
+      "state": "complete"
+    },
+    "hostUSB": {
+      "actualStatus": 0,
+      "observedAtEpoch": 1791222749.260559,
+      "providerUUID": "93dae948-357e-41c2-94d9-3b31a91651ad",
+      "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+    },
+    "identity": {
+      "parentArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+      ],
+      "parentPID": 1976,
+      "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-7C36A567-ECFB-4FA8-8914-15581DB055F6/report.json",
+      "targetNonce": "06799915-1CCE-41DA-9C40-4DCF72AAE1C5",
+      "targetPID": 2023,
+      "workerArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+        "--session-runtime",
+        "--session-report",
+        "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-7C36A567-ECFB-4FA8-8914-15581DB055F6/report.json",
+        "--session-nonce",
+        "7C36A567-ECFB-4FA8-8914-15581DB055F6",
+        "--session-owner",
+        "1976",
+        "--session-port",
+        "37001",
+        "--session-config",
+        "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+      ],
+      "workerNonce": "7C36A567-ECFB-4FA8-8914-15581DB055F6",
+      "workerPID": 1987
+    },
+    "lease": "cbx_6d4c9decfb47",
+    "passed": true,
+    "providerUUID": "93dae948-357e-41c2-94d9-3b31a91651ad",
+    "runId": "restart-679f981d8f4b4f80a489e45d1b848256",
+    "sample": "q",
+    "target": {
+      "downs": 1,
+      "held": [],
+      "modifiers": 0,
+      "observedAt": 1791222761.180664,
+      "text": "a",
+      "ups": 1
+    },
+    "trace": [
+      {
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 18,
+        "modifiers": 0,
+        "scheduledUs": 708583900594,
+        "sequence": 1,
+        "submittedUs": 708583900612
+      },
+      {
+        "keys": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 17,
+        "modifiers": 0,
+        "scheduledUs": 708583940594,
+        "sequence": 2,
+        "submittedUs": 708583940611
+      }
+    ]
+  },
+  "providerCleanup": {
+    "fixture": [
+      {
+        "Autoconnect-Action": "ask",
+        "Autoconnect-Vm-Uuid": "",
+        "Compatible-with-macOS-VM": "YES",
+        "Connected-To-Vm": "NO",
+        "Name": "KeyPath Physical HID Fixture",
+        "Present-On-Host": "YES",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC"
+      }
+    ],
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true
+  },
+  "rawTrial": "/private/tmp/keypath-status-live-01",
+  "receipts": {
+    "consent-inspect-01-result.json": "2fb1bb39f9b7b58e546790cf61f8b39a8e362fdf66c8014f1fbbe76a842acdce",
+    "consent-positive-01-sample-result.json": "e4a75286a808a48dd4f3d7160d8073c66e424b2175eb39fb3462ece1db37c0e3",
+    "create-result.json": "91f466748829a38206d160879996d8bc3f97cac330990648be508285bde6352d",
+    "destroy-result.json": "bdcce7300bfdfd87741b74c99d6f3960459821c4879a03de5bc5a83633ff9bce",
+    "guest-identity.json": "73542d2312b0c90035e2759904a803051053040b83c1d8a9e9ff75decb1990d1",
+    "independent-guest-cleanup-01-result.json": "4441ee356122124ea329d907e677caec1425817b45b0eb75db82063e69d4d948",
+    "install-current-01-result.json": "f9297f97fbefa3fc4e5c5fa0d8c4b07a701ae1838fb90c0327dd1dcdbeda2f94",
+    "negative-launch-01-result.json": "d611add60ae5a6b8558cf31dd511619e97fb4d0ea40b543725721be44f3a7b17",
+    "negative-permissions-log-01-result.json": "8b10f9409de783a2ae79ff960ff8b99265613a47a43fcdae74ecaefb9e8bb8fb",
+    "negative-status-ui-01-result.json": "fb2278d2383848d27a1a660c15391044f1a6420d6918e5607e738ad4dec53925",
+    "profile-restore-final-01-result.json": "9be9fa35633b445bb4e9dfade2f39c226f3b396050e07783e801385a8bd277f1",
+    "provider-cleanup-result.json": "94aea63982963465ba91189b2f3c229c59e31c517125eddb23ef33ea07f24fa3",
+    "status-result.json": "428e3056215a57355c5634b023f6a24676440713afbc025f5f11ce74baee5760",
+    "target-retire-exact-01-result.json": "ce44e8f0e437c2aae9ee7fbc0d8c89ab8e8ce91fc8f8405f050b46202e8dda4d"
+  },
+  "refusedCleanupRequests": [
+    "target-retire-01 omitted identity, refused before mutation",
+    "target-retire-bound-01 included extraneous uid, refused before mutation",
+    "profile restore refused while target remained; exact retirement and restoration later succeeded"
+  ],
+  "schema": "keypath.status-recheck-acceptance.v1",
+  "sourceCommit": "f7678dacb0fbea2cba461a2869ee118b95401e55",
+  "uiAcceptance": false
+}
