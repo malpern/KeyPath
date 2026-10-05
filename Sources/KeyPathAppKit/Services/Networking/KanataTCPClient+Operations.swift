@@ -97,10 +97,12 @@ extension KanataTCPClient {
         )
     }
 
-    /// Fetch StatusInfo
+    /// Fetch StatusInfo only from a server that advertises the extension.
+    /// The bundled Kanata bridge does not implement Status.
     func getStatus() async throws -> TcpStatusInfo {
+        try await enforceMinimumCapabilities(required: ["status"])
         // FIX #3: Wrap operation with error recovery to clean up bad connections
-        try await withErrorRecovery {
+        return try await withErrorRecovery {
             let requestId = generateRequestId()
             let requestData = try JSONEncoder().encode(["Status": ["request_id": requestId]])
             let responseData = try await send(requestData)

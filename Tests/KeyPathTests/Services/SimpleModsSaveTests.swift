@@ -178,6 +178,7 @@ final class SimpleModsSaveTests: KeyPathTestCase {
     }
 
     private func withFixture(_ body: (Fixture) async throws -> Void) async throws {
+        try SessionBridgeTestFixture.requireAvailable()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("simple-mods-save-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer {
@@ -187,7 +188,7 @@ final class SimpleModsSaveTests: KeyPathTestCase {
         let url = directory.appendingPathComponent("keypath.kbd")
         let original = "(defcfg)\n(defsrc f1 f3)\n;; KP:BEGIN simple_mods id=fixture version=1\n(deflayermap (base)\n)\n;; KP:END id=fixture\n"
         try original.write(to: url, atomically: true, encoding: .utf8)
-        let service = ConfigurationService(configDirectory: directory.path,
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path,
                                            ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
                                            customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
         try await body(Fixture(url: url, original: original, coordinator: SaveCoordinator(configurationService: service)))

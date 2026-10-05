@@ -257,17 +257,7 @@ struct SimpleModsView: View {
         if service.lastError == nil, service.lastRollbackReason == nil {
             if newCount > oldCount, selectedTab == .available {
                 selectedTab = .installed
-                Task {
-                    let client = KanataTCPClient(port: KeyPathConstants.Networking.defaultTCPPort)
-                    let status = try? await client.getStatus()
-                    await client.cancelInflightAndCloseConnection()
-
-                    if let dur = status?.last_reload?.duration_ms {
-                        showToast("✅ Mapping added (reload \(dur) ms)", isError: false)
-                    } else {
-                        showToast("✅ Mapping added successfully", isError: false)
-                    }
-                }
+                showToast("✅ Mapping added successfully", isError: false)
             } else if newCount < oldCount {
                 showToast("✅ Mapping removed successfully", isError: false)
             }
