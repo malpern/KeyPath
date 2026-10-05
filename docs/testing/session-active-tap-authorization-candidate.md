@@ -1,3 +1,5 @@
+Historical AX/PostEvent-only hypothesis, superseded October 5 by measured AX-only startup failure. See [current correction](../bugs/driverless-listening-readiness.md). The content below preserves the original experiment record.
+
 Source-only candidate from exact4111b0de3; timeout hook remains compile-gated and unchanged. No artifact built or deployed.
 
 The signed82 ordinary LaunchServices capability report proved AXtrue and raw ListenEventfalse. It did not create a tap. Earlier physical AX-only records had raw ListenEventgranted; they therefore do not prove the current raw-denied case works. Apple WWDC2019/701 distinguishes passive listen-only Input Monitoring from modifying-tap Accessibility, and describes PostEvent as the synthesis authorization query: https://developer.apple.com/videos/play/wwdc2019/701/ (transcript307–308).

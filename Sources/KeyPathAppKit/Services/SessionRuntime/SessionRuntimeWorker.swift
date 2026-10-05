@@ -38,6 +38,7 @@ public final class SessionRuntimeWorker {
         private var rawTapCallbackCount: UInt64 = 0
         private var startupTapDiagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
         private var experimentalRawCapabilities: PermissionOracle.PermissionSet?
+        private var experimentalRawPosting: PermissionOracle.Status?
         private var registeredTapObservation: SessionRuntimeReport.RegisteredTapObservation?
     #endif
 
@@ -83,9 +84,10 @@ public final class SessionRuntimeWorker {
             worker.finish(.failed, reason: "missing-config")
         }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
-            // Raw ListenEvent facts remain separate from the session PostEvent capability.
+            // Raw API facts remain separate from combined session readiness.
             // Both snapshots are obtained only through the canonical permission owner.
             worker.experimentalRawCapabilities = await PermissionOracle.shared.currentProcessCapabilities()
+            worker.experimentalRawPosting = await PermissionOracle.shared.currentProcessEventPostingStatus()
         #endif
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;
@@ -175,7 +177,7 @@ public final class SessionRuntimeWorker {
             if let raw = experimentalRawCapabilities {
                 registeredTapObservation = Self.observeRegisteredTap(
                     requestedMask: UInt64(mask), accessibility: Self.fact(raw.accessibility),
-                    posting: Self.fact(capabilities.inputMonitoring), listening: Self.fact(raw.inputMonitoring)
+                    posting: Self.fact(experimentalRawPosting ?? .unknown), listening: Self.fact(raw.inputMonitoring)
                 )
             }
             if let failure = Self.registeredTapStartupFailure(registeredTapObservation) {

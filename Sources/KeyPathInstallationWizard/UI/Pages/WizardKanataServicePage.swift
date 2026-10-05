@@ -134,8 +134,8 @@ public struct WizardKanataServicePage: View {
             case .running:
                 actionStatus = .success(message: "\(actionName) succeeded")
                 scheduleStatusClear()
-            case .failed:
-                actionStatus = .error(message: "\(actionName) failed. Try again.")
+            case let .failed(error):
+                actionStatus = .error(message: error)
             default:
                 actionStatus = .error(message: "\(actionName) did not complete. Try again.")
             }
@@ -161,6 +161,9 @@ public struct WizardKanataServicePage: View {
         isPerformingAction = false
         await refreshStatusAsync(actionSucceeded: succeeded)
         evaluateServiceCompletion(target: target, actionName: actionName)
+        if !succeeded, case .running = target, let error = kanataManager?.lastError {
+            actionStatus = .error(message: error)
+        }
         onRefresh()
     }
 
@@ -202,8 +205,8 @@ public struct WizardKanataServicePage: View {
             "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events."
         case .stopped:
             "KeyPath runtime is not running. Click Start to start it."
-        case .failed:
-            "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Restart to retry."
+        case let .failed(error):
+            error
         case .starting:
             "Starting KeyPath runtime…"
         case .stopping:

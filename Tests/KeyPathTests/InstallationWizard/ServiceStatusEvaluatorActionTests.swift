@@ -3,6 +3,26 @@ import KeyPathWizardCore
 import XCTest
 
 final class ServiceStatusEvaluatorActionTests: XCTestCase {
+    func testDriverlessInputPermissionIssueHasActionableConsentGuidance() {
+        let issue = WizardIssue(
+            identifier: .permission(.keyPathInputMonitoring), severity: .error,
+            category: .permissions, title: "Input Monitoring required",
+            description: "Current worker cannot listen to keyboard events",
+            autoFixAction: nil, userAction: nil
+        )
+        XCTAssertEqual(
+            ServiceStatusEvaluator.blockingIssueMessage(from: [issue]),
+            "Enable Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+        )
+        XCTAssertEqual(
+            ServiceStatusEvaluator.evaluateAfterAction(
+                operationSucceeded: false, kanataIsRunning: false,
+                systemState: .missingPermissions(missing: [.keyPathInputMonitoring]), issues: [issue]
+            ),
+            .stopped
+        )
+    }
+
     func testTransientStartingStatusRetriesUntilAttemptLimit() {
         XCTAssertTrue(
             ServiceStatusEvaluator.shouldRetryTransientStatus(

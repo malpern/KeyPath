@@ -136,6 +136,10 @@ public enum ServiceStatusEvaluator {
             guard issue.severity == .critical || issue.severity == .error else { continue }
             if case let .permission(permission) = issue.identifier {
                 switch permission {
+                case .keyPathInputMonitoring:
+                    return "Enable Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                case .keyPathAccessibility:
+                    return "Enable Accessibility for KeyPath in System Settings, then quit and reopen KeyPath."
                 case .kanataInputMonitoring:
                     return "Input Monitoring permission required"
                 case .kanataAccessibility:

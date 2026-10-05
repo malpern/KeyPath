@@ -107,7 +107,9 @@ extension ServiceLifecycleCoordinator {
                 try await Task.sleep(for: .milliseconds(100))
             }
             let terminalReport = sessionReportURL.flatMap(Self.readSessionReport)
-            let failure = terminalReport?.failure
+            let failure = terminalReport?.failure == "missing-current-process-permission"
+                ? "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                : terminalReport?.failure
             #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
                 if let terminalReport,
                    sessionStartIsCurrent(generation),

@@ -28,26 +28,33 @@ public actor PermissionOracle {
         )
     }
 
-    /// Passive authorization checks for the worker's modifying session tap and
-    /// synthesized output. ListenEvent is a separate Input Monitoring capability.
+    /// Passive authorization checks for keyboard capture and synthesized output.
+    /// Posting authorization alone can yield a modifying tap containing only
+    /// flagsChanged, so it cannot establish keyboard input readiness.
     public func currentProcessSessionCapabilities() -> PermissionSet {
-        let posting: Status = switch IOHIDCheckAccess(kIOHIDRequestTypePostEvent) {
+        Self.sessionPermissionSet(
+            accessibility: Self.checkKeyPathAccessibilityStatus(),
+            eventListening: Self.checkKeyPathInputMonitoringStatus(),
+            eventPosting: currentProcessEventPostingStatus(), timestamp: Date()
+        )
+    }
+
+    /// Raw posting authorization, kept separate from combined session readiness.
+    public func currentProcessEventPostingStatus() -> Status {
+        switch IOHIDCheckAccess(kIOHIDRequestTypePostEvent) {
         case kIOHIDAccessTypeGranted: .granted
         case kIOHIDAccessTypeDenied: .denied
         default: .unknown
         }
-        return Self.sessionPermissionSet(
-            accessibility: Self.checkKeyPathAccessibilityStatus(), eventPosting: posting,
-            timestamp: Date()
-        )
     }
 
     nonisolated static func sessionPermissionSet(
-        accessibility: Status, eventPosting: Status, timestamp: Date
+        accessibility: Status, eventListening: Status, eventPosting: Status, timestamp: Date
     ) -> PermissionSet {
         PermissionSet(
-            accessibility: accessibility, inputMonitoring: eventPosting,
-            source: "current-process.apple-api.modifying-tap-post-event",
+            accessibility: accessibility,
+            inputMonitoring: eventListening.isReady ? eventPosting : eventListening,
+            source: "current-process.apple-api.listen-and-post-event",
             confidence: .high, timestamp: timestamp
         )
     }
@@ -148,6 +155,9 @@ public actor PermissionOracle {
 
             // Kanata's permissions ARE required for remapping.
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
+                if backend == .session {
+                    return "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                }
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant Accessibility and Input Monitoring"
             }
