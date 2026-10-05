@@ -1,0 +1,538 @@
+{
+  "acceptance": {
+    "allUp": true,
+    "fixtureDetachedNonpersistent": true,
+    "independentReview": "PASS",
+    "installedSignedCandidate": true,
+    "normalAccessibilityAndInputMonitoring": true,
+    "originalProfileRestored": true,
+    "ownedVMDeleted": true,
+    "physicalQToAAfterReload": true,
+    "savedSupportedMappingAndReloaded": true
+  },
+  "artifactManifest": {
+    "facts": {
+      "archive": "keypath-protocol-64a1e52a3-artifact-clean.zip",
+      "archiveContainsAppleDoubleOrMacOSX": false,
+      "archiveMemberCount": 336,
+      "archiveSHA256": "679904aca6115d930b5ff4325336d1fb1f52bda0137595306a6af9b66831d767",
+      "archiveSizeBytes": 95817694,
+      "artifactKind": "assembled debug candidate for isolated guest acceptance",
+      "baseBundlePath": "/private/tmp/keypath-terminal-gate-d9fcf9785-artifact/KeyPath.app",
+      "baseBundleSourceCommit": "d9fcf9785ee3e544be800982068141271cb24901",
+      "buildDurationSeconds": 119.79,
+      "buildLog": "/private/tmp/keypath-protocol-64a1e52a3-build.log",
+      "buildLogSHA256": "66cdb9df07dffd3084b2533ef0acfc0760516bf63b9e91ef0705a328283fd844",
+      "buildSucceeded": true,
+      "cachedMetalLibrarySHA256": "a040842d0ef59874c846eaee8dd2400986d7983e640c5f00e5dfade297ff1efa",
+      "changedBundlePaths": [
+        "Contents/MacOS/KeyPath"
+      ],
+      "deepStrictSignatureVerified": true,
+      "entitlementsCanonicalSHA256": "ddc8bd04ae71e787ed3a01001615e33882a965b34b39c7fe756d24605ca1444e",
+      "entitlementsUnchanged": true,
+      "experimentalDiagnostics": true,
+      "frameworkRPath": "@executable_path/../Frameworks",
+      "frameworkRPathAdded": true,
+      "guestAcceptanceClaimed": false,
+      "hardenedRuntime": true,
+      "hostInstalled": false,
+      "mainExecutableSourcePath": "/private/tmp/keypath-tap-timeout-hook-build/.build/debug/KeyPath",
+      "mainIdentifier": "com.keypath.KeyPath",
+      "notarized": false,
+      "packagedMainSHA256": "3614bad8ab999e6b8982cb010b00f365660297c37e3d6f974c43dbdefe8f7502",
+      "packagedMainSizeBytes": 107633264,
+      "preservationManifest": "bundle-preservation.json",
+      "preservationManifestSHA256": "2a44641c1fa7fc3d0196bb809257cec1ed6bc80f9939b44ebcb5e9c550dba9f1",
+      "preservedEntryCount": 334,
+      "rawMainSHA256": "4ce151264f751de4f5def0c06add0c08ae352cecc0a7ee548fc7da741c211877",
+      "resourceLimitation": "Resources, Sparkle and cached Metal library preserved from signed d9fc bundle; not a fresh Metal build. Debug executable retains its build-time absolute PackageFrameworks run path alongside @executable_path/../Frameworks.",
+      "signingIdentity": "Developer ID Application: Micah Alpern (X2RKZ5TG99)",
+      "sourceCommit": "64a1e52a322c7587b1b4e858166775aaf39d8196",
+      "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+      "teamID": "X2RKZ5TG99",
+      "version": 1
+    },
+    "sha256": "d0a002597b5c97eef81acf720684bdd0fc5b050144b7e31886c70a98b846ce42"
+  },
+  "date": "2026-10-05",
+  "limits": [
+    "Toast appearance was not captured; do not claim visual toast acceptance.",
+    "Physical sample proves q\u2192a survives save/reload; bspc\u2192del is proven by saved config and successful reload, not a separate physical Delete sample.",
+    "Worker diagnostic configSHA256 is initialization provenance, not proof of current reload hash.",
+    "Preserved bundle resources/bridge/cached Metal; no fresh Metal build, notarization or host install.",
+    "Cleanup stopped exact all-up parent with SIGTERM; this is not a second ordinary menu-Quit acceptance.",
+    "Hydration-stop255 warning retained; independent provider absence passed.",
+    "Genuine OS tap timeout, observer-specific session retirement and Caps ownership recovery remain open."
+  ],
+  "rawEvidenceRoot": "/private/tmp/keypath-protocol-live-01",
+  "receipts": {
+    "cleanup-stop-restore01-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791228079.2846038,
+        "parsedOutput": {
+          "heldBefore": [],
+          "parentTermination": "SIGTERM",
+          "productAndTargetAbsent": true,
+          "profileRestored": true,
+          "profileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573"
+        },
+        "stderr": ""
+      },
+      "sha256": "a2cb3c68a3188815041de08dfbf7f5ad00e4e55fe0612806ea04f033a3e202b0"
+    },
+    "consent-inspect01-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791227501.081027,
+        "parsedOutput": {
+          "parents": [
+            {
+              "arguments": [
+                "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+              ],
+              "executable": "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+              "pid": 1983,
+              "uid": 502
+            }
+          ],
+          "target": null,
+          "workers": [
+            {
+              "arguments": [
+                "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+                "--session-runtime",
+                "--session-report",
+                "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-904A73E9-EBEC-4E07-82F9-0594EDBDBDD1/report.json",
+                "--session-nonce",
+                "904A73E9-EBEC-4E07-82F9-0594EDBDBDD1",
+                "--session-owner",
+                "1983",
+                "--session-port",
+                "37001",
+                "--session-config",
+                "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+              ],
+              "executable": "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+              "ownerPID": 1983,
+              "pid": 2026,
+              "report": {
+                "accessibility": true,
+                "effectiveInputAccess": true,
+                "experimentalTapDiagnostics": {
+                  "aMapped": true,
+                  "configSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+                  "qMapped": true,
+                  "rawTapCallbackCount": 0,
+                  "registeredTap": {
+                    "enumerationAttempted": true,
+                    "outcome": "observed",
+                    "queryLimit": 128,
+                    "rawAccessibility": "granted",
+                    "rawListenEvent": "granted",
+                    "rawPostEvent": "granted",
+                    "requestedMask": 7168,
+                    "rows": [
+                      {
+                        "enabled": true,
+                        "mask": 7168
+                      }
+                    ]
+                  }
+                },
+                "experimentalTapTimeout": {
+                  "callbackFirstResult": "notObserved",
+                  "initialization": "initialized",
+                  "preparation": "commandUnavailable"
+                },
+                "heldOutputUsages": [],
+                "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+                "inputCount": 0,
+                "nonce": "904A73E9-EBEC-4E07-82F9-0594EDBDBDD1",
+                "outputCount": 0,
+                "pid": 2026,
+                "state": "running",
+                "tapActive": true,
+                "tcpPort": 37001,
+                "timestamp": 812920300.930315,
+                "uid": 502
+              },
+              "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-904A73E9-EBEC-4E07-82F9-0594EDBDBDD1/report.json",
+              "uid": 502
+            }
+          ]
+        },
+        "stderr": ""
+      },
+      "sha256": "707d49fe9d6794e3714ff27412e13464cb1bc578cd9a756c348b11b159e52fa3"
+    },
+    "destroy-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791228111.136022,
+        "stderr": "",
+        "stdout": "warning: could not stop GitHub Actions hydration for cbx_bb589b45b15c: write GitHub Actions hydration stop marker on 10.211.55.161: exit status 255\ndeleted lease=cbx_bb589b45b15c server=a09561fb-97c0-46ec-ae19-310fcecdd921 name=crabbox-cbx-bb589b45b15c-keypath26-64a1e52a-20261005190317-98907\n"
+      },
+      "sha256": "7fe403e3a2cc0c2239abf1bd0f093f95bafdef51bee1d2f9a738346c607a03ce"
+    },
+    "hello01-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791227846.746229,
+        "parsedOutput": {
+          "bootEpoch": 1791227012,
+          "heldOutputUsages": [],
+          "identity": {
+            "arguments": [
+              "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+              "--session-runtime",
+              "--session-report",
+              "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-D5C59863-9ED9-4DFE-B682-0CFEFBA1184A/report.json",
+              "--session-nonce",
+              "D5C59863-9ED9-4DFE-B682-0CFEFBA1184A",
+              "--session-owner",
+              "2311",
+              "--session-port",
+              "37001",
+              "--session-config",
+              "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+            ],
+            "nonce": "D5C59863-9ED9-4DFE-B682-0CFEFBA1184A",
+            "parentPID": 2311,
+            "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-D5C59863-9ED9-4DFE-B682-0CFEFBA1184A/report.json",
+            "workerPID": 2320
+          },
+          "mainSHA256": "3614bad8ab999e6b8982cb010b00f365660297c37e3d6f974c43dbdefe8f7502",
+          "observedAt": 1791227846.702367,
+          "ok": true,
+          "readOnly": true,
+          "replies": {
+            "HelloOk": {
+              "actualPayload": {
+                "capabilities": [
+                  "reload",
+                  "layer-names",
+                  "fake-key-names",
+                  "layer-change",
+                  "hold-activated",
+                  "tap-activated",
+                  "chord-resolved",
+                  "tap-dance-resolved",
+                  "current-layer-name",
+                  "current-layer-info",
+                  "fake-key",
+                  "set-mouse",
+                  "key-input",
+                  "input-grab"
+                ],
+                "protocol": 1,
+                "version": "1.12.1-prerelease-1"
+              },
+              "capabilities": [
+                "reload",
+                "layer-names",
+                "fake-key-names",
+                "layer-change",
+                "hold-activated",
+                "tap-activated",
+                "chord-resolved",
+                "tap-dance-resolved",
+                "current-layer-name",
+                "current-layer-info",
+                "fake-key",
+                "set-mouse",
+                "key-input",
+                "input-grab"
+              ],
+              "correlation": "sequential-private-connection-reply-type",
+              "payloadFieldTypes": {
+                "capabilities": "list",
+                "protocol": "int",
+                "version": "str"
+              },
+              "protocol": 1,
+              "replyRequestID": null,
+              "sentRequestID": 3651026458445557,
+              "topLevelRequestID": null
+            }
+          }
+        },
+        "stderr": ""
+      },
+      "sha256": "fdebb949d296dcbe804ff47acf0eb6133cd97e824e4cd0e85920c45121776749"
+    },
+    "independent-guest-cleanup01-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791228103.888961,
+        "parsedOutput": {
+          "bootEpoch": 1791227012,
+          "cutoff": 1791230237,
+          "originalProfileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+          "passed": true,
+          "phase": "post-consent-cleanup",
+          "products": {
+            "focus": {
+              "sha256": "a41258da97ccb31acc3794797142b8e589ad939e7b822a1e99579753e7c30d8d",
+              "uid": 502
+            },
+            "main": {
+              "sha256": "3614bad8ab999e6b8982cb010b00f365660297c37e3d6f974c43dbdefe8f7502",
+              "uid": 502
+            },
+            "target": {
+              "sha256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858",
+              "uid": 502
+            }
+          },
+          "reportAbsent": true,
+          "selectedProcesses": []
+        },
+        "stderr": ""
+      },
+      "sha256": "479a085b88dfebc7d1af39357e01d6319a6b03bb86fbe250e63411161584a661"
+    },
+    "independent-provider-cleanup.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791228111.5248199,
+        "stderr": "",
+        "stdout": "{\"providerAbsent\": true, \"templateStoppedRetained\": true, \"fixture\": [{\"Name\": \"KeyPath Physical HID Fixture\", \"System name\": \"3110000|cafe|4010|full|--|2884855553BC\", \"Autoconnect-Vm-Uuid\": \"\", \"Autoconnect-Action\": \"ask\", \"Present-On-Host\": \"YES\", \"Connected-To-Vm\": \"NO\", \"Compatible-with-macOS-VM\": \"YES\"}], \"passed\": true}\n"
+      },
+      "sha256": "56b9bcef34719c653dbb207592e01111decd2f0d51c3920f86b768fd7a265f2a"
+    },
+    "install01-verified.json": {
+      "receipt": {
+        "bootEpoch": 1791227012,
+        "focusSHA256": "a41258da97ccb31acc3794797142b8e589ad939e7b822a1e99579753e7c30d8d",
+        "installed": true,
+        "mainSHA256": "3614bad8ab999e6b8982cb010b00f365660297c37e3d6f974c43dbdefe8f7502",
+        "targetSHA256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858",
+        "uid": 502
+      },
+      "sha256": "d8b8a7392695f79f0e874f2d987023dc569ae79ff7e4bd8ff206ad72e2d59632"
+    },
+    "physical01-sample-result.json": {
+      "receipt": {
+        "attachmentObservedAt": 1791227917.7501702,
+        "checks": {
+          "allUp": true,
+          "downs": true,
+          "exactTrace": true,
+          "inputDelta": true,
+          "outputDelta": true,
+          "reportsSubmitted": true,
+          "text": true,
+          "ups": true
+        },
+        "expectedText": "a",
+        "fixture": {
+          "reportsSubmitted": 2,
+          "runId": "restart-9ae4d088805046ef9861177ec904f330",
+          "state": "complete"
+        },
+        "fixtureResolution": {
+          "address": "192.168.1.221",
+          "hostname": "keypath-hid-fixture.local",
+          "observedAtEpoch": 1791227943.1157892
+        },
+        "hostUSB": {
+          "actualStatus": 0,
+          "observedAtEpoch": 1791227944.370929,
+          "providerUUID": "a09561fb-97c0-46ec-ae19-310fcecdd921",
+          "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+        },
+        "identity": {
+          "parentArguments": [
+            "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+          ],
+          "parentPID": 2311,
+          "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-D5C59863-9ED9-4DFE-B682-0CFEFBA1184A/report.json",
+          "targetNonce": "4FEA319A-6640-499D-BFB7-96CA1D30F224",
+          "targetPID": 2440,
+          "workerArguments": [
+            "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+            "--session-runtime",
+            "--session-report",
+            "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-D5C59863-9ED9-4DFE-B682-0CFEFBA1184A/report.json",
+            "--session-nonce",
+            "D5C59863-9ED9-4DFE-B682-0CFEFBA1184A",
+            "--session-owner",
+            "2311",
+            "--session-port",
+            "37001",
+            "--session-config",
+            "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+          ],
+          "workerNonce": "D5C59863-9ED9-4DFE-B682-0CFEFBA1184A",
+          "workerPID": 2320
+        },
+        "lease": "cbx_bb589b45b15c",
+        "passed": true,
+        "providerUUID": "a09561fb-97c0-46ec-ae19-310fcecdd921",
+        "runId": "restart-9ae4d088805046ef9861177ec904f330",
+        "sample": "q",
+        "target": {
+          "downs": 1,
+          "held": [],
+          "modifiers": 0,
+          "observedAt": 1791227946.708926,
+          "text": "a",
+          "ups": 1
+        },
+        "trace": [
+          {
+            "keys": [
+              20,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "latenessUs": 19,
+            "modifiers": 0,
+            "scheduledUs": 713773996076,
+            "sequence": 1,
+            "submittedUs": 713773996095
+          },
+          {
+            "keys": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "latenessUs": 8,
+            "modifiers": 0,
+            "scheduledUs": 713774036076,
+            "sequence": 2,
+            "submittedUs": 713774036084
+          }
+        ]
+      },
+      "sha256": "3e120a805b53e8b72012f54cc8ced2d9e6dcfecb9e8e458d2e57baa252e02714"
+    },
+    "retire01-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791227970.188107,
+        "parsedOutput": {
+          "nonce": "4FEA319A-6640-499D-BFB7-96CA1D30F224",
+          "pid": 2440,
+          "targetRetired": true
+        },
+        "stderr": ""
+      },
+      "sha256": "2cf74fc020f45fbf6e5a6391ac0fd45b69863585eb50ebb882dc55dd809f03ff"
+    },
+    "save-proof02-result.json": {
+      "receipt": {
+        "actualStatus": 0,
+        "at": 1791227893.22418,
+        "parsedOutput": {
+          "profile": "(defcfg)\n(defsrc q a bspc)\n;; KP:BEGIN simple_mods id=protocol-fixture version=1\n(deflayermap (base)\n  ;; Simple Modifications (managed by KeyPath)\n  q a\n  bspc del\n)\n;; KP:END id=protocol-fixture\n",
+          "profileSHA256": "a44636dcc7cd89c563a1330c147807e8f57eea155a5eb2c840d2c8dd4d7d4fcf",
+          "saveLog": [
+            "[2026-10-05 12:16:01.052] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:03.172] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:05.303] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:07.308] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:09.352] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:11.358] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:13.375] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:15.138] [INFO] [SimpleModsService.swift:88 addMapping(fromKey:toKey:enabled:)] \u2795 [SimpleMods] Add mapping: bspc \u2192 del (enabled=true)",
+            "[2026-10-05 12:16:15.385] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:15.493] [INFO] [ConfigurationService+Validation.swift:90 validateConfiguration(_:)] \ud83d\udd0d [Validation] ========== CONFIG VALIDATION START ==========",
+            "[2026-10-05 12:16:15.493] [INFO] [ConfigurationService+Validation.swift:91 validateConfiguration(_:)] \ud83d\udd0d [Validation] Config size: 197 characters",
+            "[2026-10-05 12:16:15.496] [INFO] [ConfigurationService+Validation.swift:161 validateConfigWithCLI(_:)] \ud83d\udda5\ufe0f [Validation-CLI] Starting CLI validation process...",
+            "[2026-10-05 12:16:15.496] [INFO] [ConfigurationService+Validation.swift:168 validateConfigWithCLI(_:)] \ud83d\udcdd [Validation-CLI] Creating temp config file: /Users/keypathqa_438d6abc/.config/keypath/temp_validation_357930BF.kbd",
+            "[2026-10-05 12:16:15.497] [INFO] [ConfigurationService+Validation.swift:175 validateConfigWithCLI(_:)] \ud83d\udcdd [Validation-CLI] Temp config written successfully (197 characters)",
+            "[2026-10-05 12:16:15.497] [INFO] [ConfigurationService+Validation.swift:181 validateConfigWithCLI(_:)] \ud83d\udd27 [Validation-CLI] Using kanata binary: /Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
+            "[2026-10-05 12:16:15.497] [INFO] [ConfigurationService+Validation.swift:196 validateConfigWithCLI(_:)] \ud83d\udd27 [Validation-CLI] Command: /Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata --cfg /Users/keypathqa_438d6abc/.config/keypath/temp_validation_357930BF.kbd --check",
+            "[2026-10-05 12:16:15.497] [INFO] [SubprocessRunner.swift:60 run(_:args:timeout:)] \u26a1 [SubprocessRunner] Executing: /Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata --cfg /Users/keypathqa_438d6abc/.config/keypath/temp_validation_357930BF.kbd --check",
+            "[2026-10-05 12:16:15.504] [INFO] [ConfigurationService+Validation.swift:207 validateConfigWithCLI(_:)] \u23f1\ufe0f [Validation-CLI] CLI validation completed in 0.007 seconds",
+            "[2026-10-05 12:16:15.504] [INFO] [ConfigurationService+Validation.swift:213 validateConfigWithCLI(_:)] \ud83d\udccb [Validation-CLI] Exit code: 0",
+            "[2026-10-05 12:16:15.504] [INFO] [ConfigurationService+Validation.swift:215 validateConfigWithCLI(_:)] \ud83d\udccb [Validation-CLI] Output: 12:16:15.5036 \u001b[0m\u001b[34m[INFO] \u001b[0mkanata v1.12.1-prerelease-1 starting",
+            "[2026-10-05 12:16:15.504] [INFO] [ConfigurationService+Validation.swift:219 validateConfigWithCLI(_:)] \u2705 [Validation-CLI] CLI validation PASSED",
+            "[2026-10-05 12:16:15.504] [INFO] [ConfigurationService+Validation.swift:111 validateConfiguration(_:)] \ud83d\udd0d [Validation] ========== CONFIG VALIDATION END ==========",
+            "[2026-10-05 12:16:15.505] [INFO] [SaveCoordinator.swift:447 backupCurrentConfig(_:)] \ud83d\udcbe [SaveCoordinator] Current config backed up to memory",
+            "[2026-10-05 12:16:15.506] [INFO] [ConfigFileWatcher.swift:73 claimInternalContent(_:)] \ud83e\uddfe [FileWatcher] Claimed exact internal content revision",
+            "[2026-10-05 12:16:15.507] [INFO] [ConfigFileWatcher.swift:142 setupFileMonitoring()] \ud83d\udcc1 [FileWatcher] File system event received - flags: FileSystemEvent(rawValue: 1)",
+            "[2026-10-05 12:16:15.508] [DEBUG] [ServiceHealthMonitor.swift:149 checkServiceHealth(processStatus:tcpPort:)] [HealthMonitor] Checking service health...",
+            "[2026-10-05 12:16:15.508] [DEBUG] [ServiceHealthMonitor.swift:157 checkServiceHealth(processStatus:tcpPort:)] [HealthMonitor] Process running with PID: 2320",
+            "[2026-10-05 12:16:15.508] [DEBUG] [ServiceHealthMonitor.swift:176 checkServiceHealth(processStatus:tcpPort:)] [HealthMonitor] Service is healthy",
+            "[2026-10-05 12:16:15.508] [DEBUG] [ConfigReloadCoordinator.swift:97 triggerConfigReload(notifyOnFailure:scheduleRetryOnPending:)] \ud83d\udce1 [Reload] Attempting TCP reload",
+            "[2026-10-05 12:16:15.509] [DEBUG] [ReloadSafetyMonitor.swift:102 checkReloadSafety(currentPID:)] \u2705 [ReloadSafety] Safety checks passed",
+            "[2026-10-05 12:16:15.509] [INFO] [ConfigFileWatcher.swift:284 handleFileEvent(flags:)] \ud83d\udcc1 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor",
+            "[2026-10-05 12:16:15.509] [INFO] [ConfigFileWatcher.swift:315 rebindFileMonitor(to:)] \ud83d\udd04 [FileWatcher] Rebinding file monitor to: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:15.509] [INFO] [ConfigFileWatcher.swift:372 handleFileChangeEvent()] \ud83d\udcc1 [FileWatcher] Processing file change event for: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:15.509] [INFO] [ConfigFileWatcher.swift:156 setupFileMonitoring()] \ud83d\udcc1 [FileWatcher] Closing file descriptor 3",
+            "[2026-10-05 12:16:15.613] [INFO] [SoundManager.swift:33 playTinkSound()] \ud83d\udd0a [Sound] Playing tink sound for config save",
+            "[2026-10-05 12:16:15.613] [INFO] [ConfigReloadCoordinator.swift:358 triggerTCPReload()] \ud83d\udce1 [TCP Reload] Triggering config reload via EngineClient (TCP)",
+            "[2026-10-05 12:16:15.663] [INFO] [ConfigFileWatcher.swift:482 updateLastContentFingerprint()] \ud83d\udcc1 [FileWatcher] Updated content fingerprint",
+            "[2026-10-05 12:16:15.664] [INFO] [ConfigFileWatcher.swift:463 openFileDescriptor(at:)] \ud83d\udcc1 [FileWatcher] Successfully opened file descriptor 9 for: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:15.664] [INFO] [ConfigFileWatcher.swift:127 setupFileMonitoring()] \ud83d\udcc1 [FileWatcher] Successfully opened file descriptor 9 for: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:15.664] [INFO] [ConfigFileWatcher.swift:165 setupFileMonitoring()] \u2705 [FileWatcher] Successfully started file monitoring for: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:15.664] [INFO] [ConfigFileWatcher.swift:509 hasFileActuallyChanged()] \ud83d\udcc1 [FileWatcher] File modification date unchanged - no actual change",
+            "[2026-10-05 12:16:15.881] [INFO] [KanataTCPClient+Operations.swift:268 reloadConfig(timeoutMs:)] \u23f1\ufe0f [TCP] t=0ms: Starting reload request_id=1 (port=37001, clientTimeout=5.0s, timeoutMs=5000)",
+            "[2026-10-05 12:16:15.881] [INFO] [KanataTCPClient+Operations.swift:283 reloadConfig(timeoutMs:)] \u23f1\ufe0f [TCP] t=0ms: Sending reload request",
+            "[2026-10-05 12:16:15.882] [DEBUG] [KanataTCPClient+Transport.swift:269 sendAndReceive(on:data:)] \u2705 [TCP] Accepting command response without request_id (sent=1): {\"status\":\"Ok\"}",
+            "[2026-10-05 12:16:15.882] [INFO] [KanataTCPClient+Operations.swift:303 reloadConfig(timeoutMs:)] \u23f1\ufe0f [TCP] t=1ms: First line received, connection state=ready",
+            "[2026-10-05 12:16:15.882] [INFO] [KanataTCPClient+Operations.swift:304 reloadConfig(timeoutMs:)] \ud83d\udd04 [TCP] Reload status (request_id=1): {\"status\":\"Ok\"}",
+            "[2026-10-05 12:16:15.882] [DEBUG] [KanataTCPClient+Operations.swift:328 reloadConfig(timeoutMs:)] \u23f1\ufe0f [TCP] t=1ms: Waiting for ReloadResult (request_id=1)",
+            "[2026-10-05 12:16:16.143] [INFO] [ConfigFileWatcher.swift:530 processFileChange()] \ud83d\udcc1 [FileWatcher] Processing debounced file change for: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:16.143] [INFO] [ConfigFileWatcher.swift:509 hasFileActuallyChanged()] \ud83d\udcc1 [FileWatcher] File modification date unchanged - no actual change",
+            "[2026-10-05 12:16:16.143] [INFO] [ConfigFileWatcher.swift:552 processFileChange()] \ud83e\uddfe [FileWatcher] Reconciled exact internal revision",
+            "[2026-10-05 12:16:16.143] [DEBUG] [KanataEventListener.swift:616 handleLine(_:sessionID:)] \ud83c\udf10 [EventListener] Received line: '{\"ConfigFileReload\":{\"new\":\"/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd\"}}'",
+            "[2026-10-05 12:16:16.143] [DEBUG] [KanataEventListener.swift:628 handleLine(_:sessionID:)] \ud83c\udf10 [EventListener] Parsed JSON keys: ConfigFileReload",
+            "[2026-10-05 12:16:16.143] [DEBUG] [KanataTCPClient+Operations.swift:343 reloadConfig(timeoutMs:)] \ud83d\udd04 [TCP] Skipping broadcast while waiting for ReloadResult (request_id=1): {\"ConfigFileReload\":{\"new\":\"/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd\"}}",
+            "[2026-10-05 12:16:16.144] [DEBUG] [KanataTCPClient+Operations.swift:343 reloadConfig(timeoutMs:)] \ud83d\udd04 [TCP] Skipping broadcast while waiting for ReloadResult (request_id=1): {\"LayerChange\":{\"new\":\"base\"}}",
+            "[2026-10-05 12:16:16.155] [INFO] [KanataTCPClient+Parsing.swift:106 extractMessage(named:into:from:)] \ud83d\udd0d [TCP extractMessage] Looking for 'ReloadResult' in response: {\"ReloadResult\":{\"ok\":true}}",
+            "[2026-10-05 12:16:16.155] [INFO] [KanataTCPClient+Parsing.swift:112 extractMessage(named:into:from:)] \ud83d\udd0d [TCP extractMessage] Line 0: {\"ReloadResult\":{\"ok\":true}}",
+            "[2026-10-05 12:16:16.155] [INFO] [KanataTCPClient+Parsing.swift:121 extractMessage(named:into:from:)] \ud83d\udd0d [TCP extractMessage] Line 0 keys: ReloadResult",
+            "[2026-10-05 12:16:16.155] [INFO] [KanataTCPClient+Parsing.swift:138 extractMessage(named:into:from:)] \u2705 [TCP extractMessage] Successfully decoded 'ReloadResult' from line 0",
+            "[2026-10-05 12:16:16.155] [INFO] [KanataTCPClient+Operations.swift:366 reloadConfig(timeoutMs:)] \u2705 [TCP] Reload(wait) ok (request_id=1) duration=0ms epoch=0",
+            "[2026-10-05 12:16:16.155] [INFO] [KanataTCPClient+Operations.swift:367 reloadConfig(timeoutMs:)] \u23f1\ufe0f [TCP] t=274ms: Reload completed successfully",
+            "[2026-10-05 12:16:16.156] [DEBUG] [EngineReloadSingleFlight.swift:35 run(reason:debounce:operation:)] \u2705 [EngineReload] Reload completed in 542ms (reason=TCPEngineClient.reloadConfig, success=true)",
+            "[2026-10-05 12:16:16.157] [INFO] [AppContextService.swift:132 reloadMappings(afterRuntimeReload:)] \ud83d\udd04 [AppContextService] Reloaded 0 app mappings",
+            "[2026-10-05 12:16:16.158] [INFO] [ConfigurationService+Parsing.swift:65 extractKeyMappingsFromContent(_:)] \ud83d\udd0d [Parse] Found 0 src keys, 4 layer keys, deduplicated to 0 unique mappings",
+            "[2026-10-05 12:16:16.177] [INFO] [SoundManager.swift:43 playGlassSound()] \ud83d\udd0a [Sound] Playing glass sound for reload complete",
+            "[2026-10-05 12:16:16.177] [INFO] [SimpleModsService.swift:57 load()] \ud83d\udcd6 [SimpleMods] Loading mappings from config: /Users/keypathqa_438d6abc/.config/keypath/keypath.kbd",
+            "[2026-10-05 12:16:16.178] [INFO] [SimpleModsService.swift:63 load()] \ud83d\udcd6 [SimpleMods] Found 2 installed mapping(s)",
+            "[2026-10-05 12:16:16.178] [INFO] [SimpleModsService.swift:78 load()] \ud83d\udcd6 [SimpleMods] Load complete: 2 installed, 10 available",
+            "[2026-10-05 12:16:17.414] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:19.548] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:21.576] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:23.666] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:25.734] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:27.754] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:29.770] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:31.856] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:33.876] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:35.884] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:37.987] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:40.102] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:42.121] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:44.255] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:46.318] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:48.410] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:50.475] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:51.355] [INFO] [MainAppStateController.swift:618 performValidationBody()] \u2705 [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured",
+            "[2026-10-05 12:16:52.504] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:54.534] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:56.616] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log",
+            "[2026-10-05 12:16:58.749] [DEBUG] [KanataErrorMonitor.swift:264 checkForNewErrors()] [ErrorMonitor] Cannot open stderr log"
+          ]
+        },
+        "stderr": ""
+      },
+      "sha256": "55f245df05fab8f2975923e336d8a70c2bbd9ae8da8d3e86aaf5ed3f92bd7823"
+    }
+  },
+  "sourceCommit": "64a1e52a322c7587b1b4e858166775aaf39d8196",
+  "version": 1
+}
