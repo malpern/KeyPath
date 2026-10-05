@@ -1,12 +1,24 @@
 # KeyPath permission investigation — active handoff
 
-Updated October 5, 2026, 06:53 UTC. Read this first. Full prior checkpoints, raw failures, earlier authorization and source/evidence pointers are preserved in [the experiment history](permission-exploration-history-through-2026-10-05-0412.md).
+Updated October 5, 2026, 07:28 UTC. Read this first. Full prior checkpoints, raw failures, earlier authorization and source/evidence pointers are preserved in [the experiment history](permission-exploration-history-through-2026-10-05-0412.md).
 
 ## Authorization and ownership
 
 Active approval: danger-full-access, network enabled, approval policy never. Original guest-only restrictions remain in force. Root owns all live VM, console and HID actions; agents prepare/review sources and inert tests only. Preserve experimental worktrees and unrelated dirt. Never read/stage `evidence/auth-image.base64`. No host KeyPath deployment, host security/TCC/account/reboot change, firmware change, permanent USB binding, PR merge or outbound messages. QA501 is metadata-only: never log in or read its home. Disposable prepared public identity is FIXED `keypathqa_438d6abc`, UID502, `/Users/keypathqa_438d6abc`; never derive it from a new lease. Public lab-only credential is in the private prepared-account descriptor. Normal guest tools/permissions and public-account console login are authorized; no TCC DB/SIP bypass, NOPASSWD or prltoolsd AX/Input Monitoring grants.
 
 ## Current state
+
+## Active checkpoint — October 5, 2026, 07:28 UTC
+
+No active owned VM or driver. Short-bootstrap successor `/private/tmp/keypath-physical-ssh-bootstrap-short-595-candidate` is frozen/reviewed: manifest `12f4bbd67887c5002f94efff10ed7a2baaaa2f10ad394689e4670c859788c5ca`,22 files0444/148 external pins;77 inert checks PASS on Python3.9/3.14, independent review PASS. Original bootstrap body/once claim/scope/seal/parser remain unchanged; exact one-shot transfer and durable selected canonical transport diagnostics are predeclared in the initial seal. Fourteen binding ancestor files remain bytewise unchanged.
+
+Fresh trial `/private/tmp/keypath-bootstrap-short-595-guest`, lease `cbx_0f67608ad317` / provider `0596ac65-f222-471d-8c97-8e4fa6a1c3c3`, is DESTROYED. Public502 identity and fresh read-only readiness confirmation passed; initial readiness actual255 remains failed, so zsh-c is not a general cure. Normal Local Network consent, short signed595/typed target/focus staging and independent artifact checks passed. Normal AX+Input Monitoring consent/relaunch needed one additional runtime Restart, then KeyPath Ready and post-consent original-profile/product/target absence preflight passed. Enhanced Diagnostics untouched.
+
+Short bootstrap actual0, endpoint used/completed; finite SSH auth actual0/1/79/255 PASS in0.889–0.951sec. Actual binding constructor, initial full7168 enabled readiness, registered event-tap enumeration and all three composite samples passed. Sample full host costs3.090095/2.979369/2.988104sec, target ages0.931–0.963sec, readiness worker ages1.052–1.520sec. Positive receipt remains FAILED at receipt-write-fsync with observation-budget-exceeded; no timing eligibility or hardware release. Initial full7168 tap is enabled, q/a mapped, zero callback/input counts. No transport failure before cleanup. Native cleanup errorCount0/profileBytewiseRestoredtrue.
+
+Independent failure-reconciliation actual0/PASS proves product absent, original65c299 profile restored, exact retained target3772/public502/nonceE17D1AF0-9C09-45C3-AF72-99281D216356 all-up/modifiers0/focusLostfalse/secureLength0. Root destroyed the guest; independent provider-cleanup-check actual0/PASS SHA `44bb405d1edc72fb1ebcea30d08aee104387a77e8a84bcb16b7c8684c8be8514` proves provider absent, prepared template retained/stopped, exact ESP32 detached/present/ask/empty binding. Hydration-stop255 warning preserved. No USB attachment/input occurred.
+
+Next source-only review: identify avoidable serial admission/transport cost in the fsync benchmark and composite observation. Preserve exact six writes/fsyncs, full-cost nine-second physical eligibility,20-second observation budget,three-second freshness, current identity/source/provider/once guards; no cached status, timeout relaxation or unknown mutation replay. Existing composite worst3.090sec alone implies2*C+C+.25=9.520sec before fsync, so resolving only the20sec benchmark is insufficient for physical eligibility. Verification remains **2/6 (33%)**; no measured2x/token savings. Product physical remap, actual timeout/recovery/session transitions, Caps Lock and installer/onboarding remain pending. AX-only is unsupported; driverless removes Karabiner driver/system-extension/root-daemon/admin-install burden, while this full7168 runtime needs AX+Input Monitoring.
 
 ## Active checkpoint — October 5, 2026, 06:53 UTC
 
