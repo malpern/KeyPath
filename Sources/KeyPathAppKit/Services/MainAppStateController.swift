@@ -127,6 +127,7 @@ class MainAppStateController {
     @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
     #if DEBUG
+        @ObservationIgnored private var startupGatePermissionsOverride: PermissionOracle.Snapshot?
         @ObservationIgnored private var startupGateHealthOverride:
             (() async -> KanataRuntimeReadiness)?
         @ObservationIgnored private var startupGateTransientWindowOverride:
@@ -135,6 +136,7 @@ class MainAppStateController {
             (definitiveGrace: TimeInterval, transientGrace: TimeInterval, checkInterval: TimeInterval)?
 
         func configureStartupGateTestingState(
+            permissionsOverride: PermissionOracle.Snapshot? = nil,
             healthOverride: (() async -> KanataRuntimeReadiness)? = nil,
             transientWindowOverride: (() async -> Bool)? = nil,
             timingOverride: (
@@ -143,12 +145,14 @@ class MainAppStateController {
                 checkInterval: TimeInterval
             )? = nil
         ) {
+            startupGatePermissionsOverride = permissionsOverride
             startupGateHealthOverride = healthOverride
             startupGateTransientWindowOverride = transientWindowOverride
             startupGateTimingOverride = timingOverride
         }
 
         func resetStartupGateTestingState() {
+            startupGatePermissionsOverride = nil
             startupGateHealthOverride = nil
             startupGateTransientWindowOverride = nil
             startupGateTimingOverride = nil
@@ -437,6 +441,7 @@ class MainAppStateController {
         case ready
         case transientTimeout
         case definitiveFailure
+        case missingSessionPermissions
     }
 
     private func performValidation() async {
@@ -483,6 +488,10 @@ class MainAppStateController {
                     "⚠️ [MainAppStateController] Kanata still in transient startup window (repeat #\(repeatCount(forSite: .startupGate)), suppressing detailed log)"
                 )
             }
+        case .missingSessionPermissions:
+            AppLogger.shared.info(
+                "🔍 [MainAppStateController] Session permissions are blocked - proceeding with full validation"
+            )
         case .definitiveFailure:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "definitiveFailure") {
                 AppLogger.shared.warn(
@@ -702,7 +711,10 @@ class MainAppStateController {
 
         // Unified grace period: suppress failures during startup window so all
         // consumers (overlay, Settings, wizard) see .checking instead of .failed.
-        if case .failed = validationState, await isInRuntimeStartupWindow() {
+        if case .failed = validationState,
+           !Self.hasDefinitiveSessionPermissionFailure(snapshot.permissions),
+           await isInRuntimeStartupWindow()
+        {
             AppLogger.shared.info(
                 "⏳ [MainAppStateController] Suppressing .failed → .checking (startup grace window)"
             )
@@ -710,7 +722,32 @@ class MainAppStateController {
         }
     }
 
+    /// A known permission denial cannot recover by waiting for runtime startup.
+    /// Unknown evidence retains the existing grace period until validation resolves it.
+    static func hasDefinitiveSessionPermissionFailure(_ permissions: PermissionOracle.Snapshot) -> Bool {
+        permissions.backend == .session && (
+            permissions.keyPath.accessibility.isBlocking ||
+                permissions.kanata.accessibility.isBlocking ||
+                permissions.kanata.inputMonitoring.isBlocking
+        )
+    }
+
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
+        if KanataRuntimeBackend.selected == .session {
+            let permissions: PermissionOracle.Snapshot
+            #if DEBUG
+                if let override = startupGatePermissionsOverride {
+                    permissions = override
+                } else {
+                    permissions = await PermissionOracle.shared.currentSnapshot()
+                }
+            #else
+                permissions = await PermissionOracle.shared.currentSnapshot()
+            #endif
+            if Self.hasDefinitiveSessionPermissionFailure(permissions) {
+                return .missingSessionPermissions
+            }
+        }
         let timing = startupGateTiming()
         let start = Date()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)

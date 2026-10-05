@@ -1,7 +1,9 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
+import KeyPathPermissions
 @testable import KeyPathWizardCore
 import Testing
 
@@ -406,6 +408,7 @@ struct MainAppStateControllerBehaviorTests {
         let controller = MainAppStateController()
         #if DEBUG
             controller.configureStartupGateTestingState(
+                permissionsOverride: sessionPermissions(inputMonitoring: .granted),
                 healthOverride: {
                     KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
@@ -548,6 +551,103 @@ struct MainAppStateControllerBehaviorTests {
 
         let ready = await controller.evaluateKanataStartupGateForTesting()
         #expect(ready == true)
+    }
+
+    @Test("Definitive permission failures bypass startup grace only for the session backend")
+    func sessionPermissionFailurePolicy() {
+        for backend in [KanataRuntimeBackend.session, .driverKit] {
+            for status in [PermissionOracle.Status.granted, .unknown, .denied, .error("probe failed")] {
+                let requiredFailures = [
+                    sessionPermissions(inputMonitoring: status, backend: backend),
+                    sessionPermissions(inputMonitoring: .granted, workerAX: status, backend: backend),
+                    sessionPermissions(inputMonitoring: .granted, parentAX: status, backend: backend),
+                ]
+                for permissions in requiredFailures {
+                    #expect(MainAppStateController.hasDefinitiveSessionPermissionFailure(permissions) ==
+                        (backend == .session && status.isBlocking))
+                }
+                let overlayOnly = sessionPermissions(inputMonitoring: .granted, parentIM: status, backend: backend)
+                #expect(!MainAppStateController.hasDefinitiveSessionPermissionFailure(overlayOnly))
+            }
+        }
+    }
+
+    @Test("Granted and unknown session permissions retain transient startup polling")
+    func inconclusiveOrGrantedSessionPermissionsKeepPolling() async {
+        for status in [PermissionOracle.Status.granted, .unknown] {
+            let controller = MainAppStateController()
+            var healthProbes = 0
+            controller.configureStartupGateTestingState(
+                permissionsOverride: sessionPermissions(inputMonitoring: status),
+                healthOverride: {
+                    healthProbes += 1
+                    return KanataRuntimeReadiness(isRunning: false, isResponding: false)
+                },
+                transientWindowOverride: { true },
+                timingOverride: (definitiveGrace: 0.01, transientGrace: 0.05, checkInterval: 0.005)
+            )
+            let ready = await controller.evaluateKanataStartupGateForTesting()
+            #expect(!ready)
+            #expect(healthProbes > 1)
+            controller.resetStartupGateTestingState()
+        }
+    }
+
+    @Test("Denied listening publishes actionable failure during startup grace without polling runtime")
+    func deniedSessionPermissionPublishesDuringStartupGrace() async {
+        let permissions = sessionPermissions(inputMonitoring: .denied)
+        let context = SystemContextBuilder(componentsInstalled: true).build()
+        let snapshot = SystemSnapshot(
+            id: context.snapshotID, permissions: permissions, components: context.components,
+            conflicts: context.conflicts, health: context.services, helper: context.helper,
+            compatibility: SystemCompatibilityStatus(macOSVersion: "26.0", driverCompatible: true),
+            timestamp: Date(), captureStatus: .complete
+        )
+        let controller = MainAppStateController()
+        let manager = RuntimeCoordinator()
+        controller.configure(serviceLifecycle: manager.serviceLifecycleCoordinator, onSystemHealthy: {})
+        controller.setValidator(StubSystemValidator(snapshot: snapshot))
+        var healthProbes = 0
+        controller.configureStartupGateTestingState(
+            permissionsOverride: permissions,
+            healthOverride: {
+                healthProbes += 1
+                return KanataRuntimeReadiness(isRunning: false, isResponding: false)
+            },
+            transientWindowOverride: { true },
+            timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
+        )
+        defer { controller.resetStartupGateTestingState() }
+        #expect(await controller.isInRuntimeStartupWindow())
+        await controller.revalidate()
+        #expect(healthProbes == 0)
+        #expect(controller.validationState?.hasCriticalIssues == true)
+        #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
+        #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
+            "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
+        #expect(controller.issues.contains {
+            $0.identifier == .permission(.keyPathInputMonitoring) &&
+                $0.description.contains("quit and reopen KeyPath") &&
+                $0.userAction?.contains("quit and reopen KeyPath") == true
+        })
+    }
+
+    private func sessionPermissions(
+        inputMonitoring: PermissionOracle.Status,
+        workerAX: PermissionOracle.Status = .granted,
+        parentAX: PermissionOracle.Status = .granted,
+        parentIM: PermissionOracle.Status = .granted,
+        backend: KanataRuntimeBackend = .session
+    ) -> PermissionOracle.Snapshot {
+        let parent = PermissionOracle.PermissionSet(
+            accessibility: parentAX, inputMonitoring: parentIM,
+            source: "test.parent", confidence: .high, timestamp: Date()
+        )
+        let worker = PermissionOracle.PermissionSet(
+            accessibility: workerAX, inputMonitoring: inputMonitoring,
+            source: "test.listen-and-post-event", confidence: .high, timestamp: Date()
+        )
+        return PermissionOracle.Snapshot(keyPath: parent, kanata: worker, timestamp: Date(), backend: backend)
     }
 
     private func configuredController(validator: any WizardSystemValidating) -> MainAppStateController {

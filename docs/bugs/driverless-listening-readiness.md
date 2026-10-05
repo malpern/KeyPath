@@ -36,3 +36,25 @@ Sol review passed after corrections. Test log:
 `/private/tmp/keypath-readiness-focused-tests-v2.log`. The earlier failed test log is
 preserved; it contained an incorrect expectation that a stopped process was failed.
 These are source checks, not fresh signed-artifact or guest acceptance.
+
+Follow-up status delay: the fresh signed dabf guest negative log at
+`/private/tmp/keypath-readiness-live-01/negative-log-01-result.json` proved the Oracle
+already reported AX granted, Input Monitoring denied, system ready false and actionable
+consent guidance. MainAppStateController still polled the legacy startup gate while the
+lifecycle grace window was active, delaying publication of that snapshot. The controller
+now bypasses this wait for definitive required session permission failures and preserves
+the resulting failure through startup grace. Confirmed session denial issues now preserve
+the Oracle consent and quit/reopen guidance in their description and action.
+Unknown/granted session evidence and legacy
+backend behavior retain the existing wait. Fresh signed-artifact validation of this
+status-publication follow-up remains pending; the successful physical sample used dabf
+before this follow-up source change.
+
+Follow-up source verification: canonical safe focused runner passed 8 XCTest cases
+(SessionInspectorPermissionEvidenceTests) and 33 Swift Testing cases (three controller
+suites), including immediate denied-listening publication during lifecycle startup grace,
+canonical consent guidance, and retained granted/unknown startup polling. Log:
+`/private/tmp/keypath-status-delay-safe-02.log`. The two earlier focused runs retained
+failed guidance assertions before the inspector projection correction; no failure was
+waived. Diff whitespace check passed. No guest validation of these new source bytes has
+been performed.

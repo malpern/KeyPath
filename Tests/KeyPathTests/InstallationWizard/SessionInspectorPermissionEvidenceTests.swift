@@ -20,6 +20,19 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
         }
     }
 
+    func testConfirmedWorkerDenialPublishesCanonicalConsentAndReopenGuidance() throws {
+        for workerAX in [true, false] {
+            let result = inspect(workerAX: workerAX ? .denied : .granted,
+                                 workerIM: workerAX ? .granted : .denied)
+            let issue = try XCTUnwrap(result.1.first)
+            let guidance = "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+            XCTAssertEqual(issue.description, guidance)
+            XCTAssertEqual(issue.userAction, guidance)
+            XCTAssertNil(issue.autoFixAction)
+            XCTAssertEqual(issue.identifier, .permission(workerAX ? .keyPathAccessibility : .keyPathInputMonitoring))
+        }
+    }
+
     func testConfirmedAppAccessibilityDenialOutranksUnknownWorkerEvidence() {
         let result = inspect(appAX: .denied, workerAX: .unknown, workerIM: .unknown)
         XCTAssertEqual(result.0, .missingPermissions(missing: [.keyPathAccessibility]))

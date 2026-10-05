@@ -22,8 +22,8 @@ public enum SystemInspector {
             missing.append(.keyPathAccessibility)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
-                title: "Allow KeyPath to remap keys", description: "Enable KeyPath in Accessibility, then retry.",
-                autoFixAction: nil, userAction: "Open Accessibility in System Settings"
+                title: "Allow KeyPath to remap keys", description: context.permissions.blockingIssue ?? "Enable KeyPath in Accessibility, then quit and reopen KeyPath.",
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Open Accessibility in System Settings"
             ))
         } else if context.permissions.keyPath.accessibility.isReady,
                   context.permissions.kanata.accessibility.isReady,
@@ -33,8 +33,8 @@ public enum SystemInspector {
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
                 title: "Keyboard access still needs approval",
-                description: "The independently launched KeyPath runtime still lacks effective input access after Accessibility approval.",
-                autoFixAction: nil, userAction: "Enable KeyPath in Input Monitoring, then retry"
+                description: context.permissions.blockingIssue ?? "Enable Accessibility and Input Monitoring for KeyPath, then quit and reopen KeyPath.",
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Enable KeyPath in Input Monitoring, then quit and reopen KeyPath"
             ))
         }
         if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }
