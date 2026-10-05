@@ -1,5 +1,9 @@
 # Driverless gaps and candidate workarounds
 
+Latest October5 checkpoint: signed01df87bc9 passed normal AX/IM consent, physical Caps tap, immediate actionable default Caps refusal and held-Control worker/parent crashes. Conservative generated-Control release margins were213/389ms before physical release; mapping/journal/owners cleaned up. Native F18 handback leaves Function flags, so full modifier all-up remains unproven.65 focused tests passed. VM deleted and temporary fixture detached independently.
+
+Remaining core acceptance: held-Caps Secure Input; reload/mode crossing; reconnect/reboot identity; death during HID mutation/retained-marker refusal. Managed Caps remains DEBUG-only, one selected device with F18 reserved. Onboarding comes afterward; remove legacy driver/helper/FDA labels then. Both Accessibility and Input Monitoring remain required. Historical checkpoints below retain their original scope.
+
 Updated 2026-10-03. Canonical backlog for the experimental user-session backend.
 Current ordered work and model assignments: [execution plan](permission-reduction-plan.md).
 

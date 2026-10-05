@@ -1,5 +1,9 @@
 # Driverless permission-reduction plan
 
+Latest October5 checkpoint: signed01df87bc9 passed normal AX/IM consent, physical Caps tap, immediate actionable default Caps refusal and held-Control worker/parent crashes. Conservative generated-Control release margins were213/389ms before physical release; mapping/journal/owners cleaned up. Native F18 handback leaves Function flags, so full modifier all-up remains unproven.65 focused tests passed. VM deleted and temporary fixture detached independently.
+
+Remaining core acceptance: held-Caps Secure Input; reload/mode crossing; reconnect/reboot identity; death during HID mutation/retained-marker refusal. Managed Caps remains DEBUG-only, one selected device with F18 reserved. Onboarding comes afterward; remove legacy driver/helper/FDA labels then. Both Accessibility and Input Monitoring remain required. Historical checkpoints below retain their original scope.
+
 Updated October 5, 2026. **Latest signed d80b5b9cb passed physical Caps tap/hold, normal Quit restoration, all-up worker/parent crashes, same-boot both-owner recovery and physical Caps after recovery. Cleanup and independent receipt review passed; no VM remains active.** The experimental product remains driverless-only. Preserve the comparison worktree and original restrictions. No owned VM is active. Signed d9fc normal restart and signed dabf769ee permission/physical trials passed core runtime checks with independently verified cleanup; f767 permission/physical checks also passed but status UI acceptance exposed an unknown→denied polling race. Product247822796 fixes the existing loop;41 focused cases and fresh signed permission-status acceptance passed. Normal consent/reopen and one all-up logout/login both passed real q→a with independent cleanup.
 
 ## Current decision
