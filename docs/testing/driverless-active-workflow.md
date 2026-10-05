@@ -1,0 +1,46 @@
+# Active driverless testing workflow
+
+## Operating rule
+
+Use one canonical lab route and one signed product artifact. Root owns all VM/UI/HID actions. Agents may independently review source or run inert checks. Do not add a wrapper when an existing command already handles the operation. Keep historical packets immutable, but do not require obsolete historical hashes as current caller configuration.
+
+The supported setup is admitted macOS26 / Parallels / unmanaged-ui / desktop, prepared runtime template, one-hour TTL. Lab checkout: `/private/tmp/vm-lab-reusable-setup`. Product checkout: `/private/tmp/keypath-tap-timeout-hook-build`.
+
+## Fixed CREATE route
+
+Run canonical `keypath list` and `keypath preflight` first. Root records an exclusive durable CREATE intent in a new private evidence directory before its single invocation. Use the existing CLI directly with these settings; do not add another maintained launcher:
+
+```sh
+VM_LAB_REGISTRY=/private/tmp/NEW-TRIAL/tenants.tsv \
+KEYPATH_LAB_PARALLELS_TEMPLATE_26_DESKTOP=keypath-macos-26-runtime-v1-7285826ed9f6 \
+KEYPATH_LAB_CREATE_POSIX_REQUIRED=1 \
+KEYPATH_LAB_CREATE_POSIX_BINARY_FILE=/private/tmp/keypath-create-posix-sdk-build-ada4b9f/crabbox-create-posix-sdk \
+KEYPATH_LAB_CREATE_POSIX_BINARY_SHA256=fd2671373f626f8e762559f6e58c06b04277f32ac02db670d41b4803be63a179 \
+/private/tmp/vm-lab-reusable-setup/bin/vm-lab --host malpern@mini keypath create \
+  --macos 26 --lane unmanaged-ui --desktop --ttl 1h \
+  --commit d9fcf9785ee3e544be800982068141271cb24901 \
+  --installer /private/tmp/keypath-terminal-gate-d9fcf9785-artifact/keypath-terminal-gate-d9fcf9785-artifact-clean.zip
+```
+
+`NEW-TRIAL` is a newly allocated owned0700 directory, not a literal reuse path. Its registry is a private0600 copy of the reviewed keypath tenant mapping. Clear inherited testing, capacity, clone-root, inline-payload and diagnostic overrides; keep the exact selected template and provider settings. Record the returned status unchanged. Unknown completion means reconcile the owned resource, not dispatch CREATE again. Never bypass admission using raw provider creation.
+
+## Setup once, then product experiments
+
+1. Independently verify exact owned lease, provider, public account and boot. Record cutoff six minutes before lease expiry.
+2. Check required guest setup/consent, then install the exact signed artifact once. A read-only preflight refusal before an installation claim permits a distinct preflight after normal consent. An uncertain installation is reconciled, never replayed.
+3. Grant normal guest Accessibility/Input Monitoring; launch to Ready, quit, and independently verify installed hashes, profile, process/report absence and identity.
+4. Create fresh runtime configuration with current canonical source pins. Obtain no-input positive timing and complete its cleanup before the explicit hardware gate. Old identity, timing, scope or configuration cannot qualify a new VM.
+5. Run one declared product hypothesis. Record infrastructure, harness and product outcomes separately. Successful setup does not require broad lab requalification on every product-test refusal.
+6. Restore profile, verify all-up, retire exact owned processes/target, destroy the lease, and independently verify provider absence/template retention/ESP32 detachment. Preserve warnings and actual statuses.
+
+## Experiment stop rules
+
+The next question is whether a one-second callback stall produces a genuine OS timeout and safe recovery. The source retains a strict two-second timing safety budget. If no genuine timeout occurs, preserve the evidence and research the trigger before another VM run; do not repeatedly increase delays. If a transport or harness fault prevents observation, fix that layer and add one focused regression before returning to the product question.
+
+After timeout/recovery: restart and console/session transitions, Caps Lock ownership/recovery, then reduced-permission installer/onboarding UX. Report completed milestones and unresolved questions; do not use milestone count as an estimate of elapsed work remaining.
+
+## Change discipline
+
+Before a live run, review the actual entry point, actual artifact metadata and source/configuration admission together. Prefer focused checks at that boundary to broad repeated suites. Request a second reviewer only for a specific changed contract. Keep one evidence directory per trial and update the current handoff in place rather than prepending chronological status blocks.
+
+The retained runtime currently still depends on older frozen implementation modules. That debt is explicit: avoid more adapter layers, and consolidate a selected module when a reproduced defect requires changing it. Do not claim this documentation has removed that code.

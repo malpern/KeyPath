@@ -1,0 +1,16 @@
+# Permission experiment failure ledger
+
+Only proven causes are stated as causes. A refusal without sufficient evidence remains unresolved. Update the existing row when a fix gains live evidence; add a row for a new class of failure.
+
+| Failure / observation | Layer | Demonstrated cause or limit | Change and regression | Evidence / status |
+| --- | --- | --- | --- | --- |
+| CREATE ordinary guest prep returned255 | Infrastructure | CREATE prep used a CLI execution route outside the retained SDK seam. Error does not establish universal SDK causation. | Opt-in retained SDK for three POSIX CREATE phases; shared deadline, identity, no replay; committed portable integration. | Two fresh temporary-route qualification runs passed; committed route needs fresh live validation. Lab76a407d; failed-create evidence `keypath-reliability-d9fc-size-run1`. |
+| Positive measurement rejected signed d9 executable | Harness | Expected size107507008 was stale; actual107605344. Fixture metadata substitutions hid it in tests. | Exact artifact-size binding and actual generated-command regression. | Corrected runtime2253 passed later positive baselines. Evidence `keypath-timeout-diagnostics-d9fc-guest`. |
+| Source manifest modes rejected before VM use | Harness | JSON integer292 was passed to a consumer requiring octal string0444. | Test actual unchanged driver manifest consumer; preserve rejected packet. | Corrected2253 and one-second081868 admission tests passed. |
+| Provider cleanup checker rejected retained template | Harness | Root checked lab alias rather than actual Parallels template Name. | Exact independent ID/Name/State/Template check. | Both qualification guests destroyed; corrected checks passed. |
+| Callback receipt checker rejected its own read | Harness | Whole stat comparison included access time changed by reading. | Exclude atime; retain inode/owner/mode/link/size/mtime/ctime/no-follow checks. | Distinctv2 passed; initial failed receipt preserved in latest trial. |
+| Fresh staging preflight returned79 | Environment / unresolved transport | Normal guest Local Network consent was absent and later appeared. This does not prove it was the sole cause of an earlier255. | Apply normal guest consent; repeat only distinct read-only preflight before install claim. | Consent-ready staging passed; exact prior statuses preserved. |
+|750ms stall did not produce genuine timeout | Product experiment | Entered/returned span0.752228959sec; no genuine OS tap-disable event observed. Timeout threshold/trigger assumption unproven. | One separately bounded1000ms test, then stop and investigate trigger if absent. No timer-based acceptance. | Latest physical trial:542 transport statuses0, safe cleanup verified; recovery untested. |
+| Destroy reported hydration-stop255 warning | Infrastructure warning | Final provider deletion succeeded; warning alone is not proof of leaked VM. Hydration warning cause remains unresolved. | Preserve warning; independently check provider absence/template/USB after destroy. | Latest destroy0 and independent cleanup PASS. |
+
+Evidence roots under `/private/tmp`: `keypath-timeout-d9fc-qualified-fresh`, `keypath-reliability-d9fc-sdk-run2`, `keypath-reliability-d9fc-sdk-run3`. Detailed receipt hashes remain in those directories and the archived handoff. No credentials or protected image are included here.
