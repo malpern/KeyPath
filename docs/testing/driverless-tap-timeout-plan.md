@@ -1,3 +1,9 @@
+## Current checkpoint — October 5, 2026, 09:31 UTC
+
+**Physical driverless remapping passed on signed595; 3/6 milestones verified (50%). No active owned VM.** The current evidence, receipt hashes and ownership constraints are in [the permission-reduction plan](permission-reduction-plan.md). Earlier checkpoints below remain historical.
+
+Next is a separately reviewed595-native timeout experiment using the current scoped SSH/USB transport. Preserve the original four-report protocol: genuine Quartz timeout from the one-shot750ms delay for b/keycode11 while remapped q is held, first immutable terminal failure and a-up before physical q-up, balanced fail-open input, exact cleanup, then balanced recovery with a new parent/worker. Same-parent restart, console departure and sleep/wake remain untested. The old6ed4 standalone executor must not run unchanged. Fresh identity, complete initial source seal, timing eligibility and root release are required; prior timing cannot be reused.
+
 ## Active checkpoint — October 5, 2026, 02:49 UTC
 
 **No active owned VM.** Lease `cbx_b4d1372b3c57` / provider `cfc63e60-d8ad-4b30-a116-d3cfa2d3329e` was destroyed before the scoped 02:53:20 UTC cutoff. Independent provider absence, retained stopped template64a9, and ESP32 detached/present/ask/empty binding passed: `/private/tmp/keypath-producer-diagnostics-595-guest/provider-cleanup-check.json`. The hydration-stop255 warning is preserved. No fixture attachment/input, original QA501 login/content access, or host product/security change. Approval remains danger-full-access, network enabled, never.
