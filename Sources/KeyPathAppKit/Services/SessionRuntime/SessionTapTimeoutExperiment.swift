@@ -2,9 +2,24 @@
     import CryptoKit
     import Darwin
     import Foundation
+    #if canImport(KeyPathCore)
+        import KeyPathCore
+    #endif
 
     /// Experimental builds only. No command means no delay; one file is admitted once.
     final class SessionTapTimeoutExperiment {
+        enum InitializationFailure: Error {
+            case executableUnavailable, identityDigestUnavailable
+        }
+
+        private(set) var preparationOutcome: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.Preparation = .notAttempted
+        private(set) var callbackFirstResult: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.CallbackFirstResult = .notObserved
+
+        var reportDiagnostic: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic {
+            .init(initialization: .initialized, preparation: preparationOutcome,
+                  callbackFirstResult: callbackFirstResult)
+        }
+
         struct Identity: Equatable {
             let pid: Int32
             let uid: UInt32
@@ -35,10 +50,19 @@
         private var spent = false
 
         init(reportURL: URL, nonce: String, parentPID: Int32, configPath: String) throws {
-            guard let executable = Bundle.main.executableURL else { throw Refusal.invalid }
-            identity = try Identity(pid: getpid(), uid: getuid(), parentPID: parentPID, nonce: nonce,
-                                    binarySHA256: Self.digest(executable),
-                                    configSHA256: Self.digest(URL(fileURLWithPath: configPath)))
+            guard let executable = Bundle.main.executableURL else { throw InitializationFailure.executableUnavailable }
+            let pid = getpid()
+            let uid = getuid()
+            let binaryDigest: String
+            let configDigest: String
+            do {
+                binaryDigest = try Self.digest(executable)
+                configDigest = try Self.digest(URL(fileURLWithPath: configPath))
+            } catch {
+                throw InitializationFailure.identityDigestUnavailable
+            }
+            identity = Identity(pid: pid, uid: uid, parentPID: parentPID, nonce: nonce,
+                                binarySHA256: binaryDigest, configSHA256: configDigest)
             directory = reportURL.deletingLastPathComponent()
         }
 
@@ -81,24 +105,38 @@
                 && info.st_mode & S_IFMT == S_IFDIR && info.st_mode & 0o777 == 0o700
         }
 
+        private func recordCallbackResult(_ result: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.CallbackFirstResult) {
+            if callbackFirstResult == .notObserved { callbackFirstResult = result }
+        }
+
         /// File I/O and decoding happen on the ordinary timer, outside the event callback.
         func prepare(now: TimeInterval) {
-            guard !inspected, identity.uid == 502, directoryIsOwned() else { return }
+            guard !inspected else { return }
+            guard identity.uid == 502 else { preparationOutcome = .identityRefused; return }
+            guard directoryIsOwned() else { preparationOutcome = .directoryRefused; return }
             let path = directory.appendingPathComponent("tap-timeout-command.json").path
             let fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
-            guard fd >= 0 else { return }
+            guard fd >= 0 else { preparationOutcome = .commandUnavailable; return }
             defer { close(fd) }
             inspected = true // A malformed or changed command cannot be replaced and retried.
             var first = stat()
             guard fstat(fd, &first) == 0, first.st_uid == identity.uid,
                   first.st_mode & S_IFMT == S_IFREG, first.st_mode & 0o777 == 0o600,
-                  first.st_nlink == 1, first.st_size > 0, first.st_size <= 4096 else { return }
+                  first.st_nlink == 1, first.st_size > 0, first.st_size <= 4096
+            else { preparationOutcome = .commandMetadataRefused; return }
             var bytes = [UInt8](repeating: 0, count: Int(first.st_size))
             let count = bytes.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
+            guard count == bytes.count else { preparationOutcome = .commandChangedDuringRead; return }
             var second = stat(), named = stat()
-            guard count == bytes.count, fstat(fd, &second) == 0, lstat(path, &named) == 0,
-                  Self.same(first, second), Self.same(first, named), directoryIsOwned() else { return }
-            pending = try? Self.decode(Data(bytes), identity: identity, now: now)
+            guard fstat(fd, &second) == 0, lstat(path, &named) == 0,
+                  Self.same(first, second), Self.same(first, named), directoryIsOwned()
+            else { preparationOutcome = .commandChangedDuringRead; return }
+            guard let command = try? Self.decode(Data(bytes), identity: identity, now: now) else {
+                preparationOutcome = .commandMalformed
+                return
+            }
+            pending = command
+            preparationOutcome = .commandAdmitted
         }
 
         private static func same(_ a: stat, _ b: stat) -> Bool {
@@ -113,15 +151,33 @@
                              heldUsages: [UInt32], reportAge: TimeInterval, now: TimeInterval,
                              environmentCurrent: Bool, secureInput: Bool,
                              sleep: (UInt32) -> Void = { usleep($0) }) {
-            guard !spent, let command = pending, keyCode == command.triggerKeyCode, keyDown, !repeatEvent,
-                  !mapped, heldUsages == [4], environmentCurrent, !secureInput,
-                  now < Double(command.expiresEpoch), reportAge >= 0,
-                  reportAge + Double(command.durationMillis) / 1000 + 0.25 < 2,
-                  getpid() == identity.pid, getuid() == identity.uid, kill(identity.parentPID, 0) == 0,
-                  directoryIsOwned() else { return }
+            let observeFirstResult = keyCode == 11 && keyDown
+            guard !spent else { if observeFirstResult { recordCallbackResult(.alreadySpent) }; return }
+            guard let command = pending else { if observeFirstResult { recordCallbackResult(.commandNotPrepared) }; return }
+            guard keyCode == command.triggerKeyCode else { if observeFirstResult { recordCallbackResult(.triggerCodeMismatch) }; return }
+            guard keyDown else { return }
+            guard !repeatEvent else { if observeFirstResult { recordCallbackResult(.repeatEvent) }; return }
+            guard !mapped else { if observeFirstResult { recordCallbackResult(.mappedInput) }; return }
+            guard heldUsages == [4] else { if observeFirstResult { recordCallbackResult(.heldOutputMismatch) }; return }
+            guard environmentCurrent else { if observeFirstResult { recordCallbackResult(.environmentStale) }; return }
+            guard !secureInput else { if observeFirstResult { recordCallbackResult(.secureInput) }; return }
+            guard now < Double(command.expiresEpoch) else { if observeFirstResult { recordCallbackResult(.commandExpired) }; return }
+            guard reportAge >= 0 else { if observeFirstResult { recordCallbackResult(.reportAgeInvalid) }; return }
+            guard reportAge + Double(command.durationMillis) / 1000 + 0.25 < 2
+            else { if observeFirstResult { recordCallbackResult(.delayExceedsBudget) }; return }
+            guard getpid() == identity.pid, getuid() == identity.uid
+            else { if observeFirstResult { recordCallbackResult(.workerIdentityChanged) }; return }
+            guard kill(identity.parentPID, 0) == 0
+            else { if observeFirstResult { recordCallbackResult(.ownerUnavailable) }; return }
+            guard directoryIsOwned()
+            else { if observeFirstResult { recordCallbackResult(.directoryChanged) }; return }
             spent = true
             pending = nil
-            guard publish("entered", durationMillis: command.durationMillis) else { return }
+            guard publish("entered", durationMillis: command.durationMillis) else {
+                if observeFirstResult { recordCallbackResult(.enteredReceiptRefused) }
+                return
+            }
+            if observeFirstResult { recordCallbackResult(.delayAdmitted) }
             sleep(UInt32(command.durationMillis) * 1000)
             _ = publish("returned", durationMillis: command.durationMillis)
         }

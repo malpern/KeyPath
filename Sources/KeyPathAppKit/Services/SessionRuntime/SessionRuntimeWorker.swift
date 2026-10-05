@@ -34,6 +34,7 @@ public final class SessionRuntimeWorker {
     private var environmentObserver: SessionRuntimeEnvironmentObserver?
     #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
         private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
+        private var tapTimeoutInitialization: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.Initialization?
         private var rawTapCallbackCount: UInt64 = 0
         private var startupTapDiagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
         private var experimentalRawCapabilities: PermissionOracle.PermissionSet?
@@ -118,9 +119,19 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "config-requires-advanced-driver-backend-or-is-invalid")
         }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
-            tapTimeoutExperiment = try? SessionTapTimeoutExperiment(
-                reportURL: reportURL, nonce: nonce, parentPID: ownerPID, configPath: configPath
-            )
+            do {
+                tapTimeoutExperiment = try SessionTapTimeoutExperiment(
+                    reportURL: reportURL, nonce: nonce, parentPID: ownerPID, configPath: configPath
+                )
+                tapTimeoutInitialization = .initialized
+            } catch let failure as SessionTapTimeoutExperiment.InitializationFailure {
+                switch failure {
+                case .executableUnavailable: tapTimeoutInitialization = .executableUnavailable
+                case .identityDigestUnavailable: tapTimeoutInitialization = .identityDigestUnavailable
+                }
+            } catch {
+                tapTimeoutInitialization = .unexpectedFailure
+            }
         #endif
         writeReport(.starting)
         let (_, handle) = KanataHostBridge.createPassthruRuntime(
@@ -427,7 +438,13 @@ public final class SessionRuntimeWorker {
 
     private func writeReport(_ state: SessionRuntimeReport.State, failure: String? = nil) {
         var diagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
+        var timeoutDiagnostic: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic?
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            if let tapTimeoutInitialization {
+                timeoutDiagnostic = tapTimeoutExperiment?.reportDiagnostic
+                    ?? .init(initialization: tapTimeoutInitialization, preparation: .notAttempted,
+                             callbackFirstResult: .notObserved)
+            }
             if let startupTapDiagnostics {
                 diagnostics = .init(
                     rawTapCallbackCount: rawTapCallbackCount,
@@ -443,7 +460,7 @@ public final class SessionRuntimeWorker {
             tapActive: tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
-            experimentalTapDiagnostics: diagnostics
+            experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)

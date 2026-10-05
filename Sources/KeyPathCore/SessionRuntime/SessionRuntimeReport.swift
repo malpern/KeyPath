@@ -7,6 +7,58 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         case capabilities, starting, running, secureInput, stopped, failed
     }
 
+    /// Bounded, compile-gated diagnostics for the tap-timeout experiment.
+    /// Values contain no event payload, path, process arguments, or raw error text.
+    public struct ExperimentalTapTimeoutDiagnostic: Codable, Sendable, Equatable {
+        public enum Initialization: String, Codable, Sendable {
+            case notAttempted, initialized, executableUnavailable, identityDigestUnavailable
+            case unexpectedFailure
+        }
+
+        public enum Preparation: String, Codable, Sendable {
+            case notAttempted, identityRefused, directoryRefused, commandUnavailable
+            case commandMetadataRefused, commandChangedDuringRead, commandMalformed, commandAdmitted
+        }
+
+        public enum CallbackFirstResult: String, Codable, Sendable {
+            case notObserved, alreadySpent, commandNotPrepared, triggerCodeMismatch, repeatEvent
+            case mappedInput, heldOutputMismatch, environmentStale, secureInput, commandExpired
+            case reportAgeInvalid, delayExceedsBudget, workerIdentityChanged, ownerUnavailable
+            case directoryChanged, enteredReceiptRefused, delayAdmitted
+        }
+
+        public let initialization: Initialization
+        public let preparation: Preparation
+        public let callbackFirstResult: CallbackFirstResult
+
+        public init(initialization: Initialization, preparation: Preparation,
+                    callbackFirstResult: CallbackFirstResult)
+        {
+            self.initialization = initialization
+            self.preparation = preparation
+            self.callbackFirstResult = callbackFirstResult
+        }
+
+        private enum CodingKeys: String, CodingKey, CaseIterable { case initialization, preparation, callbackFirstResult }
+        private struct Field: CodingKey {
+            let stringValue: String
+            var intValue: Int? { nil }
+            init?(stringValue: String) { self.stringValue = stringValue }
+            init?(intValue _: Int) { return nil }
+        }
+        public init(from decoder: Decoder) throws {
+            let all = try decoder.container(keyedBy: Field.self)
+            guard Set(all.allKeys.map(\.stringValue)) == Set(CodingKeys.allCases.map(\.rawValue)) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                    debugDescription: "Unexpected tap-timeout diagnostic fields"))
+            }
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            initialization = try values.decode(Initialization.self, forKey: .initialization)
+            preparation = try values.decode(Preparation.self, forKey: .preparation)
+            callbackFirstResult = try values.decode(CallbackFirstResult.self, forKey: .callbackFirstResult)
+        }
+    }
+
     /// Experimental-only observations; no event content or permission inference.
     /// configSHA256 samples the config file immediately after runtime creation.
     /// It does not attest to the parser's in-memory bytes during a concurrent edit.
@@ -168,13 +220,15 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let failure: String?
     public let heldOutputUsages: [UInt32]
     public let experimentalTapDiagnostics: ExperimentalTapDiagnostics?
+    public let experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic?
 
     public init(
         nonce: String, pid: Int32, uid: UInt32, state: State,
         accessibility: Bool, effectiveInputAccess: Bool, tapActive: Bool,
         tcpPort: UInt16, inputCount: UInt64, outputCount: UInt64,
         timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
-        inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil
+        inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil,
+        experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil
     ) {
         self.nonce = nonce
         self.pid = pid
@@ -191,6 +245,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.failure = failure
         self.heldOutputUsages = heldOutputUsages
         self.experimentalTapDiagnostics = experimentalTapDiagnostics
+        self.experimentalTapTimeout = experimentalTapTimeout
     }
 
     /// Cleanup evidence remains useful after a stalled worker dies. Callers must
