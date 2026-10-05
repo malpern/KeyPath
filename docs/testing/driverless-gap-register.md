@@ -181,3 +181,11 @@ The live transport receipt covers0445045e2.8072e8ef2 additionally checks persist
 journal identity before acquire mutation/after readback and confirms killed-child
 exit before lease unlock; focused regressions and independent source review pass.
 No separate live hardening or runtime Caps acceptance is claimed.
+
+## Current Caps runtime checkpoint — October 5
+
+Product053792f35 implements explicit DEBUG managed-Caps admission, generation-bound F18→logical Caps ingress, owned mapping acquisition/restoration, periodic identity checks, and mode-change restart through the existing configuration/lifecycle owners. Default launch remains off. 82 focused actual-package tests and narrow independent source review pass; the signed candidate is ready. [Source/candidate receipt](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-caps-runtime-source-checkpoint.json). Earlier statements that this runtime integration is unimplemented are historical.
+
+DL-01/DL-09 remain open until integrated physical tap/hold, normal stop, failed activation, reload transitions, crash/next-launch, Secure Input held-key reconciliation and reconnect/reboot refusal are observed. Mapping-only acceptance does not establish these outcomes. The prototype requires one eligible physical keyboard, current exact device identity, initial all-up/Caps-off and explicit native F18 reservation.
+
+Every HID write now has a durable mutation-in-flight marker. Confirmed child exit permits clearing it; forced death may leave an orphan writer, so a surviving marker refuses automatic recovery/restart even without an intent journal. Dead owner PIDs or elapsed time do not establish writer completion. Immediate restoration after both owners die is not promised; next-launch restoration is restricted to verified owned same-boot/device state without uncertain mutation. No extra daemon or permission is introduced.
