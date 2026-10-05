@@ -159,6 +159,19 @@ public struct WizardKanataServicePage: View {
         actionName: String
     ) async {
         isPerformingAction = false
+        if !succeeded, case .running = target,
+           let error = kanataManager?.lastError,
+           !error.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            // A completed refusal is not transient startup. Cancel the initial
+            // status poll so it cannot replace this known failure with a spinner.
+            refreshTask?.cancel()
+            refreshTask = nil
+            serviceStatus = .failed(error: error)
+            actionStatus = .error(message: error)
+            onRefresh()
+            return
+        }
         await refreshStatusAsync(actionSucceeded: succeeded)
         evaluateServiceCompletion(target: target, actionName: actionName)
         if !succeeded, case .running = target, let error = kanataManager?.lastError {
@@ -319,6 +332,7 @@ public struct WizardKanataServicePage: View {
             guard !Task.isCancelled else { return }
 
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     applyStatusUpdate(
                         runtimeStatus: runtimeStatus,
