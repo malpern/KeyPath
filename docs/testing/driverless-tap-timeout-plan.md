@@ -1,3 +1,13 @@
+## Current checkpoint — October 5, 2026, 11:09 UTC
+
+**3/6 milestones (50%) verified. No active owned VM or driver.** Physical driverless remapping on signed595 remains accepted. Actual timeout/recovery and session transitions remain untested; Caps Lock ownership and reduced-permission installer/onboarding follow stabilization.
+
+The narrow retained-handle Parallels SDK guest-root adapter is live-qualified for actual exit0/1/79/255, including quote/newline preservation. Status/lifecycle remain canonical. Immediate release notification worked. Fresh7d79 startup with normal Accessibility+Input Monitoring reached Ready; positive timing and independent target cleanup passed (8.098685<9,1.750608<2). The750ms/keycode11 timeout campaign refused delay admission before fixture start; no keyboard sequence. Native command25sec lifetime begins before worker identity, and admission reached24.588sec after delay intent. Evidence strongly supports premature expiry, though the generic refusal does not name a predicate. A distinct source-only successor will construct command after all existing worker identity checks, preserving25sec lifetime, remaining guards and no replay. The failed attempt remains failed.
+
+Exact owner/target cleanup, final independent guest reconciliation and independent provider/template/ESP32 cleanup passed;7d79 destroyed. Hydration-stop255 warning retained. Evidence `/private/tmp/keypath-timeout-late-arm-595-guest`; campaignSHAc609c50b687889cac19c304b812c937433358cff8a1c13bfd654d6a177d6217f. No reliability,2x-speed or token-savings guarantee.
+
+Installer follow-ups: explain missing Input Monitoring rather than generic runtime failure; normal consent relaunch can still require explicit Restart; welcome advertises Caps Lock before product mapping ownership exists. Current driverless flow requires AX+Input Monitoring here and removes Karabiner driver/system extension/root daemon/admin installation. Password/Secure Input limitations remain acceptable.
+
 ## Current checkpoint — October 5, 2026, 09:31 UTC
 
 **Physical driverless remapping passed on signed595; 3/6 milestones verified (50%). No active owned VM.** The current evidence, receipt hashes and ownership constraints are in [the permission-reduction plan](permission-reduction-plan.md). Earlier checkpoints below remain historical.
