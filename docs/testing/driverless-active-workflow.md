@@ -1,6 +1,6 @@
 # Active driverless testing workflow
 
-Latest checkpoint: signed01df87bc9 held-worker/parent crash and physical Caps tap passed; no active lease. See the handoff for scope and remaining gates. Preserve raw failures; template verification uses an explicit template query.
+Latest checkpoint: signed01df87bc9 has reviewed held-Caps Secure Input release, automatic resume/physical remap, same-mode reload and Caps→ordinary→Caps transitions, in addition to prior held-owner crashes. Original Secure Input checker failure remains preserved; narrow acceptance excludes retained Function/full-transition claims. Normal Quit and independent cleanup passed; no active lease. Next: reconnect/reboot identity and uncertain-mutation refusal. See the handoff for exact scope.
 
 ## Operating rule
 

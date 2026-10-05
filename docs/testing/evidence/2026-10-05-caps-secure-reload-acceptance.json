@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-05",
+  "productCommit": "01df87bc9598350df92295f407e839f6cb057568",
+  "rawEvidenceRoot": "/private/tmp/keypath-caps-secure-live-01",
+  "lease": "cbx_e8c263b471d3",
+  "providerUUID": "e07e4575-1d95-4bd6-ba78-79cf29673eca",
+  "mainSHA256": "7ffc322bab9259d55dc12ee59fe4e3e02a6a6dcee301fa52fcaa602d84786292",
+  "archiveSHA256": "65b5233648501cb8f5d84302ecda73f3a94318bdd6e8ae765c63983ce3ca703a",
+  "claims": {
+    "heldCapsSecureInput": {
+      "narrowRecordedAcceptance": true,
+      "originalTrialPassed": false,
+      "originalFailure": "actual Secure Input transition proof required; target active encoded integer1, then review found absent keyEvents.mode property",
+      "actualSecureInputObserved": true,
+      "localControlReleaseBeforePhysicalUpSeconds": 0.2971086502,
+      "combinedControlFalseBeforePhysicalUpSeconds": 0.2073817253,
+      "functionFlagRetained": true,
+      "fullModifierAllUpClaim": false,
+      "fullContinuousTransitionClaim": false
+    },
+    "automaticResume": {
+      "sameParentPID": 2418,
+      "oldWorkerPID": 2427,
+      "newWorkerPID": 2812,
+      "newWorkerNonce": "DAE43B4F-2672-45C8-B39F-FE62DAD5D355",
+      "newOwnedMappingJournal": true,
+      "physicalCaps80msEscapePassed": true
+    },
+    "sameModeReload": {
+      "commentOnlyChange": true,
+      "applicationFileWatcherUsed": true,
+      "tcpReloadResultSucceeded": true,
+      "workerPIDUnchanged": 2812,
+      "changedRemappingSemanticsClaim": false
+    },
+    "modeCrossing": {
+      "applicationOwnedRestartUsed": true,
+      "capsToOrdinaryWorkerPID": 3979,
+      "mappingEmptyAndJournalAbsentObserved": true,
+      "physicalQToAPassed": true,
+      "ordinaryToCapsWorkerPID": 4110,
+      "physicalCaps80msEscapePassed": true
+    },
+    "cleanup": {
+      "normalQuitVerified": true,
+      "originalProfileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+      "mappingEmpty": true,
+      "journalAbsent": true,
+      "launchEnvironmentCleared": true,
+      "productAndTargetAbsent": true,
+      "canonicalDestructionPassed": true,
+      "hydrationStopWarningPreserved": true,
+      "independentProviderAbsent": true,
+      "templateStoppedRetained": true,
+      "temporaryFixtureDetached": true
+    }
+  },
+  "limits": [
+    "Accessibility and Input Monitoring both required",
+    "Managed Caps DEBUG-only; one selected device and native F18 reservation",
+    "No password-entry or representative protected-app compatibility claim",
+    "Reconnect/reboot identity and forced death during HID write remain unverified live gates",
+    "Genuine OS timeout and observer-specific retirement remain explicit separate gaps",
+    "No host installation, notarization, release, or upstream contribution",
+    "Reload/mode changes occurred all-up; held-output mode crossing unverified"
+  ],
+  "rawReceiptSHA256": {
+    "secureHeld01guest-result.json": "48a44e2a3eea4b4f1e3d2d12283e953f9a762079456988f8edf35eafd97a029b",
+    "secureHeld01fixture-complete.json": "6f1998bf2203a8db1c10837fbea339e543df3303ccc10b72de3d87b670c8ef8e",
+    "secureafter01-result.json": "e25cb357999dc35c397faf34bff04dfd63db2b77f91b4b1e3a70887d11453301",
+    "securetargetnormalrestore01-result.json": "04ee5558dce5a966fa8a3081a34f3321ae378c01f9a675a35d09acc8c4df1f16",
+    "secureresumeobserve01-result.json": "3379508e81c6aa35f996d96801baf291cffe44da7e846f4e9dcf2acf1f5458ea",
+    "secureresumetap01-sample-result.json": "d6a716cf8cdf63943084292bc1f4f4bf4c62add4f092f63bdc9271c8a46fc51e",
+    "samemodereload01-result.json": "a23b70def2a73c90e796b965a80d2cc511d0eecf16f4e8d68655b920b2c0cb87",
+    "capsmodetoordinary01-result.json": "4b598383cfb85b8903999884e92b6d72a90801cdb618d2e00280af227b915530",
+    "ordinarymappingobserve01-result.json": "f6019ef409962613a1b20999969527c8f6dd5a476f6e0b38372bfd86a7a1c6c5",
+    "ordinarysample01-sample-result.json": "ae6987fd1aa37350247a15203825bf5150f4d8d1e9a6a89e8f553792cd75304c",
+    "ordinarytocaps01-result.json": "b8d0a4667fe7a845ba9188d51dd0112fa0f1e607cb1710514aa017c0f073af26",
+    "returnedcapssample01-sample-result.json": "ee8b04c072453e408645f74d2183d3b9b9f5ef14968ec3b9f4dbbcb2c97db702",
+    "finalobserve01-result.json": "de203e7032e230e2b3e6faced90d994dd5a16885127ca0415817065d7a4fe79b",
+    "finalprofilerestore01-result.json": "77d28fa4aedec3262f4c467e97c6f18a66568aadd01fd053b1e58c23c3380e93",
+    "destroy-result.json": "f6084426f0f73171006732b28305876dbfbae7a0be3578695ba8442ab169cdc9",
+    "independent-provider-cleanup02.json": "2b2474bcd740c1f8ff6a171d3a7ddf770f719407a4105cbea7c8859df8b86d39",
+    "secureHeld01result.json": "057ac993697513fc2969489c68f947b7a3fe2c8685dec7a3dbec201e46fd1d45"
+  },
+  "independentReview": {
+    "model": "gpt-6.1-sol",
+    "releaseResume": true,
+    "reloadModeTransitionsCleanup": true
+  }
+}

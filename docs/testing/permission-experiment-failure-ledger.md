@@ -72,3 +72,15 @@ October5 held-Caps/config acceptance: [selected receipt](evidence/2026-10-05-cap
 | Report changed during stable read | Normal atomic replacement. Retry only the two exact known report paths, at most4 reads. | No mutation/crash replay. |
 | Conservative onset timing failed by14ms | Observation uncertainty, not proven product failure or firmware drift. Wait150ms then revalidate exact held state before crash. | Passing receipts retain conservative clock bounds. |
 | Cleanup template absent from VM list | Ordinary provider inventory excludes templates. Query exact template ID separately and verify Template=yes/State=stopped. | First failed read-only receipt retained. |
+
+
+October5 Secure Input/reload checkpoint: [selected receipt](evidence/2026-10-05-caps-secure-reload-acceptance.json). Actual Secure Input was enabled while Caps held generated Control; independent target release preceded physical up by297ms local/207ms combined conservative bounds. Original checker failed and remains failed. New generation automatically resumed after normal mode restoration; physical Caps80ms→Escape passed. Existing app file watcher passed comment-only same-mode TCP reload and parent-owned Caps→ordinary→Caps restarts, with physical q→a and Caps→Escape. Normal Quit and independently verified cleanup passed.
+
+| Failure / observation | Proven correction / practice | Limit |
+| --- | --- | --- |
+| Secure transition active encoded1 | Accept exactly true or integer1 for the witnessed active field; reject2/other encodings. Eight inert policy checks passed. | Review supports archived release; original full trial remains failed. |
+| Key-event mode absent | Target schema emits focusedMode, not mode. Remove only the nonexistent-field condition; retain actual Secure Input and focus/identity guards. | No physical replay solely for schema correction. |
+| Original helper expected no worker after Secure Input off | Existing lifecycle automatically created a new owned generation. Verify it independently and use a fresh physical target. | Separate resumed-generation acceptance, not relaxation of the original full-run checker. |
+| Secure target combined history overflow after completion | Preserve timely secureafter01 receipt before later idle history overflow. Retire completed target; start fresh for next hypothesis. | No full continuous transition claim. |
+| Normal status-menu route timed out twice | Use the actual observed menu through native UI, then verify guest state independently. | Do not repeat the failing helper menu route. |
+| Normal menu Quit during guide modal reported success but left parent | Close guide and verify exact owner exit; scoped all-up termination used only for setup owner. Final ordinary Quit succeeded and was independently checked. | UI return code alone is not process-exit proof. |
