@@ -1,3 +1,5 @@
+**Correction — October 5, 2026:** The earlier `/var`→`/private/var` causal diagnosis is withdrawn. Direct execution of the original Foundation path comparison returns equality for standard macOS temporary paths; libc `realpath` uses a different spelling, which does not demonstrate this Swift guard failed. The uncommitted alias patch is preserved privately and removed from the active build worktree. No successor was built or signed. The arm-clock trial remains failed; hook initialization, command admission and callback conditions need diagnosis before another VM trial. Verified progress remains 3/6 (50%); cleanup and destruction remain verified.
+
 # KeyPath permission investigation — active handoff
 
 Updated October 5, 2026, 11:35 UTC. Read this first. Full prior checkpoints, raw failures, earlier authorization and source/evidence pointers are preserved in [the complete archived handoff](permission-exploration-history-through-2026-10-05-0820.md).
@@ -97,7 +99,7 @@ Next: implement and independently review a new595-native actual timeout consumer
 
 ## Next work
 
-1. Review the distinct arm timestamp successor: keep full worker identity before command creation, then all original write/start guards and unchanged25sec expiry. Count residual live costs; inert tests must exercise delayed actual identity plus original consumers, unknown-response refusal and one-shot claims.
+1. Diagnose the original hook initialization, command admission and callback predicates using actual producer/consumer data and inert reproductions. The path-alias diagnosis above is withdrawn. Preserve the arm-clock packet unchanged; build a distinct artifact only after a supported source correction and independent review.
 2. Use a fresh owned guest, identity, timing and INITIAL closure. Retained-handle SDK guest-root transport is qualified; lifecycle/status remain canonical. Forward phase notification immediately, independently check gates/target cleanup, transiently attach exact ESP32 and release within120sec.
 3. Observe genuine Quartz timeout while q is held, first immutable terminal failure and a-up before physical q-up; then balanced fail-open input, exact old-owner cleanup/retirement and new-parent/new-worker recovery.
 4. Separately verify same-parent restart, console departure and sleep/wake; implement scoped Caps Lock ownership/journal/recovery after runtime stabilization; then revise installer/onboarding for measured reduced permissions.
