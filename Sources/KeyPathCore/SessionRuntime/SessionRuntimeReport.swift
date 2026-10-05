@@ -15,15 +15,17 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         public let qMapped: Bool
         public let aMapped: Bool
         public let configSHA256: String?
+        public let registeredTap: RegisteredTapObservation?
 
-        public init(rawTapCallbackCount: UInt64, qMapped: Bool, aMapped: Bool, configSHA256: String?) {
+        public init(rawTapCallbackCount: UInt64, qMapped: Bool, aMapped: Bool, configSHA256: String?, registeredTap: RegisteredTapObservation? = nil) {
             self.rawTapCallbackCount = rawTapCallbackCount
             self.qMapped = qMapped
             self.aMapped = aMapped
             self.configSHA256 = configSHA256
+            self.registeredTap = registeredTap
         }
 
-        private enum CodingKeys: String, CodingKey { case rawTapCallbackCount, qMapped, aMapped, configSHA256 }
+        private enum CodingKeys: String, CodingKey { case rawTapCallbackCount, qMapped, aMapped, configSHA256, registeredTap }
         private struct Field: CodingKey {
             let stringValue: String
             var intValue: Int? {
@@ -43,7 +45,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             let fields = try decoder.container(keyedBy: Field.self)
             let actual = Set(fields.allKeys.map(\.stringValue))
             let required: Set = ["rawTapCallbackCount", "qMapped", "aMapped"]
-            guard required.isSubset(of: actual), actual.isSubset(of: required.union(["configSHA256"])) else {
+            guard required.isSubset(of: actual), actual.isSubset(of: required.union(["configSHA256", "registeredTap"])) else {
                 throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected experimental tap diagnostics fields"))
             }
             let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -51,9 +53,101 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             qMapped = try values.decode(Bool.self, forKey: .qMapped)
             aMapped = try values.decode(Bool.self, forKey: .aMapped)
             configSHA256 = try values.decodeIfPresent(String.self, forKey: .configSHA256)
+            registeredTap = try values.decodeIfPresent(RegisteredTapObservation.self, forKey: .registeredTap)
             if let configSHA256, configSHA256.count != 64 || !configSHA256.utf8.allSatisfy({ (48 ... 57).contains($0) || (97 ... 102).contains($0) }) {
                 throw DecodingError.dataCorruptedError(forKey: .configSHA256, in: values, debugDescription: "Invalid experimental config digest")
             }
+        }
+    }
+
+    /// One experimental worker-self registration observation; not delivery proof.
+    /// CGGetEventTapList resets minimum/maximum latency statistics for all enumerated taps.
+    public struct RegisteredTapObservation: Codable, Sendable, Equatable {
+        public enum Outcome: String, Codable, Sendable {
+            case observed, absent, multiple, apiFailure, capacityExceeded, unexpectedABI
+        }
+
+        public struct Row: Codable, Sendable, Equatable {
+            public let mask: UInt64
+            public let enabled: Bool
+            public init(mask: UInt64, enabled: Bool) {
+                self.mask = mask; self.enabled = enabled
+            }
+
+            private enum CodingKeys: String, CodingKey { case mask, enabled }
+            public init(from decoder: Decoder) throws {
+                let all = try decoder.container(keyedBy: Field.self)
+                guard Set(all.allKeys.map(\.stringValue)) == Set(["mask", "enabled"]) else {
+                    throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected registered tap row fields"))
+                }
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                mask = try c.decode(UInt64.self, forKey: .mask)
+                enabled = try c.decode(Bool.self, forKey: .enabled)
+            }
+        }
+
+        public let outcome: Outcome
+        public let requestedMask: UInt64
+        public let rows: [Row]
+        public let rawAccessibility: String
+        public let rawPostEvent: String
+        public let rawListenEvent: String
+        public let queryLimit: UInt32
+        public let enumerationAttempted: Bool
+
+        public init(outcome: Outcome, requestedMask: UInt64, rows: [Row], rawAccessibility: String,
+                    rawPostEvent: String, rawListenEvent: String, enumerationAttempted: Bool)
+        {
+            self.outcome = outcome; self.requestedMask = requestedMask; self.rows = rows
+            self.rawAccessibility = rawAccessibility; self.rawPostEvent = rawPostEvent
+            self.rawListenEvent = rawListenEvent; queryLimit = 128
+            self.enumerationAttempted = enumerationAttempted
+        }
+
+        /// Registered bits only; this does not establish enabled state or delivery/readiness.
+        public var requestedBitsPresent: Bool {
+            outcome == .observed && rows.count == 1 && rows[0].mask & requestedMask == requestedMask
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case outcome, requestedMask, rows, rawAccessibility, rawPostEvent, rawListenEvent, queryLimit, enumerationAttempted
+        }
+
+        private struct Field: CodingKey {
+            let stringValue: String
+            var intValue: Int? {
+                nil
+            }
+
+            init?(stringValue: String) {
+                self.stringValue = stringValue
+            }
+
+            init?(intValue _: Int) {
+                nil
+            }
+        }
+
+        public init(from decoder: Decoder) throws {
+            let all = try decoder.container(keyedBy: Field.self)
+            guard Set(all.allKeys.map(\.stringValue)) == Set(["outcome", "requestedMask", "rows", "rawAccessibility", "rawPostEvent", "rawListenEvent", "queryLimit", "enumerationAttempted"]) else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected registered tap observation fields"))
+            }
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            outcome = try c.decode(Outcome.self, forKey: .outcome)
+            requestedMask = try c.decode(UInt64.self, forKey: .requestedMask)
+            rows = try c.decode([Row].self, forKey: .rows)
+            rawAccessibility = try c.decode(String.self, forKey: .rawAccessibility)
+            rawPostEvent = try c.decode(String.self, forKey: .rawPostEvent)
+            rawListenEvent = try c.decode(String.self, forKey: .rawListenEvent)
+            queryLimit = try c.decode(UInt32.self, forKey: .queryLimit)
+            enumerationAttempted = try c.decode(Bool.self, forKey: .enumerationAttempted)
+            let statuses = Set(["granted", "denied", "unknown", "error"])
+            guard requestedMask == 7168, queryLimit == 128, rows.count <= 128,
+                  enumerationAttempted == (outcome != .unexpectedABI),
+                  [rawAccessibility, rawPostEvent, rawListenEvent].allSatisfy({ statuses.contains($0) }),
+                  outcome == .observed ? rows.count == 1 : outcome == .multiple ? rows.count > 1 : rows.isEmpty
+            else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid registered tap observation")) }
         }
     }
 

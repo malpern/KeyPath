@@ -36,6 +36,8 @@ public final class SessionRuntimeWorker {
         private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
         private var rawTapCallbackCount: UInt64 = 0
         private var startupTapDiagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
+        private var experimentalRawCapabilities: PermissionOracle.PermissionSet?
+        private var registeredTapObservation: SessionRuntimeReport.RegisteredTapObservation?
     #endif
 
     private init(
@@ -79,6 +81,11 @@ public final class SessionRuntimeWorker {
         guard let config = argument("--session-config") else {
             worker.finish(.failed, reason: "missing-config")
         }
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            // Raw ListenEvent facts remain separate from the session PostEvent capability.
+            // Both snapshots are obtained only through the canonical permission owner.
+            worker.experimentalRawCapabilities = await PermissionOracle.shared.currentProcessCapabilities()
+        #endif
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;
         // dropping a runtime cannot stop its detached TCP listener threads.
@@ -153,6 +160,14 @@ public final class SessionRuntimeWorker {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         guard environmentObserver.check() else { finish(.failed, reason: "console-session-inactive") }
         CGEvent.tapEnable(tap: tap, enable: true)
+        #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
+            if let raw = experimentalRawCapabilities {
+                registeredTapObservation = Self.observeRegisteredTap(
+                    requestedMask: UInt64(mask), accessibility: Self.fact(raw.accessibility),
+                    posting: Self.fact(capabilities.inputMonitoring), listening: Self.fact(raw.inputMonitoring)
+                )
+            }
+        #endif
 
         for number in [SIGTERM, SIGINT, SIGHUP] {
             signal(number, SIG_IGN)
@@ -317,7 +332,66 @@ public final class SessionRuntimeWorker {
     }
 
     #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
-        /// A bounded file sample, not an attestation of the parser's in-memory bytes.
+        /// Native SDK layout checked before the experimental C API query.
+        static var experimentalTapABIIsExpected: Bool {
+            MemoryLayout<CGEventTapInformation>.size == 48 && MemoryLayout<CGEventTapInformation>.alignment == 8
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.eventTapID) == 0
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.tapPoint) == 4
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.options) == 8
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.eventsOfInterest) == 16
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.tappingProcess) == 24
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.processBeingTapped) == 28
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.enabled) == 32
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.minUsecLatency) == 36
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.avgUsecLatency) == 40
+                && MemoryLayout<CGEventTapInformation>.offset(of: \.maxUsecLatency) == 44
+        }
+
+        static func fact(_ status: PermissionOracle.Status) -> String {
+            switch status {
+            case .granted: "granted"
+            case .denied: "denied"
+            case .unknown: "unknown"
+            case .error: "error"
+            }
+        }
+
+        /// One worker-self query, no input/prompt. Enumeration resets global tap latency extrema.
+        /// Permission facts were sampled through the Oracle before starting this worker's tap.
+        static func observeRegisteredTap(requestedMask: UInt64, accessibility: String, posting: String,
+                                         listening: String) -> SessionRuntimeReport.RegisteredTapObservation
+        {
+            guard experimentalTapABIIsExpected else {
+                return classifyRegisteredTaps(requestedMask: requestedMask, taps: [], count: 0, error: .success,
+                                              abiIsExpected: false, ownPID: getpid(), accessibility: accessibility, posting: posting, listening: listening)
+            }
+            var taps = [CGEventTapInformation](repeating: CGEventTapInformation(), count: 128)
+            var count: UInt32 = 0
+            let error = taps.withUnsafeMutableBufferPointer { CGGetEventTapList(128, $0.baseAddress, &count) }
+            return classifyRegisteredTaps(requestedMask: requestedMask, taps: taps, count: count, error: error,
+                                          abiIsExpected: true, ownPID: getpid(), accessibility: accessibility, posting: posting, listening: listening)
+        }
+
+        /// Pure interpretation of the single bounded query; never changes runtime readiness.
+        static func classifyRegisteredTaps(requestedMask: UInt64, taps: [CGEventTapInformation], count: UInt32,
+                                           error: CGError, abiIsExpected: Bool, ownPID: pid_t, accessibility: String, posting: String,
+                                           listening: String) -> SessionRuntimeReport.RegisteredTapObservation
+        {
+            typealias Observation = SessionRuntimeReport.RegisteredTapObservation
+            func result(_ outcome: Observation.Outcome, _ rows: [Observation.Row] = []) -> Observation {
+                Observation(outcome: outcome, requestedMask: requestedMask, rows: rows,
+                            rawAccessibility: accessibility, rawPostEvent: posting, rawListenEvent: listening,
+                            enumerationAttempted: abiIsExpected)
+            }
+            guard abiIsExpected else { return result(.unexpectedABI) }
+            guard error == .success else { return result(.apiFailure) }
+            guard count <= 128, Int(count) <= taps.count else { return result(.capacityExceeded) }
+            let rows = taps.prefix(Int(count)).filter {
+                $0.tappingProcess == ownPID && $0.tapPoint == .cgSessionEventTap && $0.options == .defaultTap
+            }.map { Observation.Row(mask: $0.eventsOfInterest, enabled: $0.enabled) }
+            return result(rows.isEmpty ? .absent : rows.count == 1 ? .observed : .multiple, rows)
+        }
+
         nonisolated static func experimentalConfigSHA256(configPath: String) -> String? {
             let descriptor = Darwin.open(configPath, O_RDONLY | O_NONBLOCK | O_NOFOLLOW)
             guard descriptor >= 0 else { return nil }
@@ -340,7 +414,7 @@ public final class SessionRuntimeWorker {
                 diagnostics = .init(
                     rawTapCallbackCount: rawTapCallbackCount,
                     qMapped: startupTapDiagnostics.qMapped, aMapped: startupTapDiagnostics.aMapped,
-                    configSHA256: startupTapDiagnostics.configSHA256
+                    configSHA256: startupTapDiagnostics.configSHA256, registeredTap: registeredTapObservation
                 )
             }
         #endif
