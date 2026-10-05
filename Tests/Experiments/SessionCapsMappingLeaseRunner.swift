@@ -18,11 +18,13 @@ struct SessionCapsMappingLeaseRunner {
         var devices = [device]
         var failWrite = false
         var failRead = false
+        var afterRead: (() throws -> Void)?
         var afterWrite: (() throws -> Void)?
         var writes = 0
         var backend: Lease.Backend {
             .init(enumerate: { self.devices }, read: { identity in
                 if self.failRead { throw Failure.simulated }
+                try self.afterRead?()
                 return .init(device: identity, mappings: self.mappings)
             }, write: { _, value in
                 self.writes += 1
@@ -180,6 +182,19 @@ struct SessionCapsMappingLeaseRunner {
             refused { try restore(lease) }
             try check(FileManager.default.fileExists(atPath: journal.path))
             try check(Data(contentsOf: journal) == bytes)
+        }
+        for removeBeforeWrite in [true, false] {
+            try scenario { root, fake, lease in
+                let journal = root.appendingPathComponent("caps-mapping-intent.json")
+                let remove = {
+                    if FileManager.default.fileExists(atPath: journal.path) {
+                        try FileManager.default.removeItem(at: journal)
+                    }
+                }
+                if removeBeforeWrite { fake.afterRead = remove } else { fake.afterWrite = remove }
+                refused { _ = try acquire(lease) }
+                try check(fake.writes == (removeBeforeWrite ? 0 : 1))
+            }
         }
         let header = "RegistryID  Key                   Value\n2a   UserKeyMapping   "
         let row = "{ HIDKeyboardModifierMappingDst = 30064771181; HIDKeyboardModifierMappingSrc = 30064771129; }"

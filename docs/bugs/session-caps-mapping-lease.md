@@ -22,8 +22,9 @@ never a shell.
 execution and strict NDJSON service enumeration. It accepts the witnessed physical
 `AppleUserHIDEventService` identity, ignores device rows and the witnessed Parallels
 `AppleVirtualPlatformHIDBridge` virtual keyboard, and refuses ambiguous selectors
-or unsupported physical-service shapes. Execution has a two-second deadline and
-64 KiB combined output limit. This helper is not yet connected to the app lifecycle;
+or unsupported physical-service shapes. Useful execution has a two-second deadline and
+64 KiB combined output limit. Failure kills the child and confirms exit before
+releasing the lease lock; OS termination latency is not claimed to be bounded. This helper is not yet connected to the app lifecycle;
 Caps profiles remain unavailable by default. Do not substitute USB device IDs or
 interpret missing output as an empty mapping.
 
@@ -57,3 +58,9 @@ An independent hidutil read found an empty map, no journal remained, and the pro
 had exited. VM deletion, retained stopped template, and detached nonpersistent
 fixture were independently verified. Raw receipt: `/private/tmp/keypath-caps-transport-live-01`.
 This proves one transport cycle, not runtime Caps input or crash/reconnect recovery.
+
+Final source-review hardening checks the descriptor-derived journal identity both
+before acquisition mutation and after readback; removal/replacement refuses
+instead of publishing successful ownership. Focused acquisition negatives pass.
+These hardening changes were source-reviewed and tested after the live cycle;
+they have not received a separate fresh live mapping trial.

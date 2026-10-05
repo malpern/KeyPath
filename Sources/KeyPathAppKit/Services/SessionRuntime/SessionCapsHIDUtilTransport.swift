@@ -157,7 +157,12 @@ public enum SessionCapsHIDUtilTransport {
         try process.run()
         try? output.fileHandleForWriting.close()
         try? error.fileHandleForWriting.close()
-        defer { if process.isRunning { kill(process.processIdentifier, SIGKILL) } }
+        defer {
+            if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+            // Confirm exit before the caller releases its mapping lock. A
+            // deadline bounds useful work, not kernel termination latency.
+            process.waitUntilExit()
+        }
         var data = [Data(), Data()]
         var ended = [false, false]
         var buffer = [UInt8](repeating: 0, count: 4096)

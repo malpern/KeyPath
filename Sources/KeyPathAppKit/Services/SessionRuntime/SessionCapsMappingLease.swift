@@ -62,16 +62,18 @@ public final class SessionCapsMappingLease {
             guard snapshot.device == device else { throw Policy.Refusal.differentDevice }
             let record = try Policy.acquire(original: snapshot.mappings, device: device, devices: devices,
                                             owner: owner, effectiveConfigSHA256: configSHA256)
-            try persist(record, directoryFD: fd)
+            let persisted = try persist(record, directoryFD: fd)
             // Recheck the selected service immediately before mutation. Never
             // clear a journal on an unconfirmed mutation or a failed readback.
             try verifyInstance(record)
             let beforeWrite = try backend.read(device)
             guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
             guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
+            try verifyJournal(persisted, directoryFD: fd)
             try backend.write(device, record.applied)
             let applied = try backend.read(device)
             guard applied.device == device, applied.mappings == record.applied else { throw Refusal.unverifiedWrite }
+            try verifyJournal(persisted, directoryFD: fd)
             return record
         }
     }
@@ -180,7 +182,7 @@ public final class SessionCapsMappingLease {
         return entry
     }
 
-    private func persist(_ record: Policy.Record, directoryFD: Int32) throws {
+    private func persist(_ record: Policy.Record, directoryFD: Int32) throws -> JournalEntry {
         let data = try JSONEncoder().encode(record)
         guard data.count <= maximumSize else { throw Refusal.unsafeFile }
         let fd = openat(directoryFD, journal, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
@@ -197,5 +199,10 @@ public final class SessionCapsMappingLease {
             }
         }
         guard fsync(fd) == 0, fsync(directoryFD) == 0 else { throw Refusal.journalIO }
+        var metadata = stat()
+        guard fstat(fd, &metadata) == 0 else { throw Refusal.journalIO }
+        let entry = JournalEntry(record: record, metadata: metadata)
+        try verifyJournal(entry, directoryFD: directoryFD)
+        return entry
     }
 }
