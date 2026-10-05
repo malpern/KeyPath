@@ -44,7 +44,7 @@ The biggest immediate risk is experimental harness maintenance, not evidence of 
 
 No host deployment, account/security changes, TCC bypass, permanent USB binding, firmware change, upstream contribution, PR merge or release is authorized by this plan. Continue guest-only work. Detailed provenance remains in the current handoff and archived evidence.
 
-Latest selected acceptance: [permission and session results](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-permission-and-session-acceptance.json). No owned VM remains active. Caps has only feasibility evidence: product mapping ownership/restoration is not implemented. Keep Caps admission rejected until preservation, collision refusal and crash/reconnect recovery are verified.
+Latest selected acceptance: [permission and session results](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-permission-and-session-acceptance.json). No owned VM remains active. Caps mapping ownership/restoration now has implemented helpers and one live transport cycle, as recorded below. Runtime admission remains disabled until lifecycle integration and crash/reconnect recovery are verified.
 
 
 October5 recovery milestone completed: [held-key/crash results](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-held-crash-recovery.json). Three fixed stop/crash actions and three physical relaunch samples passed; independent Sol review and original-profile/provider/USB cleanup passed. No owned VM remains. SIGKILL worker reports are stale historical ledgers, not terminal-state proof. Repeated fixture hostname resolution and an overstrict raw-Q assertion were measured harness faults, corrected with fresh callers; retain their failed receipts. No further broad lab work is planned.
@@ -54,3 +54,22 @@ Signed64a1e52a3 now passed [protocol live acceptance](https://github.com/malpern
 October5 Caps implementation checkpoint: product8c2841849 adds `SessionCapsMappingPolicy` and nine focused policy tests. It preserves ordered unrelated HID rows; refuses existing Caps/F18 conflicts, malformed/duplicate rows and ambiguous device locators; records boot/device/process/config identity; and returns the exact original map only while current state equals its recorded applied map. This is a pure decision policy: it performs no HID writes or journal I/O and does not enable Caps profiles. Runtime must still establish physical all-up/Caps-off state, reserve native F18, persist ownership before mutation, verify readback, and recover under the existing lifecycle owner. Concurrent foreign edits and identical replacement maps cannot be made atomic by this policy. Independent source review selects input-boundary F18→logical-Caps translation over a configuration text rewrite: preserve logical config/reload and add explicit managed-Caps input admission. Kanata admission must reject implicit/explicit Caps output, native F18 collisions and unvalidated override/chord/repeat cases; the output translator receives an explicit Caps refusal backstop. This integration is not enabled yet. No new lab infrastructure or permission is planned.
 
 Product3c7970d5a adds the Caps output backstop. All18 focused ownership/output cases passed through the actual package safe runner, with zero compiler/test warnings/errors (14s incremental build, 4s tests); accessibility380 passed. Earlier nine-case integration prebuild took147s. No VM or host mapping mutation occurred for this checkpoint. Current canonical toolchain is the repository `Scripts/lib/xcode.sh` Xcode27.0 pin; prose in AGENTS mentioning26.6 is stale relative to the checked-in selector.
+
+October5 Caps transport checkpoint: product8072e8ef2 adds strict actual-parser
+managed admission, the Swift additive bridge loader, durable intent/restoration,
+and bounded hidutil transport. Ten Rust tests,34 Swift integration tests, and
+focused lease/parser tests pass. A fresh public-UID502 guest acquired Caps→F18 on
+the exact ESP32 service, verified readback, restored the original effective empty
+map and cleared intent without administrator access. Independent mapping/probe
+and provider/template/temporary-USB cleanup passed; no VM remains. See
+[transport receipt](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-caps-mapping-transport.json).
+This supersedes earlier statements that no mapping transport/journal exists.
+Runtime admission remains off. Next is the existing lifecycle owner's activation,
+F18→logical Caps ingress, and normal/crash/next-launch/Secure Input restoration;
+physical all-up/Caps-off and native F18 eligibility remain required. Reconnect and
+reboot ownership cases are not yet accepted. Installer/onboarding remains last.
+
+Final independent review found and root fixed acquisition journal replacement and
+helper-exit confirmation before lock release. Focused regressions and independent
+source review pass on8072e8ef2. The live receipt binds the pre-hardening0445045e2
+transport checkpoint; do not present it as a live test of the final hardening.

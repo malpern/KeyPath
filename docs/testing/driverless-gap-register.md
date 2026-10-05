@@ -160,3 +160,24 @@ Product8c2841849 adds the pure `SessionCapsMappingPolicy` and nine focused tests
 The local macOS `hidutil property --help` lists VID/PID/location/usage/transport/product as direct matching keys and says generic properties must be inside `IOPropertyMatch`; serial is not in its direct-key list. Do not assume the historical top-level SerialNumber selector actually narrowed matching. The product adapter must use the documented generic-property form where needed and independently establish exactly one matching keyboard event service and the expected registry ID before any write/readback. Matching a USB-device registry ancestor is insufficient. No host mappings were read or changed for this help-only check.
 
 Independent source review recommends F18→logical Caps translation at worker ingress instead of a text rewrite: preserve the user config and existing reload owner, and introduce an explicit managed-Caps input capability without adding Caps to the output usage list. Reject raw Caps before translating owned F18; translate before mapped-input lookup and held-input tracking. The Rust validator must remove the unchanged-input exemption for managed Caps and validate implicit source/transparent fallbacks, source-dependent repeat, overrides and chords_v2 as well as the existing nested action traversal. Conservatively refuse unsupported advanced cases in the first slice. Reserve meaningful F18 profile input/output; another keyboard’s native F18 remains an eligibility limitation. Explicit Caps output refusal in SessionOutputState is the runtime backstop. No admission bit or ingress substitution is enabled yet.
+
+## Caps transport checkpoint — October 5
+
+Product8072e8ef2 implements the additive managed validator and durable mapping
+lease/transport; default product admission and worker raw-Caps refusal remain.
+Actual parser regressions cover virtual source/repeat leaks and reserved outputs.
+The fresh ESP32 guest mapping acquire/readback/restore cycle passed under UID502,
+with independent restored-map/journal/process and provider/USB cleanup. No runtime
+Caps input or recovery transition was tested in that cycle. DL-01 remains open:
+connect ingress/lifecycle, then qualify normal stop, crashes/next launch, failed
+activation/reload, reconnect/reboot, native F18 collision and protected-input
+restoration. Two seconds bound useful hidutil execution and64 KiB bounds output; child exit
+is confirmed before lock release (OS termination latency is not bounded); unsupported physical HID
+service shapes refuse. Nil readback is restored as equivalent empty mapping, not
+literal nil. Concurrent foreign writes remain non-atomic. No extra permission,
+maintained launcher, daemon or broad lab change is introduced.
+
+The live transport receipt covers0445045e2.8072e8ef2 additionally checks persisted
+journal identity before acquire mutation/after readback and confirms killed-child
+exit before lease unlock; focused regressions and independent source review pass.
+No separate live hardening or runtime Caps acceptance is claimed.
