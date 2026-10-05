@@ -86,3 +86,7 @@ October5 Secure Input/reload checkpoint: [selected receipt](evidence/2026-10-05-
 | Secure target combined history overflow after completion | Preserve timely secureafter01 receipt before later idle history overflow. Retire completed target; start fresh for next hypothesis. | No full continuous transition claim. |
 | Normal status-menu route timed out twice | Use the actual observed menu through native UI, then verify guest state independently. | Do not repeat the failing helper menu route. |
 | Normal menu Quit during guide modal reported success but left parent | Close guide and verify exact owner exit; scoped all-up termination used only for setup owner. Final ordinary Quit succeeded and was independently checked. | UI return code alone is not process-exit proof. |
+
+## October 5 — latest 12 unsuccessful attempts reviewed
+
+See [the chronological failure review](permission-failure-review-2026-10-05.md). Repeated live-parent cleanup refusals, menu activation permission errors and first-launch/profile ordering consumed multiple cycles. The current packaging ZIP again included rejected Mac metadata; child stderr was discarded, limiting exact live attribution. Generated guest source had an escaping syntax error before execution. Correct prerequisites and validate actual ZIP/generated code/CLI contract locally before another live trial. Narrow joined-write-marker refusal passed; guest was independently disposed.
