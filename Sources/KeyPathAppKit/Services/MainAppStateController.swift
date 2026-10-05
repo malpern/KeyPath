@@ -442,6 +442,7 @@ class MainAppStateController {
         case transientTimeout
         case definitiveFailure
         case missingSessionPermissions
+        case invalidSessionConfiguration(String)
     }
 
     private func performValidation() async {
@@ -475,6 +476,9 @@ class MainAppStateController {
         switch await evaluateKanataStartupGate() {
         case .ready:
             break
+        case let .invalidSessionConfiguration(reason):
+            publishSessionConfigurationRefusal(reason)
+            return
         case .transientTimeout:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "transientTimeout") {
                 AppLogger.shared.warn(
@@ -732,7 +736,29 @@ class MainAppStateController {
         )
     }
 
+    private func publishSessionConfigurationRefusal(_ reason: String) {
+        // Keep this actionable correction out of installer repair. A full system
+        // snapshot cannot make a proven unsupported configuration start running.
+        issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
+                              category: .systemRequirements, title: "Configuration cannot run in driverless mode",
+                              description: reason, autoFixAction: nil,
+                              userAction: "Edit the configuration and retry. Existing rules were preserved.")]
+        validationState = .failed(blockingCount: 1, totalCount: 1)
+        lastValidatedSystemContext = nil
+        lastAdaptedState = .serviceNotRunning
+        lastTCPConfigured = nil
+        lastInstallerStateMatrixRow = nil
+        lastInstallerStateMatrixPlan = nil
+        lastValidationDate = Date()
+        lastValidationTime = Date()
+        AppLogger.shared.error("Driverless configuration refused: \(reason)")
+    }
+
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
+        if KanataRuntimeBackend.selected == .session,
+           let refusal = serviceLifecycle?.configurationRefusalForStartup() {
+            return .invalidSessionConfiguration(refusal)
+        }
         let timing = startupGateTiming()
         let start = Date()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)

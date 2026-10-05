@@ -32,6 +32,78 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testUnsupportedConfigurationRefusesBeforeLaunchAndPersistsFailure() async {
+        let privileged = StubPrivilegedOperationsCoordinator()
+        WizardDependencies.privilegedOperations = privileged
+        var launches = 0
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "Caps Lock remapping requires the advanced driver backend") }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        let admissionResult1 = await coordinator.startKanata(reason: "unsupported config")
+        XCTAssertFalse(admissionResult1)
+        XCTAssertEqual(launches, 0)
+        XCTAssertTrue(privileged.calls.isEmpty)
+        XCTAssertFalse(coordinator.isStartingKanata)
+        let admissionResult2 = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(admissionResult2)
+        guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else {
+            return XCTFail("The refusal must survive absence of a worker report")
+        }
+        XCTAssertTrue(reason.contains("Caps Lock remapping requires the advanced driver backend"))
+        XCTAssertTrue(reason.contains("Edit the configuration"))
+        XCTAssertTrue(reason.contains("existing rules were preserved"))
+    }
+
+    func testValidRetryClearsConfigurationRefusal() async {
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported action") }
+        let admissionResult3 = await coordinator.startKanata()
+        XCTAssertFalse(admissionResult3)
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        let admissionResult4 = await coordinator.startKanata(reason: "corrected config")
+        XCTAssertTrue(admissionResult4)
+        XCTAssertEqual(launches, 1)
+        XCTAssertNil(coordinator.sessionConfigurationRefusal)
+        XCTAssertEqual(coordinator.sessionConfigurationAdmission, .valid)
+    }
+
+    func testUnavailableValidationIsNotUnsupportedConfiguration() async {
+        coordinator.testSessionConfigurationValidation = { .unavailable(reason: "bridge library missing") }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        let admissionResult5 = await coordinator.startKanata()
+        XCTAssertFalse(admissionResult5)
+        XCTAssertEqual(launches, 0)
+        XCTAssertNil(coordinator.sessionConfigurationRefusal)
+        let admissionResult6 = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertTrue(admissionResult6)
+        guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else {
+            return XCTFail("Validation coverage failure must remain visible")
+        }
+        XCTAssertTrue(reason.contains("validation is unavailable"))
+        XCTAssertFalse(reason.contains("cannot run"))
+    }
+
+    func testInvalidRestartPreservesOwnedRunningTapUntilExplicitStop() async {
+        let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
+                                         accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                         tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+        coordinator.testSessionCurrentReport = { report }
+        var validations = 0, stops = 0
+        coordinator.testSessionConfigurationValidation = { validations += 1; return .invalid(reason: "edited config unsupported") }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        let admissionResult7 = await coordinator.restartKanata(reason: "invalid edit")
+        XCTAssertFalse(admissionResult7)
+        XCTAssertEqual(stops, 0)
+        let liveStatus = await coordinator.currentRuntimeStatus()
+        XCTAssertEqual(liveStatus, .running(pid: 100))
+        XCTAssertNil(coordinator.configurationRefusalForStartup())
+        XCTAssertEqual(validations, 1, "Readiness must use the owned live tap rather than reparsing edited input")
+        let admissionResult8 = await coordinator.stopKanata(reason: "explicit stop")
+        XCTAssertTrue(admissionResult8)
+        XCTAssertEqual(stops, 1, "Refusal must not bypass owned stop/restore admission")
+    }
+
     // MARK: - Session lifecycle routing
 
     func testStartUsesSessionOwnerWithoutPrivilegedFallbackOnFailure() async {

@@ -694,7 +694,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             let setupReady = await InstallerEngine().inspectSystem().isReady
             AppLogger.shared.info("🆕 [AppDelegate] Backend setup ready: \(setupReady)")
-            if !setupReady {
+            if !setupReady, let refusal = self.kanataManager?.serviceLifecycleCoordinator.configurationRefusalForStartup() {
+                AppLogger.shared.warn("Automatic setup cannot repair the current configuration: \(refusal)")
+                NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+            } else if !setupReady {
                 AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
                 NotificationCenter.default.post(name: .showWizard, object: nil)

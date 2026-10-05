@@ -5,6 +5,9 @@ import KeyPathPermissions
 
 extension ServiceLifecycleCoordinator {
     func currentSessionReport() -> SessionRuntimeReport? {
+        #if DEBUG
+            if let report = testSessionCurrentReport { return report() }
+        #endif
         guard let application = sessionApplication, !application.isTerminated,
               let url = sessionReportURL, let nonce = sessionNonce,
               let report = Self.readSessionReport(url),

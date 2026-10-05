@@ -15,6 +15,7 @@ final class ServiceLifecycleCoordinator {
     var sessionReportURL: URL?
     var sessionNonce: String?
     var sessionOutputsRecovered = false
+    private(set) var sessionConfigurationAdmission: KanataHostBridgeValidationResult?
     var sessionSupervisionTask: Task<Void, Never>?
     // Process ownership is serialized across suspension points, independently of
     // configuration persistence. Intent changes immediately, before admission.
@@ -53,6 +54,8 @@ final class ServiceLifecycleCoordinator {
         /// Lifecycle tests inject session operations without launching an application.
         nonisolated(unsafe) static var testSessionStart: (@MainActor (String) async -> Bool)?
         nonisolated(unsafe) static var testSessionStop: (@MainActor () async -> Bool)?
+        var testSessionCurrentReport: (() -> SessionRuntimeReport?)?
+        var testSessionConfigurationValidation: (() -> KanataHostBridgeValidationResult)?
         var testSessionRequestObserved: ((UInt64) -> Void)?
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?
         var testSessionSupervisionStarted: ((UInt64) -> Void)?
@@ -203,14 +206,67 @@ final class ServiceLifecycleCoordinator {
         case let .stop(reason):
             return await stopSessionAdmitted(reason: reason)
         case let .restart(reason):
+            guard admitSessionConfiguration(), sessionStartIsCurrent(generation) else { return false }
             guard await stopSessionAdmitted(reason: "\(reason) (stop for restart)"),
                   sessionStartIsCurrent(generation) else { return false }
             return await startSessionAdmitted(reason: "\(reason) (restart)", generation: generation)
         }
     }
 
+    /// Read the unchanged current file once per admission, before any owned stop
+    /// or launch. Worker validation remains the final check at execution time.
+    @discardableResult
+    func refreshSessionConfigurationAdmission() -> KanataHostBridgeValidationResult {
+        let result: KanataHostBridgeValidationResult
+        #if DEBUG
+            if let validate = testSessionConfigurationValidation {
+                result = validate()
+            } else if TestEnvironment.isTestHostProcess {
+                result = .valid
+            } else {
+                result = readSessionConfigurationAdmission()
+            }
+        #else
+            result = readSessionConfigurationAdmission()
+        #endif
+        sessionConfigurationAdmission = result
+        return result
+    }
+
+    private func readSessionConfigurationAdmission() -> KanataHostBridgeValidationResult {
+        let path = KeyPathConstants.Config.mainConfigPath
+        guard FileManager.default.fileExists(atPath: path) else {
+            return .unavailable(reason: "User configuration is not available yet")
+        }
+        return SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current()).result
+    }
+
+    var sessionConfigurationRefusal: String? {
+        guard case .invalid = sessionConfigurationAdmission else { return nil }
+        return sessionConfigurationAdmission.flatMap(SessionCapsRuntimeSupport.startupFailureMessage)
+    }
+
+    /// A rejected edited file does not invalidate an already owned running tap.
+    /// No-start and skipped-start paths still get current admission before UI polling.
+    func configurationRefusalForStartup() -> String? {
+        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
+        refreshSessionConfigurationAdmission()
+        return sessionConfigurationRefusal
+    }
+
+    private func admitSessionConfiguration() -> Bool {
+        let admission = refreshSessionConfigurationAdmission()
+        guard case .valid = admission else {
+            onError?(SessionCapsRuntimeSupport.startupFailureMessage(admission))
+            onStateChanged?()
+            return false
+        }
+        return true
+    }
+
     private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {
-        guard sessionStartIsCurrent(generation) else { return false }
+        guard sessionStartIsCurrent(generation), admitSessionConfiguration(),
+              sessionStartIsCurrent(generation) else { return false }
         stopGraceUntil = nil
         lastStartAttemptAt = Date()
         isStartingKanata = true
@@ -246,7 +302,9 @@ final class ServiceLifecycleCoordinator {
     }
 
     func isInTransientRuntimeStartupWindow() async -> Bool {
-        windowEvaluator.isInWindow(
+        if sessionConfigurationRefusal != nil,
+           currentSessionReport()?.state != .running { return false }
+        return windowEvaluator.isInWindow(
             now: Date(),
             isStarting: isStartingKanata,
             lastStartAttemptAt: lastStartAttemptAt,
@@ -264,7 +322,13 @@ final class ServiceLifecycleCoordinator {
 
     func currentRuntimeStatus() async -> RuntimeStatus {
         if isStartingKanata { return .starting }
-        guard let report = currentSessionReport() else { return .stopped }
+        guard let report = currentSessionReport() else {
+            if let admission = sessionConfigurationAdmission,
+               let reason = SessionCapsRuntimeSupport.startupFailureMessage(admission) {
+                return .failed(reason: reason)
+            }
+            return .stopped
+        }
         return report.state == .running && report.tapActive
             ? .running(pid: Int(report.pid)) : .failed(reason: report.failure ?? report.state.rawValue)
     }

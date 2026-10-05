@@ -639,6 +639,46 @@ struct MainAppStateControllerBehaviorTests {
         }
     }
 
+    @Test("Unsupported config without a start request bypasses grace and permission worker polling")
+    func unsupportedSessionConfigPublishesBeforeStartupPolling() async {
+        let controller = MainAppStateController()
+        let manager = RuntimeCoordinator()
+        let lifecycle = manager.serviceLifecycleCoordinator
+        var validations = 0, permissionProbes = 0, healthProbes = 0
+        lifecycle.testSessionConfigurationValidation = {
+            validations += 1
+            return .invalid(reason: "Caps Lock remapping requires the advanced driver backend")
+        }
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+        controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { permissionProbes += 1; return sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { healthProbes += 1; return KanataRuntimeReadiness(isRunning: false, isResponding: false) },
+            transientWindowOverride: { true },
+            timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
+        )
+        defer { controller.resetStartupGateTestingState() }
+        await controller.revalidate()
+        #expect(validations == 1)
+        #expect(permissionProbes == 0)
+        #expect(healthProbes == 0)
+        #expect(controller.validationState?.hasCriticalIssues == true)
+        #expect(controller.issues.count == 1)
+        #expect(controller.issues.first?.description.contains("Caps Lock remapping") == true)
+        #expect(controller.issues.first?.autoFixAction == nil)
+        #expect(controller.issues.first?.userAction?.contains("Edit the configuration") == true)
+        #expect(await lifecycle.isInTransientRuntimeStartupWindow() == false)
+
+        lifecycle.testSessionConfigurationValidation = { .valid }
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { KanataRuntimeReadiness(isRunning: true, isResponding: true, inputCaptureReady: true) },
+            transientWindowOverride: { true }
+        )
+        #expect(await controller.evaluateKanataStartupGateForTesting())
+        #expect(lifecycle.sessionConfigurationRefusal == nil)
+    }
+
     private func sessionPermissions(
         inputMonitoring: PermissionOracle.Status,
         workerAX: PermissionOracle.Status = .granted,
