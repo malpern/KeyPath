@@ -1,0 +1,206 @@
+{
+  "trialRoot": "/private/tmp/keypath-readiness-live-01",
+  "sourceCommit": "dabf769ee5f76ee73532abd1f515b290e83f9261",
+  "installedMainSHA256": "bcfad6269f39f415b18091989b6cf6dfa5ab70d723526b25844bd85f5029c113",
+  "coreNegativePermissionReadinessPassed": true,
+  "negativeUIAcceptance": false,
+  "negativeUIIssue": "Status placeholders remained while legacy startup gate delayed publication.",
+  "positiveWorker": {
+    "accessibility": true,
+    "effectiveInputAccess": true,
+    "experimentalTapDiagnostics": {
+      "aMapped": true,
+      "configSHA256": "4cf78f9e44b5fe0e58c4bfce714b619e82d018268465acf6e660bba771a91631",
+      "qMapped": true,
+      "rawTapCallbackCount": 0,
+      "registeredTap": {
+        "enumerationAttempted": true,
+        "outcome": "observed",
+        "queryLimit": 128,
+        "rawAccessibility": "granted",
+        "rawListenEvent": "granted",
+        "rawPostEvent": "granted",
+        "requestedMask": 7168,
+        "rows": [
+          {
+            "enabled": true,
+            "mask": 7168
+          }
+        ]
+      }
+    },
+    "experimentalTapTimeout": {
+      "callbackFirstResult": "notObserved",
+      "initialization": "initialized",
+      "preparation": "commandUnavailable"
+    },
+    "heldOutputUsages": [],
+    "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+    "inputCount": 0,
+    "nonce": "F78FCBE6-98A9-445A-B30F-9F6A03BB2F12",
+    "outputCount": 0,
+    "pid": 2155,
+    "state": "running",
+    "tapActive": true,
+    "tcpPort": 37001,
+    "timestamp": 812914106.234559,
+    "uid": 502
+  },
+  "physical": {
+    "attachmentObservedAt": 1791221345.20606,
+    "checks": {
+      "allUp": true,
+      "downs": true,
+      "exactTrace": true,
+      "inputDelta": true,
+      "outputDelta": true,
+      "reportsSubmitted": true,
+      "text": true,
+      "ups": true
+    },
+    "expectedText": "a",
+    "fixture": {
+      "reportsSubmitted": 2,
+      "runId": "restart-8445ae7dc67b46848bdfc08b64433456",
+      "state": "complete"
+    },
+    "hostUSB": {
+      "actualStatus": 0,
+      "observedAtEpoch": 1791221371.111085,
+      "providerUUID": "36e1cd5e-7e25-4c66-b2e7-79c71d344e3a",
+      "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+    },
+    "identity": {
+      "parentArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+      ],
+      "parentPID": 2146,
+      "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-F78FCBE6-98A9-445A-B30F-9F6A03BB2F12/report.json",
+      "targetNonce": "29BA64A9-643B-4902-9107-A24C06131D25",
+      "targetPID": 2192,
+      "workerArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+        "--session-runtime",
+        "--session-report",
+        "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-F78FCBE6-98A9-445A-B30F-9F6A03BB2F12/report.json",
+        "--session-nonce",
+        "F78FCBE6-98A9-445A-B30F-9F6A03BB2F12",
+        "--session-owner",
+        "2146",
+        "--session-port",
+        "37001",
+        "--session-config",
+        "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+      ],
+      "workerNonce": "F78FCBE6-98A9-445A-B30F-9F6A03BB2F12",
+      "workerPID": 2155
+    },
+    "lease": "cbx_c7ecf8778167",
+    "passed": true,
+    "providerUUID": "36e1cd5e-7e25-4c66-b2e7-79c71d344e3a",
+    "runId": "restart-8445ae7dc67b46848bdfc08b64433456",
+    "sample": "q",
+    "target": {
+      "downs": 1,
+      "held": [],
+      "modifiers": 0,
+      "observedAt": 1791221382.8868198,
+      "text": "a",
+      "ups": 1
+    },
+    "trace": [
+      {
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 12,
+        "modifiers": 0,
+        "scheduledUs": 707205501891,
+        "sequence": 1,
+        "submittedUs": 707205501903
+      },
+      {
+        "keys": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 21,
+        "modifiers": 0,
+        "scheduledUs": 707205541891,
+        "sequence": 2,
+        "submittedUs": 707205541912
+      }
+    ]
+  },
+  "guestCleanup": {
+    "bootEpoch": 1791220750,
+    "cutoff": 1791223973,
+    "originalProfileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+    "passed": true,
+    "phase": "post-consent-cleanup",
+    "products": {
+      "focus": {
+        "sha256": "a41258da97ccb31acc3794797142b8e589ad939e7b822a1e99579753e7c30d8d",
+        "uid": 502
+      },
+      "main": {
+        "sha256": "bcfad6269f39f415b18091989b6cf6dfa5ab70d723526b25844bd85f5029c113",
+        "uid": 502
+      },
+      "target": {
+        "sha256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858",
+        "uid": 502
+      }
+    },
+    "reportAbsent": true,
+    "selectedProcesses": []
+  },
+  "destroy": {
+    "actualStatus": 0,
+    "stdout": "warning: could not stop GitHub Actions hydration for cbx_c7ecf8778167: write GitHub Actions hydration stop marker on 10.211.55.157: exit status 255\ndeleted lease=cbx_c7ecf8778167 server=36e1cd5e-7e25-4c66-b2e7-79c71d344e3a name=crabbox-cbx-c7ecf8778167-keypath26-dabf769e-20261005171853-48614\n",
+    "stderr": "",
+    "at": 1791221490.605068
+  },
+  "providerCleanup": {
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ],
+    "passed": true
+  },
+  "limits": [
+    "TCP port is reported by worker; no separate TCP request/response recorded.",
+    "UI guidance was observed in Oracle logs; immediate status UI failed.",
+    "No session transition, Caps Lock, genuine timeout or sustained reliability acceptance."
+  ],
+  "receipts": {
+    "owned-lease.json": "fd930ee674e7b5bf02394814145be7357ad994baf297314ed791da46a18be2a9",
+    "guest-identity.json": "f30b04b8121af3e3c0b72e2fefedaa6dd8e42706a4a780d09a68be662eb350fd",
+    "install-current-01-verified.json": "e11687fd17057fa1f17daa5af2d58bf186f42c7843dccb3d17609f0255efc4b3",
+    "negative-inspect-01-result.json": "5070cd10edf4edbe34f408297a36c18195b3c38bf1189a4c85272185591d0148",
+    "negative-log-01-result.json": "445b291528ad76266ed27fe511541c3bc17765d5e02514227fbda184c5d1cf3c",
+    "positive-inspect-01-result.json": "e78090bf561477388669b25b86e00d4e0ff9be411cb3fb2d11cca73fe90fb183",
+    "consent-positive-01-sample-result.json": "9ee1bf69328799b9046acf7197f87e584d9a7722f082300b135d154f3eb1e300",
+    "independent-guest-cleanup-01-result.json": "400a45acb27f8f31667326e2d3b539dd79231eda090714a18a1ac34b87c5b22a",
+    "destroy-result.json": "dc38eceb27d0bb7679576d36ef5d3310eb5e4599c3c4f54cc182c1f830d8d355",
+    "provider-cleanup-result.json": "94aea63982963465ba91189b2f3c229c59e31c517125eddb23ef33ea07f24fa3"
+  }
+}
