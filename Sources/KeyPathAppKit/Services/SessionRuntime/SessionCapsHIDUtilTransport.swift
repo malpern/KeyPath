@@ -19,17 +19,18 @@ public enum SessionCapsHIDUtilTransport {
         if let location = device.locationID { match["LocationID"] = location }
         // SerialNumber is not a supported top-level matching key in hidutil help.
         if let serial = device.serialNumber { match["IOPropertyMatch"] = ["SerialNumber": serial] }
-        return String(decoding: try JSONSerialization.data(withJSONObject: match, options: [.sortedKeys]), as: UTF8.self)
+        return try String(decoding: JSONSerialization.data(withJSONObject: match, options: [.sortedKeys]), as: UTF8.self)
     }
 
     /// These arguments are for Process(executableURL: /usr/bin/hidutil), never a shell.
     public static func readArguments(_ device: Policy.DeviceIdentity) throws -> [String] {
-        ["property", "--matching", try selector(device), "--get", "UserKeyMapping"]
+        try ["property", "--matching", selector(device), "--get", "UserKeyMapping"]
     }
+
     public static func writeArguments(_ device: Policy.DeviceIdentity, mappings: [Policy.Mapping]) throws -> [String] {
         let rows = try JSONEncoder().encode(mappings)
         let json = "{\"UserKeyMapping\":" + String(decoding: rows, as: UTF8.self) + "}"
-        return ["property", "--matching", try selector(device), "--set", json]
+        return try ["property", "--matching", selector(device), "--set", json]
     }
 
     public static func parseProperty(_ output: String, device: Policy.DeviceIdentity) throws -> SessionCapsMappingLease.Snapshot {
@@ -69,7 +70,7 @@ public enum SessionCapsHIDUtilTransport {
                 // The policy's decoder rejects invalid usage values and unknown
                 // fields. No row is silently discarded or normalized.
                 let data = try JSONSerialization.data(withJSONObject: row)
-                mappings.append(try JSONDecoder().decode(Policy.Mapping.self, from: data))
+                try mappings.append(JSONDecoder().decode(Policy.Mapping.self, from: data))
                 if scanner.scanString(")") != nil { break }
                 try token(",")
             }
@@ -97,8 +98,12 @@ public enum SessionCapsHIDUtilTransport {
             }
             let page = try number("PrimaryUsagePage", maximum: 0xFFFF)
             let usage = try number("PrimaryUsage", maximum: 0xFFFF)
-            guard let ioClass = row["IOClass"] as? String, !ioClass.isEmpty else { throw Refusal.unsupportedOutput }
             if page != 1 || usage != 6 { continue }
+            // Witnessed Parallels platform keyboard is not a physical device
+            // eligible for a managed mapping lease. Do not infer USB identity.
+            if row["Transport"] as? String == "AppleVirtualPlatformHIDBridge",
+               try number("LocationID", maximum: UInt64(UInt32.max)) == 0 { continue }
+            guard let ioClass = row["IOClass"] as? String, !ioClass.isEmpty else { throw Refusal.unsupportedOutput }
             guard ioClass == "AppleUserHIDEventService" else { throw Refusal.unsupportedOutput }
             let registry = try number("IORegistryEntryID")
             let vendor = try number("VendorID", maximum: 0xFFFF)
@@ -114,8 +119,8 @@ public enum SessionCapsHIDUtilTransport {
             let device = Policy.DeviceIdentity(registryEntryID: registry, vendorID: UInt32(vendor),
                                                productID: UInt32(product), serialNumber: serial, locationID: UInt32(location))
             guard !devices.contains(where: { $0.registryEntryID == registry ||
-                ($0.vendorID == device.vendorID && $0.productID == device.productID && $0.locationID == device.locationID &&
-                    ($0.serialNumber == nil || device.serialNumber == nil || $0.serialNumber == device.serialNumber))
+                    ($0.vendorID == device.vendorID && $0.productID == device.productID && $0.locationID == device.locationID &&
+                        ($0.serialNumber == nil || device.serialNumber == nil || $0.serialNumber == device.serialNumber))
             }) else { throw Policy.Refusal.ambiguousDevice }
             devices.append(device)
         }
@@ -142,7 +147,9 @@ public enum SessionCapsHIDUtilTransport {
         process.standardOutput = output
         process.standardError = error
         let handles = [output.fileHandleForReading, error.fileHandleForReading]
-        defer { for handle in handles { try? handle.close() } }
+        defer { for handle in handles {
+            try? handle.close()
+        } }
         for handle in handles {
             guard fcntl(handle.fileDescriptor, F_SETFL, O_NONBLOCK) == 0 else { throw Refusal.commandFailed }
         }
@@ -162,7 +169,7 @@ public enum SessionCapsHIDUtilTransport {
                     data[index].append(contentsOf: buffer.prefix(count))
                     guard data[0].count + data[1].count <= 65536 else { throw Refusal.excessiveOutput }
                 } else if count == 0 { ended[index] = true }
-                else if errno != EAGAIN && errno != EINTR { throw Refusal.commandFailed }
+                else if errno != EAGAIN, errno != EINTR { throw Refusal.commandFailed }
             }
             var descriptors = handles.enumerated().map { index, handle in
                 pollfd(fd: ended[index] ? -1 : handle.fileDescriptor, events: Int16(POLLIN | POLLHUP), revents: 0)
@@ -173,5 +180,4 @@ public enum SessionCapsHIDUtilTransport {
               let text = String(data: data[0], encoding: .utf8) else { throw Refusal.commandFailed }
         return text
     }
-
 }
