@@ -20,6 +20,8 @@ public final class SessionCapsMappingLease {
     public struct Backend {
         public let enumerate: () throws -> [Policy.DeviceIdentity]
         public let read: (Policy.DeviceIdentity) throws -> Snapshot
+        /// Must join all mutation child processes before returning or throwing.
+        /// The durable in-flight marker can be cleared only after that guarantee.
         public let write: (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void
         public init(enumerate: @escaping () throws -> [Policy.DeviceIdentity],
                     read: @escaping (Policy.DeviceIdentity) throws -> Snapshot,
@@ -32,12 +34,13 @@ public final class SessionCapsMappingLease {
     }
 
     public enum Refusal: Error, Equatable {
-        case unsafeDirectory, unsafeFile, busy, pendingIntent, wrongOwner, unverifiedWrite, journalIO
+        case unsafeDirectory, unsafeFile, busy, pendingIntent, wrongOwner, unverifiedWrite, journalIO, mutationUncertain
     }
 
     private let directory: URL
     private let backend: Backend
     private let journal = "caps-mapping-intent.json"
+    private let mutationMarker = "caps-mapping-mutation-in-flight.json"
     private let maximumSize = 65536
 
     public init(directory: URL, backend: Backend) {
@@ -55,6 +58,7 @@ public final class SessionCapsMappingLease {
                         device: Policy.DeviceIdentity) throws -> Policy.Record
     {
         try locked { fd in
+            try requireNoMutation(directoryFD: fd)
             guard try load(fd) == nil else { throw Refusal.pendingIntent }
             guard owner.uid == getuid() else { throw Refusal.wrongOwner }
             let devices = try backend.enumerate()
@@ -70,9 +74,10 @@ public final class SessionCapsMappingLease {
             guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
             guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
             try verifyJournal(persisted, directoryFD: fd)
-            try backend.write(device, record.applied)
+            try mutate(record: record, mappings: record.applied, directoryFD: fd)
             let applied = try backend.read(device)
             guard applied.device == device, applied.mappings == record.applied else { throw Refusal.unverifiedWrite }
+            try requireNoMutation(directoryFD: fd)
             try verifyJournal(persisted, directoryFD: fd)
             return record
         }
@@ -82,6 +87,7 @@ public final class SessionCapsMappingLease {
     /// that owner dead externally, then pass the recorded owner here.
     public func restore(expectedOwner: Policy.Owner, bootSessionUUID: String) throws {
         try locked { fd in
+            try requireNoMutation(directoryFD: fd)
             guard let loaded = try load(fd) else { return }
             let record = loaded.record
             guard record.owner == expectedOwner, record.owner.uid == getuid() else { throw Refusal.wrongOwner }
@@ -95,13 +101,65 @@ public final class SessionCapsMappingLease {
                 let original = try Policy.restore(record: record, current: snapshot.mappings,
                                                   device: snapshot.device, bootSessionUUID: bootSessionUUID)
                 try verifyJournal(loaded, directoryFD: fd)
-                try backend.write(record.device, original)
+                try mutate(record: record, mappings: original, directoryFD: fd)
                 let restored = try backend.read(record.device)
                 guard restored.device == record.device, restored.mappings == original else { throw Refusal.unverifiedWrite }
             }
+            try requireNoMutation(directoryFD: fd)
             try verifyJournal(loaded, directoryFD: fd)
             guard unlinkat(fd, journal, 0) == 0, fsync(fd) == 0 else { throw Refusal.journalIO }
         }
+    }
+
+    /// A marker surviving worker death may mean an orphan hidutil still owns a
+    /// pending write. Never infer safety from owner PIDs, elapsed time, or maps
+    /// currently reading original: a late child write can follow that read.
+    private func requireNoMutation(directoryFD: Int32) throws {
+        var metadata = stat()
+        if fstatat(directoryFD, mutationMarker, &metadata, AT_SYMLINK_NOFOLLOW) == 0 {
+            throw Refusal.mutationUncertain
+        }
+        guard errno == ENOENT else { throw Refusal.mutationUncertain }
+    }
+
+    private func mutate(record: Policy.Record, mappings: [Policy.Mapping], directoryFD: Int32) throws {
+        let data = try JSONEncoder().encode(record.owner)
+        let fd = openat(directoryFD, mutationMarker, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard fd >= 0 else { throw Refusal.mutationUncertain }
+        defer { close(fd) }
+        try checkFile(fd)
+        var written = 0
+        try data.withUnsafeBytes { bytes in
+            while written < bytes.count {
+                let n = write(fd, bytes.baseAddress!.advanced(by: written), bytes.count - written)
+                if n < 0 { if errno == EINTR { continue }; throw Refusal.mutationUncertain }
+                guard n > 0 else { throw Refusal.mutationUncertain }
+                written += n
+            }
+        }
+        guard fsync(fd) == 0, fsync(directoryFD) == 0 else { throw Refusal.mutationUncertain }
+        var metadata = stat()
+        guard fstat(fd, &metadata) == 0 else { throw Refusal.mutationUncertain }
+        // Verify the entry before launching a child as well as before removal.
+        try verifyMarker(metadata, directoryFD: directoryFD)
+        do {
+            try backend.write(record.device, mappings)
+        } catch {
+            try clearMarker(metadata, directoryFD: directoryFD)
+            throw error
+        }
+        try clearMarker(metadata, directoryFD: directoryFD)
+    }
+
+    private func verifyMarker(_ expected: stat, directoryFD: Int32) throws {
+        var current = stat()
+        guard fstatat(directoryFD, mutationMarker, &current, AT_SYMLINK_NOFOLLOW) == 0,
+              sameEntry(expected, current) else { throw Refusal.mutationUncertain }
+    }
+
+    private func clearMarker(_ expected: stat, directoryFD: Int32) throws {
+        try verifyMarker(expected, directoryFD: directoryFD)
+        guard unlinkat(directoryFD, mutationMarker, 0) == 0, fsync(directoryFD) == 0 else { throw Refusal.mutationUncertain }
     }
 
     private func verifyInstance(_ record: Policy.Record) throws {

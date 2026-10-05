@@ -18,6 +18,7 @@ struct SessionCapsMappingLeaseRunner {
         var devices = [device]
         var failWrite = false
         var failRead = false
+        var beforeWrite: (() throws -> Void)?
         var afterRead: (() throws -> Void)?
         var afterWrite: (() throws -> Void)?
         var writes = 0
@@ -28,6 +29,7 @@ struct SessionCapsMappingLeaseRunner {
                 return .init(device: identity, mappings: self.mappings)
             }, write: { _, value in
                 self.writes += 1
+                try self.beforeWrite?()
                 if self.failWrite { throw Failure.simulated }
                 self.mappings = value
                 try self.afterWrite?()
@@ -42,6 +44,11 @@ struct SessionCapsMappingLeaseRunner {
 
     static func refused(_ body: () throws -> Void) {
         do { try body(); fatalError("expected refusal") } catch {}
+    }
+
+    static func uncertain(_ body: () throws -> Void) {
+        do { try body(); fatalError("expected mutationUncertain") }
+        catch { precondition(error as? Lease.Refusal == .mutationUncertain) }
     }
 
     static func temporary() throws -> URL {
@@ -195,6 +202,90 @@ struct SessionCapsMappingLeaseRunner {
                 refused { _ = try acquire(lease) }
                 try check(fake.writes == (removeBeforeWrite ? 0 : 1))
             }
+        }
+        let markerName = "caps-mapping-mutation-in-flight.json"
+        try scenario { root, fake, lease in
+            let marker = root.appendingPathComponent(markerName)
+            fake.beforeWrite = {
+                try check(FileManager.default.fileExists(atPath: marker.path))
+                let expectedOwner = try JSONDecoder().decode(Policy.Owner.self, from: Data(contentsOf: marker))
+                try check(expectedOwner == owner)
+                var metadata = stat()
+                try check(lstat(marker.path, &metadata) == 0 && metadata.st_uid == getuid() && metadata.st_mode & 0o7777 == 0o600)
+            }
+            _ = try acquire(lease)
+            try check(!FileManager.default.fileExists(atPath: marker.path))
+            try restore(lease)
+            try check(fake.writes == 2 && !FileManager.default.fileExists(atPath: marker.path))
+        }
+        try scenario { root, fake, lease in
+            let marker = root.appendingPathComponent(markerName)
+            fake.beforeWrite = { try check(FileManager.default.fileExists(atPath: marker.path)) }
+            fake.failWrite = true
+            refused { _ = try acquire(lease) }
+            try check(lease.pendingRecord() != nil && !FileManager.default.fileExists(atPath: marker.path))
+            fake.failWrite = false
+            try restore(lease)
+            try check(lease.pendingRecord() == nil)
+            _ = try acquire(lease)
+            fake.failWrite = true
+            refused { try restore(lease) }
+            try check(lease.pendingRecord() != nil && !FileManager.default.fileExists(atPath: marker.path))
+        }
+        for pending in [false, true] {
+            try scenario { root, fake, lease in
+                if pending { _ = try acquire(lease) }
+                let before = try lease.pendingRecord()
+                let marker = root.appendingPathComponent(markerName)
+                try JSONEncoder().encode(owner).write(to: marker)
+                chmod(marker.path, 0o600)
+                let writes = fake.writes
+                // Simulated process-death artifact. Current maps being exactly
+                // original does not prove an orphan child cannot write later.
+                fake.mappings = original
+                uncertain { _ = try acquire(lease) }
+                uncertain { try restore(lease) }
+                try check(lease.pendingRecord() == before && fake.writes == writes)
+                try check(FileManager.default.fileExists(atPath: marker.path))
+                uncertain { try restore(Lease(directory: root, backend: fake.backend)) }
+            }
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            fake.mappings = original
+            let marker = root.appendingPathComponent(markerName)
+            fake.afterRead = {
+                try JSONEncoder().encode(owner).write(to: marker)
+                chmod(marker.path, 0o600)
+            }
+            uncertain { try restore(lease) }
+            try check(lease.pendingRecord() == record && FileManager.default.fileExists(atPath: marker.path))
+        }
+        for acquiring in [false, true] {
+            try scenario { root, fake, lease in
+                if !acquiring { _ = try acquire(lease) }
+                let marker = root.appendingPathComponent(markerName)
+                fake.afterWrite = {
+                    let replacement = root.appendingPathComponent("replacement-marker")
+                    try Data("foreign replacement".utf8).write(to: replacement)
+                    chmod(replacement.path, 0o600)
+                    try FileManager.default.removeItem(at: marker)
+                    try FileManager.default.moveItem(at: replacement, to: marker)
+                }
+                if acquiring { uncertain { _ = try acquire(lease) } }
+                else { uncertain { try restore(lease) } }
+                try check(lease.pendingRecord() != nil && Data(contentsOf: marker) == Data("foreign replacement".utf8))
+                fake.afterWrite = nil
+                uncertain { try restore(lease) }
+            }
+        }
+        try scenario { root, fake, lease in
+            let target = root.appendingPathComponent("marker-target")
+            try Data("unchanged".utf8).write(to: target)
+            try FileManager.default.createSymbolicLink(at: root.appendingPathComponent(markerName), withDestinationURL: target)
+            uncertain { _ = try acquire(lease) }
+            uncertain { try restore(lease) }
+            try check(fake.writes == 0 && Data(contentsOf: target) == Data("unchanged".utf8))
         }
         let header = "RegistryID  Key                   Value\n2a   UserKeyMapping   "
         let row = "{ HIDKeyboardModifierMappingDst = 30064771181; HIDKeyboardModifierMappingSrc = 30064771129; }"
