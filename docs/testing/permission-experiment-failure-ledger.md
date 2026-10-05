@@ -23,8 +23,9 @@ refresh temporarily returned unknown worker capabilities. A new validation enter
 a startup wait that checked permissions only once; later known denial could not
 interrupt it. This is a product polling race, not lab infrastructure failure.
 247822796 moves the existing canonical check into the existing loop; source
-regression unknown→denied passed within the41focused cases. Fresh signed validation
-pending. The f767 consent/physical sample and independent cleanup all passed.
+regression unknown→denied passed within the41focused cases. Fresh signed247822796 validation passed: canonical guidance visible at10.6sec and53.3sec, normal consent and physical input passed. The f767 consent/physical sample and independent cleanup all passed.
 Receipt: [status recheck](evidence/2026-10-05-status-recheck.json). Cleanup callers
 require exactly pid+nonce; omitted identity or an extra uid safely refused before
 mutation. Use the documented two-field binding on the first attempt.
+
+October5 completed acceptance: [permission and session receipt](evidence/2026-10-05-permission-and-session-acceptance.json). One all-up logout/login cycle passed with new runtime identities and real q→a. Owner-exited cleanup occurred first, so observer-specific retirement remains unproven. Read-only TCP Hello succeeded; Status is unsupported by the preserved bridge. Classify this as protocol compatibility, not a VM transport failure. Cleanup and independent provider/template/fixture checks passed; no owned VM remains active.

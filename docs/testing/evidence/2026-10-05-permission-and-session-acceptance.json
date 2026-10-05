@@ -1,0 +1,222 @@
+{
+  "sourceCommit": "247822796ab7a8e3cfccaa755902238c9ecdddc2",
+  "lease": "cbx_e305b1266c88",
+  "rawEvidenceRoot": "/private/tmp/keypath-status-recheck-live-01",
+  "mainSHA256": "faa54231b70034b46538c4b2c9e4d22cefece9967353d066e45387cf06573b2b",
+  "results": {
+    "permissionStatus": "PASS: canonical missing-IM guidance visible at10.6sec and53.3sec after launch result, including temporary unknown refresh",
+    "normalConsentPhysicalRemap": {
+      "attachmentObservedAt": 1791223719.444695,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-5402004ebf4c4cc8846145f01b3e48cc",
+        "state": "complete"
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791223736.437515,
+        "providerUUID": "5b644afa-4c9e-48c1-9ad2-484fd28f53eb",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 1994,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-560BB117-9973-4F21-B9F6-2275681BBD9B/report.json",
+        "targetNonce": "8B3F9AD8-5DFD-4D90-868A-75C8785D8E3C",
+        "targetPID": 2068,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-560BB117-9973-4F21-B9F6-2275681BBD9B/report.json",
+          "--session-nonce",
+          "560BB117-9973-4F21-B9F6-2275681BBD9B",
+          "--session-owner",
+          "1994",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "560BB117-9973-4F21-B9F6-2275681BBD9B",
+        "workerPID": 2003
+      },
+      "lease": "cbx_e305b1266c88",
+      "passed": true,
+      "providerUUID": "5b644afa-4c9e-48c1-9ad2-484fd28f53eb",
+      "runId": "restart-5402004ebf4c4cc8846145f01b3e48cc",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791223748.106471,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 1,
+          "modifiers": 0,
+          "scheduledUs": 709570879367,
+          "sequence": 1,
+          "submittedUs": 709570879368
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 26,
+          "modifiers": 0,
+          "scheduledUs": 709570919367,
+          "sequence": 2,
+          "submittedUs": 709570919393
+        }
+      ]
+    },
+    "normalLogoutLoginPhysicalRemap": {
+      "attachmentObservedAt": 1791224109.6624,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-84e373e0ea6843a6b1809eb4eaf9b6cf",
+        "state": "complete"
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791224130.229019,
+        "providerUUID": "5b644afa-4c9e-48c1-9ad2-484fd28f53eb",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 2308,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-5F574AD4-40BF-4E0D-86D5-A46B0BE04197/report.json",
+        "targetNonce": "4E28CB62-95FB-4657-A824-8A04735151D2",
+        "targetPID": 2603,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-5F574AD4-40BF-4E0D-86D5-A46B0BE04197/report.json",
+          "--session-nonce",
+          "5F574AD4-40BF-4E0D-86D5-A46B0BE04197",
+          "--session-owner",
+          "2308",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "5F574AD4-40BF-4E0D-86D5-A46B0BE04197",
+        "workerPID": 2461
+      },
+      "lease": "cbx_e305b1266c88",
+      "passed": true,
+      "providerUUID": "5b644afa-4c9e-48c1-9ad2-484fd28f53eb",
+      "runId": "restart-84e373e0ea6843a6b1809eb4eaf9b6cf",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791224142.095073,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 19,
+          "modifiers": 0,
+          "scheduledUs": 709964770046,
+          "sequence": 1,
+          "submittedUs": 709964770065
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 3,
+          "modifiers": 0,
+          "scheduledUs": 709964810046,
+          "sequence": 2,
+          "submittedUs": 709964810049
+        }
+      ]
+    },
+    "logout": "consoleUID0, old worker stopped owner-exited, inactive tap, empty held outputs and absent processes; same boot",
+    "login": "consoleUID502; macOS reopened app, new parent2308/worker2461/nonce; all eight physical checks passed",
+    "tcp": "HelloOk PASS; Status command unsupported by preserved bridge, not waived",
+    "cleanup": "profile restored, processes/target report absent, destroy actual0, independent provider absent/template retained/fixture detached PASS",
+    "destroyWarning": "hydration stop marker255 retained; provider deletion independently verified"
+  },
+  "limits": [
+    "one all-up logout/login cycle only",
+    "observer-specific session retirement was not isolated: owner-exited occurred first",
+    "held-key quit, repeated-cycle reliability, real tap timeout, Caps ownership/recovery and onboarding remain unverified"
+  ],
+  "receiptHashes": {
+    "negative-status-ui-01-result.json": "9ed889dfe4b1e4ab06f87bdff26d492c76e622dc8f5587a39eabc91023c97974",
+    "negative-status-ui-02-result.json": "60590d07f1bed0e3a1ae5cd38971526d195832d523d5604ec43c7df8df61bdaf",
+    "consent-positive-01-sample-result.json": "95e738f28eef878b3ee97961e1b99b23c4043adc85c004789ecfc4c19ecc4036",
+    "logout-observation-01-result.json": "19b434ff7f66097509a19c4ef09b886f572a70451f64bb4475d46ca2f7062fc7",
+    "login-identity-01-result.json": "c0d5e7c6bc0088d93e307ac8062ab23485b8b916541f1e5abfb03f5f2ddc322d",
+    "logout-login-inspect-01-result.json": "d9bac3dc11ad3b206741b548ec01004624bc3891a9d59bf7326b2a0fe6bedfc5",
+    "logout-positive-01-sample-result.json": "baa8a68b1178301d9dba1981c27dc1a19d848ed0416287a6a35ab2dfa850e33d",
+    "tcp-diagnostic-01-result.json": "7bdfd23c153c8a171fe7682b7fb9336d0d1826f30f06d164ae18703a7e6edad9",
+    "independent-guest-cleanup-01-result.json": "103d2e755e7a3f61e087f2a3a9a1385160b64a832590f44318e5eff034537c55",
+    "destroy-result.json": "a5ccfb774af484252af8c2e71979bd3f0309e656b441b357a684bb2f437559bb",
+    "provider-cleanup-result.json": "74e889566a9c67130a6c7f8ff3b32630eb87cd1b4dc9c5ca20c2ded339a12a72"
+  }
+}
