@@ -57,7 +57,8 @@ calculate_build_fingerprint() {
 }
 
 verify_bridge() {
-    python3 "$BRIDGE_VERIFY_SCRIPT" "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib"
+    python3 "$BRIDGE_VERIFY_SCRIPT" "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib" \
+        "$SCRIPT_DIR/test-fixtures/configs/host-bridge-passthru.kbd" --passthru
 }
 
 CURRENT_FINGERPRINT=$(calculate_build_fingerprint)

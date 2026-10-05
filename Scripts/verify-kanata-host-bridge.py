@@ -13,6 +13,12 @@ def main() -> int:
         )
         return 2
 
+    enable_passthru = "--passthru" in sys.argv[2:]
+    config_arg = next((arg for arg in sys.argv[2:] if arg != "--passthru"), None)
+    if enable_passthru and config_arg is None:
+        print("--passthru requires a config path", file=sys.stderr)
+        return 2
+
     dylib_path = sys.argv[1]
     if not os.path.isfile(dylib_path):
         print(f"missing bridge dylib: {dylib_path}", file=sys.stderr)
@@ -50,8 +56,20 @@ def main() -> int:
     print(f"bridge version: {version_text}")
     print(f"default cfg count: {default_cfg_count}")
 
-    enable_passthru = "--passthru" in sys.argv[2:]
-    config_arg = next((arg for arg in sys.argv[2:] if arg != "--passthru"), None)
+    # Resolve the full session ABI before any creation. Feature-disabled builds
+    # export create/start stubs, but omit the session input-map function.
+    if enable_passthru:
+        try:
+            for name in (
+                "create_passthru_runtime", "passthru_runtime_layer_count",
+                "start_passthru_runtime", "passthru_send_input",
+                "passthru_try_recv_output", "destroy_passthru_runtime",
+                "passthru_is_input_mapped",
+            ):
+                getattr(bridge, "keypath_kanata_bridge_" + name)
+        except AttributeError as exc:
+            print(f"passthru symbols unavailable: {exc}", file=sys.stderr)
+            return 1
 
     if config_arg is not None:
         error_buffer = ctypes.create_string_buffer(2048)
@@ -64,6 +82,7 @@ def main() -> int:
         print(f"config valid: {valid}")
         if not valid:
             print(f"config error: {error_buffer.value.decode('utf-8')}")
+            return 1
         else:
             runtime_error = ctypes.create_string_buffer(2048)
             runtime = bridge.keypath_kanata_bridge_create_runtime(
@@ -77,6 +96,7 @@ def main() -> int:
                 bridge.keypath_kanata_bridge_destroy_runtime(runtime)
             else:
                 print(f"runtime error: {runtime_error.value.decode('utf-8')}")
+                return 1
 
         if enable_passthru:
             try:
@@ -102,11 +122,12 @@ def main() -> int:
                 bridge.keypath_kanata_bridge_destroy_passthru_runtime.restype = None
             except AttributeError as exc:
                 print(f"passthru symbols unavailable: {exc}")
+                return 1
             else:
                 passthru_error = ctypes.create_string_buffer(2048)
                 passthru_runtime = bridge.keypath_kanata_bridge_create_passthru_runtime(
                     config_path,
-                    37001,
+                    0,
                     passthru_error,
                     len(passthru_error),
                 )
@@ -137,8 +158,11 @@ def main() -> int:
                     elif recv_status < 0:
                         print(f"passthru receive error: {recv_error.value.decode('utf-8')}")
                     bridge.keypath_kanata_bridge_destroy_passthru_runtime(passthru_runtime)
+                    if recv_status < 0:
+                        return 1
                 else:
                     print(f"passthru runtime error: {passthru_error.value.decode('utf-8')}")
+                    return 1
     return 0
 
 
