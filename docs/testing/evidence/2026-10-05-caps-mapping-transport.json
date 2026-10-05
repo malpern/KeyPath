@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "scope": "Caps mapping transport only",
+  "productCommit": "0445045e222f45fd5d88280af57e3dac277d2d4d",
+  "lease": "cbx_de33c8b9e294",
+  "providerUUID": "e8e77d40-a9db-434c-809f-1826443a8d62",
+  "probeManifest": {
+    "sha256": "8518d7984ad2298d9359ef9e35957f48007521b70aba3af19ba2e37211b18905",
+    "size": 373712,
+    "scope": "mapping-transport-only",
+    "transport": "bounded journaled chunks"
+  },
+  "mappingCycle": {
+    "appliedRows": 1,
+    "bootSessionUUID": "4CFB46F1-BB8C-4241-879C-C0CFFB2E4F07",
+    "journalCleared": true,
+    "locationID": 261095424,
+    "noPhysicalInputDispatched": true,
+    "originalRows": 0,
+    "ownerPID": 1617,
+    "passed": true,
+    "probePID": 1619,
+    "registryID": 4294968825,
+    "restoredRows": 0,
+    "scope": "mapping-transport-only",
+    "uid": 502
+  },
+  "independentMappingRead": "RegistryID  Key                   Value\n1000005f9   UserKeyMapping   (\n)\n",
+  "independentCleanup": {
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ],
+    "passed": true
+  },
+  "tests": {
+    "rustParser": 10,
+    "swiftIntegration": 34,
+    "durableLeaseAndTransport": "passed"
+  },
+  "limits": [
+    "Runtime managed Caps remains disabled",
+    "No physical Caps event dispatched in this transport test",
+    "Crash/reconnect/reboot and Secure Input recovery pending",
+    "Nil mapping restored as effective empty array",
+    "Native F18 from another keyboard is indistinguishable at the session tap"
+  ],
+  "rawEvidence": "/private/tmp/keypath-caps-transport-live-01"
+}
