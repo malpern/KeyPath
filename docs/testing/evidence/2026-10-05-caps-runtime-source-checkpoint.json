@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "sourceCommit": "053792f35073ceb8566c05776320918f17376f3f",
+  "scope": "runtime source and signed candidate; no integrated live acceptance",
+  "focusedTests": 82,
+  "compilerWarnings": 0,
+  "testWarnings": 0,
+  "appErrors": 0,
+  "leaseMarkerTests": "passed",
+  "accessibilityFiles": 380,
+  "independentSourceReview": "passed",
+  "artifact": {
+    "version": 1,
+    "sourceCommit": "053792f35073ceb8566c05776320918f17376f3f",
+    "artifactKind": "isolated debug managed-Caps guest candidate",
+    "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+    "baseBundle": "/private/tmp/keypath-protocol-64a1e52a3-artifact/KeyPath.app",
+    "rawMainSHA256": "02ebfb891cbc21497fa1e3fb6e4a308e9729031816343147352cd229275d6e8c",
+    "packagedMainSHA256": "4fabcef13f23be269dae70e79355ca5d37eb8131dd32d45b61301abb26907143",
+    "rawBridgeSHA256": "b9ca5547d0261bb6cad410c34a3cc28c7a358967d1b7939cb18ebe39530e30b0",
+    "packagedBridgeSHA256": "61f072576080ffdd671f392a3f87db360f20f97eb2cbfd9fc1ab010783d830c8",
+    "archiveSHA256": "b33ceb52f0fd16e623fc64673dd189bf4d88987b7eccd7ff918460270f7faba2",
+    "archiveSizeBytes": 97752948,
+    "archive": "keypath-caps-runtime-053792f35.zip",
+    "changedBundlePaths": [
+      "Contents/_CodeSignature/CodeResources",
+      "Contents/MacOS/KeyPath",
+      "Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
+    ],
+    "preservedFileCount": 235,
+    "teamID": "X2RKZ5TG99",
+    "strictSignatureVerified": true,
+    "entitlementsUnchanged": true,
+    "hardenedRuntime": true,
+    "timestamped": false,
+    "notarized": false,
+    "hostInstalled": false,
+    "guestAcceptanceClaimed": false,
+    "experimentalDiagnostics": false,
+    "managedCapsDefaultEnabled": false,
+    "resources": "Preserved resources/frameworks/cached Metal from previous candidate; not a fresh Metal build",
+    "buildLog": "/private/tmp/keypath-caps-runtime-final-tests-v2.log",
+    "buildVerifiedByActualPackageTests": 82,
+    "diagnosticFlagBuildLimitation": "Additional diagnostic-flag build encountered previously documented missing Metal Toolchain; candidate uses the successful final actual-package app build without that optional flag",
+    "rustSourceHashes": {
+      "lib.rs": "2c3556a999ec86e962ccadcf0481245be6dc59be0846853c168f855d472e82a8",
+      "session_config.rs": "7c1cf4943cd945116fe4b065a7eef1df6a04f391f44317dca127558c3528b2e4"
+    },
+    "archiveRootVerified": "KeyPath.app",
+    "priorArchiveRootIssue": "Initial Contents-root ZIP retained as archive-invalid-root.zip; replaced with verified parent-root artifact before use"
+  },
+  "logs": [
+    "/private/tmp/keypath-caps-runtime-final-tests-v2.log",
+    "/private/tmp/keypath-caps-runtime-marker-tests.log"
+  ],
+  "noOwnedVM": true,
+  "remaining": [
+    "physical Caps tap and hold",
+    "normal stop and failed activation",
+    "same-mode and mode-changing reload",
+    "worker, parent and both-owner death",
+    "Secure Input with Caps held",
+    "reconnect/reboot refusal",
+    "death during mutation must retain marker and refuse automatic recovery"
+  ]
+}
