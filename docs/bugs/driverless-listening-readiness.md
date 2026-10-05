@@ -1,6 +1,6 @@
 # Driverless keyboard readiness requires ListenEvent and PostEvent
 
-October 5, 2026. Experimental branch only; guest validation of this correction is pending.
+October 5, 2026. Experimental branch only; signed247822796 fresh guest acceptance passed as detailed below.
 
 A normal macOS 26 guest with Accessibility granted and Input Monitoring denied reported
 AX/PostEvent granted. The session capability probe used PostEvent as effectiveInputAccess,
@@ -75,3 +75,5 @@ consent/reopen guidance during lifecycle grace; immediate denial takes zero heal
 polls. Canonical focused runner passed eight XCTest plus33 Swift Testing cases,
 log `/private/tmp/keypath-status-recheck-safe-01.log`. Fresh signed validation of
 this additional correction remains pending.
+
+Signed247822796 fresh guest acceptance completed October5: canonical missing-IM guidance visible at10.6sec and53.3sec after launch-result observation, including the temporary unknown refresh. Normal IM consent/reopen and physical q→a passed all eight checks. Ordinary logout stopped the old worker (owner-exited, inactive tap, no held keys); login reopened the app with new parent2308/worker2461 and physical q→a passed all eight checks. This is one all-up lifecycle cycle, not held-key or observer-specific recovery. TCP Hello passed; the preserved bridge rejects Status. Profile/process cleanup, destruction and independent provider/template/fixture checks passed. Selected receipt: permission-footprint branch `docs/testing/evidence/2026-10-05-permission-and-session-acceptance.json`; raw `/private/tmp/keypath-status-recheck-live-01`. Earlier pending statements above describe historical checks, superseded for these exact signed bytes by this result.
