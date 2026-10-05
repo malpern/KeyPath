@@ -74,6 +74,48 @@ struct SessionCapsMappingLeaseRunner {
     }
 
     static func main() throws {
+        #if DEBUG
+            let fixture = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16400,
+                                                serialNumber: nil, locationID: 123)
+            let worker = Policy.Owner(uid: 502, parentPID: 100, workerPID: 101, nonce: "nonce",
+                                      generation: "one", bootSessionUUID: owner.bootSessionUUID)
+            let record = try Policy.acquire(original: original, device: fixture, devices: [fixture],
+                                            owner: worker, effectiveConfigSHA256: digest)
+            let optIn = "KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_AFTER_JOINED_APPLY"
+            let selection = "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"
+            let reserve = "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18"
+            let environment = [optIn: "42", selection: String(data: try JSONEncoder().encode(fixture), encoding: .utf8)!, reserve: "1"]
+            func admitted(_ env: [String: String], uid: UInt32 = 502, pid: Int32 = 101,
+                          mappings: [Policy.Mapping]? = nil) -> Bool {
+                Lease.terminateAfterJoinedApply(record: record, mappings: mappings ?? record.applied,
+                                               environment: env, uid: uid, pid: pid)
+            }
+            try check(admitted(environment))
+            try check(!admitted(environment, uid: getuid() == 502 ? 501 : getuid()))
+            try check(!admitted(environment, pid: 100) && !admitted(environment, pid: 102))
+            try check(!admitted(environment, mappings: original))
+            for key in [optIn, selection, reserve] {
+                var missing = environment; missing.removeValue(forKey: key)
+                try check(!admitted(missing))
+                for value in ["", "1", "042", "42 ", "invalid"] {
+                    var invalid = environment; invalid[key] = value
+                    if key == reserve && value == "1" { continue }
+                    try check(!admitted(invalid))
+                }
+            }
+            var changed = environment
+            changed[selection] = String(data: try JSONEncoder().encode(device), encoding: .utf8)!
+            try check(!admitted(changed))
+            for foreign in [device, Policy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16401,
+                                                         serialNumber: nil, locationID: 123)] {
+                let foreignRecord = try Policy.acquire(original: original, device: foreign, devices: [foreign],
+                                                       owner: worker, effectiveConfigSHA256: digest)
+                var foreignEnv = environment
+                foreignEnv[selection] = String(data: try JSONEncoder().encode(foreign), encoding: .utf8)!
+                try check(!Lease.terminateAfterJoinedApply(record: foreignRecord, mappings: foreignRecord.applied,
+                                                          environment: foreignEnv, uid: 502, pid: 101))
+            }
+        #endif
         try scenario { _, fake, lease in
             let record = try acquire(lease)
             try check(record.original == original && fake.mappings == record.applied)

@@ -148,8 +148,35 @@ public final class SessionCapsMappingLease {
             try clearMarker(metadata, directoryFD: directoryFD)
             throw error
         }
+        #if DEBUG
+            if Self.terminateAfterJoinedApply(record: record, mappings: mappings) {
+                let line = "Caps checkpoint phase=after-joined-write nonce=\(record.owner.nonce) generation=\(record.owner.generation) registry=\(record.device.registryEntryID)\n"
+                FileHandle.standardError.write(Data(line.utf8))
+                Darwin.kill(getpid(), SIGKILL)
+                throw Refusal.mutationUncertain // Never clear intent if termination unexpectedly returns.
+            }
+        #endif
         try clearMarker(metadata, directoryFD: directoryFD)
     }
+
+    #if DEBUG
+        /// Inert unless a disposable worker opts into its exact selected registry.
+        /// Called only after successful joined write, while the owner marker is durable.
+        static func terminateAfterJoinedApply(record: Policy.Record, mappings: [Policy.Mapping],
+                                             environment: [String: String] = ProcessInfo.processInfo.environment,
+                                             uid: UInt32 = getuid(), pid: Int32 = getpid()) -> Bool
+        {
+            guard uid == 502, record.owner.uid == uid, pid == record.owner.workerPID,
+                  pid != record.owner.parentPID, mappings == record.applied,
+                  record.device.vendorID == 51966, record.device.productID == 16400,
+                  environment["KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_AFTER_JOINED_APPLY"] == String(record.device.registryEntryID),
+                  environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18"] == "1",
+                  let raw = environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"], raw.utf8.count <= 4096,
+                  let selected = try? JSONDecoder().decode(Policy.DeviceIdentity.self, from: Data(raw.utf8)),
+                  selected == record.device else { return false }
+            return true
+        }
+    #endif
 
     private func verifyMarker(_ expected: stat, directoryFD: Int32) throws {
         var current = stat()
