@@ -1,6 +1,6 @@
 # Active driverless testing workflow
 
-Latest checkpoint: signed01df87bc9 has reviewed held-Caps Secure Input release, automatic resume/physical remap, same-mode reload and Caps→ordinary→Caps transitions, in addition to prior held-owner crashes. Original Secure Input checker failure remains preserved; narrow acceptance excludes retained Function/full-transition claims. Normal Quit and independent cleanup passed; no active lease. Next: reconnect/reboot identity and uncertain-mutation refusal. See the handoff for exact scope.
+Latest checkpoint: signed01df87bc9 passed reconnect identity refusal and explicit post-reboot Start refusal; journal unchanged, replacement mappings empty, no new modifying worker. Canonical destruction and independent provider/template/nonpersistent-USB cleanup passed; no active lease. Source dbe098658 removes the known-failure wizard spinner delay; focused build/eight status tests passed, new signed live UI check pending. Next core gate: death during real HID mutation/retained uncertainty-marker refusal. Use the handoff/selected receipt for exact limits; default Caps refusal and permission probes are not recovery acceptance.
 
 ## Operating rule
 
