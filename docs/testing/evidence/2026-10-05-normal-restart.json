@@ -1,0 +1,260 @@
+{
+  "schema": "keypath.normal-restart-acceptance.v1",
+  "passed": true,
+  "sourceCommit": "d9fcf9785ee3e544be800982068141271cb24901",
+  "mainSHA256": "babce1293675170191cb8f2849466296754f0d769d9e3ac5aae4431be1aab991",
+  "evidenceRoot": "/private/tmp/keypath-restart-simple-01",
+  "lease": "cbx_d54246816bd3",
+  "before": {
+    "attachmentObservedAt": 1791217854.566957,
+    "checks": {
+      "allUp": true,
+      "downs": true,
+      "exactTrace": true,
+      "inputDelta": true,
+      "outputDelta": true,
+      "reportsSubmitted": true,
+      "text": true,
+      "ups": true
+    },
+    "expectedText": "a",
+    "fixture": {
+      "reportsSubmitted": 2,
+      "runId": "restart-40dc04f09ac6435195ec7e6baec23d46",
+      "state": "complete"
+    },
+    "hostUSB": {
+      "actualStatus": 0,
+      "observedAtEpoch": 1791217871.723901,
+      "providerUUID": "76bbd3e8-29be-4328-858e-86373b9ebb7e",
+      "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+    },
+    "identity": {
+      "parentArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+      ],
+      "parentPID": 2520,
+      "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-0F4DA112-B412-44BA-8B5C-C1FAF9F21232/report.json",
+      "targetNonce": "AE2F0DFB-2515-4AC7-B34B-253D09A3F28D",
+      "targetPID": 2548,
+      "workerArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+        "--session-runtime",
+        "--session-report",
+        "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-0F4DA112-B412-44BA-8B5C-C1FAF9F21232/report.json",
+        "--session-nonce",
+        "0F4DA112-B412-44BA-8B5C-C1FAF9F21232",
+        "--session-owner",
+        "2520",
+        "--session-port",
+        "37001",
+        "--session-config",
+        "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+      ],
+      "workerNonce": "0F4DA112-B412-44BA-8B5C-C1FAF9F21232",
+      "workerPID": 2530
+    },
+    "lease": "cbx_d54246816bd3",
+    "passed": true,
+    "providerUUID": "76bbd3e8-29be-4328-858e-86373b9ebb7e",
+    "runId": "restart-40dc04f09ac6435195ec7e6baec23d46",
+    "sample": "q",
+    "target": {
+      "downs": 1,
+      "held": [],
+      "modifiers": 0,
+      "observedAt": 1791217883.310313,
+      "text": "a",
+      "ups": 1
+    },
+    "trace": [
+      {
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 18,
+        "modifiers": 0,
+        "scheduledUs": 703705984980,
+        "sequence": 1,
+        "submittedUs": 703705984998
+      },
+      {
+        "keys": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 32,
+        "modifiers": 0,
+        "scheduledUs": 703706024980,
+        "sequence": 2,
+        "submittedUs": 703706025012
+      }
+    ]
+  },
+  "after": {
+    "attachmentObservedAt": 1791217995.533611,
+    "checks": {
+      "allUp": true,
+      "downs": true,
+      "exactTrace": true,
+      "inputDelta": true,
+      "outputDelta": true,
+      "reportsSubmitted": true,
+      "text": true,
+      "ups": true
+    },
+    "expectedText": "a",
+    "fixture": {
+      "reportsSubmitted": 2,
+      "runId": "restart-cb5cff63745442b1bb59decff2a0ec96",
+      "state": "complete"
+    },
+    "hostUSB": {
+      "actualStatus": 0,
+      "observedAtEpoch": 1791218012.7209668,
+      "providerUUID": "76bbd3e8-29be-4328-858e-86373b9ebb7e",
+      "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+    },
+    "identity": {
+      "parentArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+      ],
+      "parentPID": 2672,
+      "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-EB376B80-921F-4108-93BF-27B7ABECEDA5/report.json",
+      "targetNonce": "6B70108E-369B-4B98-ACA7-A0634AB426A9",
+      "targetPID": 2700,
+      "workerArguments": [
+        "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+        "--session-runtime",
+        "--session-report",
+        "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-EB376B80-921F-4108-93BF-27B7ABECEDA5/report.json",
+        "--session-nonce",
+        "EB376B80-921F-4108-93BF-27B7ABECEDA5",
+        "--session-owner",
+        "2672",
+        "--session-port",
+        "37001",
+        "--session-config",
+        "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+      ],
+      "workerNonce": "EB376B80-921F-4108-93BF-27B7ABECEDA5",
+      "workerPID": 2681
+    },
+    "lease": "cbx_d54246816bd3",
+    "passed": true,
+    "providerUUID": "76bbd3e8-29be-4328-858e-86373b9ebb7e",
+    "runId": "restart-cb5cff63745442b1bb59decff2a0ec96",
+    "sample": "q",
+    "target": {
+      "downs": 1,
+      "held": [],
+      "modifiers": 0,
+      "observedAt": 1791218024.3377051,
+      "text": "a",
+      "ups": 1
+    },
+    "trace": [
+      {
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 9,
+        "modifiers": 0,
+        "scheduledUs": 703847002724,
+        "sequence": 1,
+        "submittedUs": 703847002733
+      },
+      {
+        "keys": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 29,
+        "modifiers": 0,
+        "scheduledUs": 703847042724,
+        "sequence": 2,
+        "submittedUs": 703847042753
+      }
+    ]
+  },
+  "between": {
+    "normalQuit": true,
+    "parentAndWorkerAbsent": true,
+    "targetHeld": [],
+    "targetModifiers": 0
+  },
+  "guestCleanup": {
+    "bootEpoch": 1791216964,
+    "cutoff": 1791220188,
+    "originalProfileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+    "passed": true,
+    "phase": "post-consent-cleanup",
+    "products": {
+      "focus": {
+        "sha256": "a41258da97ccb31acc3794797142b8e589ad939e7b822a1e99579753e7c30d8d",
+        "uid": 502
+      },
+      "main": {
+        "sha256": "babce1293675170191cb8f2849466296754f0d769d9e3ac5aae4431be1aab991",
+        "uid": 502
+      },
+      "target": {
+        "sha256": "55c8fa008280633ecf6137d7d47df27e152b16a8ba37bbf01dca4c7ab4ef4858",
+        "uid": 502
+      }
+    },
+    "reportAbsent": true,
+    "selectedProcesses": []
+  },
+  "providerCleanup": {
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ],
+    "passed": true
+  },
+  "destroy": {
+    "actualStatus": 0,
+    "stdout": "warning: could not stop GitHub Actions hydration for cbx_d54246816bd3: write GitHub Actions hydration stop marker on 10.211.55.156: exit status 255\ndeleted lease=cbx_d54246816bd3 server=76bbd3e8-29be-4328-858e-86373b9ebb7e name=crabbox-cbx-d54246816bd3-keypath26-d9fcf978-20261005161548-26152\n",
+    "stderr": "",
+    "at": 1791218138.651825
+  },
+  "limitations": [
+    "One normal quit/relaunch cycle only",
+    "No held-key quit, genuine tap timeout, console/session transition, or long-duration reliability acceptance",
+    "Caps Lock product integration and onboarding remain pending"
+  ],
+  "sourceSHA256": {
+    "restart_guest.py": "f64195f9cd69e37996ae730a318ac1ca46e9ac1cd57a0b5c8a7e48712bf2ec43",
+    "sample_once.py": "900be59a8d292d2ddf4339897a2adcac8f5e2b172d9c836bf70c5b50022a9e14",
+    "guest_command.py": "267a6ad8c3f7ebdb0903d143df41b4f3dce14ec8d279e711100d51b88e76a8c9",
+    "test_restart_guest.py": "e9958ac29ff4560e5aad8c7f08b0430d1ac8552f0d0d4b02ba9d9e15fb0cb62a"
+  }
+}

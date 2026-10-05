@@ -28,7 +28,7 @@ KEYPATH_LAB_CREATE_POSIX_BINARY_SHA256=fd2671373f626f8e762559f6e58c06b04277f32ac
 
 1. Independently verify exact owned lease, provider, public account and boot. Record cutoff six minutes before lease expiry.
 2. Check required guest setup/consent, then install the exact signed artifact once. A read-only preflight refusal before an installation claim permits a distinct preflight after normal consent. An uncertain installation is reconciled, never replayed.
-3. Grant normal guest Accessibility/Input Monitoring; launch to Ready, quit, and independently verify installed hashes, profile, process/report absence and identity.
+3. Grant normal guest Accessibility **and** Input Monitoring. Confirm the fresh worker reports rawListenEvent=granted and registered mask7168; AX alone produced mask4096 and a startup refusal in the latest trial, even while the Oracle said ready. Use normal macOS Quit & Reopen after IM consent. Quit and independently verify installed hashes, profile, process/report absence and identity.
 4. Create fresh runtime configuration with current canonical source pins. Obtain no-input positive timing and complete its cleanup before the explicit hardware gate. Old identity, timing, scope or configuration cannot qualify a new VM.
 5. Run one declared product hypothesis. Record infrastructure, harness and product outcomes separately. Successful setup does not require broad lab requalification on every product-test refusal.
 6. Restore profile, verify all-up, retire exact owned processes/target, destroy the lease, and independently verify provider absence/template retention/ESP32 detachment. Preserve warnings and actual statuses.
@@ -48,3 +48,9 @@ The retained runtime currently still depends on older frozen implementation modu
 ## Selected console lessons
 
 Use `guest-root` for the prepared public UID502 account; the generic `run` route targets the original QA501 transport and is unsuitable here. The retained SDK shell route requires a leading `true;` to preserve arguments to the intended first command. Use the baseline-pinned extracted Peekaboo path, which differs from the generic skill example. Fresh AX inspection plus `AXPress` worked for guest setup controls. Windowed console coordinate input was unreliable in this trial; switching the exact owned console to full screen allowed normal public test-password entry. This is an observed workaround, not a general focus fix or proof that the host was locked.
+
+## Proven narrow product path
+
+October 5 trial `cbx_d54246816bd3` passed physical q→a, the app menu’s **Quit KeyPath**, observed parent/worker absence, ordinary LaunchServices relaunch, and a second physical q→a. Both samples had exactly one captured down/up and worker input/output increments of two; all held-key ledgers were empty. Root used a small trial-local coordinator, not the timeout driver or the retired QA501 scripts. A fresh capture target is necessary after menu focus changes because `focusLost` is sticky. Original profile restoration, process/report absence, VM deletion, retained stopped template and detached nonpersistent USB all passed. The hydration-stop255 warning is preserved separately from successful deletion. [Selected receipt](evidence/2026-10-05-normal-restart.json).
+
+This single cycle earns a narrow product pass. It does not qualify held-key quit, console/session transitions, genuine timeout recovery or sustained reliability. Keep those gates separate. The first next product correction is the observed AX-only readiness false positive, followed by session continuity and Caps Lock ownership.

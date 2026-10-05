@@ -1,6 +1,6 @@
 # Driverless permission investigation — current handoff
 
-Updated October 5, 2026. Execution authorization remains in force: guest-only testing, normal guest permission consent, ESP32 physical input, and experimental branch commits/pushes. Active approval mode: workspace-write, restricted network, auto_review. No owned VM is active. The fresh committed-route trial `cbx_bd4e33ac9730` was destroyed; independent provider/template/ESP32 checks passed. Evidence: `/private/tmp/keypath-timeout-1000ms-fresh`. Its installation, consent, positive measurement and cleanup passed, but the local handoff failed before physical input. Do not replay its configuration or claims.
+Updated October 5, 2026. Execution authorization remains in force: guest-only testing, normal guest permission consent, ESP32 physical input, and experimental branch commits/pushes. Active approval mode: workspace-write, restricted network, auto_review. **Normal physical remap → Quit → relaunch → physical remap passed** on the existing signed d9fc artifact. No owned VM is active. Trial `cbx_d54246816bd3` was destroyed after original-profile restoration and process cleanup; independent provider/template/ESP32 checks passed. Evidence: `/private/tmp/keypath-restart-simple-01`; [durable selected receipt](evidence/2026-10-05-normal-restart.json).
 
 Read [the active workflow](driverless-active-workflow.md), then [the failure ledger](permission-experiment-failure-ledger.md). The prior handoff is preserved byte-for-byte in [the historical archive](archive/permission-exploration-handoff-through-2026-10-05.md). Historical percentages and active-guest entries there describe their recorded time, not current state.
 
@@ -8,9 +8,10 @@ Read [the active workflow](driverless-active-workflow.md), then [the failure led
 
 - Selected lab workflow: two consecutive setup-to-cleanup qualification runs passed. This supports this workflow, not a claim of general VM-lab reliability.
 - Latest physical trial: all 542 transport calls succeeded. The callback stalled for approximately 752 ms; no genuine macOS tap timeout was observed. Profile restoration, key release, target retirement, VM destruction and independent provider/USB checks passed.
-- Pending: genuine timeout and new-parent recovery; restart and console/session transitions; Caps Lock ownership/recovery; reduced-permission installer/onboarding UX.
+- Passed: one normal app quit/relaunch cycle on signed d9fc, with physical q→a before and after, exact ESP32 traces, independent target down/up counts, worker count deltas, new parent/worker identities, and no held keys. This is not held-key quit or repeated-cycle acceptance.
+- Pending: genuine timeout and new-parent recovery; supported console/session transitions; Caps Lock ownership/recovery; reduced-permission installer/onboarding UX.
 - Latest fresh attempt: all283 canonical transport statuses0; positive measurement and cleanup passed. No physical namespace or hardware campaign was created. The runner suppressed the exception at the gate/source-verification/provider-admission boundary; the underlying cause is unproven.
-- Next: finish bounded handoff diagnostics and source review before another VM cycle; then run the still-pending single one-second timeout experiment. If it does not trigger a genuine timeout, investigate the trigger. No repeated delay escalation or timer-based acceptance.
+- Next: address the proven permission-readiness mismatch: with AX granted but IM denied, the Oracle said system ready while the actual worker refused mask4096 versus requested7168. Normal IM consent and Quit & Reopen yielded mask7168 and successful physical input. Fix core readiness/error reporting before supported session-transition acceptance; preserve genuine timeout as unverified. Caps Lock remains planned after runtime stability; onboarding redesign remains last.
 
 ## Current implementation
 
