@@ -24,10 +24,14 @@ requests remain available.
 
 An owned running tap takes precedence over a rejected edited file. Invalid
 restart admission does not stop that runtime, and an explicit stop still uses
-the existing owned restoration path. Worker validation remains unchanged as the
+the existing owned restoration path. Because each request advances intent, a
+refused start or restart rebinds the retained tap to supervision under the new
+generation. Cancellation and newer stops still supersede that generation.
+Worker validation remains unchanged as the
 execution-time safety check.
 
 Focused regressions are in `ServiceLifecycleCoordinatorTests` and
 `MainAppStateControllerTests`: no launch for invalid/unavailable admission,
 invalid-vs-unavailable status/grace, valid correction, rejected restart preserving
-an owned tap, and no-start config refusal without permission/health polling.
+an owned tap with supervision transferred to current intent, and no-start config
+refusal without permission/health polling.

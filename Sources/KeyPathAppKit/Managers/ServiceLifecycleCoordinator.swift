@@ -206,7 +206,7 @@ final class ServiceLifecycleCoordinator {
         case let .stop(reason):
             return await stopSessionAdmitted(reason: reason)
         case let .restart(reason):
-            guard admitSessionConfiguration(), sessionStartIsCurrent(generation) else { return false }
+            guard admitSessionConfiguration(generation: generation), sessionStartIsCurrent(generation) else { return false }
             guard await stopSessionAdmitted(reason: "\(reason) (stop for restart)"),
                   sessionStartIsCurrent(generation) else { return false }
             return await startSessionAdmitted(reason: "\(reason) (restart)", generation: generation)
@@ -254,9 +254,10 @@ final class ServiceLifecycleCoordinator {
         return sessionConfigurationRefusal
     }
 
-    private func admitSessionConfiguration() -> Bool {
+    private func admitSessionConfiguration(generation: UInt64) -> Bool {
         let admission = refreshSessionConfigurationAdmission()
         guard case .valid = admission else {
+            retainRunningSessionSupervision(generation: generation)
             onError?(SessionCapsRuntimeSupport.startupFailureMessage(admission))
             onStateChanged?()
             return false
@@ -265,7 +266,7 @@ final class ServiceLifecycleCoordinator {
     }
 
     private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {
-        guard sessionStartIsCurrent(generation), admitSessionConfiguration(),
+        guard sessionStartIsCurrent(generation), admitSessionConfiguration(generation: generation),
               sessionStartIsCurrent(generation) else { return false }
         stopGraceUntil = nil
         lastStartAttemptAt = Date()

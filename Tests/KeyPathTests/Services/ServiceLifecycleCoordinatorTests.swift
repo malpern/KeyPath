@@ -104,6 +104,42 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(stops, 1, "Refusal must not bypass owned stop/restore admission")
     }
 
+    func testRejectedStartAndRestartTransferRetainedTapSupervisionToLatestIntent() async {
+        let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
+                                         accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                         tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+        coordinator.testSessionCurrentReport = { report }
+        coordinator.testSessionConfigurationValidation = { .valid }
+        coordinator.testSessionRunningReadiness = { true }
+        var supervised: [UInt64] = []
+        coordinator.testSessionSupervisionStarted = { supervised.append($0) }
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        let adopted = await coordinator.startKanata(reason: "adopt existing tap")
+        XCTAssertTrue(adopted)
+        XCTAssertEqual(supervised, [1])
+
+        var starts = 0, stops = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "edited config unsupported") }
+        let refusedStart = await coordinator.startKanata(reason: "invalid edited start")
+        let refusedRestart = await coordinator.restartKanata(reason: "invalid edited restart")
+        XCTAssertFalse(refusedStart)
+        XCTAssertFalse(refusedRestart)
+        XCTAssertEqual(starts, 0)
+        XCTAssertEqual(stops, 0)
+        XCTAssertEqual(supervised, [1, 2, 3], "Each rejected intent must retain supervision of the owned tap")
+        XCTAssertEqual(supervised.last, coordinator.sessionIntentGeneration)
+        XCTAssertFalse(coordinator.sessionStartIsCurrent(1), "Never roll back a rejected intent")
+        XCTAssertTrue(coordinator.sessionStartIsCurrent(3))
+
+        let stopped = await coordinator.stopKanata(reason: "explicit stop supersedes refusal")
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(stops, 1)
+        XCTAssertFalse(coordinator.sessionStartIsCurrent(3))
+        XCTAssertEqual(supervised, [1, 2, 3], "A stop must not rebind running supervision")
+    }
+
     // MARK: - Session lifecycle routing
 
     func testStartUsesSessionOwnerWithoutPrivilegedFallbackOnFailure() async {

@@ -437,7 +437,7 @@ class MainAppStateController {
 
     // MARK: - Private Implementation
 
-    private enum KanataStartupGateResult {
+    private enum KanataStartupGateResult: Equatable {
         case ready
         case transientTimeout
         case definitiveFailure
@@ -748,7 +748,7 @@ class MainAppStateController {
         lastAdaptedState = .serviceNotRunning
         lastTCPConfigured = nil
         lastInstallerStateMatrixRow = nil
-        lastInstallerStateMatrixPlan = nil
+        lastInstallerStateMatrixPlan = []
         lastValidationDate = Date()
         lastValidationTime = Date()
         AppLogger.shared.error("Driverless configuration refused: \(reason)")
