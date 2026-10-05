@@ -21,5 +21,15 @@ Independent source review and accessibility380/whitespace checks passed.
 Legacy opt-in live TCP tests still assume server Status support, echoed request IDs and
 uncached repeated Hello requests; those assumptions do not match the bundled bridge.
 Keep that test debt distinct from this source fix. The already signed247822796 physical
-recovery trials do not contain this newer UI/capability patch; fresh signed UI acceptance
-is not claimed. No host installation occurred.
+recovery trials do not contain this newer UI/capability patch. No host installation occurred.
+
+Fresh signed64a1e52a3 acceptance passed in the disposable UID502 guest on October5:
+normal AX/IM consent, full7168 tap, editor addition of bspc→del beside q→a,
+saved configuration and successful ReloadResult, then physical ESP32 q→a with
+all eight checks and empty held ledgers. Hello advertised reload but not status;
+the bounded save log contained no unsupported Status request/error. Toast appearance
+was not captured, and bspc→del was not a separate physical sample. The worker's
+diagnostic config hash retains initialization provenance after reload. Original
+profile/process cleanup, VM deletion, retained template and detached nonpersistent
+USB independently passed. The hydration-stop255 warning remains recorded.
+[Selected live receipt](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-protocol-live-acceptance.json).
