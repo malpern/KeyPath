@@ -91,6 +91,33 @@ struct SessionCapsMappingLeaseRunner {
                                                environment: env, uid: uid, pid: pid)
             }
             try check(admitted(environment))
+            let queuedOptIn = "KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_WITH_QUEUED_WRITER"
+            var queuedEnvironment = environment
+            queuedEnvironment.removeValue(forKey: optIn)
+            queuedEnvironment[queuedOptIn] = "42"
+            func queued(_ env: [String: String], uid: UInt32 = 502, pid: Int32 = 101,
+                        initialApply: Bool = true, mappings: [Policy.Mapping]? = nil) -> Bool {
+                Lease.terminateWithQueuedWriter(record: record, mappings: mappings ?? record.applied,
+                    initialApply: initialApply, environment: env, uid: uid, pid: pid)
+            }
+            try check(queued(queuedEnvironment))
+            try check(!queued(environment) && !queued(queuedEnvironment, uid: 501))
+            try check(!queued(queuedEnvironment, pid: 100) && !queued(queuedEnvironment, pid: 102))
+            try check(!queued(queuedEnvironment, initialApply: false, mappings: record.applied))
+            try check(!queued(queuedEnvironment, mappings: original))
+            for key in [queuedOptIn, selection, reserve] {
+                var missing = queuedEnvironment; missing.removeValue(forKey: key)
+                try check(!queued(missing))
+                for value in ["", "1", "042", "42 ", "invalid"] {
+                    if key == reserve && value == "1" { continue }
+                    var invalid = queuedEnvironment; invalid[key] = value
+                    try check(!queued(invalid))
+                }
+            }
+            var foreignQueued = queuedEnvironment
+            foreignQueued[selection] = String(data: try JSONEncoder().encode(device), encoding: .utf8)!
+            try check(!queued(foreignQueued))
+
             try check(!admitted(environment, uid: getuid() == 502 ? 501 : getuid()))
             try check(!admitted(environment, pid: 100) && !admitted(environment, pid: 102))
             try check(!admitted(environment, mappings: original))
@@ -291,6 +318,23 @@ struct SessionCapsMappingLeaseRunner {
                 try check(FileManager.default.fileExists(atPath: marker.path))
                 uncertain { try restore(Lease(directory: root, backend: fake.backend)) }
             }
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            let marker = root.appendingPathComponent(markerName)
+            try JSONEncoder().encode(owner).write(to: marker)
+            chmod(marker.path, 0o600)
+            let markerBytes = try Data(contentsOf: marker)
+            let intent = root.appendingPathComponent("caps-mapping-intent.json")
+            let intentBytes = try Data(contentsOf: intent)
+            let writes = fake.writes
+            fake.mappings = original
+            uncertain { try restore(lease) }
+            // A queued orphan may apply later; mapping readback cannot release uncertainty.
+            fake.mappings = record.applied
+            uncertain { try restore(Lease(directory: root, backend: fake.backend)) }
+            try check(fake.writes == writes && Data(contentsOf: marker) == markerBytes
+                && Data(contentsOf: intent) == intentBytes)
         }
         try scenario { root, fake, lease in
             let record = try acquire(lease)

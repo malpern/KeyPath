@@ -74,7 +74,7 @@ public final class SessionCapsMappingLease {
             guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
             guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
             try verifyJournal(persisted, directoryFD: fd)
-            try mutate(record: record, mappings: record.applied, directoryFD: fd)
+            try mutate(record: record, mappings: record.applied, directoryFD: fd, initialApply: true)
             let applied = try backend.read(device)
             guard applied.device == device, applied.mappings == record.applied else { throw Refusal.unverifiedWrite }
             try requireNoMutation(directoryFD: fd)
@@ -101,7 +101,7 @@ public final class SessionCapsMappingLease {
                 let original = try Policy.restore(record: record, current: snapshot.mappings,
                                                   device: snapshot.device, bootSessionUUID: bootSessionUUID)
                 try verifyJournal(loaded, directoryFD: fd)
-                try mutate(record: record, mappings: original, directoryFD: fd)
+                try mutate(record: record, mappings: original, directoryFD: fd, initialApply: false)
                 let restored = try backend.read(record.device)
                 guard restored.device == record.device, restored.mappings == original else { throw Refusal.unverifiedWrite }
             }
@@ -122,7 +122,7 @@ public final class SessionCapsMappingLease {
         guard errno == ENOENT else { throw Refusal.mutationUncertain }
     }
 
-    private func mutate(record: Policy.Record, mappings: [Policy.Mapping], directoryFD: Int32) throws {
+    private func mutate(record: Policy.Record, mappings: [Policy.Mapping], directoryFD: Int32, initialApply: Bool) throws {
         let data = try JSONEncoder().encode(record.owner)
         let fd = openat(directoryFD, mutationMarker, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw Refusal.mutationUncertain }
@@ -142,6 +142,35 @@ public final class SessionCapsMappingLease {
         guard fstat(fd, &metadata) == 0 else { throw Refusal.mutationUncertain }
         // Verify the entry before launching a child as well as before removal.
         try verifyMarker(metadata, directoryFD: directoryFD)
+        #if DEBUG
+            if Self.terminateWithQueuedWriter(record: record, mappings: mappings, initialApply: initialApply) {
+                // Outside the joined-backend catch: uncertainty must survive any experiment failure.
+                try SessionCapsHIDUtilTransport.terminateOwnerWithSuspendedWriter(record: record, mappings: mappings) { childPID in
+                    let proof = try JSONSerialization.data(withJSONObject: [
+                        "phase": "queued-writer-before-execution", "childPID": childPID,
+                        "owner": try JSONSerialization.jsonObject(with: JSONEncoder().encode(record.owner)),
+                        "device": try JSONSerialization.jsonObject(with: JSONEncoder().encode(record.device))
+                    ], options: [.sortedKeys])
+                    guard proof.count <= 4096 else { throw Refusal.mutationUncertain }
+                    let checkpoint = openat(directoryFD, "caps-mapping-queued-writer-checkpoint.json",
+                                            O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+                    guard checkpoint >= 0 else { throw Refusal.mutationUncertain }
+                    defer { close(checkpoint) }
+                    try checkFile(checkpoint)
+                    try proof.withUnsafeBytes { bytes in
+                        var offset = 0
+                        while offset < bytes.count {
+                            let count = Darwin.write(checkpoint, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
+                            if count < 0, errno == EINTR { continue }
+                            guard count > 0 else { throw Refusal.mutationUncertain }
+                            offset += count
+                        }
+                    }
+                    guard fsync(checkpoint) == 0, fsync(directoryFD) == 0 else { throw Refusal.mutationUncertain }
+                    try verifyMarker(metadata, directoryFD: directoryFD)
+                }
+            }
+        #endif
         do {
             try backend.write(record.device, mappings)
         } catch {
@@ -160,6 +189,17 @@ public final class SessionCapsMappingLease {
     }
 
     #if DEBUG
+        static func terminateWithQueuedWriter(record: Policy.Record, mappings: [Policy.Mapping],
+                                              initialApply: Bool = true,
+                                              environment: [String: String] = ProcessInfo.processInfo.environment,
+                                              uid: UInt32 = getuid(), pid: Int32 = getpid()) -> Bool
+        {
+            guard initialApply, let selected = environment["KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_WITH_QUEUED_WRITER"] else { return false }
+            var admission = environment
+            admission["KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_AFTER_JOINED_APPLY"] = selected
+            return terminateAfterJoinedApply(record: record, mappings: mappings, environment: admission, uid: uid, pid: pid)
+        }
+
         /// Inert unless a disposable worker opts into its exact selected registry.
         /// Called only after successful joined write, while the owner marker is durable.
         static func terminateAfterJoinedApply(record: Policy.Record, mappings: [Policy.Mapping],

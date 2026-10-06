@@ -138,6 +138,65 @@ public enum SessionCapsHIDUtilTransport {
               })
     }
 
+    #if DEBUG
+        /// Real hidutil is queued but has executed no user code. Root may resume the orphan later.
+        /// Does not claim death inside an opaque HID mutation call; never used for restore/read.
+        static func terminateOwnerWithSuspendedWriter(record: Policy.Record, mappings: [Policy.Mapping],
+                                                     publishCheckpoint: (Int32) throws -> Void) throws -> Never
+        {
+            guard SessionCapsMappingLease.terminateWithQueuedWriter(record: record, mappings: mappings) else {
+                throw SessionCapsMappingLease.Refusal.mutationUncertain
+            }
+            var actions: posix_spawn_file_actions_t?
+            guard posix_spawn_file_actions_init(&actions) == 0 else { throw Refusal.commandFailed }
+            defer { posix_spawn_file_actions_destroy(&actions) }
+            for descriptor in 0 ... 2 {
+                guard posix_spawn_file_actions_addopen(&actions, Int32(descriptor), "/dev/null", O_RDWR, 0) == 0 else {
+                    throw Refusal.commandFailed
+                }
+            }
+            var attributes: posix_spawnattr_t?
+            guard posix_spawnattr_init(&attributes) == 0 else { throw Refusal.commandFailed }
+            defer { posix_spawnattr_destroy(&attributes) }
+            // Pinned macOS27 SDK sys/spawn.h: START_SUSPENDED=0x0080, CLOEXEC_DEFAULT=0x4000.
+            guard posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_CLOEXEC_DEFAULT)) == 0 else {
+                throw Refusal.commandFailed
+            }
+            let arguments = try ["/usr/bin/hidutil"] + writeArguments(record.device, mappings: mappings)
+            let strings = arguments.map { strdup($0) }
+            defer { strings.forEach { free($0) } }
+            guard strings.allSatisfy({ $0 != nil }) else { throw Refusal.commandFailed }
+            var argv = strings + [nil]
+            var childPID: pid_t = 0
+            var emptyEnvironment: [UnsafeMutablePointer<CChar>?] = [nil]
+            let spawned = argv.withUnsafeMutableBufferPointer { buffer in
+                emptyEnvironment.withUnsafeMutableBufferPointer { environment in
+                    posix_spawn(&childPID, "/usr/bin/hidutil", &actions, &attributes, buffer.baseAddress!, environment.baseAddress!)
+                }
+            }
+            guard spawned == 0, childPID > 0 else { throw Refusal.commandFailed }
+            // An unreaped child PID cannot be reused. Never signal after observing it reaped.
+            var unreaped = true
+            defer {
+                if unreaped {
+                    _ = Darwin.kill(childPID, SIGKILL)
+                    var status: Int32 = 0
+                    while waitpid(childPID, &status, 0) < 0, errno == EINTR {}
+                }
+            }
+            var status: Int32 = 0
+            var observed: pid_t
+            repeat { observed = waitpid(childPID, &status, WNOHANG) } while observed < 0 && errno == EINTR
+            guard observed == 0 else {
+                if observed == childPID || (observed < 0 && errno == ECHILD) { unreaped = false }
+                throw Refusal.commandFailed
+            }
+            try publishCheckpoint(childPID)
+            Darwin.kill(getpid(), SIGKILL)
+            throw SessionCapsMappingLease.Refusal.mutationUncertain
+        }
+    #endif
+
     public static func runHIDUtil(_ arguments: [String]) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/hidutil")
