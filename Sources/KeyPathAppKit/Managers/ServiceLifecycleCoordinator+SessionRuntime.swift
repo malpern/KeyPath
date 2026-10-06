@@ -24,7 +24,18 @@ extension ServiceLifecycleCoordinator {
 
     func sessionCapabilities() async -> PermissionOracle.PermissionSet? {
         if let report = currentSessionReport() { return Self.permissionSet(report) }
-        let probedPermissions = await probeSessionCapabilities()
+        guard !startsSuppressed else { return nil }
+        // Capability checks launch a separate copy of the app too. Serialize
+        // them with stop so uninstall waits for existing probes before trashing
+        // the bundle, and queued checks cannot launch during shutdown.
+        let probedPermissions: PermissionOracle.PermissionSet?
+        do {
+            probedPermissions = try await sessionOperationGate.withOperation { [self] _ in
+                await probeSessionCapabilities()
+            }
+        } catch {
+            return nil
+        }
         // An owned runtime may finish starting while the independent probe is
         // suspended. Revalidate ownership/freshness before publishing the older
         // probe result (including a missing result) to the permission cache.
@@ -33,6 +44,7 @@ extension ServiceLifecycleCoordinator {
     }
 
     private func probeSessionCapabilities() async -> PermissionOracle.PermissionSet? {
+        guard !startsSuppressed, !Task.isCancelled else { return nil }
         #if DEBUG
             if let probe = testSessionCapabilityProbe { return await probe() }
         #endif

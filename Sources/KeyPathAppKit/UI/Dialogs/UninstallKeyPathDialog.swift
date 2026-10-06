@@ -64,7 +64,6 @@ struct UninstallKeyPathDialog: View {
         lastError = report.failureReason
         if report.success {
             backupMessage = report.logs.first
-            try? await Task.sleep(for: .seconds(2))
             NSApplication.shared.terminate(nil)
         }
     }

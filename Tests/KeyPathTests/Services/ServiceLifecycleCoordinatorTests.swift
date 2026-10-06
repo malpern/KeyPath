@@ -343,6 +343,49 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testShutdownAndUpdateSuppressCapabilityLaunchesUntilBothHoldsEnd() async {
+        var probes = 0
+        coordinator.testSessionCapabilityProbe = { probes += 1; return nil }
+        coordinator.setTerminationPreparationActive(true)
+        coordinator.setUpdatePreparationActive(true)
+        _ = await coordinator.sessionCapabilities()
+        coordinator.setUpdatePreparationActive(false)
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(probes, 0)
+        coordinator.setTerminationPreparationActive(false)
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(probes, 1)
+    }
+
+    func testUninstallStopDrainsExistingCapabilityProbeAndBlocksLaterProbes() async {
+        let coordinator = coordinator!
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        var events: [String] = []
+        coordinator.testSessionCapabilityProbe = {
+            events.append("probe-start")
+            entered.continuation.yield(())
+            for await _ in release.stream { break }
+            events.append("probe-end")
+            return nil
+        }
+        ServiceLifecycleCoordinator.testSessionStop = { events.append("stop"); return true }
+        defer { ServiceLifecycleCoordinator.testSessionStop = nil }
+        let probe = Task { await coordinator.sessionCapabilities() }
+        for await _ in entered.stream { break }
+        coordinator.setTerminationPreparationActive(true)
+        let stop = Task { await coordinator.stopKanata(reason: "Uninstall KeyPath") }
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(events, ["probe-start"])
+        release.continuation.yield(())
+        _ = await probe.value
+        let stopped = await stop.value
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(events, ["probe-start", "probe-end", "stop"])
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(events, ["probe-start", "probe-end", "stop"])
+    }
+
     func testMissingOwnedEvidenceDoesNotUpgradeCapabilityProbeResult() async {
         coordinator.testSessionCurrentReport = { nil }
         coordinator.testSessionCapabilityProbe = { await Task.yield(); return nil }

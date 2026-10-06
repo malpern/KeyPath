@@ -24,7 +24,7 @@ final class ServiceLifecycleCoordinator {
     private(set) var sessionWantsRunning = false
     private var updatePreparationActive = false
     private var terminationPreparationActive = false
-    private var startsSuppressed: Bool {
+    var startsSuppressed: Bool {
         updatePreparationActive || terminationPreparationActive
     }
 

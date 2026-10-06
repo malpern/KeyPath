@@ -37,3 +37,18 @@ and reinstall remain to be qualified on a disposable machine.
 Startup now requires Welcome completion as well as config/runtime readiness.
 This prevents retained macOS permissions and an automatically regenerated default
 config from bypassing onboarding after settings have been removed.
+
+## Permission probes after bundle removal (2026-10-06)
+
+Live uninstall on the Air completed backup, runtime stop, configuration removal,
+and app trashing, but health polling then launched capability-only copies from
+the removed bundle. NSWorkspace produced repeated file-not-found dialogs before
+normal quit reached the app delegate. The runtime-start hold did not cover these
+independent permission probes. Unit tests had mocked uninstall preparation without
+exercising this interaction.
+
+Capability probes now share lifecycle admission with stop and honor both shutdown
+and update holds. Stop drains existing probes before bundle removal; later probes
+return unavailable without launching anything. Successful uninstall requests quit
+immediately instead of leaving a two-second window for background UI work. Tests
+cover hold restoration and an in-flight probe draining before uninstall stop.
