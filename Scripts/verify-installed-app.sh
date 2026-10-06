@@ -31,8 +31,12 @@ for resource_bundle in \
         exit 1
     fi
 done
-if [[ ! -f "$APP_PATH/Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib" ]]; then
-    echo "❌ Packaged Metal library is missing from the KeyPathAppKit resource bundle" >&2
+metal_library="$APP_PATH/Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib"
+if [[ ! -f "$metal_library" || ! -s "$metal_library" ]]; then
+    metal_library="$APP_PATH/Contents/Resources/KeyPath_KeyPathAppKit.bundle/Contents/Resources/default.metallib"
+fi
+if [[ ! -f "$metal_library" || ! -s "$metal_library" ]]; then
+    echo "❌ Packaged Metal library is missing or empty in the KeyPathAppKit resource bundle" >&2
     exit 1
 fi
 

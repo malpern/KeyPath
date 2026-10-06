@@ -197,7 +197,7 @@ class SessionVerificationTests(unittest.TestCase):
         for bundle in ('KeyPath_KeyPath.bundle', 'KeyPath_KeyPathAppKit.bundle',
                        'KeyPath_KeyPathInstallationWizard.bundle'):
             (app / 'Contents/Resources' / bundle).mkdir(parents=True)
-        (app / 'Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib').touch()
+        (app / 'Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib').write_bytes(b'fixture-metallib')
         sparkle = app / 'Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle'
         sparkle.parent.mkdir(parents=True)
         sparkle.touch()
@@ -252,6 +252,34 @@ class SessionVerificationTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Python 3 is required', result.stderr)
         self.assertNotIn('runtime verification.', result.stdout)
+
+        flat = app / 'Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib'
+        native = flat.parent / 'Contents/Resources/default.metallib'
+        native.parent.mkdir(parents=True)
+        layouts = [('flat', b'compiled-fixture', None, True),
+                   ('native', None, b'compiled-fixture', True),
+                   ('native_with_empty_flat', b'', b'compiled-fixture', True),
+                   ('missing', None, None, False),
+                   ('empty_flat', b'', None, False),
+                   ('empty_native', None, b'', False)]
+        for name, flat_bytes, native_bytes, accepted in layouts:
+            with self.subTest(metal_layout=name):
+                flat.unlink(missing_ok=True)
+                native.unlink(missing_ok=True)
+                log.unlink(missing_ok=True)
+                if flat_bytes is not None:
+                    flat.write_bytes(flat_bytes)
+                if native_bytes is not None:
+                    native.write_bytes(native_bytes)
+                result = subprocess.run(['/bin/bash', str(script)],
+                                        env=dict(environment, CHECK_RUNTIME='0'),
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0 if accepted else 1, result.stderr)
+                if accepted:
+                    self.assertIn('codesign --verify --strict', log.read_text())
+                else:
+                    self.assertIn('Metal library is missing or empty', result.stderr)
+                    self.assertFalse(log.exists(), 'missing resource must fail before trust tools')
 
     def test_release_doctor_uses_same_helper_and_keeps_trust_preflight(self):
         doctor = (ROOT / 'Scripts/release-doctor.sh').read_text()
