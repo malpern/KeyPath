@@ -165,24 +165,16 @@ public struct HelpExamples: AsyncParsableCommand {
 
     private static let serviceExamples: [ExampleEntry] = [
         ExampleEntry(
-            description: "Check if Kanata is running",
-            commands: ["keypath service status"]
+            description: "Open KeyPath to manage remapping and check the live session",
+            commands: ["open -a KeyPath"]
         ),
         ExampleEntry(
-            description: "Restart after config changes",
-            commands: ["keypath service restart"]
+            description: "Reload configuration while KeyPath is remapping",
+            commands: ["keypath service reload"]
         ),
         ExampleEntry(
             description: "View recent logs",
             commands: ["keypath service logs --lines 50"]
-        ),
-        ExampleEntry(
-            description: "Full restart cycle",
-            commands: [
-                "keypath service stop",
-                "keypath config apply",
-                "keypath service start",
-            ]
         ),
     ]
 
@@ -207,24 +199,8 @@ public struct HelpExamples: AsyncParsableCommand {
 
     private static let systemExamples: [ExampleEntry] = [
         ExampleEntry(
-            description: "Check system health before installing",
+            description: "Inspect local permission and configuration diagnostics (not live app-session health)",
             commands: ["keypath system inspect --json"]
-        ),
-        ExampleEntry(
-            description: "Full install flow",
-            commands: [
-                "keypath system inspect",
-                "keypath system install",
-                "keypath service status",
-            ]
-        ),
-        ExampleEntry(
-            description: "Repair a broken installation",
-            commands: ["keypath system repair"]
-        ),
-        ExampleEntry(
-            description: "Clean uninstall (keeps config files)",
-            commands: ["keypath system uninstall"]
         ),
     ]
 }

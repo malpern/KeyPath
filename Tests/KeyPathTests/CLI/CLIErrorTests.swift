@@ -48,6 +48,8 @@ final class CLIErrorTests: XCTestCase {
         XCTAssertEqual(error.code, .serviceUnreachable)
         XCTAssertNotNil(error.hint)
         XCTAssertFalse(error.hint!.isEmpty)
+        XCTAssertTrue(error.hint!.contains("Open KeyPath.app"))
+        XCTAssertFalse(error.hint!.contains("service status"))
     }
 
     func testServiceControlFailedDescribesAction() {

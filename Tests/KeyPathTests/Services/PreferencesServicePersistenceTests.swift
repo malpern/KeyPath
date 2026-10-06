@@ -58,7 +58,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
                 enabled: false
             )
             let writer = PreferencesService()
-            writer.tcpServerPort = 45678
+            UserDefaults.standard.set(45678, forKey: "KeyPath.TCP.ServerPort")
             writer.notificationsEnabled = false
             writer.applyMappingsDuringRecording = false
             writer.isSequenceMode = false
@@ -82,7 +82,8 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
             let loaded = PreferencesService()
 
-            XCTAssertEqual(loaded.tcpServerPort, 45678)
+            XCTAssertEqual(loaded.tcpServerPort, 37001)
+            XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 45678)
             XCTAssertFalse(loaded.notificationsEnabled)
             XCTAssertFalse(loaded.applyMappingsDuringRecording)
             XCTAssertFalse(loaded.isSequenceMode)
@@ -119,7 +120,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             let prefs = PreferencesService()
 
             XCTAssertEqual(prefs.tcpServerPort, 37001)
-            XCTAssertNil(UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort"))
+            XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 80)
             XCTAssertEqual(prefs.contextHUDTimeout, 10.0)
             XCTAssertEqual(UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout"), 10.0)
             XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
@@ -203,24 +204,22 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             let manager = ConfigurationManager(configurationService: configService)
 
             let prefs = PreferencesService.shared
-            let originalPort = prefs.tcpServerPort
             let originalVerboseLogging = prefs.verboseKanataLogging
             defer {
-                prefs.tcpServerPort = originalPort
                 prefs.verboseKanataLogging = originalVerboseLogging
             }
 
-            prefs.tcpServerPort = 45678
+            UserDefaults.standard.set(45678, forKey: "KeyPath.TCP.ServerPort")
             prefs.verboseKanataLogging = true
 
             let verboseArgs = manager.buildKanataArguments(checkOnly: false)
-            XCTAssertEqual(verboseArgs.portArgumentValue, "45678")
+            XCTAssertEqual(verboseArgs.portArgumentValue, "37001")
             XCTAssertTrue(verboseArgs.contains("--trace"))
             XCTAssertTrue(verboseArgs.contains("--log-layer-changes"))
 
             prefs.verboseKanataLogging = false
             let normalArgs = manager.buildKanataArguments(checkOnly: false)
-            XCTAssertEqual(normalArgs.portArgumentValue, "45678")
+            XCTAssertEqual(normalArgs.portArgumentValue, "37001")
             XCTAssertFalse(normalArgs.contains("--trace"))
             XCTAssertTrue(normalArgs.contains("--log-layer-changes"))
         }
@@ -306,19 +305,18 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
     // MARK: - TCP Port Validation
 
-    func testTcpServerPort_ValidPortAccepted() {
-        let prefs = PreferencesService()
-        let originalPort = prefs.tcpServerPort
-        prefs.tcpServerPort = 8080
-        XCTAssertEqual(prefs.tcpServerPort, 8080)
-        prefs.tcpServerPort = originalPort
-    }
-
-    func testTcpServerPort_InvalidPortReverts() {
-        let prefs = PreferencesService()
-        let originalPort = prefs.tcpServerPort
-        prefs.tcpServerPort = 80
-        XCTAssertEqual(prefs.tcpServerPort, originalPort, "Invalid port should revert to previous")
+    func testTcpServerPort_PersistedValuesCannotRedirectSessionClients() {
+        withPreservedDefaults(keys: ["KeyPath.TCP.ServerPort"]) {
+            for storedPort in [-1, 0, 80, 1024, 8123, 37001, 45678, 54141, 65535, 65536] {
+                UserDefaults.standard.set(storedPort, forKey: "KeyPath.TCP.ServerPort")
+                let prefs = PreferencesService()
+                XCTAssertEqual(prefs.tcpServerPort, 37001, "Stored port \(storedPort) must not redirect clients")
+                XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), storedPort)
+                prefs.resetCommunicationSettings()
+                XCTAssertEqual(prefs.tcpServerPort, 37001)
+                XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), storedPort)
+            }
+        }
     }
 
     func testTcpServerPort_BoundaryValues() {
@@ -345,49 +343,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         _ = PreferencesService()
 
         XCTAssertNil(UserDefaults.standard.object(forKey: key))
-    }
-
-    // MARK: - Legacy TCP Port Migration
-
-    /// An old install that still has the UDP-era port (54141) stored should be
-    /// migrated to the current default (37001) on load, and the stale key
-    /// cleared so it tracks the default going forward. This is the fix for the
-    /// "no TCP" mismatch where the app dialed 54141 while kanata listened on 37001.
-    func testTcpServerPort_LegacyUDPEraPortMigratesToDefault() {
-        let key = "KeyPath.TCP.ServerPort"
-        let saved = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-
-        UserDefaults.standard.set(54141, forKey: key)
-
-        let prefs = PreferencesService()
-
-        XCTAssertEqual(prefs.tcpServerPort, 37001, "Legacy port should migrate to current default")
-        XCTAssertNil(
-            UserDefaults.standard.object(forKey: key),
-            "Stale key should be cleared so the port tracks the default going forward"
-        )
-    }
-
-    /// A deliberately-chosen non-legacy port must NOT be clobbered by the migration.
-    func testTcpServerPort_DeliberateCustomPortPreserved() {
-        let key = "KeyPath.TCP.ServerPort"
-        let saved = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-
-        UserDefaults.standard.set(8123, forKey: key)
-
-        let prefs = PreferencesService()
-
-        XCTAssertEqual(prefs.tcpServerPort, 8123, "A non-legacy custom port must be preserved")
     }
 
     // MARK: - LeaderKeyPreference Codable Tests
@@ -646,7 +601,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         let prefs = PreferencesService()
         let defaultPort = 37001
 
-        prefs.tcpServerPort = 9999
         prefs.resetCommunicationSettings()
 
         XCTAssertEqual(prefs.communicationProtocol, .tcp)

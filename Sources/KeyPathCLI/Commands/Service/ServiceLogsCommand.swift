@@ -5,7 +5,7 @@ import KeyPathAppKit
 struct ServiceLogs: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "logs",
-        abstract: "Show recent Kanata service logs"
+        abstract: "Show recent KeyPath app logs"
     )
 
     @OptionGroup var globals: GlobalOptions

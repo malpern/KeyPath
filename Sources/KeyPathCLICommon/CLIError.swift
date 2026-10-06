@@ -43,7 +43,7 @@ public extension CLIError {
         return CLIError(code: .notFound, message: "\(entity) not found: '\(query)'", hint: hint, details: ["query: '\(query)'"], docsUrl: nil)
     }
 
-    static func serviceUnreachable(hint: String = "Run 'keypath service status --json' to check if Kanata is running") -> CLIError {
+    static func serviceUnreachable(hint: String = "Open KeyPath.app and verify that remapping is running, then retry") -> CLIError {
         CLIError(code: .serviceUnreachable, message: "Could not connect to Kanata TCP server", hint: hint, details: nil, docsUrl: CLIDocsURL.debugging)
     }
 

@@ -371,7 +371,7 @@ extension ServiceLifecycleCoordinator {
         configuration.arguments = [
             capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
             "--session-report", url.path, "--session-nonce", nonce,
-            "--session-owner", String(getpid()), "--session-port", "37001",
+            "--session-owner", String(getpid()), "--session-port", String(KeyPathConstants.Networking.defaultTCPPort),
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
         if !capabilitiesOnly, SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current()).managedCaps,

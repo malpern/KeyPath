@@ -8,7 +8,8 @@ public struct KeyPathCLI: AsyncParsableCommand {
 
     public static let configuration = CommandConfiguration(
         commandName: "keypath",
-        abstract: "KeyPath keyboard remapping — configure, query, control",
+        abstract: "KeyPath keyboard remapping — configure, query, simulate",
+        discussion: "Open KeyPath.app to start or stop remapping and check the live session. Runtime lifecycle and system installation commands are unavailable in this driverless CLI.",
         version: CLIVersion.current,
         subcommands: [
             // Plumbing (noun-verb)
@@ -25,11 +26,7 @@ public struct KeyPathCLI: AsyncParsableCommand {
             Help.self,
             Completions.self,
             // Porcelain shortcuts (hidden from --help)
-            StatusShortcut.self,
             RemapShortcut.self,
-            StartShortcut.self,
-            StopShortcut.self,
-            RestartShortcut.self,
             LogsShortcut.self,
             UnmapShortcut.self,
         ]

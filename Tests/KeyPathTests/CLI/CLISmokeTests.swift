@@ -26,7 +26,7 @@ final class CLISmokeTests: XCTestCase {
     }
 
     func testGlobalOptionsTimeout() throws {
-        let cmd = try KeyPathCLI.parseAsRoot(["service", "status", "--timeout", "60"]) as! ServiceStatus
+        let cmd = try KeyPathCLI.parseAsRoot(["system", "inspect", "--timeout", "60"]) as! SystemInspect
         XCTAssertEqual(cmd.globals.timeout, 60)
     }
 
@@ -112,9 +112,8 @@ final class CLISmokeTests: XCTestCase {
 
     // MARK: - System commands
 
-    func testSystemUninstallDeleteConfig() throws {
-        let cmd = try KeyPathCLI.parseAsRoot(["system", "uninstall", "--delete-config"]) as! SystemUninstall
-        XCTAssertTrue(cmd.deleteConfig)
+    func testSystemUninstallDeleteConfigIsUnavailable() {
+        XCTAssertThrowsError(try KeyPathCLI.parseAsRoot(["system", "uninstall", "--delete-config"]))
     }
 
     // MARK: - Conflict strategy
@@ -140,8 +139,8 @@ final class CLISmokeTests: XCTestCase {
 
     // MARK: - Porcelain shortcuts
 
-    func testStatusShortcutParses() throws {
-        _ = try KeyPathCLI.parseAsRoot(["status"]) as! StatusShortcut
+    func testStatusShortcutIsUnavailable() {
+        XCTAssertThrowsError(try KeyPathCLI.parseAsRoot(["status"]))
     }
 
     func testRemapShortcutParses() throws {

@@ -211,20 +211,10 @@ final class PreferencesService: @unchecked Sendable {
 
     // MARK: - TCP Server Configuration
 
-    /// TCP server port for Kanata communication
+    /// The driverless worker and every app/CLI client share one fixed endpoint.
+    /// Historical stored port values remain untouched and cannot redirect clients.
     var tcpServerPort: Int {
-        didSet {
-            // Validate port range and revert if invalid
-            if !Self.isValidPort(tcpServerPort) {
-                AppLogger.shared.log(
-                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)"
-                )
-                tcpServerPort = oldValue
-            } else {
-                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
-                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
-            }
-        }
+        KeyPathConstants.Networking.defaultTCPPort
     }
 
     /// Whether user notifications are enabled
@@ -475,7 +465,6 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Keys {
         static let communicationProtocol = "KeyPath.Communication.Protocol"
-        static let tcpServerPort = "KeyPath.TCP.ServerPort"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
@@ -500,7 +489,6 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Defaults {
         static let communicationProtocol = CommunicationProtocol.tcp // TCP is only protocol
-        static let tcpServerPort = KeyPathConstants.Networking.defaultTCPPort
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true
@@ -543,29 +531,6 @@ final class PreferencesService: @unchecked Sendable {
                 ?? Defaults.communicationProtocol.rawValue
         communicationProtocol =
             CommunicationProtocol(rawValue: protocolString) ?? Defaults.communicationProtocol
-
-        // TCP server port. Migrate the legacy UDP-era port (54141) to the
-        // current default. PR #500 changed the default to 37001, but existing
-        // installs kept 54141 in UserDefaults while the kanata daemon was
-        // (re)launched on the new default — so the app dialed a port nothing was
-        // listening on and reported "no TCP". Clear the stale key so it tracks
-        // the current default; preserve any deliberately-set non-legacy port.
-        let storedTCPPort = UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int
-        if let storedTCPPort, storedTCPPort == KeyPathConstants.Networking.legacyUDPEraPort {
-            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
-            tcpServerPort = Defaults.tcpServerPort
-            AppLogger.shared.log(
-                "🔧 [PreferencesService] Migrated legacy TCP port \(storedTCPPort) → \(Defaults.tcpServerPort)"
-            )
-        } else if let storedTCPPort, !Self.isValidPort(storedTCPPort) {
-            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
-            tcpServerPort = Defaults.tcpServerPort
-            AppLogger.shared.log(
-                "🔧 [PreferencesService] Removed invalid TCP port \(storedTCPPort); using \(Defaults.tcpServerPort)"
-            )
-        } else {
-            tcpServerPort = storedTCPPort ?? Defaults.tcpServerPort
-        }
 
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
@@ -682,7 +647,6 @@ final class PreferencesService: @unchecked Sendable {
     /// Reset all communication settings to defaults
     func resetCommunicationSettings() {
         communicationProtocol = Defaults.communicationProtocol
-        tcpServerPort = Defaults.tcpServerPort
         AppLogger.shared.log("🔧 [PreferencesService] All communication settings reset to defaults")
     }
 

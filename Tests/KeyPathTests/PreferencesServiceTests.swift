@@ -84,9 +84,9 @@ final class PreferencesServiceTests: XCTestCase {
 
     func testResetCommunicationSettings_RestoresDefaults() {
         let prefs = PreferencesService()
-        prefs.tcpServerPort = 9999
         prefs.resetCommunicationSettings()
         XCTAssertEqual(prefs.communicationProtocol, .tcp)
+        XCTAssertEqual(prefs.tcpServerPort, 37001)
     }
 
     // MARK: - Enum Display Names

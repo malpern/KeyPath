@@ -39,15 +39,15 @@ before a build; installed-app verification fails closed after deployment.
 
 ## Remaining distribution gates
 
-- The shipped `keypath-cli` still exposes legacy `service start/stop/restart` via
-  `SystemFacade` and `KanataDaemonService`. Its status JSON/human output includes
-  helper/Kanata/Karabiner fields and cannot retrieve the UI parent's retained
-  session report. Config/simulator commands are separately useful; CLI service
-  commands are not a substitute for this verifier. No CLI redesign is included.
+- The bounded [CLI command-surface follow-up](driverless-cli-command-surface.md)
+  removes unsupported lifecycle/status and system-mutation registrations while
+  retaining configuration/simulator commands and scoped local inspection. The
+  CLI cannot retrieve the UI parent's retained session report and is not a
+  substitute for this verifier. Final rebuilt CLI acceptance remains required.
 - `build-and-sign.sh` builds KeyPath, CLI and Insights, and intentionally omits
   KeyPathHelper, the launcher and LaunchDaemon plists. Legacy helper authorization
-  paths remain in source; package omission does not qualify every exposed CLI
-  lifecycle command. Stable CLI signing identity is retained across replacement.
+  paths remain in source; their commands are no longer registered in the shipped
+  driverless CLI. Stable CLI signing identity is retained across replacement.
   Older installed-production migration remains outside this work.
 - A read-only probe with the canonical Xcode 27 selection still reports
   `cannot execute tool 'metal' due to missing Metal Toolchain`. No component was
