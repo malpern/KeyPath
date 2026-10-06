@@ -160,12 +160,17 @@ struct AppMenuCommands: Commands {
             .keyboardShortcut("k", modifiers: [.option, .command])
 
             Button("Center Overlay") {
-                NotificationCenter.default.post(name: NSNotification.Name("ResetOverlayPosition"), object: nil)
+                LiveKeyboardOverlayController.shared.showResetCentered()
             }
             .keyboardShortcut("l", modifiers: [.option, .command])
 
             Button("Toggle Inspector") {
-                NotificationCenter.default.post(name: NSNotification.Name("ToggleInspectorDrawer"), object: nil)
+                let overlay = LiveKeyboardOverlayController.shared
+                if !overlay.isVisible {
+                    overlay.isVisible = true
+                }
+                overlay.bringToFront()
+                overlay.toggleDrawerWithHighlight()
             }
             .keyboardShortcut("d", modifiers: [.option, .command])
         }
