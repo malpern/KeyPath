@@ -1,0 +1,163 @@
+{
+  "productCommit": "1c856d3fe727554e16256c79e7c349d4893c0ff3",
+  "trial": "/private/tmp/keypath-marker-fresh-parent-live-02",
+  "lease": "cbx_6e404a455cfc",
+  "scope": "Joined-write retained uncertainty marker: fresh-parent profile preservation and explicit Restart refusal",
+  "passed": true,
+  "claims": [
+    "Handwritten Caps profile preserved through fresh parent2364 startup and explicit Restart",
+    "Journal, mutation marker and applied mapping unchanged",
+    "Explicit normal Restart visibly refused unsafe Caps recovery",
+    "No runtime worker or target in pinned observations; permission-only capability probes are distinct",
+    "All product processes absent after exact inactive parent SIGTERM",
+    "Canonical deletion and independent provider/template/detached nonpersistent USB checks passed"
+  ],
+  "limitations": [
+    "No child-in-flight writer death tested; injected death follows joined HID write",
+    "No physical keystroke campaign in this trial",
+    "Initial startup and Start UI still waited before showing failure",
+    "Normal Quit while setup sheet open did not retire2364; not normal-Quit acceptance",
+    "Ordinary cleanup refused retained uncertainty before mutation; configuration, DEBUG selection and recovery records preserved until disposal",
+    "Prior changed-profile failed trial remains failed",
+    "Accessibility and Input Monitoring remain required; Caps DEBUG only"
+  ],
+  "profileSHA256": "62550ca9c13aabd129af7d7b0bfb37ce78925914416f7bbff6fc294e1ab7b035",
+  "journalSHA256": "959cad504fd23b5018cbaca0045fa581051522189df1928bf7ab3d25c009c33b",
+  "markerSHA256": "ed7a400b13b372f0423e68d9300cc7e25f967e459a1547ae7975cf6ba49a33e5",
+  "mapping": {
+    "device": {
+      "locationID": 261095424,
+      "productID": 16400,
+      "registryEntryID": 4294969023,
+      "serialNumber": null,
+      "vendorID": 51966
+    },
+    "mappings": [
+      {
+        "HIDKeyboardModifierMappingDst": 30064771181,
+        "HIDKeyboardModifierMappingSrc": 30064771129
+      }
+    ],
+    "raw": "RegistryID  Key                   Value\n1000006bf   UserKeyMapping   (\n        {\n        HIDKeyboardModifierMappingDst = 30064771181;\n        HIDKeyboardModifierMappingSrc = 30064771129;\n    }\n)\n"
+  },
+  "finalRuntime": {
+    "parents": [],
+    "target": null,
+    "workers": []
+  },
+  "uiMessage": "Caps mapping could not be restored safely. Restart was refused; its recovery record was retained.",
+  "timingMinutes": {
+    "setup": 7.667862204710643,
+    "experimentThroughRefusal": 10.25148355960846,
+    "cleanup": 2.7574509700139362,
+    "total": 20.67679673433304
+  },
+  "timingExcludes": "local build/sign/package and documentation/review/push",
+  "failedReceiptsPreserved": [
+    "marker-final01-result.json",
+    "envcleanup01-result.json"
+  ],
+  "disposal": {
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ]
+  },
+  "destroyWarning": "warning: could not stop GitHub Actions hydration for cbx_6e404a455cfc: write GitHub Actions hydration stop marker on 10.211.55.171: exit status 255\ndeleted lease=cbx_6e404a455cfc server=887f863e-2a54-4442-8135-814c2e2370a6 name=crabbox-cbx-6e404a455cfc-keypath26-1c856d3f-20261006014805-38456\n",
+  "rawReceiptIndex": {
+    "create-claim.json": {
+      "sha256": "43edda68db3dd912a46ec12213f049e9de052b0779aaf435bad0bfc76996189f",
+      "bytes": 1821
+    },
+    "create-result.json": {
+      "sha256": "876475329b36d4d6dfe2822c8e9394538d4988cc3cbac3ce1eeaf045a9cffcfd",
+      "bytes": 1198
+    },
+    "permissions01-result.json": {
+      "sha256": "d2503ba7780f32e994fe6536be64b98981601b0cfae6326b9eb1be5a3422ee96",
+      "bytes": 1484
+    },
+    "marker01-result.json": {
+      "sha256": "783582ef6fb67a3e516c1e60a3e3ad68a92f645956f535cdd6664ec3e2642a8f",
+      "bytes": 21251
+    },
+    "marker-stopped01-result.json": {
+      "sha256": "76931091857617e91e1bbb0541bef880a891afe36a8f8aaf07bd724884a74528",
+      "bytes": 21212
+    },
+    "fresh-parent-launch01-result.json": {
+      "sha256": "f4c4136347bc812a3b5ecea4bbc15b7bce6fadf5dfc79c20d09ced9b85863ea3",
+      "bytes": 339
+    },
+    "fresh-parent01-result.json": {
+      "sha256": "85c98173ca252c4468098fc16cfc3bf0e48d42e42b9f78a04be16811601f4dc0",
+      "bytes": 348
+    },
+    "marker-fresh01-result.json": {
+      "sha256": "93bcf1f800967d68a08e87f39fe99e0b577c89534565bdf4e49573a5e0e6f8d8",
+      "bytes": 21390
+    },
+    "startup-log01-result.json": {
+      "sha256": "6bb2a092adb9a3ecd21c936db696ae8475abea0c3a57d0c93aceb20eb526532f",
+      "bytes": 739936
+    },
+    "status-ui01-result.json": {
+      "sha256": "6c541367a362584c86f1b3dbe9d98203b993e94aa48d7532753e1c6c084aa5f9",
+      "bytes": 23031
+    },
+    "marker-start01-result.json": {
+      "sha256": "83f6f017ce361d306f96fd7be6df2ccc331198711a7d30ef1660a72332a4af3d",
+      "bytes": 21391
+    },
+    "restart-log01-result.json": {
+      "sha256": "6495e27b9839d50f8dae2e832fd4a32ee0f4df2382e846700422bf4d9ec9c2d3",
+      "bytes": 18854
+    },
+    "refusal-ui01-result.json": {
+      "sha256": "5ff294ce1d9f5305dcfde138a5bb9ae098dd81b79f2f6d00df07ef18c0c87f12",
+      "bytes": 24583
+    },
+    "marker-restart01-result.json": {
+      "sha256": "1d38a287a6197d9db6e085f1a4c928ca55072c29f73dd42a9c51d771e42cc6e1",
+      "bytes": 21454
+    },
+    "marker-final01-result.json": {
+      "sha256": "15efaf20caa1da41d57cc49df81c47c967f68c0a52e2189cc4e97c284b396de0",
+      "bytes": 201
+    },
+    "quit-state01-result.json": {
+      "sha256": "036e2e1ea210d8461a35e0c00ec67ad50973c98e0bcf3a031b60eb29bec698d5",
+      "bytes": 347
+    },
+    "retire-parent01-result.json": {
+      "sha256": "d453ef14701a1f6404ecd674baa365973a7043d9da5ca9878c7c44142510bb0e",
+      "bytes": 131
+    },
+    "marker-final02-result.json": {
+      "sha256": "23889b1138593fb1bec001ec7e04f06cec24b2ccff0efbdbf4207a047b624afe",
+      "bytes": 21267
+    },
+    "envcleanup01-result.json": {
+      "sha256": "a2384680b0ba5131e6c43cc436e6a043f06517ec6ae69ead990813adecb9d874",
+      "bytes": 193
+    },
+    "destroy-result.json": {
+      "sha256": "3e305d522692c906c44a1b03e3c2b1cbc5f3646e9a689457e94657d13db153cc",
+      "bytes": 367
+    },
+    "independent-provider-cleanup02.json": {
+      "sha256": "4cffd37671d1f60ed5d712111827b854f860480cb4aaabfbc75786379e859eb0",
+      "bytes": 437
+    }
+  }
+}

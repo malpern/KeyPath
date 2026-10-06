@@ -9,7 +9,7 @@ Set `KEYPATH_TRIAL_DIR` to a newly created, owned mode700 directory. Put a mode6
 commands from this source directory with Python `-B`. Missing environment fails
 before dispatch. Keep this environment on every invocation; never substitute a
 previous trial directory. Source and artifact bindings currently select signed
-`bd7809dc1` and its metadata-free archive.
+`1c856d3fe` and its metadata-free archive.
 
 1. Run canonical `vm-lab keypath list` and `preflight`. Check capacity. Locally
    validate `create_once.verify_inputs`, both archives through the installer's
@@ -86,7 +86,14 @@ preserve its evidence, then canonically dispose and verify detached USB.
 
 The October5 fresh-parent run on signed bd7809dc1 failed the unchanged-profile
 gate: startup regenerated the Caps fixture. Product1c856d3fe fixes the cached-read
-ownership bypass; its signed live replay is pending. Preserve that failure even
+ownership bypass; its signed live replay passed exact profile preservation and
+explicit fresh-parent Restart refusal. Preserve that failure even
 though a later explicit Restart under the generated default profile safely
 refused recovery with unchanged journal/marker/map. Do not substitute a changed
 profile or loosen the observer to turn this into a pass.
+
+Retained uncertainty is not ordinary cleanup: the normal Caps cleanup helper
+refuses its marker before mutation. Preserve the profile, selection and recovery
+records until canonical disposal, then verify provider and USB absence. The
+signed1c856 replay required exact inactive-parent SIGTERM after menu Quit with
+the setup sheet open left it running; this does not count as normal-Quit acceptance.

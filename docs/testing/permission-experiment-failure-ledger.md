@@ -1,5 +1,7 @@
 # Permission experiment failure ledger
 
+October5 signed1c856 replay: the cached-profile preservation defect is live-fixed; fresh-parent exact Caps profile and retained-marker Restart refusal passed. See [receipt](evidence/2026-10-05-fresh-parent-marker-acceptance.json). Two separate product UX observations remain: initial/Start status waits despite no active runtime, and menu Quit while setup sheet is open leaves parent2364. Guarded exact-parent SIGTERM retired it. Ordinary Caps cleanup refused the uncertain marker before mutation; this is expected preservation, not a VM failure. Keep both failed observer/cleanup receipts; do not force map restoration or erase records. Canonical disposal and independent provider/template/USB verification passed. Future retained-marker cases end with evidence and disposal, not ordinary map-cleanup helpers. No new infrastructure is needed.
+
 Only proven causes are stated as causes. A refusal without sufficient evidence remains unresolved. Update the existing row when a fix gains live evidence; add a row for a new class of failure.
 
 | Failure / observation | Layer | Demonstrated cause or limit | Change and regression | Evidence / status |
