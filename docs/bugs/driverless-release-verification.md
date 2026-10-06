@@ -27,6 +27,9 @@ Kanata source at `79bd7fabb7bbb42315864dda7e364f5eafee2630` maps numeric ports t
 `127.0.0.1`. The product gitlink `0853689f04d40f6b8d283fef80e34b3d53531b89`
 is absent from that local submodule object store; exact pinned companion-source
 provenance is not claimed and remains a full companion rebuild gate.
+The subsequent [fresh release prerequisite investigation](driverless-fresh-release-prerequisites.md)
+confirms the pinned commit is remotely available and directly checks its loopback
+parser; it does not establish the preserved packaged bridge's build provenance.
 No process arguments, config contents or input/output events are printed. A
 read-only QA script cannot introspect the UI coordinator's retained properties;
 these checks bind the signed executable's cooperative worker launch and report,
