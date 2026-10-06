@@ -205,10 +205,19 @@ class SessionVerificationTests(unittest.TestCase):
         cli.parent.mkdir(parents=True)
         cli.write_text('#!/bin/bash\necho fixture-cli-version\n')
         cli.chmod(0o755)
+        for component in ('Contents/MacOS/KeyPath',
+                          'Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib',
+                          'Contents/Library/KeyPath/kanata-simulator',
+                          'Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata',
+                          'Contents/PlugIns/Insights.bundle/Contents/MacOS/libKeyPathInsights'):
+            binary = app / component
+            binary.parent.mkdir(parents=True, exist_ok=True)
+            binary.touch()
         tools = self.base / 'tools'
         tools.mkdir()
         log = self.base / 'trust-calls'
-        for name, body in {'otool': 'echo "@executable_path/../Frameworks"',
+        for name, body in {'lipo': 'echo "${FIXTURE_ARCHITECTURES-arm64}"',
+                           'otool': 'echo "@executable_path/../Frameworks"',
                            'codesign': 'echo "Identifier=com.keypath.KeyPath.CLI" >&2',
                            'spctl': ':', 'xcrun': ':',
                            'python-fixture': 'test "$1" = "$EXPECTED_HELPER" || exit 9\n'
@@ -223,6 +232,14 @@ class SessionVerificationTests(unittest.TestCase):
                            EXPECTED_HELPER_SHA=hashlib.sha256(HELPER.read_bytes()).hexdigest(),
                            TRUST_LOG=str(log), CHECK_RUNTIME='1', REQUIRE_NOTARIZED='1', REQUIRE_STAPLED='1')
         script = ROOT / 'Scripts/verify-installed-app.sh'
+        for architectures in ('x86_64', 'x86_64 arm64', ''):
+            result = subprocess.run(['/bin/bash', str(script)],
+                                    env=dict(environment, FIXTURE_ARCHITECTURES=architectures),
+                                    capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('requires Apple Silicon only', result.stderr)
+            self.assertNotIn('codesign', log.read_text())
+            log.unlink()
         for code in ('0', '1'):
             result = subprocess.run(['/bin/bash', str(script)], env=dict(environment, FIXTURE_RUNTIME_EXIT=code),
                                     capture_output=True, text=True)

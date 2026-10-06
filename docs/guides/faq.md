@@ -10,7 +10,7 @@ description: Frequently asked questions about KeyPath
 
 ### What macOS version is required?
 
-macOS 15.0 (Sequoia) or later. KeyPath works on both Apple Silicon and Intel Macs.
+macOS 15.0 (Sequoia) or later on an Apple Silicon (M-series) Mac. Intel Macs are not supported.
 
 ### Do I need an internet connection?
 

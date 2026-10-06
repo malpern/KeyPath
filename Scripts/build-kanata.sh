@@ -2,7 +2,7 @@
 #
 # Build Script: build-kanata.sh (TCC-Safe Caching Version)
 # Purpose: Compile kanata from source with proper macOS signing and TCC preservation
-# Output: build/kanata-universal (signed, universal binary)
+# Output: build/kanata-universal (signed ARM64 binary; legacy filename)
 # 
 # TCC-Safe Caching Strategy:
 # - Only rebuild kanata when source code actually changes
@@ -129,7 +129,6 @@ echo "🔨 Proceeding with kanata compilation..."
 # Add required Rust targets
 echo "🎯 Adding Rust targets..."
 rustup target add aarch64-apple-darwin >/dev/null 2>&1 || true
-rustup target add x86_64-apple-darwin >/dev/null 2>&1 || true
 
 # Build for ARM64 (Apple Silicon)
 echo "🔨 Building for ARM64 (Apple Silicon)..."
@@ -147,7 +146,7 @@ cargo build \
 # Return to project root
 cd "$PROJECT_ROOT"
 
-# Copy ARM64 binary (x86_64 cross-compilation is disabled)
+# Apple Silicon only. Keep the legacy output filename for existing callers.
 echo "📋 Copying ARM64 binary..."
 cp "$KANATA_SOURCE/target/aarch64-apple-darwin/release/kanata" "$BUILD_DIR/kanata-universal"
 

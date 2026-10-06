@@ -106,8 +106,12 @@ and host bridge, and embeds Sparkle plus SwiftPM resources. Helper, launcher,
 DriverKit installer and LaunchDaemons are deliberately absent. The source
 signing and identity checks explicitly enforce that omission; restoring them
 is not a prerequisite. The CLI's new command surface must come from this fresh
-product build. Current Rust outputs are ARM64 despite `kanata-universal` naming;
-this path does not qualify Intel distribution.
+product build. KeyPath supports Apple Silicon only. Release Swift builds explicitly
+target `arm64`, and `Scripts/verify-apple-silicon.sh` rejects missing, Intel or mixed
+architecture KeyPath components before signing and during installed-app verification.
+The Rust engine's `kanata-universal` filename is retained for existing callers;
+its contents are ARM64, not a universal binary. Vendored frameworks may retain
+additional architectures without extending KeyPath's supported hardware.
 
 Preserve the build log, full product/gitlink identities, clean-source checks,
 `rustc --version --verbose`, `cargo --version`, selected Xcode/linker identity,

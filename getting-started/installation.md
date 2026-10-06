@@ -32,6 +32,7 @@ Want to see what's possible before you start? Check out [What You Can Build]({{ 
 ## Before You Start
 
 - **macOS 15 (Sequoia) or later** is required
+- **An Apple Silicon (M-series) Mac** is required; Intel Macs are not supported
 - If you're running **Karabiner-Elements**, quit it first — it conflicts with KeyPath
 
 > ⚠️ **Watch out:** Karabiner-Elements grabs the same low-level keyboard APIs that KeyPath needs. Quit it from the menu bar icon before continuing. You can always switch back later — see [From Karabiner-Elements]({{ '/migration/karabiner-users/' | relative_url }}).

@@ -40,6 +40,8 @@ if [[ ! -f "$metal_library" || ! -s "$metal_library" ]]; then
     exit 1
 fi
 
+bash "$SCRIPT_DIR/verify-apple-silicon.sh" "$APP_PATH"
+
 CLI_PATH="$APP_PATH/Contents/MacOS/keypath-cli"
 if [[ ! -x "$CLI_PATH" ]]; then
     echo "❌ Bundled CLI is missing or not executable: $CLI_PATH" >&2

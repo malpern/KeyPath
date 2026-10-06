@@ -168,7 +168,7 @@ fi
 # slated for removal. If the hang ever returns, that pair is the fallback.
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
-BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --product KeyPath --show-bin-path)
+BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product KeyPath --show-bin-path)
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
@@ -187,7 +187,7 @@ MACOS="${CONTENTS}/MacOS"
 	# remain in Package.swift for the existing installer architecture, but are
 	# intentionally not built into this driverless experiment.
 	for product in KeyPath keypath-cli KeyPathInsights; do
-	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release --product "$product"
+	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product "$product"
 	done
 
 	# Copy main executable
@@ -355,6 +355,7 @@ EOF
 # been copied. This gate runs even for unsigned candidates, so stale build-cache
 # resources cannot reintroduce privileged or DriverKit payloads.
 "$SCRIPT_DIR/verify-identity-contract.sh" --payload-only "$APP_BUNDLE"
+bash "$SCRIPT_DIR/verify-apple-silicon.sh" "$APP_BUNDLE"
 
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 SKIP_CODESIGN="${SKIP_CODESIGN:-0}"

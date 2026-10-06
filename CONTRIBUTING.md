@@ -2,6 +2,8 @@
 
 Welcome! KeyPath is a macOS keyboard remapping app that makes Kanata easy to use. This guide will get you started in **10 minutes**.
 
+Development requires an **Apple Silicon (M-series) Mac** running **macOS 15.0 (Sequoia) or later**. Intel Macs are not supported.
+
 ## Quick Start (5 minutes)
 
 ```bash
