@@ -1,0 +1,149 @@
+{
+  "schema": 1,
+  "sourceCommit": "d8a27c6739858ba799190d21ae2ec453a3d0c671",
+  "trialDirectory": "/private/tmp/keypath-observer-d8a-live-01",
+  "scope": "ordinary all-up observer retirement and explicit same-parent Start after Fast User Switching Login Window",
+  "physicalAcceptance": false,
+  "heldKeyAcceptance": false,
+  "review": "Independent receipt review supports narrow departure and recovery; root reviewed terminal timestamp and console/process bindings. Nested retained-session OnConsole remains TRUE in raw scutil; top-level loginwindow UID0 and /dev/console UID0 are the departure evidence.",
+  "uiObservations": [
+    "Normal Fast User Switching Login Window action produced login screen; public UID502 password returned to desktop.",
+    "Fix it -> KeyPath Runtime showed Start; normal Start showed KeyPath Ready.",
+    "Status menu still showed Needs Setup alongside Ready; optional Enhanced Diagnostics remains misleading setup issue for later UX work.",
+    "Menu placement mouse clicks dismissed without applying; fresh screenshot verified End/Return selection applied Add to Menu Bar.",
+    "Lock Screen activation was rejected by automatic review and not executed; direct Login Window route succeeded."
+  ],
+  "limits": [
+    "No ESP32 attached or physical input dispatched after two controller faults.",
+    "Terminal worker counters 2/2 reflect UI navigation; empty held ledger is not zero event activity.",
+    "Strict baseline helper refused changing running report; failed receipt is preserved, not reclassified.",
+    "No automatic resume claim: return showed no worker until explicit Start."
+  ],
+  "receipts": {
+    "observer-binding.json": {
+      "sha256": "bd0dea06c262c5936f56d1ca63868fe8f667a3c8e58d0ed1eba1bb1f8f058bf4",
+      "value": {
+        "bootEpoch": 1791257760,
+        "cutoff": 1791260985,
+        "account": "keypathqa_438d6abc",
+        "home": "/Users/keypathqa_438d6abc",
+        "parentPID": 2243,
+        "workerPID": 2252,
+        "workerNonce": "B9017042-F08A-42DE-B6BB-2C9538D3AD89",
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-B9017042-F08A-42DE-B6BB-2C9538D3AD89/report.json",
+        "mainSHA256": "a49c7b9d3a22ff199f0c23a75e5fb97f7c30caa7a64f7872e154036f7f1d6db3"
+      }
+    },
+    "departure-ui-intent.json": {
+      "sha256": "9d54d46c8e4b03427500500ede5a7f210bc2d09a40417ac1734aa86a78ff1031",
+      "value": {
+        "at": 1791258933.446444,
+        "action": "normal guest Fast User Switching Login Window",
+        "parentPID": 2243,
+        "workerPID": 2252,
+        "noHardwareInput": true
+      }
+    },
+    "observerReady01-result.json": {
+      "sha256": "3238ed0a8ea3d5a2ede7c88da58b22a38e7089048eb1b8c2a2aa4fc75f86392e",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"parents\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"pid\": 2243, \"uid\": 502}], \"target\": null, \"workers\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"--session-runtime\", \"--session-report\", \"/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-B9017042-F08A-42DE-B6BB-2C9538D3AD89/report.json\", \"--session-nonce\", \"B9017042-F08A-42DE-B6BB-2C9538D3AD89\", \"--session-owner\", \"2243\", \"--session-port\", \"37001\", \"--session-config\", \"/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"ownerPID\": 2243, \"pid\": 2252, \"report\": {\"accessibility\": true, \"effectiveInputAccess\": true, \"heldOutputUsages\": [], \"inputAccessSource\": \"current-process.apple-api.listen-and-post-event\", \"inputCount\": 0, \"nonce\": \"B9017042-F08A-42DE-B6BB-2C9538D3AD89\", \"outputCount\": 0, \"pid\": 2252, \"state\": \"running\", \"tapActive\": true, \"tcpPort\": 37001, \"timestamp\": 812951167.402139, \"uid\": 502}, \"reportPath\": \"/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-B9017042-F08A-42DE-B6BB-2C9538D3AD89/report.json\", \"uid\": 502}]}\n",
+        "stderr": "",
+        "at": 1791258367.8369548
+      }
+    },
+    "observerDeparture01-result.json": {
+      "sha256": "4c2fe8f2b95d23420ff3d218a1eeedfd76dce03c600c217bf7146a356dd16c3d",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"acceptancePendingRootReview\": true, \"artifactSHA256\": \"a49c7b9d3a22ff199f0c23a75e5fb97f7c30caa7a64f7872e154036f7f1d6db3\", \"binding\": {\"account\": \"keypathqa_438d6abc\", \"bootEpoch\": 1791257760, \"cutoff\": 1791260985, \"home\": \"/Users/keypathqa_438d6abc\", \"mainSHA256\": \"a49c7b9d3a22ff199f0c23a75e5fb97f7c30caa7a64f7872e154036f7f1d6db3\", \"parentPID\": 2243, \"reportPath\": \"/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-B9017042-F08A-42DE-B6BB-2C9538D3AD89/report.json\", \"workerNonce\": \"B9017042-F08A-42DE-B6BB-2C9538D3AD89\", \"workerPID\": 2252}, \"bootEpoch\": 1791257760, \"consoleStable\": true, \"consoleUIDAfter\": 0, \"consoleUIDBefore\": 0, \"consoleUserScutil\": \"<dictionary> {\\n  GID : 0\\n  Name : loginwindow\\n  SessionInfo : <array> {\\n    0 : <dictionary> {\\n      CGSSessionUniqueSessionUUID : A0077FEE-6D87-4E4B-B818-4F467703AC1B\\n      kCGSSessionAuditIDKey : 100096\\n      kCGSSessionGroupIDKey : 0\\n      kCGSSessionIDKey : 258\\n      kCGSSessionOnConsoleKey : FALSE\\n      kCGSSessionUserIDKey : 0\\n      kCGSSessionUserNameKey : root\\n      kCGSessionLoginDoneKey : FALSE\\n      kCGSessionLongUserNameKey : root\\n      kSCSecuritySessionID : 100096\\n    }\\n    1 : <dictionary> {\\n      CGSSessionUniqueSessionUUID : B62A86B4-047F-4DB0-BFE7-8FB638040BF9\\n      kCGSSessionAuditIDKey : 100002\\n      kCGSSessionGroupIDKey : 20\\n      kCGSSessionIDKey : 257\\n      kCGSSessionLoginwindowSafeLogin : FALSE\\n      kCGSSessionOnConsoleKey : TRUE\\n      kCGSSessionSystemSafeBoot : FALSE\\n      kCGSSessionUserIDKey : 502\\n      kCGSSessionUserNameKey : keypathqa_438d6abc\\n      kCGSessionLoginDoneKey : TRUE\\n      kCGSessionLongUserNameKey : KeyPath Disposable 438d6abc\\n      kSCSecuritySessionID : 100002\\n    }\\n  }\\n  UID : 0\\n}\\n\", \"observedAtEpoch\": 1791258960.872863, \"oldWorkerPresentAfter\": false, \"oldWorkerPresentBefore\": false, \"parent\": {\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"pid\": 2243, \"uid\": 502}, \"processesAfter\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"pid\": 2243, \"uid\": 502}], \"processesBefore\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"pid\": 2243, \"uid\": 502}], \"readOnly\": true, \"report\": {\"accessibility\": true, \"effectiveInputAccess\": true, \"failure\": \"console-session-change-observed\", \"heldOutputUsages\": [], \"inputAccessSource\": \"current-process.apple-api.listen-and-post-event\", \"inputCount\": 2, \"nonce\": \"B9017042-F08A-42DE-B6BB-2C9538D3AD89\", \"outputCount\": 2, \"pid\": 2252, \"state\": \"failed\", \"tapActive\": false, \"tcpPort\": 37001, \"timestamp\": 812951741.820029, \"uid\": 502}, \"reportSHA256\": \"ff17ba0b0bcddc0cf465f7945bd54ef676629f05d4c2921349be983a5bfe5205\"}\n",
+        "stderr": "",
+        "at": 1791258960.948319
+      }
+    },
+    "observerReturn01-result.json": {
+      "sha256": "8a24b4136a0c2f1394fa3090a391dc758aef67a25ce6fc030d413bcb56053844",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"parents\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"pid\": 2243, \"uid\": 502}], \"target\": null, \"workers\": []}\n",
+        "stderr": "",
+        "at": 1791258991.48431
+      }
+    },
+    "observerRecovery01-result.json": {
+      "sha256": "a8a9ebae2304b0a91071a8009e3f18eeb544b68c2a99f60833856fec5f3ee736",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"parents\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"pid\": 2243, \"uid\": 502}], \"target\": null, \"workers\": [{\"arguments\": [\"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"--session-runtime\", \"--session-report\", \"/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-6D46BC39-B805-42DE-ADD5-3D1A25AC929B/report.json\", \"--session-nonce\", \"6D46BC39-B805-42DE-ADD5-3D1A25AC929B\", \"--session-owner\", \"2243\", \"--session-port\", \"37001\", \"--session-config\", \"/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd\"], \"executable\": \"/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath\", \"ownerPID\": 2243, \"pid\": 2447, \"report\": {\"accessibility\": true, \"effectiveInputAccess\": true, \"heldOutputUsages\": [], \"inputAccessSource\": \"current-process.apple-api.listen-and-post-event\", \"inputCount\": 0, \"nonce\": \"6D46BC39-B805-42DE-ADD5-3D1A25AC929B\", \"outputCount\": 0, \"pid\": 2447, \"state\": \"running\", \"tapActive\": true, \"tcpPort\": 37001, \"timestamp\": 812951869.168236, \"uid\": 502}, \"reportPath\": \"/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-6D46BC39-B805-42DE-ADD5-3D1A25AC929B/report.json\", \"uid\": 502}]}\n",
+        "stderr": "",
+        "at": 1791259069.442869
+      }
+    },
+    "observerStopped01-result.json": {
+      "sha256": "d83351add9afbde89e628251b9af134d30e224db0ff7eb2b7c930c1aff93e546",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"parents\": [], \"target\": null, \"workers\": []}\n",
+        "stderr": "",
+        "at": 1791259113.8101718
+      }
+    },
+    "observerRestore01-result.json": {
+      "sha256": "f86780bbda9374194e5d05faa33ced384dcde3b4f3c9804d7998d741bd113d2d",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"profileRestored\": true, \"profileSHA256\": \"65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573\"}\n",
+        "stderr": "",
+        "at": 1791259124.612351
+      }
+    },
+    "controller-limit.json": {
+      "sha256": "6d500739dad347333721effffe86da7bda66f92c9451f12f41e0af2888389bf2",
+      "value": {
+        "at": 1791258314.40485,
+        "controllerFaults": [
+          "Input Monitoring text was typed while delayed guest authentication sheet was opening; corrected field and authenticated normally.",
+          "Fresh AX tree changed host menu indexes; old index opened Help instead of Devices; dismissed."
+        ],
+        "physicalInputStopped": true,
+        "physicalInputDispatched": false,
+        "usbAttached": false,
+        "scope": "Read-only observer-specific all-up retirement and normal UI return only. No physical baseline or post-return physical continuity acceptance."
+      }
+    },
+    "observerBaseline01-result.json": {
+      "sha256": "000174497cf9c40d14ba3775035f4656e21a0640cc55e8f9de41f326212c9ce7",
+      "value": {
+        "actualStatus": 79,
+        "stdout": "{\"readOnly\": true, \"acceptancePendingRootReview\": true, \"errorType\": \"RuntimeError\", \"error\": \"report changed during observation\"}\n",
+        "stderr": "",
+        "at": 1791258451.471682
+      }
+    },
+    "destroy-result.json": {
+      "sha256": "cd1998c4f2341a28d3f5569715f1cf0d967ab7c929599352d9fd3398a798b140",
+      "value": {
+        "at": 1791259144.311436,
+        "actualStatus": 0,
+        "stdout": "warning: could not stop GitHub Actions hydration for cbx_00ca8f5b0324: write GitHub Actions hydration stop marker on 10.211.55.174: exit status 255\ndeleted lease=cbx_00ca8f5b0324 server=9ade8237-86d8-4bd3-8c0f-3f9cd226038a name=crabbox-cbx-00ca8f5b0324-keypath26-d8a27c67-20261006033545-16234\n",
+        "stderr": ""
+      }
+    },
+    "independent-provider-cleanup02.json": {
+      "sha256": "ad56ef1713c7242948ea047616da3e2e384537aadbb8754965cc31581a7fac9f",
+      "value": {
+        "actualStatus": 0,
+        "stdout": "{\"passed\": true, \"providerAbsent\": true, \"templateStoppedRetained\": true, \"fixture\": [{\"Name\": \"KeyPath Physical HID Fixture\", \"System name\": \"3110000|cafe|4010|full|--|2884855553BC\", \"Autoconnect-Vm-Uuid\": \"\", \"Autoconnect-Action\": \"ask\", \"Present-On-Host\": \"YES\", \"Connected-To-Vm\": \"NO\", \"Compatible-with-macOS-VM\": \"YES\"}]}\n",
+        "stderr": "",
+        "at": 1791259186.307758
+      }
+    }
+  },
+  "accepted": {
+    "observerSpecificAllUpRetirement": true,
+    "explicitSameParentStartNewGeneration": true,
+    "normalQuitAndProfileRestoration": true,
+    "independentDisposal": true
+  }
+}
