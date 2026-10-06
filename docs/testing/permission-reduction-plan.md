@@ -6,6 +6,8 @@ Initial startup/Start still waited through the old status gate, and normal Quit 
 
 **Next:** keep infrastructure frozen. Complete the remaining product gates: child-in-flight uncertainty, observer-specific retirement and held-output transitions; genuine OS timeout keeps its separate30-active-minute budget. Address the demonstrated startup-delay/Quit behavior in the product, with installer/onboarding review after core acceptance. This checkpoint proves joined-write uncertainty refusal, not child-in-flight death. AX and Input Monitoring remain required.
 
+Source follow-up d293fe84e fixes completed recovery refusal being misreported as stopped/starting: lifecycle status retains the failure, startup validation bypasses grace and rejects stale-ready health.30 XCTest+35 Swift Testing cases and independent source review passed. Newly signed live validation remains pending; bundle it into the next compatible product session, with uncertain recovery last. No lab changes or new guest. Quit behavior remains separately unproven.
+
 Earlier checkpoint (superseded by the signed replay above):
 
 Latest October5 product checkpoint: the fresh-parent retained-marker experiment
