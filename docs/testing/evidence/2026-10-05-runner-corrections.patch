@@ -1,0 +1,194 @@
+--- a/artifact-stage.py
++++ b/artifact-stage.py
+@@ -362,7 +362,9 @@
+
+ def build_guest(scope,ident,marker,rig64,attempt,transfer_url,transfer_token):
+     observer=(ROOT/'public_account_observer.py').read_text();child=child_code(scope,ident,rig64,attempt,transfer_url,transfer_token)
+-    return observer+'\n'+r'''scope=__SCOPE__; marker=__MARKER__; LEASE=scope['lease'];PROVIDER=scope['providerUUID'];ACCOUNT=scope['account'];HOME=scope['home'];PREF='/Library/Preferences/com.apple.loginwindow'
++    compile(child,'<artifact-child>','exec')
++    body=observer+'\n'+r'''scope=__SCOPE__; marker=__MARKER__; LEASE=scope['lease'];PROVIDER=scope['providerUUID'];ACCOUNT=scope['account'];HOME=scope['home'];PREF='/Library/Preferences/com.apple.loginwindow'
++
+ def owned(v):
+  require(v['bootEpoch']==scope['bootEpoch'] and v['consoleUID']==502 and v['consoleAccount']==ACCOUNT
+  and v['loginwindowUID']==502 and v['desktopReady'] is True and v['usersRootSafe'] is True
+@@ -370,20 +372,36 @@
+  and v['newAccount']['homeSymlink'] is False and v['uid502Accounts']==[ACCOUNT] and time.time()<scope['expiresEpoch'],
+  'public desktop identity unavailable')
+ child_code=__CHILD__
++# Compile the exact generated child before any installation dispatch.
++compile(child_code,'<artifact-child>','exec')
++import ast
++allowed_reasons=sorted({n.value for n in ast.walk(ast.parse(child_code)) if isinstance(n,ast.Constant) and isinstance(n.value,str) and 0<len(n.value)<100 and any(w in n.value for w in ('refused','mismatch','changed','unapproved','unsafe','escaping','duplicate'))})
++child_code="import json,sys\ntry:\n exec(compile("+repr(child_code)+",'<artifact-child>','exec'))\nexcept Exception as e:\n reason=e.args[0] if type(e) is RuntimeError and len(e.args)==1 and e.args[0] in "+repr(allowed_reasons)+" else type(e).__name__\n print(json.dumps(dict(stage='artifact-child',reason=reason)),file=sys.stderr)\n sys.exit(1)\n"
++compile(child_code,'<artifact-child-diagnostic>','exec')
+ def run_artifacts(scope,marker,child_code,snapshot_fn=selected_snapshot,child_runner=subprocess.run):
+  global LEASE,PROVIDER,ACCOUNT,HOME,PREF
+  LEASE=scope['lease'];PROVIDER=scope['providerUUID'];ACCOUNT=scope['account'];HOME=scope['home'];PREF='/Library/Preferences/com.apple.loginwindow'
+  before=snapshot_fn(scope);owned(before)
+  require(before['qa']['uid']==501 and before['qa']['homeOwner']==501 and before['qa']['secureToken']=='ENABLED','original QA501 unavailable')
+- result=child_runner(['/bin/launchctl','asuser','502','/usr/bin/sudo','-n','-H','-u',ACCOUNT,__PYTHON__,'-I','-B','-c',child_code],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True,timeout=180)
++ result=child_runner(['/bin/launchctl','asuser','502','/usr/bin/sudo','-n','-H','-u',ACCOUNT,__PYTHON__,'-I','-B','-c',child_code],stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=180)
+  after=snapshot_fn(scope);owned(after)
+  require(comparable(before)==comparable(after),'original/account/session state changed')
+- require(result.returncode==0 and result.stdout=='PUBLIC_SIGNED_ARTIFACTS_INSTALLED\n','staging not verified')
++ if result.returncode!=0:
++  diagnostic='unavailable'
++  if len(result.stderr)<=512:
++   try:
++    d=json.loads(result.stderr)
++    if type(d)is dict and set(d)=={'stage','reason'} and d['stage']=='artifact-child' and (d['reason'] in allowed_reasons or d['reason'] in ('CalledProcessError','TimeoutExpired','OSError','FileNotFoundError','PermissionError')):diagnostic=d['reason']
++   except Exception:pass
++  raise RuntimeError('staging failed: artifact-child exit '+str(result.returncode)+' reason '+diagnostic)
++ require(result.stdout=='PUBLIC_SIGNED_ARTIFACTS_INSTALLED\n','staging receipt invalid')
+  receipt={'marker':marker,'installed':True,'uid':502,'bootEpoch':scope['bootEpoch'],'mainSHA256':__MAIN__,'targetSHA256':__TARGET__,'focusSHA256':__FOCUS__}
+  print(json.dumps(receipt));print('PUBLIC_ARTIFACTS_COMPLETE_'+marker)
+  return receipt
+ if __name__=='__main__': run_artifacts(scope,marker,child_code)
+ '''.replace('__SCOPE__',repr(scope)).replace('__MARKER__',repr(marker)).replace('__CHILD__',repr(child)).replace('__PYTHON__',repr(PYTHON)).replace('__MAIN__',repr(MAIN_SHA)).replace('__TARGET__',repr(TARGET_SHA)).replace('__FOCUS__',repr(FOCUS_SHA))
++    compile(body,'<assembled-guest>','exec')
++    return body
+
+
+ ROUTE_MARKER=b'VM_LAB_PUBLIC_ARTIFACT_ROUTE_V1\n'
+@@ -424,7 +442,9 @@
+     # Share the exact selected snapshot and owned-desktop guard used by staging.
+     prefix=build_guest(scope,dict(home=scope['home'],bootEpoch=scope['bootEpoch']),marker,'','',url,token).split('child_code=',1)[0]
+     child=route_child_code(scope,url,token)
+-    return prefix+r'''
++    compile(child,'<route-child>','exec')
++    body=prefix+r'''
++
+ def route_unique(pairs):
+  value={}
+  for key,item in pairs:
+@@ -446,6 +466,8 @@
+  print(json.dumps(dict(value,marker=marker)));print('PUBLIC_ROUTE_COMPLETE_'+marker)
+ if __name__=='__main__':run_route()
+ '''.replace('__PYTHON__',repr(PYTHON)).replace('__CHILD__',repr(child))
++    compile(body,'<assembled-guest>','exec')
++    return body
+
+
+ def record_route(journal,scope,receipt_sha,value):
+--- a/stage_current.py
++++ b/stage_current.py
+@@ -5,22 +5,22 @@
+ from pathlib import Path
+ from guest_command import execute
+ R=Path(__file__).resolve().parent
+-A=Path('/private/tmp/keypath-caps-checkpoint-bd7809dc1-artifact')
+-SOURCE=Path('/private/tmp/keypath-artifact-stage-owned-modes/rig/artifact-stage.py')
++A=Path('/private/tmp/keypath-caps-checkpoint-bd7809dc1-clean-artifact')
++SOURCE=Path('/private/tmp/keypath-artifact-stage-diagnostics/rig/artifact-stage.py')
+ SHORT=Path('/private/tmp/vm-lab-terminal-stage-d9fc-candidate/short_stage.py')
+ MAIN='1f215c470af8c7cdc5b4dd390efe0315762ef713720de347bb50f5db11ab8cc8'
+-ZIP='cb3c1e2e63456925be972a2833e9531aacc5ba7ea11887e8ab01bfd99790f9d7'
++ZIP='51c0dae837bbc26f416330e68ddeebab1143c4a0465c9ed60036afe469e0dcc0'
+ def require(v,why):
+  if not v:raise RuntimeError(why)
+ def sha(raw):return hashlib.sha256(raw).hexdigest()
+ def module(path,name,wanted):
+  raw=path.read_bytes();require(sha(raw)==wanted,'source hash changed')
+  spec=importlib.util.spec_from_file_location(name,path);v=importlib.util.module_from_spec(spec);spec.loader.exec_module(v);return v
+-m=module(SOURCE,'owned_installer','60768bd9dd3d9f02d02c5b1135751f5da46a73310a199a7a7fbef6ccf02516cf')
++m=module(SOURCE,'owned_installer','9fc9fdc386d6bf2aa52434a2858fcdd44b304480dfa9c940a5115d74dc46181a')
+ s=module(SHORT,'short_program_loader','d19330a279f641b4d4b1aebb00d2fa4ebc60110c883e7b8b187e9da1af60fc17')
+ # Only the new caller's module instance is bound to current artifact facts.
+-m.PRODUCT=A/'keypath-caps-mutation-checkpoint.zip'
+-m.PRODUCT_COMMIT='bd7809dc1da9b814ac00c826e676c2622d9ab4bd';m.PRODUCT_SHA=ZIP;m.PRODUCT_SIZE=97917317;m.MAIN_SHA=MAIN
++m.PRODUCT=A/'keypath-caps-mutation-checkpoint-clean.zip'
++m.PRODUCT_COMMIT='bd7809dc1da9b814ac00c826e676c2622d9ab4bd';m.PRODUCT_SHA=ZIP;m.PRODUCT_SIZE=97758815;m.MAIN_SHA=MAIN
+ m.RIG=Path('/private/tmp/keypath-caps-runtime-live-01/rpath/rig-tools-clean.zip')
+ m.RIG_SHA='b41a82211230384a9915b7e02699ad40d2268832c7fcaa65b1bfb30a8cb26dba';m.RIG_SIZE=36296
+ m.TARGET_SHA='5fb5e05e8f26954f1b4121cdb949f689cff9db325795ce51167a3f998044ced3'
+@@ -33,9 +33,9 @@
+  owned=json.loads((R/'owned-lease.json').read_text());ident=json.loads((R/'guest-identity.json').read_text())
+  require(ident['lease']==owned['lease'] and ident['providerUUID']==owned['provider'] and ident['uid']==502 and ident['home']=='/Users/keypathqa_438d6abc','fresh ownership refused')
+  require(time.time()+240<owned['hardCutoffEpoch'],'cutoff reserve refused')
+- require(sha((A/'artifact-manifest.json').read_bytes())=='b77799c18c78d2c0e37ef1c997eed085faa77ec357b711d3ecbb358781119c3c','new artifact manifest changed')
++ require(sha((A/'artifact-manifest.json').read_bytes())=='148c0b9bee66024d891aa3d9159974c202624298561d6af313c982eb070a83be','new artifact manifest changed')
+  manifest=json.loads((A/'artifact-manifest.json').read_bytes())
+- require(manifest['sourceCommit']=='bd7809dc1da9b814ac00c826e676c2622d9ab4bd' and manifest['packagedMainSHA256']==MAIN and (A/'KeyPath.app/Contents/MacOS/KeyPath').stat().st_size==107202336 and manifest['archiveSHA256']==ZIP and manifest['archiveSizeBytes']==97917317 and manifest['strictSignatureVerified'] and not manifest['hostInstalled'],'current artifact authority refused')
++ require(manifest['sourceCommit']=='bd7809dc1da9b814ac00c826e676c2622d9ab4bd' and manifest['packagedMainSHA256']==MAIN and (A/'KeyPath.app/Contents/MacOS/KeyPath').stat().st_size==107202336 and manifest['archiveSHA256']==ZIP and manifest['archiveSizeBytes']==97758815 and manifest['strictSignatureVerified'] and not manifest['hostInstalled'],'current artifact authority refused')
+  require((A/'KeyPath.app/Contents/MacOS/KeyPath').stat().st_size==107202336 and sha((A/'KeyPath.app/Contents/MacOS/KeyPath').read_bytes())==MAIN,'current packaged main changed')
+  scope=dict(ident,expiresEpoch=owned['hardCutoffEpoch'])
+  return owned,ident,scope
+@@ -45,19 +45,22 @@
+  phase,label=sys.argv[1:];owned,ident,scope=inputs()
+  marker=uuid.uuid4().hex;token=secrets.token_hex(32)
+  if phase=='install':
+-  require(json.loads((R/'connection03-verified.json').read_text())=={'passed':True,'stage':'complete'},'verified transfer prerequisite')
++  require(json.loads((R/'connection02-verified.json').read_text())=={'passed':True,'stage':'complete'},'verified transfer prerequisite')
+   reconciliation=json.loads((R/'install-absence02-result.json').read_text());require(reconciliation['actualStatus']==0 and json.loads(reconciliation['stdout'])=={'destinationsAbsent':True,'stagingPaths':[]},'previous attempt mutation not reconciled')
+  if phase=='preflight':payload=m.ROUTE_MARKER
+  else:
+-  product=m.read_file(m.PRODUCT,ZIP,120000000);require(len(product)==97917317,'artifact size changed')
++  product=m.read_file(m.PRODUCT,ZIP,120000000);require(len(product)==97758815,'artifact size changed')
+   rig=m.read_file(m.RIG,m.RIG_SHA,1000000);require(len(rig)==m.RIG_SIZE,'rig archive size changed')
+   require(sha((m.ROOT/'public_account_observer.py').read_bytes())=='a4317cdd70ec1f8d24d0a9857c5c9780d9ef3994e8c117966a47c5aaed70b7a7','observer source changed')
++  m.zip_guard(product,{"KeyPath.app"},set())
++  m.zip_guard(rig,{"VM Lab Rig Target.app","secure-focus"},set())
+   payload=product
+  product_server=m.OneShotArtifactServer(payload,'10.211.55.2',token)
+  program_server=None
+  try:
+   if phase=='preflight':body=m.build_route_guest(scope,marker,product_server.url,token)
+   else:body=m.build_guest(scope,ident,marker,base64.b64encode(rig).decode(),uuid.uuid4().hex,product_server.url,token)
++  compile(body,"<actual-dispatch>","exec")
+   raw=body.encode();program_token=secrets.token_hex(32)
+   program_server=m.OneShotArtifactServer(raw,'10.211.55.2',program_token)
+   command=s.launcher(m,scope,raw,program_server.url,program_token)
+--- a/restart_guest.py
++++ b/restart_guest.py
+@@ -181,13 +181,18 @@
+
+ def main():
+     guard()
+-    require(ACTION in ('inspect', 'profile', 'launch', 'target', 'retire-target', 'restore'),
++    require(ACTION in ('inspect', 'initialize', 'profile', 'launch', 'target', 'retire-target', 'restore'),
+             'action refused')
+     require(not DATA or ACTION == 'retire-target', 'unexpected action arguments')
+     if ACTION == 'inspect':
+         return inspect()
++    if ACTION == 'initialize':
++        require(not processes() and not os.path.lexists(PROFILE) and not os.path.lexists(BACKUP), 'first launch requires pristine stopped product')
++        command(['/usr/bin/open', '-n', str(APP)])
++        return dict(firstLaunchRequested=True)
+     if ACTION == 'profile':
+         require(not processes(), 'profile requires product and target absent')
++        require(PROFILE.is_file(), 'normal first launch must create profile before preparation')
+         raw = read(PROFILE)
+         require(hashlib.sha256(raw).hexdigest() == ORIGINAL_SHA, 'original profile changed')
+         guard()
+--- a/action.py
++++ b/action.py
+@@ -3,7 +3,8 @@
+ from guest_command import execute
+ R=Path(__file__).resolve().parent
+ o=json.loads((R/'owned-lease.json').read_text());i=json.loads((R/'guest-identity.json').read_text())
+-a=['/bin/launchctl','asuser','502','/usr/bin/sudo','-H','-u',i['account'],'/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13','-I','-B','-c',(R/'restart_guest.py').read_text(),str(i['bootEpoch']),str(o['hardCutoffEpoch']),*sys.argv[2:]]
++source=(R/'restart_guest.py').read_text();compile(source,'<actual-runtime-command>','exec')
++a=['/bin/launchctl','asuser','502','/usr/bin/sudo','-H','-u',i['account'],'/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13','-I','-B','-c',source,str(i['bootEpoch']),str(o['hardCutoffEpoch']),*sys.argv[2:]]
+ v=json.loads(execute(sys.argv[1],'exec '+shlex.join(a)))
+ if isinstance(v.get('target'),dict):
+  v['target']={k:v['target'].get(k)for k in ('pid','uid','nonce','text','downs','ups','held','modifiers','active','focusLost')}
+--- a/pb.py
++++ b/pb.py
+@@ -1,5 +1,6 @@
+ import json,shlex,sys
+ from guest_command import execute
++if len(sys.argv)>2 and sys.argv[2]=='perform-action' and ('--app' in sys.argv[3:] or '--snapshot' in sys.argv[3:]):raise RuntimeError('unsupported perform-action targeting options')
+ prefix=['/bin/launchctl','asuser','502','/usr/bin/sudo','-H','-u','keypathqa_438d6abc','/Users/keypathqa_438d6abc/.local/share/vm-lab/peekaboo-3.10.0/peekaboo-macos-universal/peekaboo']
+ v=json.loads(execute(sys.argv[1],'exec '+shlex.join(prefix+sys.argv[2:]+['--json'])))
+ print(v.get('data',{}).get('text',json.dumps(v)))
+--- a/package-caps-checkpoint.py
++++ b/package-caps-checkpoint.py
+@@ -24,6 +24,6 @@
+  if src.is_symlink():assert dst.is_symlink() and os.readlink(src)==os.readlink(dst)
+  elif src.is_file():assert digest(src)==digest(dst);preserved.append(str(rel))
+ rpaths=run(['/usr/bin/otool','-l',str(app/'Contents/MacOS/KeyPath')]);assert '@executable_path/../Frameworks' in rpaths
+-archive=out/'keypath-caps-mutation-checkpoint.zip';run(['/usr/bin/ditto','-c','-k','--sequesterRsrc','--keepParent',str(app),str(archive)])
+-v=dict(version=1,sourceCommit=commit,sourceWorktree=str(w),baseBundle=str(base),artifactKind='isolated DEBUG Caps joined-write death checkpoint and immediate-refusal candidate',rawMainSHA256=rawsha,packagedMainSHA256=digest(app/'Contents/MacOS/KeyPath'),packagedMainSize=(app/'Contents/MacOS/KeyPath').stat().st_size,packagedBridgeSHA256=digest(app/'Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib'),archive=archive.name,archiveSHA256=digest(archive),archiveSizeBytes=archive.stat().st_size,changedBundlePaths=['Contents/MacOS/KeyPath'],preservedFileCount=len(preserved),strictSignatureVerified=True,teamID='X2RKZ5TG99',hardenedRuntime=True,entitlementsUnchanged=True,packagedFrameworkRpathVerified=True,hostInstalled=False,notarized=False,timestamped=False,guestAcceptanceClaimed=False,experimentalMutationDeathDefaultEnabled=False,managedCapsDefaultEnabled=False,resources='Preserved prior live-tested frameworks/resources/Metal; no fresh Metal compilation')
++archive=out/'keypath-caps-mutation-checkpoint.zip';run(['/usr/bin/ditto','-c','-k','--norsrc','--noextattr','--noqtn','--noacl','--keepParent',str(app),str(archive)])
++v=dict(version=1,sourceCommit=commit,sourceWorktree=str(w),baseBundle=str(base),artifactKind='isolated DEBUG Caps joined-write death checkpoint and immediate-refusal candidate',rawMainSHA256=rawsha,packagedMainSHA256=digest(app/'Contents/MacOS/KeyPath'),packagedMainSize=(app/'Contents/MacOS/KeyPath').stat().st_size,packagedBridgeSHA256=digest(app/'Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib'),archive=archive.name,archiveSHA256=digest(archive),archiveSizeBytes=archive.stat().st_size,changedBundlePaths=['Contents/MacOS/KeyPath'],preservedFileCount=len(preserved),archiveMetadataExcluded=True,strictSignatureVerified=True,teamID='X2RKZ5TG99',hardenedRuntime=True,entitlementsUnchanged=True,packagedFrameworkRpathVerified=True,hostInstalled=False,notarized=False,timestamped=False,guestAcceptanceClaimed=False,experimentalMutationDeathDefaultEnabled=False,managedCapsDefaultEnabled=False,resources='Preserved prior live-tested frameworks/resources/Metal; no fresh Metal compilation')
+ (out/'artifact-manifest.json').write_text(json.dumps(v,indent=2)+'\n');print(json.dumps(v))

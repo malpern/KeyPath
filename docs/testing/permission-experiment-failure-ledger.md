@@ -90,3 +90,15 @@ October5 Secure Input/reload checkpoint: [selected receipt](evidence/2026-10-05-
 ## October 5 — latest 12 unsuccessful attempts reviewed
 
 See [the chronological failure review](permission-failure-review-2026-10-05.md). Repeated live-parent cleanup refusals, menu activation permission errors and first-launch/profile ordering consumed multiple cycles. The current packaging ZIP again included rejected Mac metadata; child stderr was discarded, limiting exact live attribution. Generated guest source had an escaping syntax error before execution. Correct prerequisites and validate actual ZIP/generated code/CLI contract locally before another live trial. Narrow joined-write-marker refusal passed; guest was independently disposed.
+
+
+## October 5 — correction pass and stopped repeatability setup
+
+The [selected setup receipt](evidence/2026-10-05-repeatability-setup-acceptance.json) records successful clean-archive installation, normal first launch, AX/IM consent/reopen and effective running runtime. No physical input, fixture attachment or trial profile change occurred. Two-cycle acceptance remains unverified; canonical/independent cleanup passed.
+
+| Controller fault | Cause and correction | Scope |
+| --- | --- | --- |
+| Installer caller requested absent `install-absence01` | Fresh absence receipt was named `install-absence02`. Corrected the selected caller to use the actual successful prerequisite before dispatch. | Local failure; no installation mutation occurred on that attempt. Successful installation dispatched once afterwards. |
+| Console Quit shortcut suspended VM | Native `super+q` reached Parallels instead of guest KeyPath. Stop using that host shortcut; use the guest's visible application menu with mouse input and check exact process absence. | Second fault triggered stop/disposal. Successor menu route still needs live verification; no normal-Quit or repeatability pass. |
+
+Expected logged-out identity refusal, normal local-network consent and one later first-window observation are recorded separately from controller faults. Receipt timing:12.059min setup to effective runtime,0min physical experiment,0.359min disposal/verification;13.397min total. Avoided dispatching physical cases on a compromised setup route; no2× speed claim.

@@ -1,6 +1,6 @@
 # Active driverless testing workflow
 
-Current checkpoint, October 5: signed `bd7809dc1` passed narrow retained-mutation-marker observation and same-parent explicit Restart refusal. The known refusal appeared within 8.806 seconds of the action receipt. This covers worker termination after the HID write child returned and response parsing, before marker removal; it does not prove child-in-flight death or fresh-parent recovery. Canonical disposal and independent provider/template/USB checks passed. No owned lease remains. Earlier signed trials cover ordinary remapping/restart, held-owner crashes, narrow Secure Input release/resume, all-up configuration transitions and reconnect/previous-boot refusal, within their recorded scopes.
+Current checkpoint, October5: selected runner corrections are implemented and locally reviewed. Fresh signed `bd7809dc1` clean-archive installation, first launch and normal permission consent/reopen passed; the fresh runtime reported running/active tap with Accessibility and effective input access. Two ordinary cycles remain unverified: the trial stopped at two controller faults before any physical input or profile preparation. Canonical disposal and independent provider/template/USB checks passed; no owned VM remains. Latest source/receipt links and narrower prior product acceptance remain in the handoff.
 
 The handoff owns the latest evidence and source/artifact identities. This file owns the operating procedure; the product plan owns acceptance order; the failure ledger owns historical diagnoses. Do not append another competing “current” status section. Read the current handoff and relevant failure class before adapting an older helper.
 
@@ -22,24 +22,24 @@ KEYPATH_LAB_CREATE_POSIX_BINARY_FILE=/private/tmp/keypath-create-posix-sdk-build
 KEYPATH_LAB_CREATE_POSIX_BINARY_SHA256=fd2671373f626f8e762559f6e58c06b04277f32ac02db670d41b4803be63a179 \
 /private/tmp/vm-lab-reusable-setup/bin/vm-lab --host malpern@mini keypath create \
   --macos 26 --lane unmanaged-ui --desktop --ttl 1h \
-  --commit 01df87bc9598350df92295f407e839f6cb057568 \
-  --installer /private/tmp/keypath-config-refusal-01df87bc9-entitlements-artifact/keypath-config-refusal-01df87bc9.zip
+  --commit bd7809dc1da9b814ac00c826e676c2622d9ab4bd \
+  --installer /private/tmp/keypath-caps-checkpoint-bd7809dc1-clean-artifact/keypath-caps-mutation-checkpoint-clean.zip
 ```
 
 This example names the last live-tested candidate, not a standing authorization to replay CREATE. Before a new run, substitute the reviewed current commit and signed artifact together and verify their manifest hashes. No owned VM remains from that trial. `NEW-TRIAL` is a newly allocated owned0700 directory, not a literal reuse path. Its registry is a private0600 copy of the reviewed keypath tenant mapping. Clear inherited testing, capacity, clone-root, inline-payload and diagnostic overrides; keep the exact selected template and provider settings. Record the returned status unchanged. Unknown completion means reconcile the owned resource, not dispatch CREATE again. Never bypass admission using raw provider creation.
 
-## Small correction pass before the next VM
+## Selected corrections and remaining repeatability check
 
-These are required implementation tasks, **not claimed completed by this documentation update**. Patch the existing selected entry points; no new runner, scheduler, adapter hierarchy or general test framework.
+The four selected corrections below are implemented in existing experimental entry points. [Patch and pinned bases](evidence/2026-10-05-runner-corrections.patch), [local checks/source review](evidence/2026-10-05-runner-corrections.json), and [fresh setup outcome](evidence/2026-10-05-repeatability-setup-acceptance.json) record the exact scope. No new runner, scheduler, adapter hierarchy or general test framework was added. Live repeatability has not passed.
 
 | Existing boundary | Small correction | Required check |
 | --- | --- | --- |
 | Packaging / installation | Produce the metadata-free archive already proven to install. Apply the actual installer ZIP policy to the final archive locally; do not maintain a second approximate allowlist. | Original rejected archive fails locally; corrected final archive passes, signature and payload checks pass. |
 | Generated guest command | Compile generated payload structure locally before CREATE, then compile the complete payload with fresh guest identity before dispatch, including appended code. Check actual CLI option forms against the selected installed tool's help/documentation. | Previously malformed payload fails locally; corrected executed bytes compile; unsupported `perform-action --app` is absent. |
 | Setup caller | Sequence dependent steps with explicit return-status and postcondition checks. Profile preparation requires the profile to exist after normal first launch. | Missing-profile case stops before the dependent launch; existing successful first-launch route remains intact. |
-| Failure reporting | Preserve a bounded, sanitized child diagnostic with stage, exit status and elapsed time instead of discarding stderr. Exclude credential arguments, tokens and generated payload dumps. | A deliberately rejected local archive identifies the archive stage and reason without exposing secrets. |
+| Failure reporting | Preserve a sanitized child diagnostic with fixed stage, allowlisted reason and numeric exit instead of discarding stderr. Derive operation elapsed time from the intent/result receipts; internal child-stage timing is not claimed. Exclude credential arguments, tokens and generated payload dumps. | Local rejection emits a sanitized broad child-stage reason without secrets. The actual ZIP guard separately rejects the old archive locally; no precise internal archive-stage attribution is claimed. |
 
-Use focused existing checks at these boundaries. Review the changed executed path once. Aim to finish this correction pass within one focused hour; if it expands, report the specific obstacle and reduce scope instead of building more infrastructure. This is an effort budget, not a completion promise. Do not reopen broad lab qualification.
+Focused local checks and one independent source/receipt review passed. The saved patch was applied to recorded bases in a temporary directory and reproduced all selected hashes. Fresh installation used those corrected bytes. Two-cycle verification remains the next gate; do not reopen broad lab qualification.
 
 ## Setup once, then product experiments
 
@@ -57,6 +57,7 @@ Use focused existing checks at these boundaries. Review the changed executed pat
 - Never retry a deterministic error unchanged: invalid option, syntax error, archive rejection or missing profile. Correct and validate locally first.
 - One bounded read-only retry is reasonable for a transient observation after a relevant state change. A second identical failure ends that route for this trial. Before retrying a mutation, reconcile its postcondition and confirm it did not already execute.
 - When Peekaboo reports `activateApplication` permission denied, use the established native console route for the exact owned guest; do not repeat its menu route. After normal Quit, check actual parent/worker absence once with a bounded wait. An inactive parent's exact scoped termination may finish cleanup, but does not count as normal-Quit product acceptance.
+- Native host `super+q` is forbidden as the guest Quit route: Parallels intercepted it and suspended the owned VM in the October5 repeatability attempt. Use mouse input on the fresh visible guest application menu → Quit, then independently verify parent/worker absence. This successor Quit route is still awaiting live verification. Avoid changing host shortcut settings to solve a guest test.
 - Two distinct setup/harness faults in one trial stop further input and product cases: preserve evidence, clean up, fix locally. Do not spend the rest of the lease improvising setup. Expected test refusals and a case's deliberate product failure do not count toward this setup threshold.
 - Genuine-timeout diagnosis retains its30-active-minute budget. If unresolved, preserve the acceptance gap and advance independent work. No repeated delay escalation, random-crash acceptance, or fresh lab redesign.
 

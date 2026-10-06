@@ -1,0 +1,61 @@
+{
+  "passed": true,
+  "localArchivePolicy": true,
+  "fullyGeneratedPayloadCompilation": true,
+  "missingProfileStopsDependentStep": true,
+  "sanitizedDiagnostic": true,
+  "historicalReceiptsUnchanged": true,
+  "installerSourceSHA256": "9fc9fdc386d6bf2aa52434a2858fcdd44b304480dfa9c940a5115d74dc46181a",
+  "sourceFiles": [
+    {
+      "name": "artifact-stage.py",
+      "basePath": "/private/tmp/keypath-artifact-stage-owned-modes/rig/artifact-stage.py",
+      "baseSHA256": "60768bd9dd3d9f02d02c5b1135751f5da46a73310a199a7a7fbef6ccf02516cf",
+      "selectedPath": "/private/tmp/keypath-artifact-stage-diagnostics/rig/artifact-stage.py",
+      "selectedSHA256": "9fc9fdc386d6bf2aa52434a2858fcdd44b304480dfa9c940a5115d74dc46181a"
+    },
+    {
+      "name": "stage_current.py",
+      "basePath": "/private/tmp/keypath-caps-mutation-live-01/stage_current.py",
+      "baseSHA256": "dec27a3d80cd06417b55839c82db95bf23c9dec64d71f4204d9738d932eaeed1",
+      "selectedPath": "/private/tmp/keypath-repeatability-live-01/stage_current.py",
+      "selectedSHA256": "9b9bffa5373351417c6fa503a320497d4495073e321c3136afed399600ff9f77"
+    },
+    {
+      "name": "restart_guest.py",
+      "basePath": "/private/tmp/keypath-caps-mutation-live-01/restart_guest.py",
+      "baseSHA256": "d8b56d6ae0af8cf7d7547ebe3319c48fefcbaa32a67cd9a7299dcca4d699d056",
+      "selectedPath": "/private/tmp/keypath-repeatability-live-01/restart_guest.py",
+      "selectedSHA256": "79a35e5fe87b5a1c4724a31917084e381cbe72fc9de2e2df18f3fa0d95c70993"
+    },
+    {
+      "name": "action.py",
+      "basePath": "/private/tmp/keypath-caps-mutation-live-01/action.py",
+      "baseSHA256": "8da091815c625a99756819f8dda1b49b47d979d3cce771a6992ca68540fa6a1f",
+      "selectedPath": "/private/tmp/keypath-repeatability-live-01/action.py",
+      "selectedSHA256": "72728f3d21fb658d262e39dc015a7f5549f414bc77875c758201c6c61857e2e4"
+    },
+    {
+      "name": "pb.py",
+      "basePath": "/private/tmp/keypath-caps-mutation-live-01/pb.py",
+      "baseSHA256": "eaf47c640d94e6cd1640c8b2fdd8647afc132a76e8d7d7b28d646c03e7f5b6e9",
+      "selectedPath": "/private/tmp/keypath-repeatability-live-01/pb.py",
+      "selectedSHA256": "494970e7e87cfd53c03e5c4c88aa24b28c9c29eaf28dc611e57e47de87872369"
+    },
+    {
+      "name": "package-caps-checkpoint.py",
+      "baseSHA256": "b9a32ef8b926b181a6fa61452d15090738fca960dabc80fe80ad7cd7af933389",
+      "selectedPath": "/private/tmp/keypath-package-caps-checkpoint.py",
+      "selectedSHA256": "e36fe846bc9eeed6543cb2bc69d61b87ed561af0ea5a15795405a6a090be9a76"
+    }
+  ],
+  "independentSourceReview": "passed; broad diagnostic stage and post-capture size check documented",
+  "liveRepeatabilityPassed": false,
+  "recordedAtEpoch": 1791245714.0602481,
+  "patchSHA256": "b96ef5c3c2f0142b34b348538e513404a9313951425d7bd43b35477b4b251c15",
+  "patchRoundTripVerified": true,
+  "liveInstallationPassed": true,
+  "livePermissionRuntimePassed": true,
+  "liveOutcome": "stopped after two controller faults; no physical input",
+  "diagnosticScope": "fixed broad child stage; allowlisted reason and numeric exit; operation elapsed from intent/result timestamps, not internal child timing"
+}

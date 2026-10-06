@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "rawEvidenceRoot": "/private/tmp/keypath-repeatability-live-01",
+  "sourceCommit": "bd7809dc1da9b814ac00c826e676c2622d9ab4bd",
+  "archiveSHA256": "51c0dae837bbc26f416330e68ddeebab1143c4a0465c9ed60036afe469e0dcc0",
+  "installed": true,
+  "normalFirstLaunch": true,
+  "normalAccessibilityAndInputMonitoringConsent": true,
+  "permissionRuntime": {
+    "parentPID": 2113,
+    "workerPID": 2181,
+    "report": {
+      "accessibility": true,
+      "effectiveInputAccess": true,
+      "heldOutputUsages": [],
+      "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+      "inputCount": 0,
+      "nonce": "1D47212E-40E5-4526-B6E8-F8D91FB0419B",
+      "outputCount": 0,
+      "pid": 2181,
+      "state": "running",
+      "tapActive": true,
+      "tcpPort": 37001,
+      "timestamp": 812938369.388377,
+      "uid": 502
+    }
+  },
+  "physicalInputReleased": false,
+  "fixtureAttached": false,
+  "trialProfilePrepared": false,
+  "repeatabilityPassed": false,
+  "declaredCycles": 2,
+  "observedCycles": 0,
+  "controllerFaults": [
+    "Local installer prerequisite named absence01 but actual fresh receipt was absence02; corrected before installation dispatch.",
+    "Native console super+q was intercepted by Parallels and suspended owned guest; no normal-Quit acceptance."
+  ],
+  "stopRuleApplied": true,
+  "expectedSetupObservations": [
+    "Logged-out identity refused until normal public-account login.",
+    "Initial transfer lacked normal guest local-network consent; one read-only retry after Allow passed.",
+    "First window observation preceded its appearance; one later read-only observation passed."
+  ],
+  "cleanup": {
+    "canonicalDestroyPassed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixtureDetachedNonpersistent": true
+  },
+  "timing": {
+    "createSeconds": 151.47821058391128,
+    "setupToRuntimeMinutes": 12.059,
+    "experimentMinutes": 0,
+    "cleanupMinutes": 0.359,
+    "wholeTrialMinutes": 13.397,
+    "note": "Receipt wall time includes controller work; no speed multiplier established."
+  },
+  "independentReview": "Sol source/receipt-only review passed narrow installation, runtime permissions and cleanup; repeatability unverified.",
+  "receipts": [
+    {
+      "name": "create-claim.json",
+      "sha256": "d89e3d0eeac5a223538679d5ba06cbe90732c1fdcae697068e4ae12df6b38a01"
+    },
+    {
+      "name": "create-result.json",
+      "sha256": "3cc2ea682ff271c172f8b1da904f76b8795f9536e6e18f359243c43b3a02553c"
+    },
+    {
+      "name": "guest-identity.json",
+      "sha256": "ec52c0543e0d2950878da861b9148b20caa9a9ed323b669f24c15ef768628819"
+    },
+    {
+      "name": "install01-verified.json",
+      "sha256": "41507b51e3786f2ca6620b3d9803c75bc27ad2415caa0e093ae07d01a9da3749"
+    },
+    {
+      "name": "initialize01-result.json",
+      "sha256": "aea696593a40949cc342b82514410a8e47bcc9edef03abe8603a7d455d0e1e2c"
+    },
+    {
+      "name": "permissions-runtime01-result.json",
+      "sha256": "7efee9a0eec25970b3ad15b26457f3c91026bbf0e0db781dbd4e485a2fafb9ac"
+    },
+    {
+      "name": "destroy-intent.json",
+      "sha256": "25d44d0654f363d9e8fdcaa5bfe3b18746f7f0fb2113597423346bb25256fb59"
+    },
+    {
+      "name": "destroy-result.json",
+      "sha256": "a9d54917a52071b53e1dce5dfd050d0cc76d87babeb37c2d4ca354635ea583f7"
+    },
+    {
+      "name": "independent-provider-cleanup02.json",
+      "sha256": "3957311f1d45381345e13b8b9cd4478d8e5628a2565383d0f0b84f3de74d0597"
+    }
+  ]
+}
