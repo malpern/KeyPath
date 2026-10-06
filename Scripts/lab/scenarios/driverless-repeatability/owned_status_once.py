@@ -10,7 +10,7 @@ def write(name,v):
  fd=os.open(ROOT,os.O_RDONLY);os.fsync(fd);os.close(fd)
 write('status-result.json',dict(actualStatus=r.returncode,stdout=r.stdout,stderr=r.stderr,readOnly=True,finishedAtEpoch=time.time()));assert r.returncode==0
 assert r.stdout.count('provider_inventory_begin\n')==1 and r.stdout.endswith('provider_inventory_end\n')
-pre,inv=r.stdout.split('provider_inventory_begin\n');fields=dict(line.split('\t',1)for line in pre.splitlines());assert fields['lease_id']==lease and fields['owner']=='keypath-installer-lab-v1' and fields['status']=='ready' and fields['provider']=='parallels' and fields.get('tenant_commit',fields.get('keypath_commit'))=='87ede055b875e7105dce5300420114d1350fb45a' and fields['installer_sha256']=='41627c246f7e19c9a10349bc5bf95fe349f606f15b7828088462254a216632cc'
+pre,inv=r.stdout.split('provider_inventory_begin\n');fields=dict(line.split('\t',1)for line in pre.splitlines());assert fields['lease_id']==lease and fields['owner']=='keypath-installer-lab-v1' and fields['status']=='ready' and fields['provider']=='parallels' and fields.get('tenant_commit',fields.get('keypath_commit'))=='a49569e207fb237703c6ca50d20abfef6d3ff24d' and fields['installer_sha256']=='edcbaed2351f58d1ecd8b86975ae9bf6177d541ee5e2eac04abdc049110e0986'
 rows=[line.split()for line in inv.splitlines()if line.split() and line.split()[0]==fields['provider_resource']];assert len(rows)==1
 row=rows[0];assert row[1]=='crabbox-'+lease.replace('_','-')+'-'+fields['slug'] and row[2:4]==['running','template'] and row[5:]==['lease='+lease,'slug='+fields['slug'],'keep=true','target=macos']
 created=int(fields['created_epoch']);expiry=int(fields['expires_epoch']);assert expiry-created==3600 and time.time()+180<expiry-360

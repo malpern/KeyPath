@@ -1,0 +1,145 @@
+{
+  "date": "2026-10-06",
+  "sourceCommit": "a49569e207fb237703c6ca50d20abfef6d3ff24d",
+  "trial": "/private/tmp/keypath-onboarding-live-02",
+  "lease": "cbx_1716a3caf9e2",
+  "scope": "Fresh signed onboarding: normal two-consent flow, explicit Start, completion to actionable Rules editor. No physical input or rule mutation.",
+  "passed": {
+    "twoConsentStart": true,
+    "rulesHandoff": true,
+    "canonicalDisposal": true,
+    "independentProviderCleanup": true
+  },
+  "worker": {
+    "arguments": [
+      "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+      "--session-runtime",
+      "--session-report",
+      "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-BEDB33BF-5349-46F8-851D-AA8D42E2E482/report.json",
+      "--session-nonce",
+      "BEDB33BF-5349-46F8-851D-AA8D42E2E482",
+      "--session-owner",
+      "2406",
+      "--session-port",
+      "37001",
+      "--session-config",
+      "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+    ],
+    "executable": "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+    "ownerPID": 2406,
+    "pid": 2793,
+    "report": {
+      "accessibility": true,
+      "effectiveInputAccess": true,
+      "experimentalTapDiagnostics": {
+        "aMapped": true,
+        "configSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+        "qMapped": true,
+        "rawTapCallbackCount": 0,
+        "registeredTap": {
+          "enumerationAttempted": true,
+          "outcome": "observed",
+          "queryLimit": 128,
+          "rawAccessibility": "granted",
+          "rawListenEvent": "granted",
+          "rawPostEvent": "granted",
+          "requestedMask": 7168,
+          "rows": [
+            {
+              "enabled": true,
+              "mask": 7168
+            }
+          ]
+        }
+      },
+      "experimentalTapTimeout": {
+        "callbackFirstResult": "notObserved",
+        "initialization": "initialized",
+        "preparation": "commandUnavailable"
+      },
+      "heldOutputUsages": [],
+      "inputAccessSource": "current-process.apple-api.listen-and-post-event",
+      "inputCount": 0,
+      "nonce": "BEDB33BF-5349-46F8-851D-AA8D42E2E482",
+      "outputCount": 0,
+      "pid": 2793,
+      "state": "running",
+      "tapActive": true,
+      "tcpPort": 37001,
+      "timestamp": 812983920.636193,
+      "uid": 502
+    },
+    "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-BEDB33BF-5349-46F8-851D-AA8D42E2E482/report.json",
+    "uid": 502
+  },
+  "limits": [
+    "No remapping events or rule creation tested.",
+    "Completion AX label was KeyPath Ready, likely inherited from its ancestor; source says Open Rules.",
+    "Root screenshot observed lingering Keystroke Receiving notice behind Rules despite independent granted runtime evidence.",
+    "Normal Quit was not verified: native console focus moved to Calendar and targeted click refused.",
+    "Destroy returned0 with hydration-stop255 warning; independent cleanup passed.",
+    "Caps production eligibility, genuine OS timeout and broad Fn/modifier recovery remain shipping gaps."
+  ],
+  "receipts": {
+    "status-result03.json": {
+      "sha256": "d2efe14a4391a33f3a3b3cc3cdffe2ab513c9209b70071c703328eb0446ef3d6",
+      "actualStatus": 0
+    },
+    "install01-result.json": {
+      "sha256": "607e10a797d33ccbfc5be1b4c1a534ea30b23c13b10d0cb5ff6f17b75fef5904",
+      "actualStatus": 0
+    },
+    "inputgrant01-result.json": {
+      "sha256": "25bf8e91b93c513e09d0e976d4a08391c405bb6a71775c688f7200ef17b8dc3a",
+      "actualStatus": 0
+    },
+    "inputafterauth01-result.json": {
+      "sha256": "d7232d530abf9b76f2ac45f32188cb163b676a2b6f3f53783240ea054d018101",
+      "actualStatus": 0
+    },
+    "reopen01-result.json": {
+      "sha256": "bd2c7da4114371cd982ee4d6a151f8607c14469bc65d64680c0a1743a2c07f05",
+      "actualStatus": 0
+    },
+    "axgrant01-result.json": {
+      "sha256": "ad0330d3f7da769a8e7b66472dba9a2fcda09c618106e663d0d13954be7175b0",
+      "actualStatus": 0
+    },
+    "afterax01-result.json": {
+      "sha256": "d37ccd47c1756dfac3e4e43e8cef527ec2cada1bb5a64d3fbfe786a6d3482691",
+      "actualStatus": 0
+    },
+    "start01-result.json": {
+      "sha256": "5f0d453234686dfb3452d9834e539566da12de87f78b667579f91b53f0463b60",
+      "actualStatus": 0
+    },
+    "readyinspect01-result.json": {
+      "sha256": "8ae76d927654434ac65aab69ef844e0a86c4f0506873c74a35a0b45eea8f8f1e",
+      "actualStatus": 0
+    },
+    "readyfinish01-result.json": {
+      "sha256": "1dc1dc520a96b7145b12f00d1e12fb3da1af6f38afa9b20b79c4d783ec26b62e",
+      "actualStatus": 0
+    },
+    "complete01-result.json": {
+      "sha256": "bc9c228c9a9caa1864dc62d759f5781a778f703f17c13bc2e8ef5b7fe79547b0",
+      "actualStatus": 0
+    },
+    "completedstate01-result.json": {
+      "sha256": "a3191b4eb0315200502f71a0cd7567292c63cbbd23582ed05503aab8e5b1198a",
+      "actualStatus": 0
+    },
+    "quitmenu01-result.json": {
+      "sha256": "8f0513287542c9ff2e66b8bbf26ecbf3cf829dfbb76de35a6762e3d538f0b755",
+      "actualStatus": 1
+    },
+    "destroy-result.json": {
+      "sha256": "e0b94a221edf26ba468e7edd58842b6542a18811265780f8b68b996437543a33",
+      "actualStatus": 0
+    },
+    "independent-provider-cleanup02.json": {
+      "sha256": "09a862b548cf40201a92afeefe21f4c4fbdbee46933f69971b033bd7e6cb76d2",
+      "actualStatus": 0
+    }
+  }
+}
