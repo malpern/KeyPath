@@ -193,7 +193,9 @@ public enum SessionCapsHIDUtilTransport {
             }
             try publishCheckpoint(childPID)
             Darwin.kill(getpid(), SIGKILL)
-            throw SessionCapsMappingLease.Refusal.mutationUncertain
+            // Signal delivery may race another thread. Never unwind the child-cleanup
+            // defer after publishing its handoff; publication failures still clean up.
+            Darwin._exit(128 + SIGKILL)
         }
     #endif
 
