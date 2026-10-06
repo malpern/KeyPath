@@ -322,19 +322,33 @@ extension KanataTCPClient {
             // ReloadResult to a closed socket, producing "Broken pipe" spam in its stderr log.
             let connection = try await ensureConnectionCore()
             let deadline = CFAbsoluteTimeGetCurrent() + (Double(timeoutMs) / 1000.0) + 1.0
-            var attempts = 0
+            var commandResponses = 0
+            var broadcastCount = 0
+            var broadcastBytes = 0
             var skippedBroadcasts = 0
+            let maxBroadcastCount = 512
+            let maxBroadcastBytes = 1_048_576
 
             AppLogger.shared.debug(
                 "⏱️ [TCP] t=\(Int(Date().timeIntervalSince(startTime) * 1000))ms: Waiting for ReloadResult (request_id=\(requestId))"
             )
 
-            while CFAbsoluteTimeGetCurrent() < deadline, attempts < 25 {
+            while CFAbsoluteTimeGetCurrent() < deadline, commandResponses < 25 {
                 let remaining = max(0.1, deadline - CFAbsoluteTimeGetCurrent())
                 let nextLine = try await readUntilNewline(on: connection, timeout: remaining)
-                attempts += 1
 
-                if !isCommandResponse(nextLine) {
+                // CurrentLayerName is normally a command response, but it can
+                // also arrive unsolicited while this reload is waiting. It is
+                // never the completion for a Reload request.
+                let isUnsolicitedLayerBroadcast =
+                    (try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any])?["CurrentLayerName"] != nil
+                if !isCommandResponse(nextLine) || isUnsolicitedLayerBroadcast {
+                    broadcastCount += 1
+                    broadcastBytes += nextLine.count
+                    guard broadcastCount <= maxBroadcastCount, broadcastBytes <= maxBroadcastBytes else {
+                        closeConnection()
+                        return .failure(error: "Reload response stream exceeded broadcast limit", response: firstLineStr)
+                    }
                     // Broadcast messages can race the command responses. Log a few samples for debugging.
                     if skippedBroadcasts < 3,
                        let s = String(data: nextLine, encoding: .utf8)
@@ -346,6 +360,7 @@ extension KanataTCPClient {
                     }
                     continue
                 }
+                commandResponses += 1
 
                 if let json = try? JSONSerialization.jsonObject(with: nextLine) as? [String: Any],
                    let status = json["status"] as? String,
@@ -382,7 +397,7 @@ extension KanataTCPClient {
             }
 
             AppLogger.shared.warn(
-                "⚠️ [TCP] Did not receive ReloadResult (request_id=\(requestId)) after \(attempts) reads; falling back to status-only success path"
+                "⚠️ [TCP] Did not receive ReloadResult (request_id=\(requestId)) before response deadline or command-response limit"
             )
 
             if let reload = try extractMessage(
@@ -409,12 +424,8 @@ extension KanataTCPClient {
                 }
             }
 
-            // If we couldn't parse ReloadResult, treat status OK as success (backward compat).
-            // This should only happen if the server doesn't implement the second line.
-            let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
-            AppLogger.shared.log("✅ [TCP] Config reload acknowledged (status OK, no ReloadResult)")
-            AppLogger.shared.log("⏱️ [TCP] t=\(totalTime)ms: Reload completed (request_id=\(requestId), backward compat mode)")
-            return .success(response: firstLineStr)
+            closeConnection()
+            return .failure(error: "Reload completion was not confirmed", response: firstLineStr)
         } catch {
             let totalTime = Int(Date().timeIntervalSince(startTime) * 1000)
             let connectionState = stateString(connection?.state)
