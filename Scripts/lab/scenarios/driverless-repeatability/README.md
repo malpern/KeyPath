@@ -9,8 +9,8 @@ Set `KEYPATH_TRIAL_DIR` to a newly created, owned mode700 directory. Put a mode6
 commands from this source directory with Python `-B`. Missing environment fails
 before dispatch. Keep this environment on every invocation; never substitute a
 previous trial directory. Source and artifact bindings currently select signed
-`d293fe84e` and its metadata-free archive. The earlier `1c856d3fe` live acceptance
-remains historical; the new build requires its own live results.
+`d8a27c673` and its metadata-free archive. Its scoped live results are recorded
+in the handoff; each new trial still needs fresh identity and consent evidence.
 
 1. Run canonical `vm-lab keypath list` and `preflight`. Check capacity. Locally
    validate `create_once.verify_inputs`, both archives through the installer's
@@ -27,15 +27,17 @@ remains historical; the new build requires its own live results.
    prompt, then use `preflight connection02`. If the first probe succeeds, use
    the distinct read-only `connection02` probe to produce the install prerequisite.
    `check_install_absence.py` writes the matching `install-absence02` receipt.
-   `stage_current.py install install01` performs the one installation. An uncertain
+   If the successful probe has another unique label, set `KEYPATH_VERIFIED_ROUTE_LABEL`
+   to that exact passing receipt label for installation; default is `connection02`.
+   Failed receipts remain unchanged. `stage_current.py install install01` performs the one installation. An uncertain
    mutation is reconciled, never replayed.
 5. `action.py initialize01 initialize` performs normal first launch and default
    profile creation. Complete actual guest setup UI and normal Accessibility /
    Input Monitoring consent with fresh UI observations, including Quit & Reopen.
    `action.py permissions01 inspect` must show the fresh owned worker running,
    active tap, effective permissions and no held outputs.
-6. Activate the guest app. **Use mouse input on the visible guest KeyPath menu →
-   Quit KeyPath; never send native `super+q` to Parallels.** Verify absence with
+6. Activate the guest app. **Use the visible guest status menu, End, visually confirm Quit KeyPath,
+   then Return; never send native `super+q` to Parallels.** Verify absence with
    `action.py stopped01 inspect` before `action.py profile01 profile`.
 7. Attach only the ESP32 temporarily through the owned console Devices menu.
    For cycle1: `action.py launch01 launch`, verify ready runtime, then
@@ -98,3 +100,11 @@ refuses its marker before mutation. Preserve the profile, selection and recovery
 records until canonical disposal, then verify provider and USB absence. The
 signed1c856 replay required exact inactive-parent SIGTERM after menu Quit with
 the setup sheet open left it running; this does not count as normal-Quit acceptance.
+
+`sample_once.py LABEL RECEIPT --function-handback-diagnostic` is a separate
+bounded diagnostic, not ordinary all-up acceptance. It requires unchanged
+Function/NonCoalesced-only raw state before dispatch and physically released
+selected keys. Unknown flags remain refused. Completed trace/status and raw
+counts are retained even if postconditions fail; freshness is validated before
+network trace retrieval. The original Function diagnostic failed on0x20000000
+and is not retroactively accepted.

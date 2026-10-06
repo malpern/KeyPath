@@ -17,7 +17,7 @@ def main():
     root = Path(os.environ['KEYPATH_TRIAL_DIR']).resolve()
     source_root = Path(__file__).resolve().parent
     base = (source_root / 'restart_guest.py').read_bytes()
-    assert hashlib.sha256(base).hexdigest() == '2613535ea726439339395ba68246757d78efbf461ef624b65a41244b7b96225b'
+    assert hashlib.sha256(base).hexdigest() == 'bd77ea3723b69dbe81033933b67b6f6aa86773e37d661112368a37ceac8addef'
     route = (source_root / 'guest_command.py').read_bytes()
     assert hashlib.sha256(route).hexdigest() == '5c347d1329d9a4863091c54aa9e4dfbed12ec624319146f1ff81206f715c87f4'
     owned = json.loads((root / 'owned-lease.json').read_text())

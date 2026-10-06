@@ -12,6 +12,46 @@ import sys
 import time
 import uuid
 
+CG_DIAGNOSTIC_SOURCE = '''
+"""Trial-local read-only observation; root injects its existing fresh guest guard.
+
+No event creation/posting, state mutation, polling, or fixture dispatch.
+C ABI: CGEventSourceStateID int32; CGEventFlags uint64;
+CGKeyCode uint16; CGEventSourceKeyState returns C bool.
+"""
+import ctypes
+import json
+import os
+import sys
+import time
+
+
+def observe_caps_cg_state():
+    if sys.platform != 'darwin' or os.getuid() != 502 or os.stat('/dev/console').st_uid != 502:
+        raise RuntimeError('UID502 macOS console required; fresh scoped guard must precede observation')
+    cg = ctypes.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
+    flags_state = cg.CGEventSourceFlagsState
+    flags_state.argtypes = [ctypes.c_int32]
+    flags_state.restype = ctypes.c_uint64
+    key_state = cg.CGEventSourceKeyState
+    key_state.argtypes = [ctypes.c_int32, ctypes.c_uint16]
+    key_state.restype = ctypes.c_bool
+    request_epoch = time.time()
+    states = {}
+    for name, state_id in (('combinedSessionState', 0), ('hidSystemState', 1)):
+        flags = int(flags_state(state_id))
+        states[name] = dict(stateID=state_id, flags=flags, flagsHex=hex(flags),
+            functionFlag=bool(flags & (1 << 23)), controlFlag=bool(flags & (1 << 18)),
+            capsFlag=bool(flags & (1 << 16)),
+            keys={name: dict(keyCode=code, down=bool(key_state(state_id, code)))
+                  for name, code in (('fn', 63), ('f18', 79), ('control', 59),
+                                     ('caps', 57), ('q', 12), ('a', 0))})
+    return dict(readOnly=True, pid=os.getpid(), uid=os.getuid(), home=os.environ.get('HOME'),
+                requestEpoch=request_epoch, replyEpoch=time.time(), monotonicAt=time.monotonic(),
+                states=states, observationAtomic=False)
+
+'''
+
 R = pathlib.Path(os.environ['KEYPATH_TRIAL_DIR']).resolve()
 FIXTURE_PATH = pathlib.Path.home()/'local-code/keypath-pico-hid-fixture/Scripts/lab/pico-hid-fixture-client'
 BASELINE_PATH = pathlib.Path('/private/tmp/vm-lab-guest-identity/rig/physical-baseline.py')
@@ -81,20 +121,53 @@ def observe(transport, source, label, owned, identity):
     require(type(value) is dict and 'parents' in value and 'workers' in value, 'inspect refused')
     return value
 
-def ready(value, empty=False):
+def ready(value, empty=False, function_diagnostic=False):
     require(len(value['parents']) == 1 and len(value['workers']) == 1, 'one live parent/worker required')
     t, w = value['target'], value['workers'][0]['report']
     require(type(t) is dict and t.get('uid') == 502
             and t.get('active') is True and t.get('focusLost') is False
             and t.get('windowKey') is True and t.get('requestedResponderFocused') is True
             and t.get('secureTest') is False and t.get('secureInputEnabled') is False
-            and t.get('held') == [] and t.get('modifiers') == 0
+            and t.get('held') == [] and (t.get('modifiers') in (0,0x100,0x800000,0x800100) if function_diagnostic else t.get('modifiers') == 0)
             and 0 <= time.time()-t.get('observedAt', 0) < 3
             and w.get('state') == 'running' and w.get('tapActive') is True
             and w.get('heldOutputUsages') == [], 'fresh normal all-up target/worker required')
-    if empty:
+    if function_diagnostic:
+        diagnostic_cg(value.get('cgState'))
+        require(type(t.get('text')) is str and type(t.get('downs')) is int and type(t.get('ups')) is int
+                and t['downs']==t['ups'], 'balanced prior target events required')
+    if empty and not function_diagnostic:
         require(t.get('text') == '' and t.get('downs') == 0 and t.get('ups') == 0,
                 'fresh empty target required')
+
+# MacOSX27.0 SDK: NX_NONCOALSESCEDMASK=0x100; AlphaShift=0x10000; SecondaryFn=0x800000.
+# Preserve raw flags; noncoalesced is not a held modifier.
+def diagnostic_cg(value):
+    require(type(value) is dict and value.get('readOnly') is True and value.get('uid')==502
+            and 0<=time.time()-value.get('requestEpoch',0)<3, 'fresh read-only CG observation required')
+    states=value.get('states',{})
+    require(set(states)=={'combinedSessionState','hidSystemState'},'CG state domains required')
+    for name,sid in (('combinedSessionState',0),('hidSystemState',1)):
+        row=states[name]
+        require(row.get('stateID')==sid and type(row.get('flags')) is int and row['flags'] in (0,0x100,0x800000,0x800100)
+                and set(row.get('keys',{}))=={'fn','f18','control','caps','q','a'}
+                and all(row['keys'][name].get('keyCode')==code and row['keys'][name].get('down') is False
+                        for name,code in (('fn',63),('f18',79),('control',59),('caps',57),('q',12),('a',0))),
+                'Function/noncoalesced-only flags and physically released selected keys required')
+    return value
+
+def diagnostic_prestart_equal(before,current):
+    require(before['target']['modifiers']==current['target']['modifiers']
+            and before['cgState']['states']==current['cgState']['states'],
+            'diagnostic CG states or target flags changed before input')
+
+def retain_sample_evidence(record,before,after,status,trace):
+    record.update(trace=trace,fixture={k:status.get(k) for k in ('runId','state','reportsSubmitted')},
+        observations={name:dict(target={k:(value.get('target') or {}).get(k)
+            for k in ('text','downs','ups','held','modifiers','observedAt')},
+            workers=[{k:(row.get('report') or {}).get(k)
+                for k in ('pid','nonce','inputCount','outputCount','heldOutputUsages')}
+                for row in value.get('workers',[])]) for name,value in (('before',before),('after',after))})
 
 def identity(value):
     p, w, t = value['parents'][0], value['workers'][0], value['target']
@@ -102,18 +175,24 @@ def identity(value):
                 workerArguments=w['arguments'], reportPath=w['reportPath'],
                 workerNonce=w['report']['nonce'], targetPID=t['pid'], targetNonce=t['nonce'])
 
-def main(label, proof_path):
+def main(label, proof_path, function_diagnostic=False):
     require(label.replace('-', '').isalnum() and len(label) <= 40, 'sample label refused')
     owned, ident = scope()
     proof = attached(proof_path, owned)
     source = (pathlib.Path(__file__).resolve().parent/'restart_guest.py').read_text()
+    if function_diagnostic:
+        marker="\nif __name__ == '__main__':\n"
+        require(source.count(marker)==1,'guest entrypoint framing refused')
+        head,tail=source.split(marker)
+        source=head+'\n'+CG_DIAGNOSTIC_SOURCE+"\n_original_inspect=inspect\ndef inspect():\n    value=_original_inspect()\n    value['cgState']=observe_caps_cg_state()\n    return value\n"+marker+tail
+        compile(source,'function-handback-guest','exec')
     write(label+'-sample-intent.json', dict(lease=owned['lease'], providerUUID=owned['provider'],
           bootEpoch=ident['bootEpoch'], cutoff=owned['hardCutoffEpoch'], noReplay=True,
           sample='q', scriptParameters=[120,40,1,200], startDelayMs=500,
           guestSourceSHA256=hashlib.sha256(source.encode()).hexdigest(), at=time.time()))
     transport = module(pathlib.Path(__file__).resolve().parent/'guest_command.py', 'sample_guest_command')
     before = observe(transport, source, label+'-before', owned, ident)
-    ready(before, True)
+    ready(before, True, function_diagnostic)
     fixture = module(FIXTURE_PATH, 'sample_fixture')
     pilot = module(BASELINE_PATH, 'sample_pilot')
     run = 'restart-'+uuid.uuid4().hex
@@ -122,7 +201,7 @@ def main(label, proof_path):
     record = dict(passed=False, lease=owned['lease'], providerUUID=owned['provider'], runId=run,
                   sample='q', expectedText='a', attachmentObservedAt=proof['observedAtEpoch'])
     try:
-        scope(); ready(before, True)
+        scope(); ready(before, True, function_diagnostic)
         env = dict(os.environ, SOPS_AGE_KEY_FILE=str(pathlib.Path.home()/'.config/sops/age/keys.txt'))
         decrypted = subprocess.run(['/opt/homebrew/bin/sops', '-d', str(pathlib.Path.home()/'dotfiles/secrets.env')],
                                    capture_output=True, text=True, timeout=10, env=env)
@@ -140,15 +219,20 @@ def main(label, proof_path):
         client.load_script(script)
         client.arm(run)
         current = observe(transport, source, label+'-armed', owned, ident)
-        ready(current, True)
+        ready(current, True, function_diagnostic)
         require(identity(current) == identity(before), 'identity changed before start')
+        if function_diagnostic:diagnostic_prestart_equal(before,current)
         record['hostUSB'] = host_usb(owned)
         attached(proof_path, owned); scope()
         # Final target observation follows host USB read, so freshness is tested
         # directly at dispatch rather than across the SSH USB observation.
+        initial_before=before
         before = observe(transport, source, label+'-prestart', owned, ident)
-        ready(before, True)
+        ready(before, True, function_diagnostic)
         require(identity(before) == identity(current), 'identity changed before input')
+        if function_diagnostic:
+            diagnostic_prestart_equal(initial_before,before)
+            diagnostic_prestart_equal(current,before)
         attached(proof_path, owned); scope()
         client.start(run, 500)
         deadline = min(time.monotonic()+8, time.monotonic()+owned['hardCutoffEpoch']-time.time()-120)
@@ -162,17 +246,38 @@ def main(label, proof_path):
             raise RuntimeError('fixture timeout')
         time.sleep(.3)
         after = observe(transport, source, label+'-after', owned, ident)
-        ready(after)
-        require(identity(after) == identity(before), 'identity changed after input')
-        trace = client.trace_all(retry_seconds=5)
+        if function_diagnostic:record.update(functionHandbackDiagnostic=True,beforeCG=before.get('cgState'),afterCG=after.get('cgState'))
+        retain_sample_evidence(record,before,after,status,[])
+        validation_error=None
+        try:
+            ready(after, function_diagnostic=function_diagnostic)
+            require(identity(after) == identity(before), 'identity changed after input')
+        except Exception as error:
+            validation_error=error
+        try:
+            trace = client.trace_all(retry_seconds=5)
+            retain_sample_evidence(record,before,after,status,trace)
+        except Exception as error:
+            if validation_error is not None:
+                record['traceCollectionError']=str(error)
+                raise validation_error
+            raise
+        if validation_error is not None:raise validation_error
         expected = [list(map(int, line.split()[1:])) for line in script.splitlines()[1:]]
         actual = [[row.get('modifiers'), *row.get('keys', [])] for row in trace]
         t, wb, wa = after['target'], before['workers'][0]['report'], after['workers'][0]['report']
         checks = dict(exactTrace=actual == expected, reportsSubmitted=status.get('reportsSubmitted') == len(expected),
-                      text=t.get('text') == 'a', downs=t.get('downs') == 1, ups=t.get('ups') == 1,
+                      text=t.get('text') == (before['target']['text']+'a' if function_diagnostic else 'a'),
+                      downs=t.get('downs') == (before['target']['downs']+1 if function_diagnostic else 1),
+                      ups=t.get('ups') == (before['target']['ups']+1 if function_diagnostic else 1),
                       inputDelta=wa.get('inputCount',0)-wb.get('inputCount',0) == 2,
                       outputDelta=wa.get('outputCount',0)-wb.get('outputCount',0) == 2,
-                      allUp=t.get('held') == [] and t.get('modifiers') == 0 and wa.get('heldOutputUsages') == [])
+                      allUp=t.get('held') == [] and (t.get('modifiers') in (0,0x100,0x800000,0x800100) if function_diagnostic else t.get('modifiers') == 0) and wa.get('heldOutputUsages') == [])
+        if function_diagnostic:
+            checks['controlAndHeldClear']=checks.pop('allUp')
+            record.update(functionHandbackDiagnostic=True,beforeCG=before['cgState'],afterCG=after['cgState'],
+                fullModifierAllUp=(t['modifiers'] & ~0x100)==0 and all((v['flags'] & ~0x100)==0 for v in after['cgState']['states'].values()),
+                beforeTarget={k:before['target'].get(k) for k in ('text','downs','ups','held','modifiers')})
         require(all(checks.values()), 'physical sample acceptance failed')
         scope()
         record.update(passed=True, identity=identity(after), checks=checks, trace=trace,
@@ -195,5 +300,6 @@ def main(label, proof_path):
     return 0 if record['passed'] else 79
 
 if __name__ == '__main__':
-    require(len(sys.argv) == 3, 'expected LABEL ATTACHMENT_RECEIPT')
-    sys.exit(main(sys.argv[1], pathlib.Path(sys.argv[2])))
+    diagnostic=len(sys.argv)==4 and sys.argv[3]=='--function-handback-diagnostic'
+    require(len(sys.argv)==3 or diagnostic, 'expected LABEL ATTACHMENT_RECEIPT optional --function-handback-diagnostic')
+    sys.exit(main(sys.argv[1], pathlib.Path(sys.argv[2]),diagnostic))

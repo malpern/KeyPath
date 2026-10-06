@@ -1,15 +1,15 @@
-"""Trial-local caller of the existing owned UID502 installer, bound to signed d293fe84e.
+"""Trial-local caller of the existing owned UID502 installer, bound to signed d8a27c673.
 No historical packet edits, no installation replay, no guest permission bypass.
 """
 import base64,hashlib,importlib.util,json,os,secrets,sys,time,types,uuid
 from pathlib import Path
 from guest_command import execute
 R=Path(os.environ['KEYPATH_TRIAL_DIR']).resolve()
-A=Path('/private/tmp/keypath-recovery-status-d293fe84e-artifact')
+A=Path('/private/tmp/keypath-reload-d8a27c673-artifact')
 SOURCE=Path('/private/tmp/vm-lab-reusable-setup/rig/artifact-stage.py')
 SHORT=Path('/private/tmp/vm-lab-terminal-stage-d9fc-candidate/short_stage.py')
-MAIN='ec632464338064d704fbae223951ca3faf85c84e7184aed36dcc5e3c6a090f55'
-ZIP='d458ec67c2f8e48f62e0e364bb2c115f9aefb5364b04343134f876bf463c0d6f'
+MAIN='a49c7b9d3a22ff199f0c23a75e5fb97f7c30caa7a64f7872e154036f7f1d6db3'
+ZIP='50dc78deff358780a356c0cf420b3b4a44e1a685a59ff28f40d8239ddf56469c'
 def require(v,why):
  if not v:raise RuntimeError(why)
 def sha(raw):return hashlib.sha256(raw).hexdigest()
@@ -19,8 +19,8 @@ def module(path,name,wanted):
 m=module(SOURCE,'owned_installer','9fc9fdc386d6bf2aa52434a2858fcdd44b304480dfa9c940a5115d74dc46181a')
 s=module(SHORT,'short_program_loader','d19330a279f641b4d4b1aebb00d2fa4ebc60110c883e7b8b187e9da1af60fc17')
 # Only the new caller's module instance is bound to current artifact facts.
-m.PRODUCT=A/'keypath-recovery-status-clean.zip'
-m.PRODUCT_COMMIT='d293fe84e20033a5569643778c7d1345f90f62b5';m.PRODUCT_SHA=ZIP;m.PRODUCT_SIZE=97885360;m.MAIN_SHA=MAIN
+m.PRODUCT=A/'keypath-reload-clean.zip'
+m.PRODUCT_COMMIT='d8a27c6739858ba799190d21ae2ec453a3d0c671';m.PRODUCT_SHA=ZIP;m.PRODUCT_SIZE=97886759;m.MAIN_SHA=MAIN
 m.RIG=Path('/private/tmp/keypath-caps-runtime-live-01/rpath/rig-tools-clean.zip')
 m.RIG_SHA='b41a82211230384a9915b7e02699ad40d2268832c7fcaa65b1bfb30a8cb26dba';m.RIG_SIZE=36296
 m.TARGET_SHA='5fb5e05e8f26954f1b4121cdb949f689cff9db325795ce51167a3f998044ced3'
@@ -33,9 +33,9 @@ def inputs():
  owned=json.loads((R/'owned-lease.json').read_text());ident=json.loads((R/'guest-identity.json').read_text())
  require(ident['lease']==owned['lease'] and ident['providerUUID']==owned['provider'] and ident['uid']==502 and ident['home']=='/Users/keypathqa_438d6abc','fresh ownership refused')
  require(time.time()+240<owned['hardCutoffEpoch'],'cutoff reserve refused')
- require(sha((A/'artifact-manifest.json').read_bytes())=='3d74d32f300556d5d1fbd229f615683f22797f2ae44eb60dd48a6973930deccb','new artifact manifest changed')
+ require(sha((A/'artifact-manifest.json').read_bytes())=='a7b33f727f8768a988cf8a4106f63841adcda5070a74741036848d631aff2538','new artifact manifest changed')
  manifest=json.loads((A/'artifact-manifest.json').read_bytes())
- require(manifest['sourceCommit']=='d293fe84e20033a5569643778c7d1345f90f62b5' and manifest['packagedMainSHA256']==MAIN and (A/'KeyPath.app/Contents/MacOS/KeyPath').stat().st_size==107937184 and manifest['archiveSHA256']==ZIP and manifest['archiveSizeBytes']==97885360 and manifest['strictSignatureVerified'] and not manifest['hostInstalled'],'current artifact authority refused')
+ require(manifest['sourceCommit']=='d8a27c6739858ba799190d21ae2ec453a3d0c671' and manifest['packagedMainSHA256']==MAIN and (A/'KeyPath.app/Contents/MacOS/KeyPath').stat().st_size==107937184 and manifest['archiveSHA256']==ZIP and manifest['archiveSizeBytes']==97886759 and manifest['strictSignatureVerified'] and not manifest['hostInstalled'],'current artifact authority refused')
  require((A/'KeyPath.app/Contents/MacOS/KeyPath').stat().st_size==107937184 and sha((A/'KeyPath.app/Contents/MacOS/KeyPath').read_bytes())==MAIN,'current packaged main changed')
  scope=dict(ident,expiresEpoch=owned['hardCutoffEpoch'])
  return owned,ident,scope
@@ -45,11 +45,13 @@ def main():
  phase,label=sys.argv[1:];owned,ident,scope=inputs()
  marker=uuid.uuid4().hex;token=secrets.token_hex(32)
  if phase=='install':
-  require(json.loads((R/'connection02-verified.json').read_text())=={'passed':True,'stage':'complete'},'verified transfer prerequisite')
+  route_label=os.environ.get('KEYPATH_VERIFIED_ROUTE_LABEL','connection02')
+  require(route_label.isalnum() and len(route_label)<=40,'route label refused')
+  require(json.loads((R/(route_label+'-verified.json')).read_text())=={'passed':True,'stage':'complete'},'verified transfer prerequisite')
   reconciliation=json.loads((R/'install-absence02-result.json').read_text());require(reconciliation['actualStatus']==0 and json.loads(reconciliation['stdout'])=={'destinationsAbsent':True,'stagingPaths':[]},'previous attempt mutation not reconciled')
  if phase=='preflight':payload=m.ROUTE_MARKER
  else:
-  product=m.read_file(m.PRODUCT,ZIP,120000000);require(len(product)==97885360,'artifact size changed')
+  product=m.read_file(m.PRODUCT,ZIP,120000000);require(len(product)==97886759,'artifact size changed')
   rig=m.read_file(m.RIG,m.RIG_SHA,1000000);require(len(rig)==m.RIG_SIZE,'rig archive size changed')
   require(sha((m.ROOT/'public_account_observer.py').read_bytes())=='a4317cdd70ec1f8d24d0a9857c5c9780d9ef3994e8c117966a47c5aaed70b7a7','observer source changed')
   m.zip_guard(product,{"KeyPath.app"},set())

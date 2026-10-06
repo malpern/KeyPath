@@ -1,6 +1,6 @@
 # Active driverless testing workflow
 
-Current checkpoint, October5: bounded consolidation and two ordinary physical cycles passed on signed `bd7809dc1` in one prepared guest, with normal mouse-menu Quit, new process/target identities and no repair between cycles. Original profile and process cleanup, canonical disposal and independent provider/template/USB checks passed; no owned VM remains. [Selected receipt](evidence/2026-10-05-repeatability-live-acceptance.json). Freeze infrastructure work except for reproduced blockers; resume product recovery gates.
+Current checkpoint, October5: signed `d8a27c673` passed deferred reload plus post-release physical remapping, narrow held-Caps mode handback, and retained-marker refusal UI through fresh launch and explicit Restart. One Function diagnostic sample remains refused for an undefined raw OS flag despite correct typing. Normal Quit restored a clean known state before the final uncertainty case; canonical disposal and independent provider/template/USB checks passed. No owned VM remains. [Selected receipt](evidence/2026-10-05-d8a-reload-and-refusal.json). Freeze infrastructure except for reproduced blockers; remaining work is product acceptance.
 
 The handoff owns the latest evidence and source/artifact identities. This file owns the operating procedure; the product plan owns acceptance order; the failure ledger owns historical diagnoses. Do not append another competing “current” status section. Read the current handoff and relevant failure class before adapting an older helper.
 
@@ -22,8 +22,8 @@ KEYPATH_LAB_CREATE_POSIX_BINARY_FILE=/private/tmp/keypath-create-posix-sdk-build
 KEYPATH_LAB_CREATE_POSIX_BINARY_SHA256=fd2671373f626f8e762559f6e58c06b04277f32ac02db670d41b4803be63a179 \
 /private/tmp/vm-lab-reusable-setup/bin/vm-lab --host malpern@mini keypath create \
   --macos 26 --lane unmanaged-ui --desktop --ttl 1h \
-  --commit bd7809dc1da9b814ac00c826e676c2622d9ab4bd \
-  --installer /private/tmp/keypath-caps-checkpoint-bd7809dc1-clean-artifact/keypath-caps-mutation-checkpoint-clean.zip
+  --commit d8a27c6739858ba799190d21ae2ec453a3d0c671 \
+  --installer /private/tmp/keypath-reload-d8a27c673-artifact/keypath-reload-clean.zip
 ```
 
 This example names the last live-tested candidate, not a standing authorization to replay CREATE. Before a new run, substitute the reviewed current commit and signed artifact together and verify their manifest hashes. No owned VM remains from that trial. `NEW-TRIAL` is a newly allocated owned0700 directory, not a literal reuse path. Its registry is a private0600 copy of the reviewed keypath tenant mapping. Clear inherited testing, capacity, clone-root, inline-payload and diagnostic overrides; keep the exact selected template and provider settings. Record the returned status unchanged. Unknown completion means reconcile the owned resource, not dispatch CREATE again. Never bypass admission using raw provider creation.
@@ -84,3 +84,5 @@ Use `guest-root` for the prepared public UID502 account; the generic `run` route
 ## Evidence and supported boundary
 
 Use [the current handoff](permission-exploration-handoff.md) for accepted product cases and remaining gaps, and [the last12 failure review](permission-failure-review-2026-10-05.md) for this procedure's rationale. Accessibility and Input Monitoring remain required. Caps remains DEBUG-only, one selected eligible keyboard with nativeF18 reserved; retained Function handback, concurrent mapping edits and conservative recovery limits remain explicit. Installer/onboarding follows core acceptance; broad compatibility follow-ups must not silently expand that gate.
+
+Known console detail: mouse selection of a guest menu item can fail without closing the app. In the owned window, click the visible KeyPath status icon, use End, visually confirm Quit KeyPath is highlighted, then Return. Verify process absence separately. This worked with setup open; do not infer a product Quit defect from an unverified menu click.

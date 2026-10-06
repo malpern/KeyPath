@@ -1,0 +1,668 @@
+{
+  "candidate": {
+    "archiveSHA256": "50dc78deff358780a356c0cf420b3b4a44e1a685a59ff28f40d8239ddf56469c",
+    "bridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+    "mainSHA256": "a49c7b9d3a22ff199f0c23a75e5fb97f7c30caa7a64f7872e154036f7f1d6db3",
+    "manifestSHA256": "a7b33f727f8768a988cf8a4106f63841adcda5070a74741036848d631aff2538"
+  },
+  "cleanStateAfterNormalQuit": {
+    "cgState": {
+      "home": "/Users/keypathqa_438d6abc",
+      "monotonicAt": 1264.667055541,
+      "observationAtomic": false,
+      "pid": 3688,
+      "readOnly": true,
+      "replyEpoch": 1791256945.979035,
+      "requestEpoch": 1791256945.9687748,
+      "states": {
+        "combinedSessionState": {
+          "capsFlag": false,
+          "controlFlag": false,
+          "flags": 0,
+          "flagsHex": "0x0",
+          "functionFlag": false,
+          "keys": {
+            "a": {
+              "down": false,
+              "keyCode": 0
+            },
+            "caps": {
+              "down": false,
+              "keyCode": 57
+            },
+            "control": {
+              "down": false,
+              "keyCode": 59
+            },
+            "f18": {
+              "down": false,
+              "keyCode": 79
+            },
+            "fn": {
+              "down": false,
+              "keyCode": 63
+            },
+            "q": {
+              "down": false,
+              "keyCode": 12
+            }
+          },
+          "stateID": 0
+        },
+        "hidSystemState": {
+          "capsFlag": false,
+          "controlFlag": false,
+          "flags": 256,
+          "flagsHex": "0x100",
+          "functionFlag": false,
+          "keys": {
+            "a": {
+              "down": false,
+              "keyCode": 0
+            },
+            "caps": {
+              "down": false,
+              "keyCode": 57
+            },
+            "control": {
+              "down": false,
+              "keyCode": 59
+            },
+            "f18": {
+              "down": false,
+              "keyCode": 79
+            },
+            "fn": {
+              "down": false,
+              "keyCode": 63
+            },
+            "q": {
+              "down": false,
+              "keyCode": 12
+            }
+          },
+          "stateID": 1
+        }
+      },
+      "uid": 502
+    },
+    "parents": [],
+    "target": null,
+    "workers": []
+  },
+  "cleanup": {
+    "canonicalDestroy": {
+      "actualStatus": 0,
+      "at": 1791257139.198699,
+      "durationSeconds": 6.551272083000001,
+      "stderr": "",
+      "stdout": "warning: could not stop GitHub Actions hydration for cbx_18890fa38d8f: write GitHub Actions hydration stop marker on 10.211.55.173: exit status 255\ndeleted lease=cbx_18890fa38d8f server=711c4a87-7b80-4286-83da-0e1120c420a8 name=crabbox-cbx-18890fa38d8f-keypath26-d8a27c67-20261006030055-99131\n"
+    },
+    "debugSelectionClearedBeforeFinalDisposal": false,
+    "finalProcesses": {
+      "parents": [],
+      "target": null,
+      "workers": []
+    },
+    "independent": {
+      "fixture": [
+        {
+          "Autoconnect-Action": "ask",
+          "Autoconnect-Vm-Uuid": "",
+          "Compatible-with-macOS-VM": "YES",
+          "Connected-To-Vm": "NO",
+          "Name": "KeyPath Physical HID Fixture",
+          "Present-On-Host": "YES",
+          "System name": "3110000|cafe|4010|full|--|2884855553BC"
+        }
+      ],
+      "passed": true,
+      "providerAbsent": true,
+      "templateStoppedRetained": true
+    },
+    "normalQuitWithSetupOpen": true,
+    "originalProfileRestoredAtFinalDisposal": false,
+    "recoveryStatePreservedUntilDisposal": true
+  },
+  "date": "2026-10-05",
+  "deferredReload": {
+    "action": "reload-deferred",
+    "combinedReleaseBeforeHardwareUpMarginSeconds": -0.14771294593811035,
+    "exactOrderingUnresolved": true,
+    "finalWorkerNonce": "76616573-395B-41DE-BAC5-6CE75F32368E",
+    "finalWorkerPID": 2424,
+    "fullModifierAllUpClaim": false,
+    "passed": true,
+    "postReleasePhysicalRemappingVerified": false,
+    "releaseBeforeHardwareUpMarginSeconds": -0.05525374412536621,
+    "retainedFunctionFlag": false
+  },
+  "evidenceSHA256": {
+    "baseline01-sample-result.json": "dbcc468fce6de836329e38957608046f4d86e389090ab650530855c433ed0a5d",
+    "create-result.json": "c2ccf7a568f6cfb00d4d52b27ea227df88254dd166a5d0420d2dcb7934d1d9a8",
+    "deferred01result.json": "fbba92dff69f05ad9879cd8b52be9d4ad316163dcc852ed2d5a993cab46ade67",
+    "destroy-result.json": "52dab370726cdaa3cc23f2d66abd29a414e4510f419fbb47249a1eaff0f6fa87",
+    "fresh-parent-launch01-result.json": "00fd16e77f7d1cf475170f5a9b57a4364d2237d01a83fc0aaa3c19a388b41583",
+    "function01-after-result.json": "7d358dbd67e1cb5d1e57c0e78bf8adfd2956769da34b8978e636550383929fda",
+    "function01-before-result.json": "53b47e6c3fd1c1d88ee5db4210305b76af1ae38448c4774b2333626db3481c15",
+    "function01-fixture-readback.json": "9ae75a1dedb1f7a9355c4601fa464ec3c39f435fba4caf68cda4e90c5e2cddb2",
+    "function01-sample-result.json": "1217b5a62dca3c0113ba82b5c384d44b280af9d8be12d3ed9e8ff45e2477c0b8",
+    "functionRead02-result.json": "2a03de203b96bb1f48e286832ed4a9c4519e6be8d218fefb6e95213a407e29ed",
+    "functionStopped01-result.json": "227b5e2c930ab453116e91e02949e506d24d4152da38ed792500bb0721d1185d",
+    "guest-identity.json": "6bc4afd0145d506ed809cbea96d209d3229ff36d2a99763dad4cd3e2a10b7347",
+    "independent-provider-cleanup02.json": "ff17fb8c88532e562ccdb1bfb120fb0e730dda38ae78d37f12f5607ef37089c9",
+    "marker-stopped01-result.json": "79e6248b8da76046c35cfe1ab146caef356b50ce27bdc45a2460c1a5525e6e83",
+    "markerFinalStopped01-result.json": "f8db6664d5274c9c1cf16bcfaa1becebe38f9ce7f3059b577c097f0d979f9769",
+    "markerFresh01-result.json": "e07451a1bc0743c353cf4feeb7e0417499cf2d7b13897421a94f0ac4cdbab247",
+    "markerInitial01-result.json": "76ad498293e352d4675beca6b3d1c8bc232fe504711675043bebdbb722f83d0d",
+    "markerLaunch01-result.json": "cb08d71302c45182c0b6b66bef602ba4cc48d16c8941612ebe2a4d9bb0d42288",
+    "markerRestart01-result.json": "2f1ad895c0d9f4fcd6b7b85d8997236b5ed808c5fc6d19ce127a2c1bccbcb21e",
+    "ordinary01result.json": "21c4f6acf9c0e0c1489fa3c9acf47e44cd96a3c0d72e178e4bccbd6a52aa8f20",
+    "ordinaryEnvCleanup01-result.json": "58cd684a284f68ae0dc74ba91d8a71a383f01e72b4fa8bb4eb419bb01c6d0dbc",
+    "owned-lease.json": "4ec0a1a726cc0a224e9d58c004a370791be21c2c3d41a062848c44cfdb028903",
+    "postreload01-sample-result.json": "bbf26d2a0bb1561d0b709d2b27e6b327862da47dff4566aa734fb336bcac0af7"
+  },
+  "functionHandback": {
+    "after": {
+      "cgState": {
+        "home": "/Users/keypathqa_438d6abc",
+        "monotonicAt": 1014.882131916,
+        "observationAtomic": false,
+        "pid": 3613,
+        "readOnly": true,
+        "replyEpoch": 1791256696.200618,
+        "requestEpoch": 1791256696.191861,
+        "states": {
+          "combinedSessionState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 536870912,
+            "flagsHex": "0x20000000",
+            "functionFlag": false,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 0
+          },
+          "hidSystemState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 256,
+            "flagsHex": "0x100",
+            "functionFlag": false,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 1
+          }
+        },
+        "uid": 502
+      },
+      "target": {
+        "active": true,
+        "downs": 2,
+        "focusLost": false,
+        "held": [],
+        "modifiers": 0,
+        "nonce": "67A4DF4A-108B-4F50-AFD0-0C85AA88551A",
+        "pid": 3321,
+        "secureInputEnabled": false,
+        "text": "a",
+        "ups": 2
+      },
+      "worker": {
+        "heldOutputUsages": [],
+        "inputCount": 2,
+        "nonce": "80115311-A64D-434E-BF4A-D5B351435437",
+        "outputCount": 2,
+        "pid": 3548
+      }
+    },
+    "before": {
+      "cgState": {
+        "home": "/Users/keypathqa_438d6abc",
+        "monotonicAt": 1010.4292205,
+        "observationAtomic": false,
+        "pid": 3580,
+        "readOnly": true,
+        "replyEpoch": 1791256691.747705,
+        "requestEpoch": 1791256691.73715,
+        "states": {
+          "combinedSessionState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 8388864,
+            "flagsHex": "0x800100",
+            "functionFlag": true,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 0
+          },
+          "hidSystemState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 8388864,
+            "flagsHex": "0x800100",
+            "functionFlag": true,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 1
+          }
+        },
+        "uid": 502
+      },
+      "target": {
+        "active": true,
+        "downs": 1,
+        "focusLost": false,
+        "held": [],
+        "modifiers": 8388608,
+        "nonce": "67A4DF4A-108B-4F50-AFD0-0C85AA88551A",
+        "pid": 3321,
+        "secureInputEnabled": false,
+        "text": "",
+        "ups": 1
+      },
+      "worker": {
+        "heldOutputUsages": [],
+        "inputCount": 0,
+        "nonce": "80115311-A64D-434E-BF4A-D5B351435437",
+        "outputCount": 0,
+        "pid": 3548
+      }
+    },
+    "fixtureTrace": [
+      {
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 30,
+        "modifiers": 0,
+        "scheduledUs": 742524180136,
+        "sequence": 1,
+        "submittedUs": 742524180166
+      },
+      {
+        "keys": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "latenessUs": 30,
+        "modifiers": 0,
+        "scheduledUs": 742524220136,
+        "sequence": 2,
+        "submittedUs": 742524220166
+      }
+    ],
+    "narrowConclusion": "Physical q produced a and Function cleared; original sample remains refused for unknown combined-state flag 0x20000000. No general all-up acceptance.",
+    "originalVerdict": {
+      "afterCG": {
+        "home": "/Users/keypathqa_438d6abc",
+        "monotonicAt": 1014.882131916,
+        "observationAtomic": false,
+        "pid": 3613,
+        "readOnly": true,
+        "replyEpoch": 1791256696.200618,
+        "requestEpoch": 1791256696.191861,
+        "states": {
+          "combinedSessionState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 536870912,
+            "flagsHex": "0x20000000",
+            "functionFlag": false,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 0
+          },
+          "hidSystemState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 256,
+            "flagsHex": "0x100",
+            "functionFlag": false,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 1
+          }
+        },
+        "uid": 502
+      },
+      "attachmentObservedAt": 1791256681.559237,
+      "beforeCG": {
+        "home": "/Users/keypathqa_438d6abc",
+        "monotonicAt": 1013.197580541,
+        "observationAtomic": false,
+        "pid": 3602,
+        "readOnly": true,
+        "replyEpoch": 1791256694.516066,
+        "requestEpoch": 1791256694.506009,
+        "states": {
+          "combinedSessionState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 8388864,
+            "flagsHex": "0x800100",
+            "functionFlag": true,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 0
+          },
+          "hidSystemState": {
+            "capsFlag": false,
+            "controlFlag": false,
+            "flags": 8388864,
+            "flagsHex": "0x800100",
+            "functionFlag": true,
+            "keys": {
+              "a": {
+                "down": false,
+                "keyCode": 0
+              },
+              "caps": {
+                "down": false,
+                "keyCode": 57
+              },
+              "control": {
+                "down": false,
+                "keyCode": 59
+              },
+              "f18": {
+                "down": false,
+                "keyCode": 79
+              },
+              "fn": {
+                "down": false,
+                "keyCode": 63
+              },
+              "q": {
+                "down": false,
+                "keyCode": 12
+              }
+            },
+            "stateID": 1
+          }
+        },
+        "uid": 502
+      },
+      "error": "Function/noncoalesced-only flags and physically released selected keys required",
+      "errorType": "RuntimeError",
+      "expectedText": "a",
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791256692.435959
+      },
+      "functionHandbackDiagnostic": true,
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791256693.820789,
+        "providerUUID": "711c4a87-7b80-4286-83da-0e1120c420a8",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "lease": "cbx_18890fa38d8f",
+      "passed": false,
+      "providerUUID": "711c4a87-7b80-4286-83da-0e1120c420a8",
+      "runId": "restart-014db46f9b3b43328450f230ffb4c348",
+      "sample": "q"
+    },
+    "primaryReference": "https://www.hammerspoon.org/docs/hs.eventtap.event.html#rawFlagMasks",
+    "referenceLimit": "Hammerspoon observes this bit on synthetic events; Apple SDK leaves it undefined. Cause here is not proven."
+  },
+  "heldHelperSourceSnapshot": {
+    "path": "2026-10-05-held-transition-source.json",
+    "sha256": "4a698c599fed572ab4d02cf7ea88d5485319260da0f8a8cc58ade6caeef395d1"
+  },
+  "heldModeTransition": {
+    "action": "ordinary",
+    "combinedReleaseBeforeHardwareUpMarginSeconds": 6.74587082862854,
+    "exactOrderingUnresolved": false,
+    "finalWorkerNonce": "80115311-A64D-434E-BF4A-D5B351435437",
+    "finalWorkerPID": 3548,
+    "fullModifierAllUpClaim": false,
+    "passed": true,
+    "postReleasePhysicalRemappingVerified": false,
+    "releaseBeforeHardwareUpMarginSeconds": 6.763591766357422,
+    "retainedFunctionFlag": true
+  },
+  "lease": "cbx_18890fa38d8f",
+  "ordinaryBaseline": {
+    "allUp": true,
+    "downs": true,
+    "exactTrace": true,
+    "inputDelta": true,
+    "outputDelta": true,
+    "reportsSubmitted": true,
+    "text": true,
+    "ups": true
+  },
+  "postReload": {
+    "allUp": true,
+    "downs": true,
+    "exactTrace": true,
+    "inputDelta": true,
+    "outputDelta": true,
+    "reportsSubmitted": true,
+    "text": true,
+    "ups": true
+  },
+  "postReloadIdentity": {
+    "parentArguments": [
+      "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+    ],
+    "parentPID": 2415,
+    "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-76616573-395B-41DE-BAC5-6CE75F32368E/report.json",
+    "targetNonce": "CFD333E4-D816-4EBD-BD9D-1DEEC95E85C8",
+    "targetPID": 2571,
+    "workerArguments": [
+      "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+      "--session-runtime",
+      "--session-report",
+      "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-76616573-395B-41DE-BAC5-6CE75F32368E/report.json",
+      "--session-nonce",
+      "76616573-395B-41DE-BAC5-6CE75F32368E",
+      "--session-owner",
+      "2415",
+      "--session-port",
+      "37001",
+      "--session-config",
+      "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+    ],
+    "workerNonce": "76616573-395B-41DE-BAC5-6CE75F32368E",
+    "workerPID": 2424
+  },
+  "postReloadScope": "One separate physical q\u2192a sample on the same Caps worker after deferred reload, before the ordinary mode transition. Not a Caps\u2192Escape sample or broad continuity claim.",
+  "provider": "711c4a87-7b80-4286-83da-0e1120c420a8",
+  "rawEvidenceRoot": "/private/tmp/keypath-reload-d8a-live-01",
+  "retainedMarker": {
+    "explicitRestartLog": "Stopping session runtime (Wizard service restart button (stop for restart))",
+    "initialParentPID": 3768,
+    "initialWorkerPID": 3777,
+    "journalSHA256": "5064ba8f0d780d21d784e3899e59dd66eeb511db7bfbe1b032506304b871e29a",
+    "limit": "Checkpoint after HID child joined, not death while child was writing.",
+    "markerSHA256": "4388e347a437fb92cc83f8d359113ce2085fbf00bc59fef84b414ea4531114eb",
+    "noWorkerOrTarget": true,
+    "profileCheck": "marker_observe requires exact on-disk CAPS bytes before returning; receipts separately contain effective config digest.",
+    "replacementParentPID": 3857,
+    "rootVisualObservation": "Initial parent, fresh parent and completed explicit Restart displayed: Caps mapping could not be restored safely. Restart was refused; its recovery record was retained.",
+    "sameAppliedMap": true,
+    "visualEvidence": "Root CUA screenshots in task transcript; not independently captured by reviewer."
+  },
+  "review": "Independent offline review of deferred reload, post-reload sample, held transition, narrow Function observation and retained-marker facts; root independently verified cleanup.",
+  "sourceCommit": "d8a27c6739858ba799190d21ae2ec453a3d0c671"
+}

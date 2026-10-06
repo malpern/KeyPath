@@ -23,7 +23,7 @@ REPORT = HOME / 'rig-target.json'
 PROFILE = HOME / '.config/keypath/keypath.kbd'
 BACKUP = HOME / '.config/keypath/keypath.kbd.caps-runtime-01-backup'
 MAIN_SIZE = 107937184
-MAIN_SHA = 'ec632464338064d704fbae223951ca3faf85c84e7184aed36dcc5e3c6a090f55'
+MAIN_SHA = 'a49c7b9d3a22ff199f0c23a75e5fb97f7c30caa7a64f7872e154036f7f1d6db3'
 TARGET_SHA = '5fb5e05e8f26954f1b4121cdb949f689cff9db325795ce51167a3f998044ced3'
 ORIGINAL_SHA = '65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573'
 FIXED = b'(defcfg)\n(defsrc q a bspc)\n;; KP:BEGIN simple_mods id=protocol-fixture version=1\n(deflayermap (base)\n  q a\n)\n;; KP:END id=protocol-fixture\n'
