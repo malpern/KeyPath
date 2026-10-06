@@ -216,7 +216,8 @@ struct StatusSettingsTabView: View {
                             )
 
                             PermissionStatusRow(
-                                title: "Kanata Accessibility",
+                                title: permissionSnapshot?.backend == .session
+                                    ? "KeyPath Runtime Accessibility" : "Kanata Accessibility",
                                 icon: "checkmark.shield",
                                 status: permissionSnapshot?.kanata.accessibility,
                                 isKanata: true,
@@ -224,7 +225,8 @@ struct StatusSettingsTabView: View {
                             )
 
                             PermissionStatusRow(
-                                title: "Kanata Input Monitoring",
+                                title: permissionSnapshot?.backend == .session
+                                    ? "KeyPath Runtime Input Monitoring" : "Kanata Input Monitoring",
                                 icon: "keyboard",
                                 status: permissionSnapshot?.kanata.inputMonitoring,
                                 isKanata: true,

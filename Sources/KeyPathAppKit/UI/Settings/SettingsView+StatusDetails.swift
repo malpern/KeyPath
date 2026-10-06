@@ -442,11 +442,11 @@ extension StatusSettingsTabView {
         }
 
         append(status: snapshot.keyPath.accessibility, label: "KeyPath Accessibility")
-        // KeyPath IM is always .unknown — there's no Apple API to query it.
-        // Kanata's IM grant is what matters for key capture. Skip to avoid
-        // permanent "Cannot verify" in Settings.
-        append(status: snapshot.kanata.accessibility, label: "Kanata Accessibility")
-        append(status: snapshot.kanata.inputMonitoring, label: "Kanata Input Monitoring")
+        // Use the runtime's independent capture evidence for this gap summary.
+        // The session worker uses KeyPath's consent; it is not another app to grant.
+        let runtimeName = snapshot.backend == .session ? "KeyPath Runtime" : "Kanata"
+        append(status: snapshot.kanata.accessibility, label: "\(runtimeName) Accessibility")
+        append(status: snapshot.kanata.inputMonitoring, label: "\(runtimeName) Input Monitoring")
 
         return (missingOrDenied, unknown, hasErrors)
     }

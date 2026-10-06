@@ -151,6 +151,7 @@ public struct WizardSummaryPage: View {
             .buttonStyle(WizardDesign.Component.PrimaryButton())
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("wizard-summary-complete-button")
+            .accessibilityLabel(opensRulesOnCompletion ? "Open Rules" : "Close Setup")
             .padding(.top, WizardDesign.Spacing.elementGap)
 
             Spacer()

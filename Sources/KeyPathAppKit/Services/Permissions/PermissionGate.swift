@@ -117,9 +117,12 @@ final class PermissionGate {
             let perms = Array(eval.kanataBlocking).map { $0 == .inputMonitoring ? "Input Monitoring" : "Accessibility" }
                 .joined(separator: ", ")
             let approved = await PermissionRequestDialog.show(
-                title: "Kanata Permission Required",
+                title: snapshot.backend == .session
+                    ? "KeyPath Runtime Permission Required" : "Kanata Permission Required",
                 explanation:
-                "Kanata is missing required permissions (\(perms)). Open the Installation Wizard to grant permissions.",
+                snapshot.backend == .session
+                    ? "The KeyPath keyboard runtime is missing required access (\(perms)). Open setup to enable these permissions for KeyPath."
+                    : "Kanata is missing required permissions (\(perms)). Open the Installation Wizard to grant permissions.",
                 permissions: [],
                 approveButtonTitle: "Open Wizard",
                 cancelButtonTitle: "Not Now"
@@ -135,7 +138,8 @@ final class PermissionGate {
             let perms = Array(eval.kanataNotVerified).map { $0 == .inputMonitoring ? "Input Monitoring" : "Accessibility" }
                 .joined(separator: ", ")
             let approved = await PermissionRequestDialog.show(
-                title: "Kanata Permission Not Verified",
+                title: snapshot.backend == .session
+                    ? "KeyPath Runtime Permission Not Verified" : "Kanata Permission Not Verified",
                 explanation:
                 snapshot.backend == .session
                     ? "The independently launched KeyPath keyboard runtime has not reported its access yet. Retry setup to check its current permissions."
