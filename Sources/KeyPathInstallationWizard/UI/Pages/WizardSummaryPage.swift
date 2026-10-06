@@ -159,7 +159,6 @@ public struct WizardSummaryPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .transition(.opacity)
         .accessibilityIdentifier("wizard-summary-status-success")
-        .accessibilityLabel("KeyPath Ready")
     }
 
     // MARK: - Issues and Validating Content

@@ -47,15 +47,6 @@ struct AppMenuCommands: Commands {
 
             Button(
                 action: {
-                    openPreferencesTab(.openSettingsAdvanced)
-                },
-                label: {
-                    Label("Simulator (Repair/Remove)\u{2026}", systemImage: "keyboard")
-                }
-            )
-
-            Button(
-                action: {
                     openPreferencesTab(.openSettingsSystemStatus)
                 },
                 label: {
@@ -76,7 +67,7 @@ struct AppMenuCommands: Commands {
 
             Divider()
 
-            Button("Install wizard...") {
+            Button("Set Up KeyPath…") {
                 NotificationCenter.default.post(name: .showWizard, object: nil)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
@@ -124,10 +115,12 @@ struct AppMenuCommands: Commands {
             )
             .keyboardShortcut("p", modifiers: [.command, .shift])
 
+            #if DEBUG
             Button("Input Capture Experiment") {
                 InputCaptureExperimentWindowController.shared.showWindow()
             }
             .keyboardShortcut("i", modifiers: [.command, .shift])
+            #endif
 
             Button("Mapper") {
                 NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
@@ -253,6 +246,9 @@ struct AppMenuCommands: Commands {
         var detailLines = ["Keys that do more.", "", "Build \(info.build) \u{2022} \(info.git) \u{2022} \(info.date)"]
         if let kanataVersion = info.kanataVersion {
             detailLines.append("Kanata \(kanataVersion)")
+        }
+        if UpdateService.shared.usesManualDownloads {
+            detailLines.append("\nDownload updates from the KeyPath menu. Quit KeyPath before replacing the app.")
         }
         let details = detailLines.joined(separator: "\n")
         NSApplication.shared.orderFrontStandardAboutPanel(

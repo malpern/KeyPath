@@ -87,3 +87,34 @@ installer already staged by an older build: migration from such a build still
 requires a separately verified clean manual transition. Restore automatic updates
 only after previous-process installer and configuration/Caps cleanup behavior is
 qualified. Public release and migration acceptance remain separate gates.
+
+### Signed guest acceptance, October 6
+
+Non-debug source b11ef90c9 passed a fresh-account consent flow in owned lease
+cbx_8639d8a80d3e. The welcome screen names Accessibility and Input Monitoring and
+briefly mentions Caps Lock tap + hold. After normal consent, the runtime page
+initially retained its failed pre-consent start; its normal Restart action reached
+Ready without reopening the parent. Worker 2532 independently reported both
+permissions, a running active tap, and an empty held-output ledger.
+
+With both legacy automatic-update preferences set before launch, the actual
+Download Update menu opened the official GitHub release page in Safari. The same
+parent/worker remained running and the profile hash stayed unchanged. The current
+public release is still v1.0.1, so a downloadable driverless release must exist
+before shipping this candidate. Normal Quit then retired both parent and worker,
+preserved the profile, and logged runtime stop before window closure/plugin flush.
+
+The normal About command uses the standard macOS panel, not the unused custom
+AboutView. The follow-up menu polish adds replacement instructions to that actual
+panel, removes the duplicate simulator/repair entry, hides Input Capture
+Experiment outside DEBUG, and names the existing wizard Set Up KeyPath. The
+summary container's label had overridden the visible Open Rules button in AX;
+removing that parent label lets the explicit button label remain authoritative.
+These follow-up changes require their own signed visual acceptance.
+
+Raw receipts: `/private/tmp/keypath-manual-download-live-01`. Canonical destruction
+and independent provider absence, retained stopped template, and detached
+nonpersistent fixture checks passed. Earlier failed offscreen menu delivery and
+first-run helper refusal remain separate failures. No manual replacement,
+notarization, legacy staged-installer cancellation, or broad keyboard acceptance
+is claimed by this run.
