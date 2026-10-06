@@ -30,6 +30,29 @@ This is documentation and a recommendation, not implementation of an alternate
 key selector or a new live acceptance claim. Opaque in-mutation death, genuine
 OS timeout recovery and broad keyboard/reconnect coverage remain shipping gaps.
 
+## Previous-boot evidence retirement (October 6, 2026)
+
+A pending Caps intent used to block ordinary driverless startup after reboot:
+recovery rejected a surviving mutation marker before inspecting the record's boot
+identity, and could mistake a reused PID for the old owner. Recovery now obtains
+macOS's boot UUID first and uses the existing lease lock to retire validated,
+current-user records from a different boot. It never enumerates, reads, or writes
+HID services, never reuses the old registry ID, and does not claim that a keyboard
+mapping was restored.
+
+If a marker exists, its exact owner schema and owner must match the validated
+intent. Safe file ownership, permissions, link count, bounded length and entry
+identity checks apply to both files. The marker is removed and the directory
+synced before the intent is removed, leaving an intent-only retry if interrupted.
+Malformed, foreign, orphan and current-boot uncertain records remain retained;
+unavailable boot identity and a busy lease lock also refuse recovery. Current-boot
+restoration still requires the existing owner/dead-process/device/map checks.
+
+This removes stale previous-boot evidence as a startup blocker. It does not enable
+production Caps selection or admit a reconnected keyboard. A future production
+opt-in must define durable F18 reservation and fresh-instance admission without
+persisting registry IDs as reconnect locators.
+
 ## Historical transport qualification
 
 `SessionCapsMappingLease` is the shared parent/worker ownership boundary for an

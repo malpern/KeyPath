@@ -34,7 +34,7 @@ public final class SessionCapsMappingLease {
     }
 
     public enum Refusal: Error, Equatable {
-        case unsafeDirectory, unsafeFile, busy, pendingIntent, wrongOwner, unverifiedWrite, journalIO, mutationUncertain
+        case unsafeDirectory, unsafeFile, busy, pendingIntent, wrongOwner, unverifiedWrite, journalIO, mutationUncertain, invalidBootIdentity
     }
 
     private let directory: URL
@@ -50,6 +50,38 @@ public final class SessionCapsMappingLease {
 
     public func pendingRecord() throws -> Policy.Record? {
         try locked { try load($0)?.record }
+    }
+
+    /// A verified reboot ends every old writer and invalidates its registry ID.
+    /// Retire owned previous-boot evidence only; never restore or inspect HID here.
+    /// Marker first, then intent, so interrupted retirement remains retryable.
+    @discardableResult
+    public func retirePreviousBoot(bootSessionUUID: String) throws -> Bool {
+        guard let currentBoot = UUID(uuidString: bootSessionUUID) else { throw Refusal.invalidBootIdentity }
+        return try locked { fd in
+            guard let loaded = try load(fd) else {
+                try requireNoMutation(directoryFD: fd)
+                return false
+            }
+            guard loaded.record.owner.uid == getuid() else { throw Refusal.wrongOwner }
+            guard UUID(uuidString: loaded.record.owner.bootSessionUUID) != currentBoot else {
+                try requireNoMutation(directoryFD: fd)
+                return false
+            }
+            if let marker = try loadFile(mutationMarker, directoryFD: fd) {
+                let ownerKeys: Set<String> = ["uid", "parentPID", "workerPID", "nonce", "generation", "bootSessionUUID"]
+                guard let object = try JSONSerialization.jsonObject(with: marker.data) as? [String: Any],
+                      Set(object.keys) == ownerKeys else { throw Refusal.unsafeFile }
+                let owner = try JSONDecoder().decode(Policy.Owner.self, from: marker.data)
+                guard owner == loaded.record.owner else { throw Refusal.wrongOwner }
+                try verifyJournal(loaded, directoryFD: fd)
+                try clearMarker(marker.metadata, directoryFD: fd)
+            }
+            try requireNoMutation(directoryFD: fd)
+            try verifyJournal(loaded, directoryFD: fd)
+            guard unlinkat(fd, journal, 0) == 0, fsync(fd) == 0 else { throw Refusal.journalIO }
+            return true
+        }
     }
 
     /// A durable journal is fsynced before the first HID mutation. Any thrown
@@ -281,8 +313,15 @@ public final class SessionCapsMappingLease {
     }
 
     private func load(_ dir: Int32) throws -> JournalEntry? {
+        guard let file = try loadFile(journal, directoryFD: dir) else { return nil }
+        let entry = try JournalEntry(record: JSONDecoder().decode(Policy.Record.self, from: file.data), metadata: file.metadata)
+        try verifyJournal(entry, directoryFD: dir)
+        return entry
+    }
+
+    private func loadFile(_ name: String, directoryFD: Int32) throws -> (data: Data, metadata: stat)? {
         // A foreign FIFO must fail fstat, not block the lifecycle while opening.
-        let fd = openat(dir, journal, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
+        let fd = openat(directoryFD, name, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
         if fd < 0 {
             if errno == ENOENT { return nil }
             throw Refusal.unsafeFile
@@ -300,11 +339,11 @@ public final class SessionCapsMappingLease {
             count += n
         }
         guard count > 0, count <= maximumSize else { throw Refusal.unsafeFile }
-        var after = stat()
-        guard fstat(fd, &after) == 0, sameEntry(before, after), count == before.st_size else { throw Refusal.unsafeFile }
-        let entry = try JournalEntry(record: JSONDecoder().decode(Policy.Record.self, from: Data(bytes.prefix(count))), metadata: before)
-        try verifyJournal(entry, directoryFD: dir)
-        return entry
+        var after = stat(), current = stat()
+        guard fstat(fd, &after) == 0, sameEntry(before, after), count == before.st_size,
+              fstatat(directoryFD, name, &current, AT_SYMLINK_NOFOLLOW) == 0,
+              sameEntry(before, current) else { throw Refusal.unsafeFile }
+        return (Data(bytes.prefix(count)), before)
     }
 
     private func persist(_ record: Policy.Record, directoryFD: Int32) throws -> JournalEntry {

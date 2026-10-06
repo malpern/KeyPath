@@ -103,15 +103,18 @@ enum SessionCapsRuntimeSupport {
     /// crosses actor boundaries. A PID reused by a live process refuses recovery.
     static func recoverPending(directory: URL, expectedOwner: Policy.Owner? = nil) throws {
         var metadata = stat()
-        if lstat(directory.appendingPathComponent("caps-mapping-mutation-in-flight.json").path, &metadata) == 0 {
-            throw SessionCapsMappingLease.Refusal.mutationUncertain
-        }
-        guard errno == ENOENT else { throw SessionCapsMappingLease.Refusal.unsafeFile }
         if lstat(directory.appendingPathComponent("caps-mapping-intent.json").path, &metadata) != 0 {
+            guard errno == ENOENT else { throw SessionCapsMappingLease.Refusal.unsafeFile }
+            // An orphan marker has no validated boot identity. Retain it.
+            if lstat(directory.appendingPathComponent("caps-mapping-mutation-in-flight.json").path, &metadata) == 0 {
+                throw SessionCapsMappingLease.Refusal.mutationUncertain
+            }
             guard errno == ENOENT else { throw SessionCapsMappingLease.Refusal.unsafeFile }
             return
         }
         let lease = SessionCapsMappingLease(directory: directory, backend: SessionCapsHIDUtilTransport.backend())
+        let currentBoot = try bootSessionUUID()
+        if try lease.retirePreviousBoot(bootSessionUUID: currentBoot) { return }
         guard let record = try lease.pendingRecord() else { return }
         if let expectedOwner {
             guard record.owner == expectedOwner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
@@ -121,6 +124,6 @@ enum SessionCapsRuntimeSupport {
             }
             guard !alive(record.owner.parentPID), !alive(record.owner.workerPID) else { throw Refusal.liveOwner }
         }
-        try lease.restore(expectedOwner: record.owner, bootSessionUUID: bootSessionUUID())
+        try lease.restore(expectedOwner: record.owner, bootSessionUUID: currentBoot)
     }
 }

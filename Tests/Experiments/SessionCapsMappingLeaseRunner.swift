@@ -272,6 +272,99 @@ struct SessionCapsMappingLeaseRunner {
                 try check(fake.writes == (removeBeforeWrite ? 0 : 1))
             }
         }
+        let nextBoot = "B7B944DF-471A-4C22-B9F3-A4EE5522F775"
+        let inertBackend = Lease.Backend(enumerate: { fatalError("retirement enumerated HID") },
+                                        read: { _ in fatalError("retirement read HID") },
+                                        write: { _, _ in fatalError("retirement wrote HID") })
+        for markerPresent in [false, true] {
+            try scenario { root, fake, lease in
+                _ = try acquire(lease)
+                if markerPresent {
+                    let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+                    try JSONEncoder().encode(owner).write(to: marker)
+                    chmod(marker.path, 0o600)
+                }
+                let retired = Lease(directory: root, backend: inertBackend)
+                try check(retired.retirePreviousBoot(bootSessionUUID: nextBoot))
+                try check(retired.pendingRecord() == nil && fake.writes == 1)
+                try check(!FileManager.default.fileExists(atPath: root.appendingPathComponent("caps-mapping-mutation-in-flight.json").path))
+                // An intent-only record also represents interrupted marker-first retirement.
+                try check(!retired.retirePreviousBoot(bootSessionUUID: nextBoot))
+            }
+        }
+        for invalidMarker in ["orphan", "malformed", "unknown-field", "foreign", "symlink", "fifo", "mode", "hardlink", "oversize"] {
+            try scenario { root, _, lease in
+                if invalidMarker != "orphan" { _ = try acquire(lease) }
+                let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+                let other = root.appendingPathComponent("other")
+                switch invalidMarker {
+                case "symlink":
+                    try JSONEncoder().encode(owner).write(to: other)
+                    chmod(other.path, 0o600)
+                    try FileManager.default.createSymbolicLink(at: marker, withDestinationURL: other)
+                case "fifo": try check(mkfifo(marker.path, 0o600) == 0)
+                case "unknown-field":
+                    var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(owner)) as! [String: Any]
+                    object["foreign-schema"] = true
+                    try JSONSerialization.data(withJSONObject: object).write(to: marker)
+                    chmod(marker.path, 0o600)
+                case "foreign":
+                    let foreign = Policy.Owner(uid: owner.uid, parentPID: 200, workerPID: 201, nonce: "other",
+                                               generation: "two", bootSessionUUID: owner.bootSessionUUID)
+                    try JSONEncoder().encode(foreign).write(to: marker)
+                    chmod(marker.path, 0o600)
+                default:
+                    let bytes = invalidMarker == "malformed" ? Data("{}".utf8)
+                        : invalidMarker == "oversize" ? Data(repeating: 65, count: 65537)
+                        : try JSONEncoder().encode(owner)
+                    try bytes.write(to: marker)
+                    chmod(marker.path, invalidMarker == "mode" ? 0o644 : 0o600)
+                    if invalidMarker == "hardlink" { try check(link(marker.path, other.path) == 0) }
+                }
+                let intent = root.appendingPathComponent("caps-mapping-intent.json")
+                let before = try? Data(contentsOf: intent)
+                let markerBefore = invalidMarker == "unknown-field" ? try Data(contentsOf: marker) : nil
+                refused { _ = try Lease(directory: root, backend: inertBackend).retirePreviousBoot(bootSessionUUID: nextBoot) }
+                var metadata = stat()
+                try check(lstat(marker.path, &metadata) == 0)
+                try check((try? Data(contentsOf: intent)) == before)
+                if let markerBefore { try check(Data(contentsOf: marker) == markerBefore) }
+            }
+        }
+        try scenario { root, _, lease in
+            _ = try acquire(lease)
+            let retired = Lease(directory: root, backend: inertBackend)
+            try check(!retired.retirePreviousBoot(bootSessionUUID: owner.bootSessionUUID.lowercased()))
+            refused { _ = try retired.retirePreviousBoot(bootSessionUUID: "unavailable") }
+            let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+            try JSONEncoder().encode(owner).write(to: marker)
+            chmod(marker.path, 0o600)
+            uncertain { _ = try retired.retirePreviousBoot(bootSessionUUID: owner.bootSessionUUID) }
+            try check(retired.pendingRecord() != nil)
+            let lock = open(root.appendingPathComponent("caps-mapping.lock").path, O_RDWR)
+            try check(lock >= 0 && flock(lock, LOCK_EX | LOCK_NB) == 0)
+            defer { flock(lock, LOCK_UN); close(lock) }
+            refused { _ = try retired.retirePreviousBoot(bootSessionUUID: nextBoot) }
+            try check(FileManager.default.fileExists(atPath: marker.path))
+        }
+        for invalidJournal in ["malformed", "mode", "foreign"] {
+            try scenario { root, _, lease in
+                let record = try acquire(lease)
+                let journal = root.appendingPathComponent("caps-mapping-intent.json")
+                if invalidJournal == "malformed" { try Data("{}".utf8).write(to: journal) }
+                if invalidJournal == "foreign" {
+                    let foreign = Policy.Owner(uid: getuid() + 1, parentPID: 100, workerPID: 101, nonce: "nonce",
+                                               generation: "one", bootSessionUUID: owner.bootSessionUUID)
+                    let record = try Policy.acquire(original: record.original, device: device, devices: [device],
+                                                    owner: foreign, effectiveConfigSHA256: digest)
+                    try JSONEncoder().encode(record).write(to: journal)
+                }
+                chmod(journal.path, invalidJournal == "mode" ? 0o644 : 0o600)
+                let before = try Data(contentsOf: journal)
+                refused { _ = try Lease(directory: root, backend: inertBackend).retirePreviousBoot(bootSessionUUID: nextBoot) }
+                try check(Data(contentsOf: journal) == before)
+            }
+        }
         let markerName = "caps-mapping-mutation-in-flight.json"
         try scenario { root, fake, lease in
             let marker = root.appendingPathComponent(markerName)

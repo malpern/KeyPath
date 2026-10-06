@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
@@ -51,6 +52,31 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
             XCTAssertEqual(error as? SessionCapsMappingLease.Refusal, .mutationUncertain)
         }
         XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    func testPreviousBootRecoveryDoesNotCheckReusedLivePIDsOrOldDevice() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let device = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 42, vendorID: 51966,
+                                                             productID: 16400, serialNumber: nil, locationID: 123)
+        let oldBoot = UUID().uuidString
+        XCTAssertNotEqual(oldBoot, try SessionCapsRuntimeSupport.bootSessionUUID())
+        // Both PIDs are live in this boot; previous-boot identity must be classified first.
+        let owner = SessionCapsMappingPolicy.Owner(uid: getuid(), parentPID: getppid(), workerPID: getpid(),
+                                                  nonce: "previous-boot", generation: "old", bootSessionUUID: oldBoot)
+        let record = try SessionCapsMappingPolicy.acquire(original: [], device: device, devices: [device],
+                                                          owner: owner, effectiveConfigSHA256: String(repeating: "a", count: 64))
+        let journal = root.appendingPathComponent("caps-mapping-intent.json")
+        let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+        try JSONEncoder().encode(record).write(to: journal)
+        try JSONEncoder().encode(owner).write(to: marker)
+        chmod(journal.path, 0o600)
+        chmod(marker.path, 0o600)
+        try SessionCapsRuntimeSupport.recoverPending(directory: root)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
     }
 
     func testConfigDigestRefusesSymlinkAndOversizedInput() throws {
