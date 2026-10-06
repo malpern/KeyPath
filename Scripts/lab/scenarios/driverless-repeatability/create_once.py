@@ -130,7 +130,7 @@ def verify_inputs():
     """Verify all fixed source, tenant, artifact, and executable authorities."""
     if _git_head(LAB) != LAB_COMMIT:
         raise Refused('canonical lab commit changed')
-    if _git_head(TENANT_PROJECT) != '60dfd2d3054308bdde33bafe8403b712462052ba':
+    if _git_head(TENANT_PROJECT) != '22f7cc319e86d145b6d4e633b2bc3ac2566cd458':
         raise Refused('reviewed documentation-only checkout revision changed')
     for path, expected in SOURCE_PINS.items():
         _hash_regular(path, expected)
