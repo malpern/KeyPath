@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-06",
+  "sourceCommit": "87ede055b875e7105dce5300420114d1350fb45a",
+  "trial": "/private/tmp/keypath-onboarding-live-01",
+  "lease": "cbx_3f62d5f14c27",
+  "packagedMainSHA256": "c002059128421e90a5e9592441c1ee6b77fce255617ae2512c3e721343a64996",
+  "scope": "Fresh normal two-consent onboarding and runtime start; no physical remapping campaign",
+  "acceptance": {
+    "normalConsentAndStart": true,
+    "effectiveAccessibility": true,
+    "effectiveInputMonitoring": true,
+    "tapActive": true,
+    "registeredMask": 7168,
+    "parentPID": 1911,
+    "workerPID": 2317,
+    "uid": 502,
+    "normalQuitProcessAbsence": true,
+    "canonicalDestroy": true,
+    "independentCleanup": true
+  },
+  "rootUIObservations": [
+    "Welcome/Get Started showed exactly Input Monitoring, Accessibility and KeyPath Runtime, with 3 setup issues and primary Fix Input Monitoring.",
+    "Normal Input Monitoring toggle/authentication/Quit & Reopen completed.",
+    "After the transient Processing overlay, setup advanced to Enable Keyboard Control without a repeated IM loop.",
+    "Accessibility Turn On led through the actual OS prompt to Accessibility settings; KeyPath toggle was granted normally.",
+    "App showed Accessibility completed; Next Issue led to KeyPath Runtime; explicit Start reached KeyPath Ready.",
+    "Close Setup dismissed the wizard; the remaining visible window was the KeyPath branded version panel, not a remapping editor.",
+    "First mouse Quit attempt did not establish process absence; selecting highlighted Quit KeyPath through guest menu/End/Return did, independently verified."
+  ],
+  "limitations": [
+    "UI observations are root transcript observations, not machine-readable screenshot artifacts.",
+    "Completed three-row summary after startup was not separately reopened/observed; Ready screen and actual worker prove normal flow success.",
+    "No ESP32 attachment, hardware input, custom profile, Caps selection or device-map mutation; physical behavior relies on separate earlier scoped evidence.",
+    "Per-user Applications installation worked but Accessibility page still suggested moving to /Applications; copy follow-up remains.",
+    "Welcome advertises Supercharge Caps Lock although managed Caps remains DEBUG opt-in/one selected eligible device/F18 reservation.",
+    "Genuine OS timeout recovery, opaque in-mutation HID writer death, broad Fn/Globe and undefined modifier flags remain outside acceptance.",
+    "Destroy returned0 with hydration stop marker exit255 warning; independent provider absence/template/USB checks passed."
+  ],
+  "rawEvidence": [
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/input-validation.json",
+      "sha256": "b3bad29b8dd9657ff5c00d6759b3545ddf955c120e9f5cd4a04edea972152140"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/create-result.json",
+      "sha256": "6641b3704666a1c423689a3cb92e444d7247b6dc7fcf9a4c64edea81b23e4812"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/owned-lease.json",
+      "sha256": "c3c31f8b0bd887476aa254e7dde324104aca98e6ccf625ee9005375979a2f4ea"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/guest-identity.json",
+      "sha256": "39ac4e8d94b99cfd8c78b05fff3fcf36db66e2b7e73ed6818aa7d32b58a65d6a"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/connection02-verified.json",
+      "sha256": "db40473cf529ad0e9a41f51bc1f33795c99a17152b44691f359f5fcdfc579558"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/install01-verified.json",
+      "sha256": "3bb6a298d3caade1bf8e2b0e6ba5080b2c560d69ff9edcc7b84274e8aaea792b"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/permissions-before01-result.json",
+      "sha256": "bd85f756797ed3cdcf7ef7bcbdcf73ac17bf446fc1f1868b64c4724d56761e08"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/permissions-after01-result.json",
+      "sha256": "3966c6e96920abbb55fab8a376b17a8f69788cc1b331356fe48aab416c433e16"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/quit-after01-result.json",
+      "sha256": "94eea876129220aba2afa2d3abf7a810dfe66542a412cc24e4e7e564c127be02"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/quit-after02-result.json",
+      "sha256": "0add1d94305390b07a97c450497a86c44860eb027eac824f5ad241c1b2187c88"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/destroy-result.json",
+      "sha256": "45c6c57c8e4d8d3b966e68ac2c25206d25ee21c2c58bf16dd7e7dc23527d35ab"
+    },
+    {
+      "path": "/private/tmp/keypath-onboarding-live-01/independent-provider-cleanup02.json",
+      "sha256": "f93d24c4295ae33e7cb97bcc8dd1ab0d285f2046df3bf1045e8b43b3c31edc74"
+    }
+  ],
+  "independentReview": {
+    "agent": "timeout_current_review",
+    "scope": "Selected raw receipts only; normal UI sequence remains root observation",
+    "result": "Passed narrow worker identity/effective permissions/active tap, final process absence, canonical destroy and independent cleanup claims; no physical remapping claim."
+  }
+}
