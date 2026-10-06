@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-06",
+  "approvalMode": "auto_review",
+  "sourceRuntime": "770741f4035203ebbdc60168767a1552720cfddc",
+  "latestScriptsAndDocs": "a07a10391f6fac7644f20fbc049f8829ab677140",
+  "fullRegression": {
+    "passed": true,
+    "tests": 5449,
+    "seconds": 203,
+    "logs": "/private/tmp/keypath-production-parallel-full-v2"
+  },
+  "acceptance": {
+    "candidateSource": "770741f4035203ebbdc60168767a1552720cfddc",
+    "manifestSHA256": "fd49758e5f37dcb1aa5deaa2dad3da409ebe4494967561ccd0522de86acec2f4",
+    "lease": "cbx_16cd9c992f45",
+    "profilePreservedSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+    "replacementVerifiedReceipt": "replacement-verified.json",
+    "passes": {
+      "normalLaunch": "ready770-result.json parent3874 worker4060 running tapActive effectiveInputAccess accessibility emptyHeld",
+      "noAutomaticSetup": "windows770-result.json and native screenshot: keyboard overlay, no Setup; unnamed AppKit windows retained",
+      "singleViewMenu": "native screenshot shows one View menu with Toggle Overlay, Center Overlay, Toggle Inspector",
+      "Center": "displaced770-result.json overlay91,130646x286; native Center highlighted then Return physically moved overlay to centered location",
+      "Inspector": "centerinspector770-result.json overlay134,151886x286 plus native screenshot visible A-to-A inspector pane",
+      "explicitSetup": "explicit770-result.json title KeyPath Setup window143; native screenshot KeyPath Ready/Open Rules",
+      "normalQuit": "quit770-result.json parent/worker absence before relaunch",
+      "healthyNormalRelaunch": "relaunchready770-result.json parent4489 worker4510 tapActive effectiveInputAccess accessibility emptyHeld; relaunchwindows770-result.json overlay152 and no Setup",
+      "finalQuit": "finalquit770-result.json all parents/workers absent"
+    },
+    "limitations": [
+      "Replacement reused already granted guest IM/AX; no claim that fresh permission Start was physically retested on770.",
+      "Repair/manual-removal/Simulator/no-backup UI was accepted on prior762; unchanged behavior not physically repeated on770.",
+      "No ESP32 physical input, Fn/Globe customer hardware, app/layout matrix, macOS27, Intel, actual removal, backup creation, or config refusal qualification.",
+      "Window137 unnamed AppKit window observed; no visible wizard or title Setup on normal launch/relaunch."
+    ],
+    "artifacts": "/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_16cd9c992f45/20261006T172306Z",
+    "at": 1791307411.037807
+  },
+  "cleanup": {
+    "actualStatus": 0,
+    "stdout": "{\"passed\": true, \"providerAbsent\": true, \"templateStoppedRetained\": true, \"fixture\": [{\"Name\": \"KeyPath Physical HID Fixture\", \"System name\": \"3110000|cafe|4010|full|--|2884855553BC\", \"Autoconnect-Vm-Uuid\": \"\", \"Autoconnect-Action\": \"ask\", \"Present-On-Host\": \"YES\", \"Connected-To-Vm\": \"NO\", \"Compatible-with-macOS-VM\": \"YES\"}]}\n",
+    "stderr": "",
+    "at": 1791307417.1342132
+  },
+  "rawEvidence": "/private/tmp/keypath-production-onboarding-live-03",
+  "productionReady": false,
+  "hardwareSupport": "Apple Silicon only; user explicitly selected",
+  "pending": [
+    "final fresh physical ordinary and production Caps Lock controls",
+    "bounded genuine OS tap timeout observation",
+    "Apple notarization/staple/Gatekeeper"
+  ],
+  "notarizationUploadExplicitlyApproved": true,
+  "hostProductInstalled": false,
+  "published": false
+}
