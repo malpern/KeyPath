@@ -18,7 +18,7 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 
 - **No telemetry.** KeyPath collects no analytics, usage metrics, or crash reports. Zero.
 - **Manual updates.** Download Update opens the official releases page in your browser. This build does not automatically check for or install updates.
-- **No logging.** KeyPath does not record, store, or transmit your keystrokes.
+- **Local keyboard data.** Rule and macro recording captures keys you choose to record, and the recent-keypress view keeps a limited history in memory. Diagnostic logs can include key names, including in release builds. KeyPath does not upload this keyboard data or these logs.
 - **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
 - **Everything stays on your Mac.** Configuration and logs are local files you own and control.
 
@@ -38,13 +38,13 @@ To understand the permissions, it helps to see how keystrokes flow through the s
   │          │      │                       │      │  result │
   └──────────┘      └──────────────────────┘      └─────────┘
                             │
-                    Nothing is recorded,
-                    stored, or sent anywhere.
-                    Keys pass through and
-                    continue to your apps.
+                    Keys are processed locally
+                    and continue to your apps.
+                    Diagnostic details may
+                    appear in local logs.
 ```
 
-The remapping engine sits between your keyboard and your apps. It has to — that's how remapping works. The important thing is what happens to your keystrokes: they get transformed and passed along. Nothing else.
+The remapping engine sits between your keyboard and your apps, transforming keys according to your rules. Recording and recent-keypress views also use key events locally, and diagnostic logs can contain key names. Review logs before sharing them.
 
 ---
 
