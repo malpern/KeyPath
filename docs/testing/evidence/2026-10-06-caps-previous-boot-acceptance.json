@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "sourceCommit": "dfdfb56a510b69b9a12dff8eed23274fae7e1d33",
+  "candidateManifestSHA256": "e26b3fd7b7c93c63b0d68d6867e2886c112f94a339fc2f8d57a8863f9dfec384",
+  "scope": "Constructed recovery-record startup acceptance; no physical input or HID mapping write",
+  "passed": [
+    "same-boot startup and explicit retry refuse unchanged records",
+    "verified new boot startup retires valid matching records",
+    "normal profile preserved",
+    "postboot explicit restart yields active consented all-up worker",
+    "normal Quit clears parent and worker",
+    "canonical destruction and independent provider/base/USB cleanup"
+  ],
+  "limits": [
+    "no physical Caps or reconnect coverage added",
+    "no malformed or foreign live fixtures",
+    "no genuine timeout coverage",
+    "Accessibility grant required normal app reopen; completion AX label still inherited KeyPath Ready"
+  ],
+  "rebootTransport": {
+    "status": 125,
+    "interpretation": "shutdown interrupted guest transport; independent changed boot epoch/UUID proves reboot"
+  },
+  "rawRoot": "/private/tmp/keypath-caps-reboot-live-01",
+  "receipts": {
+    "owned-lease.json": "f74cf1864d55e26636910b8eadacb36bfe634687b94d635dfd319b54804996ad",
+    "guest-identity.json": "2618a3d455fb2895fe5e77898f1f7e1d3debfc5febe18b8dee1df2edda4fa9be",
+    "baseline01-result.json": "e27b4b0f2182f1cc89473d1e7bfabdef95fdcbe6187a5e06039fa82ca098b467",
+    "seed01-result.json": "13b16cd9d9d72175e31c9c254f612955e52c8b12056d676821ba09489879d76a",
+    "samerefusal01-result.json": "1b61ae21503845422acc7ea23d6ae5e5eed8a32d90a81e66a9c2e7a113c524a0",
+    "sameretry01-result.json": "50f3058082a41ee60924cadb22f7496c281aacc3225ba2b03911b6a48eb51bbb",
+    "recoveryrefusalui01-result.json": "743f479c521282bebc09d1b69ef17e7a2be1e3bdaf743b08e51411d083910f83",
+    "guestreboot01-result.json": "894637f0b81916a8c53ab4a57e4946bb707735a045d461c22ad37e1d9344ea8b",
+    "postboot/guest-identity.json": "a61fa5b49de21387a4ee1d797a56b8dd59fe01c131935a08a90b74120734ef87",
+    "postboot/postbootbefore01-result.json": "266209b29a29af23b574879ed80f037b6550334293fdddbf4cf3bdf4545b49cd",
+    "postboot/postbootrestartverified01-result.json": "0de23221938ac3288acf4375d959794f1d5ed391e5eb8945256bf228e1054d1b",
+    "postboot/postbootready01-result.json": "060949b53d70dde8a1decc2f4c8ba231b021e657b04af1f332994fa78ba9d907",
+    "postboot/finalstopped01-result.json": "b3b66195ea6d8bc79a3a8c63c50a745d45559b55c1a16d11a0793f2bc1671c9d",
+    "destroy-result.json": "8a416c2abfcc1522fe93a29ee66dbc58b36b210c7bcc2fe4c4b07b46ee38b22e",
+    "independent-provider-cleanup02.json": "2c64b90abcc8daba71b8ebc1eedb35ba9c18d316e342b1d7d2be62dfc760fce1"
+  },
+  "ownedVMRemaining": false
+}
