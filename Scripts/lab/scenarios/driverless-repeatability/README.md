@@ -9,7 +9,7 @@ Set `KEYPATH_TRIAL_DIR` to a newly created, owned mode700 directory. Put a mode6
 commands from this source directory with Python `-B`. Missing environment fails
 before dispatch. Keep this environment on every invocation; never substitute a
 previous trial directory. Source and artifact bindings currently select signed
-`d8a27c673` and its metadata-free archive. Its scoped live results are recorded
+`350329b78` and its metadata-free queued-writer archive. Its scoped live results are recorded
 in the handoff; each new trial still needs fresh identity and consent evidence.
 
 1. Run canonical `vm-lab keypath list` and `preflight`. Check capacity. Locally
@@ -108,3 +108,5 @@ selected keys. Unknown flags remain refused. Completed trace/status and raw
 counts are retained even if postconditions fail; freshness is validated before
 network trace retrieval. The original Function diagnostic failed on0x20000000
 and is not retroactively accepted.
+
+For the queued orphan writer candidate, use `checkpoint_launch.py LABEL DEVICE_JSON --queued-writer` only after fresh setup and exact Caps/device admission. The default invocation remains the after-join checkpoint. Follow [the queued-writer checklist](../../../../docs/testing/queued-orphan-writer-checklist.md). The existing `marker_action.py` accepts only an applied mapping and lacks queued-checkpoint parsing; it cannot verify the before-resume original-map stage. Do not loosen or replay that historical observer to substitute for fresh queued-child identity observations.
