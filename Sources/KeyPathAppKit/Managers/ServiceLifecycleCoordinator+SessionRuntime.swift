@@ -48,8 +48,11 @@ extension ServiceLifecycleCoordinator {
                 }
                 try await Task.sleep(for: .milliseconds(50))
             }
+            // NSWorkspace may return an application without a valid PID (e.g. -1).
+            // Never let that become a process-group/broadcast signal target.
             // Signal only the independently launched process owned by this call.
-            if !application.isTerminated { kill(application.processIdentifier, SIGTERM) }
+            let probePID = application.processIdentifier
+            if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
         } catch {
             AppLogger.shared.warn("Session permission report unavailable")
         }
