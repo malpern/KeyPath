@@ -1,0 +1,50 @@
+{
+  "buildMetadata": {
+    "CFBundleShortVersionString": "1.0.2",
+    "CFBundleVersion": "13",
+    "GitCommit": "762d5fe174ddc914030f1f95c2afd515e03c9206",
+    "BuildDate": "2026-10-06T16:33:20Z"
+  },
+  "version": 1,
+  "sourceCommit": "762d5fe174ddc914030f1f95c2afd515e03c9206",
+  "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+  "baseBundle": "/private/tmp/keypath-onboarding-a49569e20-artifact/KeyPath.app",
+  "artifactKind": "isolated non-DEBUG onboarding polish candidate",
+  "rawMainSHA256": "b735cc864cf816ebfc851758f14180cf09f3b1d479a37f0908faa0e3827774b2",
+  "packagedMainSHA256": "6959fa26036e08946bf9352c345b262a7bd0daddac29894578e58f6008735a82",
+  "packagedMainSize": 57662704,
+  "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+  "archive": "keypath-manual-download-clean.zip",
+  "archiveSHA256": "01730429708197555a5c2811065b1b81257abdcaf3102dfb93599e4cabfbf639",
+  "archiveSizeBytes": 84894400,
+  "changedBundlePaths": [
+    "Contents/MacOS/KeyPath",
+    "Contents/Resources/BuildInfo.plist"
+  ],
+  "preservedFileCount": 231,
+  "archiveMetadataExcluded": true,
+  "strictSignatureVerified": true,
+  "teamID": "X2RKZ5TG99",
+  "hardenedRuntime": true,
+  "entitlementsUnchanged": true,
+  "packagedFrameworkRpathVerified": true,
+  "hostInstalled": false,
+  "notarized": false,
+  "timestamped": false,
+  "guestAcceptanceClaimed": false,
+  "managedCapsDefaultEnabled": false,
+  "resources": "Preserved prior frameworks/resources/Metal; no fresh Metal compilation",
+  "manifestSHA256": "b607771410a2f3272dfd6f204fa324839014f369e138a5126ac98ffe67c10034",
+  "fullRegression": {
+    "passed": 5445,
+    "seconds": 179,
+    "runnerExit": 0,
+    "warnings": 0,
+    "expectedAppErrorLogs": 7,
+    "logRoot": "/private/tmp/keypath-production-full-tests-v4"
+  },
+  "approvalMode": "auto_review",
+  "liveAcceptance": "pending; production_onboarding owns new trial",
+  "olderVersionMigration": "excluded by user",
+  "scope": "UI candidate on762d; does not include later timeout/release-verification worker commits"
+}
