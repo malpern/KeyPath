@@ -242,3 +242,5 @@ recovery from a tap alone.
 
 This packet prevents rediscovery of the resolved source issue. It grants no
 source implementation acceptance, build/signing approval or physical release.
+
+Timeout gate review (October 6): read-only source review found no hook-placement/tap-mode mismatch. The hook sleeps inline inside the modifying session tap callback on the main CFRunLoop; the recorded1.003625125sec stall remains real without an observed OS disable. Do not repeat an identical blind stall. Smallest next discriminator: one bounded post-return snapshot of the owned tap retaining OS latency/enable fields; current startup-only classifier discards them. Tagged-output filtering precedes disabled-type classification and lacks a raw disabled-type counter; this is an observation gap, not proven root cause. No new timeout code or live acceptance was produced.
