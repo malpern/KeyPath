@@ -1,0 +1,482 @@
+{
+  "candidateCommit": "60dfd2d3054308bdde33bafe8403b712462052ba",
+  "cleanup": {
+    "debugEnvironmentPreservedUntilDisposal": true,
+    "destroy": {
+      "actualStatus": 0,
+      "at": 1791268843.038662,
+      "elapsedSeconds": 6.5426723749842495,
+      "stderr": "",
+      "stdout": "warning: could not stop GitHub Actions hydration for cbx_c9d5ec21e649: write GitHub Actions hydration stop marker on 10.211.55.179: exit status 255\ndeleted lease=cbx_c9d5ec21e649 server=fd0a2884-f55e-40a2-bfa0-633a420b519b name=crabbox-cbx-c9d5ec21e649-keypath26-60dfd2d3-20261006062529-41163\n"
+    },
+    "independent": {
+      "at": 1791268863.155363,
+      "fixture": [
+        {
+          "Autoconnect-Action": "ask",
+          "Autoconnect-Vm-Uuid": "",
+          "Compatible-with-macOS-VM": "YES",
+          "Connected-To-Vm": "NO",
+          "Name": "KeyPath Physical HID Fixture",
+          "Present-On-Host": "YES",
+          "System name": "3110000|cafe|4010|full|--|2884855553BC"
+        }
+      ],
+      "passed": true,
+      "providerAbsent": true,
+      "templateStoppedRetained": true
+    },
+    "processAbsence": {
+      "parents": [],
+      "target": null,
+      "workers": []
+    },
+    "profileRestoration": {
+      "profileRestored": true,
+      "profileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573"
+    }
+  },
+  "decision": "Close first ordinary-key behavior question for this case. Do not add synthetic Fn-up/neutral cleanup or change product based solely on retained Function. Undefined combined-state bit and Apple Fn/Globe hardware coverage remain open. Do not repeat this cycle to seek cleaner flags.",
+  "diagnostic": {
+    "actualStatus": 79,
+    "afterCG": {
+      "home": "/Users/keypathqa_438d6abc",
+      "monotonicAt": 781.795987083,
+      "observationAtomic": false,
+      "pid": 3079,
+      "readOnly": true,
+      "replyEpoch": 1791268727.720937,
+      "requestEpoch": 1791268727.709376,
+      "states": {
+        "combinedSessionState": {
+          "capsFlag": false,
+          "controlFlag": false,
+          "flags": 536870912,
+          "flagsHex": "0x20000000",
+          "functionFlag": false,
+          "keys": {
+            "a": {
+              "down": false,
+              "keyCode": 0
+            },
+            "caps": {
+              "down": false,
+              "keyCode": 57
+            },
+            "control": {
+              "down": false,
+              "keyCode": 59
+            },
+            "f18": {
+              "down": false,
+              "keyCode": 79
+            },
+            "fn": {
+              "down": false,
+              "keyCode": 63
+            },
+            "q": {
+              "down": false,
+              "keyCode": 12
+            }
+          },
+          "stateID": 0
+        },
+        "hidSystemState": {
+          "capsFlag": false,
+          "controlFlag": false,
+          "flags": 256,
+          "flagsHex": "0x100",
+          "functionFlag": false,
+          "keys": {
+            "a": {
+              "down": false,
+              "keyCode": 0
+            },
+            "caps": {
+              "down": false,
+              "keyCode": 57
+            },
+            "control": {
+              "down": false,
+              "keyCode": 59
+            },
+            "f18": {
+              "down": false,
+              "keyCode": 79
+            },
+            "fn": {
+              "down": false,
+              "keyCode": 63
+            },
+            "q": {
+              "down": false,
+              "keyCode": 12
+            }
+          },
+          "stateID": 1
+        }
+      },
+      "uid": 502
+    },
+    "beforeCG": {
+      "home": "/Users/keypathqa_438d6abc",
+      "monotonicAt": 777.533226958,
+      "observationAtomic": false,
+      "pid": 3046,
+      "readOnly": true,
+      "replyEpoch": 1791268723.458177,
+      "requestEpoch": 1791268723.448767,
+      "states": {
+        "combinedSessionState": {
+          "capsFlag": false,
+          "controlFlag": false,
+          "flags": 8388864,
+          "flagsHex": "0x800100",
+          "functionFlag": true,
+          "keys": {
+            "a": {
+              "down": false,
+              "keyCode": 0
+            },
+            "caps": {
+              "down": false,
+              "keyCode": 57
+            },
+            "control": {
+              "down": false,
+              "keyCode": 59
+            },
+            "f18": {
+              "down": false,
+              "keyCode": 79
+            },
+            "fn": {
+              "down": false,
+              "keyCode": 63
+            },
+            "q": {
+              "down": false,
+              "keyCode": 12
+            }
+          },
+          "stateID": 0
+        },
+        "hidSystemState": {
+          "capsFlag": false,
+          "controlFlag": false,
+          "flags": 8388864,
+          "flagsHex": "0x800100",
+          "functionFlag": true,
+          "keys": {
+            "a": {
+              "down": false,
+              "keyCode": 0
+            },
+            "caps": {
+              "down": false,
+              "keyCode": 57
+            },
+            "control": {
+              "down": false,
+              "keyCode": 59
+            },
+            "f18": {
+              "down": false,
+              "keyCode": 79
+            },
+            "fn": {
+              "down": false,
+              "keyCode": 63
+            },
+            "q": {
+              "down": false,
+              "keyCode": 12
+            }
+          },
+          "stateID": 1
+        }
+      },
+      "uid": 502
+    },
+    "error": "Function/noncoalesced-only flags and physically released selected keys required",
+    "fullModifierAllUpClaim": false,
+    "passed": false,
+    "targetAfterFlags": 0,
+    "targetBeforeFlags": 8388608,
+    "unknownBitAccepted": false
+  },
+  "firstOrdinaryKey": {
+    "behaviorPassed": true,
+    "eventFlags": [
+      0,
+      0
+    ],
+    "events": [
+      {
+        "active": true,
+        "eventTimestamp": 780.583789791,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [
+          0
+        ],
+        "isRepeat": false,
+        "keyCode": 0,
+        "modifiers": 0,
+        "monotonicAt": 780.5862424166667,
+        "observedAt": 1791268726.511191,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": 0,
+        "sequence": 4,
+        "type": "down",
+        "windowKey": true
+      },
+      {
+        "active": true,
+        "eventTimestamp": 780.614526083,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [],
+        "isRepeat": false,
+        "keyCode": 0,
+        "modifiers": 0,
+        "monotonicAt": 780.6171059583334,
+        "observedAt": 1791268726.5420542,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": 0,
+        "sequence": 5,
+        "type": "up",
+        "windowKey": true
+      }
+    ],
+    "focusRetained": true,
+    "heldOutputReleased": true,
+    "key": "q",
+    "output": "a",
+    "pressDelta": 1,
+    "releaseDelta": 1,
+    "workerInputDelta": 2,
+    "workerOutputDelta": 2
+  },
+  "heldTransition": {
+    "action": "ordinary",
+    "combinedReleaseBeforeHardwareUpMarginSeconds": 6.626471996307373,
+    "exactOrderingUnresolved": false,
+    "finalWorkerNonce": "FFB098EE-AC92-4CAB-8ADF-598C98D186A0",
+    "finalWorkerPID": 2983,
+    "fullModifierAllUpClaim": false,
+    "passed": true,
+    "postReleasePhysicalRemappingVerified": false,
+    "releaseBeforeHardwareUpMarginSeconds": 6.631641864776611,
+    "retainedFunctionFlag": true
+  },
+  "lease": {
+    "createdEpoch": 1791267929,
+    "cutoffUTC": "2026-10-06T07:19:29+00:00",
+    "hardCutoffEpoch": 1791271169,
+    "ip": "10.211.55.179",
+    "lease": "cbx_c9d5ec21e649",
+    "manifestExpiresEpoch": 1791271529,
+    "observedAtEpoch": 1791267992.9504871,
+    "physicalReleased": false,
+    "provider": "fd0a2884-f55e-40a2-bfa0-633a420b519b",
+    "slug": "keypath26-60dfd2d3-20261006062529-41163",
+    "stageReleased": false,
+    "statusActual": 0
+  },
+  "limitations": [
+    "No general all-modifier-up acceptance",
+    "No Apple built-in Fn/Globe proof",
+    "No shipping stability claim",
+    "No genuine OS timeout claim"
+  ],
+  "originalMappingRestored": true,
+  "priorRepeat": {
+    "checkerCorrection": "Diagnostic-only complete repeat-aware journal fold; ordinary admission and unknown CG-bit refusal unchanged; 12 tests and independent review passed.",
+    "downs": 2,
+    "events": [
+      {
+        "active": true,
+        "eventTimestamp": 630.387990666,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [
+          79
+        ],
+        "isRepeat": false,
+        "keyCode": 79,
+        "modifiers": 8388608,
+        "monotonicAt": 630.38945375,
+        "observedAt": 1791268576.3143811,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": 0,
+        "sequence": 1,
+        "type": "down",
+        "windowKey": true
+      },
+      {
+        "active": true,
+        "eventTimestamp": 630.47148075,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [
+          79
+        ],
+        "isRepeat": true,
+        "keyCode": 79,
+        "modifiers": 8388608,
+        "monotonicAt": 630.47214925,
+        "observedAt": 1791268576.39708,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": 0,
+        "sequence": 2,
+        "type": "down",
+        "windowKey": true
+      },
+      {
+        "active": true,
+        "eventTimestamp": 630.485759958,
+        "focusLost": false,
+        "focusedMode": "normal",
+        "held": [],
+        "isRepeat": false,
+        "keyCode": 79,
+        "modifiers": 8388608,
+        "monotonicAt": 630.4862933333334,
+        "observedAt": 1791268576.4112248,
+        "requestedResponderFocused": true,
+        "secureInputEnabled": 0,
+        "sequence": 3,
+        "type": "up",
+        "windowKey": true
+      }
+    ],
+    "held": [],
+    "ups": 1
+  },
+  "rawEvidence": [
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/owned-lease.json",
+      "sha256": "b06d3e3cefaedbc85a2b39b0abd4a56371a98b469cde7cd19483b9e03b642f42"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/guest-identity.json",
+      "sha256": "2b3da91ac3f2c028eb89875ad40599d815f767a9091b87603aaadf1559f0d44a"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/consent01-result.json",
+      "sha256": "af84477f8c0db5a0ffa4965307832b8db7c7f481515a1cf526f08dbaf67bce9b"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/stopped01-result.json",
+      "sha256": "c59eb5afa18eb03fa801d4439ab6063c26a25b5472579c79c86bc5de4718ad8f"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/profile01-result.json",
+      "sha256": "7e7887bc7766d71382b574f3ce8478993b2fe8d1da07baae54bb068aa78e8adf"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/baseline01-sample-result.json",
+      "sha256": "c6699dfe64b1bd26589a31d6b764082fc78b9a1722c0db85af2b168b23ff7b75"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/baseline01-before-result.json",
+      "sha256": "17138f0268273ccab6ceca0bae0f00b315c8adcff6810c27a4ca23656924bc95"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/baseline01-after-result.json",
+      "sha256": "19a07819546f5a0a30b92a1177a68c170c18908f6d0dd0c8762cc516400e0e41"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/selected-device.json",
+      "sha256": "3218b3aedb2aeb0b87b05a35c7450ce4099da4bc58e986779597321aed16bd91"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/capslaunch01-result.json",
+      "sha256": "2d35f5562726861ade361226329b526a1a0f766a5be7f17043417bbad16aba5d"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/capstarget01-result.json",
+      "sha256": "6eeeaf627aa763e274304e68e213f27765cde0600349660882d68bf5e6c8c5c8"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/ordinary01binding.json",
+      "sha256": "0b208c6e54d30ae131623e751f35cfc8e089e6587cb13198c1ae59860aa6b2fd"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/ordinary01result.json",
+      "sha256": "3a27c61bb5c37ab625ed3826b1c2b320be5a689a1463aeab2c41f952c7e4b83e"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/ordinary01guest-result.json",
+      "sha256": "d2612415e6fe2065e2ffd748378626b7779ab98ba33179cca85fde63efe2975e"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/ordinary01fixture-complete.json",
+      "sha256": "239c3cd3ef7c76f7e8772adf713eb6a5129d8dc2ff6af55cb628882226b7c390"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/handback01-result.json",
+      "sha256": "333a859375567e284fc4cab05d48368862f334cfc08e50a27f77313e1e6fe6c2"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function01-before-result.json",
+      "sha256": "7cf26e198a24e0edfd6c74f5229033b447a5c95710603f54fdfb9fc593a39b6e"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function01-sample-intent.json",
+      "sha256": "a5788b3a7ce2d995923613c26cc6ec7edb139dc1f8e1c412c211626bab75ab9a"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/attached-function02.json",
+      "sha256": "0fe4a8ae377077f80cea9bd3449a1d25f02d1d5831a47a976c5c8c5b8115a32b"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function02-sample-intent.json",
+      "sha256": "42c07596bb9549cb023bc589e839dce17408116b4a11cf17408dd21a7b9b93c0"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function02-before-result.json",
+      "sha256": "a81a91fdaea539939f9dd5dc1edb63fc62157836b4b865d38b22432421e21180"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function02-prestart-result.json",
+      "sha256": "321364fbc4a3690b062ef13c946bb32e301e7be4b1fbf2dcf0527f6998956e68"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function02-after-result.json",
+      "sha256": "fdbaa3989bd376646f9737622fcb6f55aeb01aae0666173512da151869e1266f"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/function02-sample-result.json",
+      "sha256": "de6ffbd221a2fb276b5b09d771e79c819893c50180c482fe8f92e0a722c1ba9e"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/retire02-result.json",
+      "sha256": "6bbb8ee89bcdaa500aef19adc5e6536e1eba4ddb67629210b0f69d78c7e00cbf"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/stopped03-result.json",
+      "sha256": "9528aa1d1f42e1aedc3ccfac03b3efb7d1c7a83277fc59d00e585ba90a542b41"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/restore01-result.json",
+      "sha256": "954372d25203993570595c48f2369d4efb2b7b2f74b829e2084ab67cf7752b91"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/destroy-intent.json",
+      "sha256": "a739c2183ac5ad432510e7fd3349f153c2fc00b9e01599cd3df29f6cad34f6e7"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/destroy-result.json",
+      "sha256": "75d081cdfd2c0894fb2d2396dd240ea46f721a302809e4717685c775a6cb4e09"
+    },
+    {
+      "path": "/private/tmp/keypath-function-handback-live-01/independent-provider-cleanup.json",
+      "sha256": "e5e30d4230fe5c3b05ba6dd03d80388a423af37d89a6266dbb5ed63ee57d326c"
+    }
+  ],
+  "recoveryJournalAbsent": true,
+  "trialDirectory": "/private/tmp/keypath-function-handback-live-01"
+}

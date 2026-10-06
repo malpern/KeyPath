@@ -121,6 +121,31 @@ def observe(transport, source, label, owned, identity):
     require(type(value) is dict and 'parents' in value and 'workers' in value, 'inspect refused')
     return value
 
+def diagnostic_released_journal(t):
+    rows = t.get('keyEventsJournal')
+    require(type(rows) is list and len(rows) <= 128 and t.get('keyEventsDropped') == 0,
+            'complete bounded prior key journal required')
+    held, downs, ups = set(), 0, 0
+    for sequence, row in enumerate(rows, 1):
+        require(type(row) is dict and row.get('sequence') == sequence
+                and row.get('keyCode') in (79, 0)
+                and row.get('active') is True and row.get('focusLost') is False
+                and row.get('windowKey') is True and row.get('requestedResponderFocused') is True
+                and row.get('focusedMode') == 'normal' and row.get('secureInputEnabled') in (False, 0)
+                and row.get('modifiers') in (0, 0x100, 0x800000, 0x800100)
+                and type(row.get('isRepeat')) is bool, 'prior key journal state refused')
+        key = row['keyCode']
+        if row.get('type') == 'down':
+            require((key in held) == row['isRepeat'], 'unpaired or duplicate prior press')
+            held.add(key); downs += 1
+        else:
+            require(row.get('type') == 'up' and key in held and not row['isRepeat'],
+                    'unpaired prior release')
+            held.remove(key); ups += 1
+        require(row.get('held') == sorted(held), 'prior journal held state changed')
+    require(not held and type(t.get('downs')) is int and type(t.get('ups')) is int
+            and (downs, ups) == (t['downs'], t['ups']), 'prior key journal counts or release refused')
+
 def ready(value, empty=False, function_diagnostic=False):
     require(len(value['parents']) == 1 and len(value['workers']) == 1, 'one live parent/worker required')
     t, w = value['target'], value['workers'][0]['report']
@@ -134,8 +159,8 @@ def ready(value, empty=False, function_diagnostic=False):
             and w.get('heldOutputUsages') == [], 'fresh normal all-up target/worker required')
     if function_diagnostic:
         diagnostic_cg(value.get('cgState'))
-        require(type(t.get('text')) is str and type(t.get('downs')) is int and type(t.get('ups')) is int
-                and t['downs']==t['ups'], 'balanced prior target events required')
+        require(type(t.get('text')) is str, 'prior target text required')
+        diagnostic_released_journal(t)
     if empty and not function_diagnostic:
         require(t.get('text') == '' and t.get('downs') == 0 and t.get('ups') == 0,
                 'fresh empty target required')

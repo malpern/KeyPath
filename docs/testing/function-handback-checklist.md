@@ -1,3 +1,5 @@
+October 6 outcome: the fresh signed60df case completed this bounded check. Control release and original mapping restoration passed. The first ordinary q→a delivered exact zero-flag balanced events with stable focus and cleared Function. Its strict receipt remains failed on undefined combined-session `0x20000000`; do not turn the narrow behavior into full modifier acceptance. A legitimate F18 repeat required the diagnostic-only complete journal fold, with12 focused tests and independent review. No product cleanup event is indicated. Normal Quit/profile restoration/canonical disposal and independent fixture/provider/template checks passed. [Selected evidence](evidence/2026-10-06-function-handback-behavior.json). The checklist below is retained as the executed procedure, not a request to repeat it.
+
 # Caps-to-ordinary Function handback: bounded next check
 
 Current candidate: signed `60dfd2d30`; exact artifact and caller bindings remain in the queued-writer candidate receipt and maintained repeatability scenario. This is a separate physical case, not another orphan-writer test. Infrastructure remains frozen.
