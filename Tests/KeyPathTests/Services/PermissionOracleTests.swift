@@ -150,7 +150,7 @@ struct PermissionOracleTests {
         let noIssues = PermissionOracle.Snapshot(
             keyPath: granted,
             kanata: granted,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(noIssues.blockingIssue == nil)
 
@@ -165,7 +165,7 @@ struct PermissionOracleTests {
         let axIssue = PermissionOracle.Snapshot(
             keyPath: keyPathAXBlocked,
             kanata: granted,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(axIssue.blockingIssue?.contains("KeyPath needs Accessibility") == true)
 
@@ -180,7 +180,7 @@ struct PermissionOracleTests {
         let imIssue = PermissionOracle.Snapshot(
             keyPath: keyPathIMBlocked,
             kanata: granted,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(imIssue.blockingIssue == nil)
 
@@ -195,7 +195,7 @@ struct PermissionOracleTests {
         let kanataIssue = PermissionOracle.Snapshot(
             keyPath: granted,
             kanata: kanataBlocked,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(kanataIssue.blockingIssue?.contains("Kanata needs permissions") == true)
     }

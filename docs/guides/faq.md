@@ -199,17 +199,9 @@ No. KeyPath works completely offline and collects no telemetry or user data. The
 
 These are standard permissions required for keyboard remapping on macOS.
 
-### Why does KeyPath optionally request Full Disk Access?
+### Does KeyPath need Full Disk Access?
 
-Full Disk Access is **optional** and only needed if you want KeyPath to verify Kanata's permissions. Without it, KeyPath can still function normally, but it won't be able to check whether Kanata has been granted Input Monitoring and Accessibility permissions.
-
-KeyPath uses Full Disk Access to read the system TCC (Transparency, Consent, and Control) database, which stores permission grants. This read-only operation allows KeyPath to:
-
-- Verify Kanata's permissions before starting the service
-- Show accurate permission status in the UI
-- Guide you through permissions sequentially (rather than triggering multiple dialogs at once)
-
-**KeyPath works without Full Disk Access**—you can grant permissions directly to Kanata in System Settings, and KeyPath will function normally. Full Disk Access is purely a convenience feature for better permission verification and UX.
+No. KeyPath no longer requests Full Disk Access, reads macOS permission databases, or imports browser history. Permission checks use the app and runtime's reported access. You can still add launcher URLs manually and use existing shortcuts.
 
 ### Is KeyPath notarized?
 

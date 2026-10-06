@@ -233,7 +233,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
 
         let ids = Set(overview.statusItems.map(\.id))
         XCTAssertTrue(ids.contains("privileged-helper"))
-        XCTAssertTrue(ids.contains("full-disk-access"))
+        XCTAssertFalse(ids.contains("full-disk-access"))
         XCTAssertTrue(ids.contains("karabiner-components"))
     }
 

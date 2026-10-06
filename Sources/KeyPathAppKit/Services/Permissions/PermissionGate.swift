@@ -112,7 +112,7 @@ final class PermissionGate {
         let eval = Self.evaluate(snapshot, for: feature)
 
         // If Kanata permissions are not verifiable (unknown), do NOT label them "required".
-        // Surface this as "not verified" and send the user to the wizard/FDA flow.
+        // Surface this as "not verified" and send the user to the setup verification flow.
         if eval.missingKeyPath.isEmpty, !eval.kanataBlocking.isEmpty {
             let perms = Array(eval.kanataBlocking).map { $0 == .inputMonitoring ? "Input Monitoring" : "Accessibility" }
                 .joined(separator: ", ")
@@ -140,7 +140,7 @@ final class PermissionGate {
                 snapshot.backend == .session
                     ? "The independently launched KeyPath keyboard runtime has not reported its access yet. Retry setup to check its current permissions."
                     :
-                    "KeyPath can’t verify Kanata’s permissions (\(perms)) without Full Disk Access. If remapping doesn’t work, grant Full Disk Access to KeyPath to verify, then use the Installation Wizard to grant permissions.",
+                    "KeyPath has not verified the keyboard runtime’s permissions (\(perms)). Open the Installation Wizard to check current access.",
                 permissions: [],
                 approveButtonTitle: "Open Wizard",
                 cancelButtonTitle: "Not Now"

@@ -37,7 +37,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
         #expect(issue.contains("Accessibility"))
@@ -68,7 +68,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
 
         #expect(snap.blockingIssue == nil)
         #expect(snap.isSystemReady)
@@ -98,7 +98,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
         #expect(issue.contains("Kanata"))
@@ -126,7 +126,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
         #expect(issue.contains("KeyPath"))

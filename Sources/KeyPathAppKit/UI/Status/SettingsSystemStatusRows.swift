@@ -17,8 +17,7 @@ enum SettingsSystemStatusRowsBuilder {
         wizardSystemState: WizardSystemState,
         wizardIssues: [WizardIssue],
         systemContext: SystemContext?,
-        tcpConfigured: Bool?,
-        hasFullDiskAccess: Bool
+        tcpConfigured: Bool?
     ) -> [SettingsSystemStatusRowModel] {
         // Mirror wizard summary ordering and semantics.
         var rows: [SettingsSystemStatusRowModel] = []
@@ -42,22 +41,6 @@ enum SettingsSystemStatusRowsBuilder {
                 status: helperStatus,
                 targetPage: .helper,
                 message: helperMessage
-            )
-        )
-
-        // 2) Full Disk Access (optional)
-        let fdaStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : (hasFullDiskAccess ? .completed : .notStarted)
-        let fdaMessage: String? = fdaStatus != .completed ? "Full Disk Access not granted" : nil
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "full-disk-access",
-                title: "Full Disk Access (Optional)",
-                icon: "folder",
-                status: fdaStatus,
-                targetPage: .fullDiskAccess,
-                message: fdaMessage
             )
         )
 

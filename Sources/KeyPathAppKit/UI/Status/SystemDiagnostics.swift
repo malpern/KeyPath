@@ -6,7 +6,6 @@ enum SystemDiagnostics {
         case loginItems
         case inputMonitoring
         case accessibility
-        case fullDiskAccess
         case systemSettings
 
         fileprivate var url: URL? {
@@ -17,8 +16,6 @@ enum SystemDiagnostics {
                 URL(string: WizardSystemPaths.inputMonitoringSettings)
             case .accessibility:
                 URL(string: WizardSystemPaths.accessibilitySettings)
-            case .fullDiskAccess:
-                URL(string: WizardSystemPaths.fullDiskAccessSettings)
             case .systemSettings:
                 URL(fileURLWithPath: "/System/Applications/System Settings.app")
             }

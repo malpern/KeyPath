@@ -373,7 +373,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertEqual(issues.first?.title, "KeyPath Accessibility permission not verified")
         XCTAssertTrue(issues.contains { $0.action.contains("active session") })
         XCTAssertFalse(issues.contains {
-            $0.action.contains("Full Disk Access") || $0.remediationURL == WizardSystemPaths.fullDiskAccessSettings
+            $0.action.contains("Full Disk Access") || $0.remediationURL == "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
         })
     }
 

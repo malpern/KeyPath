@@ -6,6 +6,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 
 | ADR | Title | Status |
 |-----|-------|--------|
+| [ADR-044](adr-044-remove-full-disk-access.md) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-001](adr-001-oracle-pattern.md) | Oracle Pattern for Permission Detection | Accepted |
 | [ADR-006](adr-006-apple-api-priority.md) | Apple API Priority in Permission Checks | Accepted |
 | [ADR-008](adr-008-validation-refactor.md) | Stateless Validation via SystemValidator | Accepted |
@@ -13,7 +14,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Accepted |
 | [ADR-014](adr-014-xpc-signature-mismatch.md) | XPC Signature Mismatch Prevention | Accepted |
 | [ADR-015](adr-015-installer-engine.md) | InstallerEngine Façade | Accepted |
-| [ADR-016](adr-016-tcc-database-reading.md) | TCC Database Reading for Sequential Permission Flow | Accepted |
+| [ADR-016](adr-016-tcc-database-reading.md) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
 | [ADR-017](adr-017-protocol-segregation.md) | InstallerEngine Protocol Segregation (ISP) | Accepted |
 | [ADR-018](adr-018-helper-protocol-duplication.md) | HelperProtocol XPC Duplication | Accepted |
 | [ADR-019](adr-019-test-seams.md) | Test Seams via TestEnvironment Checks | Accepted |

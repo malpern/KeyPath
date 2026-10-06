@@ -246,24 +246,15 @@ extension StatusSettingsTabView {
             lines.append("Missing: \(evaluation.missingOrDenied.joined(separator: ", "))")
         }
         if !evaluation.unknown.isEmpty {
-            if hasFullDiskAccess {
-                lines.append("Cannot verify: \(evaluation.unknown.joined(separator: ", "))")
-            } else {
-                lines.append(
-                    "Cannot verify \(evaluation.unknown.joined(separator: ", ")) without Enhanced Diagnostics"
-                )
-            }
+            lines.append("Not yet verified: \(evaluation.unknown.joined(separator: ", ")). Retry setup to check current access.")
         }
 
         var actions: [StatusDetailAction] = []
 
-        // When kanata permissions are unknown due to missing FDA, lead with the FDA action
-        let hasUnverifiedKanata = !hasFullDiskAccess
-            && (snapshot.kanata.accessibility == .unknown || snapshot.kanata.inputMonitoring == .unknown)
-        if hasUnverifiedKanata {
+        if !evaluation.unknown.isEmpty {
             actions.append(
-                StatusDetailAction(title: "Enable Enhanced Diagnostics", icon: "checkmark.shield") {
-                    SystemDiagnostics.open(.fullDiskAccess)
+                StatusDetailAction(title: "Retry Setup", icon: "wand.and.stars") {
+                    wizardInitialPage = .summary
                 }
             )
         }

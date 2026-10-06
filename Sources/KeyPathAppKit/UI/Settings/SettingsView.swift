@@ -45,10 +45,6 @@ struct StatusSettingsTabView: View {
             + kanataManager.customRules.filter(\.isEnabled).count
     }
 
-    var hasFullDiskAccess: Bool {
-        FullDiskAccessChecker.shared.hasFullDiskAccess()
-    }
-
     private var isSystemHealthy: Bool {
         overallHealthLevel == .success
     }
@@ -62,13 +58,6 @@ struct StatusSettingsTabView: View {
     /// extension.
     var isIntentionallyDisabled: Bool {
         userDisabledService && !effectiveServiceRunning
-    }
-
-    /// True when the only permission issue is unverified kanata (no FDA to check)
-    private var isOnlyKanataUnverified: Bool {
-        guard let snapshot = permissionSnapshot, !hasFullDiskAccess else { return false }
-        let evaluation = permissionGaps(in: snapshot)
-        return evaluation.missingOrDenied.isEmpty && !evaluation.unknown.isEmpty
     }
 
     var body: some View {
@@ -134,27 +123,15 @@ struct StatusSettingsTabView: View {
                         // user has intentionally turned the service off — nothing is
                         // broken, so there's nothing to fix.
                         if !isSystemHealthy, !isIntentionallyDisabled {
-                            if isOnlyKanataUnverified {
-                                // Only issue is unverified kanata — lead with FDA
-                                Button(action: { SystemDiagnostics.open(.fullDiskAccess) }) {
-                                    Label("Enable Enhanced Diagnostics", systemImage: "checkmark.shield")
-                                        .font(.body.weight(.semibold))
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .tint(.blue)
-                                .accessibilityIdentifier("status-enable-fda-button")
-                            } else {
-                                Button(action: { wizardInitialPage = .summary }) {
-                                    Label("Fix it", systemImage: "wand.and.stars")
-                                        .font(.body.weight(.semibold))
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .tint(overallHealthLevel == .critical ? .red : .orange)
-                                .accessibilityIdentifier("status-fix-it-button")
-                                .accessibilityLabel("Fix system issues")
+                            Button(action: { wizardInitialPage = .summary }) {
+                                Label("Fix it", systemImage: "wand.and.stars")
+                                    .font(.body.weight(.semibold))
                             }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .tint(overallHealthLevel == .critical ? .red : .orange)
+                            .accessibilityIdentifier("status-fix-it-button")
+                            .accessibilityLabel("Fix system issues")
                         }
 
                         // Centered toggle
@@ -227,19 +204,14 @@ struct StatusSettingsTabView: View {
                                 icon: "checkmark.shield",
                                 status: permissionSnapshot?.keyPath.accessibility,
                                 isKanata: false,
-                                hasFullDiskAccess: hasFullDiskAccess,
                                 onTap: { wizardInitialPage = .accessibility }
                             )
 
                             PermissionStatusRow(
                                 title: "KeyPath Input Monitoring",
                                 icon: "keyboard",
-                                // No Apple API to query KeyPath IM — always .unknown.
-                                // Kanata's IM grant is what matters. Show green to avoid
-                                // a permanent unresolvable "?" in Settings.
-                                status: .granted,
+                                status: permissionSnapshot?.keyPath.inputMonitoring,
                                 isKanata: false,
-                                hasFullDiskAccess: hasFullDiskAccess,
                                 onTap: { wizardInitialPage = .inputMonitoring }
                             )
 
@@ -248,7 +220,6 @@ struct StatusSettingsTabView: View {
                                 icon: "checkmark.shield",
                                 status: permissionSnapshot?.kanata.accessibility,
                                 isKanata: true,
-                                hasFullDiskAccess: hasFullDiskAccess,
                                 onTap: { wizardInitialPage = .accessibility }
                             )
 
@@ -257,7 +228,6 @@ struct StatusSettingsTabView: View {
                                 icon: "keyboard",
                                 status: permissionSnapshot?.kanata.inputMonitoring,
                                 isKanata: true,
-                                hasFullDiskAccess: hasFullDiskAccess,
                                 onTap: { wizardInitialPage = .inputMonitoring }
                             )
                         }
@@ -542,8 +512,7 @@ struct StatusSettingsTabView: View {
             wizardSystemState: wizardSystemState,
             wizardIssues: wizardIssues,
             systemContext: systemContext,
-            tcpConfigured: tcpConfigured,
-            hasFullDiskAccess: hasFullDiskAccess
+            tcpConfigured: tcpConfigured
         )
     }
 

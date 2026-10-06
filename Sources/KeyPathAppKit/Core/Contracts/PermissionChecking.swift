@@ -104,7 +104,6 @@ extension PermissionChecking {
 enum SystemPermissionType: CaseIterable, Sendable {
     case accessibility
     case inputMonitoring
-    case fullDiskAccess
 
     var displayName: String {
         switch self {
@@ -112,8 +111,6 @@ enum SystemPermissionType: CaseIterable, Sendable {
             "Accessibility"
         case .inputMonitoring:
             "Input Monitoring"
-        case .fullDiskAccess:
-            "Full Disk Access"
         }
     }
 
@@ -123,8 +120,6 @@ enum SystemPermissionType: CaseIterable, Sendable {
             "Privacy & Security > Accessibility"
         case .inputMonitoring:
             "Privacy & Security > Input Monitoring"
-        case .fullDiskAccess:
-            "Privacy & Security > Full Disk Access"
         }
     }
 }

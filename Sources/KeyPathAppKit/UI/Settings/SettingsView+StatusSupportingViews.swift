@@ -6,7 +6,6 @@ struct PermissionStatusRow: View {
     let icon: String
     let status: PermissionOracle.Status?
     let isKanata: Bool
-    let hasFullDiskAccess: Bool
     let onTap: (() -> Void)?
 
     var body: some View {
@@ -49,9 +48,6 @@ struct PermissionStatusRow: View {
         case let .error(message):
             return message.isEmpty ? "error" : "error: \(message)"
         case .unknown:
-            if isKanata, !hasFullDiskAccess {
-                return "unknown: full disk access required to verify"
-            }
             return "unknown"
         }
     }
@@ -64,8 +60,7 @@ struct PermissionStatusRow: View {
         case .denied, .error:
             return .red
         case .unknown:
-            // For Kanata, unknown is commonly due to missing Full Disk Access (TCC not readable).
-            // For KeyPath, unknown is usually a transient "still checking" (startup mode).
+            // Unknown means current permission evidence is unavailable.
             return isKanata ? .orange : .secondary
         }
     }
@@ -78,9 +73,6 @@ struct PermissionStatusRow: View {
         case .denied, .error:
             return "xmark.circle.fill"
         case .unknown:
-            if isKanata, !hasFullDiskAccess {
-                return "questionmark.circle.fill"
-            }
             return "questionmark.circle"
         }
     }

@@ -2,9 +2,9 @@
 
 The setup summary uses a backend-specific checklist. The driverless session
 backend shows only Accessibility, Input Monitoring, and KeyPath Runtime; the
-helper, Full Disk Access, Karabiner/VHID, and DriverKit rows describe the legacy
-backend and are omitted for a session runtime. The DriverKit checklist remains
-unchanged.
+helper, Karabiner/VHID, and DriverKit rows describe the legacy backend and are
+omitted for a session runtime. Full Disk Access has been removed from every
+checklist, along with its prompts, probes, and browser-history suggestions.
 
 Permission readiness comes from the canonical `PermissionOracle.Snapshot` used
 for that wizard result. It is carried through `SystemStateResult` and
