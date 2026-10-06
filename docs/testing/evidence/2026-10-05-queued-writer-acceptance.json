@@ -1,0 +1,221 @@
+{
+  "appliedMapping": {
+    "device": {
+      "locationID": 261095424,
+      "productID": 16400,
+      "registryEntryID": 4294969053,
+      "serialNumber": null,
+      "vendorID": 51966
+    },
+    "mappings": [
+      {
+        "HIDKeyboardModifierMappingDst": 30064771181,
+        "HIDKeyboardModifierMappingSrc": 30064771129
+      }
+    ],
+    "raw": "RegistryID  Key                   Value\n1000006dd   UserKeyMapping   (\n        {\n        HIDKeyboardModifierMappingDst = 30064771181;\n        HIDKeyboardModifierMappingSrc = 30064771129;\n    }\n)\n"
+  },
+  "automaticRestorationClaimed": false,
+  "candidateCommit": "60dfd2d3054308bdde33bafe8403b712462052ba",
+  "checkpoint": {
+    "childPID": 2271,
+    "device": {
+      "locationID": 261095424,
+      "productID": 16400,
+      "registryEntryID": 4294969053,
+      "vendorID": 51966
+    },
+    "owner": {
+      "bootSessionUUID": "7727B1B3-2153-4DB3-9280-0A50D8ECC17A",
+      "generation": "E08E2B07-F72A-46B0-8C49-370495773D78",
+      "nonce": "E08E2B07-F72A-46B0-8C49-370495773D78",
+      "parentPID": 2254,
+      "uid": 502,
+      "workerPID": 2264
+    },
+    "phase": "queued-writer-before-execution"
+  },
+  "childExitStatusKnown": false,
+  "childIdentity": {
+    "argumentsRaw": "/usr/bin/hidutil property --matching {\"LocationID\":261095424,\"PrimaryUsage\":6,\"PrimaryUsagePage\":1,\"ProductID\":16400,\"VendorID\":51966} --set {\"UserKeyMapping\":[{\"HIDKeyboardModifierMappingSrc\":30064771129,\"HIDKeyboardModifierMappingDst\":30064771181}]}",
+    "executable": "/usr/bin/hidutil",
+    "pid": 2271,
+    "ppid": 1,
+    "start": "Mon Oct 5 22:35:24 2026",
+    "state": "Ts",
+    "uid": 502
+  },
+  "cleanup": {
+    "fixture": [
+      {
+        "Autoconnect-Action": "ask",
+        "Autoconnect-Vm-Uuid": "",
+        "Compatible-with-macOS-VM": "YES",
+        "Connected-To-Vm": "NO",
+        "Name": "KeyPath Physical HID Fixture",
+        "Present-On-Host": "YES",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC"
+      }
+    ],
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true
+  },
+  "freshParentPID": 2386,
+  "insideOpaqueMutationProven": false,
+  "lease": {
+    "createdEpoch": 1791264451,
+    "cutoffUTC": "2026-10-06T06:21:31+00:00",
+    "hardCutoffEpoch": 1791267691,
+    "ip": "10.211.55.178",
+    "lease": "cbx_6f9eb1483319",
+    "manifestExpiresEpoch": 1791268051,
+    "observedAtEpoch": 1791264501.3334022,
+    "physicalReleased": false,
+    "provider": "73ebd759-2f95-4907-a5f4-667d00efc652",
+    "slug": "keypath26-60dfd2d3-20261006052731-20885",
+    "stageReleased": false,
+    "statusActual": 0
+  },
+  "noOwnedVMRemains": true,
+  "normalRestartUIRefusalObservedByRoot": [
+    "original parent before write",
+    "fresh parent before write",
+    "fresh parent after write"
+  ],
+  "originalMapping": {
+    "device": {
+      "locationID": 261095424,
+      "productID": 16400,
+      "registryEntryID": 4294969053,
+      "serialNumber": null,
+      "vendorID": 51966
+    },
+    "mappings": [],
+    "raw": "RegistryID  Key                   Value\n1000006dd   UserKeyMapping   (null)\n"
+  },
+  "originalParentPID": 2254,
+  "passed": true,
+  "physicalEventsSent": false,
+  "rawEvidence": {
+    "attached-baseline01.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/attached-baseline01.json",
+      "sha256": "8aee8e5f566745614696e823dfa621fce1646d92095f1d12bd8338c21dc787ac"
+    },
+    "capsprofile01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/capsprofile01-result.json",
+      "sha256": "4fccff1d07f5d5748ac585e81fe05f7b5f7481592b3dc8593078a7fd14dc0023"
+    },
+    "consent01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/consent01-result.json",
+      "sha256": "1269b9a8b97d766194772d18d40d0e06721bfc86eed36eb17d9d5dae59c06e72"
+    },
+    "create-claim.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/create-claim.json",
+      "sha256": "96d62c8a1173266a8ac4a12347cfb2cedd909b2c854f371955a2aac6f614ef4d"
+    },
+    "create-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/create-result.json",
+      "sha256": "4e7ea6b446ffcb6070404abee882b1a0558d11ae2eb63ed0a89f1c99b677bab6"
+    },
+    "destroy-intent.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/destroy-intent.json",
+      "sha256": "4207233ad732bca65e1e0a495ebb922122fb12b390495ed9568e2daa1f44f10b"
+    },
+    "destroy-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/destroy-result.json",
+      "sha256": "05124887be2a4d307f41d110cd8f516b0f42892f1c12bb7cbeafb0a2661c2025"
+    },
+    "device01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/device01-result.json",
+      "sha256": "7e8702493eb4f914b8342a6063d629709eef8fcdf569a952094ccace6d9db3f1"
+    },
+    "freshinspect01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/freshinspect01-result.json",
+      "sha256": "a3f15f266532fa9fef2a3a0c4f33544bf7d1da94f7316acfa0929374eb8d144e"
+    },
+    "freshparent01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/freshparent01-result.json",
+      "sha256": "826f8cc64cc5b4a9cd92e539bc12bffe1f0b118752572724ed52fbc69f5cb8cb"
+    },
+    "freshrefusedoriginal01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/freshrefusedoriginal01-result.json",
+      "sha256": "3bd280c86e5b60132c6250e7946f39a5987bf78273571fc87c73f87b5ca7eadd"
+    },
+    "guest-identity.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/guest-identity.json",
+      "sha256": "b1c1b6da6385f9b52e3c80f5d2f3d1cc42522838b83af1f4009d52ba991af7f0"
+    },
+    "independent-provider-cleanup02.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/independent-provider-cleanup02.json",
+      "sha256": "36da0a4e002d978ec057bf268dde0181e8d12fac67838477db8b7a6a15367819"
+    },
+    "install01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/install01-result.json",
+      "sha256": "292aa29e3be63a6a2fbf5c49aedf31b81f88bf8f1578a4327fee2188836200d8"
+    },
+    "install01-verified.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/install01-verified.json",
+      "sha256": "14501985aef490727b8047840de9296c9ee06b6431826bcad9c83c14a370a028"
+    },
+    "owned-lease.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/owned-lease.json",
+      "sha256": "cf2b5e572e32f3fd3340fdce978ec000a84af343051ab04d9970091498290543"
+    },
+    "profile01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/profile01-result.json",
+      "sha256": "4076a5518d887a36813ee6735a6f337e3483323798449d8e2b85624973bfa52c"
+    },
+    "queuedapplied01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/queuedapplied01-result.json",
+      "sha256": "dbcf51bf88d0dc4f7d8a2f1881d9222fc651d737a2a754f020d93a3337d167f6"
+    },
+    "queuedlaunch01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/queuedlaunch01-result.json",
+      "sha256": "8bd5daaf5b4b9e02ee9f52d4bf977fd7ffa2a4fe3db317083fb7e0cdcad69612"
+    },
+    "queuedoriginal01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/queuedoriginal01-result.json",
+      "sha256": "df0e41ab4bd059bf8e6338dccb16b2cb404e721d5cb20f2ce49ab5c0084ac367"
+    },
+    "refusedapplied01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/refusedapplied01-result.json",
+      "sha256": "74f9dd2eae944c157fa5f6ad20152fcbfd978de1309e454aa199f817871f6dae"
+    },
+    "refusedoriginal01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/refusedoriginal01-result.json",
+      "sha256": "745804bb4b7eb255e5e4a6b8ada161d908e1da3b76017d5d6911ddbc61409348"
+    },
+    "resume01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/resume01-result.json",
+      "sha256": "cf478d557a36fa6c1d1acb40c616ba51a4d65d54fdc8c8ce052e377aed7fbda8"
+    },
+    "status-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/status-result.json",
+      "sha256": "502f271d028d2b8644f472948bc3e9dfec8b4f06f4301ce89ad55ee7f09c8d0f"
+    },
+    "stopped01-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/stopped01-result.json",
+      "sha256": "5ce3e28e6500b0b309505f9039f8aeddc3ab207cbc4424fba5927364ea054003"
+    },
+    "stopped02-result.json": {
+      "path": "/private/tmp/keypath-queued-writer-live-04/stopped02-result.json",
+      "sha256": "31de9cc6596a409c126cd2caf2d684fe12ef15d2bbf9d866cc401dc2e11dcb19"
+    }
+  },
+  "scope": "queued real HID writer survival, late mapping write, retained-uncertainty refusal across original/fresh parent",
+  "selectedDevice": {
+    "locationID": 261095424,
+    "productID": 16400,
+    "registryEntryID": 4294969053,
+    "serialNumber": null,
+    "vendorID": 51966
+  },
+  "uncertaintyAndAppliedMappingPreservedUntilDisposal": true,
+  "uncertaintyDigests": {
+    "checkpointRawSHA256": "809ad4a278fd91b38cf30434f2b3741e06f22715e2e28d62007b65f6c5a3e1ac",
+    "journalRawSHA256": "f856d9f1ac231ddd4a2f6ff50f5b2282196f5cc1d75a8d3b7ee12205ed36d9aa",
+    "markerRawSHA256": "a7cb6e177cff39171711c839fb918aab1ae810d685c25db1038fdcca342e222e"
+  },
+  "writerResumeSignalCount": 1
+}
