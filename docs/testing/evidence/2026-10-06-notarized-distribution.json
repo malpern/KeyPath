@@ -1,0 +1,62 @@
+{
+  "source_commit": "770741f4035203ebbdc60168767a1552720cfddc",
+  "kanata_gitlink": "0853689f04d40f6b8d283fef80e34b3d53531b89",
+  "version": "1.0.2",
+  "build_number": "13",
+  "apple_submission_id": "c8a8bc93-bb6a-465a-8dea-fa54b814d79e",
+  "apple_status": "Accepted",
+  "approved_input_zip": {
+    "path": "/private/tmp/keypath-production-notarization-770741f4/KeyPath-770741f4-submitted.zip",
+    "bytes": 82843508,
+    "sha256": "98b55cf18c59ba99ced94034e033a7e3206f65ac0938d1acb75b6fd555d72d54"
+  },
+  "ZIP": {
+    "path": "/private/tmp/keypath-production-notarization-770741f4/KeyPath-770741f4-notarized.zip",
+    "bytes": 82845245,
+    "sha256": "caf3b20ab65a11fbe3b6b18c9aa3f1dbe89c693ce1e5634d0f2ebec6c694e75f",
+    "format": "ZIP -r -y -X",
+    "metadata_clean": true,
+    "integrity_passed": true,
+    "symlink_count": 9,
+    "roundtrip_full_app_tree_equal": true,
+    "roundtrip_staple_signature_gatekeeper_passed": true
+  },
+  "original_app_and_zip_unchanged": true,
+  "notarized": true,
+  "stapled": true,
+  "gatekeeper_assessed": true,
+  "gatekeeper_source": "Notarized Developer ID",
+  "team_id": "X2RKZ5TG99",
+  "deep_strict_signature_passed": true,
+  "all_six_owned_components_exact_arm64": true,
+  "declared_minimum_macos": "15.0",
+  "runtime_assessed": false,
+  "host_installed_or_deployed": false,
+  "published": false,
+  "verification_source_head": "a07a10391f6fac7644f20fbc049f8829ab677140",
+  "prior_approval_rejection_and_auth_blockers_preserved": true,
+  "credential_contents_in_artifacts": false,
+  "manifest": {
+    "path": "/private/tmp/keypath-production-notarization-770741f4/notarized-manifest.json",
+    "sha256": "78f1c0d4e678bc4b541e0860d2b1a476792212bdcd94e765fa91127d3d397a15"
+  },
+  "receipts": {
+    "accepted-root-verification.log": {
+      "path": "/private/tmp/keypath-production-notarization-770741f4/accepted-root-verification.log",
+      "sha256": "dc3fa4f4cc3d791d5bfa8d5936cdda2fcddc9db2b15375c04aaec6553327418e"
+    },
+    "staple-validation.log": {
+      "path": "/private/tmp/keypath-production-notarization-770741f4/staple-validation.log",
+      "sha256": "4ac278d195a4865343a883aa4f7dcbeed10c0eff73cbd771a7a209841f7aec37"
+    },
+    "archive-roundtrip-verification.log": {
+      "path": "/private/tmp/keypath-production-notarization-770741f4/archive-roundtrip-verification.log",
+      "sha256": "6f59ab0c853ac50064687f2aa8a3d0bea5acb65e571baabeb3296e9f9864a897"
+    },
+    "architecture-minos.json": {
+      "path": "/private/tmp/keypath-production-notarization-770741f4/architecture-minos.json",
+      "sha256": "af34ab6ebcd12e89233ede3329dcc585247c31e25da7255d9aa4318cec3e681e"
+    }
+  },
+  "accepted_scope": "Distribution trust for exact notarized770 artifact; runtime and final physical acceptance remain separate."
+}
