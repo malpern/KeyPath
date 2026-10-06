@@ -47,9 +47,32 @@
     "bridgeBuildPassed": true,
     "simulatorBuildPassed": true,
     "engineBuildPassed": true,
-    "receiptPending": true
+    "receiptPending": false,
+    "receipt": "/private/tmp/keypath-fresh-rust-receipt-016e1700d/receipt.json"
   },
   "olderMigrationExcluded": true,
   "hostProductInstalled": false,
-  "publicRelease": false
+  "publicRelease": false,
+  "latestCheckpoint": {
+    "source": "a07a10391",
+    "frozenBinarySource": "770741f4035203ebbdc60168767a1552720cfddc",
+    "fullRegression": {
+      "passed": true,
+      "tests": 5449,
+      "seconds": 203,
+      "logs": "/private/tmp/keypath-production-parallel-full-v2"
+    },
+    "hardwareSupport": "Apple Silicon only, explicitly selected by user",
+    "macOSMinimum": "15.0 unchanged; live qualification macOS26",
+    "architectureGate": {
+      "actualCandidatePassed": true,
+      "intelMixedEmptyMissingRefused": true,
+      "verifierTests": 12
+    },
+    "candidateManifest": "/private/tmp/keypath-fresh-shipping-770741f4/manifest.json",
+    "candidateManifestSHA256": "fd49758e5f37dcb1aa5deaa2dad3da409ebe4494967561ccd0522de86acec2f4",
+    "liveReplacement": "pending",
+    "notarization": "pending",
+    "productionReady": false
+  }
 }
