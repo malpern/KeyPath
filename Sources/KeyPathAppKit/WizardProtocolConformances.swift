@@ -109,10 +109,6 @@ extension SystemValidator: WizardSystemValidating {
 
 extension HelperMaintenance: WizardHelperMaintaining {}
 
-// MARK: - FullDiskAccessChecker + WizardFullDiskAccessChecking
-
-extension FullDiskAccessChecker: WizardFullDiskAccessChecking {}
-
 // MARK: - PermissionRequestService + WizardPermissionRequesting
 
 extension PermissionRequestService: WizardPermissionRequesting {}
@@ -148,7 +144,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     // This ensures inProgressValidation dedup spans all callers.
     MainAppStateController.shared.setValidator(sharedValidator)
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
-    WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
@@ -211,7 +206,6 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
 
     MainAppStateController.shared.setValidator(systemValidator)
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
-    WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 

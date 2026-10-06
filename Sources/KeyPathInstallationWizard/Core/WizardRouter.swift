@@ -59,8 +59,7 @@ public enum WizardRouter {
     }
 
     /// Adjust a routing decision when kanata's permission state could not be
-    /// verified (still `.unknown` after retries — e.g. no Full Disk Access to
-    /// read TCC.db, or a fresh install with no TCC row yet).
+    /// verified through available runtime permission evidence.
     ///
     /// Unverified permissions produce only warning-severity issues, which
     /// `route()` deliberately ignores — but auto-advancing past the permission
@@ -173,7 +172,7 @@ public enum WizardRouter {
             default:
                 false
             }
-        case .welcome, .fullDiskAccess, .kanataMigration, .stopExternalKanata, .karabinerImport:
+        case .welcome, .kanataMigration, .stopExternalKanata, .karabinerImport:
             false
         }
     }

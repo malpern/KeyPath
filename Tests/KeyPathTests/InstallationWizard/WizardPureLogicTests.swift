@@ -1047,10 +1047,6 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.karabinerComponents, issues: issues, state: .active))
     }
 
-    func test_pageHasRelevantIssues_fullDiskAccessAlwaysFalse() {
-        XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.fullDiskAccess, issues: [], state: .active))
-    }
-
     func test_pageHasRelevantIssues_kanataMigrationAlwaysFalse() {
         XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.kanataMigration, issues: [], state: .active))
     }

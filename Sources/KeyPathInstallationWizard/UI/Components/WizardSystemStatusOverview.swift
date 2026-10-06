@@ -179,9 +179,6 @@ public struct WizardSystemStatusOverview: View {
 
         var items: [StatusItemModel] = []
 
-        // Check FDA status early - used for multiple items
-        let hasFDA = checkFullDiskAccess()
-
         // 1. Privileged Helper (required for system operations)
         let helperIssues = issues.filter { issue in
             if case let .component(req) = issue.identifier {
@@ -209,25 +206,6 @@ public struct WizardSystemStatusOverview: View {
             )
         )
 
-        // 2. Enhanced Diagnostics (FDA - Optional but recommended)
-        let fullDiskAccessStatus: InstallationStatus = {
-            if systemState == .initializing {
-                return .notStarted
-            }
-            return hasFDA ? .completed : .notStarted
-        }()
-        items.append(
-            StatusItemModel(
-                id: "full-disk-access",
-                icon: hasFDA ? "checkmark.shield" : "shield.lefthalf.filled",
-                title: "Enhanced Diagnostics",
-                subtitle: hasFDA ? nil : "Optional",
-                status: fullDiskAccessStatus,
-                isNavigable: true,
-                targetPage: .fullDiskAccess
-            )
-        )
-
         // 3. System Conflicts
         let conflictIssues = issues.filter { $0.category == .conflicts }
         let conflictStatus: InstallationStatus = {
@@ -249,15 +227,14 @@ public struct WizardSystemStatusOverview: View {
         )
 
         // 4. Input Monitoring Permission
-        let inputMonitoringStatus = getInputMonitoringStatus(hasFDA: hasFDA)
+        let inputMonitoringStatus = getInputMonitoringStatus()
         let inputMonitoringIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
                 return req == .keyPathInputMonitoring || req == .kanataInputMonitoring
             }
             return false
         }
-        // When FDA is not available, show "Unable to verify" subtitle
-        let inputMonitoringSubtitle: String? = (!hasFDA && inputMonitoringStatus == .unverified)
+        let inputMonitoringSubtitle: String? = (inputMonitoringStatus == .unverified)
             ? "Unable to verify" : nil
         items.append(
             StatusItemModel(
@@ -273,14 +250,14 @@ public struct WizardSystemStatusOverview: View {
         )
 
         // 6. Accessibility Permission
-        let accessibilityStatus = getAccessibilityStatus(hasFDA: hasFDA)
+        let accessibilityStatus = getAccessibilityStatus()
         let accessibilityIssues = issues.filter { issue in
             if case let .permission(req) = issue.identifier {
                 return req == .keyPathAccessibility || req == .kanataAccessibility
             }
             return false
         }
-        let accessibilitySubtitle: String? = (!hasFDA && accessibilityStatus == .unverified)
+        let accessibilitySubtitle: String? = (accessibilityStatus == .unverified)
             ? "Unable to verify" : nil
         items.append(
             StatusItemModel(
@@ -362,7 +339,7 @@ public struct WizardSystemStatusOverview: View {
     }
 
     /// Driverless sessions require only the app's two consent checks and the
-    /// session runtime. Helper, FDA, conflict, and VirtualHID checks describe
+    /// session runtime. Helper, conflict, and VirtualHID checks describe
     /// the legacy DriverKit installation and must not appear for this backend.
     static func sessionStatusItems(
         systemState: WizardSystemState,
@@ -475,17 +452,7 @@ public struct WizardSystemStatusOverview: View {
     private struct ProbeCache {
         private static let ttl: TimeInterval = 1.5
 
-        private var fda: (value: Bool, ts: Date)?
         private var comm: (value: InstallationStatus, port: Int, kanataRunning: Bool, ts: Date)?
-
-        mutating func fullDiskAccessIfFresh() -> Bool? {
-            guard let fda, Date().timeIntervalSince(fda.ts) < Self.ttl else { return nil }
-            return fda.value
-        }
-
-        mutating func updateFullDiskAccess(_ value: Bool) {
-            fda = (value, Date())
-        }
 
         mutating func communicationStatusIfFresh(
             port: Int,
@@ -593,20 +560,7 @@ public struct WizardSystemStatusOverview: View {
 
     // MARK: - Status Helpers
 
-    private func checkFullDiskAccess() -> Bool {
-        // FDA detection: best-effort probe via shared checker (cached + lightweight).
-        // Avoid double-caching: FullDiskAccessChecker already caches.
-        let granted = WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
-
-        AppLogger.shared.log(
-            granted
-                ? "🔐 [WizardSystemStatusOverview] FDA granted (cached)"
-                : "🔐 [WizardSystemStatusOverview] FDA not granted (cached)"
-        )
-        return granted
-    }
-
-    private func getInputMonitoringStatus(hasFDA: Bool) -> InstallationStatus {
+    private func getInputMonitoringStatus() -> InstallationStatus {
         if systemState == .initializing {
             return .notStarted
         }
@@ -618,8 +572,7 @@ public struct WizardSystemStatusOverview: View {
             return false
         }
 
-        // If no FDA, we can only verify KeyPath's own permission (via Apple API)
-        // Kanata's permission requires TCC.db access
+        // This process's Apple APIs do not establish a legacy daemon's grant.
         let kanataIssues = inputMonitoringIssues.filter { issue in
             if case let .permission(p) = issue.identifier {
                 return p == .kanataInputMonitoring
@@ -638,20 +591,17 @@ public struct WizardSystemStatusOverview: View {
             return .failed
         }
 
-        // If no FDA and Kanata has issues, show unverified (can't trust the result)
-        if !hasFDA, !kanataIssues.isEmpty {
-            return .unverified
+        if !kanataIssues.isEmpty {
+            return issueStatus(for: kanataIssues) == .failed ? .failed : .unverified
         }
-
-        // If FDA available and issues exist, show failed
-        if !inputMonitoringIssues.isEmpty {
-            return issueStatus(for: inputMonitoringIssues)
-        }
-
+        guard let facts = permissions,
+              facts.keyPath.inputMonitoring.isReady,
+              facts.kanata.inputMonitoring.isReady
+        else { return .unverified }
         return .completed
     }
 
-    private func getAccessibilityStatus(hasFDA: Bool) -> InstallationStatus {
+    private func getAccessibilityStatus() -> InstallationStatus {
         if systemState == .initializing {
             return .notStarted
         }
@@ -663,8 +613,7 @@ public struct WizardSystemStatusOverview: View {
             return false
         }
 
-        // If no FDA, we can only verify KeyPath's own permission (via Apple API)
-        // Kanata's permission requires TCC.db access
+        // This process's Apple APIs do not establish a legacy daemon's grant.
         let kanataIssues = accessibilityIssues.filter { issue in
             if case let .permission(p) = issue.identifier {
                 return p == .kanataAccessibility
@@ -683,16 +632,13 @@ public struct WizardSystemStatusOverview: View {
             return .failed
         }
 
-        // If no FDA and Kanata has issues, show unverified (can't trust the result)
-        if !hasFDA, !kanataIssues.isEmpty {
-            return .unverified
+        if !kanataIssues.isEmpty {
+            return issueStatus(for: kanataIssues) == .failed ? .failed : .unverified
         }
-
-        // If FDA available and issues exist, show failed
-        if !accessibilityIssues.isEmpty {
-            return issueStatus(for: accessibilityIssues)
-        }
-
+        guard let facts = permissions,
+              facts.keyPath.accessibility.isReady,
+              facts.kanata.accessibility.isReady
+        else { return .unverified }
         return .completed
     }
 

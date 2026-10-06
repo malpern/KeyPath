@@ -35,8 +35,6 @@ public enum WizardDependencies {
     /// HelperMaintenance instance
     public static var helperMaintenance: (any WizardHelperMaintaining)?
 
-    /// FullDiskAccessChecker instance
-    public static var fullDiskAccessChecker: (any WizardFullDiskAccessChecking)?
 
     /// PermissionRequestService instance
     public static var permissionRequestService: (any WizardPermissionRequesting)?
@@ -100,7 +98,6 @@ public enum WizardDependencies {
         daemonManager = nil
         systemValidator = nil
         helperMaintenance = nil
-        fullDiskAccessChecker = nil
         permissionRequestService = nil
         privilegedOperations = nil
         makeKanataMigrationPage = nil

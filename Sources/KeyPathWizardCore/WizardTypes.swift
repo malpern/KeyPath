@@ -15,7 +15,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     case welcome = "Welcome"
     case summary = "Summary"
     case helper = "Privileged Helper"
-    case fullDiskAccess = "Full Disk Access"
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
@@ -32,7 +31,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .welcome: "Welcome to KeyPath"
         case .summary: "Setup Overview"
         case .helper: "Privileged Helper Installation"
-        case .fullDiskAccess: "Full Disk Access (Optional)"
         case .conflicts: "Resolve System Conflicts"
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "Accessibility Permission"
@@ -50,7 +48,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .welcome: "welcome"
         case .summary: "overview"
-        case .fullDiskAccess: "full-disk-access"
         case .conflicts: "conflicts"
         case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
@@ -75,7 +72,6 @@ public extension WizardPage {
         .stopExternalKanata,
         .karabinerImport,
         .helper,
-        .fullDiskAccess,
         .conflicts,
         .accessibility,
         .inputMonitoring,
@@ -116,7 +112,7 @@ public enum InstallationStatus {
     case completed
     case warning // Partial success or degraded state (e.g., installed but unhealthy)
     case failed
-    case unverified // Cannot verify status (e.g., no FDA to read TCC database)
+    case unverified // Permission evidence is unavailable
 }
 
 /// Launch failure status for Kanata service failures

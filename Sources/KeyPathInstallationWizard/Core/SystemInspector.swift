@@ -258,17 +258,17 @@ public enum SystemInspector {
             if status == .unknown {
                 return switch identifier {
                 case .permission(.kanataInputMonitoring):
-                    "Not verified (grant Full Disk Access to verify). If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
+                    "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
                 case .permission(.kanataAccessibility):
-                    "Not verified (grant Full Disk Access to verify). If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility."
+                    "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility."
                 default:
-                    "Not verified (grant Full Disk Access to verify)."
+                    "Permission not verified."
                 }
             }
             return deniedDescription
         }()
         let userActionText = (status == .unknown)
-            ? "Add kanata manually in System Settings, or enable Enhanced Diagnostics to verify"
+            ? "If remapping does not work, add the KeyPath runtime binary in the matching System Settings privacy pane"
             : userAction
 
         issues.append(WizardIssue(

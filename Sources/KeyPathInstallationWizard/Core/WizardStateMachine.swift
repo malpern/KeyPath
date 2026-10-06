@@ -38,7 +38,6 @@ public class WizardStateMachine {
 
     // MARK: - One-Time Page Tracking
 
-    public var hasShownFDAPage = false
     public var hasShownMigrationPage = false
     public var hasShownKarabinerImportPage = false
 
@@ -129,7 +128,6 @@ public class WizardStateMachine {
     public func resetNavigation() {
         currentPage = .summary
         userInteractionMode = false
-        hasShownFDAPage = false
         hasShownMigrationPage = false
         hasShownKarabinerImportPage = false
         // Clear any custom navigation sequence from a prior wizard run so
@@ -228,7 +226,6 @@ public class WizardStateMachine {
         case .karabinerImport:
             hasShownKarabinerImportPage ? .karabinerImport : .stopExternalKanata
         case .helper: .summary
-        case .fullDiskAccess: .helper
         case .conflicts: .helper
         case .inputMonitoring: .conflicts
         case .accessibility: .inputMonitoring

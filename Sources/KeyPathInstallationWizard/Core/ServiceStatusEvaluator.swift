@@ -131,7 +131,7 @@ public enum ServiceStatusEvaluator {
     /// - Returns: Human-readable blocking issue message or nil
     public static func blockingIssueMessage(from issues: [WizardIssue]) -> String? {
         for issue in issues {
-            // Only treat true failures as blocking. Warnings (e.g. "not verified" without FDA)
+            // Only treat true failures as blocking. Warnings from unavailable permission evidence
             // should not mark the service as failed.
             guard issue.severity == .critical || issue.severity == .error else { continue }
             if case let .permission(permission) = issue.identifier {

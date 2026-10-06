@@ -40,8 +40,6 @@ extension InstallationWizardView {
                 showAllItems: $showAllSummaryItems,
                 navSequence: $navSequence
             )
-        case .fullDiskAccess:
-            WizardFullDiskAccessPage()
         case .conflicts:
             if let coordinator = kanataManager {
                 WizardConflictsPage(

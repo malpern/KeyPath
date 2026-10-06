@@ -66,7 +66,7 @@ public struct SystemContext: Sendable {
     public let isReady: Bool
     /// Identity of the canonical snapshot projected into this context.
     public let snapshotID: UUID
-    /// Current permission status (Input Monitoring, Accessibility, Full Disk Access)
+    /// Current permission status (Input Monitoring, Accessibility)
     public let permissions: PermissionOracle.Snapshot
     /// Status of all services (Kanata, VHID daemon, VHID manager)
     public let services: HealthStatus

@@ -375,9 +375,6 @@ public struct WizardSummaryPage: View {
 
         var count = 0
 
-        // Check FDA status - without it, we can't verify Kanata permissions
-        let hasFDA = WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
-
         // 1. Privileged Helper issues (installed? unhealthy?) => count as issue
         let hasHelperProblems = issues.contains { issue in
             if case let .component(req) = issue.identifier {
@@ -391,7 +388,7 @@ public struct WizardSummaryPage: View {
         let hasConflicts = issues.contains { $0.category == .conflicts }
         if hasConflicts { count += 1 }
 
-        // 3. Input Monitoring - only count if we can verify (FDA available) or it's KeyPath's own permission
+        // 3. Input Monitoring - only count confirmed blocking issues
         let hasKeyPathInputMonitoringIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
                 return p == .keyPathInputMonitoring
@@ -400,12 +397,11 @@ public struct WizardSummaryPage: View {
         }
         let hasKanataInputMonitoringIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .kanataInputMonitoring
+                return p == .kanataInputMonitoring && (issue.severity == .error || issue.severity == .critical)
             }
             return false
         }
-        // Count KeyPath issues always, Kanata issues only if we can verify (have FDA)
-        if hasKeyPathInputMonitoringIssues || (hasFDA && hasKanataInputMonitoringIssues) {
+        if hasKeyPathInputMonitoringIssues || hasKanataInputMonitoringIssues {
             count += 1
         }
 
@@ -418,11 +414,11 @@ public struct WizardSummaryPage: View {
         }
         let hasKanataAccessibilityIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .kanataAccessibility
+                return p == .kanataAccessibility && (issue.severity == .error || issue.severity == .critical)
             }
             return false
         }
-        if hasKeyPathAccessibilityIssues || (hasFDA && hasKanataAccessibilityIssues) {
+        if hasKeyPathAccessibilityIssues || hasKanataAccessibilityIssues {
             count += 1
         }
 

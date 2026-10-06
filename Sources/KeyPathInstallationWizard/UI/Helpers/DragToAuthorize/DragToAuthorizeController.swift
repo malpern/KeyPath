@@ -18,7 +18,6 @@ public final class DragToAuthorizeController {
     public enum PermissionTarget: Sendable {
         case accessibility
         case inputMonitoring
-        case fullDiskAccess
 
         var settingsURL: URL {
             switch self {
@@ -26,8 +25,6 @@ public final class DragToAuthorizeController {
                 URL(string: KeyPathConstants.URLs.accessibilityPrivacy)!
             case .inputMonitoring:
                 URL(string: KeyPathConstants.URLs.inputMonitoringPrivacy)!
-            case .fullDiskAccess:
-                URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
             }
         }
 
@@ -35,19 +32,16 @@ public final class DragToAuthorizeController {
             switch self {
             case .accessibility: "Accessibility"
             case .inputMonitoring: "Input Monitoring"
-            case .fullDiskAccess: "Full Disk Access"
             }
         }
     }
 
     /// Which app the overlay authorizes — i.e. which file the user drags into the
     /// privacy list and whose permission is polled. Historically the overlay only
-    /// added kanata-launcher; `.keyPath` extends it to KeyPath.app's own rows and
-    /// the Full Disk Access page (#933).
+    /// added kanata-launcher; `.keyPath` targets KeyPath.app's own consent rows.
     public enum PermissionSubject: Equatable, Sendable {
-        /// KeyPath.app's own bundle (its Accessibility / Input Monitoring / Full
-        /// Disk Access grant). Drags the `.app` bundle; polled via `snapshot.keyPath`
-        /// (or the FDA checker for Full Disk Access).
+        /// KeyPath.app's Accessibility and Input Monitoring grants. Drags the
+        /// app bundle and polls `snapshot.keyPath`.
         case keyPath
         /// The bundled kanata-launcher binary (the remapping engine's grant).
         /// Drags the launcher executable; polled via `snapshot.kanata`.
@@ -131,7 +125,7 @@ public final class DragToAuthorizeController {
 
         NSWorkspace.shared.open(target.settingsURL)
         // Record that we opened System Settings so the wizard's cleanup closes it
-        // when the flow finishes (the FDA page previously did this itself before it
+        // when the flow finishes (permission pages previously did this before it
         // routed through this overlay).
         WizardWindowManager.shared.markSystemSettingsOpened()
 
@@ -322,12 +316,8 @@ public final class DragToAuthorizeController {
 
     private func checkPermission(for target: PermissionTarget, subject: PermissionSubject) async {
         let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-        // Full Disk Access is not represented in the Oracle snapshot; it is read
-        // separately (and only ever applies to KeyPath.app, i.e. `.keyPath`).
-        let fdaGranted = WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
-
         if Self.grantResolved(
-            target: target, subject: subject, snapshot: snapshot, fullDiskAccessGranted: fdaGranted
+            target: target, subject: subject, snapshot: snapshot
         ) {
             permissionGrantDetected()
         }
@@ -336,20 +326,15 @@ public final class DragToAuthorizeController {
     /// Pure decision: is `subject`'s `target` permission granted in this snapshot?
     /// Extracted so the target×subject → PermissionSet mapping is unit-testable
     /// without AppKit (mirrors the resolver pattern in #931/#937/#939).
-    ///
-    /// - Note: Full Disk Access is not in the Oracle snapshot, so it is passed in
-    ///   via `fullDiskAccessGranted`; it always describes KeyPath.app.
     nonisolated static func grantResolved(
         target: PermissionTarget,
         subject: PermissionSubject,
-        snapshot: PermissionOracle.Snapshot,
-        fullDiskAccessGranted: Bool
+        snapshot: PermissionOracle.Snapshot
     ) -> Bool {
         let permissions = subject == .keyPath ? snapshot.keyPath : snapshot.kanata
         switch target {
         case .accessibility: return permissions.accessibility == .granted
         case .inputMonitoring: return permissions.inputMonitoring == .granted
-        case .fullDiskAccess: return fullDiskAccessGranted
         }
     }
 

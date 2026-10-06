@@ -181,8 +181,8 @@ public extension InstallationWizardView {
                     }
                     return
                 }
-                // Steady-state .unknown (no Full Disk Access to read TCC.db, or a
-                // fresh install with no TCC row) — retrying won't resolve it. Fall
+                // Steady-state .unknown (effective runtime facts unavailable) —
+                // retrying won't resolve it. Fall
                 // through and let routing land on the first unverified permission
                 // page instead of dead-ending on summary (the pre-#934 gap).
                 AppLogger.shared.log(

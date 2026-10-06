@@ -448,8 +448,8 @@ public struct HealthStatus: Sendable {
     public let activeRuntimePathDetail: String?
     public let kanataServiceFreshness: RuntimeFreshness
     /// True when the daemon stderr log shows kanata was rejected by macOS
-    /// at runtime despite the TCC database reporting permissions as granted
-    /// (stale grant after a rebuild/move/upgrade).
+    /// at runtime despite an earlier permission grant
+    /// (e.g., after a rebuild/move/upgrade).
     public let kanataPermissionRejected: Bool
     /// Non-nil when kanata's stderr contains a configuration parse error
     /// (e.g., duplicate alias, syntax error). This causes kanata to exit

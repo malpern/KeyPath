@@ -20,7 +20,7 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
             timestamp: now
         )
 
-        // Represents "not verified" (e.g., no Full Disk Access to read TCC.db).
+        // Represents "not verified" when effective runtime facts are unavailable.
         let kanata = PermissionOracle.PermissionSet(
             accessibility: .granted,
             inputMonitoring: .unknown,

@@ -2,61 +2,61 @@ import KeyPathCore
 @testable import KeyPathPermissions
 @preconcurrency import XCTest
 
-/// Covers the ADR-006 precedence for KeyPath's OWN Input Monitoring signal
-/// (#931): IOHIDCheckAccess is authoritative when granted/denied, and the TCC
-/// database is consulted only when the Apple API is inconclusive.
+/// Apple Input Monitoring results remain authoritative; unavailable evidence
+/// stays unknown without reading protected permission databases.
 final class PermissionOracleInputMonitoringTests: XCTestCase {
     typealias Status = PermissionOracle.Status
 
-    // MARK: - TCC-fallback gating
-
-    func testGrantedAndDeniedDoNotTriggerTCCFallback() {
-        XCTAssertFalse(PermissionOracle.keyPathInputMonitoringNeedsTCCFallback(apiStatus: .granted))
-        XCTAssertFalse(PermissionOracle.keyPathInputMonitoringNeedsTCCFallback(apiStatus: .denied))
-    }
-
-    func testUnknownAndErrorTriggerTCCFallback() {
-        XCTAssertTrue(PermissionOracle.keyPathInputMonitoringNeedsTCCFallback(apiStatus: .unknown))
-        XCTAssertTrue(PermissionOracle.keyPathInputMonitoringNeedsTCCFallback(apiStatus: .error("x")))
-    }
-
-    // MARK: - Resolution precedence
-
-    func testApiGrantedIsAuthoritativeEvenIfTCCDisagrees() {
-        // The macOS 26/27 case: kernel says granted, TCC row is missing/denied.
-        let resolved = PermissionOracle.resolveKeyPathInputMonitoring(
-            apiStatus: .granted, tccStatus: .denied
-        )
+    func testApiGrantedIsAuthoritative() {
+        let resolved = PermissionOracle.resolveKeyPathInputMonitoring(apiStatus: .granted)
         XCTAssertEqual(resolved.status, .granted)
         XCTAssertEqual(resolved.source, "keypath.ax-api+im-api")
         XCTAssertEqual(resolved.confidence, .high)
     }
 
     func testApiDeniedIsAuthoritative() {
-        let resolved = PermissionOracle.resolveKeyPathInputMonitoring(
-            apiStatus: .denied, tccStatus: nil
-        )
+        let resolved = PermissionOracle.resolveKeyPathInputMonitoring(apiStatus: .denied)
         XCTAssertEqual(resolved.status, .denied)
         XCTAssertEqual(resolved.source, "keypath.ax-api+im-api")
         XCTAssertEqual(resolved.confidence, .high)
     }
 
-    func testUnknownApiFallsBackToTCCWhenAvailable() {
-        let resolved = PermissionOracle.resolveKeyPathInputMonitoring(
-            apiStatus: .unknown, tccStatus: .granted
-        )
-        XCTAssertEqual(resolved.status, .granted)
-        XCTAssertEqual(resolved.source, "keypath.ax-api+tcc-im")
-        XCTAssertEqual(resolved.confidence, .high)
+    func testUnavailableApiStaysUnknownLowConfidence() {
+        for status in [Status.unknown, .error("unavailable")] {
+            let resolved = PermissionOracle.resolveKeyPathInputMonitoring(apiStatus: status)
+            XCTAssertEqual(resolved.status, .unknown)
+            XCTAssertEqual(resolved.source, "keypath.ax-api-only")
+            XCTAssertEqual(resolved.confidence, .low)
+        }
     }
 
-    func testUnknownApiAndNoTCCStaysUnknownLowConfidence() {
-        let resolved = PermissionOracle.resolveKeyPathInputMonitoring(
-            apiStatus: .unknown, tccStatus: nil
+    func testLegacyRuntimeWithoutEffectiveFactsStaysUnknown() {
+        let timestamp = Date(timeIntervalSince1970: 123)
+        let permissions = PermissionOracle.legacyKanataPermissions(timestamp: timestamp)
+        XCTAssertEqual(permissions.accessibility, .unknown)
+        XCTAssertEqual(permissions.inputMonitoring, .unknown)
+        XCTAssertEqual(permissions.source, "kanata.unknown")
+        XCTAssertEqual(permissions.confidence, .low)
+        XCTAssertEqual(permissions.timestamp, timestamp)
+        XCTAssertFalse(permissions.hasAllPermissions)
+    }
+
+    func testSessionReadinessStillRequiresListeningAndPosting() {
+        let timestamp = Date()
+        for listening in [Status.denied, .unknown, .error("unavailable")] {
+            let permissions = PermissionOracle.sessionPermissionSet(
+                accessibility: .granted, eventListening: listening,
+                eventPosting: .granted, timestamp: timestamp
+            )
+            XCTAssertEqual(permissions.inputMonitoring, listening)
+            XCTAssertFalse(permissions.hasAllPermissions)
+        }
+        let permissions = PermissionOracle.sessionPermissionSet(
+            accessibility: .granted, eventListening: .granted,
+            eventPosting: .granted, timestamp: timestamp
         )
-        XCTAssertEqual(resolved.status, .unknown)
-        XCTAssertEqual(resolved.source, "keypath.ax-api-only")
-        XCTAssertEqual(resolved.confidence, .low)
+        XCTAssertTrue(permissions.hasAllPermissions)
+        XCTAssertEqual(permissions.source, "current-process.apple-api.listen-and-post-event")
     }
 
     // MARK: - blockingIssue treats KeyPath's own IM as soft (#931 reconciliation)
