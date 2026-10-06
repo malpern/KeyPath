@@ -58,6 +58,8 @@ struct TapTimeoutAdmissionTests {
                                  environmentCurrent: true, secureInput: false, sleep: { _ in sleeps += 1 })
         }
         precondition(sleeps == 0)
+        precondition(!hook.takePostReturnObservationRequest())
+        precondition(!hook.takePostReturnObservationRequest())
         precondition(hook.callbackFirstResult == .commandNotPrepared)
         hook.delayIfAdmitted(keyCode: 11, keyDown: true, repeatEvent: true, mapped: true,
                              heldUsages: [], reportAge: 0.1, now: now,

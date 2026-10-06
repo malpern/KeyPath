@@ -71,6 +71,34 @@ struct TapTimeoutReportSchemaTests {
             } catch {}
         }
 
+        let timing = SessionRuntimeReport.RegisteredTapObservation.Row.Timing(
+            eventTapID: 27, options: 0, minUsecLatency: 10, avgUsecLatency: 250, maxUsecLatency: 1_003_625
+        )
+        let tap = SessionRuntimeReport.RegisteredTapObservation(
+            outcome: .observed, requestedMask: 7168, rows: [.init(mask: 7168, enabled: false, timing: timing)],
+            rawAccessibility: "granted", rawPostEvent: "granted", rawListenEvent: "granted", enumerationAttempted: true
+        )
+        let evidence = SessionRuntimeReport.ExperimentalTapDiagnostics(
+            rawTapCallbackCount: 9, qMapped: true, aMapped: false, configSHA256: nil, registeredTap: tap,
+            postDelayRegisteredTap: tap, postDelayQueryUptimeNanos: 1_234_567,
+            rawTimeoutCallbackCount: 1, rawUserInputDisabledCallbackCount: 0
+        )
+        let evidenceData = try JSONEncoder().encode(evidence)
+        let decodedEvidence = try JSONDecoder().decode(SessionRuntimeReport.ExperimentalTapDiagnostics.self, from: evidenceData)
+        precondition(decodedEvidence == evidence)
+        let historical = Data(#"{"rawTapCallbackCount":0,"qMapped":true,"aMapped":false,"registeredTap":{"outcome":"observed","requestedMask":7168,"rows":[{"mask":7168,"enabled":true}],"rawAccessibility":"granted","rawPostEvent":"granted","rawListenEvent":"granted","queryLimit":128,"enumerationAttempted":true}}"#.utf8)
+        let legacy = try JSONDecoder().decode(SessionRuntimeReport.ExperimentalTapDiagnostics.self, from: historical)
+        precondition(legacy.registeredTap?.rows.first?.timing == nil && legacy.postDelayRegisteredTap == nil)
+        let timingObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(timing)) as! [String: Any]
+        for change in [["maxUsecLatency": -1], ["options": -1], ["eventText": "b"]] as [[String: Any]] {
+            var badTiming = timingObject; badTiming.merge(change) { _, new in new }
+            do {
+                _ = try JSONDecoder().decode(SessionRuntimeReport.RegisteredTapObservation.Row.Timing.self,
+                                             from: JSONSerialization.data(withJSONObject: badTiming))
+                fatalError("invalid tap timing accepted")
+            } catch {}
+        }
+
         print("tapTimeoutReportSchema=roundtrip oldReportsCompatible=true unknownFieldRefused=true unknownStatusRefused=true")
     }
 }

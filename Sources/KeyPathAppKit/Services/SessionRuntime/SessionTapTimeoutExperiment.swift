@@ -48,6 +48,15 @@
         private var inspected = false
         private var pending: Command?
         private var spent = false
+        private var postReturnObservationPending = false
+
+        /// Called only by the next ordinary timer tick, after the event callback returns.
+        /// Consumed before the OS query; failures never trigger repeated enumeration.
+        func takePostReturnObservationRequest() -> Bool {
+            guard postReturnObservationPending else { return false }
+            postReturnObservationPending = false
+            return true
+        }
 
         init(reportURL: URL, nonce: String, parentPID: Int32, configPath: String) throws {
             guard let executable = Bundle.main.executableURL else { throw InitializationFailure.executableUnavailable }
@@ -180,6 +189,7 @@
             if observeFirstResult { recordCallbackResult(.delayAdmitted) }
             sleep(UInt32(command.durationMillis) * 1000)
             _ = publish("returned", durationMillis: command.durationMillis)
+            postReturnObservationPending = true
         }
 
         private func publish(_ phase: String, durationMillis: Int) -> Bool {

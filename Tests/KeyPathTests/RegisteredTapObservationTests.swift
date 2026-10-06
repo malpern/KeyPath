@@ -60,7 +60,7 @@ struct RegisteredTapObservationTests {
             func tap(_ pid: Int32 = 42, _ location: CGEventTapLocation = .cgSessionEventTap, _ options: CGEventTapOptions = .defaultTap) -> CGEventTapInformation {
                 var row = CGEventTapInformation(); row.tappingProcess = pid; row.tapPoint = location; row.options = options; row.eventsOfInterest = 7168; row.enabled = true; return row
             }
-            func classify(_ rows: [CGEventTapInformation], _ count: UInt32? = nil, _ error: CGError = .success, _ abi: Bool = true) -> O {
+            func classify(_ rows: [CGEventTapInformation], _ count: UInt32? = nil, _ error: CGError = .success, _ abi: Bool = true, expectedTapID: UInt32? = nil) -> O {
                 SessionRuntimeWorker.classifyRegisteredTaps(
                     requestedMask: 7168,
                     taps: rows,
@@ -70,11 +70,27 @@ struct RegisteredTapObservationTests {
                     ownPID: 42,
                     accessibility: "granted",
                     posting: "granted",
-                    listening: "denied"
+                    listening: "denied", expectedTapID: expectedTapID
                 )
             }
             precondition(classify([tap(9), tap(42, .cghidEventTap), tap(42, .cgSessionEventTap, .listenOnly)]).outcome == .absent)
-            precondition(classify([tap(9), tap()]).rows == [.init(mask: 7168, enabled: true)])
+            let registered = classify([tap(9), tap()])
+            precondition(registered.rows.count == 1 && registered.rows[0].mask == 7168 && registered.rows[0].enabled)
+            precondition(registered.rows[0].timing?.eventTapID == 0)
+            var delayed = tap(); delayed.eventTapID = 27; delayed.minUsecLatency = 10
+            delayed.avgUsecLatency = 250; delayed.maxUsecLatency = 1_003_625; delayed.enabled = false
+            let postDelay = classify([tap(), delayed], expectedTapID: 27)
+            precondition(postDelay.outcome == .observed && !postDelay.rows[0].enabled)
+            precondition(postDelay.rows[0].timing == .init(eventTapID: 27, options: 0,
+                                                         minUsecLatency: 10, avgUsecLatency: 250, maxUsecLatency: 1_003_625))
+            precondition(classify([tap()], expectedTapID: 27).outcome == .absent)
+            delayed.tappingProcess = 9
+            precondition(classify([delayed], expectedTapID: 27).outcome == .absent)
+            delayed.tappingProcess = 42; delayed.options = .listenOnly
+            precondition(classify([delayed], expectedTapID: 27).rows[0].timing?.options == CGEventTapOptions.listenOnly.rawValue)
+            delayed.maxUsecLatency = .nan
+            let invalidTiming = classify([delayed], expectedTapID: 27)
+            precondition(invalidTiming.outcome == .observed && invalidTiming.rows[0].timing == nil)
             precondition(classify([tap(), tap()]).outcome == .multiple)
             precondition(classify([]).outcome == .absent)
             precondition(classify([], 0, .failure).outcome == .apiFailure)

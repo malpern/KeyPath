@@ -77,16 +77,29 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         public let aMapped: Bool
         public let configSHA256: String?
         public let registeredTap: RegisteredTapObservation?
+        public let postDelayRegisteredTap: RegisteredTapObservation?
+        public let postDelayQueryUptimeNanos: UInt64?
+        public let rawTimeoutCallbackCount: UInt64?
+        public let rawUserInputDisabledCallbackCount: UInt64?
 
-        public init(rawTapCallbackCount: UInt64, qMapped: Bool, aMapped: Bool, configSHA256: String?, registeredTap: RegisteredTapObservation? = nil) {
+        public init(rawTapCallbackCount: UInt64, qMapped: Bool, aMapped: Bool, configSHA256: String?, registeredTap: RegisteredTapObservation? = nil,
+                    postDelayRegisteredTap: RegisteredTapObservation? = nil, postDelayQueryUptimeNanos: UInt64? = nil,
+                    rawTimeoutCallbackCount: UInt64? = nil, rawUserInputDisabledCallbackCount: UInt64? = nil) {
             self.rawTapCallbackCount = rawTapCallbackCount
             self.qMapped = qMapped
             self.aMapped = aMapped
             self.configSHA256 = configSHA256
             self.registeredTap = registeredTap
+            self.postDelayRegisteredTap = postDelayRegisteredTap
+            self.postDelayQueryUptimeNanos = postDelayQueryUptimeNanos
+            self.rawTimeoutCallbackCount = rawTimeoutCallbackCount
+            self.rawUserInputDisabledCallbackCount = rawUserInputDisabledCallbackCount
         }
 
-        private enum CodingKeys: String, CodingKey { case rawTapCallbackCount, qMapped, aMapped, configSHA256, registeredTap }
+        private enum CodingKeys: String, CodingKey {
+            case rawTapCallbackCount, qMapped, aMapped, configSHA256, registeredTap
+            case postDelayRegisteredTap, postDelayQueryUptimeNanos, rawTimeoutCallbackCount, rawUserInputDisabledCallbackCount
+        }
         private struct Field: CodingKey {
             let stringValue: String
             var intValue: Int? {
@@ -106,7 +119,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             let fields = try decoder.container(keyedBy: Field.self)
             let actual = Set(fields.allKeys.map(\.stringValue))
             let required: Set = ["rawTapCallbackCount", "qMapped", "aMapped"]
-            guard required.isSubset(of: actual), actual.isSubset(of: required.union(["configSHA256", "registeredTap"])) else {
+            guard required.isSubset(of: actual), actual.isSubset(of: required.union(["configSHA256", "registeredTap", "postDelayRegisteredTap", "postDelayQueryUptimeNanos", "rawTimeoutCallbackCount", "rawUserInputDisabledCallbackCount"])) else {
                 throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected experimental tap diagnostics fields"))
             }
             let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -115,6 +128,10 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             aMapped = try values.decode(Bool.self, forKey: .aMapped)
             configSHA256 = try values.decodeIfPresent(String.self, forKey: .configSHA256)
             registeredTap = try values.decodeIfPresent(RegisteredTapObservation.self, forKey: .registeredTap)
+            postDelayRegisteredTap = try values.decodeIfPresent(RegisteredTapObservation.self, forKey: .postDelayRegisteredTap)
+            postDelayQueryUptimeNanos = try values.decodeIfPresent(UInt64.self, forKey: .postDelayQueryUptimeNanos)
+            rawTimeoutCallbackCount = try values.decodeIfPresent(UInt64.self, forKey: .rawTimeoutCallbackCount)
+            rawUserInputDisabledCallbackCount = try values.decodeIfPresent(UInt64.self, forKey: .rawUserInputDisabledCallbackCount)
             if let configSHA256, configSHA256.count != 64 || !configSHA256.utf8.allSatisfy({ (48 ... 57).contains($0) || (97 ... 102).contains($0) }) {
                 throw DecodingError.dataCorruptedError(forKey: .configSHA256, in: values, debugDescription: "Invalid experimental config digest")
             }
@@ -131,19 +148,58 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         public struct Row: Codable, Sendable, Equatable {
             public let mask: UInt64
             public let enabled: Bool
-            public init(mask: UInt64, enabled: Bool) {
-                self.mask = mask; self.enabled = enabled
+            public let timing: Timing?
+            public init(mask: UInt64, enabled: Bool, timing: Timing? = nil) {
+                self.mask = mask; self.enabled = enabled; self.timing = timing
             }
 
-            private enum CodingKeys: String, CodingKey { case mask, enabled }
+            /// Quartz microseconds, sampled together; enumeration resets extrema globally.
+            public struct Timing: Codable, Sendable, Equatable {
+                public let eventTapID: UInt32
+                public let options: UInt32
+                public let minUsecLatency: Float
+                public let avgUsecLatency: Float
+                public let maxUsecLatency: Float
+
+                public init(eventTapID: UInt32, options: UInt32, minUsecLatency: Float,
+                            avgUsecLatency: Float, maxUsecLatency: Float) {
+                    self.eventTapID = eventTapID; self.options = options
+                    self.minUsecLatency = minUsecLatency; self.avgUsecLatency = avgUsecLatency
+                    self.maxUsecLatency = maxUsecLatency
+                }
+
+                private enum CodingKeys: String, CodingKey, CaseIterable {
+                    case eventTapID, options, minUsecLatency, avgUsecLatency, maxUsecLatency
+                }
+
+                public init(from decoder: Decoder) throws {
+                    let all = try decoder.container(keyedBy: Field.self)
+                    guard Set(all.allKeys.map(\.stringValue)) == Set(CodingKeys.allCases.map(\.rawValue)) else {
+                        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected registered tap timing fields"))
+                    }
+                    let c = try decoder.container(keyedBy: CodingKeys.self)
+                    eventTapID = try c.decode(UInt32.self, forKey: .eventTapID)
+                    options = try c.decode(UInt32.self, forKey: .options)
+                    minUsecLatency = try c.decode(Float.self, forKey: .minUsecLatency)
+                    avgUsecLatency = try c.decode(Float.self, forKey: .avgUsecLatency)
+                    maxUsecLatency = try c.decode(Float.self, forKey: .maxUsecLatency)
+                    guard [minUsecLatency, avgUsecLatency, maxUsecLatency].allSatisfy({ $0.isFinite && $0 >= 0 }) else {
+                        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid registered tap latency"))
+                    }
+                }
+            }
+
+            private enum CodingKeys: String, CodingKey { case mask, enabled, timing }
             public init(from decoder: Decoder) throws {
                 let all = try decoder.container(keyedBy: Field.self)
-                guard Set(all.allKeys.map(\.stringValue)) == Set(["mask", "enabled"]) else {
+                let actual = Set(all.allKeys.map(\.stringValue))
+                guard Set(["mask", "enabled"]).isSubset(of: actual), actual.isSubset(of: ["mask", "enabled", "timing"]) else {
                     throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected registered tap row fields"))
                 }
                 let c = try decoder.container(keyedBy: CodingKeys.self)
                 mask = try c.decode(UInt64.self, forKey: .mask)
                 enabled = try c.decode(Bool.self, forKey: .enabled)
+                timing = try c.decodeIfPresent(Timing.self, forKey: .timing)
             }
         }
 
