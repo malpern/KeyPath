@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "b11ef90c918b8811251bb2ac32db1646c923f752",
+  "rawTrial": "/private/tmp/keypath-manual-download-live-01",
+  "approvalMode": "auto_review",
+  "ownedLease": "cbx_8639d8a80d3e",
+  "nonDebug": true,
+  "legacyAutoPreferencesEnabledBeforeLaunch": true,
+  "normalConsentThenExplicitRestartPassed": true,
+  "manualMenuOpenedOfficialReleasePage": true,
+  "observedPublicRelease": "v1.0.1",
+  "runtimeUnaffectedByManualDownload": true,
+  "normalQuitParentAndWorkerAbsent": true,
+  "profileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+  "disposal": {
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ]
+  },
+  "limitations": [
+    "Follow-up menu/AX polish not included in this candidate",
+    "No manual replacement or old staged installer migration acceptance",
+    "No notarization/timestamp/Gatekeeper acceptance",
+    "No broad customer keyboard or genuine OS timeout acceptance"
+  ],
+  "receipts": {
+    "install01-result.json": "33fe70c6ab0cc8ee786b4e2b2a9f48279edebf5e71b7f8d8bd8866c6c9a022e5",
+    "oldprefs01-result.json": "ffb90fde86d71810673cab6e467f1cb756738b69fdb8589db3a553abf245de38",
+    "runtimeafterrestart02-result.json": "fa25b1db357d0ce139f36daa1bd5b05eca588abe918d99abf141f5191d4abdcf",
+    "downloadbrowser01-result.json": "35ac06eb296e8ea76c9ef672dcf2e99b711fd9613f2a1f074385418d55b81dfb",
+    "afterdownloadruntime01-result.json": "7dfe8fc6e5c470e90f0da10b655adc0561ff3ee1ba433b9cae905ecdb4ae6ad2",
+    "afterquit01-result.json": "0a5480dbb2332b6552ae569d84cb6c835b06f0a95ba7dd9448cee53d067b6eb7",
+    "quitlogs01-result.json": "7f194fb6ceaa8a48e2c023112677140a5e57e9188d4d83ab4829c6b520e198fa",
+    "destroy-result.json": "c7abb39d7ba81e8904f54a837b619b43b72cb2e12cc3033a24dcd5cd635fae8d",
+    "independent-provider-cleanup02.json": "adaa78e070f91b1a933f7ac6be580865719d720ce56853580a7e489ab8dd2021"
+  }
+}
