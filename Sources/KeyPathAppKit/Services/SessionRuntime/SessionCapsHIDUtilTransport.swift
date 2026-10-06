@@ -158,8 +158,11 @@ public enum SessionCapsHIDUtilTransport {
             var attributes: posix_spawnattr_t?
             guard posix_spawnattr_init(&attributes) == 0 else { throw Refusal.commandFailed }
             defer { posix_spawnattr_destroy(&attributes) }
-            // Pinned macOS27 SDK sys/spawn.h: START_SUSPENDED=0x0080, CLOEXEC_DEFAULT=0x4000.
-            guard posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_CLOEXEC_DEFAULT)) == 0 else {
+            // A stopped child in the worker's group receives HUP/CONT when that
+            // group becomes orphaned. SETSID isolates this DEBUG checkpoint from
+            // that group; actual HID child survival still needs live verification.
+            // macOS27 SDK: START_SUSPENDED=0x0080, SETSID=0x0400, CLOEXEC_DEFAULT=0x4000.
+            guard posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT)) == 0 else {
                 throw Refusal.commandFailed
             }
             let arguments = try ["/usr/bin/hidutil"] + writeArguments(record.device, mappings: mappings)
