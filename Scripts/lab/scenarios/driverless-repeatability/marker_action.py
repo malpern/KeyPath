@@ -1,7 +1,7 @@
 import hashlib,json,os,shlex,sys
 from pathlib import Path
 r=Path(os.environ['KEYPATH_TRIAL_DIR']).resolve();s=Path(__file__).resolve().parent;o=json.loads((r/'owned-lease.json').read_text());i=json.loads((r/'guest-identity.json').read_text())
-assert hashlib.sha256((s/'restart_guest.py').read_bytes()).hexdigest()=='99b545c792fa9d52e26ff027abf41fea2a98f6450ee1f30ed4b50e17a97a2bfe'
+assert hashlib.sha256((s/'restart_guest.py').read_bytes()).hexdigest()=='b982817170ec4766f7e4e459c5b42683a8213b307302a750fc1ce05d328c091e'
 assert hashlib.sha256((s/'caps_guest.py').read_bytes()).hexdigest()=='6049fa473406f5e4a7a59afe5854e9e197987f567010a9314209d5fd3a8c614b'
 assert hashlib.sha256((s/'marker_observe.py').read_bytes()).hexdigest()=='502d7a2f301ebee38029fe1e42ee12682d9ed543d896dbeb25020d2fd3a5a72f'
 assert hashlib.sha256((s/'guest_command.py').read_bytes()).hexdigest()=='5c347d1329d9a4863091c54aa9e4dfbed12ec624319146f1ff81206f715c87f4'
