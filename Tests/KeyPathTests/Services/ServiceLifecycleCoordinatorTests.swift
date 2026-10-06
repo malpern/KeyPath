@@ -32,6 +32,38 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testRecoveryRefusalSurvivesNoWorkerStartAndRestartThenClearsOnRecovery() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        ServiceLifecycleCoordinator.testSessionStop = nil
+        var recoveries = 0
+        coordinator.testSessionCapsRecovery = {
+            recoveries += 1
+            throw SessionCapsMappingLease.Refusal.mutationUncertain
+        }
+        let started = await coordinator.startKanata(reason: "retained marker")
+        XCTAssertFalse(started)
+        let restarted = await coordinator.restartKanata(reason: "retained marker retry")
+        XCTAssertFalse(restarted)
+        XCTAssertEqual(recoveries, 2)
+        XCTAssertNil(coordinator.currentSessionReport())
+        XCTAssertFalse(coordinator.isStartingKanata)
+        let grace = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(grace)
+        let status = await coordinator.currentRuntimeStatus()
+        guard case let .failed(reason) = status else { return XCTFail("Recovery failure became stopped") }
+        XCTAssertTrue(reason.contains("recovery record was retained"))
+        XCTAssertEqual(capturedErrors.compactMap { $0 }.last, reason)
+        XCTAssertGreaterThanOrEqual(stateChangeCount, 2)
+
+        coordinator.testSessionCapsRecovery = {}
+        let recovered = await coordinator.restoreSessionCaps(for: nil)
+        XCTAssertTrue(recovered)
+        XCTAssertNil(coordinator.recoveryRefusalForStartup)
+        let cleared = await coordinator.currentRuntimeStatus()
+        XCTAssertEqual(cleared, .stopped)
+    }
+
     func testUnsupportedConfigurationRefusesBeforeLaunchAndPersistsFailure() async {
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged

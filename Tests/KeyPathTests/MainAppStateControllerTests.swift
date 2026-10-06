@@ -679,6 +679,39 @@ struct MainAppStateControllerBehaviorTests {
         #expect(lifecycle.sessionConfigurationRefusal == nil)
     }
 
+    @Test("Completed recovery refusal bypasses polling, including one arriving during health check")
+    func recoveryRefusalPublishesWithoutWaitingForGrace() async {
+        for duringHealth in [false, true] {
+            let controller = MainAppStateController()
+            let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
+            lifecycle.testSessionConfigurationValidation = { .valid }
+            lifecycle.testSessionCapsRecovery = { throw SessionCapsMappingLease.Refusal.mutationUncertain }
+            if !duringHealth { #expect(await lifecycle.restoreSessionCaps(for: nil) == false) }
+            controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+            controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
+            var healthChecks = 0, permissionChecks = 0
+            controller.configureStartupGateTestingState(
+                permissionsOverride: { permissionChecks += 1; return sessionPermissions(inputMonitoring: .granted) },
+                healthOverride: {
+                    healthChecks += 1
+                    #expect(await lifecycle.restoreSessionCaps(for: nil) == false)
+                    return KanataRuntimeReadiness(isRunning: true, isResponding: true, inputCaptureReady: true)
+                },
+                transientWindowOverride: { true },
+                timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.001)
+            )
+            defer { controller.resetStartupGateTestingState() }
+            await controller.revalidate()
+            #expect(healthChecks == (duringHealth ? 1 : 0))
+            #expect(permissionChecks == (duringHealth ? 1 : 0))
+            #expect(controller.validationState?.hasCriticalIssues == true)
+            #expect(controller.issues.count == 1)
+            #expect(controller.issues.first?.description.contains("recovery record was retained") == true)
+            #expect(controller.issues.first?.autoFixAction == nil)
+            #expect(controller.issues.first?.userAction?.contains("Do not clear") == true)
+        }
+    }
+
     private func sessionPermissions(
         inputMonitoring: PermissionOracle.Status,
         workerAX: PermissionOracle.Status = .granted,

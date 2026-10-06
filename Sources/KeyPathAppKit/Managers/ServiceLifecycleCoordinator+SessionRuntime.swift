@@ -289,24 +289,43 @@ extension ServiceLifecycleCoordinator {
         return stopped
     }
 
-    private func restoreSessionCaps(for application: NSRunningApplication?) async -> Bool {
+    func restoreSessionCaps(for application: NSRunningApplication?) async -> Bool {
         let directory = SessionCapsRuntimeSupport.journalDirectory()
         let nonce = sessionNonce
         let pid = application?.processIdentifier
         let parentPID = getpid(), uid = getuid()
         do {
-            try await Task.detached {
-                let owner: SessionCapsMappingPolicy.Owner? = if let nonce, let pid {
-                    try .init(uid: uid, parentPID: parentPID, workerPID: pid, nonce: nonce,
-                              generation: nonce, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID())
-                } else { nil }
-                try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
-            }.value
+            #if DEBUG
+                if let recover = testSessionCapsRecovery {
+                    try await recover()
+                } else {
+                    try await recoverSessionCapsOnDisk(directory: directory, nonce: nonce, pid: pid,
+                                                       parentPID: parentPID, uid: uid)
+                }
+            #else
+                try await recoverSessionCapsOnDisk(directory: directory, nonce: nonce, pid: pid,
+                                                   parentPID: parentPID, uid: uid)
+            #endif
+            sessionRecoveryRefusal = nil
             return true
         } catch {
-            onError?("Caps mapping could not be restored safely. Restart was refused; its recovery record was retained.")
+            let reason = "Caps mapping could not be restored safely. Restart was refused; its recovery record was retained."
+            sessionRecoveryRefusal = reason
+            onError?(reason)
+            onStateChanged?()
             return false
         }
+    }
+
+    private func recoverSessionCapsOnDisk(directory: URL, nonce: String?, pid: Int32?,
+                                          parentPID: Int32, uid: UInt32) async throws {
+        try await Task.detached {
+            let owner: SessionCapsMappingPolicy.Owner? = if let nonce, let pid {
+                try .init(uid: uid, parentPID: parentPID, workerPID: pid, nonce: nonce,
+                          generation: nonce, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID())
+            } else { nil }
+            try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
+        }.value
     }
 
     private func recoverSessionOutputs(for application: NSRunningApplication) -> SessionRuntimeReport? {

@@ -59,11 +59,19 @@ final class ServiceLifecycleCoordinator {
         var testSessionRequestObserved: ((UInt64) -> Void)?
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?
         var testSessionSupervisionStarted: ((UInt64) -> Void)?
+        var testSessionCapsRecovery: (() async throws -> Void)?
     #endif
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
     private var lastStartAttemptAt: Date?
+    // A completed recovery refusal survives absence of a worker report.
+    var sessionRecoveryRefusal: String?
+
+    var recoveryRefusalForStartup: String? {
+        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
+        return sessionRecoveryRefusal
+    }
 
     /// Intentional-transition gate (#625). While we are deliberately stopping kanata,
     /// the dying process may emit one last `InputGrab active=false` on its still-open
@@ -303,6 +311,7 @@ final class ServiceLifecycleCoordinator {
     }
 
     func isInTransientRuntimeStartupWindow() async -> Bool {
+        if recoveryRefusalForStartup != nil { return false }
         if sessionConfigurationRefusal != nil,
            currentSessionReport()?.state != .running { return false }
         return windowEvaluator.isInWindow(
@@ -324,6 +333,7 @@ final class ServiceLifecycleCoordinator {
     func currentRuntimeStatus() async -> RuntimeStatus {
         if isStartingKanata { return .starting }
         guard let report = currentSessionReport() else {
+            if let refusal = sessionRecoveryRefusal { return .failed(reason: refusal) }
             if let admission = sessionConfigurationAdmission,
                let reason = SessionCapsRuntimeSupport.startupFailureMessage(admission) {
                 return .failed(reason: reason)

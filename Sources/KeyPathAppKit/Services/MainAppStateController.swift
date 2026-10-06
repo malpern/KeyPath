@@ -443,6 +443,7 @@ class MainAppStateController {
         case definitiveFailure
         case missingSessionPermissions
         case invalidSessionConfiguration(String)
+        case sessionRecoveryRefused(String)
     }
 
     private func performValidation() async {
@@ -478,6 +479,9 @@ class MainAppStateController {
             break
         case let .invalidSessionConfiguration(reason):
             publishSessionConfigurationRefusal(reason)
+            return
+        case let .sessionRecoveryRefused(reason):
+            publishSessionConfigurationRefusal(reason, recovery: true)
             return
         case .transientTimeout:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "transientTimeout") {
@@ -736,13 +740,14 @@ class MainAppStateController {
         )
     }
 
-    private func publishSessionConfigurationRefusal(_ reason: String) {
+    private func publishSessionConfigurationRefusal(_ reason: String, recovery: Bool = false) {
         // Keep this actionable correction out of installer repair. A full system
         // snapshot cannot make a proven unsupported configuration start running.
         issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
-                              category: .systemRequirements, title: "Configuration cannot run in driverless mode",
+                              category: .systemRequirements, title: recovery ? "Keyboard recovery requires attention" : "Configuration cannot run in driverless mode",
                               description: reason, autoFixAction: nil,
-                              userAction: "Edit the configuration and retry. Existing rules were preserved.")]
+                              userAction: recovery ? "The recovery record was preserved. Do not clear it to force a restart."
+                                : "Edit the configuration and retry. Existing rules were preserved.")]
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil
         lastAdaptedState = .serviceNotRunning
@@ -759,6 +764,9 @@ class MainAppStateController {
            let refusal = serviceLifecycle?.configurationRefusalForStartup() {
             return .invalidSessionConfiguration(refusal)
         }
+        if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+            return .sessionRecoveryRefused(refusal)
+        }
         let timing = startupGateTiming()
         let start = Date()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
@@ -766,6 +774,9 @@ class MainAppStateController {
         var checks = 0
 
         while Date() < transientDeadline {
+            if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+                return .sessionRecoveryRefused(refusal)
+            }
             if KanataRuntimeBackend.selected == .session {
                 let permissions: PermissionOracle.Snapshot
                 #if DEBUG
@@ -782,6 +793,10 @@ class MainAppStateController {
                 }
             }
             let health = await currentKanataStartupHealth()
+            // Recovery may finish while health is suspended; stale readiness must not win.
+            if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+                return .sessionRecoveryRefused(refusal)
+            }
             let isReady = health.isReady
             if isReady {
                 if checks > 0 {
