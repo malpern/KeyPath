@@ -18,6 +18,7 @@ actor ConfigurationOperationGate {
     }
 
     enum Failure: LocalizedError {
+        case uninstalling
         case recursiveOperation
         case invalidPermit
         case fileLock(String, Int32)
@@ -25,6 +26,8 @@ actor ConfigurationOperationGate {
 
         var errorDescription: String? {
             switch self {
+            case .uninstalling:
+                "KeyPath is uninstalling; configuration changes are paused."
             case .recursiveOperation:
                 "An operation callback cannot recursively save or restore through the same configuration service."
             case .invalidPermit:
@@ -41,6 +44,9 @@ actor ConfigurationOperationGate {
     @TaskLocal private static var fileLeases: [FileLease] = []
     private let configurationDirectory: URL?
     private let owner = UUID()
+    private var uninstalling = false
+    private var pendingOperations = 0
+    private var uninstallWaiters: [CheckedContinuation<Void, Never>] = []
     private var active: Permit?
     private var waiters: [CheckedContinuation<Permit, Never>] = []
 
@@ -65,6 +71,18 @@ actor ConfigurationOperationGate {
             .appendingPathComponent("\(key).lock")
     }
 
+    /// Reject queued/new writes, then wait for the admitted writer to settle.
+    /// Remains closed through successful uninstall and application termination.
+    func suspendForUninstall() async {
+        uninstalling = true
+        guard pendingOperations > 0 else { return }
+        await withCheckedContinuation { uninstallWaiters.append($0) }
+    }
+
+    func resumeAfterFailedUninstall() {
+        uninstalling = false
+    }
+
     func withOperation<Result: Sendable>(
         using permit: Permit? = nil,
         _ operation: @Sendable (Permit) async throws -> Result
@@ -74,6 +92,18 @@ actor ConfigurationOperationGate {
                 throw Failure.invalidPermit
             }
             return try await operation(permit)
+        }
+        guard !uninstalling else { throw Failure.uninstalling }
+        // Count before the first suspension: opening a file lease itself creates
+        // user-state directories, so uninstall must drain that work as well.
+        pendingOperations += 1
+        defer {
+            pendingOperations -= 1
+            if pendingOperations == 0 {
+                let waiters = uninstallWaiters
+                uninstallWaiters.removeAll()
+                for waiter in waiters { waiter.resume() }
+            }
         }
         try Task.checkCancellation()
         if let active, Self.activeOperations.contains(active.operation) {
@@ -99,6 +129,7 @@ actor ConfigurationOperationGate {
             release()
         }
         // Cancelled waiters retain their FIFO place, then leave without mutation.
+        guard !uninstalling else { throw Failure.uninstalling }
         try Task.checkCancellation()
         try await lease?.acquire()
         try Task.checkCancellation()

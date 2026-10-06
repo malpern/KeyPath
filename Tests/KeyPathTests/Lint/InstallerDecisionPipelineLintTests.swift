@@ -197,14 +197,19 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         )
     }
 
-    func testDriverlessEngineHasNoPrivilegedExecutionOrUninstallDelegation() throws {
+    func testDriverlessEngineHasNoPrivilegedExecution() throws {
         let source = try String(contentsOf: repositoryRoot().appendingPathComponent(
             "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"
         ), encoding: .utf8)
-        for forbidden in ["try await broker.", "helperMaintenance.installOrRefresh", "coordinator.performUninstall"] {
+        for forbidden in ["try await broker.", "helperMaintenance.installOrRefresh"] {
             XCTAssertFalse(source.contains(forbidden), "Privileged execution must be deleted: \(forbidden)")
         }
         XCTAssertTrue(source.contains("guard isSupportedSessionRecipe(recipe)"))
+        let wiring = try String(contentsOf: repositoryRoot().appendingPathComponent(
+            "Sources/KeyPathAppKit/WizardProtocolConformances.swift"
+        ), encoding: .utf8)
+        XCTAssertFalse(wiring.contains("UninstallCoordinator()"), "Never register the legacy privileged uninstaller")
+
     }
 
     func testDriverlessMenusDoNotOfferSystemUninstall() throws {

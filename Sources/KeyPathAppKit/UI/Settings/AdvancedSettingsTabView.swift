@@ -7,6 +7,7 @@ import SwiftUI
 struct AdvancedSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
 
+    @State private var showingUninstall = false
     @State private var duplicateAppCopies: [String] = []
     @State private var removeDuplicatesInProgress = false
 
@@ -43,11 +44,15 @@ struct AdvancedSettingsTabView: View {
                             }
                         }
 
-                        Text("Quit KeyPath, then move KeyPath.app to the Trash. Your rules are kept.")
+                        Text("Back up your rules and settings, then remove KeyPath. Reinstalling starts fresh.")
                             .font(.callout)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: 220)
+
+                        Button("Uninstall KeyPath…", role: .destructive) { showingUninstall = true }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("settings-uninstall-keypath-button")
 
                     }
                     .frame(minWidth: 220)
@@ -99,6 +104,9 @@ struct AdvancedSettingsTabView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 20)
             }
+        }
+        .sheet(isPresented: $showingUninstall) {
+            UninstallKeyPathDialog().environment(kanataManager)
         }
         .settingsBackground()
         .withToasts(settingsToastManager)

@@ -151,7 +151,17 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         HelperManager.shared.helperNeedsLoginItemsApproval()
     }
     WizardDependencies.createUninstallCoordinator = {
-        UninstallCoordinator()
+        SessionUninstallCoordinator(prepare: {
+            runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
+            guard await runtimeCoordinator.stopKanata(reason: "Uninstall KeyPath") else { return false }
+            runtimeCoordinator.stopConfigFileWatching()
+            await runtimeCoordinator.configurationService.operationGate.suspendForUninstall()
+            return true
+        }, resume: {
+            await runtimeCoordinator.configurationService.operationGate.resumeAfterFailedUninstall()
+            runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(false)
+            runtimeCoordinator.startConfigFileWatching()
+        })
     }
     WizardDependencies.executePrivilegedBatch = { batch in
         let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
@@ -212,9 +222,8 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
     WizardDependencies.helperNeedsApproval = {
         HelperManager.shared.helperNeedsLoginItemsApproval()
     }
-    WizardDependencies.createUninstallCoordinator = {
-        UninstallCoordinator()
-    }
+    // CLI must not remove a GUI installation through the legacy system helper.
+    WizardDependencies.createUninstallCoordinator = nil
     WizardDependencies.executePrivilegedBatch = { batch in
         let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
         return (exitCode: result.exitCode, output: result.output)

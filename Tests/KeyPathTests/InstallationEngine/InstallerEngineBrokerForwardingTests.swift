@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 @testable import KeyPathInstallationWizard
 import XCTest
+import KeyPathWizardCore
 
 @MainActor
 final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
@@ -21,7 +22,7 @@ final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
         XCTAssertTrue(coordinator.calls.isEmpty)
     }
 
-    func testUninstallRefusesEverySystemAndConfigScope() async {
+    func testUninstallRefusesPrivilegedCleanup() async {
         let coordinator = StubPrivilegedOperationsCoordinator()
         let broker = PrivilegeBroker(coordinator: coordinator)
         for deleteConfig in [false, true] {
@@ -29,9 +30,34 @@ final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
                 deleteConfig: deleteConfig, removeVirtualHID: true, allowAdminFallback: true, using: broker
             )
             XCTAssertFalse(report.success)
-            XCTAssertTrue(report.failureReason?.contains("System uninstall is unavailable") ?? false)
+            XCTAssertTrue(report.failureReason?.contains("Use Uninstall KeyPath in Settings") ?? false)
             XCTAssertTrue(report.executedRecipes.isEmpty)
         }
         XCTAssertTrue(coordinator.calls.isEmpty)
     }
+    func testUserUninstallDelegatesWithoutPrivilegedBroker() async {
+        let previous = WizardDependencies.createUninstallCoordinator
+        defer { WizardDependencies.createUninstallCoordinator = previous }
+        let uninstaller = UserUninstallerStub()
+        WizardDependencies.createUninstallCoordinator = { uninstaller }
+        let privileged = StubPrivilegedOperationsCoordinator()
+        let report = await InstallerEngine().uninstall(deleteConfig: true, using: PrivilegeBroker(coordinator: privileged))
+        XCTAssertTrue(report.success)
+        XCTAssertEqual(report.logs, ["Backup saved"])
+        XCTAssertEqual(uninstaller.calls, 1)
+        XCTAssertTrue(privileged.calls.isEmpty)
+    }
+
+    @MainActor
+    private final class UserUninstallerStub: WizardUninstalling {
+        var calls = 0
+        func performUninstall(deleteConfig: Bool, removeVirtualHID: Bool, allowAdminFallback: Bool) async -> WizardUninstallResult {
+            calls += 1
+            XCTAssertTrue(deleteConfig)
+            XCTAssertFalse(removeVirtualHID)
+            XCTAssertFalse(allowAdminFallback)
+            return WizardUninstallResult(success: true, logs: ["Backup saved"])
+        }
+    }
+
 }

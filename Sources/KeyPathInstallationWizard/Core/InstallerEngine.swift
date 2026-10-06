@@ -755,24 +755,18 @@ public final class InstallerEngine {
     }
 
     private func uninstallWithinTransaction(
-        deleteConfig _: Bool,
-        removeVirtualHID _: Bool,
-        allowAdminFallback _: Bool
+        deleteConfig: Bool,
+        removeVirtualHID: Bool,
+        allowAdminFallback: Bool
     ) async -> InstallerReport {
-        let runID = UUID()
-        let context = await captureFreshContext()
-        let failure = "System uninstall is unavailable in the driverless build; no services or user configuration were removed"
-        let telemetry = InstallerRepairTelemetryEvent(
-            runID: runID, beforeSnapshotID: context.snapshotID, afterSnapshotID: context.snapshotID,
-            trigger: .uninstall, intent: InstallIntent.uninstall.telemetryValue,
-            stateMatrixRow: nil, stateMatrixPlan: [], action: "uninstall", recipeID: nil,
-            recipeType: "uninstall", postconditionResult: .failed, error: failure
+        guard deleteConfig, !removeVirtualHID, !allowAdminFallback,
+              let coordinator = WizardDependencies.createUninstallCoordinator?() else {
+            return InstallerReport(success: false, failureReason: "Use Uninstall KeyPath in Settings to back up and remove this user's installation.")
+        }
+        let result = await coordinator.performUninstall(
+            deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false
         )
-        return InstallerReport(
-            runID: runID, beforeSnapshotID: context.snapshotID, afterSnapshotID: context.snapshotID,
-            success: false, completionState: .executionFailed, failureReason: failure,
-            executedRecipes: [], finalContext: context, logs: [failure], repairTelemetry: [telemetry]
-        )
+        return InstallerReport(success: result.success, failureReason: result.failureReason, logs: result.logs)
     }
 
     /// Execute a single AutoFixAction by generating a plan that includes that specific action
