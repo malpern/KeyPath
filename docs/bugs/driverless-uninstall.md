@@ -33,3 +33,7 @@ Compiler warnings: zero. Accessibility identifiers: all 380 checked files passed
 Independent safety review passed after adding ancestor-link refusal and draining
 file-lease opening as well as queued/admitted writes. Live signed-app uninstall
 and reinstall remain to be qualified on a disposable machine.
+
+Startup now requires Welcome completion as well as config/runtime readiness.
+This prevents retained macOS permissions and an automatically regenerated default
+config from bypassing onboarding after settings have been removed.

@@ -409,7 +409,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Present the right surface for a user-initiated "open KeyPath" action
     /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
     private func hasCompletedInitialWizard() async -> Bool {
-        guard hasExistingConfig else {
+        // A reinstall can retain macOS grants and regenerate a valid config.
+        // Runtime health alone must not bypass the fresh-install Welcome page.
+        guard hasExistingConfig,
+              !WizardWelcomeGate.shouldShowWelcome(helperInstalled: false) else {
             LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
             return false
         }
