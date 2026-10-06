@@ -1,11 +1,11 @@
-## Current remaining work — October 5
+## Current remaining work — October 6
 
 | Milestone | Current state | Next action | Agent level |
 | --- | --- | --- | --- |
 | Queued HID writer containment | Live acceptance and independent evidence review passed; pushed. | Closed for its scoped queued-writer case. Opaque in-mutation death remains outside that claim. | Routine evidence review completed. |
 | Function handback | Fresh signed60df first ordinary q→a behavior passed with zero event flags; Function cleared. Strict receipt still fails on undefined combined-session bit. Cleanup independently passed. | Close this bounded first-key question; no synthetic cleanup or product correction indicated. Preserve modifier-state and Apple Fn/Globe coverage gaps. [Evidence](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-06-function-handback-behavior.json). | Systems evidence review; root controlled physical case. |
-| Genuine OS timeout | 752ms stall observed earlier; genuine timeout not observed. Current signed candidate has the hook but ordinary runs are unarmed. | Review a minimal current-candidate trigger; exclude obsolete d9 executable bindings. Cap investigation at30 active minutes. | Systems reviewer for OS evidence; routine executor for established transport. |
-| Reduced installer/onboarding | Both app consents remain required. Driver installation is removed in this experiment; Caps remains explicit DEBUG eligibility. | Implement the verified two-consent flow and recovery/status guidance after the Function decision; keep timeout shipping gap explicit. | Product/UI implementer with independent focused review. |
+| Genuine OS timeout | Bounded current signed-candidate trial completed: one-second stall admitted while A held, no genuine OS notification; cleanup independently passed. Strict acceptance remains failed. | Retain timeout cleanup/fail-open/restart as unverified shipping coverage. No identical rerun or longer stall; proceed with independent onboarding. | Systems evidence review completed; root controlled physical case. |
+| Reduced installer/onboarding | Both app consents remain required. Driver installation is removed in this experiment; Caps remains explicit DEBUG eligibility. | Review the minimal three-row session summary, then verify normal two-consent onboarding in a fresh guest; keep timeout shipping gap explicit. | Product/UI implementer with independent focused review. |
 
 Older checkpoints below are historical where superseded by this table. No further lab framework is planned.
 
