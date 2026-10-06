@@ -9,7 +9,8 @@ Set `KEYPATH_TRIAL_DIR` to a newly created, owned mode700 directory. Put a mode6
 commands from this source directory with Python `-B`. Missing environment fails
 before dispatch. Keep this environment on every invocation; never substitute a
 previous trial directory. Source and artifact bindings currently select signed
-`1c856d3fe` and its metadata-free archive.
+`d293fe84e` and its metadata-free archive. The earlier `1c856d3fe` live acceptance
+remains historical; the new build requires its own live results.
 
 1. Run canonical `vm-lab keypath list` and `preflight`. Check capacity. Locally
    validate `create_once.verify_inputs`, both archives through the installer's

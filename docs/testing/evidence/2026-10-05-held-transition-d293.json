@@ -1,0 +1,132 @@
+{
+  "productCommit": "d293fe84e20033a5569643778c7d1345f90f62b5",
+  "trialDirectory": "/private/tmp/keypath-held-transition-d293-live-01",
+  "lease": "cbx_f1c139c5c686",
+  "provider": "9bf3cabd-2b51-4257-ba7f-87f9af5cbc04",
+  "ordinaryBaselinePassed": true,
+  "heldOrdinaryTransition": {
+    "acceptance": {
+      "passed": true,
+      "action": "ordinary",
+      "releaseBeforeHardwareUpMarginSeconds": 6.689320802688599,
+      "combinedReleaseBeforeHardwareUpMarginSeconds": 6.634302854537964,
+      "finalWorkerPID": 3984,
+      "finalWorkerNonce": "60543C39-1287-406D-9B91-EEA090217A4E",
+      "fullModifierAllUpClaim": false,
+      "retainedFunctionFlag": true,
+      "postReleasePhysicalRemappingVerified": false
+    },
+    "parentPID": 2622,
+    "oldWorkerPID": 2632,
+    "newWorkerPID": 3984,
+    "originalMappingRestored": true,
+    "journalAbsent": true,
+    "finalTargetModifiers": 8388608,
+    "independentOfflineReviewPassed": true
+  },
+  "heldReload": {
+    "passed": false,
+    "harnessFailure": "Append delta exceeded 65536-byte bound; 66117 bytes in saved trigger-to-failure log interval",
+    "productFinding": "Client counted repeat broadcasts toward 25 reads, then claimed status-only success without ReloadResult; actual reload event observed at physical release",
+    "requestLogTime": "2026-10-05 19:40:44.061",
+    "falseSuccessLogTime": "2026-10-05 19:40:46.101",
+    "configReloadLogTime": "2026-10-05 19:40:50.582",
+    "onlyControlUpEpoch": 1791254450.5875602,
+    "replayed": false,
+    "sourceInterpretation": "Kanata intentionally defers same-mode reload while output keys remain held; early Control release was an incorrect acceptance requirement. Failed receipt stays failed; confirmed completion and fresh post-release remapping remain unverified.",
+    "sourceProvenance": {
+      "bridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+      "embeddedSourceWorktree": "/private/tmp/keypath-managed-caps-parsed-admission/External/kanata",
+      "cleanSourceCommit": "c71ef94360a1c24a6e585ac9d15d6add98ae92ec",
+      "limit": "Embedded paths and matching clean source support diagnosis, not reproducible-build proof; original artifact manifest omitted dependency commit."
+    }
+  },
+  "notAccepted": [
+    "Full modifier all-up after mode transition",
+    "Post-release physical remapping",
+    "d293 immediate retained-marker refusal UI",
+    "Observer-specific retirement",
+    "Child-in-flight uncertainty",
+    "Genuine OS tap timeout"
+  ],
+  "cleanup": {
+    "canonicalStatus": 0,
+    "independent": {
+      "passed": true,
+      "providerAbsent": true,
+      "templateStoppedRetained": true,
+      "fixture": [
+        {
+          "Name": "KeyPath Physical HID Fixture",
+          "System name": "3110000|cafe|4010|full|--|2884855553BC",
+          "Autoconnect-Vm-Uuid": "",
+          "Autoconnect-Action": "ask",
+          "Present-On-Host": "YES",
+          "Connected-To-Vm": "NO",
+          "Compatible-with-macOS-VM": "YES"
+        }
+      ]
+    },
+    "originalProfileRestoredBeforeDisposal": false,
+    "reason": "Retained Function flag: stopped further reuse and disposed; no force reset"
+  },
+  "createToIndependentCleanupMinutes": 17.156,
+  "evidence": [
+    {
+      "name": "owned-lease.json",
+      "sha256": "7ec92267cbd7ded71fc89dec31e6cd64b7b4ad9fce0aeebfee4369a0da5cb90a"
+    },
+    {
+      "name": "guest-identity.json",
+      "sha256": "684fd16a34816fd0530d783dfc185ea56e34c0a13862c35030d3133f0aeb0a2c"
+    },
+    {
+      "name": "baseline01-sample-result.json",
+      "sha256": "401f2fa320862abcd7a75583a54ad703026167c9bd7cd2d9d1fd713154ce0662"
+    },
+    {
+      "name": "reload01result.json",
+      "sha256": "91e2cd7b2c0b09887d14c641ccefab8b43c8833e065d36a5343317ed5168a752"
+    },
+    {
+      "name": "reload01guest-result.json",
+      "sha256": "6d98d1b50b7621bc2c609e1eafc24c9f9f7c7e7da0ff98a9ffee955bbb4ccbb2"
+    },
+    {
+      "name": "reloadInspect01-compact-source.json",
+      "sha256": "ff378193889fc3e6691a008d07ce75556f28122fcc19e3096e18658f8ceb3ddc"
+    },
+    {
+      "name": "reloadLog03-product.log",
+      "sha256": "8e5fd33e223ccd4a104ee47ed08de898c7d1861560f8720de50c5b9c171ad271"
+    },
+    {
+      "name": "ordinary01result.json",
+      "sha256": "650c8f59f1fa1f98d77fdb6f3daae40183d28770efe08dc6003737b8950c7ed1"
+    },
+    {
+      "name": "ordinary01binding.json",
+      "sha256": "ca3a1eeb3ba96a050028e9aed7dd0113523d96468971dd54318b42a93b248a5b"
+    },
+    {
+      "name": "ordinary01prepared.json",
+      "sha256": "1e974b1bae0f40f2d8fdd880577cb9ed5ba95a0f60941619bc7d4f2fdfb8fb23"
+    },
+    {
+      "name": "ordinary01fixture-complete.json",
+      "sha256": "050e4be2164868842e6529847b5f2d33ad207bd00a3dd2b5a28193400d762121"
+    },
+    {
+      "name": "destroy-intent.json",
+      "sha256": "524773a8af0557ef7fdba1c9ed85de5cee9a68547e1a60c9315084cf290a82ea"
+    },
+    {
+      "name": "destroy-result.json",
+      "sha256": "96394e4a23712cb24425aeff5d484903cea8c0dc3de820805d60615f8d359acd"
+    },
+    {
+      "name": "independent-provider-cleanup02.json",
+      "sha256": "9a9e1337abc3f2ecf912afa5f4212b6e1fc46b08590b7672a21ed5f32dd636e2"
+    }
+  ]
+}

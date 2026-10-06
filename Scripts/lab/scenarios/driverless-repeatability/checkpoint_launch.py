@@ -3,7 +3,7 @@ from pathlib import Path
 r=Path(os.environ['KEYPATH_TRIAL_DIR']).resolve()
 s=Path(__file__).resolve().parent
 o=json.loads((r/'owned-lease.json').read_text());i=json.loads((r/'guest-identity.json').read_text())
-for name,wanted in {'restart_guest.py': 'f9733c35a1602aa51177ea9c059608783a59bee3108dda622e94834430f30f32', 'caps_guest.py': '6049fa473406f5e4a7a59afe5854e9e197987f567010a9314209d5fd3a8c614b', 'guest_command.py': '5c347d1329d9a4863091c54aa9e4dfbed12ec624319146f1ff81206f715c87f4'}.items():
+for name,wanted in {'restart_guest.py': '2613535ea726439339395ba68246757d78efbf461ef624b65a41244b7b96225b', 'caps_guest.py': '6049fa473406f5e4a7a59afe5854e9e197987f567010a9314209d5fd3a8c614b', 'guest_command.py': '5c347d1329d9a4863091c54aa9e4dfbed12ec624319146f1ff81206f715c87f4'}.items():
  assert hashlib.sha256((s/name).read_bytes()).hexdigest()==wanted
 base=(s/'restart_guest.py').read_text().split("\nif __name__ == '__main__':\n")[0]
 caps=(s/'caps_guest.py').read_text().split("\nif __name__ == '__main__':\n")[0]
