@@ -1,0 +1,38 @@
+{
+  "manifestPath": "/private/tmp/keypath-onboarding-87ede055b-artifact/artifact-manifest.json",
+  "manifestSHA256": "3061dfc271f9ad8c2b8dfe50a31150434a5d8af28f3f11a4bda5ee0dc38578a0",
+  "manifest": {
+    "version": 1,
+    "sourceCommit": "87ede055b875e7105dce5300420114d1350fb45a",
+    "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+    "baseBundle": "/private/tmp/keypath-config-refusal-01df87bc9-entitlements-artifact/KeyPath.app",
+    "artifactKind": "isolated DEBUG driverless onboarding summary candidate",
+    "rawMainSHA256": "430a9dfe04ef21fba3513ad4168da4c476d12c97d88ea87ebd3894b6c6e88b55",
+    "packagedMainSHA256": "c002059128421e90a5e9592441c1ee6b77fce255617ae2512c3e721343a64996",
+    "packagedMainSize": 108172800,
+    "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+    "archive": "keypath-onboarding-clean.zip",
+    "archiveSHA256": "41627c246f7e19c9a10349bc5bf95fe349f606f15b7828088462254a216632cc",
+    "archiveSizeBytes": 97972215,
+    "changedBundlePaths": [
+      "Contents/MacOS/KeyPath"
+    ],
+    "preservedFileCount": 236,
+    "archiveMetadataExcluded": true,
+    "strictSignatureVerified": true,
+    "teamID": "X2RKZ5TG99",
+    "hardenedRuntime": true,
+    "entitlementsUnchanged": true,
+    "packagedFrameworkRpathVerified": true,
+    "hostInstalled": false,
+    "notarized": false,
+    "timestamped": false,
+    "guestAcceptanceClaimed": false,
+    "experimentalMutationDeathDefaultEnabled": false,
+    "managedCapsDefaultEnabled": false,
+    "resources": "Preserved prior live-tested frameworks/resources/Metal; no fresh Metal compilation"
+  },
+  "focusedTestsPassed": 19,
+  "accessibilityFilesChecked": 380,
+  "liveAcceptanceClaimed": false
+}

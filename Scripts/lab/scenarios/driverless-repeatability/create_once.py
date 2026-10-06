@@ -1,4 +1,4 @@
-"""One-shot source launcher for the reviewed prepared CREATE SDK route for integrated Caps product acceptance.
+"""One-shot source launcher for the reviewed prepared CREATE SDK route for current driverless onboarding acceptance.
 
 This file is intentionally not a generic vm-lab wrapper. It binds one exact
 artifact, tenant, CLI/source revision, provider executable, Mac 26 unmanaged-ui
@@ -16,19 +16,19 @@ import time
 ROOT = Path(os.environ['KEYPATH_TRIAL_DIR']).resolve()
 LAB = Path('/private/tmp/vm-lab-reusable-setup')
 TENANT_PROJECT = Path('/private/tmp/keypath-tap-timeout-hook-build')
-ARTIFACT_DIR = Path('/private/tmp/keypath-queued-writer-60dfd2d30-artifact')
+ARTIFACT_DIR = Path('/private/tmp/keypath-onboarding-87ede055b-artifact')
 ARTIFACT_MANIFEST = ARTIFACT_DIR / 'artifact-manifest.json'
-ARTIFACT_ZIP = ARTIFACT_DIR / 'keypath-queued-writer-clean.zip'
+ARTIFACT_ZIP = ARTIFACT_DIR / 'keypath-onboarding-clean.zip'
 PROVIDER_BINARY = Path('/private/tmp/keypath-create-posix-sdk-build-ada4b9f/crabbox-create-posix-sdk')
 REGISTRY = ROOT / 'tenants.tsv'
 
 LAB_COMMIT = 'f2d3b6594284e5b14f48b0c8e49a68e50d9ed935'
-PRODUCT_COMMIT = '60dfd2d3054308bdde33bafe8403b712462052ba'
-ARTIFACT_MANIFEST_SHA256 = '4b9334b159832da3a175075fb35b9a1b0b3f39deb49d78ef1d0ecb19bbb04713'
-ARTIFACT_ZIP_SHA256 = '4603368544af82211f6170d038a4483f8dc1eec9acbc51b5ff8e55c3431d1dc1'
-ARTIFACT_ZIP_SIZE = 97954191
-PACKAGED_MAIN_SIZE = 108131120
-PACKAGED_MAIN_SHA256 = '62acf79cd61f8e851f99d5e14923c00fb71d710325925078bbe39f884fb75390'
+PRODUCT_COMMIT = '87ede055b875e7105dce5300420114d1350fb45a'
+ARTIFACT_MANIFEST_SHA256 = '3061dfc271f9ad8c2b8dfe50a31150434a5d8af28f3f11a4bda5ee0dc38578a0'
+ARTIFACT_ZIP_SHA256 = '41627c246f7e19c9a10349bc5bf95fe349f606f15b7828088462254a216632cc'
+ARTIFACT_ZIP_SIZE = 97972215
+PACKAGED_MAIN_SIZE = 108172800
+PACKAGED_MAIN_SHA256 = 'c002059128421e90a5e9592441c1ee6b77fce255617ae2512c3e721343a64996'
 PRODUCT_DESCRIPTOR_SHA256 = 'e19ba4ee0e850b52e6eef498b5c1ca5eadeb157c7f90eead78d76078df4218d9'
 REGISTRY_SHA256 = '905907bda0d8c302839ea416f2fb9456a04d6159536c901e1372210782721c5e'
 CLI_SHA256 = 'f8470518428f75590e7ea6f481a6a544f40745f4a881039b9d4ed884231cdc03'
@@ -130,8 +130,8 @@ def verify_inputs():
     """Verify all fixed source, tenant, artifact, and executable authorities."""
     if _git_head(LAB) != LAB_COMMIT:
         raise Refused('canonical lab commit changed')
-    if _git_head(TENANT_PROJECT) != '22f7cc319e86d145b6d4e633b2bc3ac2566cd458':
-        raise Refused('reviewed documentation-only checkout revision changed')
+    if _git_head(TENANT_PROJECT) != '87ede055b875e7105dce5300420114d1350fb45a':
+        raise Refused('reviewed product checkout revision changed')
     for path, expected in SOURCE_PINS.items():
         _hash_regular(path, expected)
     registry_raw = _hash_regular(REGISTRY, REGISTRY_SHA256, mode=0o600,
