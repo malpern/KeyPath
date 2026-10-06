@@ -1,3 +1,5 @@
+October6 source follow-up: product **dfdfb56a5** adds zero-HID retirement of validated previous-boot Caps evidence. Focused DEBUG/non-DEBUG fake-transport tests and startup integration tests pass; signed live reboot acceptance is still pending. This does not close reconnect/fresh-instance admission or enable production Caps selection. See the current permission-reduction plan for the next gate.
+
 # Driverless gaps and candidate workarounds
 
 Latest October5 checkpoint: signed01df87bc9 passed reconnect identity refusal and explicit post-reboot Start refusal. Different replacement registry instances remained unmapped; recovery intent bytes stayed unchanged; no new modifying worker started. Normal Quit did not retire the inactive post-reboot parent; exact scoped SIGTERM/environment cleanup and canonical destruction completed, with independent provider/template/nonpersistent-USB checks passing. No owned VM remains. Prior held-owner crash, Secure Input release/resume and all-up mode-transition acceptance remain valid in their separate receipts.
