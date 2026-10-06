@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathPermissions
 import SwiftUI
 
 // MARK: - Core Types
@@ -368,6 +369,9 @@ public struct SystemStateResult: Sendable {
     /// `issues`; wizard clients must not re-probe helper state while routing.
     public let helperInstalled: Bool
     public let helperNeedsApproval: Bool
+    /// Permission facts from the same canonical capture as `state` and `issues`.
+    /// Optional for synthetic/error results that have no permission snapshot.
+    public let permissions: PermissionOracle.Snapshot?
 
     public init(
         state: WizardSystemState, issues: [WizardIssue], autoFixActions: [AutoFixAction],
@@ -377,7 +381,8 @@ public struct SystemStateResult: Sendable {
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
         helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .selected
+        backend: KanataRuntimeBackend = .selected,
+        permissions: PermissionOracle.Snapshot? = nil
     ) {
         self.state = state
         self.issues = issues
@@ -389,6 +394,7 @@ public struct SystemStateResult: Sendable {
         self.helperInstalled = helperInstalled
         self.helperNeedsApproval = helperNeedsApproval
         self.backend = backend
+        self.permissions = permissions
     }
 
     public var hasBlockingIssues: Bool {

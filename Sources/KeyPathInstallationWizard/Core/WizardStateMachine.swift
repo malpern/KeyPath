@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import Observation
 import SwiftUI
@@ -11,6 +12,7 @@ public struct WizardSnapshotRecord {
     public let helperInstalled: Bool
     public let helperNeedsApproval: Bool
     public let backend: KanataRuntimeBackend
+    public let permissions: PermissionOracle.Snapshot?
 }
 
 /// Observable state container for the installation wizard.
@@ -55,7 +57,8 @@ public class WizardStateMachine {
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
         helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .selected
+        backend: KanataRuntimeBackend = .selected,
+        permissions: PermissionOracle.Snapshot? = nil
     ) {
         wizardState = state
         wizardIssues = issues
@@ -65,7 +68,8 @@ public class WizardStateMachine {
             captureStatus: captureStatus,
             helperInstalled: helperInstalled,
             helperNeedsApproval: helperNeedsApproval,
-            backend: backend
+            backend: backend,
+            permissions: permissions
         )
         stateVersion += 1
     }
@@ -77,7 +81,8 @@ public class WizardStateMachine {
             captureStatus: result.captureStatus,
             helperInstalled: result.helperInstalled,
             helperNeedsApproval: result.helperNeedsApproval,
-            backend: result.backend
+            backend: result.backend,
+            permissions: result.permissions
         )
     }
 

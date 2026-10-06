@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 
 // MARK: - UI-Layer WizardOperations Extension
@@ -39,7 +40,8 @@ extension WizardOperations {
                             captureStatus: captured.captureStatus,
                             helperInstalled: captured.helperInstalled,
                             helperNeedsApproval: captured.helperNeedsApproval,
-                            backend: captured.backend
+                            backend: captured.backend,
+                            permissions: captured.permissions
                         )
                     }
                     return timeoutResult()

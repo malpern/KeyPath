@@ -17,7 +17,8 @@ public extension SystemStateResult {
             captureStatus: context.captureStatus,
             helperInstalled: context.helper.isInstalled,
             helperNeedsApproval: context.helper.requiresApproval,
-            backend: context.permissions.backend
+            backend: context.permissions.backend,
+            permissions: context.captureStatus.isComplete ? context.permissions : nil
         )
     }
 }

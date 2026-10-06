@@ -8,6 +8,10 @@ import SwiftUI
 public struct WizardSystemStatusOverview: View {
     public let systemState: WizardSystemState
     public let issues: [WizardIssue]
+    /// Runtime backend represented by the current wizard snapshot.
+    public let backend: KanataRuntimeBackend
+    /// Permission facts captured with the same wizard snapshot, when available.
+    public let permissions: PermissionOracle.Snapshot?
     public let onNavigateToPage: ((WizardPage) -> Void)?
     /// Authoritative signal for service status - ensures consistency with detail page
     public let kanataIsRunning: Bool
@@ -37,6 +41,8 @@ public struct WizardSystemStatusOverview: View {
     public init(
         systemState: WizardSystemState,
         issues: [WizardIssue],
+        backend: KanataRuntimeBackend = .selected,
+        permissions: PermissionOracle.Snapshot? = nil,
         onNavigateToPage: ((WizardPage) -> Void)?,
         kanataIsRunning: Bool,
         showAllItems: Bool,
@@ -46,6 +52,8 @@ public struct WizardSystemStatusOverview: View {
     ) {
         self.systemState = systemState
         self.issues = issues
+        self.backend = backend
+        self.permissions = permissions
         self.onNavigateToPage = onNavigateToPage
         self.kanataIsRunning = kanataIsRunning
         self.showAllItems = showAllItems
@@ -120,12 +128,16 @@ public struct WizardSystemStatusOverview: View {
             }
         }
         .onAppear {
-            duplicateCopies = WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
+            if backend != .session {
+                duplicateCopies = WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
+            }
             updateNavSequence()
         }
         .onChange(of: showAllItems) { _, _ in updateNavSequence() }
         .onChange(of: issues.count) { _, _ in updateNavSequence() }
         .onChange(of: systemState) { _, _ in updateNavSequence() }
+        .onChange(of: backend) { _, _ in updateNavSequence() }
+        .onChange(of: statusFingerprint) { _, _ in updateNavSequence() }
         // Scroll fade overlays removed — they created visible grey stripe artifacts
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Color.clear)
@@ -161,6 +173,10 @@ public struct WizardSystemStatusOverview: View {
 
     /// Internal for tests: accessed via @testable without adding a dedicated test-only accessor.
     public var statusItems: [StatusItemModel] {
+        if backend == .session {
+            return Self.sessionStatusItems(systemState: systemState, issues: issues, permissions: permissions)
+        }
+
         var items: [StatusItemModel] = []
 
         // Check FDA status early - used for multiple items
@@ -340,6 +356,88 @@ public struct WizardSystemStatusOverview: View {
         return items
     }
 
+    private var statusFingerprint: String? {
+        guard backend == .session else { return nil }
+        return statusItems.map { "\($0.id):\($0.status)" }.joined(separator: "|")
+    }
+
+    /// Driverless sessions require only the app's two consent checks and the
+    /// session runtime. Helper, FDA, conflict, and VirtualHID checks describe
+    /// the legacy DriverKit installation and must not appear for this backend.
+    static func sessionStatusItems(
+        systemState: WizardSystemState,
+        issues: [WizardIssue],
+        permissions: PermissionOracle.Snapshot? = nil
+    ) -> [StatusItemModel] {
+        let accessibilityIssues = issues.filter { issue in
+            guard case let .permission(requirement) = issue.identifier else { return false }
+            return requirement == .keyPathAccessibility || requirement == .kanataAccessibility
+        }
+        let inputMonitoringIssues = issues.filter { issue in
+            guard case let .permission(requirement) = issue.identifier else { return false }
+            return requirement == .keyPathInputMonitoring || requirement == .kanataInputMonitoring
+        }
+        let runtimeIssues = issues.filter { issue in
+            if issue.identifier == .daemon { return true }
+            if case .component(.bundledKanataMissing) = issue.identifier { return true }
+            return false
+        }
+
+        func status(for matchingIssues: [WizardIssue], permissionReady: Bool?) -> InstallationStatus {
+            guard !matchingIssues.isEmpty else {
+                if systemState == .active || permissionReady == true { return .completed }
+                return .notStarted
+            }
+            let mapped = IssueSeverityInstallationStatusMapper.installationStatus(for: matchingIssues)
+            // Unknown permission/runtime evidence stays unresolved and visible;
+            // it must not be presented as a confirmed grant.
+            return mapped == .unverified ? .notStarted : mapped
+        }
+
+        return [
+            StatusItemModel(
+                id: "input-monitoring",
+                icon: "eye",
+                title: "Input Monitoring",
+                status: status(
+                    for: inputMonitoringIssues,
+                    permissionReady: permissions?.kanata.inputMonitoring.isReady
+                ),
+                isNavigable: true,
+                targetPage: .inputMonitoring,
+                relatedIssues: inputMonitoringIssues
+            ),
+            StatusItemModel(
+                id: "accessibility",
+                icon: "accessibility",
+                title: "Accessibility",
+                status: status(
+                    for: accessibilityIssues,
+                    permissionReady: permissions.map {
+                        $0.keyPath.accessibility.isReady && $0.kanata.accessibility.isReady
+                    }
+                ),
+                isNavigable: true,
+                targetPage: .accessibility,
+                relatedIssues: accessibilityIssues
+            ),
+            StatusItemModel(
+                id: "kanata-service",
+                icon: "app.badge.checkmark",
+                title: "KeyPath Runtime",
+                subtitle: systemState == .active ? "Running" : nil,
+                status: status(for: runtimeIssues, permissionReady: nil),
+                isNavigable: true,
+                targetPage: .service,
+                relatedIssues: runtimeIssues
+            )
+        ]
+    }
+
+    static func incompleteItemCount(_ items: [StatusItemModel]) -> Int {
+        items.filter { $0.status != .completed && $0.status != .unverified }.count
+    }
+
     // MARK: - Navigation Sequence Sync
 
     private func updateNavSequence() {
@@ -359,7 +457,7 @@ public struct WizardSystemStatusOverview: View {
         }
         navSequence = ordered
         // Don't count unverified items as issues - we can't verify them anyway
-        visibleIssueCount = displayItems.filter { $0.status != .completed && $0.status != .unverified }.count
+        visibleIssueCount = Self.incompleteItemCount(displayItems)
         AppLogger.shared.log(
             "🔍 [NavSeq] ✅ navSequence updated: \(ordered.count) pages: \(ordered.map(\.displayName))"
         )

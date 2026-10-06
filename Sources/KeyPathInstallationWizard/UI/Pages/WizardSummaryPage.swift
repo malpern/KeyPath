@@ -175,6 +175,8 @@ public struct WizardSummaryPage: View {
                         WizardSystemStatusOverview(
                             systemState: systemState,
                             issues: issues,
+                            backend: stateMachine.lastWizardSnapshot?.backend ?? .selected,
+                            permissions: stateMachine.lastWizardSnapshot?.permissions,
                             onNavigateToPage: onNavigateToPage,
                             kanataIsRunning: systemState == .active,
                             showAllItems: showAllItems,
@@ -362,6 +364,15 @@ public struct WizardSummaryPage: View {
     // MARK: - Issue Counting (summary indicator)
 
     private var failedIssueCount: Int {
+        if (stateMachine.lastWizardSnapshot?.backend ?? .selected) == .session {
+            let items = WizardSystemStatusOverview.sessionStatusItems(
+                systemState: systemState,
+                issues: issues,
+                permissions: stateMachine.lastWizardSnapshot?.permissions
+            )
+            return WizardSystemStatusOverview.incompleteItemCount(items)
+        }
+
         var count = 0
 
         // Check FDA status - without it, we can't verify Kanata permissions
