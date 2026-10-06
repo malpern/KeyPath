@@ -169,6 +169,35 @@ final class ServiceLifecycleCoordinator {
         await requestSessionOperation(.restart(reason))
     }
 
+    /// A preference change cannot race an owned Caps lease or a queued launch.
+    /// Restore first, then verify the proposed selection, then commit consent.
+    func changeCapsSelection(verify: @escaping @Sendable () async throws -> Void,
+                             commit: @escaping @MainActor @Sendable () throws -> Void) async -> Bool {
+        guard !updatePreparationActive, !Task.isCancelled else { return false }
+        sessionIntentGeneration &+= 1
+        let generation = sessionIntentGeneration
+        sessionWantsRunning = false
+        do {
+            return try await sessionOperationGate.withOperation { [self] _ in
+                guard await generation == sessionIntentGeneration else { return false }
+                guard await stopSessionAdmitted(reason: "Caps Lock setup changed") else { return false }
+                try await verify()
+                return try await commitCapsSelection(generation: generation, commit: commit)
+            }
+        } catch {
+            onError?("Caps Lock setup could not be changed safely. Existing selection and recovery records were preserved.")
+            return false
+        }
+    }
+
+    private func commitCapsSelection(generation: UInt64, commit: @MainActor () throws -> Void) throws -> Bool {
+        guard generation == sessionIntentGeneration, !updatePreparationActive, !Task.isCancelled else { return false }
+        try commit()
+        refreshSessionConfigurationAdmission()
+        onStateChanged?()
+        return true
+    }
+
     private func requestSessionOperation(_ operation: SessionLifecycleOperation) async -> Bool {
         if case .stop = operation {} else if updatePreparationActive { return false }
         // A request already cancelled before entry changes no intent. An accepted

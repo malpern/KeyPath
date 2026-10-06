@@ -119,18 +119,16 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "environment-observer-registration-failed")
         }
         guard !IsSecureEventInputEnabled() else { finish(.secureInput) }
-        let capsDigest: String?
-        do {
-            capsDigest = try SessionCapsRuntimeSupport.experimentalDevice() != nil
-                ? SessionCapsRuntimeSupport.configSHA256(configPath) : nil
-        } catch { finish(.failed, reason: "managed-caps-config-identity-unavailable") }
+        // Capture before engine validation; stale consent must not block ordinary
+        // profiles, but managed admission must validate these exact bytes.
+        let capsDigest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
         let admission = SessionCapsRuntimeSupport.validate(configPath: configPath, runtimeHost: .current())
         guard case .valid = admission.result else {
             finish(.failed, reason: "config-requires-advanced-driver-backend-or-is-invalid")
         }
         if admission.managedCaps {
             do {
-                guard let capsDigest, try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest else {
+                guard let capsDigest, try SessionCapsRuntimeSupport.validatedConfigDigest(configPath, beforeValidation: capsDigest) == capsDigest else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity
                 }
             } catch { finish(.failed, reason: "managed-caps-config-changed-during-validation") }
@@ -177,7 +175,7 @@ public final class SessionRuntimeWorker {
             CGEvent.tapEnable(tap: startupTap, enable: false)
             do {
                 guard runtime?.isInputMapped(usagePage: 7, usage: 57) == true,
-                      let device = try SessionCapsRuntimeSupport.experimentalDevice(), let capsDigest,
+                      let device = try SessionCapsRuntimeSupport.selectedDevice(), let capsDigest,
                       try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest
                 else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity

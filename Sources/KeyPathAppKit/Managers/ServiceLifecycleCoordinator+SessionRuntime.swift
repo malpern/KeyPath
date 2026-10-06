@@ -374,11 +374,11 @@ extension ServiceLifecycleCoordinator {
             "--session-owner", String(getpid()), "--session-port", "37001",
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
-        if !capabilitiesOnly, let device = try SessionCapsRuntimeSupport.experimentalDevice() {
-            let encoded = try JSONEncoder().encode(device)
+        if !capabilitiesOnly, SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current()).managedCaps,
+           let device = try SessionCapsRuntimeSupport.selectedDevice() {
+            let selection = try SessionCapsSelection(device: device, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID(), reservesF18: true)
             configuration.environment = [
-                "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE": String(decoding: encoded, as: UTF8.self),
-                "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18": "1"
+                SessionCapsRuntimeSupport.selectionEnvironmentKey: String(decoding: try JSONEncoder().encode(selection), as: UTF8.self)
             ]
         }
         AppLogger.shared.log(

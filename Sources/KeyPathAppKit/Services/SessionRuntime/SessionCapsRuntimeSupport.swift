@@ -4,7 +4,7 @@ import Darwin
 import Foundation
 import KeyPathCore
 
-/// Experimental selection and recovery shared by the existing lifecycle and worker.
+/// Caps consent and recovery shared by the existing lifecycle and worker.
 /// Session events cannot distinguish another keyboard's native F18: the explicit
 /// reservation is an eligibility declaration, never a device-attribution claim.
 enum SessionCapsRuntimeSupport {
@@ -23,19 +23,35 @@ enum SessionCapsRuntimeSupport {
         #endif
     }
 
+    static let selectionKey = "keypath.session.caps.selection.v1"
+    static let selectionEnvironmentKey = "KEYPATH_SESSION_CAPS_SELECTION"
+
+    static func selectedDevice(environment: [String: String] = ProcessInfo.processInfo.environment,
+                               selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey)) throws -> Policy.DeviceIdentity? {
+        #if DEBUG
+            if environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"] != nil {
+                return try experimentalDevice(environment: environment)
+            }
+        #endif
+        let data = environment[selectionEnvironmentKey].map { Data($0.utf8) } ?? selectionData
+        guard let data else { return nil }
+        return try SessionCapsSelection.decode(data, currentBoot: bootSessionUUID()).device
+    }
+
     static func validate(configPath: String, runtimeHost: KanataRuntimeHost,
-                         environment: [String: String] = ProcessInfo.processInfo.environment) -> (result: KanataHostBridgeValidationResult, managedCaps: Bool)
+                         environment: [String: String] = ProcessInfo.processInfo.environment,
+                         selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey)) -> (result: KanataHostBridgeValidationResult, managedCaps: Bool)
     {
         let usages = SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
         let legacy = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath, supportedUsages: usages)
         if case .valid = legacy { return (legacy, false) }
         do {
-            guard try experimentalDevice(environment: environment) != nil else { return (legacy, false) }
+            guard try selectedDevice(environment: environment, selectionData: selectionData) != nil else { return (legacy, false) }
             let managed = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath,
                                                                  supportedUsages: usages, managedCaps: true)
             return (managed, true)
         } catch {
-            return (.invalid(reason: "Experimental Caps keyboard selection is invalid or F18 is not reserved"), false)
+            return (.invalid(reason: "Caps Lock setup needs a current keyboard selection with F18 reserved. Open Settings > General to select your keyboard"), false)
         }
     }
 
@@ -86,6 +102,11 @@ enum SessionCapsRuntimeSupport {
               before.st_ctimespec.tv_sec == after.st_ctimespec.tv_sec,
               before.st_ctimespec.tv_nsec == after.st_ctimespec.tv_nsec else { throw Refusal.configIdentity }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func validatedConfigDigest(_ path: String, beforeValidation: String?) throws -> String {
+        guard let beforeValidation, try configSHA256(path) == beforeValidation else { throw Refusal.configIdentity }
+        return beforeValidation
     }
 
     static func verifyActive(directory: URL, owner: Policy.Owner) throws {

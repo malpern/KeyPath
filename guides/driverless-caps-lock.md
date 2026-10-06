@@ -1,22 +1,34 @@
 ---
 layout: default
 title: "Caps Lock in driverless KeyPath"
-description: "How the experimental Caps Lock remap uses F18, and what that means for your shortcuts"
+description: "How the Caps Lock remap uses F18, and what that means for your shortcuts"
 permalink: /guides/driverless-caps-lock/
 ---
 
 # Caps Lock in driverless KeyPath
 
-**Current status (October 6, 2026): experimental, DEBUG-only.** This is not yet
-an ordinary production setup option. Physical basic remapping and tap/hold have
-worked in the lab, but broader keyboard compatibility and recovery coverage are
-still required before enabling it for everyone.
+**Current status (October 6, 2026): production opt-in is implemented, with live
+acceptance and broader keyboard qualification still required before release.**
+Basic remapping and tap/hold worked in the lab using the experimental path.
+The production setup is being tested separately.
+
+In Settings → General → Caps Lock Remapping, review your connected keyboard,
+reserve F18 explicitly, and enable setup. Then start KeyPath Runtime. Setup
+accepts exactly one compatible keyboard instance and lasts for the current Mac
+boot. Select it again after restarting your Mac. KeyPath does not silently adopt
+a reconnected or replacement keyboard.
+
+Changing or disabling setup first stops the runtime and restores its owned
+mapping. If cleanup cannot be verified, existing settings and recovery records
+are retained. A disconnected keyboard may require a Mac restart before selecting
+it again. Disabling setup preserves your rules: enable setup again, or use
+Rules → Edit Configuration to change Caps rules before restarting the runtime.
 
 ## Why F18 is involved
 
 Caps Lock changes macOS's Caps Lock state before KeyPath's normal driverless
 keyboard interception point. Treating it like an ordinary key there is not enough.
-The experimental workaround uses a macOS mapping on one selected keyboard:
+The workaround uses a macOS mapping on one selected keyboard:
 
 ```text
 Physical Caps Lock → macOS substitutes F18 → KeyPath interprets logical Caps Lock
@@ -31,13 +43,13 @@ and Input Monitoring remain part of driverless setup.
 
 ## What if I use F18?
 
-**The current managed-Caps experiment reserves F18.** At the interception point,
+**Managed Caps remapping reserves F18.** At the interception point,
 a real F18 event is indistinguishable from Caps Lock that macOS changed into F18.
 Using both would risk making your real F18 key perform your Caps Lock action.
 The device-specific macOS mapping does not give the later event stream reliable
 keyboard identity.
 
-The experiment requires an explicit declaration that F18 is reserved, checks
+Setup requires an explicit declaration that F18 is reserved, checks
 existing device mappings for conflicts, and rejects native F18 input/output in a
 managed-Caps configuration. These checks cannot discover every shortcut in other
 apps or prove that another device will never send F18.
@@ -49,7 +61,7 @@ F19, F20, or another intermediate key.
 
 ## Other boundaries
 
-- The prototype admits one eligible physical keyboard, explicitly selected. It
+- Setup admits one eligible physical keyboard, explicitly selected. It
   does not promise arbitrary multi-keyboard or reconnect support.
 - Existing Caps mappings or mappings using F18 on that device cause refusal;
   KeyPath does not silently overwrite them.

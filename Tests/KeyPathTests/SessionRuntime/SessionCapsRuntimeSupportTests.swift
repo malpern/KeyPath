@@ -33,13 +33,27 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         let disabled = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: [:])
         guard case .invalid = disabled.result else { return XCTFail("Caps must require opt-in") }
         XCTAssertFalse(disabled.managedCaps)
+        let validatedDigest = try SessionCapsRuntimeSupport.configSHA256(file.path)
         let enabled = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: environment)
         guard case .valid = enabled.result else { return XCTFail("Owned Caps profile should validate") }
         XCTAssertTrue(enabled.managedCaps)
+        XCTAssertEqual(try SessionCapsRuntimeSupport.validatedConfigDigest(file.path, beforeValidation: validatedDigest), validatedDigest)
         try "(defsrc f18)(deflayer base a)".write(to: file, atomically: true, encoding: .utf8)
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.validatedConfigDigest(file.path, beforeValidation: validatedDigest))
         let ordinary = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: environment)
         guard case .valid = ordinary.result else { return XCTFail("Ordinary native F18 profile should stay eligible") }
         XCTAssertFalse(ordinary.managedCaps)
+        let stale = SessionCapsSelection(device: device, bootSessionUUID: UUID().uuidString, reservesF18: true)
+        let staleData = try JSONEncoder().encode(stale)
+        let ordinaryWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+                                                                         environment: [:], selectionData: staleData)
+        guard case .valid = ordinaryWithStaleConsent.result else { return XCTFail("Stale Caps consent must not block ordinary rules") }
+        XCTAssertFalse(ordinaryWithStaleConsent.managedCaps)
+        try "(defsrc caps)(deflayer base esc)".write(to: file, atomically: true, encoding: .utf8)
+        let capsWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+                                                                     environment: [:], selectionData: staleData)
+        guard case .invalid = capsWithStaleConsent.result else { return XCTFail("Caps needs fresh consent") }
+        XCTAssertFalse(capsWithStaleConsent.managedCaps)
     }
 
     func testOrphanMutationMarkerBlocksRecoveryEvenWithoutIntent() throws {
@@ -77,6 +91,17 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         try SessionCapsRuntimeSupport.recoverPending(directory: root)
         XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    func testManagedDigestRejectsConfigurationChangedAcrossValidation() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: file) }
+        try Data("(defsrc caps)(deflayer base esc)".utf8).write(to: file)
+        let before = try SessionCapsRuntimeSupport.configSHA256(file.path)
+        XCTAssertEqual(try SessionCapsRuntimeSupport.validatedConfigDigest(file.path, beforeValidation: before), before)
+        try Data("(defsrc caps)(deflayer base lctl)".utf8).write(to: file)
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.validatedConfigDigest(file.path, beforeValidation: before))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.validatedConfigDigest(file.path, beforeValidation: nil))
     }
 
     func testConfigDigestRefusesSymlinkAndOversizedInput() throws {

@@ -32,6 +32,29 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testCapsSelectionRefusalPreservesConsentAndRequiresSuccessfulCleanup() async {
+        var commits = 0
+        var verifications = 0
+        ServiceLifecycleCoordinator.testSessionStop = { false }
+        defer { ServiceLifecycleCoordinator.testSessionStop = nil }
+        let stopped = await coordinator.changeCapsSelection(verify: {}, commit: { commits += 1 })
+        XCTAssertFalse(stopped)
+        XCTAssertEqual(commits, 0)
+        ServiceLifecycleCoordinator.testSessionStop = { true }
+        let refused = await coordinator.changeCapsSelection(verify: { throw SessionCapsRuntimeSupport.Refusal.selection }, commit: { commits += 1 })
+        XCTAssertFalse(refused)
+        XCTAssertEqual(commits, 0)
+        let changed = await coordinator.changeCapsSelection(verify: {}, commit: { commits += 1; verifications += 1 })
+        XCTAssertTrue(changed)
+        XCTAssertEqual(commits, 1)
+        XCTAssertEqual(verifications, 1)
+        XCTAssertFalse(coordinator.sessionWantsRunning)
+        coordinator.setUpdatePreparationActive(true)
+        let updating = await coordinator.changeCapsSelection(verify: {}, commit: { commits += 1 })
+        XCTAssertFalse(updating)
+        XCTAssertEqual(commits, 1)
+    }
+
     func testUpdatePreparationRefusesQueuedAndNewStartsUntilReleased() async {
         coordinator.testSessionConfigurationValidation = { .valid }
         var launches = 0

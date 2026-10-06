@@ -26,6 +26,7 @@ struct GeneralSettingsTabView: View {
                 // Shortcut List
                 ContextHUDSettingsSection()
                 LayerIndicatorToggle()
+                SessionCapsSettingsSection()
 
                 // Key Label Style
                 VStack(alignment: .leading, spacing: 8) {

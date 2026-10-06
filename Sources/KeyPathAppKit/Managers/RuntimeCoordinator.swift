@@ -619,6 +619,22 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         text.replacingOccurrences(of: #"\u001B\[[0-9;]*m"#, with: "", options: .regularExpression)
     }
 
+    /// Persist exact-device Caps consent only after admitted runtime restoration.
+    func setCapsSelection(_ selection: SessionCapsSelection?) async -> Bool {
+        do {
+            return try await configurationService.operationGate.withOperation { [serviceLifecycleCoordinator] _ in
+                await serviceLifecycleCoordinator.changeCapsSelection(verify: {
+                    guard let selection else { return }
+                    try await Task.detached {
+                        try selection.verifyConnected(devices: SessionCapsHIDUtilTransport.backend().enumerate(),
+                                                      currentBoot: SessionCapsRuntimeSupport.bootSessionUUID())
+                        try SessionCapsRuntimeSupport.requirePhysicalAllUp()
+                    }.value
+                }, commit: { try SessionCapsSelectionStore.save(selection) })
+            }
+        } catch { return false }
+    }
+
     /// Stop Kanata when the app is terminating (async version).
     func cleanup() async {
         let stopped = await stopKanata(reason: "App termination cleanup")

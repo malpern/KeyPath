@@ -1,6 +1,25 @@
 # Device-scoped Caps mapping intent
 
-## Current integration and F18 contract (October 6, 2026)
+## Production consent checkpoint (October 6, 2026)
+
+Settings now stores explicit F18 reservation for one exact eligible device identity
+and boot UUID. The parent passes immutable versioned consent to the worker;
+ordinary profiles ignore stale Caps consent. Managed profiles retain the digest
+captured before engine validation and require identical bytes after validation
+and before acquiring the owned mapping. No automatic registry-ID replacement.
+
+Selection changes serialize through configuration and runtime gates, restore the
+old owned mapping before committing, verify a fresh singleton/all-up state, and
+leave runtime stopped for explicit Start. Cleanup refusal keeps prior consent and
+journals. Rules → Edit Configuration remains reachable while stopped so retained
+Caps rules can be corrected after disabling setup. Historical DEBUG notes below
+remain evidence of earlier qualification, not acceptance of this new UI.
+
+Focused bridge/consent/lifecycle/updater tests passed with the real bridge fixture;
+source review caught and corrected a config-digest ordering race and stopped-rule
+editing dead end. Signed non-DEBUG live acceptance remains outstanding.
+
+## Earlier integration and F18 contract (October 6, 2026)
 
 The transport is now connected to the experimental parent/worker lifecycle via
 `SessionCapsRuntimeSupport`; the earlier transport-only notes below are historical.
@@ -24,7 +43,7 @@ Choose only while stopped/all keys up, restore the old owned mapping first, and
 validate supported macOS event behavior for every candidate. No choice can prove
 absence of third-party shortcut conflicts from KeyPath configuration alone.
 
-The proposed production UX and user-facing limits are documented in
+The production opt-in and user-facing limits are documented in
 [Caps Lock in driverless KeyPath](../../guides/driverless-caps-lock.md).
 This is documentation and a recommendation, not implementation of an alternate
 key selector or a new live acceptance claim. Opaque in-mutation death, genuine

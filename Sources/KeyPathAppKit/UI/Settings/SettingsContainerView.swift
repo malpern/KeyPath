@@ -53,7 +53,9 @@ struct SettingsContainerView: View {
                 if canManageRules {
                     RulesTabView()
                 } else {
-                    RulesDisabledView(onOpenStatus: { selection = .status })
+                    RulesDisabledView(onOpenStatus: { selection = .status }, onEditConfig: {
+                        openFileInPreferredEditor(URL(fileURLWithPath: kanataManager.configPath))
+                    })
                 }
             }
             .tabItem {
@@ -168,7 +170,7 @@ struct SettingsContainerView: View {
             Button("") { selection = .status }
                 .keyboardShortcut("1", modifiers: .command)
                 .accessibilityIdentifier("settings-shortcut-status-button")
-            Button("") { selection = canManageRules ? .rules : selection }
+            Button("") { selection = .rules }
                 .keyboardShortcut("2", modifiers: .command)
                 .accessibilityIdentifier("settings-shortcut-rules-button")
             Button("") { selection = .general }
@@ -225,6 +227,7 @@ extension SettingsTab {
 
 private struct RulesDisabledView: View {
     let onOpenStatus: () -> Void
+    let onEditConfig: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -244,6 +247,13 @@ private struct RulesDisabledView: View {
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("settings-go-to-status-button")
             .accessibilityLabel("Go to Status")
+            Button("Edit Configuration", action: onEditConfig)
+                .accessibilityIdentifier("settings-stopped-edit-config-button")
+            Text("If a rule prevents startup, edit your configuration to remove or change it, then start KeyPath again.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
