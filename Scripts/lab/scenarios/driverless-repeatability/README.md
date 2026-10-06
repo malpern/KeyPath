@@ -65,3 +65,28 @@ short transfer loader and physical client/baseline remain pinned external
 experimental dependencies. This consolidation does not claim to remove them.
 Do not migrate unchanged dependencies merely to expand this task. The installer
 correction is integrated in the maintained vm-lab `rig/artifact-stage.py`.
+
+## Retained Caps marker recovery case
+
+The existing signed checkpoint can terminate the worker after its mapping write
+child joined but before clearing its uncertainty marker. This does not simulate
+a child still writing. `caps_action.py` reuses the existing bounded guest Caps
+profile/selection commands; `checkpoint_launch.py LABEL DEVICE_JSON` opts into
+that exact DEBUG checkpoint for the selected ESP32 only.
+
+`marker_action.py LABEL DEVICE_JSON [PRIOR_LABEL [REPLACEMENT_PARENT_PID]]`
+observes the retained journal, marker and applied mapping. Replacement-parent
+observation requires a prior successful receipt with both digests, both recorded
+owner PIDs globally absent, and exactly one explicitly bound normal UID502 parent
+with no worker or target. Observe a normal Quit and absence before normal fresh
+launch; clear only the checkpoint opt-in, retaining the selected-device opt-in.
+Verify a fresh explicit Start refusal and unchanged retained artifacts. Never
+clear the marker or force map restoration. This is the final case in the guest;
+preserve its evidence, then canonically dispose and verify detached USB.
+
+The October5 fresh-parent run on signed bd7809dc1 failed the unchanged-profile
+gate: startup regenerated the Caps fixture. Product1c856d3fe fixes the cached-read
+ownership bypass; its signed live replay is pending. Preserve that failure even
+though a later explicit Restart under the generated default profile safely
+refused recovery with unchanged journal/marker/map. Do not substitute a changed
+profile or loosen the observer to turn this into a pass.

@@ -1,0 +1,207 @@
+{
+  "artifactArchiveSHA256": "51c0dae837bbc26f416330e68ddeebab1143c4a0465c9ed60036afe469e0dcc0",
+  "artifactCommit": "bd7809dc1da9b814ac00c826e676c2622d9ab4bd",
+  "cleanup": {
+    "allProcessesAbsent": true,
+    "cleanupVerified": true,
+    "configurationDirectoryNames": [
+      "RuleCollections.json",
+      "keypath-apps.kbd",
+      "keypath.kbd.caps-runtime-01-backup",
+      ".session-caps-mapping",
+      "keypath-device-targeting.manifest",
+      "CustomRules.json",
+      ".backups",
+      ".keypath-rule-write.lock",
+      "keypath.kbd"
+    ],
+    "debugEnvironmentCleared": true,
+    "originalProfileVerified": true,
+    "recoveryFilesPreserved": true
+  },
+  "controllerFailure": {
+    "actualStatus": 1,
+    "at": 1791250364.7527099,
+    "stderr": "",
+    "stdout": "{\n  \"error\" : {\n    \"code\" : \"SNAPSHOT_STALE\",\n    \"message\" : \"Snapshot is stale: target element is no longer available. Re-run peekaboo see to refresh.\"\n  },\n  \"debug_logs\" : [\n    \"[2026-10-06T01:32:44.468Z] DEBUG: Runtime host: remote gui via \\/Users\\/keypathqa_438d6abc\\/Library\\/Application Support\\/Peekaboo\\/bridge.sock (build 3.10.0 (3100099))\"\n  ],\n  \"success\" : false\n}\n"
+  },
+  "date": "2026-10-05",
+  "destroy": {
+    "actualStatus": 0,
+    "at": 1791250575.9684842,
+    "stderr": "",
+    "stdout": "warning: could not stop GitHub Actions hydration for cbx_5c4f0b8aa38a: write GitHub Actions hydration stop marker on 10.211.55.170: exit status 255\ndeleted lease=cbx_5c4f0b8aa38a server=2dc42f3e-1d32-4875-8fec-8cb10b3dca40 name=crabbox-cbx-5c4f0b8aa38a-keypath26-bd7809dc-20261006011926-65517\n"
+  },
+  "independentCleanup": {
+    "fixture": [
+      {
+        "Autoconnect-Action": "ask",
+        "Autoconnect-Vm-Uuid": "",
+        "Compatible-with-macOS-VM": "YES",
+        "Connected-To-Vm": "NO",
+        "Name": "KeyPath Physical HID Fixture",
+        "Present-On-Host": "YES",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC"
+      }
+    ],
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true
+  },
+  "limits": [
+    "Original unchanged-profile fresh-parent gate failed and remains unaccepted.",
+    "Explicit restart refusal and byte-identical journal/marker/map were observed under regenerated default profile.",
+    "No physical keystroke campaign in this case.",
+    "Checkpoint is after joined HID write, not child-inflight or active HID mutation.",
+    "The old main binary was tested; the cache-preservation source fix is not guest-verified here."
+  ],
+  "observedSafety": {
+    "mappingAfterExplicitRestart": {
+      "device": {
+        "locationID": 261095424,
+        "productID": 16400,
+        "registryEntryID": 4294969078,
+        "serialNumber": null,
+        "vendorID": 51966
+      },
+      "mappings": [
+        {
+          "HIDKeyboardModifierMappingDst": 30064771181,
+          "HIDKeyboardModifierMappingSrc": 30064771129
+        }
+      ],
+      "raw": "RegistryID  Key                   Value\n1000006f6   UserKeyMapping   (\n        {\n        HIDKeyboardModifierMappingDst = 30064771181;\n        HIDKeyboardModifierMappingSrc = 30064771129;\n    }\n)\n"
+    },
+    "originalOwnersAbsentBeforeRelaunch": true,
+    "recordedOwner": {
+      "bootSessionUUID": "523F6D70-9F69-4B17-A7D5-EE81D3E85598",
+      "generation": "A032947E-116C-4FAA-832A-F82F467B4A4D",
+      "nonce": "A032947E-116C-4FAA-832A-F82F467B4A4D",
+      "parentPID": 2256,
+      "uid": 502,
+      "workerPID": 2266
+    },
+    "replacementParentPID": 2376,
+    "retainedIntentSHA256": "1cf0f90fe42df2ac423ab1911d2bb95a4be71f8ab220d30f057c2528e29e890a",
+    "retainedMarkerSHA256": "a212bada35037007a59e0b47b1560bd7f9f7b0ebee847d53aff91d812b467191",
+    "runtimeAfterExplicitRestart": {
+      "parents": [
+        {
+          "arguments": [
+            "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+          ],
+          "executable": "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "pid": 2376,
+          "uid": 502
+        }
+      ],
+      "target": null,
+      "workers": []
+    },
+    "visibleError": "Caps mapping could not be restored safely. Restart was refused; its recovery record was retained."
+  },
+  "originalCaseFailure": {
+    "actualStatus": 79,
+    "at": 1791250369.36499,
+    "stderr": "",
+    "stdout": "{\"readOnly\": true, \"observed\": false, \"errorType\": \"RuntimeError\", \"error\": \"managed Caps profile changed\"}\n"
+  },
+  "originalCasePassed": false,
+  "owned": {
+    "createdEpoch": 1791249566,
+    "cutoffUTC": "2026-10-06T02:13:26+00:00",
+    "hardCutoffEpoch": 1791252806,
+    "ip": "10.211.55.170",
+    "lease": "cbx_5c4f0b8aa38a",
+    "manifestExpiresEpoch": 1791253166,
+    "observedAtEpoch": 1791249620.020879,
+    "physicalReleased": false,
+    "provider": "2dc42f3e-1d32-4875-8fec-8cb10b3dca40",
+    "slug": "keypath26-bd7809dc-20261006011926-65517",
+    "stageReleased": false,
+    "statusActual": 0
+  },
+  "profileChange": {
+    "actualSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573",
+    "backupLogLocalTime": "18:32:03.500",
+    "bootstrapSaveLocalTime": "18:32:03.513",
+    "cause": "Startup backup cached external profile before collection bootstrap; cached-current fast path incorrectly authorized regeneration.",
+    "expectedSHA256": "62550ca9c13aabd129af7d7b0bfb37ce78925914416f7bbff6fc294e1ab7b035",
+    "generatedCommitLocalTime": "18:32:03.784"
+  },
+  "rawEvidenceRoot": "/private/tmp/keypath-marker-fresh-parent-live-01",
+  "sources": {
+    "changed-profile-recovery01-result.json": {
+      "bytes": 19525,
+      "sha256": "b47c2727601f574f98580a52018009c030ae854b91c433099b608f8929627492"
+    },
+    "checkpoint01-result.json": {
+      "bytes": 276,
+      "sha256": "eca0844dc5b95dda509608ac7b7e4c942e84606154ab38067a4ffb1a3f0d6b33"
+    },
+    "create-claim.json": {
+      "bytes": 1828,
+      "sha256": "25a883d071aceee950fa27477458f2e459e0f8c1dcf49e0fa8f0a7cb5f86afc8"
+    },
+    "create-result.json": {
+      "bytes": 1196,
+      "sha256": "62f9098652d4e983b5ff84c8c11004da91032419825742e8517b7feabeeae53b"
+    },
+    "destroy-result.json": {
+      "bytes": 368,
+      "sha256": "3624ae558fbbd6caaf25ef5d9d65842842e5dc11faa59670bb7b7c9cca4f5a92"
+    },
+    "final-preserve01-result.json": {
+      "bytes": 19759,
+      "sha256": "535b81573b68a6330d4eade67e05d9e73ad5e7b4476e9eab9eac9974bff14df7"
+    },
+    "fresh-diagnose01-result.json": {
+      "bytes": 22168,
+      "sha256": "ea62d0f3ec76c5506326a590a7c8485e793a5f67d5e89d9642ca538089470d00"
+    },
+    "fresh-parent-launch01-result.json": {
+      "bytes": 340,
+      "sha256": "1d9bd3371637fe839c5c8fa2069e4ba6a5d4845f8f42d591d8e141acc778b1ce"
+    },
+    "fresh-parent01-result.json": {
+      "bytes": 347,
+      "sha256": "a6a54df2b8141f35f8cc6f9f79468c5880a3bce995ea09c391e7cbc106813548"
+    },
+    "independent-provider-cleanup02.json": {
+      "bytes": 437,
+      "sha256": "b41479d56d08a0fc56977c0cecd692e9591905beaf24cd21417a75502a24d73a"
+    },
+    "marker-fresh01-result.json": {
+      "bytes": 194,
+      "sha256": "b75efe7572ff602eb80f4aeefb7df6a51e9c57882a647289d459bf80b0334804"
+    },
+    "marker-stopped01-result.json": {
+      "bytes": 21221,
+      "sha256": "5cd7778457e83bccd8694770833e7f1b5964e6489b7fef09685ac0c0a1f4df2b"
+    },
+    "marker01-result.json": {
+      "bytes": 21243,
+      "sha256": "52c454af39acd28d659047b43925b72d0197105786f0dce078a43fb0431d188d"
+    },
+    "owned-lease.json": {
+      "bytes": 401,
+      "sha256": "74417ef4f79a309eaae81460029db2334eca0aaf3083097d3ede11940b5012c8"
+    },
+    "permissions01-result.json": {
+      "bytes": 1483,
+      "sha256": "e6d98d0f66eb4a8efdd53ab30e057993fd9a0bd69bd06031e7221e43e663e3fa"
+    },
+    "recovery-ui01-result.json": {
+      "bytes": 20577,
+      "sha256": "142eef3c5f97d9865be7a23140c3ae1e3900421e784f2f7ea646a27044726167"
+    },
+    "startup-log01-result.json": {
+      "bytes": 847824,
+      "sha256": "15af481d7bbb24f406d6e92ad46d4dd8248c61d0e6f907602f70a538e10bb47b"
+    },
+    "statusopen01-result.json": {
+      "bytes": 487,
+      "sha256": "0d157d208452aec89f730e395898f14a38c5b148ba65b59645c2a7b947cbcadd"
+    }
+  }
+}
