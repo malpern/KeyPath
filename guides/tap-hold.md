@@ -167,6 +167,8 @@ spc → spc (tap) / lsft (hold)
 
 ### Escape / Caps Lock / Control
 
+The current driverless runtime rejects Caps Lock output, so this double-tap recipe is not eligible. Caps input can still use the supported Escape/Control tap-hold recipe with [managed Caps setup]({{ '/guides/driverless-caps-lock/' | relative_url }}).
+
 ```
 caps → esc (single tap) / caps (double tap) / lctl (triple tap)
 ```
@@ -215,6 +217,8 @@ Tap-hold gives you two actions per key (tap and hold). Tap-dance goes further �
   2 taps → Caps Lock (when you actually need it)
   3 taps → Toggle a layer
 ```
+
+The Caps Lock output in this example is not supported by the current driverless runtime. Choose a supported key or layer action for the second tap instead; Caps input still requires [managed Caps setup]({{ '/guides/driverless-caps-lock/' | relative_url }}).
 
 This is great for keys you rarely use in their original form. Pack multiple functions into one key without adding complexity to everyday typing — you only get the multi-tap action when you deliberately tap quickly.
 

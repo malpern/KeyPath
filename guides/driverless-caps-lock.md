@@ -65,7 +65,7 @@ F19, F20, or another intermediate key.
 - Existing Caps mappings or mappings using F18 on that device cause refusal;
   KeyPath does not silently overwrite them.
 - Managed mode does not support emitting Caps Lock or F18 as output. Recipes such
-  as double-tap to restore Caps Lock are not covered by this experiment.
+  as double-tap to restore Caps Lock are not supported in managed driverless mode.
 - Protected password fields and Secure Input do not gain dynamic remapping from
   this workaround. Do not rely on a Caps remap for password entry.
 - KeyPath records the original device mapping and checks ownership before

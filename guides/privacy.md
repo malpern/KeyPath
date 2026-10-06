@@ -17,7 +17,7 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 ## The short version
 
 - **No telemetry.** KeyPath collects no analytics, usage metrics, or crash reports. Zero.
-- **No phoning home.** The only network request KeyPath makes is checking for updates. You can disable that too.
+- **Manual updates.** Download Update opens the official releases page in your browser. This build does not automatically check for or install updates.
 - **No logging.** KeyPath does not record, store, or transmit your keystrokes.
 - **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
 - **Everything stays on your Mac.** Configuration and logs are local files you own and control.
