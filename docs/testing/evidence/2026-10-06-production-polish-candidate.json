@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "sourceCommit": "ef53ffb95db57f338ffa3c05547f929f56b550b8",
+  "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+  "baseBundle": "/private/tmp/keypath-onboarding-a49569e20-artifact/KeyPath.app",
+  "artifactKind": "isolated non-DEBUG production shutdown and Caps Lock polish candidate",
+  "rawMainSHA256": "9bf9c7523a94427cc8841650d3f89bddf6e174ea0b0be2ff8804e868361bafdb",
+  "packagedMainSHA256": "275bdc5f3576cb061b892d9031b5778fb10b8e6af7c1d09abb35f04b1a7bceeb",
+  "packagedMainSize": 58146544,
+  "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+  "archive": "keypath-production-polish-clean.zip",
+  "archiveSHA256": "2a2e077e72818da31ebe2f2ba4f763bd08ff687833d00db53bc34bbd678ca1cc",
+  "archiveSizeBytes": 84981688,
+  "changedBundlePaths": [
+    "Contents/MacOS/KeyPath"
+  ],
+  "preservedFileCount": 232,
+  "archiveMetadataExcluded": true,
+  "strictSignatureVerified": true,
+  "teamID": "X2RKZ5TG99",
+  "hardenedRuntime": true,
+  "entitlementsUnchanged": true,
+  "packagedFrameworkRpathVerified": true,
+  "hostInstalled": false,
+  "notarized": false,
+  "timestamped": false,
+  "guestAcceptanceClaimed": false,
+  "managedCapsDefaultEnabled": false,
+  "resources": "Preserved prior frameworks/resources/Metal; no fresh Metal compilation",
+  "buildLog": "/private/tmp/keypath-production-polish-release-build/full-build.log",
+  "buildSeconds": 231.43,
+  "testLogs": [
+    "/private/tmp/keypath-termination-build-v1/",
+    "/private/tmp/keypath-caps-polish-build-v2/"
+  ],
+  "independentSourceReview": "passed within documented observed-update and polish scopes",
+  "nextAcceptance": "fresh signed visual/onboarding/normal Quit, after update-flow preference is resolved"
+}
