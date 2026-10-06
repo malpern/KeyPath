@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "sourceCommit": "b11ef90c918b8811251bb2ac32db1646c923f752",
+  "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+  "baseBundle": "/private/tmp/keypath-onboarding-a49569e20-artifact/KeyPath.app",
+  "artifactKind": "isolated non-DEBUG manual-download production candidate",
+  "rawMainSHA256": "bd4ce30e2eaf9aab94fd3a7b732dcfb0e68f64128a5c0815fe6b1566ae8982b1",
+  "packagedMainSHA256": "96501aaf2e5a3008ae0926f0805b317df46fed7ad14a233cb3874784fce22579",
+  "packagedMainSize": 58144320,
+  "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+  "archive": "keypath-manual-download-clean.zip",
+  "archiveSHA256": "2486f268770435615baae3eb664a88a472b4b29c2cb5c50df2443c53b33314e6",
+  "archiveSizeBytes": 84980135,
+  "changedBundlePaths": [
+    "Contents/MacOS/KeyPath"
+  ],
+  "preservedFileCount": 232,
+  "archiveMetadataExcluded": true,
+  "strictSignatureVerified": true,
+  "teamID": "X2RKZ5TG99",
+  "hardenedRuntime": true,
+  "entitlementsUnchanged": true,
+  "packagedFrameworkRpathVerified": true,
+  "hostInstalled": false,
+  "notarized": false,
+  "timestamped": false,
+  "guestAcceptanceClaimed": false,
+  "managedCapsDefaultEnabled": false,
+  "resources": "Preserved prior frameworks/resources/Metal; no fresh Metal compilation",
+  "validation": {
+    "focusedTestsPassed": 13,
+    "compilerWarnings": 0,
+    "appWarnings": 0,
+    "appErrors": 0,
+    "accessibilityFilesChecked": 380,
+    "independentSourceReview": "no concrete blocker",
+    "logs": "/private/tmp/keypath-manual-download-tests-v1",
+    "releaseBuildSeconds": 166.7,
+    "metalPluginRestored": true
+  },
+  "limitations": [
+    "Not notarized or timestamped",
+    "Final live acceptance pending",
+    "Does not cancel installers staged by an older build",
+    "Broader keyboard and genuine OS timeout qualification remain open"
+  ]
+}
