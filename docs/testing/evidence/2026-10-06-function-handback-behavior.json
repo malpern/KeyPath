@@ -289,9 +289,33 @@
     "No general all-modifier-up acceptance",
     "No Apple built-in Fn/Globe proof",
     "No shipping stability claim",
-    "No genuine OS timeout claim"
+    "No genuine OS timeout claim",
+    "Both Quartz source observations were made after release and before first ordinary input; they were not an atomic observation at physical Caps-up."
   ],
   "originalMappingRestored": true,
+  "preDispatchRefusals": [
+    {
+      "actualStatus": 1,
+      "correction": "Use reviewed absolute trial receipt path.",
+      "operation": "baseline01",
+      "physicalDispatched": false,
+      "reason": "attachment receipt path refused"
+    },
+    {
+      "actualStatus": 1,
+      "correction": "Refresh read-only attachment proof immediately adjacent to sample invocation.",
+      "operation": "baseline01",
+      "physicalDispatched": false,
+      "reason": "fresh attachment proof required"
+    },
+    {
+      "actualStatus": 1,
+      "correction": "Reviewed complete repeat-aware journal validation; original raw before/intent retained.",
+      "operation": "function01",
+      "physicalDispatched": false,
+      "reason": "balanced prior target events required"
+    }
+  ],
   "priorRepeat": {
     "checkerCorrection": "Diagnostic-only complete repeat-aware journal fold; ordinary admission and unknown CG-bit refusal unchanged; 12 tests and independent review passed.",
     "downs": 2,

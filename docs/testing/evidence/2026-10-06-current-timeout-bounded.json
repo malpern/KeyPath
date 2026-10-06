@@ -1,0 +1,194 @@
+{
+  "classification": "bounded-investigation-complete-timeout-coverage-unverified",
+  "strictAcceptancePassed": false,
+  "strictFailure": "genuine owned result required",
+  "guestTransportStatus": 0,
+  "lease": "cbx_5287c39a94f4",
+  "candidateBinarySHA256": "62acf79cd61f8e851f99d5e14923c00fb71d710325925078bbe39f884fb75390",
+  "durationMillis": 1000,
+  "markerIntervalSeconds": 1.003625125,
+  "delayReceipts": {
+    "entered": {
+      "durationMillis": 1000,
+      "monotonicNanos": 542680421416,
+      "nonce": "B589BC08-8179-4CC9-83A4-C210E793FA05",
+      "parentPID": 2234,
+      "phase": "entered",
+      "pid": 2244,
+      "sequence": 1,
+      "uid": 502,
+      "version": 1
+    },
+    "returned": {
+      "durationMillis": 1000,
+      "monotonicNanos": 543684046541,
+      "nonce": "B589BC08-8179-4CC9-83A4-C210E793FA05",
+      "parentPID": 2234,
+      "phase": "returned",
+      "pid": 2244,
+      "sequence": 1,
+      "uid": 502,
+      "version": 1
+    }
+  },
+  "firstTerminal": null,
+  "workerExited": false,
+  "finalWorker": {
+    "state": "running",
+    "tapActive": true,
+    "heldOutputUsages": [],
+    "experimentalTapTimeout": {
+      "callbackFirstResult": "delayAdmitted",
+      "initialization": "initialized",
+      "preparation": "commandAdmitted"
+    }
+  },
+  "physicalTrace": [
+    {
+      "sequence": 1,
+      "scheduledUs": 755950192237,
+      "submittedUs": 755950192256,
+      "latenessUs": 19,
+      "modifiers": 0,
+      "keys": [
+        20,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sequence": 2,
+      "scheduledUs": 755953192237,
+      "submittedUs": 755953192269,
+      "latenessUs": 32,
+      "modifiers": 0,
+      "keys": [
+        20,
+        5,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sequence": 3,
+      "scheduledUs": 755953242237,
+      "submittedUs": 755953242264,
+      "latenessUs": 27,
+      "modifiers": 0,
+      "keys": [
+        20,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "sequence": 4,
+      "scheduledUs": 755958192237,
+      "submittedUs": 755958192259,
+      "latenessUs": 22,
+      "modifiers": 0,
+      "keys": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "finalTarget": {
+    "aDowns": 31,
+    "downs": 32,
+    "ups": 2,
+    "held": [],
+    "modifiers": 0,
+    "text": "ab",
+    "focusLost": false,
+    "keyEventsDropped": 0
+  },
+  "cleanup": {
+    "stopped02-result.json": {
+      "actualStatus": 0,
+      "stdout": "{\"parents\": [], \"target\": null, \"workers\": []}\n",
+      "stderr": "",
+      "at": 1791270233.493303
+    },
+    "restore01-result.json": {
+      "actualStatus": 0,
+      "stdout": "{\"profileRestored\": true, \"profileSHA256\": \"65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573\"}\n",
+      "stderr": "",
+      "at": 1791270244.516221
+    },
+    "destroy-result.json": {
+      "actualStatus": 0,
+      "stdout": "warning: could not stop GitHub Actions hydration for cbx_5287c39a94f4: write GitHub Actions hydration stop marker on 10.211.55.180: exit status 255\ndeleted lease=cbx_5287c39a94f4 server=efdef3ef-5b2e-4857-afab-a36af3001fdd name=crabbox-cbx-5287c39a94f4-keypath26-60dfd2d3-20261006065244-92513\n",
+      "stderr": "",
+      "elapsedSeconds": 6.219381093978882,
+      "at": 1791270278.3972712
+    },
+    "independent-provider-cleanup02.json": {
+      "actualStatus": 0,
+      "stdout": "{\"passed\": true, \"providerAbsent\": true, \"templateStoppedRetained\": true, \"fixture\": [{\"Name\": \"KeyPath Physical HID Fixture\", \"System name\": \"3110000|cafe|4010|full|--|2884855553BC\", \"Autoconnect-Vm-Uuid\": \"\", \"Autoconnect-Action\": \"ask\", \"Present-On-Host\": \"YES\", \"Connected-To-Vm\": \"NO\", \"Compatible-with-macOS-VM\": \"YES\"}]}\n",
+      "stderr": "",
+      "at": 1791270388.852332
+    }
+  },
+  "limitations": [
+    "No genuine OS timeout notification was observed; timeout cleanup, fail-open and restart remain unverified.",
+    "Marker interval is not the duration of the entire callback.",
+    "The held-output proof precedes B trigger; conservative clock bounds do not establish Q dispatch before held observation.",
+    "Undefined combined-session modifier bit 0x20000000 remains; no full modifier all-up claim.",
+    "Failed raw acceptance is retained. No longer stall or identical replay is planned."
+  ],
+  "rawEvidence": [
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/owned-lease.json",
+      "sha256": "fb9659a686609fc52f415f928597787e4cf02a04036d55555a7a9a395fac5d4c"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/helper-source-pins.json",
+      "sha256": "186777cbef45af98967c9950a37825805db66c2ad964c959be781871d3f7b3d7"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/timeout01result.json",
+      "sha256": "f8d902ca471cda6bcefa03ced4903d56d150f474b875f39a87501d38ca7cc16a"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/timeout01guest-result.json",
+      "sha256": "cc302471dc4105eea90fdec1f1f488861cc7daabba276ccb5ef20a6e55c3af36"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/timeout01ready-verified.json",
+      "sha256": "8c889bdce43875f73282064c3a5a31a4392d19cbf512fe670d0d5d353b1bbd8d"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/timeout01fixture-complete.json",
+      "sha256": "f290d4384e313bc77d9d1e5dd02eaf179df404cbb6803c654b59a0ca059dbafe"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/stopped02-result.json",
+      "sha256": "baffe03cbb13521d33a497df178a4a82d4701ac0ef11f4951b457998e710eeb6"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/restore01-result.json",
+      "sha256": "9c703fa3b13d99aaa233f9ae7888f11fd43610e39f707c7cbf5608d492230379"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/destroy-result.json",
+      "sha256": "faf6dec2c698806ccb2d8c54b9af333adba715bc8e75d696094a699fb4fc6dd5"
+    },
+    {
+      "path": "/private/tmp/keypath-timeout-current-live-01/independent-provider-cleanup02.json",
+      "sha256": "d8dfb2f8e2a63d14981f6d34c66b4b412c2a30f158d4aa8dd2fd60cdda04c595"
+    }
+  ]
+}
