@@ -1,0 +1,206 @@
+{
+  "source_commit": "a07a10391f6fac7644f20fbc049f8829ab677140",
+  "base_shipping_runtime_commit": "770741f4035203ebbdc60168767a1552720cfddc",
+  "artifact": "DEBUG timeout diagnostic ON; not shipping",
+  "lease": "cbx_e62457fec793",
+  "classification": "no-genuine-timeout-observed",
+  "empirical_timeout_accepted": false,
+  "raw_passed": false,
+  "raw_error": "genuine owned result required",
+  "requested_delay_millis": 1000,
+  "measured_delay_seconds": 1.001452792,
+  "delay_receipts": {
+    "entered": {
+      "durationMillis": 1000,
+      "monotonicNanos": 2108033357041,
+      "nonce": "26574F72-D107-48CF-8C9B-E9E5FEA308FF",
+      "parentPID": 4436,
+      "phase": "entered",
+      "pid": 4554,
+      "sequence": 1,
+      "uid": 502,
+      "version": 1
+    },
+    "returned": {
+      "durationMillis": 1000,
+      "monotonicNanos": 2109034809833,
+      "nonce": "26574F72-D107-48CF-8C9B-E9E5FEA308FF",
+      "parentPID": 4436,
+      "phase": "returned",
+      "pid": 4554,
+      "sequence": 1,
+      "uid": 502,
+      "version": 1
+    }
+  },
+  "fixture": {
+    "runId": "timeout-7631bbce2893487785e8e4a61c01eb7f",
+    "reportsSubmitted": 4,
+    "trace": [
+      {
+        "sequence": 1,
+        "scheduledUs": 802133130344,
+        "submittedUs": 802133130356,
+        "latenessUs": 12,
+        "modifiers": 0,
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "sequence": 2,
+        "scheduledUs": 802136130344,
+        "submittedUs": 802136130359,
+        "latenessUs": 15,
+        "modifiers": 0,
+        "keys": [
+          20,
+          5,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "sequence": 3,
+        "scheduledUs": 802136180344,
+        "submittedUs": 802136180345,
+        "latenessUs": 1,
+        "modifiers": 0,
+        "keys": [
+          20,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "sequence": 4,
+        "scheduledUs": 802141130344,
+        "submittedUs": 802141130368,
+        "latenessUs": 24,
+        "modifiers": 0,
+        "keys": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  "held_proof": {
+    "target": {
+      "pid": 4702,
+      "nonce": "EFE526D3-9D76-45F0-A5C8-D5036A9639B2",
+      "text": "a",
+      "held": [
+        0
+      ],
+      "modifiers": 0,
+      "active": true,
+      "focusLost": false,
+      "downs": 1,
+      "ups": 0
+    },
+    "workerHeldOutputUsages": [
+      4
+    ]
+  },
+  "raw_timeout_callbacks": 0,
+  "raw_user_disable_callbacks": 0,
+  "post_delay_registered_tap": {
+    "enumerationAttempted": true,
+    "outcome": "observed",
+    "queryLimit": 128,
+    "rawAccessibility": "granted",
+    "rawListenEvent": "granted",
+    "rawPostEvent": "granted",
+    "requestedMask": 7168,
+    "rows": [
+      {
+        "enabled": true,
+        "mask": 7168,
+        "timing": {
+          "avgUsecLatency": 126.04161,
+          "eventTapID": 1653377373,
+          "maxUsecLatency": 341,
+          "minUsecLatency": 52.708332,
+          "options": 0
+        }
+      }
+    ]
+  },
+  "first_terminal": null,
+  "worker_exited": false,
+  "final_target": {
+    "pid": 4702,
+    "nonce": "EFE526D3-9D76-45F0-A5C8-D5036A9639B2",
+    "text": "ab",
+    "held": [],
+    "modifiers": 0,
+    "active": true,
+    "focusLost": false,
+    "downs": 32,
+    "ups": 2
+  },
+  "final_worker": {
+    "state": "running",
+    "tapActive": true,
+    "heldOutputUsages": []
+  },
+  "independent_after_worker": {
+    "pid": 4554,
+    "state": "running",
+    "tapActive": true,
+    "heldOutputUsages": []
+  },
+  "interpretation": "One bounded1000ms physical experiment completed without OS timeout. This does not prove timeout-triggered release, post-timeout original typing or fresh-worker remap. No repeat authorized.",
+  "cleanup": {
+    "completedAtUTC": "2026-10-06T19:54:50Z",
+    "canonicalDestroyStatus": 0,
+    "hydrationStopWarningStatus": 255,
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixtureDisconnected": true,
+    "persistentUsbBinding": false,
+    "activeLeases": [],
+    "passed": true
+  },
+  "receipts": [
+    {
+      "path": "/private/tmp/keypath-production-physical-final-02/finaltimeout01result.json",
+      "sha256": "9e79e3bd87e85661411b683b12d6d4fd8c0ba83b2aa1f20fe5eb12ff8fdbf78f"
+    },
+    {
+      "path": "/private/tmp/keypath-production-physical-final-02/onaftertimeout01-result.json",
+      "sha256": "3735f1d74a684f8edff46eeddbcdabe945b2db0297597aab7f7dc0f14f1f2855"
+    },
+    {
+      "path": "/private/tmp/keypath-production-physical-final-02/canonical-cleanup-summary.json",
+      "sha256": "22a278b8e4d9c6b92920c4a06f7dd2ecda72bc89e786bf5b07fb1e85b77aec7a"
+    },
+    {
+      "path": "/private/tmp/keypath-production-physical-final-02/destroy-result.json",
+      "sha256": "b95e0b957307ec68296a00652a72ef87898c04c4e2d89f38c65e61bf963783bf"
+    },
+    {
+      "path": "/private/tmp/keypath-production-physical-final-02/independent-provider-cleanup02.json",
+      "sha256": "49d6e2ae8215dcabe71dacffb9b63eddbbb6aa558c4ce6032e7e691c40627548"
+    },
+    {
+      "path": "/private/tmp/keypath-production-physical-final-02/timeout-acceptance-summary.json",
+      "sha256": "510086c5ca285300d1f28b66518acce823715a2c01509a60d45c06349d2bddd0"
+    }
+  ]
+}
