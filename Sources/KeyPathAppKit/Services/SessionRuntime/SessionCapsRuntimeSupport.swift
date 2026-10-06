@@ -45,10 +45,13 @@ enum SessionCapsRuntimeSupport {
         let usages = SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
         let legacy = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath, supportedUsages: usages)
         if case .valid = legacy { return (legacy, false) }
+        // Parse eligibility before consent so stale setup cannot disguise an
+        // unrelated syntax or unsupported-action error. This acquires no mapping.
+        let managed = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath,
+                                                             supportedUsages: usages, managedCaps: true)
+        guard case .valid = managed else { return (legacy, false) }
         do {
-            guard try selectedDevice(environment: environment, selectionData: selectionData) != nil else { return (legacy, false) }
-            let managed = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath,
-                                                                 supportedUsages: usages, managedCaps: true)
+            guard try selectedDevice(environment: environment, selectionData: selectionData) != nil else { throw Refusal.selection }
             return (managed, true)
         } catch {
             return (.invalid(reason: "Caps Lock setup needs a current keyboard selection with F18 reserved. Open Settings > General to select your keyboard"), false)

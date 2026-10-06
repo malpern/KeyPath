@@ -31,7 +31,9 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
                                "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18": "1"]
         try "(defsrc caps)(deflayer base esc)".write(to: file, atomically: true, encoding: .utf8)
         let disabled = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: [:])
-        guard case .invalid = disabled.result else { return XCTFail("Caps must require opt-in") }
+        guard case let .invalid(reason) = disabled.result else { return XCTFail("Caps must require opt-in") }
+        XCTAssertTrue(reason.contains("Settings > General"))
+        XCTAssertFalse(reason.contains("driver backend"))
         XCTAssertFalse(disabled.managedCaps)
         let validatedDigest = try SessionCapsRuntimeSupport.configSHA256(file.path)
         let enabled = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: environment)
@@ -54,6 +56,15 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
                                                                      environment: [:], selectionData: staleData)
         guard case .invalid = capsWithStaleConsent.result else { return XCTFail("Caps needs fresh consent") }
         XCTAssertFalse(capsWithStaleConsent.managedCaps)
+        try "(defsrc caps)(deflayer base".write(to: file, atomically: true, encoding: .utf8)
+        let malformed = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+                                                           environment: [:], selectionData: nil)
+        let malformedWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+                                                                           environment: [:], selectionData: staleData)
+        guard case let .invalid(parserReason) = malformed.result,
+              case let .invalid(staleReason) = malformedWithStaleConsent.result else { return XCTFail("Malformed syntax must remain invalid") }
+        XCTAssertEqual(staleReason, parserReason, "Stale consent must not replace the actual parser diagnosis")
+        XCTAssertFalse(staleReason.contains("Settings > General"))
     }
 
     func testOrphanMutationMarkerBlocksRecoveryEvenWithoutIntent() throws {

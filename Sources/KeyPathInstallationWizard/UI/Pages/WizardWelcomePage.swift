@@ -45,12 +45,12 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.36, green: 0.40, blue: 0.47),
                 rotation: -6,
                 yOffset: 8,
-                caption: "Customize\nyour keys",
+                caption: "Caps Lock\ntap + hold",
                 visible: keycapsVisible,
                 delay: 0.0
             ) {
                 VStack(spacing: 3) {
-                    Text("esc")
+                    Text("Caps Lock")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                     Image(systemName: "sparkle")
                         .font(.system(size: 12, weight: .bold))
@@ -93,7 +93,7 @@ struct WizardWelcomePage: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "KeyPath superpowers: customize your keys, arrows on the home row, tile windows without the mouse, launch anything from a key"
+            "KeyPath superpowers: remap Caps Lock with different actions for taps and holds, arrows on the home row, tile windows without the mouse, launch anything from a key"
         )
         .accessibilityIdentifier("wizard-welcome-hero")
     }

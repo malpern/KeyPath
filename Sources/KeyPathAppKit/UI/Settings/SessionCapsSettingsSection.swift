@@ -18,8 +18,8 @@ struct SessionCapsSettingsSection: View {
                 .foregroundStyle(.secondary)
             Text("Use Caps Lock for a remap or a different action when held. Setup supports one compatible keyboard and reserves F18.")
                 .font(.subheadline)
-            if let device {
-                Text("Connected keyboard · \(device.vendorID):\(device.productID)")
+            if device != nil {
+                Text("Compatible keyboard connected")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

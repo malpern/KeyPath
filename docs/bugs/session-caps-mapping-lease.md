@@ -138,3 +138,11 @@ before acquisition mutation and after readback; removal/replacement refuses
 instead of publishing successful ownership. Focused acquisition negatives pass.
 These hardening changes were source-reviewed and tested after the live cycle;
 they have not received a separate fresh live mapping trial.
+
+## Production opt-in acceptance — October 6
+
+Signed non-debug567b285fc passed normal Settings keyboard review/F18 reservation/Enable. Real ESP32 tap → Escape and hold → Control passed exact independent event ledgers, worker deltas, two-report traces and all-up. UI Disable stopped the worker, restored the original empty map and removed intent; a fresh launch with disabled consent refused unchanged Caps rules without a worker or HID mutation. Original profile restoration, normal Quit, canonical disposal and independent provider/base/detached nonpersistent fixture checks passed. Selected footprint evidence: `docs/testing/evidence/2026-10-06-production-caps-lock-acceptance.json`; raw `/private/tmp/keypath-caps-production-live-01`. No DEBUG flags/notarization/host changes.
+
+The refusal UI still incorrectly suggested a driver for eligible Caps rules without consent. The corrected parent/worker admission asks the real parser whether managed Caps would be eligible without acquiring a mapping; eligible profiles now direct the user to Settings > General, while other unsupported profiles retain their actual refusal. Existing actual-bridge admission coverage verifies that missing consent stays invalid and guidance does not request a driver. Polish suite21 passed, accessibility380 and whitespace passed; logs `/private/tmp/keypath-caps-polish-build-v2/`. Brief onboarding tap/hold mention restored and numeric device IDs removed from General copy. Final signed visual acceptance remains open.
+
+Independent review caught stale consent masking unrelated parser errors; managed eligibility now precedes consent decoding. The actual-bridge malformed-profile regression passed, and independent rereview found no remaining scoped blocker. Initial v1 is retained separately.

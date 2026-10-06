@@ -91,3 +91,7 @@ an important shortcut in another app. Changing it also requires coordinated
 updates to macOS's mapping, input interpretation, configuration validation, and
 crash recovery. This is more than replacing one constant, and live switching
 while a key is held would add unnecessary risk.
+
+## Tested production flow
+
+The non-debug build passed explicit keyboard/F18 setup, physical Caps Lock tap → Escape and hold → Control, clean release, Disable restoration and disabled-consent startup refusal on the ESP32 fixture. Other keyboards and reboot/reselection remain part of release qualification. Caps Lock tap/hold is briefly mentioned in onboarding; setup details remain in this guide.
