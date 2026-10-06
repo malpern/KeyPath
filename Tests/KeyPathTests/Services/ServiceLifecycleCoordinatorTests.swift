@@ -86,6 +86,69 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(launches, 1)
     }
 
+    func testTerminationPreparationSurvivesUpdateAbortAndRefusesQueuedStartsButAllowsStop() async throws {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0, stops = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        defer {
+            ServiceLifecycleCoordinator.testSessionStart = nil
+            ServiceLifecycleCoordinator.testSessionStop = nil
+        }
+        let coordinator = coordinator!
+        let generation = coordinator.sessionIntentGeneration
+        let blocker = Task { @MainActor in
+            try await coordinator.sessionOperationGate.withOperation { _ in
+                let start = Task { @MainActor in await coordinator.startKanata() }
+                while await coordinator.sessionIntentGeneration == generation {
+                    await Task.yield()
+                }
+                await coordinator.setTerminationPreparationActive(true)
+                let heldGeneration = await coordinator.sessionIntentGeneration
+                await coordinator.setTerminationPreparationActive(true)
+                let repeatedGeneration = await coordinator.sessionIntentGeneration
+                XCTAssertEqual(heldGeneration, repeatedGeneration)
+                await coordinator.setUpdatePreparationActive(true)
+                await coordinator.setUpdatePreparationActive(false)
+                return start
+            }
+        }
+        let queued = try await blocker.value
+        let queuedResult = await queued.value
+        XCTAssertFalse(queuedResult)
+        let started = await coordinator.startKanata()
+        let restarted = await coordinator.restartKanata()
+        let resumed = await coordinator.resumeSessionRuntime(expectedGeneration: coordinator.sessionIntentGeneration)
+        XCTAssertFalse(started)
+        XCTAssertFalse(restarted)
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(launches, 0)
+        let stopped = await coordinator.stopKanata(reason: "Termination cleanup")
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(stops, 1)
+        coordinator.setTerminationPreparationActive(false)
+        let retry = await coordinator.startKanata()
+        XCTAssertTrue(retry)
+        XCTAssertEqual(launches, 1)
+    }
+
+    func testUpdateHoldSurvivesCancelledTermination() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        defer { ServiceLifecycleCoordinator.testSessionStart = nil }
+        coordinator.setUpdatePreparationActive(true)
+        coordinator.setTerminationPreparationActive(true)
+        coordinator.setTerminationPreparationActive(false)
+        let blocked = await coordinator.startKanata()
+        XCTAssertFalse(blocked)
+        XCTAssertEqual(launches, 0)
+        coordinator.setUpdatePreparationActive(false)
+        let started = await coordinator.startKanata()
+        XCTAssertTrue(started)
+        XCTAssertEqual(launches, 1)
+    }
+
     func testRecoveryRefusalSurvivesNoWorkerStartAndRestartThenClearsOnRecovery() async {
         coordinator.testSessionConfigurationValidation = { .valid }
         ServiceLifecycleCoordinator.testSessionStart = nil

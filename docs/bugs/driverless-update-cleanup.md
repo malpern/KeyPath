@@ -9,3 +9,64 @@ Nine focused tests cover cleanup ordering/refusal/retry, suspended aborts, repla
 ## Remaining release gate
 
 Sparkle does not promise to call shouldPostponeRelaunchForUpdate for every installation, including some termination-time paths. This change validates the postponed continuation, not universal update cleanup. Test and resolve update-on-quit with preserved configuration and Caps recovery before release. Normal app Quit must remain usable during retained uncertainty; do not cancel every Quit and impede system reboot. No signed live updater acceptance or production release is claimed here.
+
+## Graceful app termination
+
+The AppDelegate now defers every graceful Quit until `viewModel.stopKanata`
+returns through the admitted ServiceLifecycleCoordinator. The runtime owns held
+output release and Caps journal recovery; no synchronous replacement cleanup is
+introduced. A separate termination hold invalidates queued starts before the
+first Task hop and rejects new Start, Restart, automatic resume and Caps selection
+while cleanup/termination is pending. Repeated termination requests coalesce.
+An update abort cannot release this separate hold.
+
+Windows close and plugin flushing start only after the cleanup decision. A
+successful stop keeps admission held through the existing bounded plugin flush
+and process exit. A refused ordinary Quit logs uncertainty and still exits; the
+Caps recovery record remains available to the next launch. This failure branch
+replies immediately without a plugin-flush suspension: otherwise an update could
+become staged after the ordinary refusal decision during that optional wait.
+Process exit closes its windows. A refused termination
+with observed update evidence replies false, leaves windows/plugins intact and
+releases only the termination hold so the user can resolve the runtime issue and
+retry. The menu-bar Quit entry no longer closes windows before that decision.
+
+UpdateService records update expectation synchronously in its nonisolated
+Sparkle callbacks, using a lock rather than scheduling that observation on the
+main actor. `willExtractUpdate` runs before installer launch in the bundled
+Sparkle source. `willInstallUpdateOnQuit`, `willInstallUpdate`, and the postponed
+relaunch hook also record evidence. Returning false from install-on-quit observes
+without taking over scheduling; neither return value prevents installation on
+termination. A successful update-cycle completion must not clear this evidence:
+the automatic driver can complete with nil error while its external installer
+remains alive. An extraction error can clear unstaged expectation; once staging
+has been observed a later check error cannot prove that external installer was
+cancelled, so expectation is retained conservatively for this process.
+
+Focused decision tests cover synchronous admission, cleanup before window/plugin
+work, repeated Quit, ordinary cleanup refusal, update staging during suspended
+cleanup, cancelled-update UI preservation, successful retry and staged evidence
+surviving cycle completion. A lifecycle test exercises a queued Start, new Start,
+Restart and resume, stop admission and an overlapping updater abort. The integrated termination/lifecycle/update suite passed (runner 37 passed), with
+no compiler or app warnings/errors, accessibility380 and whitespace checks. Logs:
+`/private/tmp/keypath-termination-build-v1/`. Independent source review found no
+concrete blocker within this observed-update scope. Cached Metal was verified and
+the temporary plugin restored byte-for-byte; no live updater acceptance is claimed.
+
+### Update safety remains a release gate
+
+This closes ordinary graceful Quit and **observed** update termination. It does
+not establish universal Sparkle safety. An external installer staged before this
+app process can survive and be resumed without `willExtractUpdate` in this
+process; callback evidence does not prove absence of that installer. Forced
+termination/process death also bypasses the AppKit decision. Retained staged
+evidence is conservative and can cancel a later refused Quit even if an external
+installer was subsequently cancelled without a definitive callback. Resolve and
+verify these paths with preserved Caps/configuration before public release. Do
+not change this limitation into a claim of universal update cleanup, and do not
+cancel every ordinary Quit as a substitute.
+
+Evidence reviewed in bundled Sparkle 2.9.4: `SPUUpdaterDelegate.h`,
+`SPUCoreBasedUpdateDriver.m` (`extractUpdate`, `installerWillFinishInstallationAndRelaunch`),
+`SPUInstallerDriver.m` (stage 2 may notify installation after target exit), and
+`SPUAutomaticUpdateDriver.m` (scheduled installer survives nil-error completion).

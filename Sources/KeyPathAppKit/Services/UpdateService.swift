@@ -29,6 +29,47 @@ private final class SparkleInstallHandler: @unchecked Sendable {
     }
 }
 
+/// Records delegate evidence inline, before an asynchronous main-actor hop can
+/// lose a race with AppKit termination. Sparkle may finish a successful check
+/// while its external installer remains staged for Quit.
+final class UpdateTerminationExpectation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var expected = false
+    private var staged = false
+
+    var isExpected: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return expected
+    }
+
+    func willExtract() {
+        lock.lock()
+        defer { lock.unlock() }
+        expected = true
+    }
+
+    func willInstall() {
+        lock.lock()
+        defer { lock.unlock() }
+        expected = true
+        staged = true
+    }
+
+    func didFinishCycle(errorOccurred: Bool) {
+        // Successful cycle completion is not installer cancellation.
+        if errorOccurred { didAbort() }
+    }
+
+    func didAbort() {
+        lock.lock()
+        defer { lock.unlock() }
+        // An error during a later update check does not prove that a previously
+        // staged external installer has gone away. Keep that evidence.
+        if !staged { expected = false }
+    }
+}
+
 /// Manages application updates via Sparkle framework
 ///
 /// This service handles:
@@ -45,6 +86,12 @@ public final class UpdateService: NSObject {
     public static let shared = UpdateService()
 
     // MARK: - Properties
+
+    @ObservationIgnored private nonisolated let terminationExpectation = UpdateTerminationExpectation()
+
+    var isUpdateTerminationExpected: Bool {
+        terminationExpectation.isExpected
+    }
 
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
     @ObservationIgnored private let channelDefaultsKey = "keypath.update.channel"
@@ -188,12 +235,30 @@ extension UpdateService: SPUUpdaterDelegate {
         return channel == .beta ? ["beta"] : []
     }
 
+    /// Observed synchronously before Sparkle launches its installer for the
+    /// downloaded archive. This is evidence, not a universal postponement hook.
+    public nonisolated func updater(_: SPUUpdater, willExtractUpdate _: SUAppcastItem) {
+        terminationExpectation.willExtract()
+    }
+
+    public nonisolated func updater(
+        _: SPUUpdater,
+        willInstallUpdateOnQuit _: SUAppcastItem,
+        immediateInstallationBlock _: @escaping () -> Void
+    ) -> Bool {
+        terminationExpectation.willInstall()
+        // Sparkle always attempts installation on termination, with either
+        // return value. Observe it without taking over its scheduler.
+        return false
+    }
+
     /// Notification only: Sparkle does not await asynchronous work here, and
     /// its relaunch postponement callback is not guaranteed on every path.
     public nonisolated func updater(
         _: SPUUpdater,
         willInstallUpdate item: SUAppcastItem
     ) {
+        terminationExpectation.willInstall()
         let version = item.displayVersionString
         Task { @MainActor in
             AppLogger.shared.log("📦 [UpdateService] Installing KeyPath update v\(version)")
@@ -207,6 +272,7 @@ extension UpdateService: SPUUpdaterDelegate {
         shouldPostponeRelaunchForUpdate item: SUAppcastItem,
         untilInvokingBlock installHandler: @escaping () -> Void
     ) -> Bool {
+        terminationExpectation.willInstall()
         let version = item.displayVersionString
         let handler = SparkleInstallHandler(installHandler)
         Task { @MainActor in
@@ -216,6 +282,7 @@ extension UpdateService: SPUUpdaterDelegate {
     }
 
     public nonisolated func updater(_: SPUUpdater, didAbortWithError error: Error) {
+        terminationExpectation.didAbort()
         let nsError = error as NSError
         Task { @MainActor in
             cancelPreparedUpdate()
@@ -239,6 +306,9 @@ extension UpdateService: SPUUpdaterDelegate {
         error: (any Error)?
     ) {
         let nsError = (error as NSError?)
+        // A nil-error completion can leave the external installer staged for
+        // Quit. It must not clear the synchronously observed expectation.
+        terminationExpectation.didFinishCycle(errorOccurred: nsError != nil)
         Task { @MainActor in
             let feedURL = updaterController?.updater.feedURL?.absoluteString
                 ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")

@@ -135,6 +135,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var suppressLaunchSplashAutoHide = false
     private var keyboardCapture: KeyboardCapture?
     private var launchGate = ApplicationLaunchGate()
+    private let terminationCoordinator = ApplicationTerminationCoordinator()
 
     override init() {
         super.init()
@@ -159,6 +160,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         viewModel = result.viewModel
         serviceContainer = result.serviceContainer
         isHeadlessMode = result.isHeadlessMode
+        if terminationCoordinator.isPending {
+            kanataManager?.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
+        }
         if launchGate.didConfigure() {
             finishApplicationLaunch()
         }
@@ -177,42 +181,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
-        // Close wizard and all windows so nothing blocks the quit
+        terminationCoordinator.request(
+            suppressStarts: { [self] active in
+                kanataManager?.serviceLifecycleCoordinator.setTerminationPreparationActive(active)
+            },
+            stop: { [self] in await viewModel?.stopKanata(reason: "Application termination") ?? false },
+            updateExpected: { UpdateService.shared.isUpdateTerminationExpected },
+            cleanupRefused: { cancel in
+                if cancel {
+                    AppLogger.shared.error("⚠️ [AppDelegate] Update termination cancelled: keyboard cleanup could not be verified; windows and recovery evidence retained")
+                } else {
+                    AppLogger.shared.error("⚠️ [AppDelegate] Keyboard cleanup could not be verified; ordinary Quit continues with recovery evidence retained")
+                }
+            },
+            finish: { [self] in await finishGracefulTermination() },
+            reply: { sender.reply(toApplicationShouldTerminate: $0) }
+        )
+        return .terminateLater
+    }
+
+    private func finishGracefulTermination() async {
+        // Only close the UI after the cleanup decision; a cancelled update must
+        // preserve its windows and plugins so the user can resolve the refusal.
         WizardWindowController.shared.closeWindow()
         for window in NSApp.windows {
             window.close()
         }
+        guard !PluginManager.shared.plugins.isEmpty else { return }
 
-        // Give loaded plugins (e.g. Insights) a chance to flush buffered state
-        // before the process exits. Plugin cleanup is async, so defer the quit
-        // and reply once it completes — bounded by a short timeout so a stuck
-        // flush can never block the user from quitting.
-        guard !PluginManager.shared.plugins.isEmpty else {
-            return .terminateNow
-        }
-
-        var didReply = false
-        let reply: @MainActor () -> Void = {
-            guard !didReply else { return }
-            didReply = true
-            sender.reply(toApplicationShouldTerminate: true)
-        }
-
-        PluginManager.shared.prepareForTerminationAll {
-            AppLogger.shared.info("🚪 [AppDelegate] Plugin termination flush complete")
-            reply()
-        }
-
-        // Safety timeout: never let a slow plugin hold up termination.
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if !didReply {
-                AppLogger.shared.log("⚠️ [AppDelegate] Plugin termination flush timed out; quitting anyway")
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var didFinish = false
+            let finish: @MainActor () -> Void = {
+                guard !didFinish else { return }
+                didFinish = true
+                continuation.resume()
             }
-            reply()
+            PluginManager.shared.prepareForTerminationAll {
+                AppLogger.shared.info("🚪 [AppDelegate] Plugin termination flush complete")
+                finish()
+            }
+            // This bounds plugin flushing only, never admitted keyboard cleanup.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                if !didFinish {
+                    AppLogger.shared.log("⚠️ [AppDelegate] Plugin termination flush timed out; quitting anyway")
+                }
+                finish()
+            }
         }
-
-        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
@@ -348,9 +364,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.info(
             "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
         )
-        // Don't broadcast "stopped" here — the LaunchDaemon keeps running
-        // after the UI app quits. Only ServiceLifecycleCoordinator.stopKanata()
-        // should broadcast service state changes.
+        // Admitted runtime cleanup already returned in applicationShouldTerminate;
+        // ordinary Quit may retain evidence when cleanup refuses.
+        // Only ServiceLifecycleCoordinator should broadcast service state changes.
         DistributedNotificationBridge.stop()
         // Flush pending KindaVim telemetry so counters aren't lost on quit (up to one
         // ~5s flush interval would otherwise be dropped — see #690). No-op when disabled.
@@ -733,9 +749,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NotificationCenter.default.post(name: .openSettingsRules, object: nil)
             },
             quitHandler: {
-                for window in NSApplication.shared.windows {
-                    window.close()
-                }
                 NSApplication.shared.terminate(nil)
             }
         )

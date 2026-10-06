@@ -23,11 +23,27 @@ final class ServiceLifecycleCoordinator {
     private(set) var sessionIntentGeneration: UInt64 = 0
     private(set) var sessionWantsRunning = false
     private var updatePreparationActive = false
+    private var terminationPreparationActive = false
+    private var startsSuppressed: Bool {
+        updatePreparationActive || terminationPreparationActive
+    }
 
     /// Updates hold the runtime stopped until installation ends or is aborted.
     /// Invalidate requests already waiting for lifecycle admission as well.
     func setUpdatePreparationActive(_ active: Bool) {
+        guard updatePreparationActive != active else { return }
         updatePreparationActive = active
+        if active {
+            sessionIntentGeneration &+= 1
+            sessionWantsRunning = false
+        }
+    }
+
+    /// Termination and update holds are independent: an updater abort must not
+    /// release starts while graceful Quit is still waiting for its cleanup.
+    func setTerminationPreparationActive(_ active: Bool) {
+        guard terminationPreparationActive != active else { return }
+        terminationPreparationActive = active
         if active {
             sessionIntentGeneration &+= 1
             sessionWantsRunning = false
@@ -39,7 +55,7 @@ final class ServiceLifecycleCoordinator {
     }
 
     func sessionStartIsCurrent(_ generation: UInt64) -> Bool {
-        !updatePreparationActive && generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
+        !startsSuppressed && generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
     }
 
     // MARK: - Runtime Status
@@ -172,8 +188,9 @@ final class ServiceLifecycleCoordinator {
     /// A preference change cannot race an owned Caps lease or a queued launch.
     /// Restore first, then verify the proposed selection, then commit consent.
     func changeCapsSelection(verify: @escaping @Sendable () async throws -> Void,
-                             commit: @escaping @MainActor @Sendable () throws -> Void) async -> Bool {
-        guard !updatePreparationActive, !Task.isCancelled else { return false }
+                             commit: @escaping @MainActor @Sendable () throws -> Void) async -> Bool
+    {
+        guard !startsSuppressed, !Task.isCancelled else { return false }
         sessionIntentGeneration &+= 1
         let generation = sessionIntentGeneration
         sessionWantsRunning = false
@@ -191,7 +208,7 @@ final class ServiceLifecycleCoordinator {
     }
 
     private func commitCapsSelection(generation: UInt64, commit: @MainActor () throws -> Void) throws -> Bool {
-        guard generation == sessionIntentGeneration, !updatePreparationActive, !Task.isCancelled else { return false }
+        guard generation == sessionIntentGeneration, !startsSuppressed, !Task.isCancelled else { return false }
         try commit()
         refreshSessionConfigurationAdmission()
         onStateChanged?()
@@ -199,7 +216,7 @@ final class ServiceLifecycleCoordinator {
     }
 
     private func requestSessionOperation(_ operation: SessionLifecycleOperation) async -> Bool {
-        if case .stop = operation {} else if updatePreparationActive { return false }
+        if case .stop = operation {} else if startsSuppressed { return false }
         // A request already cancelled before entry changes no intent. An accepted
         // stop must still release held outputs even if its caller later cancels.
         if case .stop = operation {} else if Task.isCancelled { return false }
