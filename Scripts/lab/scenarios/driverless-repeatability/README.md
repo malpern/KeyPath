@@ -9,7 +9,7 @@ Set `KEYPATH_TRIAL_DIR` to a newly created, owned mode700 directory. Put a mode6
 commands from this source directory with Python `-B`. Missing environment fails
 before dispatch. Keep this environment on every invocation; never substitute a
 previous trial directory. Source and artifact bindings currently select signed
-`350329b78` and its metadata-free queued-writer archive. Its scoped live results are recorded
+`60dfd2d30` and its metadata-free queued-writer archive. Its scoped live results are recorded
 in the handoff; each new trial still needs fresh identity and consent evidence.
 
 1. Run canonical `vm-lab keypath list` and `preflight`. Check capacity. Locally
@@ -36,7 +36,7 @@ in the handoff; each new trial still needs fresh identity and consent evidence.
    Input Monitoring consent with fresh UI observations, including Quit & Reopen.
    `action.py permissions01 inspect` must show the fresh owned worker running,
    active tap, effective permissions and no held outputs.
-6. Activate the guest app. **Use the visible guest status menu, End, visually confirm Quit KeyPath,
+6. Activate the guest app. **Use the named KeyPath application menu, End, visually confirm Quit KeyPath,
    then Return; never send native `super+q` to Parallels.** Verify absence with
    `action.py stopped01 inspect` before `action.py profile01 profile`.
 7. Attach only the ESP32 temporarily through the owned console Devices menu.
