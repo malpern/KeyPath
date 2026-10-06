@@ -118,6 +118,8 @@ public struct WizardKanataServicePage: View {
             refreshTask?.cancel()
             refreshTask = nil
         }
+        .onChange(of: systemState) { _, _ in refreshStatus() }
+        .onChange(of: issues) { _, _ in refreshStatus() }
     }
 
     // MARK: - Helper Methods
@@ -322,8 +324,8 @@ public struct WizardKanataServicePage: View {
                     issues: issues
                 )
             } else {
-                ServiceStatusEvaluator.evaluate(
-                    kanataIsRunning: runtimeStatus.isRunning,
+                ServiceStatusEvaluator.evaluateObservedRuntime(
+                    runtimeStatus: runtimeStatus,
                     systemState: systemState,
                     issues: issues
                 )

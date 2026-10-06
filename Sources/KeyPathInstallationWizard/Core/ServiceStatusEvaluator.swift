@@ -15,6 +15,24 @@ public enum ServiceProcessStatus: Equatable {
 /// Single source of truth for service status evaluation across all wizard pages
 /// Pure function approach - no side effects, consistent results
 public enum ServiceStatusEvaluator {
+    /// A verified running worker supersedes an earlier instruction to start it.
+    /// Keep permission and actual runtime-failure issues intact.
+    public static func evaluateObservedRuntime(
+        runtimeStatus: WizardRuntimeStatus,
+        systemState: WizardSystemState,
+        issues: [WizardIssue]
+    ) -> ServiceProcessStatus {
+        let currentIssues = issues.filter { issue in
+            !(runtimeStatus.isRunning && systemState == .serviceNotRunning
+                && issue.identifier == .daemon && issue.autoFixAction == .restartCommServer)
+        }
+        return evaluate(
+            kanataIsRunning: runtimeStatus.isRunning,
+            systemState: systemState,
+            issues: currentIssues
+        )
+    }
+
     /// The service page rechecks only while the runtime is genuinely in a
     /// transient startup state. The cap prevents a stale lifecycle signal from
     /// leaving the wizard in an endless spinner.

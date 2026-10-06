@@ -154,7 +154,12 @@ public extension InstallationWizardView {
             // Ensure permissions are verified before auto-advancing.
             // Without this, .unknown permission states (Oracle hasn't finished TCC check)
             // are treated as non-blocking, causing the wizard to skip permission pages.
+            let appliedStateVersion = stateMachine.stateVersion
             let permSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
+            guard stateMachine.stateVersion == appliedStateVersion else {
+                AppLogger.shared.log("🔍 [Wizard] Initial permission follow-up superseded by a newer system check")
+                return
+            }
             let kanataAccessibilityUnknown = permSnapshot.kanata.accessibility == .unknown
             let kanataInputMonitoringUnknown = permSnapshot.kanata.inputMonitoring == .unknown
             if kanataAccessibilityUnknown || kanataInputMonitoringUnknown {
@@ -205,6 +210,7 @@ public extension InstallationWizardView {
             Task { @MainActor in
                 // Never yank the user off the welcome page mid-read; validation has
                 // already resolved by the time they click Get Started, which routes onward.
+                guard stateMachine.stateVersion == appliedStateVersion else { return }
                 guard stateMachine.currentPage != .welcome else { return }
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
