@@ -1,0 +1,47 @@
+{
+  "candidateCommit": "350329b78018ece7d1dacf5b9790d628926be104",
+  "cause": "Unproven. Review DEBUG post-self-SIGKILL throw/defer fallthrough before another VM cycle.",
+  "files": {
+    "attached-baseline01.json": "2998af1157a932caf646a217539d1a51dda1d9e7de1b9193f0b1640cc4b229d2",
+    "destroy-result.json": "71ce1c6e1c612c802a79bf242a98f8147558ca0665dded563d0ae1214986e234",
+    "device01-result.json": "e665c29aa95925b623b7c1efbb43f55e9a50845898f455f7cc980d7140f30cfb",
+    "effective01-result.json": "58275450d75d5d95ca5e41b5115e9c0d81027e7d283486f0bd3a6dec1e469da1",
+    "guest-identity.json": "d3cc74a371fd33d8fde628f287d570caf548c118a44f127e6e11ffeebca12f2c",
+    "independent-provider-cleanup02.json": "acb0fe99e6d6de502be2fcce34855c660cb3ebd031524792a051e86050f6f75e",
+    "install01-verified.json": "751015d99d5be01714c26229f6956c61c690825be352b4583e8aec10198d06a0",
+    "missingchild02-result.json": "f03fd7425d86f3960da0b056e7f2a3fbdebf569c731faf5bfc75e9e93a0810e9",
+    "owned-lease.json": "a2f45c629b01388b137ce3bf446a416361b8816201f9e89c4d037f24e33147d4",
+    "queuedlaunch01-result.json": "ab40d267a1ab1eaec3bab49e3d980a837fb28b5412e5e8d5fac8e1364776c1de",
+    "queuedoriginal01-result.json": "cb3ac617d9a9d508ebd51f27c06a9348ea608903bb5de3c5e66373f21c553d62",
+    "refuseddiagnostic01-result.json": "3355a4c7bd3e8b7d5e568d80089549adc54e39f3d9d8e7535ad2f7e2470c645c",
+    "stopped02-result.json": "aff4c043d885c8069ac16fd4f979c9a0c69dc26eb77c5a07e935a683a3360f6f"
+  },
+  "insideOpaqueMutationProven": false,
+  "lease": "cbx_54c13d30ada2",
+  "observations": {
+    "activeOrdinaryTap": true,
+    "canonicalDestroyStatus": 0,
+    "checkpointChildAbsent": true,
+    "checkpointChildPID": 2283,
+    "effectivePermissions": true,
+    "explicitRestartRefused": true,
+    "hydrationStopWarning": 255,
+    "independentCleanupPassed": true,
+    "intentMarkerUnchanged": true,
+    "normalQuitProcessAbsence": true,
+    "originalMapping": [],
+    "survivingParentPID": 2266,
+    "workerPID": 2276
+  },
+  "physicalEventsSent": false,
+  "provider": "a6ab750a-f8ea-4e90-b97f-d52836f07b48",
+  "queuedWriterAcceptance": false,
+  "remaining": [
+    "fresh-parent queued-child refusal",
+    "late writer execution/readback",
+    "post-late-write refusal"
+  ],
+  "result": "failed queued-child-survival gate; narrower refusal diagnostic preserved",
+  "signalsSent": [],
+  "trial": "/private/tmp/keypath-queued-writer-live-02"
+}
