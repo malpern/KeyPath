@@ -483,13 +483,47 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertTrue(inWindow, "Should be in startup window while start is in progress")
     }
 
+    func testCompletedPermissionRefusalExposesStoppedStateUntilExplicitRetry() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var permissionsGranted = false
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in
+            starts += 1
+            let transient = await self.coordinator.isInTransientRuntimeStartupWindow()
+            let status = await self.coordinator.currentRuntimeStatus()
+            XCTAssertTrue(transient, "An admitted start is transient while its result is pending")
+            XCTAssertEqual(status, .starting)
+            return permissionsGranted
+        }
+        defer { ServiceLifecycleCoordinator.testSessionStart = nil }
+
+        let denied = await coordinator.startKanata(reason: "Automatic start before permission grant")
+        XCTAssertFalse(denied)
+        permissionsGranted = true
+        let status = await coordinator.currentRuntimeStatus()
+        let transient = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertEqual(status, .stopped)
+        XCTAssertFalse(transient, "A completed refusal cannot hide the wizard's Start action")
+        XCTAssertFalse(ServiceStatusEvaluator.shouldRetryTransientStatus(
+            runtimeStatus: .stopped, isInTransientStartupWindow: transient, completedAttempts: 1
+        ))
+        XCTAssertFalse(ServiceStatusEvaluator.didExhaustTransientStatus(
+            runtimeStatus: .stopped, isInTransientStartupWindow: transient, completedAttempts: 30
+        ))
+        XCTAssertEqual(starts, 1, "Permission grant alone does not request another start")
+
+        let retried = await coordinator.startKanata(reason: "Wizard explicit Start after permission grant")
+        XCTAssertTrue(retried)
+        XCTAssertEqual(starts, 2)
+        let afterRetry = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(afterRetry)
+    }
+
     func testNotInStartupWindowWhenIdle() async {
         coordinator.isStartingKanata = false
 
         let inWindow = await coordinator.isInTransientRuntimeStartupWindow()
 
-        // May or may not be in window depending on SMAppService state,
-        // but should not crash
-        XCTAssertNotNil(inWindow)
+        XCTAssertFalse(inWindow, "A newly created idle session has no pending start")
     }
 }

@@ -127,6 +127,7 @@ class MainAppStateController {
     @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
     #if DEBUG
+        @ObservationIgnored private var startupGateNowOverride: (() -> Date)?
         @ObservationIgnored private var startupGatePermissionsOverride: (() async -> PermissionOracle.Snapshot)?
         @ObservationIgnored private var startupGateHealthOverride:
             (() async -> KanataRuntimeReadiness)?
@@ -136,6 +137,7 @@ class MainAppStateController {
             (definitiveGrace: TimeInterval, transientGrace: TimeInterval, checkInterval: TimeInterval)?
 
         func configureStartupGateTestingState(
+            nowOverride: (() -> Date)? = nil,
             permissionsOverride: (() async -> PermissionOracle.Snapshot)? = nil,
             healthOverride: (() async -> KanataRuntimeReadiness)? = nil,
             transientWindowOverride: (() async -> Bool)? = nil,
@@ -145,6 +147,7 @@ class MainAppStateController {
                 checkInterval: TimeInterval
             )? = nil
         ) {
+            startupGateNowOverride = nowOverride
             startupGatePermissionsOverride = permissionsOverride
             startupGateHealthOverride = healthOverride
             startupGateTransientWindowOverride = transientWindowOverride
@@ -152,6 +155,7 @@ class MainAppStateController {
         }
 
         func resetStartupGateTestingState() {
+            startupGateNowOverride = nil
             startupGatePermissionsOverride = nil
             startupGateHealthOverride = nil
             startupGateTransientWindowOverride = nil
@@ -768,12 +772,12 @@ class MainAppStateController {
             return .sessionRecoveryRefused(refusal)
         }
         let timing = startupGateTiming()
-        let start = Date()
+        let start = startupGateNow()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
         let transientDeadline = start.addingTimeInterval(timing.transientGrace)
         var checks = 0
 
-        while Date() < transientDeadline {
+        while startupGateNow() < transientDeadline {
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
             }
@@ -808,7 +812,7 @@ class MainAppStateController {
             }
 
             let inTransientWindow = await isInKanataTransientStartupWindow()
-            if !inTransientWindow, Date() >= definitiveDeadline {
+            if !inTransientWindow, startupGateNow() >= definitiveDeadline {
                 return .definitiveFailure
             }
 
@@ -820,6 +824,13 @@ class MainAppStateController {
         }
 
         return .transientTimeout
+    }
+
+    private func startupGateNow() -> Date {
+        #if DEBUG
+            if let override = startupGateNowOverride { return override() }
+        #endif
+        return Date()
     }
 
     private func startupGateTiming()

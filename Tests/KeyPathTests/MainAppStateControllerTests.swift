@@ -577,18 +577,23 @@ struct MainAppStateControllerBehaviorTests {
         for status in [PermissionOracle.Status.granted, .unknown] {
             let controller = MainAppStateController()
             var healthProbes = 0
+            var now = Date(timeIntervalSince1970: 1_000)
             controller.configureStartupGateTestingState(
+                nowOverride: { now },
                 permissionsOverride: { sessionPermissions(inputMonitoring: status) },
                 healthOverride: {
                     healthProbes += 1
+                    // First cross the definitive deadline, then the transient
+                    // deadline. Executor scheduling cannot consume this clock.
+                    now.addTimeInterval(healthProbes == 1 ? 0.02 : 0.04)
                     return KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
                 transientWindowOverride: { true },
-                timingOverride: (definitiveGrace: 0.01, transientGrace: 0.05, checkInterval: 0.005)
+                timingOverride: (definitiveGrace: 0.01, transientGrace: 0.05, checkInterval: 0)
             )
             let ready = await controller.evaluateKanataStartupGateForTesting()
             #expect(!ready)
-            #expect(healthProbes > 1)
+            #expect(healthProbes == 2)
             controller.resetStartupGateTestingState()
         }
     }

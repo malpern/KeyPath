@@ -91,7 +91,6 @@ final class ServiceLifecycleCoordinator {
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
-    private var lastStartAttemptAt: Date?
     // A completed recovery refusal survives absence of a worker report.
     var sessionRecoveryRefusal: String?
 
@@ -129,11 +128,6 @@ final class ServiceLifecycleCoordinator {
     var isRuntimeTransitionInProgress: Bool {
         isStartingKanata || isIntentionalTransitionInProgress
     }
-
-    private let windowEvaluator = TransientStartupWindowEvaluator(
-        gracePeriod: RuntimeStartupTiming.uiGracePeriod,
-        createdAt: Date()
-    )
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -335,7 +329,6 @@ final class ServiceLifecycleCoordinator {
         guard sessionStartIsCurrent(generation), admitSessionConfiguration(generation: generation),
               sessionStartIsCurrent(generation) else { return false }
         stopGraceUntil = nil
-        lastStartAttemptAt = Date()
         isStartingKanata = true
         defer { isStartingKanata = false }
         #if DEBUG
@@ -372,12 +365,10 @@ final class ServiceLifecycleCoordinator {
         if recoveryRefusalForStartup != nil { return false }
         if sessionConfigurationRefusal != nil,
            currentSessionReport()?.state != .running { return false }
-        return windowEvaluator.isInWindow(
-            now: Date(),
-            isStarting: isStartingKanata,
-            lastStartAttemptAt: lastStartAttemptAt,
-            isSMAppServicePending: false
-        )
+        // Session starts are owned and awaited here. Once the attempt returns,
+        // no service is starting in the background. A creation/attempt-age grace
+        // would hide Start after a completed permission refusal.
+        return isStartingKanata
     }
 
     static func shouldAcceptPostStartRuntime(
