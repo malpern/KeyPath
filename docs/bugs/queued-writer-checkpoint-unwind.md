@@ -1,5 +1,15 @@
 # Published queued-writer checkpoint must not unwind
 
+## Current acceptance
+
+Signed `60dfd2d3054308bdde33bafe8403b712462052ba` passed the queued-writer case in fresh trial04. The actual `/usr/bin/hidutil` child2271 remained suspended (`Ts`, UID502, PPID1) after worker death and normal app Quit. Original parent2254 and fresh parent2386 each refused explicit Restart with unchanged recovery files. One identity-guarded SIGCONT was sent; the intended Caps→F18 mapping was then read back and the child was absent in two independent scans. Fresh-parent Restart still refused with the same recovery-file digests. Normal Quit, canonical destruction and independent provider/USB cleanup passed.
+
+This accepts containment of a queued writer that survives its owner. It does not establish the child's exit status, execution inside an opaque mutation, automatic restoration, or physical continuity. Recovery files and the applied mapping were retained until disposal. Earlier failed receipts remain failed.
+
+Selected receipt: [queued-writer acceptance](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-queued-writer-acceptance.json). Raw evidence: `/private/tmp/keypath-queued-writer-live-04`.
+
+## Earlier attempts and diagnosis
+
 The DEBUG mapping-only guest trial on October 5 created a checkpoint for child2283, then lost both worker2276 and the child before the first independent observation. Parent2266 survived; original mapping remained empty. Explicit Restart preserved the uncertainty marker and refused recovery. No resume signal or physical event was sent. The original child-survival receipt remains failed; the exact child exit reason is unproven.
 
 `terminateOwnerWithSuspendedWriter` installs a defer that kills and joins its unreaped child on failure. After publishing the checkpoint it requested self-SIGKILL and then threw. If execution continues after the signal request, Swift unwinding invokes that cleanup and destroys the child whose handoff was just published.
