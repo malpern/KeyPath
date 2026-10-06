@@ -16,19 +16,19 @@ import time
 ROOT = Path(os.environ['KEYPATH_TRIAL_DIR']).resolve()
 LAB = Path('/private/tmp/vm-lab-reusable-setup')
 TENANT_PROJECT = Path('/private/tmp/keypath-tap-timeout-hook-build')
-ARTIFACT_DIR = Path('/private/tmp/keypath-queued-writer-350329b78-artifact')
+ARTIFACT_DIR = Path('/private/tmp/keypath-queued-writer-408099759-artifact')
 ARTIFACT_MANIFEST = ARTIFACT_DIR / 'artifact-manifest.json'
 ARTIFACT_ZIP = ARTIFACT_DIR / 'keypath-queued-writer-clean.zip'
 PROVIDER_BINARY = Path('/private/tmp/keypath-create-posix-sdk-build-ada4b9f/crabbox-create-posix-sdk')
 REGISTRY = ROOT / 'tenants.tsv'
 
 LAB_COMMIT = 'f2d3b6594284e5b14f48b0c8e49a68e50d9ed935'
-PRODUCT_COMMIT = '350329b78018ece7d1dacf5b9790d628926be104'
-ARTIFACT_MANIFEST_SHA256 = '574bced3a054c34a59f7bfde8030f30cd4bdf9cf6a1392c3e3311538bf5aeae8'
-ARTIFACT_ZIP_SHA256 = 'e9b337c9ab2ec2a37360d0e836d5eccec831896c08e0768b742f014c87b688a3'
-ARTIFACT_ZIP_SIZE = 97902083
-PACKAGED_MAIN_SIZE = 107962464
-PACKAGED_MAIN_SHA256 = '39fd237990a16f1970689bf2f2849ec81e063635008659e3088fb4514bada577'
+PRODUCT_COMMIT = '40809975962922f852c4729f2dced76eb7e47dd8'
+ARTIFACT_MANIFEST_SHA256 = 'e61c13e38116032a1465d66b12aa88a64272a6277e191c7a412954ce02d33eb0'
+ARTIFACT_ZIP_SHA256 = '7ad23b3666b1907eab43f53253758f0b339401c213a53a53649e8def695d0d28'
+ARTIFACT_ZIP_SIZE = 97901564
+PACKAGED_MAIN_SIZE = 107946096
+PACKAGED_MAIN_SHA256 = 'b615f21e368e77693cf7da07c0e7aeca0cef24eb7bea9a7640ab654e21b36420'
 PRODUCT_DESCRIPTOR_SHA256 = 'e19ba4ee0e850b52e6eef498b5c1ca5eadeb157c7f90eead78d76078df4218d9'
 REGISTRY_SHA256 = '905907bda0d8c302839ea416f2fb9456a04d6159536c901e1372210782721c5e'
 CLI_SHA256 = 'f8470518428f75590e7ea6f481a6a544f40745f4a881039b9d4ed884231cdc03'
@@ -130,7 +130,7 @@ def verify_inputs():
     """Verify all fixed source, tenant, artifact, and executable authorities."""
     if _git_head(LAB) != LAB_COMMIT:
         raise Refused('canonical lab commit changed')
-    if _git_head(TENANT_PROJECT) != '350329b78018ece7d1dacf5b9790d628926be104':
+    if _git_head(TENANT_PROJECT) != '40809975962922f852c4729f2dced76eb7e47dd8':
         raise Refused('reviewed documentation-only checkout revision changed')
     for path, expected in SOURCE_PINS.items():
         _hash_regular(path, expected)
