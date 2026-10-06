@@ -1,0 +1,34 @@
+{
+  "source": "350329b78018ece7d1dacf5b9790d628926be104",
+  "trial": "/private/tmp/keypath-queued-writer-live-01",
+  "outcome": "stopped-before-queued-case",
+  "queuedWriterAccepted": false,
+  "physicalEventsSent": false,
+  "usbAttached": false,
+  "verified": [
+    "signed installation in owned UID502 guest",
+    "normal AX/IM consent and reopen; one worker running with active tap and effective permissions",
+    "normal Quit left no product/target process",
+    "canonical disposal; independent provider absence, retained stopped template and detached nonpersistent ESP32"
+  ],
+  "controllerFaults": [
+    "Delayed consent authentication dialog received intended Settings search text; first replacement submission rejected, corrected using observed selection and standalone typing/submission.",
+    "Guessed status icon opened Peekaboo menu; screenshot identified Quit Peekaboo before activation; escaped."
+  ],
+  "limits": [
+    "no queued child, retained-marker case or mapping observation",
+    "no physical remapping campaign",
+    "destroy exit0 retained hydration-stop255 warning separately"
+  ],
+  "receiptSHA256": {
+    "owned-lease.json": "a7795f1c3e0e042d6311e41cf71da2ccf84d14b364e0df4e3318df2b86adf8a7",
+    "guest-identity.json": "e36b3b3ad84500900663cd83de306f4fab64908a0e3f8e7e4e1f2efe08f6c38c",
+    "install01-result.json": "455d6449d6eac8387ec4e24c3beeaf97d8de5366f0d1b3ea064a8f609cdf5ace",
+    "effective01-result.json": "99a09b09c3645ed588780df7663e6bb5033d94d9df359e5df1284a11bbb02624",
+    "stopped01-result.json": "832c186a5847c92dc3bbc97f50e13cbff8138f25286e611e1fdcc4c58445489d",
+    "controller-stop.json": "696251d5c4d577d3a6c113a061781c482a4b75623e63705ee6233916cfb32240",
+    "destroy-result.json": "9accd6f6a373690192022237678fc60f8c653a787fc08d7a19a70c93945033cf",
+    "independent-provider-cleanup02.json": "8647267b1670c44c1a58799401d61e8621a2fa650f0fd770f426fab8e3517b23"
+  },
+  "review": "Independent read-only checkpoint audit confirms narrow scope; UI observations are root transcript evidence."
+}
