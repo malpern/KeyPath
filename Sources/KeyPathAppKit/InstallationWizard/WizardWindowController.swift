@@ -58,6 +58,11 @@ final class WizardWindowController {
             initialPage: initialPage,
             onFirstSuccess: { [weak self] in
                 self?.scheduleFirstSuccessOnboarding()
+            },
+            onOpenRules: { [weak self] in
+                self?.closeCompletion.schedule {
+                    openPreferencesTab(.openSettingsRules)
+                }
             }
         )
 

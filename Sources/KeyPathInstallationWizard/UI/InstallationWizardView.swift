@@ -36,6 +36,8 @@ public struct InstallationWizardView: View {
     public var initialPage: WizardPage?
     /// Called once after a first-run wizard closes in a verified healthy state.
     public var onFirstSuccess: (() -> Void)?
+    /// Optional handoff after verified driverless setup, queued before dismissal.
+    public var onOpenRules: (() -> Void)?
     /// Test seam for the authoritative post-start state inspection. Production
     /// uses `WizardStateMachine.detectCurrentState()` directly.
     var postStartStateDetector: (@MainActor () async -> SystemStateResult)?
@@ -87,9 +89,10 @@ public struct InstallationWizardView: View {
     /// environment be touched. Nil in the app, where the environment is real.
     let dismissHandler: (@MainActor () -> Void)?
 
-    public init(initialPage: WizardPage? = nil, onFirstSuccess: (() -> Void)? = nil) {
+    public init(initialPage: WizardPage? = nil, onFirstSuccess: (() -> Void)? = nil, onOpenRules: (() -> Void)? = nil) {
         self.initialPage = initialPage
         self.onFirstSuccess = onFirstSuccess
+        self.onOpenRules = onOpenRules
         postStartStateDetector = nil
         dismissHandler = nil
     }
@@ -97,12 +100,14 @@ public struct InstallationWizardView: View {
     init(
         initialPage: WizardPage? = nil,
         onFirstSuccess: (() -> Void)? = nil,
+        onOpenRules: (() -> Void)? = nil,
         didShowWelcomePage: Bool = false,
         postStartStateDetector: @escaping @MainActor () async -> SystemStateResult,
         dismissHandler: (@MainActor () -> Void)? = nil
     ) {
         self.initialPage = initialPage
         self.onFirstSuccess = onFirstSuccess
+        self.onOpenRules = onOpenRules
         _didShowWelcomePage = State(initialValue: didShowWelcomePage)
         self.postStartStateDetector = postStartStateDetector
         self.dismissHandler = dismissHandler

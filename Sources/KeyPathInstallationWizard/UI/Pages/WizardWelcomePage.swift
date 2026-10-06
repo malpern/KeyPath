@@ -45,7 +45,7 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.36, green: 0.40, blue: 0.47),
                 rotation: -6,
                 yOffset: 8,
-                caption: "Supercharge\nCaps Lock",
+                caption: "Customize\nyour keys",
                 visible: keycapsVisible,
                 delay: 0.0
             ) {
@@ -93,7 +93,7 @@ struct WizardWelcomePage: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "KeyPath superpowers: supercharge Caps Lock, arrows on the home row, tile windows without the mouse, launch anything from a key"
+            "KeyPath superpowers: customize your keys, arrows on the home row, tile windows without the mouse, launch anything from a key"
         )
         .accessibilityIdentifier("wizard-welcome-hero")
     }
@@ -121,7 +121,7 @@ struct WizardWelcomePage: View {
 
     private var footer: some View {
         VStack(spacing: WizardDesign.Spacing.elementGap) {
-            Text("Setup takes about two minutes. We'll guide you through each step.")
+            Text("Enable Accessibility and Input Monitoring, then start remapping. We'll guide you through each step.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

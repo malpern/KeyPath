@@ -18,3 +18,25 @@ from the same visible rows.
 
 This is a presentation correction, not a new permission check or grant. It does
 not query TCC from the summary, alter consent flows, or change runtime startup.
+
+## Completion handoff and setup copy
+
+The standalone driverless setup window offers **Open Rules** once the existing
+state inspection reports active with no issues. Its callback is queued before
+window dismissal and consumed once after window close by the existing completion
+owner. It uses the normal Settings/Rules navigation entry point and does not
+install a preset or enable the Caps-based tour. Settings retains the requested
+Rules tab during asynchronous readiness refresh; the existing disabled view
+protects editing until the runtime is healthy, instead of losing navigation to
+stale readiness. Incomplete setup does not request
+this handoff. Embedded setup without a handoff callback retains **Close Setup**.
+
+The welcome page names Accessibility and Input Monitoring and advertises general
+key customization rather than production Caps support. Accessibility guidance
+recognizes both `/Applications/` and the current user's `~/Applications/` as
+stable locations. Managed Caps remains DEBUG-only with the F18 reservation.
+
+App Store feasibility is deferred in
+[the future investigation](../planning/mac-app-store-feasibility.md); it does not
+block the signed, notarized direct-download release path. These source changes
+require fresh signed UI acceptance before claiming the on-screen handoff works.

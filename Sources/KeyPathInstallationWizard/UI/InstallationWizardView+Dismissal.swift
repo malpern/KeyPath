@@ -32,10 +32,16 @@ public extension InstallationWizardView {
         }
 
         NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
-        performDismiss()
+        // Queue window handoffs before closing so synchronous dismissal cannot
+        // consume the close completion before it has been registered.
         if shouldShowFirstSuccess {
             onFirstSuccess?()
+        } else if KanataRuntimeBackend.selected == .session,
+                  stateMachine.wizardState == .active,
+                  stateMachine.wizardIssues.isEmpty {
+            onOpenRules?()
         }
+        performDismiss()
     }
 
     func performBackgroundCleanup() {}

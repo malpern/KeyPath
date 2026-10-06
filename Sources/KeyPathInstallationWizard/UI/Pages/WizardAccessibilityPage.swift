@@ -128,7 +128,7 @@ public struct WizardAccessibilityPage: View {
 
                         // Guard: recommend running from /Applications for stable permissions
                         if !isRunningFromApplicationsFolder {
-                            Text("For the smoothest setup, move KeyPath to /Applications and relaunch.")
+                            Text("For stable permissions, keep KeyPath in Applications or your home folder’s Applications folder, then relaunch.")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -249,7 +249,10 @@ public struct WizardAccessibilityPage: View {
     }
 
     private var isRunningFromApplicationsFolder: Bool {
-        Bundle.main.bundlePath.hasPrefix("/Applications/")
+        let appPath = Bundle.main.bundleURL.standardizedFileURL.path
+        let userApplications = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Applications", isDirectory: true).standardizedFileURL.path
+        return appPath.hasPrefix("/Applications/") || appPath.hasPrefix(userApplications + "/")
     }
 
     private var keyPathAccessibilityStatus: InstallationStatus {

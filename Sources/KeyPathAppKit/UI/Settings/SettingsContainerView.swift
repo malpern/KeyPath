@@ -146,7 +146,7 @@ struct SettingsContainerView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { notification in
-            selection = canManageRules ? .rules : .status
+            selection = .rules
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsRules)
             AppLogger.shared.log("🎯 [Settings] Selected Rules tab target=\(notification.userInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String ?? "none")")
         }
@@ -188,9 +188,8 @@ struct SettingsContainerView: View {
         let context = await kanataManager.inspectSystemContext()
         await MainActor.run {
             canManageRules = context.services.isHealthy && context.services.kanataRunning
-            if !canManageRules, selection == .rules {
-                selection = .status
-            }
+            // Keep the requested tab selected while readiness refreshes.
+            // RulesDisabledView protects editing until the runtime is healthy.
         }
     }
 
@@ -200,7 +199,7 @@ struct SettingsContainerView: View {
         case .openSettingsGeneral, .openSettingsLogs:
             selection = .general
         case .openSettingsRules:
-            selection = canManageRules ? .rules : .status
+            selection = .rules
             AppLogger.shared.log("🎯 [Settings] Applied pending Rules navigation target=\(request.userInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String ?? "none")")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 NotificationCenter.default.post(name: .openSettingsRules, object: nil, userInfo: request.userInfo)
@@ -232,9 +231,9 @@ private struct RulesDisabledView: View {
             Image(systemName: "power")
                 .font(.largeTitle.weight(.semibold))
                 .foregroundColor(.secondary)
-            Text("Turn on Kanata to manage rules.")
+            Text("Start KeyPath to manage rules.")
                 .font(.title3.weight(.semibold))
-            Text("Start the service on the Status tab, then return to manage rules.")
+            Text("Start the keyboard runtime on the Status tab, then return to manage rules.")
                 .font(.callout)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)

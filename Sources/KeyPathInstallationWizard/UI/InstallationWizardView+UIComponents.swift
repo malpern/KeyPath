@@ -38,7 +38,8 @@ extension InstallationWizardView {
                 },
                 isValidating: isValidating,
                 showAllItems: $showAllSummaryItems,
-                navSequence: $navSequence
+                navSequence: $navSequence,
+                opensRulesOnCompletion: KanataRuntimeBackend.selected == .session && onOpenRules != nil
             )
         case .conflicts:
             if let coordinator = kanataManager {
