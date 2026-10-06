@@ -1,0 +1,228 @@
+{
+  "date": "2026-10-06",
+  "scope": "Non-debug production Caps Lock UI opt-in, physical tap/hold, Disable restoration and disabled-consent startup refusal",
+  "sourceCommit": "567b285fc7424b16dae08fa8176cb4cdbb9bde81",
+  "rawTrial": "/private/tmp/keypath-caps-production-live-01",
+  "lease": "cbx_9f4a7423cd43",
+  "providerUUID": "7952b4ae-d2bd-42d3-8bb1-3ad596c5cdb5",
+  "artifactManifest": {
+    "version": 1,
+    "sourceCommit": "567b285fc7424b16dae08fa8176cb4cdbb9bde81",
+    "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+    "baseBundle": "/private/tmp/keypath-onboarding-a49569e20-artifact/KeyPath.app",
+    "artifactKind": "isolated non-DEBUG production Caps opt-in candidate",
+    "rawMainSHA256": "065ce7532b1667e46672077ffe106c235e4058b55151e60972c2191ef9cbc63f",
+    "packagedMainSHA256": "817aee2131107ccc3dcf592d3cc36366de991b1ef70d167cb4c0f5bbb16b671c",
+    "packagedMainSize": 58132736,
+    "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+    "archive": "keypath-caps-production-clean.zip",
+    "archiveSHA256": "5eb384802427e089b130c92e04cd86b8a32af5528cf489c4da18431adaf25999",
+    "archiveSizeBytes": 84977204,
+    "changedBundlePaths": [
+      "Contents/MacOS/KeyPath"
+    ],
+    "preservedFileCount": 232,
+    "archiveMetadataExcluded": true,
+    "strictSignatureVerified": true,
+    "teamID": "X2RKZ5TG99",
+    "hardenedRuntime": true,
+    "entitlementsUnchanged": true,
+    "packagedFrameworkRpathVerified": true,
+    "hostInstalled": false,
+    "notarized": false,
+    "timestamped": false,
+    "guestAcceptanceClaimed": false,
+    "managedCapsDefaultEnabled": false,
+    "resources": "Preserved prior frameworks/resources/Metal; no fresh Metal compilation"
+  },
+  "passed": true,
+  "samples": {
+    "tap": {
+      "path": "/private/tmp/keypath-caps-production-live-01/productionTap01-sample-result.json",
+      "sha256": "26deae6757a689f854428292bea383f8e1ec6418e8922d26cc70a39f6879f4a0",
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTargetLedger": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "noUnexpectedKeys": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "target": {
+        "downs": 1,
+        "flagsChangedDropped": 0,
+        "flagsChangedJournal": [],
+        "held": [],
+        "keyEventsDropped": 0,
+        "keyEventsJournal": [
+          {
+            "active": true,
+            "eventTimestamp": 1292.022429291,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [
+              53
+            ],
+            "isRepeat": false,
+            "keyCode": 53,
+            "modifiers": 0,
+            "monotonicAt": 1292.0254951250001,
+            "observedAt": 1791297023.5190248,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 1,
+            "type": "down",
+            "windowKey": true
+          },
+          {
+            "active": true,
+            "eventTimestamp": 1292.023639875,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "isRepeat": false,
+            "keyCode": 53,
+            "modifiers": 0,
+            "monotonicAt": 1292.0339308750001,
+            "observedAt": 1791297023.527461,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 2,
+            "type": "up",
+            "windowKey": true
+          }
+        ],
+        "modifiers": 0,
+        "observedAt": 1791297024.4918709,
+        "text": "",
+        "ups": 1
+      },
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "caps-82ce95103d3d41178da2c1728c1b99b1",
+        "state": "complete"
+      }
+    },
+    "hold": {
+      "path": "/private/tmp/keypath-caps-production-live-01/productionHold01-sample-result.json",
+      "sha256": "6404a306bddd9f89810d983bf74362131ccce7379f28450a1eda535335655933",
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTargetLedger": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "noUnexpectedKeys": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "target": {
+        "downs": 0,
+        "flagsChangedDropped": 0,
+        "flagsChangedJournal": [
+          {
+            "active": true,
+            "control": 1,
+            "downs": 0,
+            "eventTimestamp": 1313.344398458,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "keyCode": 59,
+            "mode": "normal",
+            "modifiers": 262144,
+            "monotonicAt": 1313.34624775,
+            "observedAt": 1791297044.8399901,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 47,
+            "ups": 0,
+            "windowKey": true
+          },
+          {
+            "active": true,
+            "control": 0,
+            "downs": 0,
+            "eventTimestamp": 1313.488831875,
+            "focusLost": false,
+            "focusedMode": "normal",
+            "held": [],
+            "keyCode": 59,
+            "mode": "normal",
+            "modifiers": 0,
+            "monotonicAt": 1313.4905492916666,
+            "observedAt": 1791297044.984294,
+            "requestedResponderFocused": true,
+            "secureInputEnabled": 0,
+            "sequence": 49,
+            "ups": 0,
+            "windowKey": true
+          }
+        ],
+        "held": [],
+        "keyEventsDropped": 0,
+        "keyEventsJournal": [],
+        "modifiers": 0,
+        "observedAt": 1791297046.089087,
+        "text": "",
+        "ups": 0
+      },
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "caps-785ce654ff0f4c5197713923fbc08cc4",
+        "state": "complete"
+      }
+    }
+  },
+  "receipts": {
+    "disableverified01-result.json": {
+      "path": "/private/tmp/keypath-caps-production-live-01/disableverified01-result.json",
+      "sha256": "072e9e22c191b23ea1a6dda4c9712eda61d0248a9bc186221671970fe007dfdd"
+    },
+    "disabledlaunchverified01-result.json": {
+      "path": "/private/tmp/keypath-caps-production-live-01/disabledlaunchverified01-result.json",
+      "sha256": "c39cc5b628c95b653a7e04fa1a1194ffa9c16d2afe75c60df1ea31d7396223b1"
+    },
+    "finalstopped01-result.json": {
+      "path": "/private/tmp/keypath-caps-production-live-01/finalstopped01-result.json",
+      "sha256": "d2540bf5b6b3dd825c5fd307b2cbc6a1de7a00f3f182aac4323258247baf40db"
+    },
+    "originalrestored01-result.json": {
+      "path": "/private/tmp/keypath-caps-production-live-01/originalrestored01-result.json",
+      "sha256": "402b2a23fb6ca1da00fea8c556044e0aef96e347da5dba562e0e294f3fc2f958"
+    },
+    "destroy-result.json": {
+      "path": "/private/tmp/keypath-caps-production-live-01/destroy-result.json",
+      "sha256": "62a6f9be55c5525a2ae8b978ae4560266cae4cd868ee11f2d25a62333358cc53"
+    }
+  },
+  "independentClosure": {
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixtureDetached": true,
+    "autoconnectAction": "ask",
+    "persistentVMBinding": false
+  },
+  "limitations": [
+    "One ESP32 fixture, not general customer keyboard qualification",
+    "Test profile staged while app stopped; no editor-save acceptance in this trial",
+    "No reboot/reselection test in this trial",
+    "No live Sparkle update acceptance",
+    "No notarization or production release"
+  ],
+  "polishFindings": [
+    "Accessibility grant required normal app reopen and retry",
+    "Completion AX label still inherits KeyPath Ready",
+    "Disabled Caps profile refusal still suggests advanced driver backend",
+    "Keyboard label exposes numeric identifiers"
+  ],
+  "warnings": [
+    "Canonical destruction returned success with retained hydration-stop255 warning"
+  ]
+}
