@@ -87,6 +87,11 @@ The wizard starts the Kanata remapping engine. Once it's running, your keyboard 
 
 ## Your first three keyboard wins
 
+> **Driverless experiment:** the Caps-based tour is currently disabled. Managed
+> Caps uses a reserved F18 intermediate key and is DEBUG-only; the tour below
+> describes the existing experience to revisit after production eligibility.
+> See [Caps Lock and F18]({{ '/guides/driverless-caps-lock/' | relative_url }}).
+
 Once setup is healthy, KeyPath offers a short optional tour. It teaches three useful keyboard changes, explains why each one helps, and shows where to adjust it later. Choose **Skip tour** at any point; setup is already complete, and the tour never blocks KeyPath.
 
 ```

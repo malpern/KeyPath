@@ -31,6 +31,10 @@ A good starting point for most people: install **Caps Lock Remap** and **Vim Nav
 
 ### Caps Lock Remap
 
+> In the driverless experiment, managed Caps is DEBUG-only and reserves F18.
+> See [behavior and limitations]({{ '/guides/driverless-caps-lock/' | relative_url }})
+> before relying on these recipes.
+
 Make Caps Lock actually useful. Tap it for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). Pick your preferred combo in the pack settings.
 
 Pairs well with everything — most users install this first.

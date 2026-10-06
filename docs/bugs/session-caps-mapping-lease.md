@@ -1,5 +1,37 @@
 # Device-scoped Caps mapping intent
 
+## Current integration and F18 contract (October 6, 2026)
+
+The transport is now connected to the experimental parent/worker lifecycle via
+`SessionCapsRuntimeSupport`; the earlier transport-only notes below are historical.
+Production admission remains closed: selection is DEBUG-only, requires one
+eligible physical event service and explicit native-F18 reservation.
+
+`SessionCapsMappingPolicy` fixes Caps usage `0x7_0000_0039` to F18 usage
+`0x7_0000_006D`. `SessionCapsInputState` translates captured usage109 back to
+logical Caps usage57 only under the active lease/press generation. Raw Caps passes
+through. Native F18 cannot be distinguished from substituted Caps; device-scoped
+writes do not establish event attribution. The parsed managed configuration gate
+rejects F18 input and Caps/F18 output, including unsafe implicit source actions.
+Ordinary non-managed F18 profiles remain eligible.
+
+Do not automatically allocate a different intermediate key. A future advanced
+choice must be consistent across mapping policy, parsed bridge validation, input
+translation, configuration identity, and the persisted lease/recovery schema.
+Existing journals are version1 and validate the fixed Caps→F18 applied mapping;
+changing a constant would invalidate or misinterpret existing recovery state.
+Choose only while stopped/all keys up, restore the old owned mapping first, and
+validate supported macOS event behavior for every candidate. No choice can prove
+absence of third-party shortcut conflicts from KeyPath configuration alone.
+
+The proposed production UX and user-facing limits are documented in
+[Caps Lock in driverless KeyPath](../../guides/driverless-caps-lock.md).
+This is documentation and a recommendation, not implementation of an alternate
+key selector or a new live acceptance claim. Opaque in-mutation death, genuine
+OS timeout recovery and broad keyboard/reconnect coverage remain shipping gaps.
+
+## Historical transport qualification
+
 `SessionCapsMappingLease` is the shared parent/worker ownership boundary for an
 experimental Caps-to-F18 substitution. Inject a transport that enumerates keyboard
 **IOHID event services**, reads one exact service's full ordered `UserKeyMapping`
