@@ -92,8 +92,8 @@ public final class SessionRuntimeWorker {
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             // Raw API facts remain separate from combined session readiness.
             // Both snapshots are obtained only through the canonical permission owner.
-            worker.experimentalRawCapabilities = await PermissionOracle.shared.currentProcessCapabilities()
-            worker.experimentalRawPosting = await PermissionOracle.shared.currentProcessEventPostingStatus()
+            worker.experimentalRawCapabilities = await SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
+            worker.experimentalRawPosting = await SystemStateProvider.shared.currentProcessRawEventPostingStatus()
         #endif
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;

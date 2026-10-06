@@ -12,6 +12,7 @@ From the checkout root, compile the hook and admission test with the experimenta
 
 ```sh
 swiftc -DKEYPATH_TAP_TIMEOUT_EXPERIMENT \
+  Sources/KeyPathSystemProbes/*.swift \
   Sources/KeyPathCore/SessionRuntime/SessionRuntimeReport.swift \
   Sources/KeyPathAppKit/Services/SessionRuntime/SessionTapTimeoutExperiment.swift \
   Tests/Experiments/TapTimeoutAdmission.swift \

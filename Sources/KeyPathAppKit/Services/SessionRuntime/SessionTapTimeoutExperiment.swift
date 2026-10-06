@@ -167,7 +167,7 @@
             else { if observeFirstResult { recordCallbackResult(.delayExceedsBudget) }; return }
             guard getpid() == identity.pid, getuid() == identity.uid
             else { if observeFirstResult { recordCallbackResult(.workerIdentityChanged) }; return }
-            guard kill(identity.parentPID, 0) == 0
+            guard SystemStateProvider.canSignalProcess(pid: identity.parentPID)
             else { if observeFirstResult { recordCallbackResult(.ownerUnavailable) }; return }
             guard directoryIsOwned()
             else { if observeFirstResult { recordCallbackResult(.directoryChanged) }; return }

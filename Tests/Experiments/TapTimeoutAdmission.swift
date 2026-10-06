@@ -1,6 +1,11 @@
 import Foundation
 import Darwin
 
+#if !canImport(KeyPathCore)
+// Standalone admission harness uses the same canonical process probes as the app.
+typealias SystemStateProvider = SystemProbeClient
+#endif
+
 @main
 struct TapTimeoutAdmissionTests {
     static func main() throws {

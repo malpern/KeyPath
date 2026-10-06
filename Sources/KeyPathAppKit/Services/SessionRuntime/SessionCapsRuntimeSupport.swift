@@ -143,10 +143,9 @@ enum SessionCapsRuntimeSupport {
         if let expectedOwner {
             guard record.owner == expectedOwner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
         } else {
-            func alive(_ pid: Int32) -> Bool {
-                kill(pid, 0) == 0 || errno == EPERM
-            }
-            guard !alive(record.owner.parentPID), !alive(record.owner.workerPID) else { throw Refusal.liveOwner }
+            guard !SystemStateProvider.isProcessAlive(pid: record.owner.parentPID),
+                  !SystemStateProvider.isProcessAlive(pid: record.owner.workerPID)
+            else { throw Refusal.liveOwner }
         }
         try lease.restore(expectedOwner: record.owner, bootSessionUUID: currentBoot)
     }

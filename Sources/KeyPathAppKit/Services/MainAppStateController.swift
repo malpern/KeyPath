@@ -783,10 +783,10 @@ class MainAppStateController {
                     if let override = startupGatePermissionsOverride {
                         permissions = await override()
                     } else {
-                        permissions = await PermissionOracle.shared.currentSnapshot()
+                        permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
                     }
                 #else
-                    permissions = await PermissionOracle.shared.currentSnapshot()
+                    permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
                 #endif
                 if Self.hasDefinitiveSessionPermissionFailure(permissions) {
                     return .missingSessionPermissions

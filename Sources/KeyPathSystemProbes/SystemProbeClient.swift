@@ -51,6 +51,12 @@ public struct SystemProbeClient: Sendable {
 }
 
 public extension SystemProbeClient {
+    /// A successful zero-signal probe, unlike liveness, does not admit EPERM.
+    /// Used by the bounded timeout experiment before delaying a live callback.
+    static func canSignalProcess(pid: pid_t) -> Bool {
+        pid > 0 && kill(pid, 0) == 0
+    }
+
     static let live = SystemProbeClient(
         processIDs: { pattern in
             let result = await runProcess("/usr/bin/pgrep", args: ["-f", pattern], timeout: 5)

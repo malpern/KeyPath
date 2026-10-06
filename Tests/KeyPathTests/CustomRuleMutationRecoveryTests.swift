@@ -265,9 +265,19 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
         let sourceURL = directory.appendingPathComponent("RuleCollections.json")
         let originalCollections = try Data(contentsOf: sourceURL)
         try Data("damaged source".utf8).write(to: sourceURL)
-        try await service.operationGate.withOperation { @MainActor permit in
-            _ = try await service.stageRuleState(ruleCollections: [], customRules: [],
-                                                 collectionStore: self.manager.ruleCollectionStore, customStore: self.manager.customRulesStore, mutationPermit: permit)
+        // Construct an interrupted prior revision directly: normal staging now
+        // correctly refuses corrupt sources before creating a recovery journal.
+        let targets = [
+            "config": directory.appendingPathComponent("keypath.kbd"),
+            "collections": sourceURL,
+            "customRules": directory.appendingPathComponent("CustomRules.json"),
+            "deviceTargetingManifest": directory.appendingPathComponent("keypath-device-targeting.manifest")
+        ]
+        var candidate = try targets.mapValues { try Data(contentsOf: $0) }
+        candidate["collections"] = originalCollections
+        candidate["customRules"] = try await manager.customRulesStore.encodedRules([])
+        try await service.operationGate.withOperation { @MainActor _ in
+            _ = try RecoverableRuleWrite.stage(files: targets, contents: candidate, directory: self.directory, scope: .rules)
         }
         manager.customRules = []
         var errors: [String] = []

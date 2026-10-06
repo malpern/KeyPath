@@ -1,6 +1,16 @@
 import KeyPathCore
 
 public extension SystemStateProvider {
+    /// Raw capture capabilities, without combining listening and posting access.
+    func currentProcessRawPermissionCapabilities() async -> PermissionOracle.PermissionSet {
+        await PermissionOracle.shared.currentProcessCapabilities()
+    }
+
+    /// Raw posting authorization for bounded runtime diagnostics.
+    func currentProcessRawEventPostingStatus() async -> PermissionOracle.Status {
+        await PermissionOracle.shared.currentProcessEventPostingStatus()
+    }
+
     /// Passive capabilities of the independently launched remapper executable.
     func currentProcessPermissionCapabilities() async -> PermissionOracle.PermissionSet {
         await PermissionOracle.shared.currentProcessSessionCapabilities()
