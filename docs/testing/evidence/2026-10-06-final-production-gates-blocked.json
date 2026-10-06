@@ -1,0 +1,52 @@
+{
+  "captured_at": "2026-10-06T19:11:07.065799+00:00",
+  "status": "remaining-production-gates-open",
+  "runtime_source": "770741f4035203ebbdc60168767a1552720cfddc",
+  "product_source": "a07a10391f6fac7644f20fbc049f8829ab677140",
+  "physical_trial": {
+    "lease": "cbx_3dd9ba2cde9d",
+    "source": "770741f4035203ebbdc60168767a1552720cfddc",
+    "result": "blocked_before_install",
+    "blocker": "Native guest console password editing/submission did not produce UID502 session; read-only single public-account authentication succeeded. Further UI paused for root secure-entry hold, not released before disposal reserve.",
+    "installed": false,
+    "fixtureAttached": false,
+    "physicalTestsRun": false,
+    "freshConsentQualified": false,
+    "ordinaryQualified": false,
+    "capsQualified": false,
+    "timeoutQualified": false,
+    "cleanup": {
+      "canonicalDestroyStatus": 0,
+      "hydrationStopWarningStatus": 255,
+      "providerAbsent": true,
+      "templateStoppedRetained": true,
+      "fixtureDisconnected": true,
+      "persistentUsbBinding": false,
+      "canonicalLeaseDestroyedComplete": true,
+      "activeLeases": 0
+    },
+    "evidence": [
+      "public-auth-check01.json",
+      "login-blocker-facts-authenticated.json",
+      "login-receipt-index.json",
+      "login-artifacts-result.json",
+      "destroy-result.json",
+      "independent-provider-cleanup02.json",
+      "lease-inventory-cleanup.json"
+    ],
+    "at": 1791310562.38289
+  },
+  "apple_trust": {
+    "status": "blocked-apple-agreement-after-user-reported-fix",
+    "approved_zip_sha256": "98b55cf18c59ba99ced94034e033a7e3206f65ac0938d1acb75b6fd555d72d54",
+    "user_upload_approved": true,
+    "submission_id": null,
+    "notarized": false,
+    "stapled": false,
+    "gatekeeper_assessed": false,
+    "history_reconciled": false,
+    "read_only_history_result": "HTTP403 required agreement missing or expired",
+    "post_agreement_fix_check_count": 1
+  },
+  "scope": "No host product installation, merge or public release. Previous passed regression/UI receipts remain separate."
+}
