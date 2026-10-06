@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-05",
+  "scope": "Two consecutive ordinary physical q-to-a samples across normal Quit/relaunch, in one unchanged prepared guest",
+  "passed": true,
+  "rawDirectory": "/private/tmp/keypath-repeatability-live-02",
+  "productCommit": "bd7809dc1da9b814ac00c826e676c2622d9ab4bd",
+  "labCommit": "f2d3b6594284e5b14f48b0c8e49a68e50d9ed935",
+  "scenarioCommit": "c102d8206",
+  "artifact": {
+    "bootEpoch": 1791247763,
+    "focusSHA256": "da0ac107b311359c971db88392b7b6c95f7af6712f845778ae1d3ccc8b6150fb",
+    "installed": true,
+    "mainSHA256": "1f215c470af8c7cdc5b4dd390efe0315762ef713720de347bb50f5db11ab8cc8",
+    "targetSHA256": "5fb5e05e8f26954f1b4121cdb949f689cff9db325795ce51167a3f998044ced3",
+    "uid": 502
+  },
+  "sourceFacts": {
+    "artifactManifestSHA256": "148c0b9bee66024d891aa3d9159974c202624298561d6af313c982eb070a83be",
+    "artifactZipSHA256": "51c0dae837bbc26f416330e68ddeebab1143c4a0465c9ed60036afe469e0dcc0",
+    "cliSHA256": "f8470518428f75590e7ea6f481a6a544f40745f4a881039b9d4ed884231cdc03",
+    "helperSHA256": "564dbf43cfe8e338dcb072bfa086608a64713551a70d6ed6e31cc16b2d6ab144",
+    "labCommit": "f2d3b6594284e5b14f48b0c8e49a68e50d9ed935",
+    "productCommit": "bd7809dc1da9b814ac00c826e676c2622d9ab4bd",
+    "providerSHA256": "fd2671373f626f8e762559f6e58c06b04277f32ac02db670d41b4803be63a179",
+    "providerSize": 143390034,
+    "registrySHA256": "905907bda0d8c302839ea416f2fb9456a04d6159536c901e1372210782721c5e",
+    "remoteSHA256": "9e5b849322f5beffe2513f69c9ace8a4dfbe1d8d6c3cd3877a2d804186a33a24"
+  },
+  "lease": "cbx_5b88adfbae42",
+  "providerUUID": "cd8391e0-32f5-4763-b9d9-37bc59177a86",
+  "cycles": [
+    {
+      "attachmentObservedAt": 1791248304.3083892,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-b15b29aa447249469689243e08d0aa9e",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791248310.8265522
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791248312.1139252,
+        "providerUUID": "cd8391e0-32f5-4763-b9d9-37bc59177a86",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 2292,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-EA668F17-1D30-47F5-95E3-CD2D15C746D6/report.json",
+        "targetNonce": "F31CB60E-A33E-4BB2-9C22-8A64B11B71F4",
+        "targetPID": 2321,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-EA668F17-1D30-47F5-95E3-CD2D15C746D6/report.json",
+          "--session-nonce",
+          "EA668F17-1D30-47F5-95E3-CD2D15C746D6",
+          "--session-owner",
+          "2292",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "EA668F17-1D30-47F5-95E3-CD2D15C746D6",
+        "workerPID": 2302
+      },
+      "lease": "cbx_5b88adfbae42",
+      "passed": true,
+      "providerUUID": "cd8391e0-32f5-4763-b9d9-37bc59177a86",
+      "runId": "restart-b15b29aa447249469689243e08d0aa9e",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791248314.289575,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 11,
+          "modifiers": 0,
+          "scheduledUs": 734142210061,
+          "sequence": 1,
+          "submittedUs": 734142210072
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 23,
+          "modifiers": 0,
+          "scheduledUs": 734142250061,
+          "sequence": 2,
+          "submittedUs": 734142250084
+        }
+      ]
+    },
+    {
+      "attachmentObservedAt": 1791248398.1824582,
+      "checks": {
+        "allUp": true,
+        "downs": true,
+        "exactTrace": true,
+        "inputDelta": true,
+        "outputDelta": true,
+        "reportsSubmitted": true,
+        "text": true,
+        "ups": true
+      },
+      "expectedText": "a",
+      "fixture": {
+        "reportsSubmitted": 2,
+        "runId": "restart-172bd6b7f8a142d09d3e7f7a2dbb0457",
+        "state": "complete"
+      },
+      "fixtureResolution": {
+        "address": "192.168.1.221",
+        "hostname": "keypath-hid-fixture.local",
+        "observedAtEpoch": 1791248405.542586
+      },
+      "hostUSB": {
+        "actualStatus": 0,
+        "observedAtEpoch": 1791248406.812493,
+        "providerUUID": "cd8391e0-32f5-4763-b9d9-37bc59177a86",
+        "systemName": "3110000|cafe|4010|full|--|2884855553BC"
+      },
+      "identity": {
+        "parentArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath"
+        ],
+        "parentPID": 2658,
+        "reportPath": "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-7CEEDB23-A826-4EB0-86C6-E0049C488752/report.json",
+        "targetNonce": "92B70315-9AEC-4965-ABFC-2A935E7FC427",
+        "targetPID": 2685,
+        "workerArguments": [
+          "/Users/keypathqa_438d6abc/Applications/KeyPath.app/Contents/MacOS/KeyPath",
+          "--session-runtime",
+          "--session-report",
+          "/var/folders/55/b93gbtx17031ln1cqx6wym040000gp/T/keypath-session-7CEEDB23-A826-4EB0-86C6-E0049C488752/report.json",
+          "--session-nonce",
+          "7CEEDB23-A826-4EB0-86C6-E0049C488752",
+          "--session-owner",
+          "2658",
+          "--session-port",
+          "37001",
+          "--session-config",
+          "/Users/keypathqa_438d6abc/.config/keypath/keypath.kbd"
+        ],
+        "workerNonce": "7CEEDB23-A826-4EB0-86C6-E0049C488752",
+        "workerPID": 2667
+      },
+      "lease": "cbx_5b88adfbae42",
+      "passed": true,
+      "providerUUID": "cd8391e0-32f5-4763-b9d9-37bc59177a86",
+      "runId": "restart-172bd6b7f8a142d09d3e7f7a2dbb0457",
+      "sample": "q",
+      "target": {
+        "downs": 1,
+        "held": [],
+        "modifiers": 0,
+        "observedAt": 1791248409.021679,
+        "text": "a",
+        "ups": 1
+      },
+      "trace": [
+        {
+          "keys": [
+            20,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 23,
+          "modifiers": 0,
+          "scheduledUs": 734236952872,
+          "sequence": 1,
+          "submittedUs": 734236952895
+        },
+        {
+          "keys": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "latenessUs": 3,
+          "modifiers": 0,
+          "scheduledUs": 734236992872,
+          "sequence": 2,
+          "submittedUs": 734236992875
+        }
+      ]
+    }
+  ],
+  "normalQuit": {
+    "route": "Root-observed native mouse clicks on visible guest KeyPath menu > Quit KeyPath after Close Setup",
+    "postconditions": [
+      "stopped01-result.json",
+      "stopped02-result.json",
+      "stopped03-result.json"
+    ],
+    "limitation": "Process receipts prove absence; menu attribution is root UI observation, not inferred from exit."
+  },
+  "profileRestoration": {
+    "profileRestored": true,
+    "profileSHA256": "65c2992efffb755776d346af60aa291250f6b3d9a143dbb3070450578154d573"
+  },
+  "cleanup": {
+    "passed": true,
+    "providerAbsent": true,
+    "templateStoppedRetained": true,
+    "fixture": [
+      {
+        "Name": "KeyPath Physical HID Fixture",
+        "System name": "3110000|cafe|4010|full|--|2884855553BC",
+        "Autoconnect-Vm-Uuid": "",
+        "Autoconnect-Action": "ask",
+        "Present-On-Host": "YES",
+        "Connected-To-Vm": "NO",
+        "Compatible-with-macOS-VM": "YES"
+      }
+    ]
+  },
+  "destroyWarning": "warning: could not stop GitHub Actions hydration for cbx_5b88adfbae42: write GitHub Actions hydration stop marker on 10.211.55.169: exit status 255",
+  "timingMinutes": {
+    "setupToReady": 9.035,
+    "experimentAndPreparationThroughFinalQuit": 4.943,
+    "cleanupThroughIndependentVerification": 1.758,
+    "total": 15.736
+  },
+  "avoidableControllerFaults": 0,
+  "expectedConsentProbeFailures": 1,
+  "repairBetweenCycles": false,
+  "independentReview": "Sol source/receipt review supports both physical samples, new identities, process absence and profile restoration; cleanup verified separately by root.",
+  "limits": [
+    "One campaign with two samples is not broad lab reliability or a measured 2x speed improvement.",
+    "No Caps, crash, held-key Quit, genuine OS timeout or onboarding acceptance added.",
+    "Setup Ready window reappeared on relaunch and was closed normally before Quit; revisit onboarding after core gates."
+  ],
+  "receipts": {
+    "local-checks.json": "53159ceddf58c330bec47f3f6cbbe6d38fefc612bc03347fcca3f4a9775388f0",
+    "create-claim.json": "773b6dccdcb7897f7ebfe2394c73b3ca2d15a705486014b12eddfbe685917a3c",
+    "create-result.json": "972eb305f291fa1e36272e30165f79001089e65f3074cf017d98f473eff51d98",
+    "owned-lease.json": "69fa700b48d5b46c9026d51a7622fadb7a9f375acf6ec85eaec5552843cf98e2",
+    "guest-identity.json": "aa0a993b0460471137e9de093592c527ef9cfc1baf0d2546fa54443a709e1618",
+    "connection01-result.json": "e2eedcd36cb5d9ae529a979e63fb42e41eba21c7e058d90870f6a85fb728d615",
+    "connection02-result.json": "5bc95b79f2f8aacd0775a79290118d0e8e13b1423f6818af87efb8b11bf98f9e",
+    "install01-verified.json": "614d0e6a3695b8d573cb6d9419fc150ded079cfaa469c6bdc0a0fc7422ce2033",
+    "permissions01-result.json": "587d8215dae6cae5f5a29918f38dadb1f6db431a0e8b9b06ad9d3c47aa450684",
+    "stopped01-result.json": "7568509979c589a4125c394e7e733a1e67c1ae37d275913fc7eeeb1708d40148",
+    "profile01-result.json": "683b83d389b760206cb355a269a50b745493761e06a5eb65acfcd8b396994b46",
+    "cycle1-sample-result.json": "d9ad87a17f94231cf5eb7ca17304a1c7a4bf8949243cbda3fed42396c7f8f6db",
+    "cycle1-before-result.json": "d64d5b82dd283c57caaa0dea9f97dc6c65e8f81ba26d09b80e6b039890fdae3e",
+    "cycle1-after-result.json": "1d0dd0fee1350edd6de74de77bab3f60bfbbb7616edaca1d54eb9a8b7d882a6a",
+    "retire01-result.json": "f144cacb5c4d036c9a06ed24aeb379c755289a040adca8a12e3cd9a9fc73deb5",
+    "stopped02-result.json": "e4099762ea689537207d95b65c5c3918643dd01a5fd5cdccf1657d6590a470fe",
+    "cycle2-sample-result.json": "8e15cfcd77ffec6cc98ee112bc67e14727360ab8877c62e0884ae4770f82cde5",
+    "cycle2-before-result.json": "8a43c70e9ee7239de96007ba7fc3e2e97890ed0113bc46ffda085051c907a9e8",
+    "cycle2-after-result.json": "d9d5e8fd6440db6483e9bdc766a1aebd169273e2c7a9b2e811c210bd824bcd51",
+    "retire02-result.json": "fc0c46314c6c17d487e9babbb50b89038b72312ad47020b5ad135aa0034fab65",
+    "stopped03-result.json": "c532cb487270778c0f26d6eb07e2d45d3f05f8237d642fdcb47c773f856f47c4",
+    "restore01-result.json": "ae66e9d1e982e6a542390aed96f3df10be1f222e6ab72575b0730fbf768ad1c9",
+    "final01-result.json": "9f91ce50ff23f5539a570a9b282fb596f7679b613e44360cbc69613e7f0e71c8",
+    "destroy-result.json": "f3354d8c1cc83748f72c3527a678096146e6f2147b37e4fda82b125c8bca239a",
+    "independent-provider-cleanup02.json": "adf3d94f97c5afb1a7600de9f41ffffc01a20c640666d53222f964e2808aa449"
+  }
+}
