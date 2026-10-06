@@ -176,45 +176,51 @@ struct AboutView: View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("Updates")
 
-            Toggle("Check for updates automatically", isOn: Binding(
-                get: { updateService.automaticallyChecksForUpdates },
-                set: { updateService.setAutomaticChecks(enabled: $0) }
-            ))
-            .accessibilityIdentifier("about-auto-update-toggle")
+            if updateService.usesManualDownloads {
+                Text("Download the latest version, then quit KeyPath before replacing the app. Your rules are kept.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Toggle("Check for updates automatically", isOn: Binding(
+                    get: { updateService.automaticallyChecksForUpdates },
+                    set: { updateService.setAutomaticChecks(enabled: $0) }
+                ))
+                .accessibilityIdentifier("about-auto-update-toggle")
 
-            Toggle("Download and install updates automatically", isOn: Binding(
-                get: { updateService.automaticallyDownloadsUpdates },
-                set: { updateService.setAutomaticDownloads(enabled: $0) }
-            ))
-            .disabled(!updateService.allowsAutomaticUpdates)
-            .accessibilityIdentifier("about-auto-install-toggle")
+                Toggle("Download and install updates automatically", isOn: Binding(
+                    get: { updateService.automaticallyDownloadsUpdates },
+                    set: { updateService.setAutomaticDownloads(enabled: $0) }
+                ))
+                .disabled(!updateService.allowsAutomaticUpdates)
+                .accessibilityIdentifier("about-auto-install-toggle")
 
-            HStack(alignment: .center, spacing: 12) {
-                Text("Update Channel")
-                    .font(.subheadline.weight(.medium))
-                    .frame(width: 110, alignment: .leading)
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Update Channel")
+                        .font(.subheadline.weight(.medium))
+                        .frame(width: 110, alignment: .leading)
 
-                Picker("Update Channel", selection: Binding(
-                    get: { updateService.updateChannel },
-                    set: { updateService.setUpdateChannel($0) }
-                )) {
-                    ForEach(UpdateChannel.allCases) { channel in
-                        Text(channel.rawValue).tag(channel)
+                    Picker("Update Channel", selection: Binding(
+                        get: { updateService.updateChannel },
+                        set: { updateService.setUpdateChannel($0) }
+                    )) {
+                        ForEach(UpdateChannel.allCases) { channel in
+                            Text(channel.rawValue).tag(channel)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                    .accessibilityIdentifier("about-update-channel-picker")
                 }
-                .pickerStyle(.menu)
-                .frame(width: 140)
-                .accessibilityIdentifier("about-update-channel-picker")
-            }
 
-            Text("Stable releases plus beta previews.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+                Text("Stable releases plus beta previews.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             Button {
                 updateService.checkForUpdates()
             } label: {
-                Label("Check for Updates...", systemImage: "arrow.down.circle")
+                Label(updateService.usesManualDownloads ? "Download Update…" : "Check for Updates…", systemImage: "arrow.down.circle")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)

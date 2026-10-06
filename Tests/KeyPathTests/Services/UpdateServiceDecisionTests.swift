@@ -4,6 +4,42 @@ import XCTest
 
 final class UpdateServiceDecisionTests: XCTestCase {
     @MainActor
+    func testSessionDownloadsNeverInitializeSparkleOrEnableAutomaticUpdates() {
+        let service = UpdateService.testService()
+        service.initialize()
+        service.setAutomaticChecks(enabled: true)
+        service.setAutomaticDownloads(enabled: true)
+        XCTAssertTrue(service.usesManualDownloads)
+        XCTAssertTrue(service.canCheckForUpdates)
+        XCTAssertNil(service.updater)
+        XCTAssertFalse(service.automaticallyChecksForUpdates)
+        XCTAssertFalse(service.automaticallyDownloadsUpdates)
+        XCTAssertFalse(service.allowsAutomaticUpdates)
+
+        var opened: [URL] = []
+        var cleanupCalls = 0
+        service.configureRuntimeStop { cleanupCalls += 1; return true }
+        service.openDownloadPage = { opened.append($0); return true }
+        service.checkForUpdates()
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://github.com/malpern/KeyPath/releases/latest"])
+        XCTAssertEqual(cleanupCalls, 0)
+        XCTAssertFalse(service.isUpdateTerminationExpected)
+        XCTAssertNil(service.preparationError)
+    }
+
+    @MainActor
+    func testFailedDownloadPageOpenReportsRecoverableError() {
+        let service = UpdateService.testService()
+        service.initialize()
+        service.openDownloadPage = { _ in false }
+        service.checkForUpdates()
+        XCTAssertNotNil(service.preparationError)
+        service.openDownloadPage = { _ in true }
+        service.checkForUpdates()
+        XCTAssertNil(service.preparationError)
+    }
+
+    @MainActor
     func testUpdateContinuationWaitsForSuccessfulRuntimeCleanup() async {
         var phases: [String] = []
         let result = await UpdateService.continueAfterRuntimeCleanup(stop: {

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathInstallationWizard
@@ -70,13 +71,8 @@ final class UpdateTerminationExpectation: @unchecked Sendable {
     }
 }
 
-/// Manages application updates via Sparkle framework
-///
-/// This service handles:
-/// - Automatic update checks (every 24 hours)
-/// - Manual "Check for Updates" menu action
-/// - Pre/post-install hooks to properly stop/restart KeyPath services
-///
+/// Session releases open manual downloads. The retained Sparkle integration is
+/// inactive for that backend pending qualification of previous-process installers.
 /// Runtime shutdown uses the existing admitted lifecycle owner.
 @Observable
 @MainActor
@@ -92,6 +88,12 @@ public final class UpdateService: NSObject {
     var isUpdateTerminationExpected: Bool {
         terminationExpectation.isExpected
     }
+
+    /// Session releases use manual replacement until updater shutdown is qualified.
+    public var usesManualDownloads: Bool { KanataRuntimeBackend.selected == .session }
+
+    @ObservationIgnored var openDownloadPage: @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    private static let downloadURL = URL(string: "https://github.com/malpern/KeyPath/releases/latest")!
 
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
     @ObservationIgnored private let channelDefaultsKey = "keypath.update.channel"
@@ -131,6 +133,16 @@ public final class UpdateService: NSObject {
     public func initialize() {
         guard updaterController == nil else { return }
 
+        // Do not construct Sparkle: even a manual check can resume an installer
+        // staged by an earlier process, independently of automatic preferences.
+        if usesManualDownloads {
+            canCheckForUpdates = true
+            automaticallyChecksForUpdates = false
+            automaticallyDownloadsUpdates = false
+            allowsAutomaticUpdates = false
+            return
+        }
+
         // Skip initialization in test environment
         if TestEnvironment.isRunningTests {
             AppLogger.shared.debug("🧪 [UpdateService] Skipping Sparkle init in test mode")
@@ -163,8 +175,13 @@ public final class UpdateService: NSObject {
         }
     }
 
-    /// Manually trigger an update check (called from menu item)
+    /// Open manual downloads, or trigger a check for a backend with a qualified updater.
     public func checkForUpdates() {
+        if usesManualDownloads {
+            preparationError = openDownloadPage(Self.downloadURL)
+                ? nil : "Couldn't open the downloads page. Visit github.com/malpern/KeyPath/releases."
+            return
+        }
         AppLogger.shared.log("🔍 [UpdateService] Manual update check requested")
         if pendingInstallHandler != nil {
             Task { @MainActor in await resumePreparedUpdate() }
@@ -175,6 +192,7 @@ public final class UpdateService: NSObject {
 
     /// Enable or disable automatic update checks
     public func setAutomaticChecks(enabled: Bool) {
+        guard !usesManualDownloads else { return }
         updaterController?.updater.automaticallyChecksForUpdates = enabled
         automaticallyChecksForUpdates = enabled
         allowsAutomaticUpdates = updaterController?.updater.allowsAutomaticUpdates ?? false
@@ -185,6 +203,7 @@ public final class UpdateService: NSObject {
     /// Enable or disable Sparkle's automatic background download/install path.
     /// This is a user preference; Info.plist supplies only the initial default.
     public func setAutomaticDownloads(enabled: Bool) {
+        guard !usesManualDownloads else { return }
         guard let updater = updaterController?.updater, updater.allowsAutomaticUpdates else {
             AppLogger.shared.warn("⚠️ [UpdateService] Automatic updates are unavailable while automatic checks are disabled")
             automaticallyDownloadsUpdates = false

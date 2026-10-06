@@ -336,7 +336,7 @@ struct CheckForUpdatesView: View {
     init(updater _: SPUUpdater?) {}
 
     var body: some View {
-        Button("Check for Updates\u{2026}") {
+        Button(updateService.usesManualDownloads ? "Download Update…" : "Check for Updates…") {
             updateService.checkForUpdates()
         }
         .disabled(!updateService.canCheckForUpdates)

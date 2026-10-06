@@ -7,10 +7,9 @@ permalink: /guides/driverless-caps-lock/
 
 # Caps Lock in driverless KeyPath
 
-**Current status (October 6, 2026): production opt-in is implemented, with live
-acceptance and broader keyboard qualification still required before release.**
-Basic remapping and tap/hold worked in the lab using the experimental path.
-The production setup is being tested separately.
+**Current status (October 6, 2026): production opt-in passed physical Caps Lock
+tap → Escape and hold → Control in the lab. Broader keyboard qualification and
+final release checks are still required.**
 
 In Settings → General → Caps Lock Remapping, review your connected keyboard,
 reserve F18 explicitly, and enable setup. Then start KeyPath Runtime. Setup
@@ -95,3 +94,9 @@ while a key is held would add unnecessary risk.
 ## Tested production flow
 
 The non-debug build passed explicit keyboard/F18 setup, physical Caps Lock tap → Escape and hold → Control, clean release, Disable restoration and disabled-consent startup refusal on the ESP32 fixture. Other keyboards and reboot/reselection remain part of release qualification. Caps Lock tap/hold is briefly mentioned in onboarding; setup details remain in this guide.
+
+
+## Updating KeyPath
+
+Choose **Download Update…**, download the new app, then quit KeyPath before
+replacing it. Your rules are kept. This driverless version uses manual downloads.

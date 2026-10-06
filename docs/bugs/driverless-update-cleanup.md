@@ -70,3 +70,20 @@ Evidence reviewed in bundled Sparkle 2.9.4: `SPUUpdaterDelegate.h`,
 `SPUCoreBasedUpdateDriver.m` (`extractUpdate`, `installerWillFinishInstallationAndRelaunch`),
 `SPUInstallerDriver.m` (stage 2 may notify installation after target exit), and
 `SPUAutomaticUpdateDriver.m` (scheduled installer survives nil-error completion).
+
+
+### First driverless release: manual downloads
+
+Session builds do not construct or start the Sparkle controller. “Download
+Update…” opens the official GitHub releases page in the browser; it does not
+check, download, stage, or replace the running application. About hides automatic
+checks, automatic installation, and channel controls. Stored Sparkle preferences
+cannot enable those paths. Quit KeyPath before replacing the app; configuration
+files remain outside the application bundle.
+
+This is a temporary release simplification, not a new updater implementation.
+Admitted graceful termination remains in force. It does not cancel an external
+installer already staged by an older build: migration from such a build still
+requires a separately verified clean manual transition. Restore automatic updates
+only after previous-process installer and configuration/Caps cleanup behavior is
+qualified. Public release and migration acceptance remain separate gates.
