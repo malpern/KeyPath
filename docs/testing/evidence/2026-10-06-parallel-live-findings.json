@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-06",
+  "approvalMode": "auto_review",
+  "source": "699008448",
+  "productionReady": false,
+  "fullRegression": {
+    "source": "8e66aca43",
+    "passed": false,
+    "seconds": 188,
+    "failure": "MainAppStateControllerTests: real-time 50ms transient deadline produced only one health probe under parallel MainActor load",
+    "logs": "/private/tmp/keypath-production-parallel-full-v1"
+  },
+  "liveCandidate": "762d5fe174ddc914030f1f95c2afd515e03c9206",
+  "liveTrial": "/private/tmp/keypath-production-onboarding-live-03",
+  "livePassed": [
+    "normal AX and Input Monitoring consent",
+    "explicit Restart reached active runtime with empty output ledger",
+    "Open Rules handoff",
+    "current-generation normal Quit independently removed parent and worker",
+    "healthy normal relaunch",
+    "Toggle Overlay",
+    "Repair Quit-and-Trash guidance",
+    "Simulator opens"
+  ],
+  "liveUnclosed": [
+    "completed permission-refused start falsely stays starting under old 140s grace",
+    "stale capability probe overrides ready owned worker and opens stale setup window",
+    "remaining View and explicit Setup cases"
+  ],
+  "fixes": [
+    "actual in-flight session startup state",
+    "revalidate owned report after awaited capability probe",
+    "never signal nonpositive probe PID"
+  ],
+  "metal": {
+    "userApproved": true,
+    "installed": true,
+    "toolchain": "Xcode27.0 27A266a",
+    "freshShaderCompiled": true,
+    "shaderSourceSHA256": "22967254dbe1cd0d799f2b216f6678503fe482ce65b9532b5175093edc5da682",
+    "freshLibrarySHA256": "1f79f49129927bcdddf4a9198a679b70494c3b4c6d025319090b73f1a8ef4226",
+    "logs": "/private/tmp/keypath-metal-component-install.log"
+  },
+  "freshRust": {
+    "sourcePin": "0853689f04d40f6b8d283fef80e34b3d53531b89",
+    "isolatedCheckout": "/private/tmp/keypath-driverless-fresh-release",
+    "bridgeBuildPassed": true,
+    "simulatorBuildPassed": true,
+    "engineBuildPassed": true,
+    "receiptPending": true
+  },
+  "olderMigrationExcluded": true,
+  "hostProductInstalled": false,
+  "publicRelease": false
+}
