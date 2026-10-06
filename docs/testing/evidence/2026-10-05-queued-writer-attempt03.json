@@ -1,0 +1,63 @@
+{
+  "candidateCommit": "40809975962922f852c4729f2dced76eb7e47dd8",
+  "diagnosis": {
+    "actualHIDChildExitCauseProven": false,
+    "appParentDeathSeparatelyTested": false,
+    "inheritedGroupProbe": "true2479 stopped in owner2478 group, absent after owner SIGKILL",
+    "likelyCause": "Inherited stopped process group becomes orphaned; XNU sends HUP/CONT.",
+    "newSessionProbe": "true2513 PID/PGID2513 Ts before owner2512 SIGKILL, two identical Ts/PPID1 observations afterward; exact cleanup passed",
+    "newSessionProbeFlags": "0x4480 = START_SUSPENDED | SETSID | CLOEXEC_DEFAULT; no setpgroup call",
+    "productAcceptance": false,
+    "rawFieldQualification": "newsession01 joinSurvivingGroup:true is a stale harness field. Actual source flags and ps tuples prove a new session, not joining the surviving group.",
+    "source": "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_proc.c",
+    "survivingGroupProbe": "true2486 stopped in group2469, survived owner2485 SIGKILL; exact cleanup passed"
+  },
+  "files": {
+    "attached-baseline01.json": "d6874fa8f29cd2ea85a0613723e98311d712c49d2081a7690f053aa9330d844a",
+    "consent01-result.json": "45bc953eb4e13c4ecfd81c2549dbeff9bb048706cdc79f6606d95bfdfa8347ea",
+    "destroy-result.json": "f616da8881a10163a5730f4c2da72e08775216f047ffe03060050389584945a0",
+    "device01-result.json": "631c43758cc1d61a93208ea08f51dcbc24a4b1b3cd3042e981c779f2aec992d1",
+    "guest-identity.json": "5c6bac0d290e436b7ece619158d7625892cef0a7254f9f395914aaf67e7dbf40",
+    "independent-provider-cleanup02.json": "966ed9438148bacfd295411528b5739c9e49d761386cd50ba2b4b0ae7ea05cc9",
+    "install01-verified.json": "196c07d353b9cf93b22b38cea0d894d39b87be209d304f88d6ae001c96612ef9",
+    "missingchild01-result.json": "0d20de83d84aec95d39f283e7f04f115eecab718c24f4a6aaba676819b022ebf",
+    "new_session_probe.py": "ed26c675e519b38fcfa43f2d6e044b263415fbbf0cafd2651f782dc8c97ee3c0",
+    "newsession01-result.json": "f5dc4d233516439168b49787bfb9721f0fc5b5747bdd8ffe5e6e27707ccf9e1f",
+    "owned-lease.json": "5f15adab604902c36ed04f8a694da511336baff2eb7c8d8b9069a9e0be7420c7",
+    "process_group_probe.py": "6b8e0036a57dae012ca844cb18359c5ca59fa63a3348161edcbbdf18fe6c7dec",
+    "processgroup01-result.json": "734d30f85ce26d0856283f802ffaa2b261e205d37101892cee798ac052037c1a",
+    "queuedlaunch01-result.json": "6b6ddf757c69a5a1d29cfd97575cf3eea5c5c60850a790efdfc341b7c3485b29",
+    "queuedoriginal01-result.json": "75c2a7c0c3bb3d3cb835a77d21552f5648a72954971c6e48f898f7bb86d10327",
+    "refuseddiagnostic01-result.json": "fc493190936e0801905827836117cf36e6f3e0835e5c311baccf8372ac4fc2c5",
+    "stopped02-result.json": "96967040ea5bb2dffc04b66988e3ef22021f57e6e9e6ef7888fecd823ae92a7c"
+  },
+  "hidChildSignalsSent": [],
+  "insideOpaqueMutationProven": false,
+  "lease": "cbx_6050ee02a69b",
+  "observations": {
+    "activeOrdinaryTap": true,
+    "canonicalDestroyStatus": 0,
+    "checkpointChildAbsent": true,
+    "checkpointChildPID": 2370,
+    "effectivePermissions": true,
+    "explicitRestartRefused": true,
+    "hydrationStopWarning": 255,
+    "independentCleanupPassed": true,
+    "intentMarkerUnchanged": true,
+    "normalQuitProcessAbsence": true,
+    "originalMapping": [],
+    "survivingParentPID": 2353,
+    "workerPID": 2363
+  },
+  "physicalEventsSent": false,
+  "provider": "89434c4a-a705-44c5-9779-57f912208435",
+  "queuedWriterAcceptance": false,
+  "remaining": [
+    "actual HID writer survival",
+    "fresh-parent queued-child refusal",
+    "late writer execution/readback",
+    "post-late-write refusal"
+  ],
+  "result": "failed queued-child-survival gate; independent non-HID process-lifetime diagnosis passed",
+  "trial": "/private/tmp/keypath-queued-writer-live-03"
+}
