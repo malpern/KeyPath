@@ -1,5 +1,16 @@
 # Driverless permission-reduction plan
 
+Latest October5 product checkpoint: the fresh-parent retained-marker experiment
+found a real startup race that overwrote the handwritten Caps profile. The
+unchanged-profile acceptance gate remains failed. Product1c856d3fe removes the
+cached-read ownership bypass; independent review and12 focused configuration
+tests passed, and the fix is pushed. Next package that fix and replay the same
+gate. Later explicit Restart under regenerated defaults refused safely with
+unchanged journal/marker/device map and no worker, but that narrower observation
+does not accept the original case. Cleanup and independent disposal checks
+passed; no owned VM remains. Keep setup reuse inside product sessions; no new
+lab work is warranted by this product bug.
+
 Current October5 checkpoint: signed `bd7809dc1` passed narrow retained-mutation-marker observation and same-parent explicit Restart refusal. The known refusal appeared within8.806seconds. Worker death was injected after the HID write child returned and response parsing, before marker removal; child-in-flight death and fresh-parent recovery are not accepted by this trial. Earlier reconnect/previous-boot refusal, held-owner crash, narrow Secure Input release/resume and all-up mode-transition evidence retains its own scope. Cleanup and independent provider/template/USB checks passed; no owned VM remains.
 
 The bounded infrastructure consolidation and **two ordinary physical samples across normal Quit/relaunch now passed** on the same signed candidate in one prepared guest. Each produced exact q→a/down/up, matching fixture traces/counter deltas and all-up state; the second used new parent/worker/target identities with no repair between cycles. Normal mouse-menu Quit and profile/process cleanup passed, followed by independently verified disposal. [Selected evidence](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-repeatability-live-acceptance.json). The selected commands now live separately from trial receipts; the installer correction is integrated in lab `f2d3b65`. No new framework was added. Freeze infrastructure work except for reproduced blockers; resume product recovery. This single campaign supports narrow repeatability, not general reliability or a measured2× speedup. Ready setup reappearing on relaunch is recorded for the later onboarding review.
