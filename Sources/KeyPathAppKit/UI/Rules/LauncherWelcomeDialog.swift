@@ -4,10 +4,9 @@ import SwiftUI
 
 /// Welcome dialog shown when user first enables the Launcher collection.
 ///
-/// Introduces the feature and offers three paths:
+/// Introduces the feature and offers two paths:
 /// - Use defaults as-is
 /// - Customize the shortcuts
-/// - Import from browser history
 struct LauncherWelcomeDialog: View {
     @Binding var config: LauncherGridConfig
     let onComplete: (LauncherGridConfig, WelcomeAction) -> Void
@@ -19,13 +18,11 @@ struct LauncherWelcomeDialog: View {
         case welcome
         case preview
         case customize
-        case browserHistory
     }
 
     enum WelcomeAction {
         case useDefaults
         case customized
-        case importedFromHistory
     }
 
     var body: some View {
@@ -39,8 +36,6 @@ struct LauncherWelcomeDialog: View {
                     previewStep
                 case .customize:
                     customizeStep
-                case .browserHistory:
-                    browserHistoryStep
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -128,11 +123,6 @@ struct LauncherWelcomeDialog: View {
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("launcher-welcome-customize-button")
 
-                    Button("Import from Browser History") {
-                        currentStep = .browserHistory
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("launcher-welcome-import-history-button")
                 }
             }
             .padding(.horizontal, 40)
@@ -290,38 +280,6 @@ struct LauncherWelcomeDialog: View {
         }
     }
 
-    // MARK: - Browser History Step
-
-    private var browserHistoryStep: some View {
-        let existingDomains = Set(config.mappings.compactMap { mapping in
-            if case let .openURL(domain) = mapping.action {
-                return normalizeDomain(domain)
-            }
-            return nil
-        })
-
-        return BrowserHistorySuggestionsView(existingDomains: existingDomains) { selectedSites in
-            // Add selected sites to config
-            let usedKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
-            let availableKeys = LauncherGridConfig.suggestionKeyOrder
-                .filter { !usedKeys.contains($0) }
-
-            for (site, key) in zip(selectedSites, availableKeys) {
-                if existingDomains.contains(normalizeDomain(site.domain)) {
-                    continue
-                }
-                let mapping = LauncherMapping(
-                    key: key,
-                    action: .openURL(site.domain),
-                    isEnabled: true
-                )
-                config.mappings.append(mapping)
-            }
-
-            complete(action: .importedFromHistory)
-        }
-    }
-
     // MARK: - Helpers
 
     private func complete(action: WelcomeAction) {
@@ -329,11 +287,4 @@ struct LauncherWelcomeDialog: View {
         dismiss()
     }
 
-    private func normalizeDomain(_ domain: String) -> String {
-        let lower = domain.lowercased()
-        if lower.hasPrefix("www.") {
-            return String(lower.dropFirst(4))
-        }
-        return lower
-    }
 }

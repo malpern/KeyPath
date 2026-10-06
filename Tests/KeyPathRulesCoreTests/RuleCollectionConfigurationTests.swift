@@ -440,4 +440,21 @@ final class RuleCollectionConfigurationTests: XCTestCase {
         XCTAssertTrue(decoded.mappings[2].action.isOpenFolder)
         XCTAssertTrue(decoded.mappings[3].action.isRunScript)
     }
+
+    func testLauncherGridConfigPreservesSavedShortcutsAndWelcomeState() throws {
+        let saved = LauncherGridConfig(mappings: [
+            LauncherMapping(key: "a", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari")),
+            LauncherMapping(key: "u", action: .openURL("https://example.com")),
+            LauncherMapping(key: "f", action: .openFolder(path: "~/Documents", name: "Documents")),
+            LauncherMapping(key: "s", action: .runScript(path: "~/run.sh", name: "Run")),
+        ], hasSeenWelcome: true)
+        var oldObject = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(saved)) as? [String: Any])
+        oldObject["hasSeenWelcome"] = true
+        let decoded = try JSONDecoder().decode(
+            LauncherGridConfig.self,
+            from: JSONSerialization.data(withJSONObject: oldObject)
+        )
+
+        XCTAssertEqual(decoded, saved)
+    }
 }

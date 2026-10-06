@@ -46,39 +46,13 @@ extension OverlayInspectorPanel {
                     .foregroundStyle(.secondary)
             }
 
-            // Suggestions & Setup section
+            // Setup section
             VStack(alignment: .leading, spacing: 10) {
-                Text("Suggestions")
+                Text("Setup")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 VStack(spacing: 0) {
-                    Button {
-                        Task {
-                            await refreshLauncherExistingDomains()
-                            showLauncherHistorySuggestions = true
-                        }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                            Text("Suggest from Browser History")
-                                .font(.subheadline)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 12)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("launcher-customize-suggest-history")
-
-                    Divider()
-
                     Button {
                         showLauncherWelcomeFromSettings()
                     } label: {
@@ -115,11 +89,6 @@ extension OverlayInspectorPanel {
         .padding(.horizontal, 12)
         .onAppear {
             loadLauncherConfig()
-        }
-        .sheet(isPresented: $showLauncherHistorySuggestions) {
-            BrowserHistorySuggestionsView(existingDomains: launcherExistingDomains) { selectedSites in
-                addSuggestedSitesToLauncher(selectedSites)
-            }
         }
     }
 
@@ -191,25 +160,6 @@ extension OverlayInspectorPanel {
         }
     }
 
-    private func refreshLauncherExistingDomains() async {
-        let collections = await services.ruleCollectionStore.loadCollections()
-        let domains = collections
-            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
-            .configuration
-            .launcherGridConfig?
-            .mappings
-            .compactMap { mapping -> String? in
-                if case let .openURL(domain) = mapping.action {
-                    return normalizeDomain(domain)
-                }
-                return nil
-            } ?? []
-
-        await MainActor.run {
-            launcherExistingDomains = Set(domains)
-        }
-    }
-
     /// Save launcher config to store
     private func saveLauncherConfig() {
         Task {
@@ -235,59 +185,4 @@ extension OverlayInspectorPanel {
         }
     }
 
-    /// Add suggested sites from browser history to launcher
-    private func addSuggestedSitesToLauncher(_ sites: [BrowserHistoryScanner.VisitedSite]) {
-        Task {
-            do {
-                var collections = await services.ruleCollectionStore.loadCollections()
-                if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                    var collection = collections[index]
-                    if var config = collection.configuration.launcherGridConfig {
-                        var existingKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
-                        let existingDomains = Set(config.mappings.compactMap { mapping in
-                            if case let .openURL(domain) = mapping.action {
-                                return normalizeDomain(domain)
-                            }
-                            return nil
-                        })
-
-                        for site in sites {
-                            if existingDomains.contains(normalizeDomain(site.domain)) {
-                                continue
-                            }
-                            guard let key = LauncherGridConfig.suggestionKeyOrder.first(where: { !existingKeys.contains($0) }) else {
-                                continue
-                            }
-
-                            existingKeys.insert(key)
-
-                            let mapping = LauncherMapping(
-                                key: key,
-                                action: .openURL(site.domain)
-                            )
-                            config.mappings.append(mapping)
-                        }
-
-                        collection.configuration = .launcherGrid(config)
-                        collections[index] = collection
-                        try await services.ruleCollectionStore.saveCollections(collections)
-                        Foundation.NotificationCenter.default.post(
-                            name: Foundation.Notification.Name.ruleCollectionsChanged,
-                            object: nil
-                        )
-                    }
-                }
-            } catch {
-                AppLogger.shared.log("⚠️ [Launcher] Failed to save suggested sites: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func normalizeDomain(_ domain: String) -> String {
-        let lower = domain.lowercased()
-        if lower.hasPrefix("www.") {
-            return String(lower.dropFirst(4))
-        }
-        return lower
-    }
 }
