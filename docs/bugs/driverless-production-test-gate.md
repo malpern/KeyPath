@@ -51,3 +51,23 @@ Final focused runner v7 reports 15 passed (launch gate, termination coordinator,
 reopen policy and Repair snapshot), zero skips, warnings and app errors in31seconds.
 The recording-only v5 reports its expected recording failure and is not counted
 as a passing comparison. Accessibility380 and whitespace checks passed.
+
+
+Release tooling follow-up: `Scripts/verify-installed-app.sh` currently requires
+`system/com.keypath.kanata`; `Scripts/release-doctor.sh` still describes that
+launchd registration as an installed-runtime signal. The final driverless release
+must verify the exact session parent/worker, its owned report and TCP readiness,
+while retaining signature, notarization and staple checks. Do not pass runtime
+qualification by setting CHECK_RUNTIME=0; that switch is trust-only. No host
+installation is authorized. This is a product distribution gate, not a reason to
+change the VM lab.
+
+
+Post-polish broad run v3 completed: **5,444 passed, one obsolete lint failure**,
+197seconds, zero warnings and seven expected error-path app logs. The failed test
+required the deleted immediate system-uninstall shortcut. Its replacement forbids
+unsupported system-uninstall routes in driverless menus while retaining the
+installer transaction/privileged-execution tests. The complete installer lint
+class passed **12 tests** in v8, zero warnings/errors. Do not describe v3 as a
+zero-failure full run; it remains preserved. A final zero-failure broad gate and
+signed live UI acceptance still precede release.

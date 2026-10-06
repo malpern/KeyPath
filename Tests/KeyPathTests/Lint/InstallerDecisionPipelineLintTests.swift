@@ -207,16 +207,17 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         XCTAssertTrue(source.contains("guard isSupportedSessionRecipe(recipe)"))
     }
 
-    func testInstantUninstallRoutesThroughInstallerEngine() throws {
+    func testDriverlessMenusDoNotOfferSystemUninstall() throws {
         let file = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Core/AppMenuCommands.swift")
         let source = try String(contentsOf: file, encoding: .utf8)
 
-        XCTAssertTrue(source.contains("InstallerEngine().uninstall("))
-        XCTAssertFalse(
-            source.contains("UninstallCoordinator()"),
-            "The hidden uninstall shortcut must not bypass the shared transaction gate"
-        )
+        for forbidden in ["InstallerEngine().uninstall(", "UninstallCoordinator()", ".showUninstall"] {
+            XCTAssertFalse(
+                source.contains(forbidden),
+                "Driverless menus must not offer unsupported system uninstall: \(forbidden)"
+            )
+        }
     }
 
     func testExecutorDoesNotContainVHIDMutationBranches() throws {
