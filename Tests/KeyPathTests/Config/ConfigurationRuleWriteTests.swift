@@ -164,6 +164,46 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
     }
 
+    func testCachedExternalCapsConfigIsPreservedBeforeManagedSave() async throws {
+        try await service.saveRuleState(
+            ruleCollections: [collection("Original")], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        let collectionURL = await collections.persistenceURL
+        let customURL = await customRules.persistenceURL
+        let beforeCollections = try Data(contentsOf: collectionURL)
+        let beforeRules = try Data(contentsOf: customURL)
+        let externalCapsConfig = """
+        (defcfg process-unmapped-keys yes)
+        (defsrc caps)
+        (deflayermap (base) caps (tap-hold 200 200 esc lctl))
+        """
+        try externalCapsConfig.write(to: configURL, atomically: true, encoding: .utf8)
+
+        // Startup backup loads the raw file before collection bootstrap in one
+        // ordering. A cached read is not proof of managed generation ownership.
+        let cached = try await service.reload()
+        XCTAssertEqual(cached.content, externalCapsConfig)
+        let current = await service.current()
+        XCTAssertEqual(current.content, externalCapsConfig)
+
+        do {
+            try await service.saveRuleState(
+                ruleCollections: [collection("Candidate")], customRules: [],
+                collectionStore: collections, customStore: customRules
+            )
+            XCTFail("A cached external profile must not authorize managed replacement")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("configuration was preserved"))
+        }
+
+        XCTAssertEqual(try String(contentsOf: configURL, encoding: .utf8), externalCapsConfig)
+        XCTAssertEqual(try Data(contentsOf: collectionURL), beforeCollections)
+        XCTAssertEqual(try Data(contentsOf: customURL), beforeRules)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
+    }
+
     func testStandaloneRegenerationPreservesManualGlobalConfig() async throws {
         let original = collection("Original")
         try await service.saveRuleState(

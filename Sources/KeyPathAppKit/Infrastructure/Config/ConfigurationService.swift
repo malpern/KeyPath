@@ -851,12 +851,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         let configURL = URL(fileURLWithPath: configurationPath)
         guard FileManager.default.fileExists(atPath: configURL.path) else { return }
         let existing = try String(contentsOf: configURL, encoding: .utf8)
-        if let current = withLockedCurrentConfig(),
-           matchesGlobalManagedContent(existing, expected: current.content)
-        {
-            return
-        }
-
+        // A cached read can contain handwritten content. Only committed
+        // generation inputs can establish managed ownership of an existing file.
         // A missing collection store is the first-write/bootstrap migration
         // case: there is no committed global input set to reproduce yet.
         // Once collections exist, every global writer must preserve a main file
