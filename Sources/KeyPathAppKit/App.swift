@@ -133,6 +133,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var suppressLaunchSplashAutoHide = false
+    private var runtimeStartupTask: Task<Void, Never>?
     private var keyboardCapture: KeyboardCapture?
     private var launchGate = ApplicationLaunchGate()
     private let terminationCoordinator = ApplicationTerminationCoordinator()
@@ -328,6 +329,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // (e.g., launched at login while another app has focus)
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(3))
+                await self.runtimeStartupTask?.value
                 if !self.initialMainWindowShown {
                     AppLogger.shared.info("🪟 [AppDelegate] Splash fallback auto-hide (app never activated)")
                     self.initialMainWindowShown = true
@@ -498,7 +500,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let splashDelayMs = launchSplashDelayMs
         AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
         try? await Task.sleep(for: .milliseconds(splashDelayMs))
-        showWizard(targetPage: targetPage)
+        guard !Task.isCancelled else { return }
+        if targetPage == nil, await hasCompletedInitialWizard() {
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            mainWindowController?.window?.orderOut(nil)
+        } else {
+            showWizard(targetPage: targetPage)
+        }
     }
 
     // MARK: - Public Window Access
@@ -546,6 +554,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if hasExistingConfig {
             Task { @MainActor in
+                await runtimeStartupTask?.value
                 if await hasCompletedInitialWizard() {
                     AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
                     LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
@@ -662,8 +671,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // stop when it's off.
         KindaVimPackController.shared.start()
 
-        // Sequential startup: regenerate config, auto-launch, validate, auto-wizard
-        Task { @MainActor in
+        // Automatic launch surfaces await this existing startup sequence.
+        runtimeStartupTask = Task { @MainActor in
             do {
                 try await AppConfigGenerator.ensureIncludeFromStore()
                 AppLogger.shared.log("✅ [AppDelegate] App-specific config verified")
@@ -716,7 +725,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else if !setupReady {
                 AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
-                NotificationCenter.default.post(name: .showWizard, object: nil)
+                guard !Task.isCancelled else { return }
+                if !(await InstallerEngine().inspectSystem().isReady) {
+                    NotificationCenter.default.post(name: .showWizard, object: nil)
+                }
             }
         }
     }

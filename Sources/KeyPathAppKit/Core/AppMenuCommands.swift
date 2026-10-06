@@ -150,52 +150,10 @@ struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
 
-            Divider()
-
-            Button(
-                role: .destructive,
-                action: {
-                    appDelegate.showMainWindow()
-                    NotificationCenter.default.post(name: .showUninstall, object: nil)
-                },
-                label: {
-                    Label("Uninstall KeyPath\u{2026}", systemImage: "trash")
-                }
-            )
-
-            // Hidden instant uninstall (no confirmation, just admin prompt)
-            Button(
-                role: .destructive,
-                action: {
-                    Task { @MainActor in
-                        AppLogger.shared.log("🗑️ [InstantUninstall] \u{2325}\u{2318}U triggered - performing immediate uninstall")
-                        let report = await InstallerEngine().uninstall(
-                            deleteConfig: false,
-                            using: PrivilegeBroker()
-                        )
-                        if report.success {
-                            AppLogger.shared.log("✅ [InstantUninstall] Uninstall completed successfully")
-                            NSApplication.shared.terminate(nil)
-                        } else {
-                            AppLogger.shared.log("❌ [InstantUninstall] Uninstall failed")
-                            let alert = NSAlert()
-                            alert.messageText = "Uninstall Failed"
-                            alert.informativeText = report.failureReason ?? "An unknown error occurred during uninstall"
-                            alert.alertStyle = .critical
-                            alert.runModal()
-                        }
-                    }
-                },
-                label: {
-                    Text("") // Hidden menu item
-                }
-            )
-            .keyboardShortcut("u", modifiers: [.control, .option, .command])
-            .hidden() // Hide from menu but keep keyboard shortcut active
         }
 
-        // View menu — exposes global hotkeys for discoverability
-        CommandMenu("View") {
+        // Extend the standard View menu with the overlay controls.
+        CommandGroup(after: .toolbar) {
             Button("Toggle Overlay") {
                 LiveKeyboardOverlayController.shared.toggle()
             }

@@ -11,8 +11,6 @@ struct AdvancedSettingsTabView: View {
     @State private var removeDuplicatesInProgress = false
 
     @State private var showingRemoveDuplicatesConfirm = false
-    @State private var showingResetEverythingConfirmation = false
-    @State private var showingUninstallDialog = false
 
     @State private var backups: [BackupInfo] = []
     @State private var backupToRestore: BackupInfo?
@@ -45,49 +43,17 @@ struct AdvancedSettingsTabView: View {
                             }
                         }
 
-                        // Uninstall button (primary - Enter key triggers)
-                        Button(role: .destructive) {
-                            showingUninstallDialog = true
-                        } label: {
-                            Text("Uninstall")
-                                .frame(minWidth: 100)
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .accessibilityIdentifier("settings-uninstall-button")
-                        .accessibilityLabel("Uninstall KeyPath")
+                        Text("Quit KeyPath, then move KeyPath.app to the Trash. Your rules are kept.")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 220)
+
                     }
                     .frame(minWidth: 220)
 
                     // Right: Repair tools in priority order
                     VStack(alignment: .leading, spacing: 20) {
-                        // Emergency Helper
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Emergency Helper")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Text("Use when service is wedged and won't respond.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            Button {
-                                showingResetEverythingConfirmation = true
-                            } label: {
-                                Label("Reset Everything", systemImage: "exclamationmark.triangle")
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.red)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings-reset-everything-button")
-                            .accessibilityLabel("Reset Everything")
-                        }
-
-                        Text("Privileged helper operations are unavailable in this driverless build.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
                         // Simulator
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Simulator")
@@ -136,10 +102,6 @@ struct AdvancedSettingsTabView: View {
         }
         .settingsBackground()
         .withToasts(settingsToastManager)
-        .sheet(isPresented: $showingUninstallDialog) {
-            UninstallKeyPathDialog()
-                .environment(kanataManager)
-        }
         .task {
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
@@ -151,16 +113,6 @@ struct AdvancedSettingsTabView: View {
             }
         } message: {
             Text("All KeyPath.app copies outside /Applications will be moved to the Trash.")
-        }
-        .alert("Reset Everything?", isPresented: $showingResetEverythingConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
-                Task { await performResetEverything() }
-            }
-        } message: {
-            Text(
-                "Force kill Kanata, remove PID files, and clear transient state. Service does not restart automatically."
-            )
         }
         .alert("Restore Configuration?", isPresented: $showingRestoreConfirm) {
             Button("Cancel", role: .cancel) {
@@ -333,19 +285,6 @@ struct AdvancedSettingsTabView: View {
         }
     }
 
-    private func performResetEverything() async {
-        let report = await InstallerEngine()
-            .runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
-        await MainActor.run {
-            if report.success {
-                settingsToastManager.showInfo("Reset everything complete")
-            } else {
-                settingsToastManager.showError(
-                    report.failureReason ?? "Reset everything failed"
-                )
-            }
-        }
-    }
 }
 
 // MARK: - Local Components

@@ -31,7 +31,8 @@ A good starting point for most people: install **Caps Lock Remap** and **Vim Nav
 
 ### Caps Lock Remap
 
-> In the driverless experiment, managed Caps is DEBUG-only and reserves F18.
+> In driverless KeyPath, Caps Lock remapping requires explicit keyboard setup
+> and reserves F18.
 > See [behavior and limitations]({{ '/guides/driverless-caps-lock/' | relative_url }})
 > before relying on these recipes.
 
