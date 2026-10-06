@@ -31,13 +31,13 @@ public extension InstallationWizardView {
             // Validation still runs underneath; performInitialStateCheck()
             // leaves the welcome page alone.
             AppLogger.shared.log("👋 [Wizard] Fresh install — starting at welcome page")
-            stateMachine.navigateToPage(.welcome)
+            stateMachine.navigateToPage(.welcome, userInitiated: false)
         } else if let preferredPage, initialPage == nil {
             AppLogger.shared.log("🔍 [Wizard] Preferring cached page: \(preferredPage)")
-            stateMachine.navigateToPage(preferredPage)
+            stateMachine.navigateToPage(preferredPage, userInitiated: false)
         } else if let initialPage {
             AppLogger.shared.log("🔍 [Wizard] Navigating to initial page override: \(initialPage)")
-            stateMachine.navigateToPage(initialPage)
+            stateMachine.navigateToPage(initialPage, userInitiated: false)
         } else {
             // No cached snapshot and no explicit override: stay on summary until
             // performInitialStateCheck() captures the canonical result. That one
@@ -92,6 +92,8 @@ public extension InstallationWizardView {
         AppLogger.shared.log("🔍 [Wizard] Performing initial state check")
         AppLogger.shared.log("⏱️ [TIMING] Wizard validation START")
 
+        let requestID = UUID()
+        stateMachine.inspectionRequestID = requestID
         let operation = WizardOperations.stateDetection(
             stateMachine: stateMachine,
             freshness: .cached,
@@ -104,6 +106,7 @@ public extension InstallationWizardView {
         )
 
         asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+            guard stateMachine.inspectionRequestID == requestID else { return }
             let wizardDuration = Date().timeIntervalSince(preflightStart)
             AppLogger.shared.log(
                 "⏱️ [TIMING] Wizard validation COMPLETE: \(String(format: "%.3f", wizardDuration))s"
@@ -117,9 +120,7 @@ public extension InstallationWizardView {
                 if retryAllowed {
                     Task { await performInitialStateCheck(retryAllowed: false) }
                 } else {
-                    AppLogger.shared.log(
-                        "⚠️ [Wizard] Stale result retry already attempted; keeping existing state."
-                    )
+                    handleStateCheckFailure(.timeout(operation: "System State Detection"))
                 }
                 return
             }
@@ -131,17 +132,14 @@ public extension InstallationWizardView {
                shouldShowWelcomePage(helperInstalled: result.helperInstalled)
             {
                 AppLogger.shared.log("👋 [Wizard] Fresh install snapshot — presenting welcome page")
-                stateMachine.navigateToPage(.welcome)
+                stateMachine.navigateToPage(.welcome, userInitiated: false)
             }
             // Start at summary page - no auto navigation
             // stateMachine.autoNavigateIfNeeded(for: result.state, issues: result.issues)
 
             // Transition to results immediately when validation completes
-            Task { @MainActor in
-                // Mark validation as complete - this transitions validating state to final icon
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isValidating = false
-                }
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isValidating = false
             }
 
             AppLogger.shared.log(
@@ -156,7 +154,8 @@ public extension InstallationWizardView {
             // are treated as non-blocking, causing the wizard to skip permission pages.
             let appliedStateVersion = stateMachine.stateVersion
             let permSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-            guard stateMachine.stateVersion == appliedStateVersion else {
+            guard stateMachine.stateVersion == appliedStateVersion,
+                  stateMachine.inspectionRequestID == requestID else {
                 AppLogger.shared.log("🔍 [Wizard] Initial permission follow-up superseded by a newer system check")
                 return
             }
@@ -172,12 +171,14 @@ public extension InstallationWizardView {
                     Task { @MainActor in
                         // Never yank the user off the welcome page; Get Started routes onward.
                         if stateMachine.currentPage != .welcome {
-                            stateMachine.navigateToPage(.summary)
+                            stateMachine.navigateToPage(.summary, userInitiated: false)
                         }
                     }
                     Task {
                         _ = await WizardSleep.seconds(permissionRetryDelay)
-                        guard !Task.isCancelled, !isForceClosing else { return }
+                        guard !Task.isCancelled, !isForceClosing,
+                              stateMachine.stateVersion == appliedStateVersion,
+                              stateMachine.inspectionRequestID == requestID else { return }
                         await performInitialStateCheck(
                             retryAllowed: retryAllowed,
                             permissionRetriesRemaining: permissionRetriesRemaining - 1,
@@ -210,7 +211,8 @@ public extension InstallationWizardView {
             Task { @MainActor in
                 // Never yank the user off the welcome page mid-read; validation has
                 // already resolved by the time they click Get Started, which routes onward.
-                guard stateMachine.stateVersion == appliedStateVersion else { return }
+                guard stateMachine.stateVersion == appliedStateVersion,
+                  stateMachine.inspectionRequestID == requestID else { return }
                 guard stateMachine.currentPage != .welcome else { return }
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
@@ -218,12 +220,14 @@ public extension InstallationWizardView {
                     issues: filteredIssues
                 ) {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
-                    stateMachine.navigateToPage(.summary)
+                    stateMachine.navigateToPage(.summary, userInitiated: false)
                 } else if recommended != stateMachine.currentPage {
                     AppLogger.shared.log("🔍 [Wizard] Auto-navigating to \(recommended) (skipping green pages)")
-                    stateMachine.navigateToPage(recommended)
+                    stateMachine.navigateToPage(recommended, userInitiated: false)
                 }
             }
+        } onFailure: { error in
+            handleStateCheckFailure(error)
         }
     }
 
@@ -269,11 +273,14 @@ public extension InstallationWizardView {
         switch stateMachine.currentPage {
         case .summary:
             // Full check only for summary page
+            let requestID = UUID()
+            stateMachine.inspectionRequestID = requestID
             let operation = WizardOperations.stateDetection(
                 stateMachine: stateMachine,
                 progressCallback: { _ in }
             )
             asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
+                guard stateMachine.inspectionRequestID == requestID else { return }
                 let oldState = stateMachine.wizardState
                 let oldPage = stateMachine.currentPage
 
@@ -293,8 +300,7 @@ public extension InstallationWizardView {
                 }
 
                 let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-                stateMachine.wizardState = result.state
-                stateMachine.wizardIssues = filteredIssues
+                stateMachine.updateWizardState(from: result, issues: filteredIssues)
 
                 AppLogger.shared.log(
                     "🔍 [Navigation] Current: \(stateMachine.currentPage), Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
@@ -312,7 +318,7 @@ public extension InstallationWizardView {
                         AppLogger.shared.log(
                             "🟢 [Wizard] Healthy system detected during monitor; routing to summary"
                         )
-                        stateMachine.navigateToPage(.summary)
+                        stateMachine.navigateToPage(.summary, userInitiated: false)
                     }
                 }
 
@@ -321,6 +327,8 @@ public extension InstallationWizardView {
                         "🔍 [Wizard] State changed: \(oldState) -> \(stateMachine.wizardState), page: \(oldPage) -> \(stateMachine.currentPage)"
                     )
                 }
+            } onFailure: { error in
+                handleStateCheckFailure(error)
             }
         case .inputMonitoring, .accessibility, .conflicts:
             // 🎯 Phase 2: Quick checks removed - SystemValidator does full check

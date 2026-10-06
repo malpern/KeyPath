@@ -388,7 +388,8 @@ public struct WizardKanataServicePage: View {
         case let .failed(reason):
             // Try to get more detailed config error from stderr log
             let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-            if let configError = Self.extractConfigError(from: stderrPath) {
+            if KanataRuntimeBackend.selected.requiresPrivilegedServices,
+               let configError = Self.extractConfigError(from: stderrPath) {
                 derivedStatus = .failed(error: configError)
             } else {
                 derivedStatus = .failed(error: reason)
@@ -431,6 +432,9 @@ public struct WizardKanataServicePage: View {
     }
 
     private func checkForCrashAsync() async {
+        // Session runtime failures come from the current worker report. Daemon
+        // logs can belong to an entirely different installation or launch.
+        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return }
         // First check stderr log for config parsing errors (more detailed)
         let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
         let logPath = WizardSystemPaths.kanataLogFile

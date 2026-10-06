@@ -33,6 +33,8 @@ public class WizardStateMachine {
     public var isRefreshing = false
     public var lastRefreshTime: Date?
     public private(set) var stateVersion: Int = 0
+    // Covers delayed retries and follow-ups, including intervals with no running operation.
+    @ObservationIgnored var inspectionRequestID = UUID()
     public var lastWizardSnapshot: WizardSnapshotRecord?
     public var customSequence: [WizardPage]?
 
@@ -46,6 +48,9 @@ public class WizardStateMachine {
     // MARK: - Init
 
     public init() {}
+
+    // Inspection seam: tests can delay a snapshot without querying host permissions.
+    @ObservationIgnored var stateDetector: (@MainActor () async -> SystemStateResult)?
 
     // MARK: - State Updates
 
@@ -88,11 +93,11 @@ public class WizardStateMachine {
     // MARK: - Navigation
 
     /// Navigate to a specific page with animation.
-    public func navigateToPage(_ page: WizardPage) {
+    public func navigateToPage(_ page: WizardPage, userInitiated: Bool = true) {
         withAnimation(navigationAnimation) {
             lastVisitedPage = currentPage
             currentPage = page
-            userInteractionMode = true
+            if userInitiated { userInteractionMode = true }
         }
     }
 
@@ -139,10 +144,14 @@ public class WizardStateMachine {
     }
 
     /// Detect current state via InstallerEngine (used by existing refresh paths).
-    public func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
+    public func detectCurrentState(
+        freshness: WizardSystemSnapshotFreshness = .fresh,
+        progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async
         -> SystemStateResult
     {
-        let context = await InstallerEngine().inspectSystem()
+        if let stateDetector { return await stateDetector() }
+        let context = await InstallerEngine().inspectSystem(freshness: freshness)
         return SystemStateResult.projecting(context)
     }
 

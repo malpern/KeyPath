@@ -172,6 +172,17 @@ public struct InstallationWizardView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wizardSmAppServiceApprovalRequired)) { _ in
             showingBackgroundApprovalPrompt = true
         }
+        .alert("Couldn't check setup", isPresented: Binding(
+            get: { asyncOperationManager.lastError?.operation == "System State Detection" },
+            set: { if !$0 { asyncOperationManager.lastError = nil } }
+        )) {
+            Button("Retry") { refreshSystemState(showSpinner: true) }
+                .accessibilityIdentifier("wizard-check-retry")
+            Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("wizard-check-cancel")
+        } message: {
+            Text(asyncOperationManager.lastError?.localizedDescription ?? "Please try again.")
+        }
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
             closeConfirmationButtons
         } message: {

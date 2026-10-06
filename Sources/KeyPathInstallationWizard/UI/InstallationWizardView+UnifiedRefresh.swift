@@ -23,6 +23,8 @@ public extension InstallationWizardView {
             return
         }
         lastRefreshAt = now
+        let requestID = UUID()
+        stateMachine.inspectionRequestID = requestID
 
         AppLogger.shared.log("🔍 [Wizard] Refreshing system state (showSpinner=\(showSpinner), from=\(previousPage?.rawValue ?? "nil"))")
 
@@ -34,7 +36,6 @@ public extension InstallationWizardView {
             withAnimation(.easeInOut(duration: 0.2)) {
                 isValidating = true
             }
-            stateMachine.wizardIssues = []
         }
 
         refreshTask = Task { [previousPage, showSpinner] in
@@ -52,7 +53,7 @@ public extension InstallationWizardView {
 
             // Give TCP server time to recover after leaving communication page
             if previousPage == .communication {
-                _ = await WizardSleep.seconds(1)
+                guard await WizardSleep.seconds(1) else { return }
             }
 
             // Run state detection with optional retry for communication page
@@ -60,7 +61,8 @@ public extension InstallationWizardView {
                 performStateDetection(
                     previousPage: previousPage,
                     attempt: 0,
-                    showSpinner: showSpinner
+                    showSpinner: showSpinner,
+                    requestID: requestID
                 )
             }
         }
@@ -68,8 +70,9 @@ public extension InstallationWizardView {
 
     /// Internal: Performs state detection with retry logic for communication page
     @MainActor
-    func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool) {
-        guard !isForceClosing else { return }
+    func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool, requestID: UUID) {
+        guard !isForceClosing, !Task.isCancelled,
+              stateMachine.inspectionRequestID == requestID else { return }
 
         let operation = WizardOperations.stateDetection(
             stateMachine: stateMachine,
@@ -77,13 +80,14 @@ public extension InstallationWizardView {
         )
 
         asyncOperationManager.execute(operation: operation) { [previousPage, attempt, showSpinner] (result: SystemStateResult) in
+            guard stateMachine.inspectionRequestID == requestID else { return }
             // Retry once if coming from communication page and seeing transient issues
             if previousPage == .communication, attempt == 0, shouldRetryForCommunication(result: result) {
                 AppLogger.shared.log("🔍 [Wizard] Deferring result for TCP warm-up, will retry")
                 Task {
-                    _ = await WizardSleep.seconds(1.5)
+                    guard await WizardSleep.seconds(1.5) else { return }
                     await MainActor.run {
-                        performStateDetection(previousPage: previousPage, attempt: 1, showSpinner: showSpinner)
+                        performStateDetection(previousPage: previousPage, attempt: 1, showSpinner: showSpinner, requestID: requestID)
                     }
                 }
                 return
@@ -91,12 +95,20 @@ public extension InstallationWizardView {
 
             _ = applySystemStateResult(result)
 
-            if showSpinner {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isValidating = false
-                }
+            // A quiet refresh may have replaced one that showed the spinner.
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isValidating = false
             }
+        } onFailure: { error in
+            handleStateCheckFailure(error)
         }
+    }
+
+    /// Every failed check exits validation and keeps the last useful snapshot.
+    @MainActor
+    func handleStateCheckFailure(_ error: WizardError) {
+        isValidating = false
+        asyncOperationManager.lastError = error
     }
 
     /// Check if we should retry due to transient communication issues
@@ -168,7 +180,7 @@ public extension InstallationWizardView {
             issues: filteredIssues
         ) {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
-            stateMachine.navigateToPage(.summary)
+            stateMachine.navigateToPage(.summary, userInitiated: false)
         } else if shouldAutoNavigate {
             let currentPageHasIssues = WizardRouter.pageHasRelevantIssues(
                 stateMachine.currentPage,
@@ -186,7 +198,7 @@ public extension InstallationWizardView {
                     )
                     if recommended != stateMachine.currentPage {
                         AppLogger.shared.log("🔄 [Wizard] Skipping green page \(stateMachine.currentPage) → \(recommended)")
-                        stateMachine.navigateToPage(recommended)
+                        stateMachine.navigateToPage(recommended, userInitiated: false)
                     }
                 }
             }

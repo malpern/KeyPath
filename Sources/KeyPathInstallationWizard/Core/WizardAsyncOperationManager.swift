@@ -67,36 +67,41 @@ public class WizardAsyncOperationManager {
             )
 
             do {
-                // Prepare operation task on the main actor to avoid crossing actor boundaries in sendable closures
-                let operationTask: Task<T, Error> = Task { @MainActor in
-                    try await operation.execute { progress in
-                        // Ensure main actor mutation from a synchronous handler
-                        Task { @MainActor in
-                            guard self.operationGenerations[operationId] == generation else { return }
-                            self.operationProgress[operationId] = progress
+                // A task group waits for every child on exit, even after its
+                // timer wins. A stream lets the deadline retire UI ownership
+                // while a non-cooperative dependency finishes in the background.
+                let (stream, continuation) = AsyncThrowingStream<T, Error>.makeStream()
+                let operationTask = Task { @MainActor in
+                    do {
+                        let value = try await operation.execute { progress in
+                            Task { @MainActor in
+                                guard self.operationGenerations[operationId] == generation else { return }
+                                self.operationProgress[operationId] = progress
+                            }
                         }
+                        continuation.yield(value)
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
                     }
                 }
-
-                // Execute operation with timeout protection
-                let result = try await withThrowingTaskGroup(of: T.self) { group in
-                    // Operation task
-                    group.addTask {
-                        try await operationTask.value
-                    }
-
-                    // Timeout task
-                    group.addTask {
-                        let clock = ContinuousClock()
-                        try await clock.sleep(for: .seconds(timeoutDuration))
-                        throw TimeoutError(operation: opName, timeout: timeoutDuration)
-                    }
-
-                    // Return first result and cancel other task
-                    let result = try await group.next()!
-                    group.cancelAll()
-                    return result
+                let deadlineTask = Task {
+                    do {
+                        try await ContinuousClock().sleep(for: .seconds(timeoutDuration))
+                        continuation.finish(throwing: TimeoutError(operation: opName, timeout: timeoutDuration))
+                    } catch {}
                 }
+                continuation.onTermination = { _ in
+                    operationTask.cancel()
+                    deadlineTask.cancel()
+                }
+                defer {
+                    operationTask.cancel()
+                    deadlineTask.cancel()
+                    continuation.finish()
+                }
+                var iterator = stream.makeAsyncIterator()
+                guard let result = try await iterator.next() else { throw CancellationError() }
 
                 // Check if task was cancelled
                 guard !Task.isCancelled else {

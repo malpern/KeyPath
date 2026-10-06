@@ -21,31 +21,11 @@ extension WizardOperations {
             // Forward progress from SystemValidator to the operation callback
             if let machine = stateMachine {
                 progressCallback(0.1)
-                await machine.refresh(freshness: freshness)
-
+                let result = await machine.detectCurrentState(freshness: freshness)
+                try Task.checkCancellation()
                 progressCallback(1.0)
                 operationProgressCallback(1.0)
-                // machine.refresh() completed — read state it stored
-                return await MainActor.run {
-                    let issues = machine.wizardIssues
-                    guard let captured = machine.lastWizardSnapshot else {
-                        return timeoutResult()
-                    }
-                    if !issues.isEmpty || machine.wizardState == .active {
-                        return SystemStateResult(
-                            state: machine.wizardState,
-                            issues: issues,
-                            autoFixActions: [],
-                            detectionTimestamp: Date(),
-                            captureStatus: captured.captureStatus,
-                            helperInstalled: captured.helperInstalled,
-                            helperNeedsApproval: captured.helperNeedsApproval,
-                            backend: captured.backend,
-                            permissions: captured.permissions
-                        )
-                    }
-                    return timeoutResult()
-                }
+                return result
             } else {
                 progressCallback(1.0)
                 operationProgressCallback(1.0)
