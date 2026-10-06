@@ -82,6 +82,7 @@ final class ServiceLifecycleCoordinator {
         nonisolated(unsafe) static var testSessionStart: (@MainActor (String) async -> Bool)?
         nonisolated(unsafe) static var testSessionStop: (@MainActor () async -> Bool)?
         var testSessionCurrentReport: (() -> SessionRuntimeReport?)?
+        var testSessionCapabilityProbe: (() async -> PermissionOracle.PermissionSet?)?
         var testSessionConfigurationValidation: (() -> KanataHostBridgeValidationResult)?
         var testSessionRequestObserved: ((UInt64) -> Void)?
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?

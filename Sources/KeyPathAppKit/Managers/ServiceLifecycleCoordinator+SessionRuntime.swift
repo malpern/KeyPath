@@ -24,6 +24,18 @@ extension ServiceLifecycleCoordinator {
 
     func sessionCapabilities() async -> PermissionOracle.PermissionSet? {
         if let report = currentSessionReport() { return Self.permissionSet(report) }
+        let probedPermissions = await probeSessionCapabilities()
+        // An owned runtime may finish starting while the independent probe is
+        // suspended. Revalidate ownership/freshness before publishing the older
+        // probe result (including a missing result) to the permission cache.
+        if let report = currentSessionReport() { return Self.permissionSet(report) }
+        return probedPermissions
+    }
+
+    private func probeSessionCapabilities() async -> PermissionOracle.PermissionSet? {
+        #if DEBUG
+            if let probe = testSessionCapabilityProbe { return await probe() }
+        #endif
         do {
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: true)
             defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }

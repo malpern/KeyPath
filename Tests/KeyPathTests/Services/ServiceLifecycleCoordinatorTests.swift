@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathInstallationWizard
+import KeyPathPermissions
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
@@ -225,7 +226,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(launches, 0)
         XCTAssertNil(coordinator.sessionConfigurationRefusal)
         let admissionResult6 = await coordinator.isInTransientRuntimeStartupWindow()
-        XCTAssertTrue(admissionResult6)
+        XCTAssertFalse(admissionResult6, "Completed validation refusal has no pending session start")
         guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else {
             return XCTFail("Validation coverage failure must remain visible")
         }
@@ -313,6 +314,50 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(supervised.last, coordinator.sessionIntentGeneration)
         XCTAssertEqual(starts, 0)
         XCTAssertEqual(stops, 0)
+    }
+
+    func testOwnedRuntimeEvidenceWinsWhenCapabilityProbeFinishesLater() async {
+        let deniedProbe = PermissionOracle.PermissionSet(
+            accessibility: .denied, inputMonitoring: .denied,
+            source: "earlier-capability-probe", confidence: .high, timestamp: Date()
+        )
+        for probeResult: PermissionOracle.PermissionSet? in [nil, deniedProbe] {
+            var ownedReport: SessionRuntimeReport?
+            var probes = 0
+            coordinator.testSessionCurrentReport = { ownedReport }
+            coordinator.testSessionCapabilityProbe = {
+                probes += 1
+                await Task.yield()
+                ownedReport = SessionRuntimeReport(
+                    nonce: "owned-after-probe-start", pid: 100, uid: 501, state: .running,
+                    accessibility: true, effectiveInputAccess: true, tapActive: true,
+                    tcpPort: 37001, inputCount: 0, outputCount: 0, timestamp: Date()
+                )
+                return probeResult
+            }
+            let permissions = await coordinator.sessionCapabilities()
+            XCTAssertEqual(probes, 1)
+            XCTAssertEqual(permissions?.accessibility, .granted)
+            XCTAssertEqual(permissions?.inputMonitoring, .granted)
+            XCTAssertNotEqual(permissions?.source, deniedProbe.source)
+        }
+    }
+
+    func testMissingOwnedEvidenceDoesNotUpgradeCapabilityProbeResult() async {
+        coordinator.testSessionCurrentReport = { nil }
+        coordinator.testSessionCapabilityProbe = { await Task.yield(); return nil }
+        let unavailable = await coordinator.sessionCapabilities()
+        XCTAssertNil(unavailable)
+
+        let deniedProbe = PermissionOracle.PermissionSet(
+            accessibility: .denied, inputMonitoring: .denied,
+            source: "current-capability-probe", confidence: .high, timestamp: Date()
+        )
+        coordinator.testSessionCapabilityProbe = { await Task.yield(); return deniedProbe }
+        let denied = await coordinator.sessionCapabilities()
+        XCTAssertEqual(denied?.accessibility, .denied)
+        XCTAssertEqual(denied?.inputMonitoring, .denied)
+        XCTAssertEqual(denied?.source, deniedProbe.source)
     }
 
     // MARK: - Session lifecycle routing
