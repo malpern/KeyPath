@@ -1,5 +1,7 @@
 ## Current remaining work — October 6
 
+**Product decision (October 6):** remove Full Disk Access prompts/probes and browser-history suggestions outright. Keep manual launcher URLs, app/folder/script shortcuts, starter defaults, welcome customization, and saved mappings. Permission readiness uses app/runtime evidence; unknown stays unverified. This does not remove Accessibility or Input Monitoring. Production onboarding still needs the separate Caps eligibility, install-location, editor handoff, and first-success-tour work below.
+
 | Milestone | Current state | Next action | Agent level |
 | --- | --- | --- | --- |
 | Queued HID writer containment | Live acceptance and independent evidence review passed; pushed. | Closed for its scoped queued-writer case. Opaque in-mutation death remains outside that claim. | Routine evidence review completed. |
