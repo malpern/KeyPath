@@ -32,6 +32,37 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testUpdatePreparationRefusesQueuedAndNewStartsUntilReleased() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        defer { ServiceLifecycleCoordinator.testSessionStart = nil }
+        let coordinator = coordinator!
+        let generation = coordinator.sessionIntentGeneration
+        let blocker = Task { @MainActor in
+            try await coordinator.sessionOperationGate.withOperation { _ in
+                let start = Task { @MainActor in await coordinator.startKanata() }
+                while await coordinator.sessionIntentGeneration == generation { await Task.yield() }
+                await coordinator.setUpdatePreparationActive(true)
+                return start
+            }
+        }
+        let queued = try! await blocker.value
+        let queuedResult = await queued.value
+        XCTAssertFalse(queuedResult)
+        let started = await coordinator.startKanata()
+        let restarted = await coordinator.restartKanata()
+        let resumed = await coordinator.resumeSessionRuntime(expectedGeneration: coordinator.sessionIntentGeneration)
+        XCTAssertFalse(started)
+        XCTAssertFalse(restarted)
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(launches, 0)
+        coordinator.setUpdatePreparationActive(false)
+        let retry = await coordinator.startKanata()
+        XCTAssertTrue(retry)
+        XCTAssertEqual(launches, 1)
+    }
+
     func testRecoveryRefusalSurvivesNoWorkerStartAndRestartThenClearsOnRecovery() async {
         coordinator.testSessionConfigurationValidation = { .valid }
         ServiceLifecycleCoordinator.testSessionStart = nil

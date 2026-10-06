@@ -36,7 +36,7 @@ private final class SparkleInstallHandler: @unchecked Sendable {
 /// - Manual "Check for Updates" menu action
 /// - Pre/post-install hooks to properly stop/restart KeyPath services
 ///
-/// Per AGENTS.md, all service stop/restart operations go through InstallerEngine.
+/// Runtime shutdown uses the existing admitted lifecycle owner.
 @Observable
 @MainActor
 public final class UpdateService: NSObject {
@@ -48,6 +48,13 @@ public final class UpdateService: NSObject {
 
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
     @ObservationIgnored private let channelDefaultsKey = "keypath.update.channel"
+
+    @ObservationIgnored private var stopRuntime: (@MainActor () async -> Bool)?
+    @ObservationIgnored private var setUpdatePreparation: (@MainActor (Bool) -> Void)?
+    @ObservationIgnored private var pendingInstallHandler: SparkleInstallHandler?
+    @ObservationIgnored private var pendingInstallVersion: String?
+    @ObservationIgnored private var isPreparingInstallation = false
+    public private(set) var preparationError: String?
 
     public private(set) var canCheckForUpdates = false
     public private(set) var lastUpdateCheckDate: Date?
@@ -64,6 +71,14 @@ public final class UpdateService: NSObject {
     }
 
     // MARK: - Public API
+
+    func configureRuntimeStop(_ stop: @escaping @MainActor () async -> Bool) {
+        stopRuntime = stop
+    }
+
+    func configureUpdatePreparation(_ setPreparation: @escaping @MainActor (Bool) -> Void) {
+        setUpdatePreparation = setPreparation
+    }
 
     /// Initialize the updater. Call once at app startup.
     public func initialize() {
@@ -104,7 +119,11 @@ public final class UpdateService: NSObject {
     /// Manually trigger an update check (called from menu item)
     public func checkForUpdates() {
         AppLogger.shared.log("🔍 [UpdateService] Manual update check requested")
-        updaterController?.checkForUpdates(nil)
+        if pendingInstallHandler != nil {
+            Task { @MainActor in await resumePreparedUpdate() }
+        } else {
+            updaterController?.checkForUpdates(nil)
+        }
     }
 
     /// Enable or disable automatic update checks
@@ -169,25 +188,20 @@ extension UpdateService: SPUUpdaterDelegate {
         return channel == .beta ? ["beta"] : []
     }
 
-    /// Called immediately before Sparkle begins installation. Runtime shutdown
-    /// is completed by `shouldPostponeRelaunchForUpdate` before Sparkle reaches
-    /// this callback; do not launch asynchronous preparation from here because
-    /// Sparkle does not wait for this method to return.
+    /// Notification only: Sparkle does not await asynchronous work here, and
+    /// its relaunch postponement callback is not guaranteed on every path.
     public nonisolated func updater(
         _: SPUUpdater,
         willInstallUpdate item: SUAppcastItem
     ) {
         let version = item.displayVersionString
         Task { @MainActor in
-            AppLogger.shared.log("📦 [UpdateService] Installing prepared KeyPath update v\(version)")
+            AppLogger.shared.log("📦 [UpdateService] Installing KeyPath update v\(version)")
         }
     }
 
-    /// Hold Sparkle at its supported pre-install boundary while KeyPath stops
-    /// the app-bundled Kanata runtime. The handler is invoked even when shutdown
-    /// cannot be proven so an update never remains permanently wedged; the
-    /// failure is surfaced and the normal post-relaunch validation remains the
-    /// authority for recovery.
+    /// Delay Sparkle's relaunch until owned runtime and Caps cleanup succeeds.
+    /// Failure remains paused; an explicit Check for Updates retries preparation.
     public nonisolated func updater(
         _: SPUUpdater,
         shouldPostponeRelaunchForUpdate item: SUAppcastItem,
@@ -196,11 +210,7 @@ extension UpdateService: SPUUpdaterDelegate {
         let version = item.displayVersionString
         let handler = SparkleInstallHandler(installHandler)
         Task { @MainActor in
-            defer {
-                AppLogger.shared.log("▶️ [UpdateService] Runtime preparation finished; releasing Sparkle installer")
-                handler.invoke()
-            }
-            await prepareForUpdate(version: version)
+            await postponeInstallation(version: version, handler: handler)
         }
         return true
     }
@@ -208,6 +218,7 @@ extension UpdateService: SPUUpdaterDelegate {
     public nonisolated func updater(_: SPUUpdater, didAbortWithError error: Error) {
         let nsError = error as NSError
         Task { @MainActor in
+            cancelPreparedUpdate()
             let feedURL = updaterController?.updater.feedURL?.absoluteString
                 ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
             if Self.isCosmeticSparkleOutcome(nsError) {
@@ -269,13 +280,6 @@ extension UpdateService: SPUUpdaterDelegate {
 // MARK: - Post-Relaunch Handler (separate extension to silence spurious warning)
 
 extension UpdateService {
-    enum UpdateRepairDecision: Equatable {
-        case silentContinue(reason: String)
-        case runtimeShutdownRequired(reason: String)
-        case userRepairRequired(reason: String)
-        case manualAttentionRequired(reason: String)
-    }
-
     /// Called after the app relaunches following an update.
     /// Post-update detection must be passive: surface degraded state through
     /// the normal status/wizard path and let the user start repair explicitly.
@@ -287,96 +291,83 @@ extension UpdateService {
 
     // MARK: - Update Lifecycle
 
+    #if DEBUG
+        static func testService() -> UpdateService { UpdateService() }
+    #endif
+
+    private func postponeInstallation(version: String, handler: SparkleInstallHandler) async {
+        pendingInstallHandler = handler
+        pendingInstallVersion = version
+        if isPreparingInstallation { setUpdatePreparation?(true) }
+        await resumePreparedUpdate()
+    }
+
+    func postponeInstallation(version: String, install: @escaping () -> Void) async {
+        await postponeInstallation(version: version, handler: SparkleInstallHandler(install))
+    }
+
+    func cancelPreparedUpdate() {
+        pendingInstallHandler = nil
+        pendingInstallVersion = nil
+        preparationError = nil
+        setUpdatePreparation?(false)
+    }
+
     @MainActor
-    private func prepareForUpdate(version: String) async {
-        AppLogger.shared.log("⏸️ [UpdateService] Preparing for update to v\(version) - stopping services")
-
-        let engine = InstallerEngine()
-        let broker = PrivilegeBroker()
-
-        let context = await engine.inspectSystem()
-        AppLogger.shared.log(
-            "📊 [UpdateService] Current state - kanata: \(context.services.kanataRunning), helper: \(context.helper.isInstalled)"
-        )
-
-        switch Self.preUpdateDecision(for: context) {
-        case let .silentContinue(reason):
-            AppLogger.shared.log("✅ [UpdateService] Pre-update: no preparation needed (\(reason))")
-        case let .runtimeShutdownRequired(reason):
-            AppLogger.shared.log("⏸️ [UpdateService] Pre-update: stopping bundled Kanata runtime (\(reason))")
-            let report = await engine.runSingleAction(.terminateConflictingProcesses, using: broker)
-            if report.success {
-                AppLogger.shared.log("✅ [UpdateService] Bundled Kanata runtime stopped before update")
-            } else {
-                AppLogger.shared.error(
-                    "⚠️ [UpdateService] Could not prove Kanata stopped before update: \(report.failureReason ?? "unknown error")"
-                )
+    private func resumePreparedUpdate() async {
+        guard !isPreparingInstallation, let handler = pendingInstallHandler,
+              let version = pendingInstallVersion else { return }
+        isPreparingInstallation = true
+        setUpdatePreparation?(true)
+        defer {
+            isPreparingInstallation = false
+            if let next = pendingInstallHandler, next !== handler {
+                Task { @MainActor in await resumePreparedUpdate() }
             }
-        case let .userRepairRequired(reason), let .manualAttentionRequired(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Pre-update repair not allowed for decision \(reason); continuing without mutation"
-            )
         }
+        let prepared = await Self.continueAfterRuntimeCleanup(
+            stop: { [self] in await prepareForUpdate(version: version) },
+            install: { [self] in
+                guard pendingInstallHandler === handler else { return }
+                pendingInstallHandler = nil
+                pendingInstallVersion = nil
+                preparationError = nil
+                handler.invoke()
+            }
+        )
+        if !prepared, pendingInstallHandler === handler {
+            setUpdatePreparation?(false)
+        }
+        if !prepared, pendingInstallHandler === handler {
+            let reason = "Update paused because keyboard cleanup could not be verified. Resolve the runtime issue in Settings, then choose Check for Updates to retry."
+            preparationError = reason
+            canCheckForUpdates = true
+            AppLogger.shared.error("⚠️ [UpdateService] \(reason)")
+            UserNotificationService.shared.notifyConfigEvent("Update paused", body: reason, key: "update.runtime-cleanup")
+        }
+    }
+
+    /// One continuation after successful admitted cleanup; refusal does not install.
+    @MainActor
+    static func continueAfterRuntimeCleanup(stop: () async -> Bool, install: () -> Void) async -> Bool {
+        guard await stop() else { return false }
+        install()
+        return true
+    }
+
+    @MainActor
+    private func prepareForUpdate(version: String) async -> Bool {
+        AppLogger.shared.log("⏸️ [UpdateService] Stopping owned runtime before update to v\(version)")
+        // Always run cleanup, including a retained Caps journal with no live worker.
+        guard let stopRuntime else { return false }
+        return await stopRuntime()
     }
 
     @MainActor
     private func finalizeUpdate() async {
-        let engine = InstallerEngine()
-        let context = await engine.inspectSystem()
-
-        switch Self.postUpdateDecision(for: context) {
-        case let .silentContinue(reason):
-            AppLogger.shared.log("✅ [UpdateService] Post-update: system healthy, skipping repair (\(reason))")
-        case let .userRepairRequired(reason):
-            AppLogger.shared.warn(
-                "⚠️ [UpdateService] Post-update repair required (\(reason)); surfacing status for user-initiated repair"
-            )
-            MainAppStateController.shared.invalidateValidationCooldown()
-            await MainAppStateController.shared.revalidate()
-        case let .manualAttentionRequired(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Post-update requires manual attention (\(reason)); surfacing status and skipping automatic repair"
-            )
-            MainAppStateController.shared.invalidateValidationCooldown()
-            await MainAppStateController.shared.revalidate()
-        case let .runtimeShutdownRequired(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Unexpected post-update shutdown decision (\(reason)); surfacing status instead"
-            )
-            MainAppStateController.shared.invalidateValidationCooldown()
-            await MainAppStateController.shared.revalidate()
-        }
-    }
-
-    nonisolated static func preUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
-        if context.services.kanataRunning || context.services.karabinerDaemonRunning || context.helper.isInstalled {
-            return .runtimeShutdownRequired(reason: "reason_code=services_or_helper_present")
-        }
-        return .silentContinue(reason: "reason_code=nothing_running")
-    }
-
-    nonisolated static func postUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
-        // KeyPath's own Input Monitoring is soft (overlay/record only, not
-        // remapping — see PermissionOracle.blockingIssue / isSystemReady), so it
-        // must not force a hard post-update repair now that IOHIDCheckAccess makes
-        // it authoritatively .denied (#931). KeyPath's Accessibility is required.
-        if context.permissions.keyPath.accessibility.isBlocking {
-            return .manualAttentionRequired(reason: "reason_code=keypath_permissions_blocking")
-        }
-        if context.permissions.kanata.inputMonitoring.isBlocking || context.permissions.kanata.accessibility.isBlocking {
-            return .manualAttentionRequired(reason: "reason_code=kanata_permissions_blocking")
-        }
-
-        if !context.helper.isReady {
-            return .userRepairRequired(reason: "reason_code=helper_not_ready")
-        }
-        if !context.components.hasAllRequired {
-            return .userRepairRequired(reason: "reason_code=components_not_ready")
-        }
-        if !context.services.backgroundServicesHealthy || !context.services.kanataRunning {
-            return .userRepairRequired(reason: "reason_code=services_not_ready")
-        }
-
-        return .silentContinue(reason: "reason_code=healthy")
+        // Use the same driverless readiness path as normal launch. No obsolete
+        // driver/helper requirements or automatic installer repair after update.
+        MainAppStateController.shared.invalidateValidationCooldown()
+        await MainAppStateController.shared.revalidate()
     }
 }

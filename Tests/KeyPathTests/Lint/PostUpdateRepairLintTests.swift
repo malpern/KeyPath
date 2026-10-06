@@ -27,11 +27,9 @@ final class PostUpdateRepairLintTests: XCTestCase {
             return
         }
 
-        XCTAssertTrue(postponementBody.contains("await prepareForUpdate(version: version)"))
-        XCTAssertTrue(postponementBody.contains("defer"))
-        XCTAssertTrue(postponementBody.contains("handler.invoke()"))
+        XCTAssertTrue(postponementBody.contains("await postponeInstallation(version: version, handler: handler)"))
         XCTAssertTrue(postponementBody.contains("return true"))
-        XCTAssertTrue(preparationBody.contains("runSingleAction(.terminateConflictingProcesses"))
+        XCTAssertTrue(preparationBody.contains("await stopRuntime()"))
         XCTAssertFalse(preparationBody.contains("run(intent: .repair"))
         XCTAssertFalse(
             willInstallBody.contains("prepareForUpdate"),

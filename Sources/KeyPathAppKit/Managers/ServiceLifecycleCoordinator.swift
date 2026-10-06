@@ -22,13 +22,24 @@ final class ServiceLifecycleCoordinator {
     let sessionOperationGate = ConfigurationOperationGate()
     private(set) var sessionIntentGeneration: UInt64 = 0
     private(set) var sessionWantsRunning = false
+    private var updatePreparationActive = false
+
+    /// Updates hold the runtime stopped until installation ends or is aborted.
+    /// Invalidate requests already waiting for lifecycle admission as well.
+    func setUpdatePreparationActive(_ active: Bool) {
+        updatePreparationActive = active
+        if active {
+            sessionIntentGeneration &+= 1
+            sessionWantsRunning = false
+        }
+    }
 
     enum SessionLifecycleOperation: Sendable {
         case start(String), stop(String), restart(String)
     }
 
     func sessionStartIsCurrent(_ generation: UInt64) -> Bool {
-        generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
+        !updatePreparationActive && generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
     }
 
     // MARK: - Runtime Status
@@ -159,6 +170,7 @@ final class ServiceLifecycleCoordinator {
     }
 
     private func requestSessionOperation(_ operation: SessionLifecycleOperation) async -> Bool {
+        if case .stop = operation {} else if updatePreparationActive { return false }
         // A request already cancelled before entry changes no intent. An accepted
         // stop must still release held outputs even if its caller later cancels.
         if case .stop = operation {} else if Task.isCancelled { return false }

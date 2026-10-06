@@ -1,190 +1,96 @@
 import Foundation
 @testable import KeyPathAppKit
-@testable import KeyPathInstallationWizard
-import KeyPathPermissions
-import KeyPathWizardCore
 import XCTest
 
 final class UpdateServiceDecisionTests: XCTestCase {
-    func testPreUpdateDecisionRequiresRuntimeShutdownDuringUpdateInstallWhenHelperPresent() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: true,
-            componentsReady: true,
-            servicesReady: false
-        )
-
-        let decision = UpdateService.preUpdateDecision(for: context)
-        XCTAssertEqual(decision, .runtimeShutdownRequired(reason: "reason_code=services_or_helper_present"))
+    @MainActor
+    func testUpdateContinuationWaitsForSuccessfulRuntimeCleanup() async {
+        var phases: [String] = []
+        let result = await UpdateService.continueAfterRuntimeCleanup(stop: {
+            phases.append("cleanup")
+            await Task.yield()
+            phases.append("verified")
+            return true
+        }, install: { phases.append("install") })
+        XCTAssertTrue(result)
+        XCTAssertEqual(phases, ["cleanup", "verified", "install"])
     }
 
-    func testPreUpdateDecisionContinuesSilentlyWhenNothingRunning() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: false,
-            componentsReady: false,
-            servicesReady: false
-        )
-
-        let decision = UpdateService.preUpdateDecision(for: context)
-        XCTAssertEqual(decision, .silentContinue(reason: "reason_code=nothing_running"))
+    @MainActor
+    func testFailedCleanupDoesNotInstallAndSuccessfulRetryInstallsOnce() async {
+        var installCount = 0
+        let refused = await UpdateService.continueAfterRuntimeCleanup(stop: { false }, install: { installCount += 1 })
+        XCTAssertFalse(refused)
+        XCTAssertEqual(installCount, 0)
+        let retried = await UpdateService.continueAfterRuntimeCleanup(stop: { true }, install: { installCount += 1 })
+        XCTAssertTrue(retried)
+        XCTAssertEqual(installCount, 1)
     }
-
-    func testPostUpdateDecisionRequiresManualAttentionWhenKeyPathPermissionsBlocking() {
-        let context = makeContext(
-            keyPathStatus: .denied,
-            kanataStatus: .granted,
-            helperReady: true,
-            componentsReady: true,
-            servicesReady: true
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .manualAttentionRequired(reason: "reason_code=keypath_permissions_blocking"))
-    }
-
-    /// #931: KeyPath's own Input Monitoring is soft (overlay/record only). With
-    /// KeyPath Accessibility granted, a denied KeyPath IM must NOT force a hard
-    /// post-update repair — only kanata's permissions and KeyPath AX are hard.
-    func testPostUpdateDecisionIgnoresKeyPathInputMonitoringAlone() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: true,
-            componentsReady: true,
-            servicesReady: true,
-            keyPathInputMonitoring: .denied
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .silentContinue(reason: "reason_code=healthy"))
-    }
-
-    func testPostUpdateDecisionRequiresManualAttentionWhenKanataPermissionsBlocking() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .denied,
-            helperReady: true,
-            componentsReady: true,
-            servicesReady: true
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .manualAttentionRequired(reason: "reason_code=kanata_permissions_blocking"))
-    }
-
-    func testPostUpdateDecisionRequiresUserRepairWhenHelperNotReady() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: false,
-            componentsReady: true,
-            servicesReady: true
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .userRepairRequired(reason: "reason_code=helper_not_ready"))
-    }
-
-    func testPostUpdateDecisionRequiresUserRepairWhenComponentsNotReady() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: true,
-            componentsReady: false,
-            servicesReady: true
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .userRepairRequired(reason: "reason_code=components_not_ready"))
-    }
-
-    func testPostUpdateDecisionRequiresUserRepairWhenServicesNotReady() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: true,
-            componentsReady: true,
-            servicesReady: false
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .userRepairRequired(reason: "reason_code=components_not_ready"))
-    }
-
-    func testPostUpdateDecisionContinuesSilentlyWhenHealthy() {
-        let context = makeContext(
-            keyPathStatus: .granted,
-            kanataStatus: .granted,
-            helperReady: true,
-            componentsReady: true,
-            servicesReady: true
-        )
-
-        let decision = UpdateService.postUpdateDecision(for: context)
-        XCTAssertEqual(decision, .silentContinue(reason: "reason_code=healthy"))
-    }
-
-    private func makeContext(
-        keyPathStatus: PermissionOracle.Status,
-        kanataStatus: PermissionOracle.Status,
-        helperReady: Bool,
-        componentsReady: Bool,
-        servicesReady: Bool,
-        keyPathInputMonitoring: PermissionOracle.Status? = nil
-    ) -> SystemContext {
-        let now = Date()
-        let keyPathPerms = PermissionOracle.PermissionSet(
-            accessibility: keyPathStatus,
-            inputMonitoring: keyPathInputMonitoring ?? keyPathStatus,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let kanataPerms = PermissionOracle.PermissionSet(
-            accessibility: kanataStatus,
-            inputMonitoring: kanataStatus,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
-        let permissions = PermissionOracle.Snapshot(
-            keyPath: keyPathPerms,
-            kanata: kanataPerms,
-            timestamp: now
-        )
-
-        let components: ComponentStatus = if componentsReady {
-            ComponentStatus(
-                kanataBinaryInstalled: true,
-                karabinerDriverInstalled: true,
-                karabinerDaemonRunning: servicesReady,
-                vhidDeviceInstalled: true,
-                vhidDeviceHealthy: servicesReady,
-                vhidServicesHealthy: servicesReady,
-                vhidVersionMismatch: false
-            )
-        } else {
-            .empty
+    @MainActor
+    func testAbortDuringSuspendedCleanupDoesNotInvokeOldHandler() async {
+        let service = UpdateService.testService()
+        var cleanup: CheckedContinuation<Bool, Never>?
+        service.configureRuntimeStop {
+            await withCheckedContinuation { cleanup = $0 }
         }
+        var installCount = 0
+        let preparation = Task { @MainActor in
+            await service.postponeInstallation(version: "test", install: { installCount += 1 })
+        }
+        while cleanup == nil { await Task.yield() }
+        service.cancelPreparedUpdate()
+        cleanup?.resume(returning: true)
+        await preparation.value
+        XCTAssertEqual(installCount, 0)
+        XCTAssertNil(service.preparationError)
+    }
 
-        let health = HealthStatus(
-            kanataRunning: servicesReady,
-            karabinerDaemonRunning: servicesReady,
-            vhidHealthy: servicesReady
-        )
+    @MainActor
+    func testReplacementAfterAbortReceivesFreshCleanupAndOnlyInstallsNewHandler() async {
+        let service = UpdateService.testService()
+        var cleanup: CheckedContinuation<Bool, Never>?
+        var cleanups = 0
+        var preparationActive = false
+        service.configureUpdatePreparation { preparationActive = $0 }
+        service.configureRuntimeStop {
+            cleanups += 1
+            if cleanups == 1 { return await withCheckedContinuation { cleanup = $0 } }
+            XCTAssertTrue(preparationActive)
+            return true
+        }
+        var installed: [String] = []
+        let first = Task { @MainActor in
+            await service.postponeInstallation(version: "A", install: { installed.append("A") })
+        }
+        while cleanup == nil { await Task.yield() }
+        service.cancelPreparedUpdate()
+        XCTAssertFalse(preparationActive)
+        await service.postponeInstallation(version: "B", install: { installed.append("B") })
+        XCTAssertTrue(preparationActive)
+        cleanup?.resume(returning: false)
+        await first.value
+        while cleanups < 2 { await Task.yield() }
+        while installed.isEmpty { await Task.yield() }
+        XCTAssertEqual(installed, ["B"])
+        XCTAssertTrue(preparationActive)
+        service.cancelPreparedUpdate()
+        XCTAssertFalse(preparationActive)
+    }
 
-        return SystemContext(
-            permissions: permissions,
-            services: health,
-            conflicts: .empty,
-            components: components,
-            helper: HelperStatus(isInstalled: helperReady, version: "1.0", isWorking: helperReady),
-            system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true),
-            timestamp: now
-        )
+    @MainActor
+    func testAbortDuringFailedCleanupDoesNotPublishStaleError() async {
+        let service = UpdateService.testService()
+        var cleanup: CheckedContinuation<Bool, Never>?
+        service.configureRuntimeStop {
+            await withCheckedContinuation { cleanup = $0 }
+        }
+        let preparation = Task { @MainActor in
+            await service.postponeInstallation(version: "test", install: { XCTFail("aborted update installed") })
+        }
+        while cleanup == nil { await Task.yield() }
+        service.cancelPreparedUpdate()
+        cleanup?.resume(returning: false)
+        await preparation.value
+        XCTAssertNil(service.preparationError)
     }
 }

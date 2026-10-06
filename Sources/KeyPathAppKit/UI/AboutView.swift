@@ -220,6 +220,13 @@ struct AboutView: View {
             .buttonStyle(.borderedProminent)
             .disabled(!updateService.canCheckForUpdates)
             .accessibilityIdentifier("about-check-updates-button")
+
+            if let error = updateService.preparationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("about-update-preparation-error")
+            }
         }
         .padding(.horizontal, 32)
         .padding(.vertical, 16)

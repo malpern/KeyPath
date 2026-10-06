@@ -71,6 +71,13 @@ enum CompositionRoot {
             )
         }
 
+        UpdateService.shared.configureRuntimeStop { [weak manager] in
+            await manager?.stopKanata(reason: "Application update") ?? false
+        }
+        UpdateService.shared.configureUpdatePreparation { [weak manager] active in
+            manager?.serviceLifecycleCoordinator.setUpdatePreparationActive(active)
+        }
+
         // Ensure typing sounds manager is initialized so it can listen for key events
         _ = TypingSoundsManager.shared
 
