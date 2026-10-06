@@ -1,0 +1,56 @@
+{
+  "buildMetadata": {
+    "CFBundleShortVersionString": "1.0.2",
+    "CFBundleVersion": "13",
+    "GitCommit": "5fa8609e20a7674c863752d7bbf697b712e9288f",
+    "BuildDate": "2026-10-06T15:37:41Z"
+  },
+  "version": 1,
+  "sourceCommit": "5fa8609e20a7674c863752d7bbf697b712e9288f",
+  "sourceWorktree": "/private/tmp/keypath-tap-timeout-hook-build",
+  "baseBundle": "/private/tmp/keypath-onboarding-a49569e20-artifact/KeyPath.app",
+  "artifactKind": "isolated non-DEBUG manual-download production candidate",
+  "rawMainSHA256": "64112c4c0ca79a7dff9226925a1fc6cd3259a87be0fc336e10cc13e1e1a3cb66",
+  "packagedMainSHA256": "36981d594c28cd1922c9a1d56ef09e07bd78c4f346bb05f7c4e72dc765fa1d07",
+  "packagedMainSize": 57761568,
+  "packagedBridgeSHA256": "9410b3bc984f8824c839ecccdf53dfeb7c618911860ef401afd69e8bee374c55",
+  "archive": "keypath-manual-download-clean.zip",
+  "archiveSHA256": "27a6bdffd4b544a62be8d6d74a03bda612b75319b15eb1429d7816c34c6a7146",
+  "archiveSizeBytes": 84908023,
+  "changedBundlePaths": [
+    "Contents/MacOS/KeyPath",
+    "Contents/Resources/BuildInfo.plist"
+  ],
+  "preservedFileCount": 231,
+  "archiveMetadataExcluded": true,
+  "strictSignatureVerified": true,
+  "teamID": "X2RKZ5TG99",
+  "hardenedRuntime": true,
+  "entitlementsUnchanged": true,
+  "packagedFrameworkRpathVerified": true,
+  "hostInstalled": false,
+  "notarized": false,
+  "timestamped": false,
+  "guestAcceptanceClaimed": false,
+  "managedCapsDefaultEnabled": false,
+  "resources": "Preserved prior frameworks/resources/Metal; no fresh Metal compilation",
+  "artifactManifestSHA256": "3cc6f4932b22710a1523d0b480c1efbc7ab902a793435370a6717851521a3cb8",
+  "focusedTests": {
+    "passed": 30,
+    "runnerExit": 0,
+    "logs": "/private/tmp/keypath-production-menu-tests-v1",
+    "warnings": 0,
+    "errors": 0
+  },
+  "releaseBuild": {
+    "passed": true,
+    "seconds": 182.25,
+    "logs": "/private/tmp/keypath-production-menu-release-build",
+    "pluginRestored": true,
+    "toolchain": "Xcode27 deviation",
+    "freshMetal": false
+  },
+  "independentReview": "No concrete regression in scoped menu/summary changes",
+  "liveAcceptance": "Pending; b11ef90c9 prior candidate acceptance remains separate",
+  "broadTestGate": "Running; no success claimed"
+}
