@@ -611,6 +611,10 @@ struct MainAppStateControllerBehaviorTests {
             )
             let controller = MainAppStateController()
             let manager = RuntimeCoordinator()
+            // Exercise permission failure during a real pending session start,
+            // not the removed process-age grace period.
+            manager.serviceLifecycleCoordinator.isStartingKanata = true
+            defer { manager.serviceLifecycleCoordinator.isStartingKanata = false }
             controller.configure(serviceLifecycle: manager.serviceLifecycleCoordinator, onSystemHealthy: {})
             controller.setValidator(StubSystemValidator(snapshot: snapshot))
             var permissionProbes = 0
@@ -624,7 +628,6 @@ struct MainAppStateControllerBehaviorTests {
                     healthProbes += 1
                     return KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
-                transientWindowOverride: { true },
                 timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
             )
             defer { controller.resetStartupGateTestingState() }

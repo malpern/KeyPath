@@ -530,7 +530,6 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     func testCompletedPermissionRefusalExposesStoppedStateUntilExplicitRetry() async {
         coordinator.testSessionConfigurationValidation = { .valid }
-        var permissionsGranted = false
         var starts = 0
         ServiceLifecycleCoordinator.testSessionStart = { _ in
             starts += 1
@@ -538,13 +537,12 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
             let status = await self.coordinator.currentRuntimeStatus()
             XCTAssertTrue(transient, "An admitted start is transient while its result is pending")
             XCTAssertEqual(status, .starting)
-            return permissionsGranted
+            return false
         }
         defer { ServiceLifecycleCoordinator.testSessionStart = nil }
 
         let denied = await coordinator.startKanata(reason: "Automatic start before permission grant")
         XCTAssertFalse(denied)
-        permissionsGranted = true
         let status = await coordinator.currentRuntimeStatus()
         let transient = await coordinator.isInTransientRuntimeStartupWindow()
         XCTAssertEqual(status, .stopped)
@@ -557,6 +555,13 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         ))
         XCTAssertEqual(starts, 1, "Permission grant alone does not request another start")
 
+        // Model the newly granted permission without mutating a captured value.
+        ServiceLifecycleCoordinator.testSessionStart = { _ in
+            starts += 1
+            let transient = await self.coordinator.isInTransientRuntimeStartupWindow()
+            XCTAssertTrue(transient)
+            return true
+        }
         let retried = await coordinator.startKanata(reason: "Wizard explicit Start after permission grant")
         XCTAssertTrue(retried)
         XCTAssertEqual(starts, 2)
