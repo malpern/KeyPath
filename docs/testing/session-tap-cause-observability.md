@@ -39,7 +39,8 @@ observation would not answer that gap.
 The existing startup registration now retains the owned tap's Quartz ID, options,
 mask, enabled state and min/average/max latency in microseconds. After the admitted
 sleep and its returned-receipt attempt, the hook arms one observation request. The
-next existing timer tick consumes it before any OS query, then takes one
+next existing timer tick first preserves the environment, Secure Input and owner
+exit guards, then consumes the request before any diagnostic query and takes one
 `CGGetEventTapList(128, ...)` snapshot restricted to the same ID, worker PID and
 session tap point. There is no polling or retry. The timestamp is uptime nanoseconds
 immediately before the query, using the same clock as the delay receipts. Permission

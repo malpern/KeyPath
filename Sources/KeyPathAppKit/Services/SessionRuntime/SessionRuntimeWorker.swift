@@ -355,6 +355,11 @@ public final class SessionRuntimeWorker {
 
     private func tick() {
         guard !finished else { return }
+        guard environmentObserver?.check() == true else {
+            finish(.failed, reason: "environment-observer-unavailable")
+        }
+        if IsSecureEventInputEnabled() { finish(.secureInput) }
+        if ownerPID > 0, !SystemStateProvider.shared.isProcessAlive(pid: ownerPID) { finish(.stopped, reason: "owner-exited") }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             // Same run loop: the delayed callback has returned. Sample once before
             // the existing disabled-tap guard can retire it; never re-enable a tap.
@@ -368,11 +373,6 @@ public final class SessionRuntimeWorker {
                 )
             }
         #endif
-        guard environmentObserver?.check() == true else {
-            finish(.failed, reason: "environment-observer-unavailable")
-        }
-        if IsSecureEventInputEnabled() { finish(.secureInput) }
-        if ownerPID > 0, !SystemStateProvider.shared.isProcessAlive(pid: ownerPID) { finish(.stopped, reason: "owner-exited") }
         guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled-observed") }
         guard let runtime else { finish(.failed, reason: "runtime-unavailable") }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
