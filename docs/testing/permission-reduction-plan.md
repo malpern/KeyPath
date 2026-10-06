@@ -32,6 +32,8 @@ The [gap register](driverless-gap-register.md) retains all12 gaps and their acce
 
 ## Process constraints
 
+- Amortize setup during product work: one prepared owned VM for compatible cases, with fresh scope and verified clean state between cases. Reversible cases first; retained-uncertainty/device-identity cases last, then disposal. Fresh VMs remain required for clean consent/installation and final acceptance. No separate batching framework or infrastructure project. Track verified product cases per hour and separate setup/experiment/cleanup time.
+
 - One canonical CREATE command; no new maintained launcher wrapper. Root stores one durable intent and actual result per operation in a fresh private evidence directory.
 - Keep exact ownership, cutoff, permission isolation, physical input and independent cleanup safeguards. Cut duplicate plumbing, not those safeguards.
 - No repeated broad lab qualification after a product experiment refusal. Classify failures using the existing failure-ownership convention and ledger.
