@@ -139,7 +139,9 @@ public enum SystemReadinessModel {
             issues.append("thermal state is \(sample.thermalState)")
         }
         let processorCount = max(1, sample.logicalProcessorCount)
-        if sample.threadCount > processorCount * maximumThreadsPerCore {
+        if sample.threadCount <= 0 {
+            issues.append("system thread inventory unavailable")
+        } else if sample.threadCount > processorCount * maximumThreadsPerCore {
             issues.append("system thread inventory is unusually high (\(sample.threadCount))")
         }
         return issues

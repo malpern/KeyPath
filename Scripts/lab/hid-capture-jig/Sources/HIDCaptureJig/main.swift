@@ -40,6 +40,7 @@ private func monotonicNow() -> UInt64 {
 }
 
 private final class SystemResourceMonitor {
+    private let threadInventory = SystemThreadInventory()
     private var samples: [SystemResourceSample] = []
     private var lastSampleNs: UInt64 = 0
     private var previousCPUTicks: (busy: UInt64, total: UInt64)?
@@ -72,7 +73,7 @@ private final class SystemResourceMonitor {
             loadAveragePerCore: max(0, oneMinuteLoad / Double(processors)),
             availableMemoryBytes: availableMemoryBytes(),
             physicalMemoryBytes: ProcessInfo.processInfo.physicalMemory,
-            threadCount: integerSysctl("kern.num_taskthreads"),
+            threadCount: threadInventory.sample(),
             logicalProcessorCount: processors,
             memoryPressureLevel: integerSysctl("kern.memorystatus_vm_pressure_level"),
             thermalState: thermalStateName(ProcessInfo.processInfo.thermalState)

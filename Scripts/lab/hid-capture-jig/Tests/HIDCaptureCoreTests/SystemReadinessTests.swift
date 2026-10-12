@@ -24,6 +24,14 @@ final class SystemReadinessTests: XCTestCase {
         )
     }
 
+    func testUnavailableThreadInventoryCannotAuthorizeArming() {
+        let assessment = SystemReadinessModel.resolve(samples: [
+            sample(at: 1, threads: -1), sample(at: 2, threads: -1), sample(at: 3, threads: -1),
+        ])
+        XCTAssertFalse(assessment.canProceed)
+        XCTAssertTrue(assessment.issues.contains { $0.contains("thread inventory unavailable") })
+    }
+
     func testRequiresStableWindowBeforeProceeding() {
         let first = SystemReadinessModel.resolve(samples: [sample(at: 1)])
         XCTAssertEqual(first.state, .calibrating)
