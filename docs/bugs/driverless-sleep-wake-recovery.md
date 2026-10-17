@@ -63,3 +63,21 @@ The final artifact is the exact tested build, packaged without rebuilding:
 - This focused commit does not incorporate the worktree's earlier uncommitted
   onboarding/driverless changes. The notarized artifact includes those changes;
   this commit alone is not a reproducible source snapshot of the entire release.
+
+## Final cleanup review
+
+Focused wake fix committed as `fb1c38c83`. Review checked retirement-reason
+preservation, ownership/cleanup gating, stale wake rejection, cancellation and
+Stop/Quit intent ordering. No additional blocking wake-path finding was identified.
+After confirming this branch is not behind origin/master, `Scripts/test-full.sh`
+passed against the complete working tree: **5,627 tests**, including snapshots;
+exit 0, build 76 seconds, tests 194 seconds, total 271 seconds. This is not a
+claim that only the focused commit was tested in a clean checkout.
+
+The release evidence directory also holds a private `final/source-checkpoint/`:
+base commit IDs, binary working-tree patches (KeyPath and Kanata), and the
+untracked source archive. It preserves the broader experimental source state
+without folding unrelated changes into the wake commit. Full test logs are in
+`final/review/`. The longer physical sleep test and verified installer delivery
+remain pending; neither a unit test nor a successful notarization substitutes
+for those checks.
