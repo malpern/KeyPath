@@ -17,6 +17,12 @@ final class ServiceLifecycleCoordinator {
     var sessionOutputsRecovered = false
     private(set) var sessionConfigurationAdmission: KanataHostBridgeValidationResult?
     var sessionSupervisionTask: Task<Void, Never>?
+    var sessionWakeEpoch: UInt64 = 0
+    var sessionLaunchWakeEpoch: UInt64 = 0
+    /// Set only after an owned held-key startup refusal has been fully cleaned up.
+    var sessionWakeRetryGeneration: UInt64?
+    var sessionLastWakeSignalAt: Date?
+    private var sessionWakeObservationTasks: [Task<Void, Never>] = []
     // Process ownership is serialized across suspension points, independently of
     // configuration persistence. Intent changes immediately, before admission.
     let sessionOperationGate = ConfigurationOperationGate()
@@ -88,6 +94,8 @@ final class ServiceLifecycleCoordinator {
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?
         var testSessionSupervisionStarted: ((UInt64) -> Void)?
         var testSessionCapsRecovery: (() async throws -> Void)?
+        var testSessionWakeReady: (() -> Bool)?
+        var testSessionWakeWait: (() async -> Void)?
     #endif
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
@@ -148,6 +156,16 @@ final class ServiceLifecycleCoordinator {
         recoveryCoordinator _: RecoveryCoordinator
     ) {
         self.kanataDaemonService = kanataDaemonService
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
+                     NSWorkspace.sessionDidBecomeActiveNotification] {
+            let notifications = NSWorkspace.shared.notificationCenter.notifications(named: name)
+            sessionWakeObservationTasks.append(Task { [weak self] in
+                for await _ in notifications {
+                    guard !Task.isCancelled else { return }
+                    self?.observeSessionWake(name)
+                }
+            })
+        }
         ServiceHealthChecker.shared.configureSessionReadinessProvider { [weak self] in
             guard let report = await self?.currentSessionReport() else {
                 return KanataRuntimeReadiness(isRunning: false, isResponding: false, inputCaptureReady: false)
@@ -161,6 +179,18 @@ final class ServiceLifecycleCoordinator {
                 await self?.sessionCapabilities()
             }
         }
+    }
+
+    func observeSessionWake(_ name: Notification.Name, at date: Date = Date()) {
+        guard [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
+               NSWorkspace.sessionDidBecomeActiveNotification].contains(name) else { return }
+        sessionWakeEpoch &+= 1
+        sessionLastWakeSignalAt = date
+        AppLogger.shared.info("[SessionRuntime] Recovery wake signal: \(name.rawValue)")
+    }
+
+    deinit {
+        sessionWakeObservationTasks.forEach { $0.cancel() }
     }
 
     // MARK: - Start / Stop / Restart
@@ -248,13 +278,13 @@ final class ServiceLifecycleCoordinator {
 
     /// Automatic recovery carries the old intent; it cannot replace a newer
     /// manual stop/start request while waiting for admission.
-    func resumeSessionRuntime(expectedGeneration: UInt64) async -> Bool {
+    func resumeSessionRuntime(expectedGeneration: UInt64, reason: String = "Secure typing ended") async -> Bool {
         guard sessionStartIsCurrent(expectedGeneration) else { return false }
         #if DEBUG
             testSessionRequestObserved?(expectedGeneration)
         #endif
         let resumed = await Task.detached { [self] in
-            await admitSessionOperation(.start("Secure typing ended"), generation: expectedGeneration)
+            await admitSessionOperation(.start(reason), generation: expectedGeneration)
         }.value
         return sessionStartIsCurrent(expectedGeneration) && resumed
     }

@@ -187,7 +187,7 @@ final class SessionRuntimeEnvironmentObserver {
         }
     }
 
-    private static func currentConsole() -> SessionRuntimeConsoleObservation? {
+    static func currentConsole() -> SessionRuntimeConsoleObservation? {
         parseConsole(CGSessionCopyCurrentDictionary() as? [String: Any])
     }
 

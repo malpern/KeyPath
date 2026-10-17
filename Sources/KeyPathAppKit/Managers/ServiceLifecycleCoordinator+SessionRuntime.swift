@@ -94,6 +94,7 @@ extension ServiceLifecycleCoordinator {
         }
         var didLaunch = false
         do {
+            sessionLaunchWakeEpoch = sessionWakeEpoch
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: false)
             sessionApplication = application
             sessionReportURL = url
@@ -163,7 +164,15 @@ extension ServiceLifecycleCoordinator {
                     AppLogger.shared.error("SESSION_TERMINAL_STARTUP \(diagnostic)")
                 }
             #endif
-            _ = await stopSessionRuntime()
+            let cleanedUp = await stopSessionRuntime()
+            if reason == "System wake", sessionStartIsCurrent(generation),
+               Self.canRetryWakeStartup(terminalReport, nonce: nonce, pid: application.processIdentifier,
+                                        uid: getuid(), cleanedUp: cleanedUp) {
+                sessionWakeRetryGeneration = generation
+                onWarning?("Release all keys to resume remapping.")
+                onStateChanged?()
+                return false
+            }
             if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
         } catch {
             if didLaunch { _ = await stopSessionRuntime() }
@@ -301,9 +310,80 @@ extension ServiceLifecycleCoordinator {
             _ = await resumeSessionRuntime(expectedGeneration: generation)
             return false
         }
+        if let failure = terminalReport?.recoveryReason,
+           failure == "system-will-sleep" || failure == "system-wake-observed" {
+            _ = await resumeAfterSystemWake(expectedGeneration: generation,
+                                            launchWakeEpoch: sessionLaunchWakeEpoch,
+                                            wakeAlreadyObserved: failure == "system-wake-observed",
+                                            retiredAt: terminalReport?.timestamp)
+            return false
+        }
         onError?("Driverless remapping stopped. Original keyboard input remains available; restart to recover.")
         onStateChanged?()
         return false
+    }
+
+    /// Retirement restores old output first. A wake starts through ordinary
+    /// admission; it never reuses the retired worker or its event queues.
+    func resumeAfterSystemWake(expectedGeneration: UInt64, launchWakeEpoch: UInt64,
+                               wakeAlreadyObserved: Bool, retiredAt: Date? = nil) async -> Bool {
+        guard sessionStartIsCurrent(expectedGeneration) else { return false }
+        // This supervisor now owns recovery rather than the retired worker.
+        // Starting/cleaning a replacement must not cancel the task running this loop.
+        // Stop, Quit and newer starts still invalidate its intent generation.
+        sessionSupervisionTask = nil
+        onWarning?("Remapping is paused while your Mac sleeps.")
+        onStateChanged?()
+        let recoveryStarted = Date()
+        var lastBlocker: String?
+        while sessionStartIsCurrent(expectedGeneration) {
+            // Screen wake can precede system wake by tens of seconds after a
+            // quick lid close/open. Only a signal after this retirement counts;
+            // an earlier display wake during the old worker's life must not.
+            let signalled = wakeAlreadyObserved || (retiredAt.map { retirement in
+                sessionLastWakeSignalAt.map { $0 >= retirement } ?? false
+            } ?? (sessionWakeEpoch != launchWakeEpoch))
+            let blocker = signalled ? sessionWakeReadinessBlocker() : "wake-notification"
+            if blocker != lastBlocker {
+                AppLogger.shared.info("[SessionRuntime] Wake recovery gate: \(blocker ?? "ready") elapsedMs=\(Int(Date().timeIntervalSince(recoveryStarted) * 1000))")
+                lastBlocker = blocker
+            }
+            if blocker == nil {
+                AppLogger.shared.info("[SessionRuntime] Resuming after system wake")
+                sessionWakeRetryGeneration = nil
+                if await resumeSessionRuntime(expectedGeneration: expectedGeneration, reason: "System wake") { return true }
+                guard sessionStartIsCurrent(expectedGeneration),
+                      sessionWakeRetryGeneration == expectedGeneration else { return false }
+                AppLogger.shared.info("[SessionRuntime] Wake startup deferred until keys are released")
+            }
+            #if DEBUG
+                if let wait = testSessionWakeWait {
+                    await wait()
+                    continue
+                }
+            #endif
+            do { try await Task.sleep(for: .milliseconds(250)) }
+            catch { return false }
+        }
+        return false
+    }
+
+    static func canRetryWakeStartup(_ report: SessionRuntimeReport?, nonce: String,
+                                    pid: Int32, uid: UInt32, cleanedUp: Bool) -> Bool {
+        cleanedUp && report?.belongsTo(nonce: nonce, pid: pid, uid: uid) == true
+            && report?.state == .failed
+            && report?.failure == "managed-caps-activation-refused: physicalKeysHeld"
+    }
+
+    private func sessionWakeReadinessBlocker() -> String? {
+        #if DEBUG
+            if let ready = testSessionWakeReady { return ready() ? nil : "test-not-ready" }
+        #endif
+        guard !IsSecureEventInputEnabled() else { return "secure-input" }
+        guard let console = SessionRuntimeEnvironmentObserver.currentConsole(),
+              console.uid == getuid(), console.onConsole, console.loginDone else { return "console-not-ready" }
+        do { try SessionCapsRuntimeSupport.requirePhysicalAllUp(); return nil }
+        catch { return "held-keys" }
     }
 
     private func stopUnresponsiveSession(expectedGeneration: UInt64, nonce: String) async -> Bool {

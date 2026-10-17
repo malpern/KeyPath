@@ -283,6 +283,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let outputCount: UInt64
     public let timestamp: Date
     public let failure: String?
+    /// Original shutdown boundary, retained even when cleanup reports a separate failure.
+    public let retirementReason: String?
     public let heldOutputUsages: [UInt32]
     public let experimentalTapDiagnostics: ExperimentalTapDiagnostics?
     public let managedCapsGeneration: String?
@@ -295,7 +297,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
         inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil,
         experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil,
-        managedCapsGeneration: String? = nil
+        managedCapsGeneration: String? = nil, retirementReason: String? = nil
     ) {
         self.nonce = nonce
         self.pid = pid
@@ -310,11 +312,14 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.outputCount = outputCount
         self.timestamp = timestamp
         self.failure = failure
+        self.retirementReason = retirementReason
         self.heldOutputUsages = heldOutputUsages
         self.experimentalTapDiagnostics = experimentalTapDiagnostics
         self.experimentalTapTimeout = experimentalTapTimeout
         self.managedCapsGeneration = managedCapsGeneration
     }
+
+    public var recoveryReason: String? { retirementReason ?? failure }
 
     /// Cleanup evidence remains useful after a stalled worker dies. Callers must
     /// confirm termination separately before replaying this launch's ledger.

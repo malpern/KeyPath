@@ -1,4 +1,6 @@
 @testable import KeyPathAppKit
+import KeyPathCore
+import AppKit
 @preconcurrency import XCTest
 
 /// No NSRunningApplication, process signal, CGEvent or host launch is used here.
@@ -260,4 +262,195 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertEqual(starts, 1)
         XCTAssertFalse(coordinator.sessionWantsRunning)
     }
+    func testWakeBeforeTerminalReportResumesFreshAdmission() async {
+        var reasons: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { reasons.append($0); return true }
+        _ = await coordinator.startKanata()
+        coordinator.testSessionWakeReady = { true }
+        coordinator.sessionWakeEpoch = 1
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(reasons, ["Manual start", "System wake"])
+    }
+
+    func testSleepWaitsForWakeAndReadySession() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        _ = await coordinator.startKanata()
+        var ready = false
+        var waits = 0
+        coordinator.testSessionWakeReady = { ready }
+        coordinator.testSessionWakeWait = { [self] in
+            XCTAssertEqual(starts, 1)
+            waits += 1
+            if waits == 1 { coordinator.sessionWakeEpoch += 1 }
+            else { ready = true }
+        }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(waits, 2)
+        XCTAssertEqual(starts, 2)
+    }
+
+    func testManualStopWhileSleepingPreventsWakeRestart() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { true }
+        _ = await coordinator.startKanata()
+        coordinator.testSessionWakeReady = { true }
+        coordinator.testSessionWakeWait = { [self] in
+            _ = await coordinator.stopKanata()
+            coordinator.sessionWakeEpoch += 1
+        }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(starts, 1)
+    }
+
+    func testWorkerObservedWakeDoesNotRequireSecondNotification() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        _ = await coordinator.startKanata()
+        coordinator.testSessionWakeReady = { true }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true)
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(starts, 2)
+    }
+
+    func testQuitWhileWaitingForWakePreventsRestart() async {
+        ServiceLifecycleCoordinator.testSessionStart = { _ in true }
+        _ = await coordinator.startKanata()
+        coordinator.testSessionWakeReady = { true }
+        coordinator.testSessionWakeWait = { [self] in coordinator.setTerminationPreparationActive(true) }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+        XCTAssertFalse(resumed)
+    }
+
+    func testWakeRetriesHeldKeyRaceWithoutCancellingRecoveryTask() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { [self] _ in
+            starts += 1
+            if starts == 2 {
+                // Production cleanup cancels the worker supervisor. It must no
+                // longer own the task that is waiting to retry wake recovery.
+                XCTAssertNil(coordinator.sessionSupervisionTask)
+                coordinator.sessionSupervisionTask?.cancel()
+                coordinator.sessionWakeRetryGeneration = coordinator.sessionIntentGeneration
+                return false
+            }
+            return true
+        }
+        _ = await coordinator.startKanata()
+        coordinator.testSessionWakeReady = { true }
+        var waits = 0
+        coordinator.testSessionWakeWait = { waits += 1 }
+        var resumed = false
+        let recovery = Task { @MainActor [self] in
+            resumed = await coordinator.resumeAfterSystemWake(expectedGeneration: coordinator.sessionIntentGeneration,
+                                                              launchWakeEpoch: 0, wakeAlreadyObserved: true)
+        }
+        // The current supervisor calls recovery on its own task in production.
+        coordinator.sessionSupervisionTask = recovery
+        _ = await completion(of: recovery, fallback: ())
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(starts, 3)
+        XCTAssertEqual(waits, 1)
+        XCTAssertNil(coordinator.sessionWakeRetryGeneration)
+    }
+
+    func testStopAndQuitDuringHeldKeyRetryPreventAnotherLaunch() async {
+        for quit in [false, true] {
+            coordinator.setTerminationPreparationActive(false)
+            var starts = 0
+            ServiceLifecycleCoordinator.testSessionStart = { [self] _ in
+                starts += 1
+                if starts == 1 { return true }
+                coordinator.sessionWakeRetryGeneration = coordinator.sessionIntentGeneration
+                return false
+            }
+            ServiceLifecycleCoordinator.testSessionStop = { true }
+            _ = await coordinator.startKanata()
+            coordinator.testSessionWakeReady = { true }
+            coordinator.testSessionWakeWait = { [self] in
+                if quit { coordinator.setTerminationPreparationActive(true) }
+                else { _ = await coordinator.stopKanata() }
+            }
+            let resumed = await coordinator.resumeAfterSystemWake(
+                expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true)
+            XCTAssertFalse(resumed)
+            XCTAssertEqual(starts, 2)
+        }
+    }
+
+    func testWakeDoesNotRetryUnrelatedFailureOrStaleRetryEvidence() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return starts == 1 }
+        _ = await coordinator.startKanata()
+        coordinator.sessionWakeRetryGeneration = coordinator.sessionIntentGeneration
+        coordinator.testSessionWakeReady = { true }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true)
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(starts, 2)
+    }
+
+    func testWakeRetryRequiresOwnedHeldKeyFailureAndCompletedCleanup() {
+        func report(_ failure: String) -> SessionRuntimeReport {
+            SessionRuntimeReport(nonce: "owned", pid: 123, uid: 502, state: .failed,
+                                 accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                 tcpPort: 37001, inputCount: 0, outputCount: 0, failure: failure)
+        }
+        let held = report("managed-caps-activation-refused: physicalKeysHeld")
+        XCTAssertTrue(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "owned", pid: 123, uid: 502, cleanedUp: false))
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "other", pid: 123, uid: 502, cleanedUp: true))
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "owned", pid: 456, uid: 502, cleanedUp: true))
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "owned", pid: 123, uid: 501, cleanedUp: true))
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(report("managed-caps-restoration-pending"), nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(nil, nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
+    }
+
+    func testScreenWakeResumesWithoutWaitingForSystemWake() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        _ = await coordinator.startKanata()
+        let retired = Date()
+        coordinator.observeSessionWake(NSWorkspace.screensDidWakeNotification, at: retired.addingTimeInterval(1))
+        coordinator.testSessionWakeReady = { true }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0,
+            wakeAlreadyObserved: false, retiredAt: retired)
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(starts, 2)
+    }
+
+    func testEarlierScreenWakeCannotResumeLaterSleepAndStillWaitsForReadiness() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        _ = await coordinator.startKanata()
+        let retired = Date()
+        coordinator.observeSessionWake(NSWorkspace.screensDidWakeNotification, at: retired.addingTimeInterval(-1))
+        var ready = false
+        var waits = 0
+        coordinator.testSessionWakeReady = { ready }
+        coordinator.testSessionWakeWait = { [self] in
+            waits += 1
+            XCTAssertEqual(starts, 1)
+            if waits == 1 {
+                coordinator.observeSessionWake(NSWorkspace.sessionDidBecomeActiveNotification, at: retired.addingTimeInterval(1))
+            } else { ready = true }
+        }
+        let resumed = await coordinator.resumeAfterSystemWake(
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0,
+            wakeAlreadyObserved: false, retiredAt: retired)
+        XCTAssertTrue(resumed)
+        XCTAssertEqual(waits, 2)
+        XCTAssertEqual(starts, 2)
+    }
+
 }

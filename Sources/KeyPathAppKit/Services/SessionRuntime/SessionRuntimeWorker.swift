@@ -553,7 +553,7 @@ public final class SessionRuntimeWorker {
         }
     #endif
 
-    private func writeReport(_ state: SessionRuntimeReport.State, failure: String? = nil) {
+    private func writeReport(_ state: SessionRuntimeReport.State, failure: String? = nil, retirementReason: String? = nil) {
         var diagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
         var timeoutDiagnostic: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic?
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
@@ -581,7 +581,7 @@ public final class SessionRuntimeWorker {
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
             experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic,
-            managedCapsGeneration: capsRecord?.owner.generation
+            managedCapsGeneration: capsRecord?.owner.generation, retirementReason: retirementReason
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)
@@ -648,7 +648,7 @@ public final class SessionRuntimeWorker {
                 }
             }
         }, publishTerminalReport: {
-            writeReport(terminalState, failure: terminalReason)
+            writeReport(terminalState, failure: terminalReason, retirementReason: reason)
         }, acknowledge: acknowledge, unregisterObservers: {
             environmentObserver?.stop()
         })
