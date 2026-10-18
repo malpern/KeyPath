@@ -797,3 +797,18 @@ executable `1516e282289584a5c472daef38670d397c796c95299f88a543f3dacf5065fed7`.
 Installed on the Air 15:33 (`keypath.kbd`, `CustomRules.json` unchanged); previous
 app archived as `~/Downloads/KeyPath-before-catalog-fix-20261018.zip`. Verifier:
 parent 42745, worker 43374, TCP 37001.
+
+### Settings layout dropdown — candidate `a8476ba1e` (user request)
+
+The Settings layout control (⇅) opened full keyboard search (behavior since
+`9f0488029`, March). It is now a menu of built-in and custom layouts by category,
+current one checkmarked, with "Search All Keyboards…" last. Choosing a layout uses
+new `AutoDetectKeyboardController.selectLayout`, the same apply-and-remember path
+as search. 95 keyboard-detection/settings/layout tests (2 new) and accessibility
+and Computer Use contracts pass. Notarized (Accepted);
+`KeyPath-20261018-layout-dropdown.dmg` SHA-256
+`8b70c4ac6e6eef772a7f5e6820fe3638709435675282c31ea22c0ad23645f9a4`, executable
+`1b2e38062257a3163573eb1201156bb7de996f9be518cd1b37cc1e53e8edaa81`. Installed on the
+Air 15:50 (config and `overlayLayoutId` = macbook-us unchanged); previous app
+archived as `~/Downloads/KeyPath-before-layout-dropdown-20261018.zip`. Verifier:
+parent 80307, worker 80936, TCP 37001. Proposed freeze point for acceptance.
