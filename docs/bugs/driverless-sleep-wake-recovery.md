@@ -191,3 +191,27 @@ Final candidate-5 broad gate: `Scripts/test-full.sh` passed **5,628 tests**,
 including visual snapshots (exit 0; build 98 s, tests 225 s, total 324 s).
 Logs: post-final-failure/full-tests.log and full-runner.log. Tests ran against
 the complete working tree, not a clean integrated production branch.
+
+### Final distribution installation on Air (2026-10-17 18:50)
+
+Committed the accumulated tested source as `2d78f98d3`, with Kanata parser
+revision `d9085a9` pushed to the fork and pinned by the submodule. Generated
+Python caches and `historical-catalog.actual.kbd` remain outside the commit.
+The branch is current with origin/master; accessibility checks passed 382 files.
+
+Installed the delivered wake5-final DMG into /Applications on Air, preserving
+configuration and moving the former app to Trash for rollback. Mounted-image
+and installed-app signature, Gatekeeper and stapled-ticket verification passed.
+The full installed-app verifier passed Apple Silicon payloads, packaged resources,
+Metal library, Sparkle rpaths, CLI identity and owned session/TCP readiness.
+Parent PID 18906 and worker PID 19259 were current. The worker reported running,
+tapActive true, no failure, and managedCapsGeneration matching its launch nonce.
+Installed executable SHA-256 matches the notarized source app exactly:
+`7d482857f963fc4a98a3c5f677a9106376cc2a15476d442a564fb7d3de959a20`.
+The mounted installer was ejected after launch.
+
+Evidence: `wake5-final/air-installed-verification.log`. This verifies final
+installation and runtime readiness, not a new physical key or sleep test.
+Applicable installer matrix rows: **Session runtime stopped or not ready** and
+**Session tap active and TCP responding**. Source review and public-release
+integration remain separate gates; installation alone does not complete them.
