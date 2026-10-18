@@ -738,3 +738,17 @@ later, single `Validation SUCCESS`, no failed validation or wizard. Canonical
 verifier passed: parent 95627, worker 48424, TCP 127.0.0.1:37001. Physical key
 output after unlock not yet confirmed by the user. Evidence: `~/keypath-review-evidence/20261018-secure-input-startup/`.
 The `663c0ed2a` installer in Air Downloads is superseded.
+
+### Stranded splash after locked launch — candidate `49349c72e`
+
+User reported the `1ada9c645` launch splash stuck on screen after the locked launch
+resumed. Cause and fix: `docs/bugs/2026-10-18-secure-input-startup.md` (follow-up).
+114 related tests pass. Notarized app `acb7ad2f-2161-47bb-bd8a-afdcec061125`, DMG
+`9484dba7-999c-402d-930c-8425679c7d25`; `KeyPath-20261018-splash-recovery.dmg`
+SHA-256 `7491b791b4945764ce4fa630ec63d989096ee79868124a9b9537eba7735471e6`,
+executable `d93db5a8678903546c89e5f3ebc504f1779cfab1996437d08e09c264065512b5`.
+Installed 13:41 with config unchanged; previous app archived as
+`~/Downloads/KeyPath-before-splash-recovery-20261018.zip`. Unlocked launch: splash
+hid, first validation SUCCESS, indicator `dismissed -> healthy` (no transient
+blocking issue, confirming `663c0ed2a` live). Verifier: parent 81790, worker 82500,
+TCP 37001. Locked-launch splash behavior on this build: pending.
