@@ -17,7 +17,8 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 ## The short version
 
 - **No transmitted telemetry.** KeyPath does not upload analytics, usage metrics, or crash reports. Optional Activity Insights keeps keyboard usage statistics locally.
-- **Manual updates.** Download Update opens the official releases page in your browser. This build does not automatically check for or install updates.
+- **Manual app updates.** Download Update opens the official releases page in your browser. This build does not automatically check for or install app updates.
+- **Offline Help.** Guides, styles and images are included in the app. Opening a guide can quietly check GitHub Pages for compatible Help content updates; no keyboard data or logs are sent.
 - **Local keyboard data.** Rule and macro recording captures keys you choose to record, and the recent-keypress view keeps a limited history in memory. Diagnostic logs can include key names, including in release builds. KeyPath does not upload this keyboard data or these logs.
 - **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
 - **Everything stays on your Mac.** Configuration and logs are local files you own and control.
@@ -91,22 +92,19 @@ All files are local. Nothing is synced, uploaded, or shared.
 
 ## Network access
 
-```
-  ┌─────────────────────────────────────────────────┐
-  │          KeyPath network connections             │
-  │                                                  │
-  │  ┌──────────┐                                    │
-  │  │ KeyPath  │──→ Browser → GitHub releases       │
-  │  │          │                                    │
-  │  │          │ ✗  No analytics servers            │
-  │  │          │ ✗  No crash reporting              │
-  │  │          │ ✗  No telemetry of any kind        │
-  │  │          │ ✗  No cloud services               │
-  │  └──────────┘                                    │
-  │                                                  │
-  │  Everything else is localhost or offline.         │
-  └─────────────────────────────────────────────────┘
-```
+### Offline Help updates
+
+Help opens a saved local copy immediately, including on a first launch without
+internet. When you open an article, KeyPath can check the public Help feed at
+`malpern.github.io/KeyPath/offline-help/` and download changed guides, images and
+styles in the background. These are ordinary HTTPS downloads; they do not upload
+your rules, keystrokes, recordings or logs. The server receives standard web
+request information, such as your IP address.
+
+Only a complete compatible content update replaces the local copy. If the network
+or download fails, the previous copy remains available. External website links
+still need internet access. Help content updates do not install a new app or run
+scripts.
 
 ### Manual downloads
 
@@ -148,7 +146,7 @@ The driverless runtime does not provide remapping in protected password-entry or
 
 ### Does KeyPath work offline?
 
-Keyboard remapping, recording and local diagnostics work offline. Opening the releases page and downloading an update require internet access; there are no automatic update checks in this build.
+Keyboard remapping, recording, local diagnostics and the bundled Help guides work offline. Help can quietly download compatible content updates when connected. App updates remain manual; opening the releases page or external links requires internet access.
 
 ### Is KeyPath open source?
 
@@ -180,7 +178,7 @@ Keyboard usage analytics are available in **Activity Insights**, a built-in plug
 | Runs as root | No (driverless session) | Yes (event tap daemon) | N/A (firmware) |
 | Telemetry | No uploads; optional local Insights | None | None |
 | Open source | Yes (MIT) | Yes (Public Domain) | Yes (GPL) |
-| Network access | Browser for manual downloads | Optional updates | None |
+| Network access | Help content refresh; browser for manual app downloads | Optional updates | None |
 | Keystroke logging | Key names can appear in local diagnostics | No | No |
 
 ---
