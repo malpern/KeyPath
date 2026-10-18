@@ -245,6 +245,7 @@ extension RuleCollectionsManager {
     func commitRuleMutationResult(snapshot: RuleStateSnapshot, skipReload: Bool = false, failureContext: String? = nil, leaderPreferenceBefore: LeaderPreferenceSnapshot? = nil,
                                   keymapBefore: (id: String, includePunctuation: Bool)? = nil,
                                   packRecord: InstalledPackTracker.RecordChange? = nil,
+                                  reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
                                   mutationPermit: ConfigurationOperationGate.Permit) async -> SaveResult
     {
         let preparedLeaderPreference = pendingLeaderKeyPreference ?? preferencesService.leaderKeyPreference
@@ -265,7 +266,7 @@ extension RuleCollectionsManager {
             manager: self, mutationPermit: mutationPermit, packRecord: packRecord,
             preferenceChanges: preferenceChanges,
             leaderKeyPreference: leaderPreferenceBefore == nil ? nil : preparedLeaderPreference,
-            reloadHandler: skipReload ? nil : onRulesChanged
+            reloadHandler: skipReload ? nil : (reloadHandler ?? onRulesChanged)
         )
         pendingLeaderKeyPreference = nil
         guard result.success else {

@@ -190,6 +190,7 @@ extension RuleCollectionsManager {
         configurationOverride: RuleCollectionConfiguration? = nil,
         additionalCollectionIDsToDisable: Set<UUID> = [],
         skipReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
         packRecord: InstalledPackTracker.RecordChange? = nil,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> SaveResult {
@@ -245,7 +246,7 @@ extension RuleCollectionsManager {
                         let setupCandidate = candidate
                         return await onPrerequisiteSetup(context) { [self] providerIDs in
                             await applyRuleSetup(candidate: setupCandidate, providerIDs: providerIDs,
-                                                 disablingIDs: additionalCollectionIDsToDisable, skipReload: skipReload,
+                                                 disablingIDs: additionalCollectionIDsToDisable, skipReload: skipReload, reloadHandler: reloadHandler,
                                                  packRecord: packRecord, mutationPermit: permit)
                         }
                     }
@@ -323,7 +324,7 @@ extension RuleCollectionsManager {
 
                 let result = await commitRuleMutationResult(snapshot: snapshot, skipReload: skipReload, failureContext: candidate.name,
                                                             leaderPreferenceBefore: id == RuleCollectionIdentifier.leaderKey ? leaderPreferenceSnapshot : nil,
-                                                            packRecord: packRecord, mutationPermit: permit)
+                                                            packRecord: packRecord, reloadHandler: reloadHandler, mutationPermit: permit)
                 guard result.success else { return result }
 
                 // Pre-cache icons for collections with app launches (e.g., Vim nav layer)
@@ -1085,6 +1086,7 @@ extension RuleCollectionsManager {
     /// Revalidate the complete proposal under the operation lease, then commit it once.
     func applyRuleSetup(candidate: RuleCollection, providerIDs: [UUID],
                         disablingIDs: Set<UUID> = [], skipReload: Bool = false,
+                        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
                         packRecord: InstalledPackTracker.RecordChange? = nil,
                         mutationPermit: ConfigurationOperationGate.Permit) async -> SaveResult
     {
@@ -1128,6 +1130,6 @@ extension RuleCollectionsManager {
         return await commitRuleMutationResult(snapshot: snapshot, skipReload: skipReload,
                                               failureContext: candidate.name,
                                               leaderPreferenceBefore: selected.contains(RuleCollectionIdentifier.leaderKey) ? leaderSnapshot : nil,
-                                              packRecord: packRecord, mutationPermit: mutationPermit)
+                                              packRecord: packRecord, reloadHandler: reloadHandler, mutationPermit: mutationPermit)
     }
 }

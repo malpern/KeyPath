@@ -206,3 +206,68 @@ available, without touching other leases. Remaining manual items: Caps Lock hold
 (if configured), Quit/reopen, reboot/login, rule editing, and hover/drawer/appearance.
 Release review/integration remains pending. No repeated full test run is needed
 without new changes or failures.
+
+## Clean desktop QA and failed-tour regression — October 17, 22:53
+
+Fast Arrows released its prior guests. An owned macOS 26.5.2 unmanaged desktop
+lease (`cbx_626ccf25e58c`) was admitted through `--host malpern@mini` and tested
+as a new public account, UID 502. Evidence root:
+`~/keypath-review-evidence/20261017-tcp-handoff/clean-qa/`.
+
+Passed on the TCP handoff artifact: welcome, normal Accessibility consent and
+refresh without relaunch, automatic runtime startup, tour presentation, drawer
+open/close, settings/status, ordinary rule save and actual A → C output in TextEdit,
+Quit (parent and worker exit), reopen with saved rule, and UI uninstall. Uninstall
+created a Downloads backup, removed active configuration, moved the app to Trash
+and exited without Finder error dialogs. Reinstall displayed welcome and then the
+tour again. Input Monitoring was not explicitly granted in this account.
+
+The run found a real product bug: the tour persisted Caps Lock → Escape before
+runtime/device admission. When this VM's virtual keyboard failed Caps admission,
+that saved collection poisoned later ordinary rule saves. The fix keeps runtime
+application inside the existing pack transaction and restores the prior revision
+on failure. See `docs/bugs/tour-caps-preparation-transaction.md`.
+
+The fixed Developer ID signed functional replacement passed 46 focused tests
+(31 pack transaction and 15 onboarding session tests), including three new tests;
+zero compiler warnings. It also passed the accessibility source check and build.
+Functional ZIP `KeyPath-tour-fix.zip` SHA-256:
+`70eebd0d27452ef28d233604a58bf04c6d2c4bccf465dc9c334c2d8fcac7e4d7`;
+executable SHA-256:
+`a79ab1185afd3a078b6a0111f929ffb974518a8b573d8ce23fb49db78920988f`.
+This replacement is not notarized and has not been delivered to the Air.
+The replacement receipt and source manifest identify its exact base plus patch.
+
+Live regression passed: reject Caps setup, compare the prior configuration files
+byte-for-byte, skip the tour, and save A → C successfully without repair/restart.
+The existing worker stayed healthy. Editing to A → B produced B in TextEdit;
+deleting the rule restored A. TextEdit progressed from `Cc` to `Ccb` to `Ccba`.
+Evidence includes `pre-tour-files.log`, `post-tour-files.log`,
+`replacement-1/state.json`, `tour-fix-source.json`, `tour-fix-build.log`,
+`runtime-reopen.log`, `uninstall-postconditions.log`, and tool screenshots.
+
+Do not turn the virtual keyboard's rejection into a Caps success claim. The
+successful physical Caps tour (including remaining tour pages and hold behavior)
+still needs compatible hardware. Earlier Air sleep/wake acceptance remains valid
+for its installed TCP handoff build; this small tour fix is a new artifact.
+
+### Post-reboot and final Quit
+
+The supported public reboot cycle changed boot UUID from
+`b21155aa-7253-490b-8292-828737f9078d` to
+`b2fb7539-8546-4f04-b5b3-a6e77d759156`. The initial reboot call lost its
+response during shutdown; observation verified the new boot, without a repeated
+reboot dispatch. The cycle completed with both autologin authorities OFF and its
+cache absent (`reboot-cycle/state.json`, `complete:true`).
+
+The fixed app reopened on the public desktop without a new consent prompt and
+showed Ready. Independent runtime verification passed with parent PID 402,
+worker PID 874, owned TCP 127.0.0.1:37001 (`runtime-post-reboot.log`). The custom
+rules file remained empty after deletion. A final normal Quit exited both PIDs.
+Final app log: `tour-fix-final-guest.log`. This verifies app/permission recovery
+after a real guest reboot, not physical Caps output or genuine system sleep.
+
+The scheduled capacity waiter is paused: the available-VM batch has run, and the
+old artifact must not be admitted again automatically. Remaining release work:
+physical Caps tour/hold acceptance, notarized packaging of this new fix, and
+release review/integration. The Air was not modified during this batch.

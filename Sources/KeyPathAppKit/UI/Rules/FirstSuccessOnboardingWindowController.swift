@@ -284,37 +284,54 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             return .needsRules
         }
 
+        return await installCapsLockEscapeTransaction(
+            manager: manager,
+            configuration: configuration,
+            disableCatalogLauncher: launcherPreparation == .disableCatalogDefault,
+            apply: {
+                await viewModel.underlyingManager.applyPersistedRuleChanges(recoverStoppedRuntime: true)
+            }
+        )
+    }
+
+    /// Keep runtime preparation inside the retained pack write. In particular, a
+    /// missing compatible Caps device must restore the previous collection,
+    /// launcher state, generated config and pack record before leaving the tour.
+    static func installCapsLockEscapeTransaction(
+        manager: RuleCollectionsManager,
+        configuration: RuleCollectionConfiguration,
+        disableCatalogLauncher: Bool,
+        installedPackTracker: InstalledPackTracker = .shared,
+        apply: @escaping @MainActor @Sendable () async -> ReloadResult
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        var application: ReloadResult?
         do {
             _ = try await PackInstaller.shared.install(
                 PackRegistry.capsLockToEscape,
                 collectionConfiguration: configuration,
                 autoResolveCollectionConflicts: false,
-                additionalCollectionIDsToDisable: launcherPreparation == .disableCatalogDefault
+                additionalCollectionIDsToDisable: disableCatalogLauncher
                     ? [RuleCollectionIdentifier.launcher]
                     : [],
                 manager: manager,
-                skipFinalReload: true
+                reloadHandler: {
+                    let result = await apply()
+                    // Recovery can call the handler again. Only the candidate's
+                    // outcome describes whether this onboarding action applied.
+                    if application == nil { application = result }
+                    return result
+                },
+                installedPackTracker: installedPackTracker
             )
         } catch {
             AppLogger.shared.error("❌ [FirstSuccessOnboarding] Could not install Caps Lock Remap: \(error)")
             return .failed
         }
-
-        guard let capsLock = manager.ruleCollections.first(where: {
-            $0.id == RuleCollectionIdentifier.capsLockRemap
-        }) else {
-            return .failed
-        }
-
-        let launcherPrepared = launcherPreparation != .disableCatalogDefault
-            || manager.ruleCollections.first(where: {
-                $0.id == RuleCollectionIdentifier.launcher
-            })?.isEnabled == false
-        let installed = capsLock.isEnabled
-            && capsLock.configuration == configuration
-            && launcherPrepared
-        guard installed else { return .failed }
-        return await verifyLiveRuleApplication(using: viewModel)
+        guard let application else { return .failed }
+        return onboardingActionResult(
+            for: application.disposition,
+            failureReason: application.errorMessage
+        )
     }
 
     static func capsLockRequiresRulesHandoff(

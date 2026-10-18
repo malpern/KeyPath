@@ -160,6 +160,9 @@ public final class PackInstaller {
     /// - Parameter manager: the app's RuleCollectionsManager. Required.
     /// - Parameter skipFinalReload: Persist and validate the resulting config
     ///   without notifying the runtime; the caller owns the live reload.
+    /// - Parameter reloadHandler: Optional application callback kept inside the
+    ///   retained write, including rollback. Used by onboarding to recover a
+    ///   stopped runtime without committing a rejected candidate first.
     /// - Returns: the install record persisted for this pack.
     @discardableResult
     func install(
@@ -171,6 +174,7 @@ public final class PackInstaller {
         additionalCollectionIDsToDisable: Set<UUID> = [],
         manager: RuleCollectionsManager,
         skipFinalReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
         installedPackTracker: InstalledPackTracker = .shared,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws -> InstalledPackRecord {
@@ -223,7 +227,7 @@ public final class PackInstaller {
                 manager.refreshLayerIndicatorState()
                 try await commitPreparedPackRules(manager: manager, snapshot: before,
                                                   record: .init(tracker: installedPackTracker, record: record),
-                                                  skipReload: skipFinalReload, permit: permit)
+                                                  skipReload: skipFinalReload, reloadHandler: reloadHandler, permit: permit)
                 AppLogger.shared.log("✅ [PackInstaller] Installed system pack '\(pack.name)'")
                 return record
             }
@@ -242,6 +246,7 @@ public final class PackInstaller {
                     configurationOverride: collectionConfiguration,
                     additionalCollectionIDsToDisable: additionalCollectionIDsToDisable,
                     skipReload: skipFinalReload,
+                    reloadHandler: reloadHandler,
                     packRecord: .init(tracker: installedPackTracker, record: record),
                     mutationPermit: permit
                 )
@@ -270,7 +275,7 @@ public final class PackInstaller {
                                              installedAt: Date(), quickSettingValues: resolvedSettings)
             try await commitPreparedPackRules(manager: manager, snapshot: ruleStateSnapshot,
                                               record: .init(tracker: installedPackTracker, record: record),
-                                              skipReload: skipFinalReload, permit: permit)
+                                              skipReload: skipFinalReload, reloadHandler: reloadHandler, permit: permit)
 
             AppLogger.shared.log(
                 "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
@@ -532,10 +537,11 @@ public final class PackInstaller {
     private func commitPreparedPackRules(
         manager: RuleCollectionsManager, snapshot: RuleCollectionsManager.RuleStateSnapshot,
         record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
         permit: ConfigurationOperationGate.Permit
     ) async throws {
         let result = await savePreparedPackRules(manager: manager, snapshot: snapshot, record: record,
-                                                 skipReload: skipReload, permit: permit)
+                                                 skipReload: skipReload, reloadHandler: reloadHandler, permit: permit)
         guard result.success else {
             if result.error is CancellationError { throw CancellationError() }
             throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack change could not be committed")
@@ -545,11 +551,12 @@ public final class PackInstaller {
     private func savePreparedPackRules(
         manager: RuleCollectionsManager, snapshot: RuleCollectionsManager.RuleStateSnapshot,
         record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
         permit: ConfigurationOperationGate.Permit
     ) async -> SaveResult {
         let result = await SaveCoordinator(configurationService: manager.configurationService).saveRuleState(
             manager: manager, mutationPermit: permit, packRecord: record,
-            reloadHandler: skipReload ? nil : manager.onRulesChanged
+            reloadHandler: skipReload ? nil : (reloadHandler ?? manager.onRulesChanged)
         )
         if result.success { NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil) }
         else { restorePreparedRuleState(snapshot, manager: manager) }
