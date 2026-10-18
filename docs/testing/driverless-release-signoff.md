@@ -659,3 +659,22 @@ TCP 127.0.0.1:37001. Startup log reported validation SUCCESS/no blocking issues.
 Evidence: `/Users/malpern/keypath-review-evidence/20261018-offline-help/air-install/`.
 This is automated startup/readiness evidence, not physical held-key or wake acceptance.
 Continuation and exact remaining work: `production-handoff-2026-10-18.md`.
+
+### Sidebar search placement — October 18
+
+`401de17b5` replaces toolbar-promoted `.searchable` with a search field inset in
+Help's sidebar header. The header stays above the scrolling topic list and hides
+with the sidebar. Search/filter/clear behavior is retained, including query state
+when the sidebar reopens. Native production-view fixture verified filtering,
+close/removal from the accessibility tree, reopen/query retention, and clearing.
+Compiled production Help views; pinned formatting/accessibility/diff checks passed.
+Evidence: `/Users/malpern/keypath-review-evidence/20261018-help-sidebar/`.
+No runtime/permission behavior changed. Updated installer delivery recorded below.
+
+App notarization `e72b9523-1dc0-4cae-a59a-5a711c1a400a` and DMG notarization
+`87c623fa-8f31-47e7-9a3f-f753fcdc85e6` accepted; staple/validation, packaged
+signature, image verification and Gatekeeper passed. Delivered to Air Downloads
+as `KeyPath-20261018-help-sidebar.dmg`, matching source/remote SHA-256
+`cde1199a857853f698678ea3bb4ad8a2f94c63d6eabbfdd57e20f8535c9197f6`.
+Delivery only; installed Air app remains `5d5612023`. Pending manual acceptance
+and integration/release gates are unchanged.
