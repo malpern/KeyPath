@@ -751,7 +751,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
-                if await !(InstallerEngine().inspectSystem().isReady) {
+                // Startup waiting for Secure Input or held keys to end resumes
+                // by itself; setup is not incomplete, so do not replay it.
+                if await self.kanataManager?.serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow() == true {
+                    AppLogger.shared.info("🆕 [AppDelegate] Runtime recovery in progress - wizard not shown")
+                } else if await !(InstallerEngine().inspectSystem().isReady) {
                     NotificationCenter.default.post(name: .showWizard, object: nil)
                 }
             }

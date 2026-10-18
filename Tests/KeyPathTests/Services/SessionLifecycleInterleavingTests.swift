@@ -700,6 +700,52 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertNil(coordinator.sessionWakeRecovery)
     }
 
+    /// Air, 2026-10-18 12:01: KeyPath launched while the screen was locked
+    /// (loginwindow held Secure Input). Startup was refused as terminal and the
+    /// setup wizard opened instead of resuming after unlock.
+    func testSecureInputStartupWaitsForUnlockThenResumesAutomatically() async {
+        var starts = 0
+        var errors: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        coordinator.onError = { if let error = $0 { errors.append(error) } }
+        _ = await coordinator.startKanata()
+        let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .secureInput,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                          tcpPort: 37001, inputCount: 0, outputCount: 0)
+        var ready = false
+        coordinator.testSessionWakeReady = { ready }
+        coordinator.testSessionWakeWait = { [self] in
+            XCTAssertEqual(starts, 1)
+            XCTAssertTrue(coordinator.isRecoveringFromSystemWake)
+            XCTAssertTrue(errors.isEmpty)
+            ready = true
+        }
+        XCTAssertTrue(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                     generation: coordinator.sessionIntentGeneration, cleanedUp: true))
+        guard let recovery = coordinator.sessionSupervisionTask else { return XCTFail("Recovery was not armed") }
+        _ = await completion(of: recovery, fallback: ())
+        XCTAssertEqual(starts, 2)
+        XCTAssertTrue(errors.isEmpty)
+        XCTAssertNil(coordinator.sessionWakeRecovery)
+    }
+
+    func testSecureInputStartupRejectsUnownedEvidenceAndIncompleteCleanup() async {
+        ServiceLifecycleCoordinator.testSessionStart = { _ in true }
+        _ = await coordinator.startKanata()
+        let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .secureInput,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                          tcpPort: 37001, inputCount: 0, outputCount: 0)
+        let generation = coordinator.sessionIntentGeneration
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                      generation: generation, cleanedUp: false))
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "other", pid: 123,
+                                                                      generation: generation, cleanedUp: true))
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 456,
+                                                                      generation: generation, cleanedUp: true))
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                      generation: generation &+ 1, cleanedUp: true))
+    }
+
     func testHeldKeyStartupCannotRestartAfterQuit() async {
         var starts = 0
         ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }

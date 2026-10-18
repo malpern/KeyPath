@@ -444,9 +444,13 @@ extension ServiceLifecycleCoordinator {
     {
         guard cleanedUp, sessionStartIsCurrent(generation), let report,
               report.belongsTo(nonce: nonce, pid: pid, uid: getuid()),
-              report.state == .stopped || report.state == .failed,
-              Self.isRecoverableSessionBoundary(report.recoveryReason ?? "")
-                || Self.canRetryWakeStartup(report, nonce: nonce, pid: pid, uid: getuid(), cleanedUp: cleanedUp) else { return false }
+              // Secure Input at launch (a locked screen or password field) is a
+              // wait, not a setup failure; the loop resumes once it ends.
+              report.state == .secureInput
+                || (report.state == .stopped || report.state == .failed)
+                && (Self.isRecoverableSessionBoundary(report.recoveryReason ?? "")
+                    || Self.canRetryWakeStartup(report, nonce: nonce, pid: pid, uid: getuid(), cleanedUp: cleanedUp))
+        else { return false }
         let reason = report.recoveryReason
         let epoch = sessionLaunchWakeEpoch
         sessionSupervisionTask = Task { @MainActor [weak self] in
