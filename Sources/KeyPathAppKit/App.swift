@@ -419,6 +419,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Present the right surface for a user-initiated "open KeyPath" action
     /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
+    /// A runtime waiting for Secure Input, held keys or wake readiness resumes by
+    /// itself. Setup is complete; treating it as incomplete stranded the launch
+    /// splash once the wizard was correctly suppressed during that wait.
+    static func initialSetupComplete(runtimeReady: Bool, runtimeRecoveryPending: Bool) -> Bool {
+        runtimeReady || runtimeRecoveryPending
+    }
+
     private func hasCompletedInitialWizard() async -> Bool {
         // A reinstall can retain macOS grants and regenerate a valid config.
         // Runtime health alone must not bypass the fresh-install Welcome page.
@@ -430,7 +437,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
         let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
-        let completed = health.isReady
+        let recovering = await kanataManager?.serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow() == true
+        let completed = Self.initialSetupComplete(runtimeReady: health.isReady, runtimeRecoveryPending: recovering)
         // Runtime readiness does not release the overlay while the tour owns focus.
         LiveKeyboardOverlayController.shared.setOnboardingCompleted(
             completed && !FirstSuccessOnboardingWindowController.isPresented

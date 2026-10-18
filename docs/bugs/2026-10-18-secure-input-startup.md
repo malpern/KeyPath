@@ -26,3 +26,13 @@ and after. Launch while locked, then unlock, is manual Air acceptance.
 The same launch rewrote `RuleCollections.json`: bootstrap regenerates and saves
 rule state on every launch (pre-existing). `keypath.kbd` and `CustomRules.json`
 were byte-identical and enabled collections matched earlier launches.
+
+## Follow-up: stranded launch splash (`1ada9c645`)
+
+The locked launch then resumed correctly at unlock, but the splash stayed on
+screen. The 3 s splash fallback hides it only when `hasCompletedInitialWizard()`
+is true, which required the runtime to be running at that moment; otherwise it
+left the splash for the wizard to cover. With the wizard correctly suppressed,
+nothing hid it. Setup completion now also counts a pending runtime recovery
+(`AppDelegate.initialSetupComplete`), so the splash hides, the overlay shows the
+neutral recovery status, and reopening during recovery does not route to setup.
