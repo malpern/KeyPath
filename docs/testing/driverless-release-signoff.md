@@ -535,3 +535,10 @@ Apple notarization, stapling and Gatekeeper passed. Submission
 Delivered to Air Downloads as `KeyPath-20261018-brand-layout.dmg`, remote hash verified:
 `9ffb8208fcf6cdb354c104228a05943d0511b71b8f4f2fc081292c78e60af487`.
 Presentation-only change; outstanding physical held-key acceptance remains unchanged.
+
+Installer refinement: removed “Your keyboard. Your way.” and narrowed the silver
+column by 25% (310 to 232.5 points), recentering icons and instruction. Finder
+preview verified; package signature, notarization, staple and Gatekeeper passed.
+Delivered `KeyPath-20261018-brand-refined.dmg` to Air Downloads with matching hash
+`398b4c0442bcb48e14196e0eb2e06a7847d7cdc0dd43af75a96544a4f264bf8e`.
+Evidence: `/Users/malpern/keypath-review-evidence/20261018-installer-narrow/`.

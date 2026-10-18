@@ -14,8 +14,8 @@ swift dev-tools/dmg/render-background.swift dev-tools/dmg
 
 Artwork is 1320×800 pixels representing 660×400 points. Packaging converts it to
 144-DPI TIFF so Finder uses the intended logical size. Native icon centers are
-(505, 112) and (505, 288), with 96-point icons and 13-point native labels. A
-full-height silver installation column preserves native filename contrast. The
+(544, 112) and (544, 288), with 96-point icons and 13-point native labels. A
+232.5-point-wide, full-height silver installation column preserves native filename contrast. The
 dark brand panel and amber keyboard remain unobstructed on the left; no duplicate filenames are baked into the artwork. Supporting
 type is regular system sans serif, while the historical serif wordmark remains.
 

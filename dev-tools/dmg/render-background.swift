@@ -15,7 +15,7 @@ artwork.draw(in: NSRect(origin: .zero, size: size))
 // A full-height installation column keeps native Finder labels legible while
 // preserving the brand artwork as an unobstructed hero on the left.
 NSColor(red: 0.91, green: 0.92, blue: 0.93, alpha: 1).setFill()
-NSRect(x: 350, y: 0, width: 310, height: 400).fill()
+NSRect(x: 427.5, y: 0, width: 232.5, height: 400).fill()
 func label(_ text: String, y: CGFloat, height: CGFloat, font: NSFont, color: NSColor) {
     let paragraph = NSMutableParagraphStyle()
     paragraph.alignment = .left
@@ -35,14 +35,12 @@ if let arrow = NSImage(systemSymbolName: "arrow.down", accessibilityDescription:
     NSRect(origin: .zero, size: arrow.size).fill()
     arrow.draw(at: .zero, from: .zero, operation: .destinationIn, fraction: 1)
     tinted.unlockFocus()
-    tinted.draw(in: NSRect(x: 495, y: 400-210-14, width: 20, height: 28))
+    tinted.draw(in: NSRect(x: 533.75, y: 400-210-14, width: 20, height: 28))
 }
-label("Your keyboard. Your way.", y: 354, height: 24,
-      font: .systemFont(ofSize: 13, weight: .regular), color: NSColor(white: 0.78, alpha: 1))
 let instructionStyle = NSMutableParagraphStyle()
 instructionStyle.alignment = .center
 ("Drag to Applications" as NSString).draw(
-    in: NSRect(x: 365, y: 352, width: 280, height: 22),
+    in: NSRect(x: 437.5, y: 352, width: 212.5, height: 22),
     withAttributes: [.font: NSFont.systemFont(ofSize: 13, weight: .medium),
                      .foregroundColor: NSColor(white: 0.34, alpha: 1),
                      .paragraphStyle: instructionStyle])
