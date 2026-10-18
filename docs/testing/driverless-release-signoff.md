@@ -767,3 +767,17 @@ identifiers pass. Notarized (app and DMG Accepted via sops route); DMG
 Air 13:58, config unchanged; previous app archived as
 `~/Downloads/KeyPath-before-key-context-menu-20261018.zip`. Verifier: parent 17036,
 worker 17620, TCP 37001. Right-click behavior itself awaits the user's live check.
+
+### Settings status page simplification — candidate `012b4b831` (user request)
+
+Permissions, runtime checks and system status are one headerless list (no
+"Technical details" disclosure). The connected-keyboard card is a single compact
+row: name, "manufacturer · Connected", layout picker, and an options menu holding
+Forget; VID:PID/source/match/confidence moved to a hover tooltip. 63 settings and
+keyboard-detection tests, accessibility identifiers and Computer Use readiness
+contracts pass. Notarized (Accepted); `KeyPath-20261018-settings-list.dmg` SHA-256
+`875613e3450aaef86d342247417ed8778f167732d57db270fc33cd55fd45be21`, executable
+`335e6f340e9c475f95d28fbbe0983b9f2db07c76d65730ede18b8d851df2c664`. Installed on the
+Air 15:18, config unchanged; previous app archived as
+`~/Downloads/KeyPath-before-settings-list-20261018.zip`. Verifier: parent 8383,
+worker 9062, TCP 37001. Visual acceptance by the user pending.
