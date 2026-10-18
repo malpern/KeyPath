@@ -12,8 +12,8 @@ window_rect = ((200, 120), (660, 432))
 icon_size = 96
 text_size = 14
 
-background = os.environ.get("DMG_BACKGROUND", os.path.join(DMG_DIR, "installer-light@2x.png"))
-background_dark = os.path.join(DMG_DIR, "installer-dark@2x.png")
+background = os.environ.get("DMG_BACKGROUND", os.path.join(DMG_DIR, "installer-branded@2x.png"))
+background_dark = os.path.join(DMG_DIR, "installer-branded@2x.png")
 
 files = [APP_PATH]
 symlinks = {"Applications": "/Applications"}
@@ -22,6 +22,6 @@ symlinks = {"Applications": "/Applications"}
 hide_extensions = []
 
 icon_locations = {
-    os.path.basename(APP_PATH): (180, 220),
-    "Applications": (480, 220),
+    os.path.basename(APP_PATH): (180, 200),
+    "Applications": (480, 200),
 }

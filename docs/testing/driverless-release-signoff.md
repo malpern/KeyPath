@@ -480,3 +480,15 @@ Finder user preferences can override tab/path/status visibility; the preview
 uses hidden bars. The app payload is the unchanged held-key candidate. Packaging
 passed image integrity and mounted app strict signature checks. No app rebuild
 or further functional regression run is needed for this background/layout edit.
+
+### Brand correction to installer polish
+
+The light redesign was rejected as insufficiently KeyPath. It is superseded by
+`installer-branded@2x.png`: original amber-lit keyboard artwork, serif KeyPath
+wordmark and the established “Keys that do more.” tagline. Smaller native icons
+and explicit installation guidance remain. Warm label plates preserve contrast
+for Finder's black native filenames. No filenames are baked into the background.
+An experiment setting Finder's fallback background color did not change filename
+contrast, so the extra packaging driver was discarded. The standard dmgbuild
+path remains. Final mounted Finder preview and strict packaged app signature
+checks passed; see `20261018-installer-brand/preview.png` in the evidence root.
