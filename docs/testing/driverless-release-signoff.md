@@ -678,3 +678,30 @@ as `KeyPath-20261018-help-sidebar.dmg`, matching source/remote SHA-256
 `cde1199a857853f698678ea3bb4ad8a2f94c63d6eabbfdd57e20f8535c9197f6`.
 Delivery only; installed Air app remains `5d5612023`. Pending manual acceptance
 and integration/release gates are unchanged.
+
+### Sidebar candidate installed; launch health-indicator defect — October 18
+
+10:19 PDT: installed `KeyPath-20261018-help-sidebar.dmg` (SHA-256 `cde1199a…c9197f6`)
+on the Air over `5d5612023`, preserving rules/preferences (`keypath.kbd` hash
+unchanged). Previous app archived and test-extracted as
+`~/Downloads/KeyPath-before-help-sidebar-20261018.zip`. DMG and app: hdiutil verify,
+stapler, Gatekeeper, codesign. Exact old parent terminated normally; both old processes
+exited before replacement. Installed executable `084f03ec…f26d7df`, BuildInfo `401de17b5`.
+Canonical verifier passed: parent 28797, worker 29490, TCP 127.0.0.1:37001.
+Evidence: `/Users/malpern/keypath-review-evidence/20261018-help-sidebar/air-install/`.
+
+Log review of that launch (and the 09:57 one) found a reproducible startup defect:
+validation 150 ms after `Session runtime ready` reused a permission snapshot sampled
+before the worker existed, so the overlay health indicator showed `unhealthy(1)` for
+~1.2 s right after the splash hid, then a healthy flash. The wizard did not open (its
+re-check saw ready). Fixed in `663c0ed2a`; see
+`docs/bugs/2026-10-18-startup-permission-snapshot.md`. Two regression tests fail
+before and pass after; 167 neighboring oracle/lifecycle/interleaving/validation/health
+and permission-lint tests pass. Evidence: `~/keypath-review-evidence/20261018-startup-snapshot/`.
+Startup-path manual items (held key, wake, Quit/reopen, reboot, splash) must be run on
+the candidate containing this fix, not the sidebar build.
+
+Candidate `663c0ed2a` built and Developer ID-signed (`dist/KeyPath.app`). Notarization
+is waiting on a keychain-access prompt on the mini's console: the packaging script
+first let `xcrun` select Xcode-beta's `notarytool`, which the `KeyPath-Profile` item
+does not trust. Use Xcode-27's `notarytool` (`DEVELOPER_DIR`) for this profile.
