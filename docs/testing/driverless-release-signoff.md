@@ -5,29 +5,28 @@ historical evidence; their old “remaining” sections are not the current back
 
 ## Candidate and scope
 
-- Product source: `9d163f88e` (TCP recovery handoff fix).
+- Current product source: `b878232f7642abfa83e1e069792611c95f8e6ee3` (tour transaction/rollback fix).
 - Apple Silicon only; driverless runtime; no Full Disk Access/browser-history suggestions.
 - Existing production-version migration is explicitly out of scope.
-- Air installer: `~/Downloads/KeyPath-20261017-tcp-handoff.dmg`.
-- Installer packaging/delivery evidence: `~/keypath-review-evidence/20261017-tcp-handoff/`.
-- Previous header-hover candidate passed installed trust/owned-session/TCP checks.
-  The TCP handoff candidate is notarized and copied to Air Downloads with matching
-  SHA-256 `d7f2cc1459c3afc2161633c919a76a1778f1b2d4b1bf7287297cae21944e299e`.
-  Installed on the Air at 21:22; signature, stapling, Gatekeeper, owned-session
-  runtime and TCP checks passed. User-reported wake behavior and visual acceptance passed; see latest evidence below.
+- Current notarized installer: `~/keypath-review-evidence/20261018-tour-final/KeyPath-20261018-tour-fix.dmg`.
+- SHA-256: `b09de126d7df247959d2c86b430bb489125d78dd001526a6aba0657a87647bc1`.
+- Air delivery is queued; SSH was unreachable on October 18 at 06:08 Pacific.
+  The Air's previously accepted TCP-handoff build is not this new tour candidate.
 - This remains a private candidate on `design/driverless-caps-ui`, not a public release.
 
 ## Current automated acceptance
 
 | Check | Current result | Evidence / limits |
 | --- | --- | --- |
-| Full safe test suite | PASS, 5,569 tests in 134 seconds | `~/keypath-review-evidence/20261017-tcp-handoff/full-runner.log` |
-| Accessibility identifiers | PASS, 382 files | `accessibility.log` in that evidence folder |
-| Computer Use source contract | PASS after stale expectations corrected | Current preview choices and driverless uninstall replace obsolete picker/system-helper controls. This proves source targets, not clicks. |
-| Signing/notarization/Gatekeeper | PASS | `~/keypath-review-evidence/20261017-tcp-handoff/` |
-| Air installed runtime | PASS, TCP handoff candidate | `20261017-tcp-handoff/air-installed-verification.log`; executable hash verified |
-| Clean VM install/onboarding/uninstall/reinstall | BLOCKED | Two clean admissions failed in Parallels startup before product installation. This gate is not passed. |
-| Visual snapshot regression | PASS, 55 tests on TCP handoff source; 135 seconds including rebuild | Metal entrance frames, hard views and scenario snapshots; no baseline changes or relaxed tolerances. Overlay/General/Repair reference images also reviewed. Hover interaction is still a manual check. |
+| Full safe test suite | PASS on TCP-handoff predecessor, 5,569 tests | `~/keypath-review-evidence/20261017-tcp-handoff/full-runner.log`; not rerun for tour-only fix |
+| Tour/pack focused tests | PASS, 46 tests | 31 pack and 15 onboarding tests, including transaction rollback regressions |
+| Accessibility identifiers | PASS, 382 files | Current tour candidate validation |
+| Signing/notarization/Gatekeeper | PASS on current candidate | `~/keypath-review-evidence/20261018-tour-final/` |
+| Clean VM install/onboarding/uninstall/reinstall | PASS | Owned `cbx_626ccf25e58c`; normal consent, rule lifecycle, Quit/reopen, backup/removal, reinstall and reboot; details below |
+| Full four-page tour with Caps Lock setup | PASS on current candidate | Owned `cbx_6a7d61356f4e`; Caps Lock Escape, Hyper hold, Hyper+F Finder configuration, Open Keyboard/Ready |
+| Physical Caps Lock tap and hold | PASS on current candidate | ESP32 native output oracle: `caps-live/physical/caps-tap-keyup.json` and `caps-hold-keyup.json` in October 18 evidence |
+| Air sleep/wake | PASS on TCP-handoff predecessor | User verified immediate and 30-second Escape behavior without warning; current tour candidate still needs Air smoke test |
+| Visual snapshot regression | PASS, 55 tests on TCP-handoff predecessor | No baseline changes or relaxed tolerances; current Air hover/appearance sign-off remains manual |
 
 ## Evidence carried forward, with limits
 
@@ -340,3 +339,59 @@ reported `starting` and refused ordinary deletion as busy. The supported
 remaining readiness waiter was terminated after provider deletion. Thus console
 selection is verified, but this run does not establish guest readiness or any
 additional product acceptance result.
+
+
+Correction after inspecting `settling.jsonl`: the targeting recheck did not
+prove a startup hang. Tools installation was active, then the guest rebooted and
+reported `installerActive:false` with six seconds of quiet time. Cleanup was
+requested before the required 90-second quiet window completed. Observation
+failures after deletion are not startup evidence. A child readiness observer
+survived termination of its wrapper; it was identified by exact lease ID and
+terminated on the next turn. Future runs must let the existing ten-minute
+readiness deadline resolve, monitor its settling log, and preserve the useful
+same-artifact guest for the acceptance batch rather than stop after targeting.
+
+## Final physical acceptance — October 18, 06:11 Pacific
+
+Owned macOS 26.5.2 lease `cbx_6a7d61356f4e` completed readiness, normal
+Accessibility consent in disposable UID 502, automatic progression into the
+four-page tour, Caps Lock setup, Hyper hold, Hyper+F Finder configuration, and
+Open Keyboard with Ready status. No TCC database edits were used.
+
+The ESP32 fixture (serial `2884855553BC`) sent real USB reports. The exact
+installed executable hash remained
+`a79ab1185afd3a078b6a0111f929ffb974518a8b573d8ce23fb49db78920988f`;
+active worker config matched SHA-256
+`ac647da365f73e7afd158def810ee4221c6cb5b1221937ddba22cfd9a2dec9ac`.
+Tap produced Escape down/up. Hold produced all four Hyper modifiers, A down/up,
+and all modifier releases. Both native oracles passed with all-up fixture
+reports and no held worker output usages. Hyper+F was configured through the
+tour; this physical oracle used A, not an app-launch assertion.
+
+Two test-tool defects were fixed without changing KeyPath: fixture scheduledUs
+uses an absolute clock (compare offsets from the first report), and AppKit can
+omit Command-modified keyUp from responder dispatch (capture it with a local
+keyUp monitor scoped to the focused Jig canvas). The first hold run failed
+because the old Jig missed A-up; it is preserved, not counted as a pass. The
+updated Jig captured the complete sequence and a repeat tap also passed. Nine
+focused fixture-checker tests cover absolute timestamps and reject offset drift.
+
+Evidence: `~/keypath-review-evidence/20261018-tour-final/caps-live/physical/`.
+`caps-hold-keyup.json` and `caps-tap-keyup.json` are the authoritative pass
+receipts; `manifest-keyup.json` pins the test-tool hashes. Final product log:
+`caps-live/keypath-debug-physical-final.log`. The Jig's text-sentinel mismatch
+is expected for the native-event oracle and is not the acceptance verdict.
+
+Remaining: deliver this notarized installer when Air is reachable, perform the
+short final Air smoke/appearance checklist, and complete source review/integration
+before a public release. No newly identified KeyPath defect remains from this
+physical acceptance batch; this does not claim every possible configuration is
+bug-free or substitute VM testing for genuine MacBook sleep/wake.
+
+The capture Jig's 37 core tests also passed. Test-tool fixes are committed as
+`9b5e88d88` (KeyPath Jig branch) and `3e08465` (vm-lab Caps acceptance branch).
+Collected guest artifacts:
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_6a7d61356f4e/20261018T131115Z`.
+The lab confirmed deletion of owned UUID
+`70889833-c185-422b-9479-a14652aea03d`; cleanup warned only that its optional
+hydration stop marker could not be written over SSH before provider deletion.
