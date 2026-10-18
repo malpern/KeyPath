@@ -443,3 +443,29 @@ passed. Accessibility identifiers passed across 382 files. Evidence:
 The initial full run found an old lint expectation that required terminal
 formatting before retry classification; it was updated to retain pre-cleanup
 diagnostic capture while checking terminal formatting occurs after retries.
+
+### Held-key candidate delivered and installed
+
+Source commit `9a2a7f9d9` was built, Developer ID signed, and notarized. App
+submission `b55336d9-5d7a-44da-9c68-97b4cf2427db` and DMG submission
+`d5ec1f81-de13-4749-aae6-4683a76ea26d` were accepted; stapling/Gatekeeper passed.
+Air Downloads contains `KeyPath-20261018-held-key-fix.dmg`, verified SHA-256
+`9974076031f24f95444445d5c80be485241c7d0f6a9b912b45a0f1c39c0bf14f`.
+Installed executable SHA-256:
+`b9965f1f51cb5a66f33833dcd691ca83b695c32e21089d51382a66f996f10f40`.
+Rules were preserved; old app archived as
+`Downloads/KeyPath-before-held-key-update-20261018-071326.zip` on Air.
+
+The first install verification correctly refused: the deployment script used
+`ps pid,comm,args`, whose `comm` column macOS truncated, so it missed the old
+parent and worker. Corrected to untruncated `ps -axww -o pid=,args=` with an exact
+executable prefix boundary. The identified old parent was then terminated
+normally and both old processes were observed exited before reopening. Final
+owned-session verification passed: parent 2700, worker 3124, TCP 37001. The
+initial verification failure is retained with the evidence rather than counted
+as an app startup failure or successful installation.
+
+Remaining acceptance on this candidate: launch with a key held, release it,
+confirm automatic remapping without restart/error; then sleep/wake and Caps Lock
+immediately and after 30 seconds. These physical checks are not claimed by the
+unit tests or process health verification.
