@@ -54,7 +54,7 @@ struct VirtualKeysInspectorView: View {
             HStack {
                 Image(systemName: "keyboard.badge.ellipsis")
                     .foregroundStyle(.secondary)
-                Text("Virtual Keys")
+                Text("Available Actions")
                     .font(.headline)
                 if !isLoading, let loadSource {
                     sourceBadge(loadSource)

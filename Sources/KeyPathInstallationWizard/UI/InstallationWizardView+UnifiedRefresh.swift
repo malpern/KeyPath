@@ -287,6 +287,15 @@ public extension InstallationWizardView {
             await stateMachine.detectCurrentState()
         }
         stateMachine.updateWizardState(from: result)
+        guard result.state == .active, result.issues.isEmpty else {
+            stateMachine.navigateToPage(WizardRouter.route(
+                state: result.state, issues: result.issues,
+                helperInstalled: result.helperInstalled,
+                helperNeedsApproval: result.helperNeedsApproval,
+                backend: result.backend
+            ), userInitiated: false)
+            return
+        }
         dismissAndRefreshMainScreen()
     }
 }

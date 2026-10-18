@@ -18,6 +18,8 @@ struct SessionCapsMappingLeaseRunner {
         var devices = [device]
         var failWrite = false
         var failRead = false
+        var registryPresent = true
+        var failRegistryLookup = false
         var beforeWrite: (() throws -> Void)?
         var afterRead: (() throws -> Void)?
         var afterWrite: (() throws -> Void)?
@@ -33,6 +35,9 @@ struct SessionCapsMappingLeaseRunner {
                 if self.failWrite { throw Failure.simulated }
                 self.mappings = value
                 try self.afterWrite?()
+            }, registryEntryExists: { _ in
+                if self.failRegistryLookup { throw Failure.simulated }
+                return self.registryPresent
             })
         }
     }
@@ -150,6 +155,46 @@ struct SessionCapsMappingLeaseRunner {
             try check(fake.writes == 1)
             try restore(lease)
             try check(fake.mappings == original && (lease.pendingRecord()) == nil)
+        }
+        // A disconnected event service cannot retain its per-service mapping.
+        // Replugging the same keyboard creates a new registry entry; never read
+        // or restore the old mapping onto that replacement.
+        try scenario { _, fake, lease in
+            _ = try acquire(lease)
+            fake.devices = [.init(registryEntryID: 43, vendorID: device.vendorID, productID: device.productID,
+                                  serialNumber: device.serialNumber, locationID: device.locationID)]
+            fake.registryPresent = false
+            fake.failRead = true
+            try restore(lease)
+            try check(lease.pendingRecord() == nil && fake.writes == 1)
+        }
+        try scenario { _, fake, lease in
+            _ = try acquire(lease)
+            fake.devices = []
+            fake.registryPresent = false
+            fake.failRead = true
+            try restore(lease)
+            try check(lease.pendingRecord() == nil && fake.writes == 1)
+        }
+        try scenario { _, fake, lease in
+            let record = try acquire(lease)
+            fake.registryPresent = false
+            let foreign = Policy.Owner(uid: owner.uid, parentPID: 100, workerPID: 102, nonce: "other",
+                                       generation: "one", bootSessionUUID: owner.bootSessionUUID)
+            refused { try lease.restore(expectedOwner: foreign, bootSessionUUID: owner.bootSessionUUID) }
+            refused { try lease.restore(expectedOwner: owner, bootSessionUUID: UUID().uuidString) }
+            fake.failRegistryLookup = true
+            refused { try restore(lease) }
+            try check(lease.pendingRecord() == record && fake.writes == 1)
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            fake.registryPresent = false
+            let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+            try JSONEncoder().encode(owner).write(to: marker)
+            chmod(marker.path, 0o600)
+            uncertain { try restore(lease) }
+            try check(lease.pendingRecord() == record && fake.writes == 1)
         }
         try scenario { _, fake, lease in
             let record = try acquire(lease)

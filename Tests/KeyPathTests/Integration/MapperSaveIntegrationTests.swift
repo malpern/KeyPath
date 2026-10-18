@@ -169,7 +169,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
         XCTAssertTrue(packSuccess)
 
         // Add a custom rule on top
-        let rule = CustomRule(input: "s", action: .keystroke(key: "d"))
+        let rule = CustomRule(input: "f20", action: .keystroke(key: "f19"))
         await manager.saveCustomRule(rule, skipReload: true, autoResolveConflicts: true)
 
         // Verify config has both
@@ -180,7 +180,7 @@ final class MapperSaveIntegrationTests: XCTestCase {
             config.contains("tap-hold"),
             "Config should contain home-row tap/hold mappings from pack"
         )
-        XCTAssertTrue(config.contains("d"), "Config should contain custom rule output")
+        XCTAssertTrue(config.contains("f19"), "Config should contain custom rule output")
     }
 
     @MainActor

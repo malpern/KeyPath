@@ -53,30 +53,54 @@ public actor ActivityLogEncryption {
 
     private init() {}
 
+    private var cachedKey: SymmetricKey?
+    private var userOpenedActivityHistory = false
+
+    /// Called only by an explicit activity-history UI action, never plugin startup.
+    public func authorizeActivityHistoryAccess() {
+        userOpenedActivityHistory = true
+    }
+
+    private func requireUserAction() throws {
+        guard userOpenedActivityHistory || TestEnvironment.isRunningTests else {
+            throw EncryptionError.keychainReadFailed(errSecInteractionNotAllowed)
+        }
+    }
+
     // MARK: - Key Management
 
     /// Get or create the encryption key
     /// Creates a new key on first call, returns existing key thereafter
     public func getOrCreateKey() throws -> SymmetricKey {
-        // Try to read existing key
-        if let existingKey = try? readKeyFromKeychain() {
-            return existingKey
+        if let cachedKey { return cachedKey }
+        try requireUserAction()
+        do {
+            let key = try readKeyFromKeychain()
+            cachedKey = key
+            return key
+        } catch EncryptionError.keychainReadFailed(let status) where status == errSecItemNotFound {
+            // Only absence permits creation. Denied or locked reads must preserve
+            // the existing key and the logs encrypted with it.
+            let key = SymmetricKey(size: .bits256)
+            try storeKeyInKeychain(key)
+            cachedKey = key
+            AppLogger.shared.log("🔐 [ActivityLogEncryption] Generated new encryption key")
+            return key
         }
-
-        // Generate new key
-        let newKey = SymmetricKey(size: .bits256)
-        try storeKeyInKeychain(newKey)
-        AppLogger.shared.log("🔐 [ActivityLogEncryption] Generated new encryption key")
-        return newKey
     }
 
     /// Check if an encryption key exists
     public func keyExists() -> Bool {
-        (try? readKeyFromKeychain()) != nil
+        if cachedKey != nil { return true }
+        guard userOpenedActivityHistory || TestEnvironment.isRunningTests else { return false }
+        guard let key = try? readKeyFromKeychain() else { return false }
+        cachedKey = key
+        return true
     }
 
     /// Delete the encryption key (used when resetting activity logging)
     public func deleteKey() throws {
+        try requireUserAction()
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,
@@ -87,6 +111,7 @@ public actor ActivityLogEncryption {
         if status != errSecSuccess, status != errSecItemNotFound {
             throw EncryptionError.keychainDeleteFailed(status)
         }
+        cachedKey = nil
         AppLogger.shared.log("🔐 [ActivityLogEncryption] Deleted encryption key")
     }
 
@@ -129,9 +154,6 @@ public actor ActivityLogEncryption {
         // Convert key to Data
         let keyData = key.withUnsafeBytes { Data($0) }
 
-        // Delete any existing key first
-        try? deleteKey()
-
         // Store new key with device-only access
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -152,6 +174,9 @@ public actor ActivityLogEncryption {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,
             kSecAttrAccount as String: Self.keychainAccount,
+            // Activity logging runs in the background; it must never interrupt
+            // setup with Keychain authorization dialogs.
+            kSecUseAuthenticationUI as String: userOpenedActivityHistory ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]

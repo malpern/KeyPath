@@ -503,20 +503,23 @@ LOCAL_CODESIGN_FLAGS=(--timestamp=none)
 # nested signatures are preserved. $1 = signing identity ("-" for ad-hoc).
 resign_nested_identifiers() {
     local sign_id="$1"
+    # Ad-hoc test binaries have no team identity for hardened library validation.
+    local runtime_flags=(--options=0)
+    if [[ "$sign_id" != "-" ]]; then runtime_flags=(--options=runtime); fi
     if [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]]; then
-        codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" \
+        codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" \
             --identifier "com.keypath.helper" \
             --entitlements "$HELPER_ENTITLEMENTS" \
             --sign "$sign_id" \
             "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
     fi
     if [[ -f "$CLI_EXEC" ]]; then
-        codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" \
+        codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" \
             --identifier "com.keypath.KeyPath.CLI" \
             --sign "$sign_id" \
             "$CLI_EXEC" || echo "⚠️  Failed to re-sign keypath-cli with com.keypath.KeyPath.CLI identifier"
     fi
-    codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
+    codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 }
 
 if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then

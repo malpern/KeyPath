@@ -36,10 +36,9 @@ public extension InstallationWizardView {
         // consume the close completion before it has been registered.
         if shouldShowFirstSuccess {
             onFirstSuccess?()
-        } else if KanataRuntimeBackend.selected == .session,
-                  stateMachine.wizardState == .active,
-                  stateMachine.wizardIssues.isEmpty {
-            onOpenRules?()
+        } else if stateMachine.wizardState == .active, stateMachine.wizardIssues.isEmpty,
+                  let onOpenKeyboard {
+            onOpenKeyboard()
         }
         performDismiss()
     }

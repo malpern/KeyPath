@@ -1,0 +1,48 @@
+# KeyPath handoff — 2026-10-08
+
+## Objective and product direction
+
+Finish and validate driverless Caps Lock input **and** output, including advanced mappings, without exposing the internal F18 workaround during onboarding. KeyPath should present one actionable setup requirement per page, recognize permission grants, give brief positive feedback, advance automatically, and start the runtime without an extra Start click when it is ready. The welcome screen and orange-keycap splash matter to the user. Permission prompts should follow the user's explicit setup action rather than appear unexpectedly at launch. A healthy setup should lead into the tour and keyboard experience, not a summary of errors or directly to Rules.
+
+The most recent UX instruction was: **“lets skip this step too (if all's gone well) and just take you seeing the keyboard visualizer, with the side bar open.”** Preserve this as the desired successful end state. “This step” was not named in that message; identify the exact intermediate page in the current flow before deleting it. Do not remove a repair or permission path on the assumption that success always occurs.
+
+The user explicitly wants the **Air installation step every time** after validation. For this driverless Caps work, the sequence is VM lab and automated ESP32 physical-key validation, then uninstall/reinstall on the Air, then the user's manual test. **The Air reinstall has not happened for the current candidate.**
+
+## Where the work is
+
+- Product checkout: mini GUI account, `/Users/malpern/local-code/keypath-driverless-caps-ui`, branch `design/driverless-caps-ui`, HEAD `45f09b16307a78db7f19a951af5f72be1ac6f304` at handoff. This checkout has extensive **uncommitted** Swift, Rust, script, test, and docs changes. Inspect `git status` and the diff; do not reset, clean, or assume HEAD contains the work. The main checkout at `/Users/malpern/local-code/keypath` is integration-only.
+- Lab checkout: mini GUI account, `/Users/malpern/local-code/vm-lab`, HEAD `7004f5a`, with uncommitted changes in `bin/vm-lab` and `lib/remote.sh`. Those were made to support the VM console/guest access and need review and independent tests before commit.
+- Product candidate on mini: `/tmp/keypath-esp32-attach.zip`, SHA-256 `3d62a12a01637f606bebea595649878743d1f5af4e43d411f5593b10c7fdbd86`, 153,740,978 bytes. Rebuild if any code changes; do not treat this temporary ZIP as a durable release.
+- Product evidence: `docs/bugs/driverless-caps-native-output-validation.md`, `docs/bugs/automatic-driverless-caps-setup.md`, `docs/analysis/2026-10-05-managed-caps-parsed-admission.md`, and `docs/bugs/driverless-tour-handoff.md` in the product checkout. The full worktree has other onboarding, permission, keychain, status, and uninstall fixes; inspect those separately before merging.
+- Mac mini remote shell: `ssh malpern@mini`. Non-interactive PATH may omit Homebrew; `/opt/homebrew/bin/git` and `/opt/homebrew/bin/rg` are available there.
+
+Read the product `AGENTS.md` before resuming. It requires logs first for bugs (`~/Library/Logs/KeyPath/keypath-debug.log`), focused tests during development, accessibility identifiers for interactive UI, postcondition-verified installer actions, and `vm-lab` for **all** disposable VMs. Do not create or destroy lab VMs with raw Parallels commands.
+
+## Implemented and validated so far
+
+- Driverless Caps **output** uses a native session IOHIDSystem modifier-lock operation. Verification polls for up to 20 ms outside the event-tap callback because IOHID readback can lag a successful write. A native VM probe passed duplicate-press and repeat suppression, release without losing the latch, a rapid second toggle, and restoration of the original state.
+- All **20 Rust bridge tests** passed with `passthru-output-spike`. A real-engine suite exercised Caps output from direct mapping, tap-hold, macro, tap-dance, multi, and legacy chord, checking one native Caps press, release, no leaked F18, and no stuck output. Additional engine cases passed both-Shift chord in both release orders, lone Shift timeout, overlapping chords, and a held Control tap-hold combined with the both-Shift chord. Chordsv2 participant/action admission is now included; nested F18 actions and uncaptured participants are rejected.
+- A real-engine table injected logical Caps **input** through direct remap, tap-hold tap/hold, macro, tap-dance, legacy chord, and chordsv2. Expected outputs and clean releases passed with no F18. This proves the logical Kanata path, **not** the physical keyboard → macOS F18 → KeyPath path.
+- The ESP32 fixture (USB `CAFE:4010`, serial `2884855553BC`) attached to an earlier owned macOS 26 VM and appeared there as an HID keyboard. Run `capsprobe-091a31ea34` sent Caps usage 57 down and all-keys-up 60 ms later, with low report lateness. It was detached and verified back on the host. This proves USB passthrough and report delivery, **not** that KeyPath processed those reports.
+- Earlier tour work allowed both backends through the first-run gate while still requiring runtime readiness. The driverless first tour rule changed to Escape on tap / Hyper on hold because the session path cannot synthesize ordinary Caps Lock on hold; native-driver default stayed Caps Lock. Inspect current flow against the user's newer “visualizer with sidebar open” direction.
+
+These are prior focused results documented in the source tree, not a claim that the current dirty worktree passed a fresh full suite. No current physical product-level acceptance or Air test is complete.
+
+## VM lab state and obstacles
+
+At handoff **no VM lease is active**. The latest lease `cbx_98960eac12ba` was only created, then artifacts were collected to `/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_98960eac12ba/20261008T215833Z`, and it was destroyed. An earlier lease `cbx_5302af5d3d88` expired and was destroyed. Do not reuse either ID.
+
+The prior VM had KeyPath installed and reached Accessibility, but effective Accessibility/Input Monitoring were false; no product-level physical Caps or chord test ran. The lab's first-login/bootstrap account assumptions (`keypathqa` versus fallback console account `keypathmdm`) and macOS protected permission sheet prevented completion. The guest's disposable fallback account password was reset and verified with `dscl -authonly`, but there was no time to retry the sheet before lease expiry. Do not interpret the failed button automation as proof of a KeyPath permission bug. The KeyPath process was observed opening Accessibility settings on launch; check whether that came from an explicit wizard action before calling it a regression.
+
+The lab changes add an owned-lease `guest-root` operation, a console Enter helper, a longer desktop warmup idle timeout, fallback-account handling during password reset, and initialization of `LAB_GUEST_SSH_USER` outside test mode. Shell syntax and `git diff --check` passed earlier; broader lab tests and commit are outstanding. Read `/Users/malpern/local-code/vm-lab/docs/ui-automation.md` before driving the UI. `peekaboo perform-action --action AXPress` is preferred for SwiftUI. Raw host/guest coordinate clicks and Parallels key events proved fragile on protected macOS sheets; `prlctl` keycode 22 is Backspace and 36 is Return, while 51 is **not** Backspace in this setup.
+
+## Next actions for the receiving agent
+
+1. Claim the existing product worktree for this continuation; inspect `git status`, diff, the evidence docs above, and current logs. Do not work concurrently in that checkout with another thread. Review the separate dirty `vm-lab` diff and run its tests before committing lab changes.
+2. Run focused Swift/Rust validation for any changes since the documented results, and check `python3 Scripts/check-accessibility.py`. Keep the full safe gate for the eventual PR/release stage.
+3. Run `vm-lab keypath list` and preflight, then create a **new owned** macOS 26 desktop lease from the current signed installer/candidate through `vm-lab`. Install, complete the actual Accessibility and Input Monitoring flow, and verify KeyPath's effective permission and runtime readiness rather than relying on a visible System Settings switch.
+4. Attach the ESP32 fixture to that owned VM, confirm its VID/PID/serial in the guest, and drive **physical** Caps input through the managed path. Assert direct remap, tap-hold, tap-dance, legacy chord, and chordsv2 results; also assert Caps as an **output** of advanced mappings, exact latch transitions, release behavior, no F18 leakage, and no stuck modifiers. Keep fixture scripts and event receipts as artifacts. Distinguish a TCC/VM automation problem from a mapping failure.
+5. Collect VM artifacts and destroy the lease. If physical acceptance passes, complete the requested Air uninstall/reinstall, verify installed version/signature and launch/runtime, then hand the Air to the user for manual keyboard testing. If it fails, fix the cause and repeat VM validation before changing the Air.
+6. Revisit successful onboarding: the user wants the final destination to be the keyboard visualizer with its sidebar open and wants the extra success/intermediate step skipped when healthy. Identify that step precisely, make the smallest UI change, and verify the repair/permission path remains reachable. This UX request should be captured in the final review, not forgotten behind the Caps validation.
+
+Keep the native-output evidence separate from the physical-input claim. The current remaining technical question is whether a real Caps key traverses the F18 reservation into KeyPath reliably on a fresh, permissioned installation while advanced mappings run.

@@ -36,7 +36,7 @@ struct SessionCapsSelection: Codable, Sendable, Equatable {
               Set(fields.keys) == Set(["version", "bootSessionUUID", "device", "reservesF18"]),
               let device = fields["device"] as? [String: Any],
               Set(device.keys).isSuperset(of: ["registryEntryID", "vendorID", "productID"]),
-              Set(device.keys).isSubset(of: ["registryEntryID", "vendorID", "productID", "serialNumber", "locationID"]) else {
+              Set(device.keys).isSubset(of: ["registryEntryID", "vendorID", "productID", "serialNumber", "locationID", "appleBuiltIn"]) else {
             throw SessionCapsRuntimeSupport.Refusal.selection
         }
         let selection = try JSONDecoder().decode(Self.self, from: data)

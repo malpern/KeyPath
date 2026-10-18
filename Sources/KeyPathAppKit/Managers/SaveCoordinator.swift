@@ -235,6 +235,7 @@ final class SaveCoordinator {
         leaderKeyPreference: LeaderKeyPreference? = nil,
         shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
         deviceSelections: [DeviceSelection]? = nil,
+        restoringBackupContent: String? = nil,
         reloadHandler: (() async -> ReloadResult)?
     ) async -> SaveResult {
         do {
@@ -256,7 +257,8 @@ final class SaveCoordinator {
                             preferenceChanges: preferenceChanges,
                             leaderKeyPreference: leaderKeyPreference,
                             shortcutListGenerationInput: shortcutListGenerationInput,
-                            deviceSelections: deviceSelections
+                            deviceSelections: deviceSelections,
+                            restoringBackupContent: restoringBackupContent
                         )
                         try Task.checkCancellation()
                         playWriteSound()

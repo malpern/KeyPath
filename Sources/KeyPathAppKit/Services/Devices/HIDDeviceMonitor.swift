@@ -63,6 +63,7 @@ final class HIDDeviceMonitor {
     private var trackedDeviceIDs: [UInt: HIDKeyboardEvent] = [:]
 
     static func currentKeyboardSnapshot() -> [HIDKeyboardEvent] {
+        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted else { return [] }
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         let matching: [String: Any] = [
             kIOHIDDeviceUsagePageKey as String: kHIDPage_GenericDesktop,
@@ -139,6 +140,7 @@ final class HIDDeviceMonitor {
     // MARK: - IOKit Setup (runs entirely on the dedicated IOKit thread)
 
     private nonisolated func setupHIDManager() {
+        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted else { return }
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
 
         let matching: [String: Any] = [

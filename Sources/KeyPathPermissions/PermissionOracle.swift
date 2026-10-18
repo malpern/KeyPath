@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Foundation
 import IOKit.hid
@@ -20,9 +21,9 @@ public actor PermissionOracle {
     }
 
     /// Raw non-prompting AX and Input Monitoring facts for this process.
-    public func currentProcessCapabilities() -> PermissionSet {
+    public nonisolated func currentProcessCapabilities() -> PermissionSet {
         PermissionSet(
-            accessibility: Self.checkKeyPathAccessibilityStatus(),
+            accessibility: Self.rawAccessibilityStatus(),
             inputMonitoring: Self.checkKeyPathInputMonitoringStatus(),
             source: "current-process.apple-api", confidence: .high, timestamp: Date()
         )
@@ -36,6 +37,52 @@ public actor PermissionOracle {
             accessibility: Self.checkKeyPathAccessibilityStatus(),
             eventListening: Self.checkKeyPathInputMonitoringStatus(),
             eventPosting: currentProcessEventPostingStatus(), timestamp: Date()
+        )
+    }
+
+    /// One passive sample supplies both effective policy and diagnostic raw facts.
+    /// No permission request API, runtime startup, or database inspection occurs here.
+    public func currentProcessSessionCapabilitySnapshot() -> SessionCapabilitySnapshot {
+        Self.sampleSessionCapabilities(
+            accessibility: Self.rawAccessibilityStatus,
+            eventListening: Self.checkKeyPathInputMonitoringStatus,
+            eventPosting: currentProcessEventPostingStatus,
+            verifyExternalAccess: Self.verifyExternalAccessibilityAccess
+        )
+    }
+
+    public struct SessionCapabilitySnapshot: Sendable {
+        public let effective: PermissionSet
+        public let rawPermissions: SessionRuntimeReport.RawPermissions
+    }
+
+    nonisolated static func sampleSessionCapabilities(
+        accessibility: () -> Status, eventListening: () -> Status,
+        eventPosting: () -> Status,
+        verifyExternalAccess: () -> Bool = { false }
+    ) -> SessionCapabilitySnapshot {
+        let accessibility = accessibility()
+        let eventListening = eventListening()
+        let eventPosting = eventPosting()
+        func raw(_ status: Status) -> SessionRuntimeReport.RawPermissions.Status {
+            switch status {
+            case .granted: .granted
+            case .denied: .denied
+            case .unknown: .unknown
+            case .error: .error
+            }
+        }
+        return SessionCapabilitySnapshot(
+            effective: sessionPermissionSet(
+                accessibility: accessibility == .denied
+                    ? resolveAccessibilityStatus(trusted: false, verifyExternalAccess: verifyExternalAccess)
+                    : accessibility,
+                eventListening: eventListening, eventPosting: eventPosting, timestamp: Date()
+            ),
+            rawPermissions: .init(
+                accessibility: raw(accessibility), eventListening: raw(eventListening),
+                eventPosting: raw(eventPosting)
+            )
         )
     }
 
@@ -139,7 +186,7 @@ public actor PermissionOracle {
             // KeyPath's own Accessibility is required (event posting / overlay).
             if keyPath.accessibility.isBlocking {
                 return
-                    "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
+                    "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission - enable in \(AccessibilityPermissionPresentation.current.settingsPath)"
             }
 
             // NOTE: KeyPath's OWN Input Monitoring is intentionally NOT a blocking
@@ -156,7 +203,7 @@ public actor PermissionOracle {
             // Kanata's permissions ARE required for remapping.
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
                 if backend == .session {
-                    return "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                    return "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
                 }
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant Accessibility and Input Monitoring"
@@ -365,7 +412,7 @@ public actor PermissionOracle {
 
         let duration = Date().timeIntervalSince(start)
         AppLogger.shared.log(
-            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring) (source: \(source))"
+            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), raw AX trust: \(Self.rawAccessibilityStatus()), IM: \(inputMonitoring) (source: \(source))"
         )
 
         return PermissionSet(
@@ -377,8 +424,38 @@ public actor PermissionOracle {
         )
     }
 
-    private nonisolated static func checkKeyPathAccessibilityStatus() -> Status {
+    private nonisolated static func rawAccessibilityStatus() -> Status {
         AXIsProcessTrusted() ? .granted : .denied
+    }
+
+    private nonisolated static func checkKeyPathAccessibilityStatus() -> Status {
+        resolveAccessibilityStatus(
+            trusted: AXIsProcessTrusted(), verifyExternalAccess: verifyExternalAccessibilityAccess
+        )
+    }
+
+    /// A successful read from Finder proves cross-process AX access when macOS
+    /// retains a stale negative trust answer. Finder is independent of focus;
+    /// probing our own UI could succeed without permission. No user content is read.
+    private nonisolated static func verifyExternalAccessibilityAccess() -> Bool {
+        guard let finder = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.finder"
+        ).first, finder.processIdentifier != getpid() else { return false }
+        let application = AXUIElementCreateApplication(finder.processIdentifier)
+        AXUIElementSetMessagingTimeout(application, 0.2)
+        var role: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            application, kAXRoleAttribute as CFString, &role
+        ) == .success, let role, CFGetTypeID(role) == CFStringGetTypeID()
+        else { return false }
+        return (role as? String) == (kAXApplicationRole as String)
+    }
+
+    nonisolated static func resolveAccessibilityStatus(
+        trusted: Bool, verifyExternalAccess: () -> Bool
+    ) -> Status {
+        if trusted { return .granted }
+        return verifyExternalAccess() ? .granted : .denied
     }
 
     /// Input Monitoring status for KeyPath's own process via IOHIDCheckAccess.

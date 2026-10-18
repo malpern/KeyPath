@@ -18,6 +18,7 @@ public final class SessionRuntimeWorker {
     private let ownerPID: Int32
     private let port: UInt16
     private let capabilities: PermissionOracle.PermissionSet
+    private let rawPermissions: SessionRuntimeReport.RawPermissions?
     private var runtime: KanataHostBridgePassthruRuntimeHandle?
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
@@ -29,6 +30,7 @@ public final class SessionRuntimeWorker {
     private var capsOwner: SessionCapsMappingPolicy.Owner?
     private var capsDirectory: URL?
     private var capsInput = SessionCapsInputState()
+    private let capsOutput = SessionCapsLockOutput()
     private var capsCheckInFlight = false
     private var lastCapsCheck = Date.distantPast
     private var inputCount: UInt64 = 0
@@ -54,13 +56,15 @@ public final class SessionRuntimeWorker {
 
     private init(
         reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
-        capabilities: PermissionOracle.PermissionSet
+        capabilities: PermissionOracle.PermissionSet,
+        rawPermissions: SessionRuntimeReport.RawPermissions? = nil
     ) {
         self.reportURL = reportURL
         self.nonce = nonce
         self.ownerPID = ownerPID
         self.port = port
         self.capabilities = capabilities
+        self.rawPermissions = rawPermissions
     }
 
     /// Returns false for an ordinary app launch. Worker modes never initialize
@@ -70,6 +74,9 @@ public final class SessionRuntimeWorker {
         guard arguments.contains("--session-runtime") || arguments.contains("--session-capabilities") else {
             return false
         }
+        // Capability probes and the runtime are background processes, not a
+        // second foreground KeyPath app. Keep them out of the Dock.
+        await MainActor.run { _ = NSApplication.shared.setActivationPolicy(.prohibited) }
         func argument(_ name: String) -> String? {
             guard let index = arguments.firstIndex(of: name), index + 1 < arguments.count else { return nil }
             return arguments[index + 1]
@@ -79,6 +86,17 @@ public final class SessionRuntimeWorker {
               let nonce = argument("--session-nonce"), UUID(uuidString: nonce) != nil
         else { exit(64) }
 
+        if arguments.contains("--session-capabilities") {
+            await writeCapabilityReport(
+                reportURL: URL(fileURLWithPath: path), nonce: nonce,
+                ownerPID: argument("--session-owner").flatMap(Int32.init) ?? 0,
+                port: argument("--session-port").flatMap(UInt16.init) ?? 0,
+                snapshotProvider: {
+                    await SystemStateProvider.shared.currentProcessSessionCapabilitySnapshot()
+                }
+            )
+            exit(0)
+        }
         let capabilities = await SystemStateProvider.shared.currentProcessPermissionCapabilities()
         let worker = SessionRuntimeWorker(
             reportURL: URL(fileURLWithPath: path), nonce: nonce,
@@ -86,23 +104,33 @@ public final class SessionRuntimeWorker {
             port: argument("--session-port").flatMap(UInt16.init) ?? 0,
             capabilities: capabilities
         )
-        if arguments.contains("--session-capabilities") {
-            worker.writeReport(.capabilities)
-            exit(0)
-        }
         guard let config = argument("--session-config") else {
             worker.finish(.failed, reason: "missing-config")
         }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             // Raw API facts remain separate from combined session readiness.
             // Both snapshots are obtained only through the canonical permission owner.
-            worker.experimentalRawCapabilities = await SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
+            worker.experimentalRawCapabilities = SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
             worker.experimentalRawPosting = await SystemStateProvider.shared.currentProcessRawEventPostingStatus()
         #endif
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;
         // dropping a runtime cannot stop its detached TCP listener threads.
         worker.runLoop()
+    }
+
+    /// Capability mode samples passive APIs and writes evidence only. In particular,
+    /// this path never enters start(), creates an event tap, or loads configuration.
+    static func writeCapabilityReport(
+        reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
+        snapshotProvider: () async -> PermissionOracle.SessionCapabilitySnapshot
+    ) async {
+        let snapshot = await snapshotProvider()
+        let worker = SessionRuntimeWorker(
+            reportURL: reportURL, nonce: nonce, ownerPID: ownerPID, port: port,
+            capabilities: snapshot.effective, rawPermissions: snapshot.rawPermissions
+        )
+        worker.writeReport(.capabilities)
     }
 
     private func runLoop() -> Never {
@@ -202,7 +230,10 @@ public final class SessionRuntimeWorker {
                 }
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
                 capsInput.activate(generation: owner.generation)
-            } catch { finish(.failed, reason: "managed-caps-activation-refused") }
+            } catch {
+                AppLogger.shared.warn("Managed Caps activation refused: \(error)")
+                finish(.failed, reason: "managed-caps-activation-refused: \(error)")
+            }
             // Explicitly disabling the preflight tap can queue a user-disable
             // notification. Retire its port before installing a fresh live tap;
             // every disable notification from the live port remains fatal.
@@ -332,7 +363,7 @@ public final class SessionRuntimeWorker {
             usage = logical
         }
         guard runtime?.isInputMapped(usagePage: 7, usage: usage) == true else {
-            event.flags = CGEventFlags(rawValue: outputs.modifierFlags | physicalPassthroughFlags)
+            event.flags = CGEventFlags(rawValue: outputs.modifierFlags | physicalPassthroughFlags | event.flags.intersection(.maskAlphaShift).rawValue)
             return original
         }
         // Do not consume a release/repeat for a press that preceded this tap.
@@ -395,6 +426,16 @@ public final class SessionRuntimeWorker {
                     guard environmentObserver?.check() == true else {
                         finish(.failed, reason: "environment-observer-unavailable")
                     }
+                    if event.usagePage == 7, event.usage == 57 {
+                        do {
+                            try capsOutput.receive(value: event.value)
+                            outputCount += 1
+                            writeReport(.running)
+                        } catch {
+                            finish(.failed, reason: "caps-lock-output-failed")
+                        }
+                        continue
+                    }
                     var nextOutputs = outputs
                     let output = try nextOutputs.translate(event)
                     // Publish a press before posting it, but retain a release in
@@ -448,7 +489,8 @@ public final class SessionRuntimeWorker {
         guard let source = CGEventSource(stateID: .privateState),
               let event = CGEvent(keyboardEventSource: source, virtualKey: output.keyCode, keyDown: output.isDown)
         else { return false }
-        event.flags = CGEventFlags(rawValue: output.flags | physicalPassthroughFlags)
+        let capsFlag = CGEventSource.flagsState(.combinedSessionState).intersection(.maskAlphaShift).rawValue
+        event.flags = CGEventFlags(rawValue: output.flags | (physicalPassthroughFlags & ~CGEventFlags.maskAlphaShift.rawValue) | capsFlag)
         event.setIntegerValueField(.keyboardEventAutorepeat, value: output.isRepeat ? 1 : 0)
         event.setIntegerValueField(.eventSourceUserData, value: Self.outputTag)
         event.post(tap: .cgSessionEventTap)
@@ -581,7 +623,8 @@ public final class SessionRuntimeWorker {
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
             experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic,
-            managedCapsGeneration: capsRecord?.owner.generation, retirementReason: retirementReason
+            managedCapsGeneration: capsRecord?.owner.generation, rawPermissions: rawPermissions,
+            retirementReason: retirementReason
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)

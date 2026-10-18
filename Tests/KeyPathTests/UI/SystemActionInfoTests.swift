@@ -3,6 +3,34 @@ import KeyPathRulesCore
 import XCTest
 
 final class SystemActionInfoTests: XCTestCase {
+    func testDriverlessSupportExcludesOnlyConsumerMediaOutputs() {
+        let unsupported = Set(SystemActionInfo.allActions.filter { !$0.isSupportedInDriverlessSession }.map(\.id))
+        XCTAssertEqual(unsupported, ["play-pause", "next-track", "prev-track", "mute", "volume-up", "volume-down", "brightness-up", "brightness-down"])
+        for output in ["home", "end", "del", "spotlight", "C-c"] {
+            XCTAssertEqual(SystemActionInfo.find(byOutput: output)?.isSupportedInDriverlessSession, true, output)
+        }
+    }
+
+    func testDriverlessFunctionModePolicy() {
+        XCTAssertFalse(FunctionKeyMode.media.isSupportedInDriverlessSession)
+        XCTAssertTrue(FunctionKeyMode.function.isSupportedInDriverlessSession)
+    }
+
+    @MainActor
+    func testUnsupportedActionCannotReplaceMapperSelection() throws {
+        let model = MapperViewModel()
+        let supported = try XCTUnwrap(SystemActionInfo.find(byOutput: "home"))
+        model.selectSystemAction(supported)
+        let previousLabel = model.outputLabel
+        for action in SystemActionInfo.allActions where !action.isSupportedInDriverlessSession {
+            model.selectSystemAction(action)
+            XCTAssertEqual(model.selectedSystemAction, supported)
+            XCTAssertEqual(model.outputLabel, previousLabel)
+            XCTAssertTrue(model.statusIsError)
+            XCTAssertEqual(model.statusMessage, SystemActionInfo.driverlessMediaUnavailableReason)
+        }
+    }
+
     // MARK: - Lookup by ID
 
     func testFindByID_spotlight() {

@@ -53,19 +53,22 @@ public enum SessionCapsMappingPolicy {
         public let productID: UInt32
         public let serialNumber: String?
         public let locationID: UInt32?
+        /// Witnessed Apple built-in FIFO event service; zero VID/PID are legitimate.
+        public let appleBuiltIn: Bool?
 
         public init(registryEntryID: UInt64, vendorID: UInt32, productID: UInt32,
-                    serialNumber: String?, locationID: UInt32?)
+                    serialNumber: String?, locationID: UInt32?, appleBuiltIn: Bool? = nil)
         {
             self.registryEntryID = registryEntryID
             self.vendorID = vendorID
             self.productID = productID
             self.serialNumber = serialNumber
             self.locationID = locationID
+            self.appleBuiltIn = appleBuiltIn
         }
 
         fileprivate var isValid: Bool {
-            registryEntryID != 0 && vendorID != 0 && vendorID <= 0xFFFF && productID <= 0xFFFF
+            registryEntryID != 0 && (vendorID != 0 || (appleBuiltIn == true && productID == 0 && (locationID ?? 0) != 0)) && vendorID <= 0xFFFF && productID <= 0xFFFF
                 && (serialNumber.map(Self.validSerial) ?? true)
                 && (serialNumber != nil || (locationID ?? 0) != 0)
         }

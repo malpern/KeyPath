@@ -30,7 +30,7 @@ final class ManagedCapsBridgeValidationTests: XCTestCase {
 
     func testManagedModeRejectsReservedOutputsAndImplicitSourceActions() throws {
         try SessionBridgeTestFixture.requireAvailable()
-        for action in ["caps", "f18", "_", "use-defsrc", "rpt-any", "(tap-hold 200 200 esc caps)", "(macro f18)"] {
+        for action in ["f18", "_", "use-defsrc", "rpt-any", "(macro f18)"] {
             guard case .invalid = try validate("(defsrc caps a)(deflayer base \(action) a)", managed: true) else {
                 XCTFail("Unsafe managed action admitted: \(action)")
                 continue
@@ -38,6 +38,14 @@ final class ManagedCapsBridgeValidationTests: XCTestCase {
         }
         guard case .invalid = try validate("(defsrc caps f18)(deflayer base esc a)", managed: true) else {
             return XCTFail("Native F18 input must stay reserved")
+        }
+    }
+
+    func testManagedCapsOutputsAreAdmitted() throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        for action in ["caps", "(tap-hold 200 200 esc caps)"] {
+            let text = "(defsrc caps a)(deflayer base \(action) a)"
+            guard case .valid = try validate(text, managed: true) else { return XCTFail("Managed Caps output refused") }
         }
     }
 

@@ -301,7 +301,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
-    func testUnsupportedCapsAndMediaRulesRefuseWithoutChangingSavedState() async throws {
+    func testReservedF18AndMediaRulesRefuseWithoutChangingSavedState() async throws {
         let (manager, tempDir) = try await createTestManager()
         defer {
             TestEnvironment.forceTestMode = false
@@ -320,7 +320,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onError = { refusalMessages.append($0) }
 
         for unsupported in [
-            CustomRule(input: "caps", action: .keystroke(key: "esc"), isEnabled: true),
+            CustomRule(input: "caps", action: .keystroke(key: "f18"), isEnabled: true),
             CustomRule(input: "f8", action: .keystroke(key: "pp"), isEnabled: true),
         ] {
             let accepted = await manager.saveCustomRule(unsupported)

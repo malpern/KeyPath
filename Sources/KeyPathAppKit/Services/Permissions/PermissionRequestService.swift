@@ -1,6 +1,7 @@
 import AppKit
 @preconcurrency import ApplicationServices // @preconcurrency: ApplicationServices lacks Sendable annotations in Apple SDK
 import Foundation
+import CoreGraphics
 import IOKit.hid
 import KeyPathCore
 import KeyPathPermissions
@@ -110,7 +111,11 @@ public final class PermissionRequestService {
         AppLogger.shared.log(
             "🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()"
         )
-        _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        if KanataRuntimeBackend.selected.requiresPrivilegedServices {
+            _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        } else {
+            _ = CGRequestListenEventAccess()
+        }
         let refreshed = await SystemStateProvider.shared.refreshPermissionSnapshot()
         let granted = refreshed.keyPath.inputMonitoring.isReady
         if granted {

@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 /// Service for managing configuration backups to protect against corruption
 ///
@@ -33,6 +34,10 @@ public final class ConfigBackupManager {
     /// Create a backup of the current config file before user editing
     /// Returns true if backup was created, false if current config is invalid
     public func createPreEditBackup() -> Bool {
+        createPreEditBackup(generationPreferences: nil)
+    }
+
+    func createPreEditBackup(generationPreferences: RuleBackupPreferences?) -> Bool {
         guard Foundation.FileManager().fileExists(atPath: configPath) else {
             AppLogger.shared.log("⚠️ [BackupManager] No config file to backup at: \(configPath)")
             return false
@@ -49,6 +54,21 @@ public final class ConfigBackupManager {
             }
 
             let backup = uniqueBackupPath(prefix: "keypath", date: dateProvider())
+
+            // Publish metadata first; a .kbd entry is visible only after its snapshot exists.
+            let directory = URL(fileURLWithPath: configPath).deletingLastPathComponent()
+            let collectionsURL = directory.appendingPathComponent("RuleCollections.json")
+            if FileManager.default.fileExists(atPath: collectionsURL.path) {
+                let rulesURL = directory.appendingPathComponent("CustomRules.json")
+                let snapshot = try RuleBackupSnapshot(
+                    version: 1, config: content, generationPreferences: generationPreferences,
+                    collections: Data(contentsOf: collectionsURL),
+                    customRules: FileManager.default.fileExists(atPath: rulesURL.path)
+                        ? Data(contentsOf: rulesURL) : Data("[]".utf8)
+                )
+                _ = try snapshot.decodedRules()
+                try JSONEncoder().encode(snapshot).write(to: URL(fileURLWithPath: backup.path + ".json"), options: .atomic)
+            }
 
             // Write backup file
             try content.write(toFile: backup.path, atomically: true, encoding: .utf8)
@@ -109,6 +129,15 @@ public final class ConfigBackupManager {
     public func restoreFromBackup(_ backup: BackupInfo) throws {
         guard Foundation.FileManager().fileExists(atPath: backup.fullPath) else {
             throw KeyPathError.configuration(.backupNotFound)
+        }
+
+        // Managed restores must retain metadata and runtime application in one transaction.
+        let directory = URL(fileURLWithPath: configPath).deletingLastPathComponent()
+        guard !FileManager.default.fileExists(atPath: directory.appendingPathComponent("RuleCollections.json").path),
+              !FileManager.default.fileExists(atPath: directory.appendingPathComponent("CustomRules.json").path),
+              !FileManager.default.fileExists(atPath: backup.fullPath + ".json")
+        else {
+            throw RuleBackupSnapshot.Failure.requiresManagedRestore
         }
 
         // Read backup content
@@ -210,6 +239,9 @@ public final class ConfigBackupManager {
             for backup in backupsToDelete {
                 do {
                     try Foundation.FileManager().removeItem(atPath: backup.fullPath)
+                    if FileManager.default.fileExists(atPath: backup.fullPath + ".json") {
+                        try FileManager.default.removeItem(atPath: backup.fullPath + ".json")
+                    }
                     AppLogger.shared.log("🗑️ [BackupManager] Deleted old backup: \(backup.filename)")
                 } catch {
                     AppLogger.shared.log(
@@ -272,3 +304,86 @@ public struct BackupInfo {
 }
 
 // (Removed deprecated ConfigBackupError - now using KeyPathError directly)
+
+/// A backup is bound to its exact .kbd content. Decoding never silently drops rules.
+struct RuleBackupSnapshot: Codable, Sendable {
+    let version: Int
+    let config: String
+    var generationPreferences: RuleBackupPreferences? = nil
+    let collections: Data
+    let customRules: Data
+
+    enum Failure: LocalizedError {
+        case requiresManagedRestore, missingMetadata, inconsistentSnapshot
+        var errorDescription: String? {
+            switch self {
+            case .requiresManagedRestore:
+                "Restore this backup through Settings so rules and runtime are updated together."
+            case .missingMetadata:
+                "This older backup has no matching editor data. Open it to recover rules manually; your current setup was kept."
+            case .inconsistentSnapshot:
+                "This backup cannot be reproduced with the current keyboard, app rules or generation settings. Your current setup was kept."
+            }
+        }
+    }
+
+    static func read(_ backup: BackupInfo) throws -> Self {
+        let url = URL(fileURLWithPath: backup.fullPath + ".json")
+        guard FileManager.default.fileExists(atPath: url.path) else { throw Failure.missingMetadata }
+        let snapshot = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        guard snapshot.version == 1,
+              try snapshot.config == String(contentsOfFile: backup.fullPath, encoding: .utf8)
+        else {
+            throw Failure.inconsistentSnapshot
+        }
+        return snapshot
+    }
+
+    func decodedRules() throws -> (collections: [RuleCollection], customRules: [CustomRule]) {
+        struct Versioned: Decodable { let schemaVersion: Int; let collections: [RuleCollection] }
+        let decoder = JSONDecoder()
+        let decodedCollections: [RuleCollection]
+        if let versioned = try? decoder.decode(Versioned.self, from: collections) {
+            guard versioned.schemaVersion == 1 else { throw Failure.inconsistentSnapshot }
+            decodedCollections = versioned.collections
+        } else { decodedCollections = try decoder.decode([RuleCollection].self, from: collections) }
+        decoder.dateDecodingStrategy = .iso8601
+        return try (decodedCollections, decoder.decode([CustomRule].self, from: customRules))
+    }
+}
+
+/// Only preferences that participate in the canonical rule-write journal belong here.
+struct RuleBackupPreferences: Codable, Sendable {
+    let leader: LeaderKeyPreference
+    let trigger: String
+    let delayPreset: String
+    let customDelay: Int
+
+    @MainActor
+    init(defaults: UserDefaults) {
+        leader = defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey)
+            .flatMap { try? JSONDecoder().decode(LeaderKeyPreference.self, from: $0) } ?? .default
+        trigger = defaults.string(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key) ?? ContextHUDTriggerMode.holdToShow.rawValue
+        delayPreset = defaults.string(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key) ?? ContextHUDHoldDelayPreset.long.rawValue
+        customDelay = defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key) as? Int ?? 200
+    }
+
+    func shortcutInput() throws -> ShortcutListGenerationInput {
+        guard let triggerMode = ContextHUDTriggerMode(rawValue: trigger),
+              let preset = ContextHUDHoldDelayPreset(rawValue: delayPreset)
+        else {
+            throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+        }
+        return ShortcutListGenerationInput(triggerMode: triggerMode, holdDelayPreset: preset, customHoldDelayMs: customDelay)
+    }
+
+    @MainActor
+    func changes(from defaults: UserDefaults) throws -> [RecoverableRuleWrite.PreferenceChange] {
+        try [
+            .leader(before: defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey), after: JSONEncoder().encode(leader)),
+            .contextHUDTriggerMode(before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key), after: trigger),
+            .contextHUDHoldDelayPreset(before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key), after: delayPreset),
+            .contextHUDHoldDelayCustomMs(before: defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key), after: customDelay)
+        ]
+    }
+}

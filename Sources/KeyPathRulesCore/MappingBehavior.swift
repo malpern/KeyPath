@@ -365,7 +365,7 @@ private extension KeyAction {
 
     static func parseStructuredLegacyAction(_ expr: String) -> KeyAction? {
         if let pushMsg = extractPushMsgValue(expr) {
-            return parsePushMsg(pushMsg)
+            return parsePushMessagePayload(pushMsg)
         }
 
         if expr == "(multi lctl lmet lalt lsft)" {
@@ -394,48 +394,6 @@ private extension KeyAction {
         let end = expr.index(expr.endIndex, offsetBy: -suffix.count)
         guard start < end else { return nil }
         return String(expr[start ..< end])
-    }
-
-    static func parsePushMsg(_ value: String) -> KeyAction? {
-        if let id = value.removingPrefix("launch:") {
-            return .launchApp(name: id, bundleId: id)
-        }
-        if let encoded = value.removingPrefix("open:") {
-            return .openURL(URLMappingFormatter.decodeFromPushMessage(encoded))
-        }
-        if let path = value.removingPrefix("folder:") {
-            return .openFolder(path: path, name: nil)
-        }
-        if let path = value.removingPrefix("script:") {
-            return .runScript(path: path, name: nil)
-        }
-        if let id = value.removingPrefix("system:") {
-            return .systemAction(id: id)
-        }
-        if let params = value.removingPrefix("notify?") {
-            return parseNotifyParams(params)
-        }
-        if let position = value.removingPrefix("window:") {
-            return .windowAction(position: position)
-        }
-        return nil
-    }
-
-    static func parseNotifyParams(_ params: String) -> KeyAction? {
-        var title = ""
-        var body: String?
-        var sound = false
-        for part in params.components(separatedBy: "&") {
-            if let val = part.removingPrefix("title=") {
-                title = val
-            } else if let val = part.removingPrefix("body=") {
-                body = val
-            } else if part == "sound=1" {
-                sound = true
-            }
-        }
-        guard !title.isEmpty else { return nil }
-        return .notify(title: title, body: body, sound: sound)
     }
 
     static func parseFakeKeyExpr(_ expr: String) -> KeyAction? {
@@ -519,4 +477,52 @@ public extension ChordBehavior {
     static func threeKey(_ key1: String, _ key2: String, _ key3: String, output: KeyAction, description: String? = nil) -> ChordBehavior {
         ChordBehavior(keys: [key1, key2, key3], output: output, description: description)
     }
+}
+
+public extension KeyAction {
+    static func parsePushMessagePayload(_ value: String) -> KeyAction? {
+        if let id = value.removingPrefix("launch:") {
+            return .launchApp(name: id, bundleId: id)
+        }
+        if let encoded = value.removingPrefix("open:") {
+            return .openURL(URLMappingFormatter.decodeFromPushMessage(encoded))
+        }
+        if let path = value.removingPrefix("folder:") {
+            return .openFolder(path: path, name: nil)
+        }
+        if let path = value.removingPrefix("script:") {
+            return .runScript(path: path, name: nil)
+        }
+        if let id = value.removingPrefix("system:") {
+            return .systemAction(id: id)
+        }
+        if let params = value.removingPrefix("notify:?") {
+            return parseNotifyParams(params, decodeValues: true)
+        }
+        if let params = value.removingPrefix("notify?") {
+            return parseNotifyParams(params)
+        }
+        if let position = value.removingPrefix("window:") {
+            return .windowAction(position: position)
+        }
+        return nil
+    }
+
+    private static func parseNotifyParams(_ params: String, decodeValues: Bool = false) -> KeyAction? {
+        var title = ""
+        var body: String?
+        var sound = false
+        for part in params.components(separatedBy: "&") {
+            if let val = part.removingPrefix("title=") {
+                title = decodeValues ? (val.removingPercentEncoding ?? val) : val
+            } else if let val = part.removingPrefix("body=") {
+                body = decodeValues ? (val.removingPercentEncoding ?? val) : val
+            } else if part == "sound=1" {
+                sound = true
+            }
+        }
+        guard !title.isEmpty else { return nil }
+        return .notify(title: title, body: body, sound: sound)
+    }
+
 }

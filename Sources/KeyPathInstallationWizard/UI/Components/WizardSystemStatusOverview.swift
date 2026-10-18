@@ -263,7 +263,7 @@ public struct WizardSystemStatusOverview: View {
             StatusItemModel(
                 id: "accessibility",
                 icon: "accessibility",
-                title: "Accessibility",
+                title: AccessibilityPermissionPresentation.current.name,
                 subtitle: accessibilitySubtitle,
                 status: accessibilityStatus,
                 isNavigable: true,
@@ -387,7 +387,7 @@ public struct WizardSystemStatusOverview: View {
             StatusItemModel(
                 id: "accessibility",
                 icon: "accessibility",
-                title: "Accessibility",
+                title: AccessibilityPermissionPresentation.current.name,
                 status: status(
                     for: accessibilityIssues,
                     permissionReady: permissions.map {

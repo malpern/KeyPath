@@ -47,6 +47,7 @@ extension LiveKeyboardOverlayController {
                 }
             }
         } else {
+            finalizeInspectorAnimation()
             uiState.inspectorReveal = 1
             setWindowFrame(expandedFrame, animated: false)
             uiState.isInspectorOpen = true
@@ -102,6 +103,7 @@ extension LiveKeyboardOverlayController {
                 }
             }
         } else {
+            finalizeInspectorAnimation()
             setWindowFrame(targetFrame, animated: false)
             uiState.inspectorReveal = 0
             uiState.isInspectorOpen = false
@@ -119,6 +121,7 @@ extension LiveKeyboardOverlayController {
 
     /// Animate inspector reveal from current value to target (0 or 1)
     func animateInspectorReveal(to targetReveal: CGFloat) {
+        let token = inspectorAnimationToken
         let startTime = CACurrentMediaTime()
         let startReveal = uiState.inspectorReveal
         inspectorAnimationTimer?.invalidate()
@@ -127,6 +130,7 @@ extension LiveKeyboardOverlayController {
                 return
             }
             Task { @MainActor in
+                guard inspectorAnimationToken == token, inspectorAnimationTimer != nil else { return }
                 let elapsed = CACurrentMediaTime() - startTime
                 let progress = min(1.0, elapsed / inspectorAnimationDuration)
                 uiState.inspectorReveal = OverlayInspectorMath.revealValue(

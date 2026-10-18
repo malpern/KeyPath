@@ -515,7 +515,9 @@ struct LauncherMappingEditor: View {
                 Picker("", selection: $selectedSystemAction) {
                     Text("Choose...").tag(nil as SystemActionInfo?)
                     ForEach(SystemActionInfo.allActions) { action in
-                        Label(action.name, systemImage: action.sfSymbol).tag(action as SystemActionInfo?)
+                        Label(action.isSupportedInDriverlessSession ? action.name : "\(action.name) — Unsupported", systemImage: action.sfSymbol)
+                            .tag(action as SystemActionInfo?)
+                            .disabled(!action.isSupportedInDriverlessSession)
                     }
                 }
                 .labelsHidden()
@@ -658,6 +660,9 @@ struct LauncherMappingEditor: View {
             if keystrokeKey.trimmingCharacters(in: .whitespaces).isEmpty { return "Key name is required" }
         case .systemAction:
             if selectedSystemAction == nil { return "Choose a system action" }
+            if selectedSystemAction?.isSupportedInDriverlessSession == false {
+                return SystemActionInfo.driverlessMediaUnavailableReason
+            }
         }
 
         return nil
@@ -732,6 +737,7 @@ struct LauncherMappingEditor: View {
     // MARK: - Actions
 
     private func save() {
+        guard isValid else { return }
         let action: KeyAction = switch targetType {
         case .app:
             .launchApp(name: appName, bundleId: bundleId.isEmpty ? nil : bundleId)

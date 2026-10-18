@@ -81,3 +81,113 @@ without folding unrelated changes into the wake commit. Full test logs are in
 `final/review/`. The longer physical sleep test and verified installer delivery
 remain pending; neither a unit test nor a successful notarization substitutes
 for those checks.
+
+## Reopened: final installer fails longer sleep acceptance
+
+Final DMG delivery and replacement installation on Air completed with matching
+hashes. Micah then reported Caps Lock failure after sleep. The 17:56 cycle logs
+show screen wake at 17:56:51.611, readiness at 17:56:55.237, replacement worker
+1052 launched at 17:56:55.404, and terminal `managed-caps-restoration-pending`
+at 17:56:56.095, coincident with the parent's system-wake notification.
+The app remained alive but had no worker. This invalidates production acceptance.
+
+The failed startup report was deleted by normal cleanup, so the original
+retirement reason cannot be recovered from this cycle. A late system-wake event
+interrupting replacement startup is the leading explanation, not yet proven by
+that report. The running-worker supervisor already handles this boundary, but
+the startup retry classifier previously allowed only held-key activation failure.
+
+The follow-up change allows an owned stopped/failed startup report whose original
+reason is `system-wake-observed` to retry after successful cleanup, under the
+same intent and readiness checks. It does not retry unknown cleanup failures,
+permission errors, foreign reports, or a new sleep event. Startup now logs state,
+original retirement reason and failure before cleanup deletes the report.
+Regression coverage includes late wake with/without pending cleanup, foreign
+ownership, nonterminal state and new sleep. Physical acceptance remains required.
+Evidence: `post-final-failure/air-debug.log` beside the prior release evidence.
+
+Follow-up candidate installed on Air: executable SHA-256
+`67843a16e47ae73da194306d61cf26b976f785b801fad6ed70133acdd059f2af`;
+ZIP SHA-256 `dafeb8e84229f1af563a00722710b8ab214518f05dec3d06bda9c56319a6456a`.
+39 focused tests passed. The candidate uses the prior verified companion/resource
+bundle with a rebuilt release app executable and Developer ID local signature;
+it is not notarized. Owned-session verification passed: parent 14733, worker
+15261, matching report and TCP 37001. Initial packaging omitted the executable's
+Frameworks rpath; launch verification caught it, the path was added before
+re-signing, and the corrected candidate passed structural and live verification.
+The next physical sleep test is still pending. Do not use the earlier 'final'
+DMG to overwrite this newer test candidate.
+
+### Candidate 5 physical feedback and logs, 18:22 PDT
+
+Micah reports Caps Lock works immediately after unlock and after 30 seconds.
+Screen wake was observed at 18:22:04.642, readiness cleared at 18:22:08.046,
+and runtime became ready at 18:22:09.875. A later system-wake notification at
+18:22:26.488 recovered by 18:22:28.378. Parent PID 14733 stayed unchanged;
+final worker 55654 passed owned-report/TCP verification and reported an active
+Caps generation matching its nonce. No terminal startup failure appeared in
+this cycle. Evidence saved as `wake5-user-pass.log` and
+`wake5-user-pass-power.txt` in `post-final-failure/`.
+
+This validates user-visible recovery for this cycle. The power log does not
+contain a new explicit Entering Sleep/Wake-from-Deep-Idle pair; it reports a
+15,022 ms sleep-notification delay from Transmission. Do not label this as
+confirmed one-minute deep sleep or proof that the new startup-race branch fired.
+
+After Transmission exited, the next observed cycle retired at 18:24:58.157,
+received screen/system wake at 18:25:02.961/18:25:03.041, passed readiness at
+18:25:04.996 and reported runtime ready at 18:25:06.245. Owned-session verification
+passed (same parent 14733, worker 61542). Micah reported Caps Lock works immediately
+and after 30 seconds. Power log now confirms Clamshell Sleep and Deep Idle wake,
+but both timestamp 18:25:02 with zero seconds recorded, triggered by lid/user
+activity. This is a verified short physical sleep recovery, not a one-minute
+residency. Evidence: transmission-quit-sleep-test.log and
+transmission-quit-verification.txt in post-final-failure/.
+
+Immediate-wake investigation: unified powerd log confirms display off at
+18:24:57.623, then a newly activated `com.apple.powermanagement.lidopen`
+assertion at 18:25:02.834 and wake reason `lid ... RTP.multi-touch/UserActivity`
+at 18:25:02.845. This does not prove a network wake or identify who/what moved
+the lid. No PreventSystemSleep assertion was present. Transmission had exited.
+Stopped this task's two live SSH tail streams to remove active network monitoring
+from the next trial. Use the app's existing on-disk log and collect after wake;
+leave normal power settings intact. Next isolation: Apple-menu Sleep with lid
+left stationary/open, no input for 90 seconds measured on a separate device.
+
+### Lid-open software sleep: confirmed physical sleep recovery
+
+Micah reports waiting 90 seconds with lid open and Caps Lock working immediately
+and after 30 seconds. The power log's measured interval differs: Software Sleep
+18:27:14, network-triggered DarkWake 18:27:25 (11 seconds asleep), Maintenance
+Sleep 18:27:35, and power-button FullWake 18:27:48 (13 more seconds asleep).
+Thus actual sleep is confirmed with an intervening background wake, but the
+recorded elapsed sleep-to-full-wake window is 34 seconds, not 90.
+KeyPath readiness cleared 18:27:48.473 and worker 66891 was ready 18:27:49.809
+(1.336 seconds later). Parent 14733 remained unchanged. Owned report/TCP
+verification passed at 18:28:12. No startup failure appears in this cycle.
+Evidence: post-final-failure/lid-open-90s-verification.txt. This is valid real
+sleep/recovery evidence; do not claim a verified continuous one-minute sleep.
+
+### Candidate 5 notarized installer delivered
+
+User authorized notarization and delivery. Packaged the already-tested executable
+without rebuilding. Added a secure signing timestamp; CodeDirectory hash stayed
+`3626a6af1cadc5985e533700625c47a0d382da33` before/after signing. Apple accepted
+app submission `563c67da-719e-4b24-9811-ab44f45aebc8` and DMG submission
+`920fb10c-b4e8-448b-a4d2-efca17007fe9`. Both tickets stapled and validated;
+Gatekeeper accepted both artifacts. New installer in Air Downloads:
+`KeyPath-20261017-wake5-final.dmg` (supersedes the earlier wake-final DMG).
+Post-staple SHA-256 `aabf99cdb2dd3c5ab640e1a5b3e330a833a9762b200330aaedb46d6ff09027f2`
+verified locally and remotely before finalizing the filename. Air stapler
+validation passed. The installed test app was not replaced during delivery.
+
+Artifacts and source checkpoint: `20261017-sleep-wake/wake5-final/` under the
+private review evidence root. Remaining public-release work includes integrating
+the experimental source changes into a reviewed reproducible commit and a final
+install/relaunch smoke test of this distribution artifact. A continuous one-minute
+sleep has not been proved; the real shorter sleep/dark-wake/recovery did pass.
+
+Final candidate-5 broad gate: `Scripts/test-full.sh` passed **5,628 tests**,
+including visual snapshots (exit 0; build 98 s, tests 225 s, total 324 s).
+Logs: post-final-failure/full-tests.log and full-runner.log. Tests ran against
+the complete working tree, not a clean integrated production branch.

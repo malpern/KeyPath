@@ -7,6 +7,23 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         case capabilities, starting, running, secureInput, stopped, failed
     }
 
+    /// Passive facts for this exact process, not evidence about TCC database rows.
+    public struct RawPermissions: Codable, Sendable, Equatable {
+        public enum Status: String, Codable, Sendable {
+            case granted, denied, unknown, error
+        }
+
+        public let accessibility: Status
+        public let eventListening: Status
+        public let eventPosting: Status
+
+        public init(accessibility: Status, eventListening: Status, eventPosting: Status) {
+            self.accessibility = accessibility
+            self.eventListening = eventListening
+            self.eventPosting = eventPosting
+        }
+    }
+
     /// Bounded, compile-gated diagnostics for the tap-timeout experiment.
     /// Values contain no event payload, path, process arguments, or raw error text.
     public struct ExperimentalTapTimeoutDiagnostic: Codable, Sendable, Equatable {
@@ -273,10 +290,10 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let uid: UInt32
     public let state: State
     public let accessibility: Bool
-    /// Effective session output authorization; inputAccessSource identifies the API.
-    /// Older reports used ListenEvent; new modifying-tap workers use PostEvent.
+    /// Effective session authorization; inputAccessSource identifies the API policy.
     public let effectiveInputAccess: Bool
     public let inputAccessSource: String?
+    public let rawPermissions: RawPermissions?
     public let tapActive: Bool
     public let tcpPort: UInt16
     public let inputCount: UInt64
@@ -297,7 +314,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
         inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil,
         experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil,
-        managedCapsGeneration: String? = nil, retirementReason: String? = nil
+        managedCapsGeneration: String? = nil, rawPermissions: RawPermissions? = nil,
+        retirementReason: String? = nil
     ) {
         self.nonce = nonce
         self.pid = pid
@@ -306,6 +324,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.accessibility = accessibility
         self.effectiveInputAccess = effectiveInputAccess
         self.inputAccessSource = inputAccessSource
+        self.rawPermissions = rawPermissions
         self.tapActive = tapActive
         self.tcpPort = tcpPort
         self.inputCount = inputCount

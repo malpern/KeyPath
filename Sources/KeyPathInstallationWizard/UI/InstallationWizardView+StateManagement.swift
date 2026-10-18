@@ -23,8 +23,7 @@ public extension InstallationWizardView {
         let cachedSnapshot = stateMachine.lastWizardSnapshot
         let preferredPage = await cachedPreferredPage()
         if initialPage == nil,
-           let cachedSnapshot,
-           shouldShowWelcomePage(helperInstalled: cachedSnapshot.helperInstalled)
+           shouldShowWelcomePage(helperInstalled: cachedSnapshot?.helperInstalled ?? false)
         {
             // Fresh install, Get Started never clicked: open on the one-time
             // welcome page (issue #932) using the already captured helper fact.
@@ -66,10 +65,10 @@ public extension InstallationWizardView {
         }
     }
 
-    /// Whether the wizard should open on the one-time Welcome page (issue #932):
-    /// fresh install (helper not installed) and Get Started never clicked.
-    internal func shouldShowWelcomePage(helperInstalled: Bool) -> Bool {
-        WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled)
+    /// Honor the persisted Welcome choice even when no helper is installed.
+    /// Get Started dismisses it for this setup session while validation continues.
+    internal func shouldShowWelcomePage(helperInstalled: Bool, defaults: UserDefaults = .standard) -> Bool {
+        !didShowWelcomePage && WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled, defaults: defaults)
     }
 
     func performInitialStateCheck(

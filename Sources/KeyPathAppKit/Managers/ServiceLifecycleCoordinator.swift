@@ -28,6 +28,13 @@ final class ServiceLifecycleCoordinator {
     let sessionOperationGate = ConfigurationOperationGate()
     private(set) var sessionIntentGeneration: UInt64 = 0
     private(set) var sessionWantsRunning = false
+    private var sessionPreparationFailure: (generation: UInt64, reason: String)?
+
+    func preparationFailureReason(for generation: UInt64) -> String? {
+        guard generation == sessionIntentGeneration,
+              sessionPreparationFailure?.generation == generation else { return nil }
+        return sessionPreparationFailure?.reason
+    }
     private var updatePreparationActive = false
     private var terminationPreparationActive = false
     var startsSuppressed: Bool {
@@ -94,13 +101,14 @@ final class ServiceLifecycleCoordinator {
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?
         var testSessionSupervisionStarted: ((UInt64) -> Void)?
         var testSessionCapsRecovery: (() async throws -> Void)?
+        var testSessionCapsPreparation: (() async throws -> Void)?
         var testSessionWakeReady: (() -> Bool)?
         var testSessionWakeWait: (() async -> Void)?
     #endif
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
-    // A completed recovery refusal survives absence of a worker report.
+    /// A completed recovery refusal survives absence of a worker report.
     var sessionRecoveryRefusal: String?
 
     var recoveryRefusalForStartup: String? {
@@ -247,6 +255,7 @@ final class ServiceLifecycleCoordinator {
         if case .stop = operation {} else if Task.isCancelled { return false }
         sessionIntentGeneration &+= 1
         let generation = sessionIntentGeneration
+        sessionPreparationFailure = nil
         if case .stop = operation { sessionWantsRunning = false } else { sessionWantsRunning = true }
         #if DEBUG
             testSessionRequestObserved?(generation)
@@ -297,10 +306,10 @@ final class ServiceLifecycleCoordinator {
         case let .stop(reason):
             return await stopSessionAdmitted(reason: reason)
         case let .restart(reason):
-            guard admitSessionConfiguration(generation: generation), sessionStartIsCurrent(generation) else { return false }
+            guard await prepareSessionStart(generation: generation) else { return false }
             guard await stopSessionAdmitted(reason: "\(reason) (stop for restart)"),
                   sessionStartIsCurrent(generation) else { return false }
-            return await startSessionAdmitted(reason: "\(reason) (restart)", generation: generation)
+            return await launchPreparedSession(reason: "\(reason) (restart)", generation: generation)
         }
     }
 
@@ -329,7 +338,7 @@ final class ServiceLifecycleCoordinator {
         guard FileManager.default.fileExists(atPath: path) else {
             return .unavailable(reason: "User configuration is not available yet")
         }
-        return SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current()).result
+        return SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current(), requireSelection: false).result
     }
 
     var sessionConfigurationRefusal: String? {
@@ -356,9 +365,56 @@ final class ServiceLifecycleCoordinator {
         return true
     }
 
-    private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {
+    /// Complete keyboard selection and parsed admission while the existing worker
+    /// is still owned. A rejected setup must not interrupt its working mapping.
+    private func prepareSessionStart(generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
+        do {
+            try await prepareAutomaticCapsSelection(generation: generation)
+        } catch {
+            guard sessionStartIsCurrent(generation) else { return false }
+            retainOwnedSessionSupervision(generation: generation)
+            let reason = "Caps Lock could not be set up automatically. Connect one compatible keyboard, then try again. Your rules were kept."
+            sessionPreparationFailure = (generation, reason)
+            AppLogger.shared.warn("[Session] Caps preparation refused: \(error). \(reason)")
+            onError?(reason)
+            onStateChanged?()
+            return false
+        }
         guard sessionStartIsCurrent(generation), admitSessionConfiguration(generation: generation),
               sessionStartIsCurrent(generation) else { return false }
+        return true
+    }
+
+    private func prepareAutomaticCapsSelection(generation: UInt64) async throws {
+        #if DEBUG
+            if let prepare = testSessionCapsPreparation {
+                try await prepare()
+                return
+            }
+        #endif
+        guard !TestEnvironment.isTestHostProcess,
+              SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath,
+                                                 runtimeHost: .current(), requireSelection: false).managedCaps,
+              (try? SessionCapsRuntimeSupport.selectedDevice()) == nil,
+              !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey) else { return }
+        let selection = try await Task.detached {
+            try SessionCapsRuntimeSupport.automaticSelection(
+                devices: SessionCapsHIDUtilTransport.backend().enumerate(),
+                boot: SessionCapsRuntimeSupport.bootSessionUUID()
+            )
+        }.value
+        guard sessionStartIsCurrent(generation) else { throw CancellationError() }
+        try SessionCapsSelectionStore.save(selection)
+    }
+
+    private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {
+        guard await prepareSessionStart(generation: generation) else { return false }
+        return await launchPreparedSession(reason: reason, generation: generation)
+    }
+
+    private func launchPreparedSession(reason: String, generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
         stopGraceUntil = nil
         isStartingKanata = true
         defer { isStartingKanata = false }
@@ -415,7 +471,8 @@ final class ServiceLifecycleCoordinator {
         guard let report = currentSessionReport() else {
             if let refusal = sessionRecoveryRefusal { return .failed(reason: refusal) }
             if let admission = sessionConfigurationAdmission,
-               let reason = SessionCapsRuntimeSupport.startupFailureMessage(admission) {
+               let reason = SessionCapsRuntimeSupport.startupFailureMessage(admission)
+            {
                 return .failed(reason: reason)
             }
             return .stopped

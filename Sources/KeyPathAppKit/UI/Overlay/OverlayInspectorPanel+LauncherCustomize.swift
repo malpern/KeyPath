@@ -117,23 +117,13 @@ extension OverlayInspectorPanel {
     }
 
     private func saveLauncherWelcomeConfig(_ finalConfig: LauncherGridConfig) {
-        var updatedConfig = finalConfig
-        updatedConfig.hasSeenWelcome = true
+        var welcomeConfig = finalConfig
+        welcomeConfig.hasSeenWelcome = true
+        let updatedConfig = welcomeConfig
 
-        Task {
-            do {
-                let collections = await services.ruleCollectionStore.loadCollections()
-                if var launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                    launcherCollection.configuration = .launcherGrid(updatedConfig)
-                    var allCollections = collections
-                    if let index = allCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                        allCollections[index] = launcherCollection
-                        try await services.ruleCollectionStore.saveCollections(allCollections)
-                    }
-                }
-            } catch {
-                AppLogger.shared.log("⚠️ [Launcher] Failed to save welcome config: \(error.localizedDescription)")
-            }
+        Task { @MainActor in
+            guard let manager = kanataViewModel?.underlyingManager.rulesManager else { return }
+            _ = await manager.editLauncherConfiguration { $0 = updatedConfig }
         }
     }
 
@@ -162,27 +152,15 @@ extension OverlayInspectorPanel {
 
     /// Save launcher config to store
     private func saveLauncherConfig() {
-        Task {
-            do {
-                var collections = await services.ruleCollectionStore.loadCollections()
-                if let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
-                    var collection = collections[index]
-                    if var config = collection.configuration.launcherGridConfig {
-                        config.activationMode = launcherActivationMode
-                        config.hyperTriggerMode = launcherHyperTriggerMode
-                        collection.configuration = .launcherGrid(config)
-                        collections[index] = collection
-                        try await services.ruleCollectionStore.saveCollections(collections)
-                        Foundation.NotificationCenter.default.post(
-                            name: Foundation.Notification.Name.ruleCollectionsChanged,
-                            object: nil
-                        )
-                    }
-                }
-            } catch {
-                AppLogger.shared.log("⚠️ [Launcher] Failed to save launcher config: \(error.localizedDescription)")
+        let activationMode = launcherActivationMode
+        let triggerMode = launcherHyperTriggerMode
+        Task { @MainActor in
+            guard let manager = kanataViewModel?.underlyingManager.rulesManager else { return }
+            let saved = await manager.editLauncherConfiguration {
+                $0.activationMode = activationMode
+                $0.hyperTriggerMode = triggerMode
             }
+            if !saved { loadLauncherConfig() }
         }
     }
-
 }

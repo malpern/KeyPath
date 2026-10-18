@@ -23,11 +23,13 @@ enum SessionCapsRuntimeSupport {
         #endif
     }
 
+    static let automaticSetupDisabledKey = "keypath.session.caps.automatic.disabled"
     static let selectionKey = "keypath.session.caps.selection.v1"
     static let selectionEnvironmentKey = "KEYPATH_SESSION_CAPS_SELECTION"
 
     static func selectedDevice(environment: [String: String] = ProcessInfo.processInfo.environment,
-                               selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey)) throws -> Policy.DeviceIdentity? {
+                               selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey),
+                               registryEntryExists: (UInt64) throws -> Bool = SessionCapsHIDUtilTransport.registryEntryExists) throws -> Policy.DeviceIdentity? {
         #if DEBUG
             if environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"] != nil {
                 return try experimentalDevice(environment: environment)
@@ -35,12 +37,18 @@ enum SessionCapsRuntimeSupport {
         #endif
         let data = environment[selectionEnvironmentKey].map { Data($0.utf8) } ?? selectionData
         guard let data else { return nil }
-        return try SessionCapsSelection.decode(data, currentBoot: bootSessionUUID()).device
+        let device = try SessionCapsSelection.decode(data, currentBoot: bootSessionUUID()).device
+        // Boot-valid consent still belongs to one registry instance. Let the
+        // existing automatic-setup policy rediscover after a disconnect instead
+        // of passing a stale registry ID to the next worker.
+        guard try registryEntryExists(device.registryEntryID) else { throw Refusal.selection }
+        return device
     }
 
     static func validate(configPath: String, runtimeHost: KanataRuntimeHost,
                          environment: [String: String] = ProcessInfo.processInfo.environment,
-                         selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey)) -> (result: KanataHostBridgeValidationResult, managedCaps: Bool)
+                         selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey),
+                         requireSelection: Bool = true) -> (result: KanataHostBridgeValidationResult, managedCaps: Bool)
     {
         let usages = SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
         let legacy = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath, supportedUsages: usages)
@@ -50,12 +58,23 @@ enum SessionCapsRuntimeSupport {
         let managed = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath,
                                                              supportedUsages: usages, managedCaps: true)
         guard case .valid = managed else { return (legacy, false) }
+        if !requireSelection, !UserDefaults.standard.bool(forKey: automaticSetupDisabledKey) {
+            return (managed, true)
+        }
         do {
             guard try selectedDevice(environment: environment, selectionData: selectionData) != nil else { throw Refusal.selection }
             return (managed, true)
         } catch {
             return (.invalid(reason: "Caps Lock setup needs a current keyboard selection with F18 reserved. Open Settings > General to select your keyboard"), false)
         }
+    }
+
+    /// Only discovers a selection. Mapping writes remain owned by the worker lease.
+    static func automaticSelection(devices: [Policy.DeviceIdentity], boot: String) throws -> SessionCapsSelection {
+        guard devices.count == 1 else { throw Refusal.selection }
+        let selection = SessionCapsSelection(device: devices[0], bootSessionUUID: boot, reservesF18: true)
+        _ = try selection.approvedDevice(currentBoot: boot)
+        return selection
     }
 
     static func startupFailureMessage(_ result: KanataHostBridgeValidationResult) -> String? {
@@ -83,10 +102,9 @@ enum SessionCapsRuntimeSupport {
     }
 
     /// Combined session state is conservative: all representable keys must be up
-    /// and the system Caps latch off. It does not attribute a key to a device.
+    /// excluding Caps Lock’s persistent latch. It does not attribute a key to a device.
     static func requirePhysicalAllUp() throws {
-        guard !CGEventSource.flagsState(.combinedSessionState).contains(.maskAlphaShift),
-              SessionKeyMap.keyCodeToUsage.keys.allSatisfy({ !CGEventSource.keyState(.combinedSessionState, key: $0) })
+        guard SessionKeyMap.keyCodeToUsage.keys.filter({ $0 != 57 }).allSatisfy({ !CGEventSource.keyState(.combinedSessionState, key: $0) })
         else { throw Refusal.physicalKeysHeld }
     }
 

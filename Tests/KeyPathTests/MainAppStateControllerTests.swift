@@ -531,6 +531,26 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.validationState == .success)
     }
 
+    @Test("Explicit refresh during validation performs a fresh follow-up check")
+    func explicitRefreshDuringValidationRunsAgain() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: true,
+            componentsInstalled: true
+        ).build()
+        let validator = GatedCountingValidator(context: context)
+        let controller = configuredController(validator: validator)
+        let first = Task { await controller.refreshValidation() }
+        while validator.checkCount == 0 { await Task.yield() }
+        let refresh = Task { await controller.revalidate() }
+        while validator.invalidationCount == 0 { await Task.yield() }
+        validator.open()
+        await first.value
+        await refresh.value
+        #expect(validator.checkCount == 2)
+        #expect(controller.validationState == .success)
+    }
+
     @Test("startup gate with immediately-healthy service reports ready")
     func startupGateWithImmediatelyHealthyServiceReportsReady() async {
         let controller = MainAppStateController()
@@ -638,7 +658,7 @@ struct MainAppStateControllerBehaviorTests {
             #expect(controller.validationState?.hasCriticalIssues == true)
             #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
             #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
-                "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
+                "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
             #expect(controller.issues.contains {
                 $0.identifier == .permission(.keyPathInputMonitoring) &&
                     $0.description.contains("quit and reopen KeyPath") &&
@@ -758,6 +778,9 @@ private final class GatedCountingValidator: WizardSystemValidating {
     private let snapshot: SystemSnapshot
     private var isOpen = false
     private(set) var checkCount = 0
+    private(set) var invalidationCount = 0
+
+    func invalidateCaches() { invalidationCount += 1 }
 
     init(context: SystemContext) {
         snapshot = SystemSnapshot(

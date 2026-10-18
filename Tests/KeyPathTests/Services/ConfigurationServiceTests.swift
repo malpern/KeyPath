@@ -418,7 +418,7 @@ class ConfigurationServiceTests: KeyPathTestCase {
         )
     }
 
-    func testSaveConfigurationRejectsPhysicalCapsWithoutChangingCommittedConfig() async throws {
+    func testSaveConfigurationRejectsReservedF18WithoutChangingCommittedConfig() async throws {
         try SessionBridgeTestFixture.requireAvailable()
         try await configService.saveConfiguration(input: "tab", output: "esc")
         let before = try Data(contentsOf: URL(fileURLWithPath: configService.configurationPath))
@@ -427,8 +427,8 @@ class ConfigurationServiceTests: KeyPathTestCase {
         }
         defer { observer.cancel() }
         do {
-            try await configService.saveConfiguration(input: "caps", output: "esc")
-            XCTFail("Physical Caps remapping must be rejected before writing")
+            try await configService.saveConfiguration(input: "caps", output: "f18")
+            XCTFail("Reserved F18 remapping must be rejected before writing")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
         }

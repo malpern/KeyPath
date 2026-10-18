@@ -99,13 +99,12 @@ final class ConfigHotReloadServiceTests: KeyPathTestCase {
         XCTAssertFalse(reloadHandlerCalled, "Invalid profile must never reload")
     }
 
-    func testUnsupportedCapsConfigNeverInvokesReload() async {
+    func testManagedCapsConfigReachesReload() async {
         let tempFile = createTempConfigFile(content: KanataConfigFixtures.capsToEscapeBare)
         let result = await service.handleExternalChange(configPath: tempFile.path)
-        XCTAssertFalse(result.success)
+        XCTAssertTrue(result.success, result.message)
         XCTAssertFalse(result.pendingReload)
-        XCTAssertFalse(reloadHandlerCalled)
-        XCTAssertTrue(result.message.contains("driverless session"))
+        XCTAssertTrue(reloadHandlerCalled)
     }
 
     // MARK: - Reload Handler Tests

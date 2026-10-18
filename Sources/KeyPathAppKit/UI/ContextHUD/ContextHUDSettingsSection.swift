@@ -12,11 +12,7 @@ struct ContextHUDSettingsSection: View {
     @State private var advancedExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Shortcut List")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
+        SettingsSection(title: "Shortcut List") {
             // Display Mode (only when Context HUD List is enabled)
             if FeatureFlags.contextHUDListEnabled {
                 VStack(alignment: .leading, spacing: 8) {
@@ -136,6 +132,18 @@ struct ContextHUDSettingsSection: View {
             }
             .accessibilityIdentifier("settings-context-hud-advanced")
         }
+        .onAppear { refreshPreferences() }
+        .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
+            refreshPreferences()
+        }
+    }
+
+    private func refreshPreferences() {
+        let input = services.preferences.shortcutListGenerationInput
+        triggerMode = input.triggerMode
+        holdDelayPreset = input.holdDelayPreset
+        customHoldDelayMs = input.customHoldDelayMs
+        displayMode = services.preferences.contextHUDDisplayMode
     }
 
     // MARK: - Display Mode Card
@@ -150,6 +158,7 @@ struct ContextHUDSettingsSection: View {
             holdDelayPreset: holdDelayPreset ?? self.holdDelayPreset,
             customHoldDelayMs: customHoldDelayMs ?? self.customHoldDelayMs
         )
+        guard candidate != services.preferences.shortcutListGenerationInput else { return }
         Task {
             guard await kanataManager.applyShortcutListGenerationInput(candidate) else {
                 let restored = services.preferences.shortcutListGenerationInput
@@ -170,50 +179,14 @@ struct ContextHUDSettingsSection: View {
         title: String,
         subtitle: String
     ) -> some View {
-        let isSelected = displayMode == mode
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                displayMode = mode
-                services.preferences.contextHUDDisplayMode = mode
-            }
-        } label: {
-            VStack(spacing: 8) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
-                        .frame(height: 40)
-
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                }
-
-                Text(title)
-                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(width: 84)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 6)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.06) : .clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.08),
-                        lineWidth: isSelected ? 1.5 : 0.5
-                    )
-            )
+        SettingsOptionCard(
+            icon: icon, title: title, subtitle: subtitle,
+            isSelected: displayMode == mode,
+            cardWidth: SettingsDesign.compactOptionWidth
+        ) {
+            displayMode = mode
+            services.preferences.contextHUDDisplayMode = mode
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("settings-context-hud-display-\(mode.rawValue)")
         .accessibilityLabel("\(title) display mode")
     }

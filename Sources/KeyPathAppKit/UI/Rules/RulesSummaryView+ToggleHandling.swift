@@ -6,6 +6,11 @@ import SwiftUI
 
 extension RulesTabView {
     func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
+        if isOn, let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: collection.id) {
+            settingsToastManager.showError(reason)
+            return
+        }
+
         AppLogger.shared.log("🎚️ [Rules] handleCollectionToggle: '\(collection.name)' isOn=\(isOn) pack=\(packForCollection(collection)?.name ?? "nil") collectionID=\(collection.id)")
         if let owner = collectionOwnershipMap[collection.id] {
             settingsToastManager.showError(

@@ -211,9 +211,6 @@ extension PackDetailView {
     /// Mirror of `applyHomeRowEdit` for Window Snapping's convention picker
     /// (Standard L/R/U/I/J/K vs Vim H/L/Y/U/B/N).
     func applyWindowConventionEdit(_ convention: WindowKeyConvention, collectionID: UUID) async {
-        if !isInstalled {
-            await install(skipFinalReload: true)
-        }
         await kanataManager.updateWindowKeyConvention(collectionID, convention: convention)
     }
 

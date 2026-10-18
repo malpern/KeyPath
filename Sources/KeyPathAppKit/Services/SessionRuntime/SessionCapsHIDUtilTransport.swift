@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import IOKit
 import KeyPathCore
 
 /// Only the property output grammar witnessed in the owned physical-fixture
@@ -9,7 +10,7 @@ public enum SessionCapsHIDUtilTransport {
     public typealias Policy = SessionCapsMappingPolicy
 
     public static func selector(_ device: Policy.DeviceIdentity) throws -> String {
-        guard device.registryEntryID != 0, device.vendorID != 0, device.vendorID <= 0xFFFF,
+        guard device.registryEntryID != 0, (device.vendorID != 0 || (device.appleBuiltIn == true && device.productID == 0 && (device.locationID ?? 0) != 0)), device.vendorID <= 0xFFFF,
               device.productID <= 0xFFFF, (device.locationID ?? 0) != 0 || device.serialNumber != nil else { throw Policy.Refusal.invalidDevice }
         if let serial = device.serialNumber {
             guard !serial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, serial.utf8.count <= 1024 else { throw Policy.Refusal.invalidDevice }
@@ -104,12 +105,13 @@ public enum SessionCapsHIDUtilTransport {
             if row["Transport"] as? String == "AppleVirtualPlatformHIDBridge",
                try number("LocationID", maximum: UInt64(UInt32.max)) == 0 { continue }
             guard let ioClass = row["IOClass"] as? String, !ioClass.isEmpty else { throw Refusal.unsupportedOutput }
-            guard ioClass == "AppleUserHIDEventService" else { throw Refusal.unsupportedOutput }
+            let appleBuiltIn = ioClass == "AppleHIDKeyboardEventDriverV2" && row["Built-In"] as? Bool == true && row["Transport"] as? String == "FIFO"
+            guard ioClass == "AppleUserHIDEventService" || appleBuiltIn else { throw Refusal.unsupportedOutput }
             let registry = try number("IORegistryEntryID")
             let vendor = try number("VendorID", maximum: 0xFFFF)
             let product = try number("ProductID", maximum: 0xFFFF)
             let location = try number("LocationID", maximum: UInt64(UInt32.max))
-            guard registry != 0, vendor != 0, location != 0 else { throw Refusal.unsupportedOutput }
+            guard registry != 0, (vendor != 0 || (appleBuiltIn && product == 0)), location != 0 else { throw Refusal.unsupportedOutput }
             var serial: String?
             if let value = row["SerialNumber"] {
                 guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -117,7 +119,7 @@ public enum SessionCapsHIDUtilTransport {
                 serial = string
             }
             let device = Policy.DeviceIdentity(registryEntryID: registry, vendorID: UInt32(vendor),
-                                               productID: UInt32(product), serialNumber: serial, locationID: UInt32(location))
+                                               productID: UInt32(product), serialNumber: serial, locationID: UInt32(location), appleBuiltIn: appleBuiltIn ? true : nil)
             guard !devices.contains(where: { $0.registryEntryID == registry ||
                     ($0.vendorID == device.vendorID && $0.productID == device.productID && $0.locationID == device.locationID &&
                         ($0.serialNumber == nil || device.serialNumber == nil || $0.serialNumber == device.serialNumber))
@@ -125,6 +127,44 @@ public enum SessionCapsHIDUtilTransport {
             devices.append(device)
         }
         return devices
+    }
+
+    /// Query the exact ID without keyboard eligibility filters. The fast match
+    /// finds registered services; before claiming absence, inspect the registry
+    /// plane too because an unregistered service can still be present there.
+    public static func registryEntryExists(_ registryEntryID: UInt64) throws -> Bool {
+        guard registryEntryID != 0,
+              let matching = IORegistryEntryIDMatching(registryEntryID) else { throw Refusal.commandFailed }
+        var matches: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matches) == KERN_SUCCESS else {
+            throw Refusal.commandFailed
+        }
+        if matches != 0 {
+            defer { IOObjectRelease(matches) }
+            let service = IOIteratorNext(matches)
+            if service != 0 {
+                IOObjectRelease(service)
+                return true
+            }
+            guard IOIteratorIsValid(matches) != 0 else { throw Refusal.commandFailed }
+        }
+        // A successful match may return a null iterator for no registered match.
+        var entries: io_iterator_t = 0
+        guard IORegistryCreateIterator(kIOMainPortDefault, kIOServicePlane,
+                                       IOOptionBits(kIORegistryIterateRecursively), &entries) == KERN_SUCCESS,
+              entries != 0 else { throw Refusal.commandFailed }
+        defer { IOObjectRelease(entries) }
+        while true {
+            let entry = IOIteratorNext(entries)
+            guard entry != 0 else { break }
+            var currentID: UInt64 = 0
+            let result = IORegistryEntryGetRegistryEntryID(entry, &currentID)
+            IOObjectRelease(entry)
+            guard result == KERN_SUCCESS else { throw Refusal.commandFailed }
+            if currentID == registryEntryID { return true }
+        }
+        guard IOIteratorIsValid(entries) != 0 else { throw Refusal.commandFailed }
+        return false
     }
 
     /// Injected execution keeps focused tests entirely off host HID state.
@@ -135,7 +175,7 @@ public enum SessionCapsHIDUtilTransport {
               write: { device, mappings in
                   let result = try parseProperty(run(writeArguments(device, mappings: mappings)), device: device)
                   guard result.mappings == mappings else { throw SessionCapsMappingLease.Refusal.unverifiedWrite }
-              })
+              }, registryEntryExists: registryEntryExists)
     }
 
     #if DEBUG

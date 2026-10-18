@@ -16,6 +16,7 @@ struct AdvancedSettingsTabView: View {
     @State private var backups: [BackupInfo] = []
     @State private var backupToRestore: BackupInfo?
     @State private var showingRestoreConfirm = false
+    @State private var restoreInProgress = false
 
     @State private var settingsToastManager = WizardToastManager()
 
@@ -51,20 +52,15 @@ struct AdvancedSettingsTabView: View {
                             .frame(maxWidth: 220)
 
                         Button("Uninstall KeyPath…", role: .destructive) { showingUninstall = true }
-                            .buttonStyle(.bordered)
+                            .settingsAction()
                             .accessibilityIdentifier("settings-uninstall-keypath-button")
-
                     }
                     .frame(minWidth: 220)
 
                     // Right: Repair tools in priority order
                     VStack(alignment: .leading, spacing: 20) {
                         // Simulator
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Simulator")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
+                        SettingsSection(title: "Simulator") {
                             Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -74,8 +70,7 @@ struct AdvancedSettingsTabView: View {
                             } label: {
                                 Label("Open Simulator", systemImage: "keyboard")
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .settingsAction()
                             .accessibilityIdentifier("settings-open-simulator-button")
                             .accessibilityLabel("Open Simulator")
                         }
@@ -83,25 +78,21 @@ struct AdvancedSettingsTabView: View {
 
                     Spacer()
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, SettingsDesign.pageInset)
                 .padding(.top, 24)
 
                 // Duplicate apps warning
                 if duplicateAppCopies.count > 1 {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("\u{26A0}\u{FE0F} Multiple Installations")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
+                    SettingsSection(title: "\u{26A0}\u{FE0F} Multiple Installations") {
                         duplicateAppsSection
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
                 }
 
                 // Configuration Backups
                 configBackupsSection
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
             }
         }
@@ -128,12 +119,12 @@ struct AdvancedSettingsTabView: View {
             }
             Button("Restore", role: .destructive) {
                 if let backup = backupToRestore {
-                    restoreBackup(backup)
+                    Task { await restoreBackup(backup) }
                 }
             }
         } message: {
             if let backup = backupToRestore {
-                Text("Replace your current config with the backup from \(backup.formattedDate)?")
+                Text("Restore rules and configuration from \(backup.formattedDate)?")
             }
         }
     }
@@ -180,7 +171,7 @@ struct AdvancedSettingsTabView: View {
                     removeDuplicatesInProgress ? "Removing\u{2026}" : "Remove Extra Copies", systemImage: "trash"
                 )
             }
-            .buttonStyle(.borderedProminent)
+            .settingsPrimaryAction()
             .tint(.orange)
             .disabled(removeDuplicatesInProgress)
             .accessibilityIdentifier("settings-remove-duplicates-button")
@@ -192,12 +183,8 @@ struct AdvancedSettingsTabView: View {
     // MARK: - Configuration Backups
 
     private var configBackupsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Configuration Backups")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            Text("KeyPath automatically saves your config before edits. Up to 5 recent backups are kept.")
+        SettingsSection(title: "Configuration Backups") {
+            Text("KeyPath keeps up to 5 recent rule and configuration backups. Older config-only backups can be opened for manual recovery.")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
@@ -220,13 +207,18 @@ struct AdvancedSettingsTabView: View {
 
                             Spacer()
 
+                            Button("Open") {
+                                openFileInPreferredEditor(URL(fileURLWithPath: backup.fullPath))
+                            }
+                            .accessibilityIdentifier("settings-open-backup-\(index)")
+
                             Button("Restore") {
                                 backupToRestore = backup
                                 showingRestoreConfirm = true
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .settingsAction()
                             .accessibilityIdentifier("settings-restore-backup-\(index)")
+                            .disabled(restoreInProgress || !FileManager.default.fileExists(atPath: backup.fullPath + ".json"))
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
@@ -241,16 +233,22 @@ struct AdvancedSettingsTabView: View {
         }
     }
 
-    private func restoreBackup(_ backup: BackupInfo) {
-        let manager = kanataManager.underlyingManager.configBackupManager
-        do {
-            try manager.restoreFromBackup(backup)
-            backups = manager.getAvailableBackups()
-            settingsToastManager.showSuccess("Restored config from \(backup.createdAt.relativeDescription)")
-        } catch {
-            settingsToastManager.showError("Restore failed: \(error.localizedDescription)")
+    @MainActor
+    private func restoreBackup(_ backup: BackupInfo) async {
+        guard !restoreInProgress else { return }
+        restoreInProgress = true
+        defer { restoreInProgress = false; backupToRestore = nil }
+        let result = await kanataManager.underlyingManager.restoreFromBackup(backup)
+        backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
+        if result.success {
+            if result.reloadResult?.disposition == .pending {
+                settingsToastManager.showInfo("Rules restored. Start KeyPath to apply them.")
+            } else {
+                settingsToastManager.showSuccess("Restored rules from \(backup.createdAt.relativeDescription)")
+            }
+        } else {
+            settingsToastManager.showError("Restore failed: \(result.error?.localizedDescription ?? "Your current setup was kept.")")
         }
-        backupToRestore = nil
     }
 
     // MARK: - Actions
@@ -292,7 +290,6 @@ struct AdvancedSettingsTabView: View {
             }
         }
     }
-
 }
 
 // MARK: - Local Components

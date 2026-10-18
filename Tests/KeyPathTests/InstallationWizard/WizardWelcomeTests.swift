@@ -40,6 +40,22 @@ final class WizardWelcomeTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testWizardWithoutHelperHonorsPersistedWelcomeAcrossRelaunch() {
+        let suite = "KeyPath.welcome-resume.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: defaults))
+
+        defaults.set(true, forKey: WizardWelcomeGate.hasSeenWelcomeKey)
+        let relaunchedDefaults = UserDefaults(suiteName: suite)!
+        XCTAssertFalse(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: relaunchedDefaults))
+
+        relaunchedDefaults.set(true, forKey: WizardWelcomeGate.forceWelcomeKey)
+        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: relaunchedDefaults))
+    }
+
     // MARK: - Welcome stays out of the step sequence
 
     func testWelcomeIsNotAnOrderedPage() {

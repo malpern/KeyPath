@@ -9,6 +9,7 @@ public struct WizardKanataServicePage: View {
     @State private var isPerformingAction = false
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var attemptedAutomaticStart = false
     @State private var refreshTask: Task<Void, Never>?
 
     /// Integration with RuntimeCoordinator for better error context
@@ -66,6 +67,11 @@ public struct WizardKanataServicePage: View {
         }
     }
 
+    private var startFailed: Bool {
+        if case .error = actionStatus { return true }
+        return false
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             WizardHeroSection(
@@ -86,7 +92,7 @@ public struct WizardKanataServicePage: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            if let cta = primaryCTAConfiguration {
+            if let cta = primaryCTAConfiguration, (serviceStatus != .stopped || startFailed) {
                 Button(cta.label, action: cta.action)
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPerformingAction))
                     .keyboardShortcut(.defaultAction)
@@ -111,6 +117,19 @@ public struct WizardKanataServicePage: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
+        .task(id: serviceStatus) {
+            switch serviceStatus {
+            case .stopped where !attemptedAutomaticStart && !isPerformingAction:
+                attemptedAutomaticStart = true
+                startService()
+            case .running:
+                _ = await WizardSleep.ms(1000)
+                guard !Task.isCancelled, serviceStatus == .running else { return }
+                navigateToNextStep()
+            default:
+                break
+            }
+        }
         .onAppear {
             refreshStatus()
         }
@@ -219,7 +238,7 @@ public struct WizardKanataServicePage: View {
         case .running:
             "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events."
         case .stopped:
-            "KeyPath runtime is not running. Click Start to start it."
+            "Preparing your keyboard shortcuts…"
         case let .failed(error):
             error
         case .starting:
@@ -251,7 +270,7 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Starting KeyPath runtime…")
 
         Task { @MainActor in
-            let succeeded = await kanataManager.startKanata(reason: "Wizard service start button")
+            let succeeded = await kanataManager.startKanata(reason: "Wizard automatic startup")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .running,

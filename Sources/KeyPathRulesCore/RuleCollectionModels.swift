@@ -314,6 +314,10 @@ public enum FunctionKeyMode: String, Codable, CaseIterable, Sendable {
     case media
     case function
 
+    public var isSupportedInDriverlessSession: Bool {
+        self == .function
+    }
+
     public var displayName: String {
         switch self {
         case .media: "Media Keys"

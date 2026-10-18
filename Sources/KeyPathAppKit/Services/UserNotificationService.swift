@@ -84,7 +84,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             options: [.foreground]
         )
         let openAX = UNNotificationAction(
-            identifier: Action.openAccessibility.rawValue, title: "Open Accessibility",
+            identifier: Action.openAccessibility.rawValue, title: AccessibilityPermissionPresentation.current.openTitle,
             options: [.foreground]
         )
         let openApp = UNNotificationAction(
@@ -190,7 +190,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         let names = missing.map { req -> String in
             switch req {
             case .kanataInputMonitoring, .keyPathInputMonitoring: return "Input Monitoring"
-            case .kanataAccessibility, .keyPathAccessibility: return "Accessibility"
+            case .kanataAccessibility, .keyPathAccessibility: return AccessibilityPermissionPresentation.current.name
             case .driverExtensionEnabled: return "Driver Extension"
             case .backgroundServicesEnabled: return "Background Services"
             }

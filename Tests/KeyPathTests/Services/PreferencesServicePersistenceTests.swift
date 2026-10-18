@@ -351,7 +351,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         let pref = LeaderKeyPreference.default
         XCTAssertEqual(pref.key, "space")
         XCTAssertEqual(pref.targetLayer, .navigation)
-        XCTAssertTrue(pref.enabled)
+        XCTAssertFalse(pref.enabled, "Fresh profiles must not create an unrequested navigation layer")
     }
 
     func testLeaderKeyPreference_RoundTripCodable() throws {

@@ -195,7 +195,7 @@ public struct KanataConfiguration: Sendable {
 
         let appSpecificKeys = inputs.appSpecificKeys
 
-        let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks) { entry in
+        func baseOutput(for entry: LayerEntry) -> String {
             // If this key has app-specific overrides, use the alias instead of the plain key
             // This enables the switch expression in keypath-apps.kbd to intercept the key
             let keyName = entry.sourceKey.lowercased()
@@ -204,9 +204,16 @@ public struct KanataConfiguration: Sendable {
             }
             return entry.baseOutput
         }
+        let baseLayerBlock = renderLayerBlock(name: RuleCollectionLayer.base.kanataName, blocks: blocks, valueProvider: baseOutput)
+        let hasCapsInput = blocks.contains { $0.entries.contains { $0.sourceKey == "caps" } }
         let additionalLayerBlocks = extraLayers.map { layer in
             renderLayerBlock(name: layer.kanataName, blocks: blocks) { entry in
-                entry.layerOutputs[layer] ?? "_"
+                if let output = entry.layerOutputs[layer] { return output }
+                // Generated layers fall back to the base action. Make that
+                // action explicit for managed Caps on every layer; unresolved
+                // transparency cannot prove the reserved F18 transport private.
+                if hasCapsInput { return baseOutput(for: entry) }
+                return "_"
             }
         }.joined(separator: "\n")
         let fakeKeysBlock = renderFakeKeysBlock(extraLayers)

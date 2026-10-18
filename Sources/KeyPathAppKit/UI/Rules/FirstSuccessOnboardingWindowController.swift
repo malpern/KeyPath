@@ -21,6 +21,8 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     private static var currentController: FirstSuccessOnboardingWindowController?
     private let actionCoordinator: FirstSuccessOnboardingActionCoordinator
 
+    static var isPresented: Bool { currentController != nil }
+
     static func show(
         kanataViewModel: KanataViewModel?,
         source: FirstSuccessOnboardingPresentationSource
@@ -37,9 +39,20 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
             source: source
         )
         currentController = controller
+        // Keep floating keyboard surfaces behind the active learning path.
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
         LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
         controller.showWindow(nil)
         FirstSuccessOnboardingGate.markPresented()
+    }
+
+    @discardableResult
+    static func bringPresentedTourToFront() -> Bool {
+        guard let currentController else { return false }
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
+        currentController.showWindow(nil)
+        currentController.window?.makeKeyAndOrderFront(nil)
+        return true
     }
 
     private init(
@@ -78,7 +91,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
                             in: kanataViewModel.underlyingManager.rulesManager.ruleCollections
                         )
                     )
-                case .savedButNotActive, .needsRules, .failed:
+                case .savedButNotActive, .savedButNotActiveWithReason, .needsRules, .failed:
                     break
                 }
                 return result
@@ -100,15 +113,8 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
                     using: kanataViewModel
                 )
             },
-            finishInRules: {
+            finishInKeyboard: {
                 FirstSuccessOnboardingWindowController.dismiss()
-                openPreferencesTab(
-                    .openSettingsRules,
-                    userInfo: [
-                        SettingsNavigationUserInfo.ruleCollectionTarget:
-                            RuleCollectionIdentifier.launcher.uuidString,
-                    ]
-                )
             },
             dismiss: {
                 FirstSuccessOnboardingWindowController.dismiss()
@@ -128,7 +134,14 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         window.backgroundColor = FirstSuccessOnboardingStyle.initialBackgroundNSColor
         window.isOpaque = true
         window.isMovableByWindowBackground = false
-        window.contentMinSize = NSSize(width: 960, height: 650)
+        window.contentMinSize = NSSize(width: 960, height: 520)
+        if let screen = window.screen ?? NSScreen.main {
+            let available = window.contentRect(forFrameRect: screen.visibleFrame).size
+            window.setContentSize(NSSize(
+                width: min(1120, available.width),
+                height: min(720, available.height)
+            ))
+        }
         window.center()
 
         self.actionCoordinator = actionCoordinator
@@ -339,9 +352,18 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         escapeConfiguration: RuleCollectionConfiguration,
         hyperConfiguration: RuleCollectionConfiguration
     ) -> Bool {
-        existing.configuration != catalogConfiguration
+        // Replaying step 1 preserves Hyper while adding the original Caps Lock
+        // option to the picker. That exact tour-produced configuration is safe
+        // too; comparing only to the catalog mistakes its extra option for a
+        // custom behavior and prevents reaching the app chooser.
+        let replayedHyperConfiguration = escapeOnlyCapsLockConfiguration(
+            from: catalogConfiguration,
+            preservingHoldFrom: hyperConfiguration
+        )
+        return existing.configuration != catalogConfiguration
             && existing.configuration != escapeConfiguration
             && existing.configuration != hyperConfiguration
+            && existing.configuration != replayedHyperConfiguration
     }
 
     static func capsLockAlreadyProvidesFirstWin(
@@ -398,7 +420,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         // the tour cannot break an existing shortcut layer.
         let selectedHoldOutput = existingHoldOutput.flatMap { output in
             holdOptions.contains(where: { $0.output == output }) ? output : nil
-        } ?? "caps"
+        } ?? ("caps")
 
         return .tapHoldPicker(TapHoldPickerConfig(
             inputKey: tapHold.inputKey,
@@ -727,9 +749,17 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
 
     static func onboardingActionResult(
         for disposition: ReloadDisposition,
-        alreadyConfigured: Bool = false
+        alreadyConfigured: Bool = false,
+        failureReason: String? = nil
     ) -> FirstSuccessOnboardingSession.ActionResult {
-        guard disposition == .applied else { return .savedButNotActive }
+        guard disposition == .applied else {
+            if disposition != .pending,
+               let reason = failureReason?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !reason.isEmpty {
+                return .savedButNotActiveWithReason(reason)
+            }
+            return .savedButNotActive
+        }
         return alreadyConfigured ? .alreadyConfigured : .applied
     }
 
@@ -737,10 +767,11 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         using viewModel: KanataViewModel,
         alreadyConfigured: Bool = false
     ) async -> FirstSuccessOnboardingSession.ActionResult {
-        let result = await viewModel.underlyingManager.applyPersistedRuleChanges()
+        let result = await viewModel.underlyingManager.applyPersistedRuleChanges(recoverStoppedRuntime: true)
         return onboardingActionResult(
             for: result.disposition,
-            alreadyConfigured: alreadyConfigured
+            alreadyConfigured: alreadyConfigured,
+            failureReason: result.errorMessage
         )
     }
 
@@ -780,7 +811,13 @@ extension FirstSuccessOnboardingWindowController: NSWindowDelegate {
     }
 
     func windowWillClose(_: Notification) {
-        LiveKeyboardOverlayController.shared.resetSettingsAutoHideGuard()
+        let overlay = LiveKeyboardOverlayController.shared
+        overlay.resetSettingsAutoHideGuard()
+        overlay.setOnboardingCompleted(true)
+        overlay.showForStartup(bypassHiddenCheck: true)
+        if !overlay.uiState.isInspectorOpen {
+            overlay.toggleInspectorPanel()
+        }
         Self.currentController = nil
     }
 }

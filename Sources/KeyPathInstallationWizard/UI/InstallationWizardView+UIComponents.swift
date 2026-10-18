@@ -12,6 +12,11 @@ extension InstallationWizardView {
         ZStack {
             pageContentInner()
         }
+        .task(id: actionablePage) {
+            if stateMachine.currentPage != actionablePage {
+                stateMachine.navigateToPage(actionablePage, userInitiated: false)
+            }
+        }
         // Directional page transition based on navigation direction
         .transition(
             stateMachine.isNavigatingForward
@@ -20,14 +25,47 @@ extension InstallationWizardView {
         )
     }
 
+    private var actionablePage: WizardPage {
+        guard stateMachine.currentPage == .summary,
+              !stateMachine.wizardIssues.isEmpty else { return stateMachine.currentPage }
+        let snapshot = stateMachine.lastWizardSnapshot
+        return WizardRouter.route(
+            state: stateMachine.wizardState, issues: stateMachine.wizardIssues,
+            helperInstalled: snapshot?.helperInstalled ?? false,
+            helperNeedsApproval: snapshot?.helperNeedsApproval ?? false,
+            backend: snapshot?.backend ?? .selected
+        )
+    }
+
     @ViewBuilder
     private func pageContentInner() -> some View {
-        switch stateMachine.currentPage {
+        switch actionablePage {
         case .welcome:
             WizardWelcomePage(onGetStarted: {
                 didShowWelcomePage = true
                 WizardWelcomeGate.markWelcomeSeen()
-                stateMachine.nextPage()
+                Task { @MainActor in
+                    let result: SystemStateResult
+                    if let snapshot = stateMachine.lastWizardSnapshot {
+                        stateMachine.navigateToPage(WizardRouter.route(
+                            state: snapshot.state,
+                            issues: snapshot.issues,
+                            helperInstalled: snapshot.helperInstalled,
+                            helperNeedsApproval: snapshot.helperNeedsApproval,
+                            backend: snapshot.backend
+                        ))
+                        return
+                    }
+                    result = await stateMachine.detectCurrentState()
+                    guard !isForceClosing else { return }
+                    stateMachine.updateWizardState(from: result, issues: sanitizedIssues(from: result.issues, for: result.state))
+                    stateMachine.navigateToPage(WizardRouter.route(
+                        state: result.state, issues: stateMachine.wizardIssues,
+                        helperInstalled: result.helperInstalled,
+                        helperNeedsApproval: result.helperNeedsApproval,
+                        backend: result.backend
+                    ))
+                }
             })
         case .summary:
             WizardSummaryPage(
@@ -39,7 +77,12 @@ extension InstallationWizardView {
                 isValidating: isValidating,
                 showAllItems: $showAllSummaryItems,
                 navSequence: $navSequence,
-                opensRulesOnCompletion: KanataRuntimeBackend.selected == .session && onOpenRules != nil
+                opensKeyboardOnCompletion: onOpenKeyboard != nil,
+                startsTourOnCompletion: onFirstSuccess != nil && FirstSuccessOnboardingGate.isEligible(
+                    didShowWelcomePage: didShowWelcomePage,
+                    wizardState: stateMachine.wizardState,
+                    issues: stateMachine.wizardIssues
+                )
             )
         case .conflicts:
             if let coordinator = kanataManager {

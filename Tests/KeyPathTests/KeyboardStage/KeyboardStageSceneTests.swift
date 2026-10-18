@@ -1,9 +1,67 @@
+import AppKit
+import SwiftUI
 import CoreGraphics
 @testable import KeyPathAppKit
 import XCTest
 
 @MainActor
 final class KeyboardStageSceneTests: XCTestCase {
+    func testLauncherLabelDoesNotShrinkKeyboardViewport() {
+        for size in [CGSize(width: 650, height: 440), CGSize(width: 480, height: 330)] {
+            for label in [nil, "Hyper + Q → Dia", "Hyper + Q → An app with a very long name"] as [String?] {
+                var measured = CGSize.zero
+                let view = NSHostingView(rootView:
+                    FirstSuccessKeyboardHeroLayout(shortcutLabel: label) {
+                        GeometryReader { geometry in
+                            Color.clear.onAppear { measured = geometry.size }
+                                .onChange(of: geometry.size) { _, value in measured = value }
+                        }
+                    }
+                )
+                view.frame = CGRect(origin: .zero, size: size)
+                view.layoutSubtreeIfNeeded()
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+                view.layoutSubtreeIfNeeded()
+                XCTAssertEqual(measured.width, size.width, accuracy: 0.001)
+                XCTAssertEqual(measured.height, size.height, accuracy: 0.001)
+            }
+        }
+    }
+
+    func testAllTourPagesKeepOrdinaryKeySizeStable() throws {
+        let moments: [KeyboardStageMoment] = [
+            .capsMotivation, .capsApplying, .capsInstalled,
+            .hyperMotivation, .hyperApplying, .hyperInstalled, .launcher, .handoff,
+        ]
+        for size in [CGSize(width: 650, height: 440), CGSize(width: 600, height: 420), CGSize(width: 480, height: 330)] {
+            var references: [UInt16: CGSize] = [:]
+            let selection = KeyboardStageSceneBuilder.LauncherSelection(
+                keyCode: 1, displayedLetter: "S",
+                application: .init(name: "ChatGPT", bundleIdentifier: "com.openai.chat")
+            )
+            let scenes = moments.map { moment in
+                KeyboardStageSceneBuilder.make(layout: .macBookUS, keymap: .qwertyUS, moment: moment)
+            } + [KeyboardStageSceneBuilder.make(
+                layout: .macBookUS, keymap: .qwertyUS, moment: .launcher,
+                launcherSelection: selection
+            )]
+            for scene in scenes {
+                let projection = KeyboardStageProjection(scene: scene, size: size)
+                // Caps Lock intentionally animates during installation. Every other
+                // key must retain its dimensions, including a selected launcher key.
+                for key in scene.keys where key.keyCode != 57 {
+                    let projected = projection.projectKey(key)
+                    if let reference = references[key.keyCode] {
+                        XCTAssertEqual(projected.width, reference.width, accuracy: 0.001, "key \(key.keyCode)")
+                        XCTAssertEqual(projected.height, reference.height, accuracy: 0.001, "key \(key.keyCode)")
+                    } else {
+                        references[key.keyCode] = projected.size
+                    }
+                }
+            }
+        }
+    }
+
     func testEveryMomentKeepsAContinuousKeyboardDeck() {
         for moment in allMoments {
             let scene = makeScene(moment: moment)

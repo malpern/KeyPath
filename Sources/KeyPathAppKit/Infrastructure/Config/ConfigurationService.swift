@@ -443,7 +443,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
         leaderKeyPreference: LeaderKeyPreference? = nil,
         shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
-        deviceSelections: [DeviceSelection]? = nil
+        deviceSelections: [DeviceSelection]? = nil,
+        restoringBackupContent: String? = nil
     ) async throws -> RuleWrite {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             guard packRecord == nil || deviceSelections == nil else {
@@ -485,6 +486,18 @@ public final class ConfigurationService: FileConfigurationProviding {
                 shortcutListGenerationInput: shortcutListGenerationInput ?? persistedInputs.shortcut,
                 deviceGenerationInput: deviceGenerationInput
             )
+            if let restoringBackupContent,
+               !AppConfigGenerator.matchesManagedContent(restoringBackupContent, expected: newConfig.content) {
+                throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+            }
+            // Capture a coherent source/config revision while holding the operation lease.
+            // A requested restore must have a safety backup before replacing current rules.
+            let backedUp = ConfigBackupManager(configPath: configurationPath).createPreEditBackup(
+                generationPreferences: RuleBackupPreferences(defaults: preferenceDefaults ?? PreferencesService.canonicalDefaults)
+            )
+            if restoringBackupContent != nil, !backedUp {
+                throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+            }
             var payload = try await [
                 "config": Data(newConfig.content.utf8),
                 "collections": collectionStore.encodedCollections(ruleCollections),

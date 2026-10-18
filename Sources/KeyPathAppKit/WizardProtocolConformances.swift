@@ -161,6 +161,8 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             await runtimeCoordinator.configurationService.operationGate.resumeAfterFailedUninstall()
             runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(false)
             runtimeCoordinator.startConfigFileWatching()
+        }, removeLoginItem: {
+            try await LaunchAtLoginController.shared.setEnabled(false)
         })
     }
     WizardDependencies.executePrivilegedBatch = { batch in

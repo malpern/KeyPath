@@ -63,130 +63,47 @@ public struct WizardInputMonitoringPage: View {
     }
 
     public var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                // Use experimental hero design when permissions are granted
-                if !hasInputMonitoringIssues {
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        WizardHeroSection.success(
-                            icon: "eye",
-                            title: "Input Monitoring",
-                            subtitle: "KeyPath has permission to capture keyboard events",
-                            iconTapAction: {
-                                Task {
-                                    await onRefresh()
-                                }
-                            }
-                        )
+        VStack(spacing: 24) {
+            Image(systemName: "keyboard")
+                .font(.system(size: 88, weight: .light))
+                .foregroundStyle(Color.accentColor)
+                .accessibilityHidden(true)
+                .padding(.bottom, 8)
 
-                        // Component details card below the subheading - horizontally centered
-                        HStack {
-                            Spacer()
-                            VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                    HStack(spacing: 0) {
-                                        Text("KeyPath.app")
-                                            .font(.headline)
-                                            .fontWeight(.semibold)
-                                        Text(" - Session captures keyboard input")
-                                            .font(.headline)
-                                            .fontWeight(.regular)
-                                    }
-                                }
-                            }
-                            Spacer()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(WizardDesign.Spacing.cardPadding)
-                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.pageVertical)
+            Text("Enable Input Monitoring")
+                .font(.largeTitle.weight(.semibold))
+                .multilineTextAlignment(.center)
 
-                        Button(nextStepButtonTitle) {
-                            navigateToNextStep()
-                        }
-                        .accessibilityIdentifier("wizard_input_monitoring_next")
-                        .buttonStyle(WizardDesign.Component.PrimaryButton())
-                        .keyboardShortcut(.defaultAction)
-                        .padding(.top, WizardDesign.Spacing.sectionGap)
-                    }
-                    .heroSectionContainer()
-                    .frame(maxWidth: .infinity)
-                } else {
-                    // Use hero design for error state too, with blue links below
-                    VStack(spacing: WizardDesign.Spacing.sectionGap) {
-                        WizardHeroSection.setup(
-                            icon: "eye",
-                            title: "Enable Keyboard Remapping",
-                            subtitle:
-                            "Allow KeyPath to read keyboard events locally so your remaps, layers, and shortcuts can run.",
-                            iconTapAction: {
-                                Task {
-                                    await onRefresh()
-                                }
-                            }
-                        )
+            Text("Let KeyPath read keyboard events to run your shortcuts. Your keystrokes stay on your Mac.")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 560)
 
-                        // Component details for error state
-                        VStack(alignment: .leading, spacing: WizardDesign.Spacing.elementGap) {
-                            HStack(spacing: 12) {
-                                let icon = statusIcon(for: keyPathInputMonitoringStatus)
-                                Image(systemName: icon.name)
-                                    .foregroundColor(icon.color)
-                                HStack(spacing: 0) {
-                                    Text("KeyPath.app")
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                    Text(keyPathSubtitle)
-                                        .font(.headline)
-                                        .fontWeight(.regular)
-                                }
-                                Spacer()
-                                if keyPathInputMonitoringStatus != .completed {
-                                    Button(keyPathActionTitle) {
-                                        handleKeyPathInputMonitoringAction()
-                                    }
-                                    .accessibilityIdentifier("wizard_input_monitoring_fix_keypath")
-                                    .buttonStyle(WizardDesign.Component.SecondaryButton())
-                                    .scaleEffect(0.8)
-                                }
-                            }
-                            .help(keyPathInputMonitoringIssues.asTooltipText())
-
-                            // Escalation: if the automatic prompt for KeyPath.app
-                            // never registered a grant, augment the "Turn On" retry
-                            // (whose deep-linked Settings row may not exist on macOS
-                            // 26/27) with accurate manual "+"-to-add steps (#931).
-                            if !sessionInputNeedsVerification, keyPathGuidance == .manualFallback {
-                                InputMonitoringManualFallbackCard()
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(WizardDesign.Spacing.cardPadding)
-                        .background(Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, WizardDesign.Spacing.pageVertical)
-                        .padding(.top, WizardDesign.Spacing.pageVertical)
-                    }
-                    .heroSectionContainer()
-                    .frame(maxWidth: .infinity)
+            if hasInputMonitoringIssues {
+                Button("Open System Settings") {
+                    openInputMonitoringSettings()
                 }
-            }
-            .frame(maxWidth: .infinity)
-            .fixedSize(horizontal: false, vertical: true)
-            .background(WizardDesign.Colors.wizardBackground)
-            .wizardDetailPage()
+                .buttonStyle(WizardDesign.Component.PrimaryButton())
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("wizard_input_monitoring_fix_keypath")
 
-            // Celebration overlay
-            if showSuccessBurst {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-
-                CheckmarkBurstView(isShowing: $showSuccessBurst)
+                Text("Turn on KeyPath under Input Monitoring.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Label("Input Monitoring enabled", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityIdentifier("wizard_input_monitoring_enabled")
             }
         }
+        .padding(.horizontal, 40)
+        .heroSectionContainer()
+        .frame(maxWidth: .infinity)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(WizardDesign.Colors.wizardBackground)
+        .wizardDetailPage()
         .task {
             permissionSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
         }
@@ -208,12 +125,12 @@ public struct WizardInputMonitoringPage: View {
     }
 
     private var nextStepButtonTitle: String {
-        allIssues.isEmpty ? "Return to Summary" : "Next Issue"
+        allIssues.isEmpty ? "Return to Summary" : "Continue"
     }
 
     private var keyPathInputMonitoringStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
-        return installationStatus(for: snapshot.kanata.inputMonitoring)
+        return installationStatus(for: snapshot.keyPath.inputMonitoring.isReady ? .granted : snapshot.kanata.inputMonitoring)
     }
 
     private var sessionInputNeedsVerification: Bool {
@@ -356,16 +273,14 @@ public struct WizardInputMonitoringPage: View {
                 let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                 permissionSnapshot = snapshot
 
-                let inputReady = snapshot.kanata.inputMonitoring.isReady
+                let inputReady = snapshot.keyPath.inputMonitoring.isReady || snapshot.kanata.inputMonitoring.isReady
                 if inputReady, !hasEverCelebrated {
                     hasEverCelebrated = true
-                    WizardWindowManager.shared.bounceDocIcon()
-                    withAnimation(.spring(response: 0.3)) {
-                        showSuccessBurst = true
-                    }
                     _ = await WizardSleep.ms(1500)
-                    showSuccessBurst = false
+                    guard !Task.isCancelled else { return }
                     await onRefresh()
+                    guard !Task.isCancelled else { return }
+                    navigateToNextStep()
                     return
                 }
             }
@@ -397,7 +312,6 @@ public struct WizardInputMonitoringPage: View {
                     }
                 if hasPermission {
                     // Bounce dock icon to get user's attention back to KeyPath
-                    WizardWindowManager.shared.bounceDocIcon()
                     // Celebrate!
                     withAnimation(.spring(response: 0.3)) {
                         showSuccessBurst = true
@@ -432,53 +346,7 @@ public struct WizardInputMonitoringPage: View {
     }
 
     private func openInputMonitoringSettings() {
-        // Missing worker evidence is not a macOS permission denial.
-        if sessionInputNeedsVerification {
-            verifySessionInputAccess()
-            return
-        }
-        if keyPathInputMonitoringStatus == .completed { return }
-        AppLogger.shared.log(
-            "🔧 [WizardInputMonitoringPage] Fix button clicked - permission flow starting"
-        )
-
-        // Use automatic prompt via IOHIDRequestAccess()
-        guard let permissionRequestService = WizardDependencies.permissionRequestService else {
-            AppLogger.shared.log("⚠️ [WizardInputMonitoringPage] permissionRequestService not configured")
-            return
-        }
-
-        // Record the attempt so guidance escalates to manual steps if the
-        // automatic prompt never registers a grant (macOS 26/27 dead-end, #931).
-        // Set only after the guard so the escalation clock never starts on a path
-        // where no request was actually made.
-        keyPathRequestAttemptedAt = Date()
-
-        Task { @MainActor in
-            let alreadyGranted = await permissionRequestService.requestInputMonitoringPermission(
-                ignoreCooldown: true
-            )
-            if alreadyGranted {
-                await onRefresh()
-                return
-            }
-
-            // Poll the session tap's effective input access through the canonical snapshot.
-            startPermissionPolling(for: .inputMonitoring)
-
-            // Fallback: if still not granted shortly after, open System Settings panel
-            for _ in 0 ..< 6 { // ~1.5s at 250ms
-                _ = await WizardSleep.ms(250)
-                let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-                let granted =
-                    snapshot.kanata.inputMonitoring.isReady
-                if granted { return }
-            }
-            AppLogger.shared.info(
-                "ℹ️ [WizardInputMonitoringPage] Opening System Settings (fallback) for Input Monitoring"
-            )
-            openInputMonitoringPreferencesPanel()
-        }
+        openInputMonitoringPreferencesPanel()
     }
 
     private func handleKeyPathInputMonitoringAction() {

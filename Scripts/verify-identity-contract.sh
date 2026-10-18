@@ -65,6 +65,9 @@ expect_plist_value() {
 }
 expect_codesign_identity() {
     local path=$1 expected_identifier=$2 expected_requirement=$3 description=$4 output actual_requirement
+    # Metadata inspection alone succeeds even when signed bytes were modified.
+    # Explicitly verify every component, including dylibs in Library/KeyPath.
+    if ! output=$(codesign --verify --deep --strict --verbose=2 "$path" 2>&1); then fail "$description signature integrity failed: $output"; return; fi
     if ! output=$(codesign -d -r- --verbose=4 "$path" 2>&1); then fail "$description codesign inspection failed: $output"; return; fi
     grep -F "Identifier=${expected_identifier}" <<<"$output" >/dev/null && pass "$description identifier is $expected_identifier" || fail "$description identifier is not $expected_identifier"
     grep -F "Authority=${DEVELOPER_ID_AUTHORITY}" <<<"$output" >/dev/null && pass "$description signed by ${DEVELOPER_ID_AUTHORITY}" || fail "$description lacks expected Developer ID authority"

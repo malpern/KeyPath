@@ -91,26 +91,28 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         XCTAssertEqual(manager.customRules, originalRules)
     }
 
-    func testUnsupportedCapsCollectionPackPreservesFourFilesWithoutJournalOrReload() async throws {
+    func testCapsCollectionPackCommitsBeforeOneReloadAndPreservesCustomRules() async throws {
         pack = PackRegistry.capsLockToEscape
-        let before = try snapshot()
-        let collections = manager.ruleCollections
         let rules = manager.customRules
         var reloads = 0
-        manager.onRulesChanged = { reloads += 1; return Self.reload(.applied) }
-        do {
-            _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
-            XCTFail("Caps input must fail session eligibility before staging")
-        } catch {
-            XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
+        manager.onRulesChanged = {
+            reloads += 1
+            let record = await self.tracker.record(for: self.pack.id)
+            XCTAssertNotNil(record)
+            XCTAssertTrue(self.manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
+            return Self.reload(.applied)
         }
-        XCTAssertEqual(reloads, 0)
-        XCTAssertEqual(try snapshot(), before)
-        XCTAssertEqual(manager.ruleCollections, collections)
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        XCTAssertEqual(reloads, 1)
         XCTAssertEqual(manager.customRules, rules)
+        let storedCollections = await manager.ruleCollectionStore.loadCollections()
+        let storedCaps = try XCTUnwrap(storedCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        let activeCaps = try XCTUnwrap(manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        XCTAssertEqual(storedCaps.configuration, activeCaps.configuration)
+        XCTAssertEqual(storedCaps.isEnabled, activeCaps.isEnabled)
         XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
         let record = await tracker.record(for: pack.id)
-        XCTAssertNil(record)
+        XCTAssertEqual(record?.version, pack.version)
     }
 
     func testCollectionPackStagesRecordWithCollectionBeforeOneAcceptedReload() async throws {

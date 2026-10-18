@@ -17,6 +17,11 @@ struct StatusSettingsTabView: View {
     @State var systemContext: SystemContext?
     @State var wizardSystemState: WizardSystemState = .initializing
     @State var wizardIssues: [WizardIssue] = []
+    @State private var showRuntimeDetails = false
+    var isDriverless: Bool {
+        (permissionSnapshot?.backend ?? KanataRuntimeBackend.selected) == .session
+    }
+
     @State var tcpConfigured: Bool?
     @State var duplicateAppCopies: [String] = []
     @State private var settingsToastManager = WizardToastManager()
@@ -67,7 +72,7 @@ struct StatusSettingsTabView: View {
                     SetupBanner {
                         wizardInitialPage = .summary
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
                 }
 
@@ -127,7 +132,7 @@ struct StatusSettingsTabView: View {
                                 Label("Fix it", systemImage: "wand.and.stars")
                                     .font(.body.weight(.semibold))
                             }
-                            .buttonStyle(.borderedProminent)
+                            .settingsPrimaryAction()
                             .controlSize(.large)
                             .tint(overallHealthLevel == .critical ? .red : .orange)
                             .accessibilityIdentifier("status-fix-it-button")
@@ -169,7 +174,7 @@ struct StatusSettingsTabView: View {
                                 .foregroundColor(effectiveServiceRunning ? .green : .secondary)
                         }
 
-                        if let runtimePathTitle = kanataManager.activeRuntimePathTitle {
+                        if !isDriverless, let runtimePathTitle = kanataManager.activeRuntimePathTitle {
                             VStack(spacing: 4) {
                                 Text(runtimePathTitle)
                                     .font(.footnote.weight(.semibold))
@@ -193,53 +198,45 @@ struct StatusSettingsTabView: View {
                     .frame(minWidth: 220)
 
                     // Permissions grid
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Permissions")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
+                    SettingsSection(title: "Permissions") {
                         VStack(alignment: .leading, spacing: 8) {
                             PermissionStatusRow(
-                                title: "KeyPath Accessibility",
+                                title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
                                 icon: "checkmark.shield",
-                                status: permissionSnapshot?.keyPath.accessibility,
+                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
+                                    .keyPath.accessibility,
                                 isKanata: false,
-                                onTap: { wizardInitialPage = .accessibility }
+                                onTap: { wizardInitialPage = .accessibility },
+                                identifier: isDriverless ? "settings-status-action-button-accessibility"
+                                    : "settings-status-action-button-keypath-accessibility"
                             )
 
                             PermissionStatusRow(
-                                title: "KeyPath Input Monitoring",
+                                title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
                                 icon: "keyboard",
-                                status: permissionSnapshot?.keyPath.inputMonitoring,
+                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
+                                    .keyPath.inputMonitoring,
                                 isKanata: false,
                                 onTap: { wizardInitialPage = .inputMonitoring }
                             )
 
-                            PermissionStatusRow(
-                                title: permissionSnapshot?.backend == .session
-                                    ? "KeyPath Runtime Accessibility" : "Kanata Accessibility",
-                                icon: "checkmark.shield",
-                                status: permissionSnapshot?.kanata.accessibility,
-                                isKanata: true,
-                                onTap: { wizardInitialPage = .accessibility }
-                            )
-
-                            PermissionStatusRow(
-                                title: permissionSnapshot?.backend == .session
-                                    ? "KeyPath Runtime Input Monitoring" : "Kanata Input Monitoring",
-                                icon: "keyboard",
-                                status: permissionSnapshot?.kanata.inputMonitoring,
-                                isKanata: true,
-                                onTap: { wizardInitialPage = .inputMonitoring }
-                            )
+                            if isDriverless {
+                                DisclosureGroup("Technical details", isExpanded: $showRuntimeDetails) {
+                                    runtimePermissionRows
+                                    Text("These checks verify KeyPath’s remapping process. They use the same macOS permissions shown above.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    if let title = kanataManager.activeRuntimePathTitle {
+                                        Text(title).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                                .accessibilityIdentifier("settings-runtime-details")
+                            } else {
+                                runtimePermissionRows
+                            }
                         }
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("System Status")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 10)
-
+                        SettingsSection(title: "System Status") {
                             ForEach(systemStatusRows) { row in
                                 SettingsSystemStatusRow(
                                     id: row.id,
@@ -257,11 +254,11 @@ struct StatusSettingsTabView: View {
 
                     Spacer()
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, SettingsDesign.pageInset)
                 .padding(.top, 24)
 
                 keyboardDetailsSection
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 24)
                     .padding(.bottom, 20)
             }
@@ -314,9 +311,7 @@ struct StatusSettingsTabView: View {
 
     private var keyboardDetailsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Connected Keyboard")
-                .font(.headline)
-                .foregroundColor(.secondary)
+            SettingsSectionHeader(title: "Connected Keyboard")
 
             if let activeKeyboard = autoDetectController.activeKeyboard {
                 VStack(alignment: .leading, spacing: 16) {
@@ -417,7 +412,9 @@ struct StatusSettingsTabView: View {
                         .foregroundStyle(.tertiary)
                         .frame(width: 44, height: 44)
 
-                    Text("No keyboard connected")
+                    Text(permissionSnapshot?.keyPath.inputMonitoring.isReady == true
+                        ? "No keyboard detected"
+                        : "Keyboard discovery unavailable until Input Monitoring is enabled for KeyPath.")
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }
@@ -447,6 +444,28 @@ struct StatusSettingsTabView: View {
         }
     }
 
+    private var runtimePermissionRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PermissionStatusRow(
+                title: permissionSnapshot?.backend == .session
+                    ? "KeyPath Runtime Accessibility" : "Kanata Accessibility",
+                icon: "checkmark.shield",
+                status: permissionSnapshot?.kanata.accessibility,
+                isKanata: true,
+                onTap: { wizardInitialPage = .accessibility }
+            )
+
+            PermissionStatusRow(
+                title: permissionSnapshot?.backend == .session
+                    ? "KeyPath Runtime Input Monitoring" : "Kanata Input Monitoring",
+                icon: "keyboard",
+                status: permissionSnapshot?.kanata.inputMonitoring,
+                isKanata: true,
+                onTap: { wizardInitialPage = .inputMonitoring }
+            )
+        }
+    }
+
     // MARK: - Helpers
 
     private func refreshStatus() async {
@@ -473,7 +492,6 @@ struct StatusSettingsTabView: View {
         wizardIssues = controller.issues
         tcpConfigured = controller.lastTCPConfigured
         showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
-            || duplicates.count > 1
             || (context.services.kanataRunning && controller.lastTCPConfigured == false)
         duplicateAppCopies = duplicates
     }
@@ -514,7 +532,8 @@ struct StatusSettingsTabView: View {
             wizardSystemState: wizardSystemState,
             wizardIssues: wizardIssues,
             systemContext: systemContext,
-            tcpConfigured: tcpConfigured
+            tcpConfigured: tcpConfigured,
+            driverless: isDriverless
         )
     }
 

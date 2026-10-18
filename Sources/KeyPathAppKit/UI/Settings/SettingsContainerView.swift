@@ -36,7 +36,6 @@ enum SettingsTab: Hashable, CaseIterable {
 struct SettingsContainerView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var selection: SettingsTab = .status
-    @State private var canManageRules: Bool = true
 
     var body: some View {
         @Bindable var kanataManager = kanataManager
@@ -49,20 +48,12 @@ struct SettingsContainerView: View {
                 }
                 .tag(SettingsTab.status)
 
-            Group {
-                if canManageRules {
-                    RulesTabView()
-                } else {
-                    RulesDisabledView(onOpenStatus: { selection = .status }, onEditConfig: {
-                        openFileInPreferredEditor(URL(fileURLWithPath: kanataManager.configPath))
-                    })
+            RulesTabView()
+                .tabItem {
+                    Label("Rules", systemImage: "list.bullet")
+                        .accessibilityIdentifier("settings-tab-rules")
                 }
-            }
-            .tabItem {
-                Label("Rules", systemImage: "list.bullet")
-                    .accessibilityIdentifier("settings-tab-rules")
-            }
-            .tag(SettingsTab.rules)
+                .tag(SettingsTab.rules)
 
             GeneralSettingsTabView()
                 .tabItem {
@@ -78,8 +69,13 @@ struct SettingsContainerView: View {
                 }
                 .tag(SettingsTab.advanced)
         }
+        .controlSize(.regular)
         .accessibilityIdentifier("settings-window")
         .background(tabShortcutHandlers)
+        .sheet(item: $kanataManager.pendingRuleSetup) { session in
+            RuleSetupSheet(session: session)
+                .interactiveDismissDisabled()
+        }
         .sheet(isPresented: $kanataManager.showPrerequisiteResolutionDialog) {
             if let model = kanataManager.pendingPrerequisiteResolution {
                 RulePrerequisiteResolutionDialog(
@@ -114,10 +110,9 @@ struct SettingsContainerView: View {
             minWidth: 680,
             idealWidth: 680,
             maxWidth: 680,
-            minHeight: 550,
+            minHeight: 400,
             idealHeight: 700
         )
-        .task { await refreshCanManageRules() }
         .onAppear {
             LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
             applyPendingSettingsNavigationIfNeeded()
@@ -156,9 +151,6 @@ struct SettingsContainerView: View {
             selection = .advanced
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsSimulator)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
-            Task { await refreshCanManageRules() }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAdvanced)) { _ in
             selection = .advanced
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsAdvanced)
@@ -184,15 +176,6 @@ struct SettingsContainerView: View {
         .opacity(0)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-
-    private func refreshCanManageRules() async {
-        let context = await kanataManager.inspectSystemContext()
-        await MainActor.run {
-            canManageRules = context.services.isHealthy && context.services.kanataRunning
-            // Keep the requested tab selected while readiness refreshes.
-            // RulesDisabledView protects editing until the runtime is healthy.
-        }
     }
 
     private func applyPendingSettingsNavigationIfNeeded() {
@@ -222,39 +205,5 @@ extension SettingsTab {
         case .general: "general"
         case .advanced: "repair"
         }
-    }
-}
-
-private struct RulesDisabledView: View {
-    let onOpenStatus: () -> Void
-    let onEditConfig: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "power")
-                .font(.largeTitle.weight(.semibold))
-                .foregroundColor(.secondary)
-            Text("Start KeyPath to manage rules.")
-                .font(.title3.weight(.semibold))
-            Text("Start the keyboard runtime on the Status tab, then return to manage rules.")
-                .font(.callout)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 40)
-            Button(action: onOpenStatus) {
-                Label("Go to Status", systemImage: "arrow.right.circle.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("settings-go-to-status-button")
-            .accessibilityLabel("Go to Status")
-            Button("Edit Configuration", action: onEditConfig)
-                .accessibilityIdentifier("settings-stopped-edit-config-button")
-            Text("If a rule prevents startup, edit your configuration to remove or change it, then start KeyPath again.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

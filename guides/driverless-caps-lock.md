@@ -1,100 +1,82 @@
 ---
 layout: default
 title: "Caps Lock in driverless KeyPath"
-description: "How the Caps Lock remap uses F18, and what that means for your shortcuts"
+description: "Automatic Caps Lock setup, F18 reservation, and keyboard compatibility"
 permalink: /guides/driverless-caps-lock/
 ---
 
 # Caps Lock in driverless KeyPath
 
-**Current status (October 6, 2026): production opt-in passed physical Caps Lock
-tap → Escape and hold → Control in the lab. Broader keyboard qualification and
-final release checks are still required.**
+Choose a Caps Lock rule in **Rules**, such as Escape on tap and Hyper on hold.
+KeyPath prepares Caps Lock automatically when it can identify exactly one
+compatible keyboard and automatic setup is enabled. You do not normally need
+to select a keyboard before using the tour.
 
-In Settings → General → Caps Lock Remapping, review your connected keyboard,
-reserve F18 explicitly, and enable setup. Then start KeyPath Runtime. Setup
-accepts exactly one compatible keyboard instance and lasts for the current Mac
-boot. Select it again after restarting your Mac. KeyPath does not silently adopt
-a reconnected or replacement keyboard.
-
-Changing or disabling setup first stops the runtime and restores its owned
-mapping. If cleanup cannot be verified, existing settings and recovery records
-are retained. A disconnected keyboard may require a Mac restart before selecting
-it again. Disabling setup preserves your rules: enable setup again, or use
-Rules → Edit Configuration to change Caps rules before restarting the runtime.
+If setup cannot identify one compatible keyboard, open **Settings → General**
+to review Caps Lock setup. A virtual keyboard in a VM is not a compatible
+physical keyboard. KeyPath refuses ambiguous setup rather than choosing a
+device arbitrarily.
 
 ## Why F18 is involved
 
-Caps Lock changes macOS's Caps Lock state before KeyPath's normal driverless
-keyboard interception point. Treating it like an ordinary key there is not enough.
-The workaround uses a macOS mapping on one selected keyboard:
+Caps Lock changes macOS's lock state before ordinary driverless interception.
+KeyPath uses a macOS mapping on the selected keyboard:
 
 ```text
-Physical Caps Lock → macOS substitutes F18 → KeyPath interprets logical Caps Lock
-                                             → Kanata applies your Caps rule
-                                             → e.g. Escape on tap, Control on hold
+Physical Caps Lock → macOS substitutes F18 → KeyPath applies your Caps Lock rule
 ```
 
-F18 is an internal intermediate key, not the action you are choosing. You still
-configure a Caps Lock rule; you do not need to write an F18 rule. This approach
-does not install the Karabiner driver or require Full Disk Access. Accessibility
-and Input Monitoring remain part of driverless setup.
+F18 is an internal intermediate key. Configure a Caps Lock rule, not an F18
+rule. This does not install a keyboard driver or require Full Disk Access.
+Accessibility is used by driverless setup; a separate Input Monitoring step is not required in the tested flow.
 
 ## What if I use F18?
 
-**Managed Caps remapping reserves F18.** At the interception point,
-a real F18 event is indistinguishable from Caps Lock that macOS changed into F18.
-Using both would risk making your real F18 key perform your Caps Lock action.
-The device-specific macOS mapping does not give the later event stream reliable
-keyboard identity.
+**Managed Caps remapping reserves F18.** A real F18 event cannot be reliably
+distinguished from Caps Lock that macOS changed into F18. Managed configurations
+therefore reject native F18 input and output.
 
-Setup requires an explicit declaration that F18 is reserved, checks
-existing device mappings for conflicts, and rejects native F18 input/output in a
-managed-Caps configuration. These checks cannot discover every shortcut in other
-apps or prove that another device will never send F18.
+If you need F18, disable managed Caps setup and use another trigger key.
+Ordinary configurations without managed Caps can still use F18. KeyPath does
+not automatically select another intermediate key.
 
-If you need F18, keep managed Caps disabled and use another supported key for your
-remap. F18 is not globally removed from KeyPath: ordinary driverless profiles
-without managed Caps can still use it. There is currently no automatic switch to
-F19, F20, or another intermediate key.
+## Can I still turn Caps Lock on?
 
-## Other boundaries
+Yes. Caps Lock output uses the native macOS lock state. Backup Caps Lock and
+multi-tap rules can toggle it; holding or repeating that output does not
+repeatedly toggle the state. This is distinct from remapping the physical
+Caps Lock input, which needs compatible keyboard setup.
 
-- Setup admits one eligible physical keyboard, explicitly selected. It
-  does not promise arbitrary multi-keyboard or reconnect support.
-- Existing Caps mappings or mappings using F18 on that device cause refusal;
-  KeyPath does not silently overwrite them.
-- Managed mode does not support emitting Caps Lock or F18 as output. Recipes such
-  as double-tap to restore Caps Lock are not supported in managed driverless mode.
-- Protected password fields and Secure Input do not gain dynamic remapping from
-  this workaround. Do not rely on a Caps remap for password entry.
-- KeyPath records the original device mapping and checks ownership before
-  restoring it. Uncertain recovery or someone else's changed mapping can block
-  restart instead of being overwritten. Crash, reconnect, and reboot handling
-  are not universally verified.
+## Restarts and connected keyboards
 
-## Should KeyPath choose another intermediate key automatically?
+The saved selection identifies one keyboard instance for the current boot.
+When it becomes stale, automatic setup can discover an eligible keyboard again;
+it does not trust an old device identifier after reconnect or reboot. Exactly
+one compatible keyboard is required for automatic selection.
 
-**Recommendation: keep F18 fixed for the first supported version.** Explain a
-conflict when enabling Caps remapping, preserve the user's existing shortcuts,
-and offer another trigger key. Keep this detail out of ordinary onboarding when
-Caps remapping is not being enabled.
+KeyPath checks existing mappings and ownership before changing or restoring
+them. Conflicting mappings are refused. If safe restoration cannot be verified,
+the recovery record is retained and restart can be blocked. Follow the displayed
+recovery instructions instead of overwriting another mapping.
 
-If demand justifies it later, add a small advanced choice of explicitly supported
-intermediate keys, selected while remapping is stopped. Validate the choice and
-save it with the configuration and recovery record. That would preserve F18 for
-users who need it without silently changing their setup.
+Disabling setup preserves your rules. A configuration that still uses physical
+Caps Lock needs setup enabled again, or a different trigger.
 
-Automatic reassignment is deferred. An apparently unused key in KeyPath may have
-an important shortcut in another app. Changing it also requires coordinated
-updates to macOS's mapping, input interpretation, configuration validation, and
-crash recovery. This is more than replacing one constant, and live switching
-while a key is held would add unnecessary risk.
+## Other limitations
 
-## Tested production flow
+- Managed Caps setup does not promise arbitrary multi-keyboard behavior.
+- Protected password fields and Secure Input do not gain dynamic remapping.
+  Do not rely on a Caps remap for password entry.
+- Media and brightness remapping remain unavailable in driverless mode.
+  Your keyboard's normal media controls remain managed by macOS.
 
-The non-debug build passed explicit keyboard/F18 setup, physical Caps Lock tap → Escape and hold → Control, clean release, Disable restoration and disabled-consent startup refusal on the ESP32 fixture. Other keyboards and reboot/reselection remain part of release qualification. Caps Lock tap/hold is briefly mentioned in onboarding; setup details remain in this guide.
+## Validation status
 
+The current implementation includes automatic selection and native Caps Lock
+output. These describe code behavior, not a completed hardware certification.
+Physical USB qualification of the current candidate, including reconnect and
+restart recovery, remains a release gate. Earlier physical tests do not
+substitute for testing this candidate.
 
 ## Updating KeyPath
 

@@ -16,7 +16,7 @@ extension ConfigurationService {
         defer { try? FileManager.default.removeItem(at: path) }
         try await writeFileURLAsync(string: config, to: path)
         let result = SessionCapsRuntimeSupport.validate(
-            configPath: path.path, runtimeHost: sessionValidationRuntimeHost
+            configPath: path.path, runtimeHost: sessionValidationRuntimeHost, requireSelection: false
         ).result
         switch result {
         case .valid:

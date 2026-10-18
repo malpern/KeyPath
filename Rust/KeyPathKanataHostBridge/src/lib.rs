@@ -999,6 +999,400 @@ mod tests {
     }
 
     #[test]
+    fn advanced_actions_emit_native_caps_press_and_release_without_stuck_keys() {
+        use kanata_state_machine::oskbd::{KeyEvent, KeyValue};
+        let cases = [
+            ("direct", "", "caps", 2),
+            ("tap_hold", "", "(tap-hold 30 30 esc caps)", 60),
+            ("macro", "", "(macro caps)", 60),
+            ("tap_dance", "", "(tap-dance 30 (caps esc))", 2),
+            ("multi", "", "(multi caps lctl)", 2),
+            (
+                "chord",
+                "(defchords grp 30 (x y) caps)",
+                "(chord grp x) (chord grp y)",
+                60,
+            ),
+        ];
+        for (name, prefix, action, hold_ms) in cases {
+            let path = std::env::temp_dir()
+                .join(format!("keypath-caps-{name}-{}.kbd", std::process::id()));
+            let source = if name == "chord" { "caps a" } else { "caps" };
+            std::fs::write(
+                &path,
+                format!("{prefix}(defsrc {source})(deflayer base {action})"),
+            )
+            .unwrap();
+            let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+            let mut error = vec![0 as c_char; 512];
+            let handle = keypath_kanata_bridge_create_passthru_runtime(
+                cfg_path.as_ptr(),
+                0,
+                error.as_mut_ptr(),
+                error.len(),
+            );
+            assert!(!handle.is_null(), "{name}: {}", read_error_buffer(&error));
+            let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+            {
+                let mut k = runtime.runtime.lock();
+                let caps = kanata_state_machine::str_to_oscode("caps").unwrap();
+                k.handle_input_event(&KeyEvent::new(caps, KeyValue::Press))
+                    .unwrap();
+                let a = kanata_state_machine::str_to_oscode("a").unwrap();
+                if name == "chord" {
+                    k.handle_input_event(&KeyEvent::new(a, KeyValue::Press))
+                        .unwrap();
+                }
+                k.tick_ms(hold_ms, &None).unwrap();
+                k.handle_input_event(&KeyEvent::new(caps, KeyValue::Release))
+                    .unwrap();
+                if name == "chord" {
+                    k.handle_input_event(&KeyEvent::new(a, KeyValue::Release))
+                        .unwrap();
+                }
+                k.tick_ms(100, &None).unwrap();
+                assert_eq!(k.layout.b().keycodes().count(), 0, "{name}: stuck output");
+            }
+            let events: Vec<_> = runtime.output_rx.try_iter().collect();
+            assert!(
+                !events.iter().any(|e| e.page == 7 && e.code == 109),
+                "{name}: leaked F18"
+            );
+            let caps_events: Vec<_> = events
+                .iter()
+                .filter(|e| e.page == 7 && e.code == 57)
+                .map(|e| e.value)
+                .collect();
+            // Legacy chords can emit duplicate releases; the native latch ignores
+            // them. Exactly one press must toggle, followed only by releases.
+            assert_eq!(caps_events.first(), Some(&1), "{name}: native Caps press");
+            assert!(
+                caps_events.len() >= 2 && caps_events[1..].iter().all(|value| *value == 0),
+                "{name}: unbalanced Caps output {caps_events:?}"
+            );
+            keypath_kanata_bridge_destroy_passthru_runtime(handle);
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+
+    #[test]
+    fn chords_v2_two_shifts_toggle_caps_once_and_release_cleanly() {
+        use kanata_state_machine::oskbd::{KeyEvent, KeyValue};
+        use kanata_state_machine::OsCode;
+
+        let path =
+            std::env::temp_dir().join(format!("keypath-chordsv2-{}.kbd", std::process::id()));
+        std::fs::write(&path, "(defcfg concurrent-tap-hold yes)(defchordsv2 (lsft rsft) caps 50 all-released ())(defsrc caps lsft rsft)(deflayer base esc lsft rsft)").unwrap();
+        let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+        let mut error = vec![0 as c_char; 512];
+        let usages = [41u32, 57, 225, 229];
+        assert!(
+            keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                cfg_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                true,
+                error.as_mut_ptr(),
+                error.len()
+            ),
+            "{}",
+            read_error_buffer(&error)
+        );
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg_path.as_ptr(),
+            0,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+        {
+            let mut k = runtime.runtime.lock();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(5, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_RIGHTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(10, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(5, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_RIGHTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(100, &None).unwrap();
+            // Reverse order and release order must make a second, independent pulse.
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_RIGHTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(5, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(10, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_RIGHTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(5, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(100, &None).unwrap();
+            // A single participant that times out must not activate the chord.
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(100, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(100, &None).unwrap();
+            assert_eq!(
+                k.layout.b().keycodes().count(),
+                0,
+                "chord left held outputs"
+            );
+        }
+        let events: Vec<_> = runtime.output_rx.try_iter().collect();
+        let caps: Vec<_> = events
+            .iter()
+            .filter(|e| e.page == 7 && e.code == 57)
+            .map(|e| e.value)
+            .collect();
+        assert_eq!(
+            caps,
+            vec![1, 0, 1, 0],
+            "two shift chords must make one Caps pulse each: {events:?}"
+        );
+        assert!(
+            !events.iter().any(|e| e.page == 7 && e.code == 109),
+            "F18 leaked"
+        );
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn chords_v2_overlapping_candidates_select_only_completed_chord() {
+        use kanata_state_machine::oskbd::{KeyEvent, KeyValue};
+        use kanata_state_machine::OsCode;
+        let path = std::env::temp_dir().join(format!("keypath-overlap-{}.kbd", std::process::id()));
+        std::fs::write(&path, "(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) caps 50 all-released () (a c) esc 50 all-released ())(defsrc caps a b c)(deflayer base esc a b c)").unwrap();
+        let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+        let mut error = vec![0 as c_char; 512];
+        let usages = [4u32, 5, 6, 41, 57];
+        assert!(
+            keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                cfg_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                true,
+                error.as_mut_ptr(),
+                error.len()
+            ),
+            "{}",
+            read_error_buffer(&error)
+        );
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg_path.as_ptr(),
+            0,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+        {
+            let mut k = runtime.runtime.lock();
+            for second in [OsCode::KEY_B, OsCode::KEY_C] {
+                k.handle_input_event(&KeyEvent::new(OsCode::KEY_A, KeyValue::Press))
+                    .unwrap();
+                k.tick_ms(5, &None).unwrap();
+                k.handle_input_event(&KeyEvent::new(second, KeyValue::Press))
+                    .unwrap();
+                k.tick_ms(10, &None).unwrap();
+                k.handle_input_event(&KeyEvent::new(second, KeyValue::Release))
+                    .unwrap();
+                k.tick_ms(5, &None).unwrap();
+                k.handle_input_event(&KeyEvent::new(OsCode::KEY_A, KeyValue::Release))
+                    .unwrap();
+                k.tick_ms(100, &None).unwrap();
+                assert_eq!(k.layout.b().keycodes().count(), 0);
+            }
+        }
+        let events: Vec<_> = runtime.output_rx.try_iter().collect();
+        let caps: Vec<_> = events
+            .iter()
+            .filter(|e| e.page == 7 && e.code == 57)
+            .map(|e| e.value)
+            .collect();
+        let esc: Vec<_> = events
+            .iter()
+            .filter(|e| e.page == 7 && e.code == 41)
+            .map(|e| e.value)
+            .collect();
+        assert_eq!(
+            caps,
+            vec![1, 0],
+            "A+B should activate only Caps: {events:?}"
+        );
+        assert_eq!(
+            esc,
+            vec![1, 0],
+            "A+C should activate only Escape: {events:?}"
+        );
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn chords_v2_remain_balanced_while_a_tap_hold_is_active() {
+        use kanata_state_machine::oskbd::{KeyEvent, KeyValue};
+        use kanata_state_machine::OsCode;
+        let path =
+            std::env::temp_dir().join(format!("keypath-chord-taphold-{}.kbd", std::process::id()));
+        std::fs::write(&path, "(defcfg concurrent-tap-hold yes)(defchordsv2 (lsft rsft) caps 50 all-released ())(defsrc caps lsft rsft a)(deflayer base esc lsft rsft (tap-hold 30 30 a lctl))").unwrap();
+        let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+        let mut error = vec![0 as c_char; 512];
+        let usages = [4u32, 41, 57, 224, 225, 229];
+        assert!(
+            keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                cfg_path.as_ptr(),
+                usages.as_ptr(),
+                usages.len(),
+                true,
+                error.as_mut_ptr(),
+                error.len()
+            ),
+            "{}",
+            read_error_buffer(&error)
+        );
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg_path.as_ptr(),
+            0,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+        {
+            let mut k = runtime.runtime.lock();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_A, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(60, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(5, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_RIGHTSHIFT, KeyValue::Press))
+                .unwrap();
+            k.tick_ms(10, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_LEFTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(5, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_RIGHTSHIFT, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(100, &None).unwrap();
+            k.handle_input_event(&KeyEvent::new(OsCode::KEY_A, KeyValue::Release))
+                .unwrap();
+            k.tick_ms(100, &None).unwrap();
+            assert_eq!(
+                k.layout.b().keycodes().count(),
+                0,
+                "tap-hold/chord left output held"
+            );
+        }
+        let events: Vec<_> = runtime.output_rx.try_iter().collect();
+        let values = |code| {
+            events
+                .iter()
+                .filter(|e| e.page == 7 && e.code == code)
+                .map(|e| e.value)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            values(57),
+            vec![1, 0],
+            "Caps chord while tap-hold active: {events:?}"
+        );
+        assert_eq!(
+            values(224),
+            vec![1, 0],
+            "Control hold must release: {events:?}"
+        );
+        assert!(
+            !events.iter().any(|e| e.page == 7 && e.code == 109),
+            "F18 leaked"
+        );
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn managed_caps_input_drives_advanced_actions() {
+        use kanata_state_machine::oskbd::{KeyEvent, KeyValue};
+        let cases: [(&str, &str, &[(&str, bool, u16)], &[u32]); 8] = [
+            ("remap", "(defsrc caps)(deflayer base esc)", &[("caps", true, 5), ("caps", false, 50)], &[41]),
+            ("tap_hold_tap", "(defsrc caps)(deflayer base (tap-hold 30 30 esc lctl))", &[("caps", true, 5), ("caps", false, 50)], &[41]),
+            ("tap_hold_hold", "(defsrc caps)(deflayer base (tap-hold 30 30 esc lctl))", &[("caps", true, 60), ("caps", false, 50)], &[224]),
+            ("macro", "(defsrc caps)(deflayer base (macro a b))", &[("caps", true, 100), ("caps", false, 100)], &[4, 5]),
+            ("tap_dance", "(defsrc caps)(deflayer base (tap-dance 30 (esc a)))", &[("caps", true, 5), ("caps", false, 100)], &[41]),
+            ("tap_dance_double", "(defsrc caps)(deflayer base (tap-dance 30 (esc a)))", &[("caps", true, 5), ("caps", false, 5), ("caps", true, 5), ("caps", false, 100)], &[4]),
+            ("legacy_chord", "(defchords grp 50 (x y) b)(defsrc caps a)(deflayer base (chord grp x) (chord grp y))", &[("caps", true, 5), ("a", true, 60), ("caps", false, 5), ("a", false, 100)], &[5]),
+            ("chordsv2", "(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) b 50 all-released ())(defsrc caps a)(deflayer base esc a)", &[("caps", true, 5), ("a", true, 10), ("caps", false, 5), ("a", false, 100)], &[5]),
+        ];
+        for (name, config, steps, expected_presses) in cases {
+            let path = std::env::temp_dir().join(format!(
+                "keypath-caps-input-{name}-{}.kbd",
+                std::process::id()
+            ));
+            std::fs::write(&path, config).unwrap();
+            let cfg_path = CString::new(path.to_str().unwrap()).unwrap();
+            let mut error = vec![0 as c_char; 512];
+            let usages = [4u32, 5, 41, 57, 224];
+            assert!(
+                keypath_kanata_bridge_validate_session_config_with_managed_caps(
+                    cfg_path.as_ptr(),
+                    usages.as_ptr(),
+                    usages.len(),
+                    true,
+                    error.as_mut_ptr(),
+                    error.len()
+                ),
+                "{name}: {}",
+                read_error_buffer(&error)
+            );
+            let handle = keypath_kanata_bridge_create_passthru_runtime(
+                cfg_path.as_ptr(),
+                0,
+                error.as_mut_ptr(),
+                error.len(),
+            );
+            assert!(!handle.is_null(), "{name}: {}", read_error_buffer(&error));
+            let runtime = unsafe { &*handle.cast::<PassthruRuntime>() };
+            {
+                let mut k = runtime.runtime.lock();
+                for &(key, down, delay_ms) in steps {
+                    let code = kanata_state_machine::str_to_oscode(key).unwrap();
+                    let value = if down {
+                        KeyValue::Press
+                    } else {
+                        KeyValue::Release
+                    };
+                    k.handle_input_event(&KeyEvent::new(code, value)).unwrap();
+                    k.tick_ms(delay_ms.into(), &None).unwrap();
+                }
+                k.tick_ms(100, &None).unwrap();
+                assert_eq!(k.layout.b().keycodes().count(), 0, "{name}: stuck output");
+            }
+            let events: Vec<_> = runtime.output_rx.try_iter().collect();
+            assert!(
+                !events.iter().any(|e| e.page == 7 && e.code == 109),
+                "{name}: leaked F18"
+            );
+            let pressed: Vec<u32> = events
+                .iter()
+                .filter(|e| e.page == 7 && e.value == 1)
+                .map(|e| e.code)
+                .collect();
+            assert_eq!(pressed, expected_presses, "{name}: {events:?}");
+            keypath_kanata_bridge_destroy_passthru_runtime(handle);
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+
+    #[test]
     fn create_passthru_runtime_returns_handle_and_empty_output_queue() {
         let cfg_path = passthru_cfg_path();
         let mut error_buffer = vec![0 as c_char; 512];
@@ -1195,7 +1589,7 @@ mod managed_caps_admission_tests {
             )
         );
         assert_eq!(error[0], 0);
-        std::fs::write(&path, "(defsrc caps)(deflayer base (macro caps))").unwrap();
+        std::fs::write(&path, "(defsrc caps)(deflayer base (macro f18))").unwrap();
         assert!(
             !keypath_kanata_bridge_validate_session_config_with_managed_caps(
                 c_path.as_ptr(),

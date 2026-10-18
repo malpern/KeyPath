@@ -227,12 +227,12 @@ LAYER DEFINITIONS
   ;; === Collection: Caps Lock Remap (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Make Caps Lock actually useful with tap and hold actions
-  _
+  @beh_base_caps
 
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  _
+  del
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
@@ -252,37 +252,37 @@ LAYER DEFINITIONS
   ;; === Momentary Layer Switch ===
   ;; Input: space
   ;; Activates: Navigation
-      _    
+                                @layer_nav_spc                              
 
   ;; === Momentary Layer Switch ===
   ;; Input: f
   ;; Activates: Home-Arrows
-  _
+  @layer_home-arrows_f
 
   ;; === Collection: macOS Function Keys (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Preserves brightness, volume, media, and system control keys (F1-F12).
-  _ _ _ _ _ _ _ _ _ _ _ _
+  brdn         brup         @act_base_f3 @act_base_f4 @act_base_f5 @act_base_f6 prev         pp           next         mute         vold         volu        
 
   ;; === Collection: Vim - Apple Keyboard Shortcuts (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Access familiar macOS shortcuts using Vim keys. Hold Leader + hjkl for arrows, y/p for copy/paste, u for undo, and more.
-  _
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _
-  _    _    _    _    _    _    _    pgup up   pgdn _    _    _    _   
-  _     _     _     _     home  left  down  right end   _     _    
-  _ _ _ _ _ _ _ _ _ _
-  _ _ _ _
+  esc
+  grv  1    2    3    4    5    6    7    8    9    0    min  eql  bspc
+  tab  q    w    e    r    t    y    pgup up   pgdn p    [    ]    \   
+  a     s     d     g     home  left  down  right end   '     ret  
+  z x c v b n m , . /
+  down  left  right up   
 
   ;; === Collection: Caps Lock Remap (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Make Caps Lock actually useful with tap and hold actions
-  _
+  @beh_base_caps
 
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  _
+  del
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>
@@ -302,7 +302,7 @@ LAYER DEFINITIONS
   ;; === Momentary Layer Switch ===
   ;; Input: space
   ;; Activates: Navigation
-      _    
+                                @layer_nav_spc                              
 
   ;; === Momentary Layer Switch ===
   ;; Input: f
@@ -312,27 +312,27 @@ LAYER DEFINITIONS
   ;; === Collection: macOS Function Keys (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Preserves brightness, volume, media, and system control keys (F1-F12).
-  _ _ _ _ _ _ _ _ _ _ _ _
+  brdn         brup         @act_base_f3 @act_base_f4 @act_base_f5 @act_base_f6 prev         pp           next         mute         vold         volu        
 
   ;; === Collection: Vim - Apple Keyboard Shortcuts (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Access familiar macOS shortcuts using Vim keys. Hold Leader + hjkl for arrows, y/p for copy/paste, u for undo, and more.
-  _
-  _               @act_launcher_1 @act_launcher_2 _               _               _               _               _               _               _               _               _               _               _              
-  _               _               _               _               @act_launcher_r _               _               _               _               _               _               _               _               _              
-  @act_launcher_a _               _               _               @act_launcher_h @act_launcher_j @act_launcher_k @act_launcher_l _               _               _              
-  @act_launcher_z @act_launcher_x @act_launcher_c _               _               _               _               _               _               _              
-  _ _ _ _
+  esc
+  grv             @act_launcher_1 @act_launcher_2 3               4               5               6               7               8               9               0               min             eql             bspc           
+  tab             q               w               e               @act_launcher_r t               y               u               i               o               p               [               ]               \              
+  @act_launcher_a s               d               g               @act_launcher_h @act_launcher_j @act_launcher_k @act_launcher_l ;               '               ret            
+  @act_launcher_z @act_launcher_x @act_launcher_c v               b               n               m               ,               .               /              
+  down  left  right up   
 
   ;; === Collection: Caps Lock Remap (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Make Caps Lock actually useful with tap and hold actions
-  _
+  @beh_base_caps
 
   ;; === Collection: Fast Navigation (enabled) ===
   ;; UUID: <UUID>
   ;; Description: Arrow keys and delete repeat 3× faster. Regular keys stay steady.
-  _
+  del
 
   ;; === Collection: Home Row Arrows (enabled) ===
   ;; UUID: <UUID>

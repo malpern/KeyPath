@@ -53,10 +53,19 @@ final class OverlayAppSuppressor {
         preferenceChangeObserver = nil
     }
 
+    /// Permission settings and authentication must remain unobstructed, even
+    /// when the user has not configured any app-specific exclusions.
+    static func shouldSuppress(frontBundle: String?, userSuppressed: Set<String>) -> Bool {
+        guard let frontBundle else { return false }
+        return frontBundle == "com.apple.systempreferences"
+            || frontBundle == "com.apple.SecurityAgent"
+            || userSuppressed.contains(frontBundle)
+    }
+
     private func applyForCurrentApp() {
         let frontBundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         let suppressed = PreferencesService.shared.overlaySuppressedBundleIDs
-        if let frontBundle, suppressed.contains(frontBundle) {
+        if Self.shouldSuppress(frontBundle: frontBundle, userSuppressed: suppressed) {
             LiveKeyboardOverlayController.shared.suppressForApp()
         } else {
             LiveKeyboardOverlayController.shared.restoreFromAppSuppression()

@@ -5,8 +5,8 @@ extension LiveKeyboardOverlayController {
 
     func suppressForApp() {
         guard !isAppSuppressed else { return }
+        wasVisibleBeforeAppSuppression = isVisible && canAutoShow
         isAppSuppressed = true
-        wasVisibleBeforeAppSuppression = isVisible
         if isVisible {
             isVisible = false
         }

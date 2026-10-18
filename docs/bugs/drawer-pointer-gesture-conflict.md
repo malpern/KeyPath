@@ -1,0 +1,13 @@
+# Drawer key ignores pointer clicks
+
+The keyboard's top-right drawer control reached the inspector controller through accessibility activation, but ordinary pointer clicks were intercepted before that callback. Reproduced on the Air using the same installed build and target: accessibility activation opened the inspector; coordinate clicks left it closed.
+
+The Touch ID-position control shared the regular keycap's recognizer chain. A high-priority tap was followed by launcher single/double taps and a zero-distance selection drag. With the inspector closed, the outer drag uses `GestureMask.none`; with it open, the zero-distance selection drag participates even though its callback excludes Touch ID. This shared gesture stack is inappropriate for a simple drawer button. The isolated hosted keycap passes synthetic window-event tests, so those tests alone do not reproduce the installed-app failure.
+
+Keep this control outside that gesture chain. Render its shared keycap surface inside a plain SwiftUI Button, and retain the selection gestures only on actual keyboard keys. Preserve the accessibility identifier and announce Open/Close settings drawer instead of a lock glyph.
+
+The failing installed-app regression uses CUA coordinate clicks rather than accessibility activation: with the drawer open, click the center of `keycap-code-65535` and assert `inspector-tab-mapper` disappears; click again and assert it returns. The first assertion failed on the original signed build on the Air. The executable CUA recipe is `Scripts/ui-tests/drawer-pointer-regression.js`; its screenshot-derived coordinates must be updated when the window size or position changes.
+
+Complementary Swift tests mount the real keycap in an NSHostingView and deliver local mouse-down/up events, checking exactly one callback both closed and open. They do not post global input events or require Accessibility permissions. The real recognizer's double-click interval is awaited to accommodate the old disambiguation path. These isolated tests passed before the fix as well and must not be reported as red-to-green reproduction evidence.
+
+Focused validation: 25 Swift tests passed, zero compiler warnings; 380 files passed the accessibility identifier check. Installed-app pointer verification passed on the Air after installing the signed candidate: a coordinate click opened the drawer (mapper tab appeared), and another coordinate click closed it (mapper tab disappeared). Fresh screenshots located the control before each click. Candidate ZIP SHA-256: `1a5013f69fff5b289f6c04517a640bb3ab762364d471f37ffb037a6799e961c6`. The user also independently confirmed the original build still failed with the window stationary before this update.

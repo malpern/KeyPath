@@ -3,6 +3,10 @@ import KeyPathRulesCore
 
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {
+    static func driverlessUnavailableReason(for id: UUID) -> String? {
+        id == RuleCollectionIdentifier.funLayer ? SystemActionInfo.driverlessMediaUnavailableReason : nil
+    }
+
     func defaultCollections() -> [RuleCollection] {
         // Fresh profiles use conservative keyboard behavior. Keep every built-in
         // definition available without silently changing persisted enable states.

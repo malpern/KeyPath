@@ -87,12 +87,12 @@ struct PackDetailView: View {
             header
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    descriptionBlock
+                    if !isWindowSnappingPack { descriptionBlock }
                     bindingsBlock
                     if !nonTimingQuickSettings.isEmpty {
                         quickSettingsBlock
                     }
-                    dependencySection
+                    if !isWindowSnappingPack { dependencySection }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 20)
@@ -169,6 +169,10 @@ struct PackDetailView: View {
 
     // MARK: - Header
 
+    var isWindowSnappingPack: Bool {
+        pack.associatedCollectionID == RuleCollectionIdentifier.windowSnapping
+    }
+
     var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Top controls: a breadcrumb-style "Gallery" back link on the
@@ -213,7 +217,10 @@ struct PackDetailView: View {
             }
 
             HStack(alignment: .center, spacing: 16) {
-                heroIcon
+                if isWindowSnappingPack {
+                    Image(systemName: pack.iconSymbol).font(.title2).foregroundStyle(Color.accentColor)
+                        .frame(width: 36, height: 36)
+                } else { heroIcon }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(displayName)
@@ -257,7 +264,7 @@ struct PackDetailView: View {
                             if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                         }
                     }
-                    Text(displayTagline)
+                    Text(pack.associatedCollectionID.flatMap { RuleCollectionCatalog.driverlessUnavailableReason(for: $0) } ?? (isWindowSnappingPack ? "Arrange windows from your keyboard." : displayTagline))
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -277,7 +284,7 @@ struct PackDetailView: View {
                 .toggleStyle(.switch)
                 .tint(.accentColor)
                 .scaleEffect(0.91, anchor: .trailing)
-                .disabled(isWorking || managingPackName != nil)
+                .disabled(isWorking || managingPackName != nil || (!isInstalled && pack.associatedCollectionID.flatMap { RuleCollectionCatalog.driverlessUnavailableReason(for: $0) } != nil))
                 .overlay {
                     if managingPackName != nil {
                         Color.clear
@@ -290,7 +297,7 @@ struct PackDetailView: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 32)
+        .padding(.top, isWindowSnappingPack ? 8 : 32)
         .padding(.bottom, 14)
     }
 
@@ -393,8 +400,7 @@ struct PackDetailView: View {
     /// can render the user's latest selections, not catalog defaults).
     var liveAssociatedCollection: RuleCollection? {
         guard let collectionID = pack.associatedCollectionID else { return nil }
-        let live = kanataManager.underlyingManager
-            .ruleCollectionsManager.ruleCollections
+        let live = kanataManager.ruleCollections
             .first { $0.id == collectionID }
         if let live { return live }
         return RuleCollectionCatalog().defaultCollections()
@@ -402,8 +408,7 @@ struct PackDetailView: View {
     }
 
     func liveCollection(for id: UUID) -> RuleCollection? {
-        let live = kanataManager.underlyingManager
-            .ruleCollectionsManager.ruleCollections
+        let live = kanataManager.ruleCollections
             .first { $0.id == id }
         if let live { return live }
         return RuleCollectionCatalog().defaultCollections()

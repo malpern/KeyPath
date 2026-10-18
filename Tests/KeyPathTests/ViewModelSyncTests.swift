@@ -57,8 +57,8 @@ struct WindowSnappingActivationModeTests {
         if !supportedEntrance,
            let capsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
         {
-            // Keep the historical rejection tied to a real unsupported physical
-            // Caps input, independently of supported layer-exit actions.
+            // Exercise the historical Caps entrance, now supported by generated
+            // explicit layer fallbacks.
             manager.ruleCollections[capsIndex].isEnabled = true
         }
 
@@ -73,9 +73,16 @@ struct WindowSnappingActivationModeTests {
         return manager
     }
 
-    @Test("Unsupported historical Hyper entrance preserves activation state and sources")
-    func unsupportedHyperEntranceRefusesBeforeJournalOrReload() async throws {
+    @Test("Unsupported media output preserves activation state and sources")
+    func unsupportedMediaOutputRefusesBeforeJournalOrReload() async throws {
         let manager = try await createManagerWithWindowSnapping(supportedEntrance: false)
+        // Caps plus generated layers is supported. Retain rollback coverage with
+        // an actually unsupported output, not the old transparent-layer defect.
+        manager.ruleCollections.append(RuleCollection(
+            name: "Unsupported media", summary: "", category: .custom,
+            mappings: [KeyMapping(input: "f20", action: .keystroke(key: "volu"))], isEnabled: true
+        ))
+        try await manager.ruleCollectionStore.saveCollections(manager.ruleCollections)
         let beforeCollections = manager.ruleCollections
         #expect(beforeCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
         let directory = URL(fileURLWithPath: manager.configurationService.configurationPath).deletingLastPathComponent()

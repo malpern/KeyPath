@@ -62,6 +62,21 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(result.logs.first?.contains("KeyPath-Uninstall-Backup-") == true)
     }
 
+    func testLoginItemRemovalFailurePreservesAppAndSettings() async throws {
+        var resumed = false
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+            prepare: { true }, resume: { resumed = true }, removeLoginItem: {
+                XCTAssertEqual(try self.backups().count, 1, "Backup must already exist")
+                throw CocoaError(.fileWriteNoPermission)
+            }, trash: { _ in XCTFail("Must not trash before verified login-item removal") })
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(resumed)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: app.path))
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(".config/keypath/keypath.kbd"), encoding: .utf8), "rules")
+        XCTAssertTrue(defaults.bool(forKey: "wizard_has_seen_welcome"))
+    }
+
     func testCleanupRefusalRemovesNothing() async {
         var resumed = false
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,

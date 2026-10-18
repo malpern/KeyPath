@@ -1,235 +1,166 @@
 import SwiftUI
 
-// MARK: - Things-Style Settings Design System
-
-/// Clean, flat form layout matching Things app design
-struct FormRow<Content: View>: View {
-    let label: String
-    let content: () -> Content
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            Text(label)
-                .frame(width: 180, alignment: .trailing)
-                .foregroundColor(.primary)
-
-            content()
-
-            Spacer()
-        }
-        .padding(.vertical, 8)
-    }
+/// Shared settings primitives. Native controls retain platform keyboard/focus behavior.
+/// Specialty editors (rules, keyboard diagrams, history tables) keep their own content.
+enum SettingsDesign {
+    static let pageInset: CGFloat = 20
+    static let sectionGap: CGFloat = 24
+    static let sectionContentGap: CGFloat = 12
+    static let rowGap: CGFloat = 12
+    static let labelGap: CGFloat = 2
+    static let cardInset: CGFloat = 16
+    static let cornerRadius: CGFloat = 12
+    static let optionRadius: CGFloat = 8
+    static let optionWidth: CGFloat = 240
+    static let compactOptionWidth: CGFloat = 190
+    static let optionGap: CGFloat = 10
 }
 
-/// Section with optional header and clean separator
-struct FormSection<Content: View>: View {
-    let header: String?
-    let content: () -> Content
-
-    init(header: String? = nil, @ViewBuilder content: @escaping () -> Content) {
-        self.header = header
-        self.content = content
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let header {
-                Text(header)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .padding(.bottom, 12)
-            }
-
-            VStack(spacing: 0) {
-                content()
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
-
-            Divider()
-                .padding(.top, 16)
-        }
-    }
-}
-
-/// Status indicator with colored dot and text
-struct StatusRow: View {
-    let label: String
-    let status: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
-
-            Text(status)
-                .font(.body)
-                .foregroundColor(.primary)
-
-            Spacer()
-        }
-    }
-}
-
-/// Clean button row for settings actions
-struct ActionButtonRow: View {
-    let buttons: [ActionButton]
-
-    struct ActionButton {
-        let title: String
-        let icon: String?
-        let style: ActionStyle
-        let action: () -> Void
-
-        enum ActionStyle {
-            case primary
-            case secondary
-            case destructive
-        }
-
-        init(
-            title: String, icon: String? = nil, style: ActionStyle = .secondary,
-            action: @escaping () -> Void
-        ) {
-            self.title = title
-            self.icon = icon
-            self.style = style
-            self.action = action
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(buttons.indices, id: \.self) { index in
-                buttonView(for: buttons[index])
-            }
-            Spacer()
-        }
-    }
-
-    @ViewBuilder
-    private func buttonView(for button: ActionButton) -> some View {
-        let baseButton = Button(action: button.action) {
-            if let icon = button.icon {
-                Label(button.title, systemImage: icon)
-            } else {
-                Text(button.title)
-            }
-        }
-
-        switch button.style {
-        case .primary:
-            baseButton
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .accessibilityIdentifier("settings-action-button-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-                .accessibilityLabel(button.title)
-        case .secondary:
-            baseButton
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .accessibilityIdentifier("settings-action-button-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-                .accessibilityLabel(button.title)
-        case .destructive:
-            baseButton
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .tint(.red)
-                .accessibilityIdentifier("settings-action-button-\(button.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-                .accessibilityLabel(button.title)
-        }
-    }
-}
-
-/// Info row with icon and description
-struct InfoRow: View {
-    let icon: String
-    let iconColor: Color
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(iconColor)
-                .frame(width: 20)
-
-            Text(text)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
-        }
-    }
-}
-
-/// Simple list item for rules/logs
-struct SimpleListItem: View {
+struct SettingsSectionHeader: View {
     let title: String
-    let subtitle: String?
-    let icon: String?
-    let action: (() -> Void)?
-
-    init(title: String, subtitle: String? = nil, icon: String? = nil, action: (() -> Void)? = nil) {
-        self.title = title
-        self.subtitle = subtitle
-        self.icon = icon
-        self.action = action
-    }
+    var icon: String?
+    var color: Color = .secondary
 
     var body: some View {
-        Button(action: action ?? {}) {
-            HStack(spacing: 12) {
-                if let icon {
-                    Image(systemName: icon)
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
+        HStack(spacing: 8) {
+            if let icon {
+                Image(systemName: icon).foregroundStyle(color).font(.body)
+            }
+            Text(title).font(.headline).foregroundStyle(.secondary)
+        }
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+struct SettingsSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SettingsDesign.sectionContentGap) {
+            SettingsSectionHeader(title: title)
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct SettingsCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .padding(SettingsDesign.cardInset)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
+    }
+}
+
+struct SettingsToggleRow: View {
+    let title: String
+    var subtitle: String?
+    var help: String?
+    var subtitleColor: Color = .secondary
+    @Binding var isOn: Bool
+    let identifier: String
+
+    var body: some View {
+        HStack(alignment: .center, spacing: SettingsDesign.rowGap) {
+            VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
+                HStack(spacing: 4) {
+                    Text(title).font(.body.weight(.medium))
+                    if let help { InfoTip(help) }
                 }
+                if let subtitle {
+                    Text(subtitle).font(.caption).foregroundStyle(subtitleColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer()
+            Toggle(title, isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.regular)
+                .accessibilityIdentifier(identifier)
+                .accessibilityLabel(title)
+        }
+    }
+}
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.body)
-                        .foregroundColor(.primary)
+extension View {
+    func settingsBackground() -> some View {
+        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color(nsColor: .windowBackgroundColor))
+    }
 
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+    func settingsAction() -> some View {
+        buttonStyle(.bordered).controlSize(.regular)
+    }
+
+    func settingsPrimaryAction() -> some View {
+        buttonStyle(.borderedProminent).controlSize(.regular)
+    }
+}
+
+/// A compact macOS-style row: recognizable label on the left, native control on the right.
+struct SettingsControlRow<Control: View>: View {
+    let title: String
+    let icon: String
+    var help: String?
+    @ViewBuilder let control: Control
+
+    var body: some View {
+        HStack(spacing: SettingsDesign.rowGap) {
+            Image(systemName: icon).foregroundStyle(.secondary).frame(width: 20)
+            Text(title).font(.body.weight(.medium))
+            if let help { InfoTip(help) }
+            Spacer(minLength: SettingsDesign.rowGap)
+            control
+        }
+    }
+}
+
+/// Appearance choices show the actual label treatment rather than describing it.
+struct SettingsKeyPreviewChoice: View {
+    let title: String
+    let keys: [String]
+    var dimmed = false
+    let isSelected: Bool
+    let identifier: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: SettingsDesign.optionGap) {
+                HStack(spacing: 6) {
+                    ForEach(keys, id: \.self) { key in
+                        Text(key).font(.system(size: 12, weight: .medium))
+                            .frame(minWidth: 44, minHeight: 32)
+                            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(.primary.opacity(0.18), lineWidth: 1))
                     }
                 }
-
-                Spacer()
-
-                if action != nil {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                .opacity(dimmed ? 0.35 : 1)
+                HStack(spacing: 6) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    Text(title).font(.body)
                 }
             }
-            .padding(.vertical, 8)
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(SettingsDesign.cardInset)
+            .background(isSelected ? Color.accentColor.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: SettingsDesign.optionRadius))
+            .overlay(RoundedRectangle(cornerRadius: SettingsDesign.optionRadius)
+                .stroke(isSelected ? Color.accentColor : Color(nsColor: .separatorColor), lineWidth: isSelected ? 1.5 : 0.5))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("settings-info-row-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityIdentifier(identifier)
         .accessibilityLabel(title)
-    }
-}
-
-// MARK: - Settings Container Style
-
-extension View {
-    /// Apply consistent settings container background
-    func settingsBackground() -> some View {
-        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color(NSColor.windowBackgroundColor))
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

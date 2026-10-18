@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathPermissions
 import KeyPathInstallationWizard
 import KeyPathWizardCore
 import SwiftUI
@@ -17,7 +18,8 @@ enum SettingsSystemStatusRowsBuilder {
         wizardSystemState: WizardSystemState,
         wizardIssues: [WizardIssue],
         systemContext: SystemContext?,
-        tcpConfigured: Bool?
+        tcpConfigured: Bool?,
+        driverless: Bool = false
     ) -> [SettingsSystemStatusRowModel] {
         // Mirror wizard summary ordering and semantics.
         var rows: [SettingsSystemStatusRowModel] = []
@@ -108,7 +110,7 @@ enum SettingsSystemStatusRowsBuilder {
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "kanata-service",
-                title: "KeyPath Runtime",
+                title: driverless ? "Keyboard remapping" : "KeyPath Runtime",
                 icon: "app.badge.checkmark",
                 status: serviceStatus,
                 targetPage: .service,
@@ -142,7 +144,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        return rows
+        return driverless ? rows.filter { $0.id == "kanata-service" } : rows
     }
 }
 
@@ -240,5 +242,16 @@ private extension InstallationStatus {
         case .failed: "failed"
         case .unverified: "unverified"
         }
+    }
+}
+
+/// A single visible permission must retain failures or uncertainty from either process.
+enum SettingsPermissionSummary {
+    static func combine(_ app: PermissionOracle.Status?, _ runtime: PermissionOracle.Status?) -> PermissionOracle.Status {
+        let statuses = [app ?? .unknown, runtime ?? .unknown]
+        if let error = statuses.first(where: { if case .error = $0 { return true }; return false }) { return error }
+        if statuses.contains(.denied) { return .denied }
+        if statuses.contains(.unknown) { return .unknown }
+        return .granted
     }
 }

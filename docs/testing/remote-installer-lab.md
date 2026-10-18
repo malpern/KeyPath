@@ -15,6 +15,10 @@ Only disposable leases created by this interface can be destroyed or swept.
 Logs, manifests, commands, results, screenshots, and collected test artifacts
 remain beneath `KeyPathInstallerLab` on the external volume after cleanup.
 
+## Pre-run iteration policy
+
+Read the maintained lab checkout’s `docs/iteration-workflow.md` before creating a VM (currently `/Users/malpern/local-code/vm-lab-automation-robustness`). Plan scenarios and pass conditions, verify action support, and batch tests of the same admitted artifact. Clean consent testing is a distinct gate from ordinary UI iteration. The current lab cannot replace the pinned installer in an existing lease; do not bypass admission. A cancelled permission prompt does not prove revoke/regrant. Keep the owned lease through useful same-artifact retests, then collect evidence and destroy it.
+
 ## Prerequisites
 
 - SSH access to `clawd@keypath-lab-mini` without an interactive password.

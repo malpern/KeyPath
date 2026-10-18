@@ -33,6 +33,29 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testSessionShutdownNeverSignalsBroadcastOrProcessGroupTargets() {
+        for signal in [SIGTERM, SIGKILL] {
+            var sent: [Int32] = []
+            for invalidPID: Int32 in [-1, 0, -42] {
+                let accepted = ServiceLifecycleCoordinator.signalSessionProcess(
+                    pid: invalidPID, signal: signal,
+                    send: { pid, _ in sent.append(pid); return 0 }
+                )
+                XCTAssertFalse(accepted)
+            }
+            XCTAssertTrue(sent.isEmpty)
+            XCTAssertTrue(ServiceLifecycleCoordinator.signalSessionProcess(
+                pid: 12345, signal: signal,
+                send: { pid, actualSignal in
+                    sent.append(pid)
+                    XCTAssertEqual(actualSignal, signal)
+                    return 0
+                }
+            ))
+            XCTAssertEqual(sent, [12345])
+        }
+    }
+
     func testCapsSelectionRefusalPreservesConsentAndRequiresSuccessfulCleanup() async {
         var commits = 0
         var verifications = 0

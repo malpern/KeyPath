@@ -3,6 +3,44 @@ import KeyPathCore
 import KeyPathRulesCore
 
 extension RuleCollectionsManager {
+    /// Restore only a verifiable managed snapshot, through the same retained write as edits.
+    /// Current handwritten config and changed generation inputs fail closed.
+    func restoreConfigurationBackup(_ backup: BackupInfo) async -> SaveResult {
+        await withRuleMutation(failure: SaveResult.failure(RuleBackupSnapshot.Failure.requiresManagedRestore)) { [self] permit in
+            do {
+                try await recoverRuleState(mutationPermit: permit)
+                let before = snapshotRuleState()
+                let backupSnapshot = try RuleBackupSnapshot.read(backup)
+                let candidate = try backupSnapshot.decodedRules()
+                let defaults = preferencesService.persistenceDefaults
+                let backupPreferences = backupSnapshot.generationPreferences
+                let preferenceChanges = try backupPreferences?.changes(from: defaults) ?? []
+                let shortcutInput = try backupPreferences?.shortcutInput()
+                ruleCollections = candidate.collections
+                customRules = candidate.customRules
+                let result = await SaveCoordinator(configurationService: configurationService).saveRuleState(
+                    manager: self, mutationPermit: permit,
+                    preferenceChanges: preferenceChanges,
+                    leaderKeyPreference: backupPreferences?.leader,
+                    shortcutListGenerationInput: shortcutInput,
+                    restoringBackupContent: backupSnapshot.config,
+                    reloadHandler: onRulesChanged
+                )
+                if !result.success {
+                    ruleCollections = before.collections
+                    customRules = before.customRules
+                }
+                refreshLayerIndicatorState()
+                if result.success {
+                    preferencesService.reloadLeaderKeyPreference(from: defaults)
+                    preferencesService.reloadShortcutListGenerationInput(from: defaults)
+                    NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
+                }
+                return result
+            } catch { return .failure(error) }
+        }
+    }
+
     /// Persist shortcut-list generation settings only with the generated
     /// configuration that uses them. The preference service keeps its prior
     /// in-memory value until the retained write is accepted or deferred.

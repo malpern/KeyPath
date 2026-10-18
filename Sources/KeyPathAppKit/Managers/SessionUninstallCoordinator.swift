@@ -11,6 +11,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
     private let prepare: () async -> Bool
     private let resume: () async -> Void
     private let trash: (URL) throws -> Void
+    private let removeLoginItem: () async throws -> Void
     private let files = FileManager.default
 
     init(
@@ -20,6 +21,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         domain: String = "com.keypath.KeyPath",
         prepare: @escaping () async -> Bool,
         resume: @escaping () async -> Void,
+        removeLoginItem: @escaping () async throws -> Void = {},
         trash: @escaping (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
     ) {
         self.home = home
@@ -29,6 +31,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         self.prepare = prepare
         self.resume = resume
         self.trash = trash
+        self.removeLoginItem = removeLoginItem
     }
 
     func performUninstall(deleteConfig: Bool, removeVirtualHID: Bool, allowAdminFallback: Bool) async -> WizardUninstallResult {
@@ -77,6 +80,8 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         }
 
         do {
+            // Leave data and the app intact if login-item removal cannot be verified.
+            try await removeLoginItem()
             for path in paths {
                 let source = home.appendingPathComponent(path)
                 // lstat-style lookup also finds dangling symlinks.

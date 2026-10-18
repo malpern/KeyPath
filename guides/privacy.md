@@ -50,15 +50,15 @@ The remapping engine sits between your keyboard and your apps, transforming keys
 
 ## Permissions in the driverless version
 
-The driverless version uses **Accessibility** and **Input Monitoring**. The remapping runtime runs in your signed-in user session, without installing a virtual keyboard driver or a privileged remapping service.
+The driverless version asks for **Accessibility**. The remapping runtime runs in your signed-in user session, without installing a virtual keyboard driver or a privileged remapping service.
 
 ### Accessibility
 
 Allows KeyPath to intercept and send remapped keyboard events and support app-specific behavior. Setup guides you to the normal macOS consent screen.
 
-### Input Monitoring
+### Effective keyboard access
 
-Allows keyboard input access required by the runtime. Setup checks effective access and guides you through the normal macOS grant when needed. Unknown status stays unverified until the runtime can report its access.
+KeyPath verifies that its running process can receive and post keyboard events. In the tested driverless flow, Accessibility supplies this access without a separate Input Monitoring grant. Setup checks actual runtime access rather than treating a Settings toggle as proof of readiness.
 
 macOS may ask you to authenticate when changing these permissions. Removing a privileged installer does not remove macOS's own authentication requirements.
 
@@ -160,7 +160,7 @@ Yes. KeyPath no longer requests or uses Full Disk Access. Browser-history import
 
 ### How do I remove the driverless app and saved rules?
 
-Quit KeyPath and move KeyPath.app to the Trash. Your rules and backups remain in `~/.config/keypath/`, and local diagnostic logs remain in `~/Library/Logs/KeyPath/`. If you also want to remove those files, delete those folders after saving any backups you want to keep. This does not remove older system services or drivers installed by other apps.
+Use **Settings → Repair/Remove → Uninstall KeyPath**. KeyPath saves a backup in Downloads, removes your rules and preferences, disables launch at login, and moves the app to the Trash. Local diagnostic logs remain in `~/Library/Logs/KeyPath/`. Moving only the app to the Trash leaves settings behind. Uninstall does not revoke macOS permission grants or remove drivers installed by other apps.
 
 ### What about the VirtualHID driver?
 

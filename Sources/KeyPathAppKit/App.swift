@@ -182,11 +182,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
+        // Uninstall has already drained keyboard cleanup and configuration writes.
+        // Its write gate stays closed, so do not start another asynchronous quit
+        // from the removed bundle or flush plugins into settings being removed.
+        if kanataManager?.uninstallCleanupCompleted == true {
+            return .terminateNow
+        }
         terminationCoordinator.request(
             suppressStarts: { [self] active in
                 kanataManager?.serviceLifecycleCoordinator.setTerminationPreparationActive(active)
             },
-            stop: { [self] in await viewModel?.stopKanata(reason: "Application termination") ?? false },
+            stop: { [self] in
+                if kanataManager?.uninstallCleanupCompleted == true { return true }
+                return await viewModel?.stopKanata(reason: "Application termination") ?? false
+            },
             updateExpected: { UpdateService.shared.isUpdateTerminationExpected },
             cleanupRefused: { cancel in
                 if cancel {
@@ -372,7 +381,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DistributedNotificationBridge.stop()
         // Flush pending KindaVim telemetry so counters aren't lost on quit (up to one
         // ~5s flush interval would otherwise be dropped — see #690). No-op when disabled.
-        KindaVimTelemetryStore.shared.flushNow()
+        if kanataManager?.uninstallCleanupCompleted != true {
+            KindaVimTelemetryStore.shared.flushNow()
+        }
         kanataManager?.cleanupSync()
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
     }
@@ -412,13 +423,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // A reinstall can retain macOS grants and regenerate a valid config.
         // Runtime health alone must not bypass the fresh-install Welcome page.
         guard hasExistingConfig,
-              !WizardWelcomeGate.shouldShowWelcome(helperInstalled: false) else {
+              !WizardWelcomeGate.shouldShowWelcome(helperInstalled: false),
+              !FirstSuccessOnboardingGate.isPending() else {
             LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
             return false
         }
         let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
         let completed = health.isReady
-        LiveKeyboardOverlayController.shared.setOnboardingCompleted(completed)
+        // Runtime readiness does not release the overlay while the tour owns focus.
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(
+            completed && !FirstSuccessOnboardingWindowController.isPresented
+        )
         return completed
     }
 
@@ -426,6 +441,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         unhideAndActivate()
 
         let completedInitialWizard = await hasCompletedInitialWizard()
+        // Recheck after the health await: the tour can appear during validation.
+        if FirstSuccessOnboardingWindowController.bringPresentedTourToFront() {
+            mainWindowController?.window?.orderOut(nil)
+            return
+        }
         let surface = ReopenPolicy.surface(
             hasExistingConfig: hasExistingConfig,
             hasCompletedInitialWizard: completedInitialWizard,
@@ -482,7 +502,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var launchSplashDelayMs: Int {
         #if DEBUG
-            Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "") ?? 650
+            Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "") ?? 1200
         #else
             1200
         #endif
@@ -758,10 +778,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 )
             },
             openSettingsHandler: {
-                NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+                openPreferencesTab(.openSettingsGeneral)
             },
             openSettingsRulesHandler: {
-                NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                openPreferencesTab(.openSettingsRules)
             },
             quitHandler: {
                 NSApplication.shared.terminate(nil)
@@ -809,6 +829,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         )
+        // The wizard owns a separate window. Retire the launch splash at handoff
+        // instead of relying on its setup-suppressed automatic dismissal.
+        mainWindowController?.window?.orderOut(nil)
+        suppressLaunchSplashAutoHide = false
+        AppLogger.shared.info("[AppDelegate] Launch splash dismissed after wizard handoff")
     }
 
     @MainActor

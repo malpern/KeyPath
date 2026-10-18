@@ -144,9 +144,10 @@ extension ServiceLifecycleCoordinator {
                 try await Task.sleep(for: .milliseconds(100))
             }
             let terminalReport = sessionReportURL.flatMap(Self.readSessionReport)
-            let failure = terminalReport?.failure == "missing-current-process-permission"
-                ? "Enable Accessibility and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
-                : terminalReport?.failure
+            if let terminalReport, terminalReport.belongsTo(nonce: nonce, pid: application.processIdentifier, uid: getuid()) {
+                AppLogger.shared.info("[SessionRuntime] Startup retired state=\(terminalReport.state.rawValue) reason=\(terminalReport.recoveryReason ?? "none") failure=\(terminalReport.failure ?? "none")")
+            }
+            let failure = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
             #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
                 if let terminalReport,
                    sessionStartIsCurrent(generation),
@@ -169,7 +170,7 @@ extension ServiceLifecycleCoordinator {
                Self.canRetryWakeStartup(terminalReport, nonce: nonce, pid: application.processIdentifier,
                                         uid: getuid(), cleanedUp: cleanedUp) {
                 sessionWakeRetryGeneration = generation
-                onWarning?("Release all keys to resume remapping.")
+                onWarning?("Waiting for your keyboard to become ready after wake.")
                 onStateChanged?()
                 return false
             }
@@ -210,13 +211,13 @@ extension ServiceLifecycleCoordinator {
         sessionSupervisionTask = nil
         await AppContextService.shared.stop()
         if let application, !application.isTerminated {
-            kill(application.processIdentifier, SIGTERM)
+            _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGTERM)
             for _ in 0 ..< 40 {
                 if application.isTerminated { break }
                 await waitForSessionTermination()
             }
             if !application.isTerminated {
-                kill(application.processIdentifier, SIGKILL)
+                _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGKILL)
                 for _ in 0 ..< 20 {
                     if application.isTerminated { break }
                     await waitForSessionTermination()
@@ -241,6 +242,17 @@ extension ServiceLifecycleCoordinator {
         sessionOutputsRecovered = false
         onStateChanged?()
         return true
+    }
+
+    /// One signal boundary for owned session shutdown; injected transport keeps
+    /// lifecycle tests from signaling the host or its process group.
+    @discardableResult
+    static func signalSessionProcess(
+        pid: Int32, signal: Int32,
+        send: (Int32, Int32) -> Int32 = { kill($0, $1) }
+    ) -> Bool {
+        guard pid > 0 else { return false }
+        return send(pid, signal) == 0
     }
 
     private func waitForSessionTermination() async {
@@ -318,7 +330,9 @@ extension ServiceLifecycleCoordinator {
                                             retiredAt: terminalReport?.timestamp)
             return false
         }
-        onError?("Driverless remapping stopped. Original keyboard input remains available; restart to recover.")
+        let recovery = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
+            ?? "Quit and reopen KeyPath to recover."
+        onError?("Driverless remapping stopped. Original keyboard input remains available. \(recovery)")
         onStateChanged?()
         return false
     }
@@ -354,7 +368,7 @@ extension ServiceLifecycleCoordinator {
                 if await resumeSessionRuntime(expectedGeneration: expectedGeneration, reason: "System wake") { return true }
                 guard sessionStartIsCurrent(expectedGeneration),
                       sessionWakeRetryGeneration == expectedGeneration else { return false }
-                AppLogger.shared.info("[SessionRuntime] Wake startup deferred until keys are released")
+                AppLogger.shared.info("[SessionRuntime] Wake startup interrupted; retrying after readiness checks")
             }
             #if DEBUG
                 if let wait = testSessionWakeWait {
@@ -370,9 +384,14 @@ extension ServiceLifecycleCoordinator {
 
     static func canRetryWakeStartup(_ report: SessionRuntimeReport?, nonce: String,
                                     pid: Int32, uid: UInt32, cleanedUp: Bool) -> Bool {
-        cleanedUp && report?.belongsTo(nonce: nonce, pid: pid, uid: uid) == true
-            && report?.state == .failed
-            && report?.failure == "managed-caps-activation-refused: physicalKeysHeld"
+        guard cleanedUp, let report, report.belongsTo(nonce: nonce, pid: pid, uid: uid) else { return false }
+        // A late system-wake notification can retire the replacement before
+        // startup has installed its supervisor. Preserve the same recovery loop
+        // after verified cleanup, just as for a held-key activation race.
+        if report.state == .stopped || report.state == .failed,
+           report.recoveryReason == "system-wake-observed" { return true }
+        return report.state == .failed
+            && report.failure == "managed-caps-activation-refused: physicalKeysHeld"
     }
 
     private func sessionWakeReadinessBlocker() -> String? {
@@ -384,6 +403,22 @@ extension ServiceLifecycleCoordinator {
               console.uid == getuid(), console.onConsole, console.loginDone else { return "console-not-ready" }
         do { try SessionCapsRuntimeSupport.requirePhysicalAllUp(); return nil }
         catch { return "held-keys" }
+    }
+
+    /// Disabled taps can indicate revoked consent, but the notification does not
+    /// prove that cause. Offer permission recovery without reporting a false denial.
+    static func sessionFailureRecoveryMessage(_ failure: String) -> String {
+        AppLogger.shared.error("[SessionRuntime] Terminal failure: \(failure)")
+        switch failure {
+        case "missing-current-process-permission":
+            return "Enable \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings, then quit and reopen KeyPath."
+        case "tap-disabled-by-user-input", "tap-disabled-observed", "modifying-tap-unavailable", "modifying-tap-not-enabled":
+            return "Check \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings. If access is disabled, enable it, then quit and reopen KeyPath."
+        case "tap-disabled-by-timeout":
+            return "macOS stopped keyboard capture because it timed out. Quit and reopen KeyPath to recover."
+        default:
+            return "Quit and reopen KeyPath to recover."
+        }
     }
 
     private func stopUnresponsiveSession(expectedGeneration: UInt64, nonce: String) async -> Bool {
@@ -474,6 +509,7 @@ extension ServiceLifecycleCoordinator {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         configuration.activates = false
+        configuration.hides = true
         configuration.addsToRecentItems = false
         configuration.arguments = [
             capabilitiesOnly ? "--session-capabilities" : "--session-runtime",

@@ -377,7 +377,7 @@ private struct FirstSuccessLauncherShortcutField: View {
     }
 }
 
-private struct FirstSuccessRunningAppPicker: View {
+struct FirstSuccessRunningAppPicker: View {
     let selectApp: (AppLaunchInfo) -> Void
     let browse: () -> Void
 
@@ -432,6 +432,12 @@ private struct FirstSuccessRunningAppPicker: View {
             .accessibilityIdentifier("first-success-launcher-browse-app")
         }
         .frame(width: 330, height: 390)
+        // Sheets have their own native appearance. Own both sides of the
+        // contrast pair instead of inheriting dark tour ink on a dark sheet.
+        .foregroundStyle(FirstSuccessOnboardingPalette.light.primaryText.color)
+        .background(FirstSuccessOnboardingPalette.light.backgroundLeading.color)
+        .environment(\.colorScheme, .light)
+        .preferredColorScheme(.light)
         .accessibilityIdentifier("first-success-launcher-running-app-picker")
         .onAppear {
             runningApps = FirstSuccessRunningAppChoice.currentChoices()

@@ -287,6 +287,28 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertEqual(decoded.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
     }
 
+    func testPermissionGuidanceUsesOSPaneNameWithoutChangingPolicyOrDeepLink() {
+        for (major, name) in [(26, "Accessibility"), (27, "Device Control and Data Access")] {
+            let presentation = AccessibilityPermissionPresentation(macOSMajorVersion: major)
+            let contexts = [
+                sessionContext(appAX: .denied),
+                historicalDriverContext(
+                    permissionsStatus: .denied, helperReady: true,
+                    servicesHealthy: true, componentsInstalled: true
+                )
+            ]
+            for context in contexts {
+                let issues = SystemFacade.issues(from: context, accessibility: presentation)
+                let issue = issues.first { $0.title == "KeyPath needs \(name) permission" }
+                XCTAssertEqual(issue?.action, "Open KeyPath.app and grant \(name) in System Settings > Privacy & Security > \(name)")
+                XCTAssertEqual(issue?.remediationURL, "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+                XCTAssertEqual(issue?.severity, .error)
+                XCTAssertEqual(issue?.requiresUserAction, true)
+                XCTAssertFalse(SystemFacade.isOperational(context))
+            }
+        }
+    }
+
     func testPermissionIssuesPreserveTriModeSemantics() {
         let granted = historicalDriverContext(
             permissionsStatus: .granted,
@@ -370,7 +392,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         let context = sessionContext(appAX: .unknown, effectiveAX: .unknown, effectiveInput: .unknown)
         XCTAssertFalse(SystemFacade.isOperational(context))
         let issues = SystemFacade.issues(from: context)
-        XCTAssertEqual(issues.first?.title, "KeyPath Accessibility permission not verified")
+        XCTAssertEqual(issues.first?.title, "KeyPath \(AccessibilityPermissionPresentation.current.name) permission not verified")
         XCTAssertTrue(issues.contains { $0.action.contains("active session") })
         XCTAssertFalse(issues.contains {
             $0.action.contains("Full Disk Access") || $0.remediationURL == "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
@@ -379,8 +401,8 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
     func testSessionAccessibilityRemediationComesBeforeInputMonitoring() {
         let issues = SystemFacade.issues(from: sessionContext(appAX: .denied, effectiveInput: .denied))
-        XCTAssertEqual(issues.first?.title, "KeyPath needs Accessibility permission")
-        XCTAssertEqual(issues.filter { $0.title.contains("Accessibility") }.count, 1)
+        XCTAssertEqual(issues.first?.title, "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission")
+        XCTAssertEqual(issues.filter { $0.title.contains(AccessibilityPermissionPresentation.current.name) }.count, 1)
         XCTAssertFalse(issues.contains { $0.title.contains("Kanata Engine") })
     }
 

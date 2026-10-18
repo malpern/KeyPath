@@ -99,6 +99,10 @@ Notes:
 
 ### VM Lab Concurrency (mandatory admission path)
 
+- Before VM admission, follow the pre-run iteration policy in
+  `docs/testing/remote-installer-lab.md`. Batch same-artifact tests, verify scenario
+  capabilities before setup, and keep clean-consent evidence separate from UI iteration.
+
 - The lab now lives in its own repository and serves several projects. All
   disposable KeyPath VM work must go through the installed `vm-lab` CLI, which
   takes the tenant first: `vm-lab keypath <command>`. Do not create
@@ -468,3 +472,7 @@ Load these on demand; do not treat them as required reading for every session.
 | Architecture guides | `docs/architecture/` |
 | ADRs | `docs/adr/README.md` |
 | Feature docs | `docs/features/` |
+
+## Air UI iteration
+
+Follow `docs/ITERATION_WORKFLOW.md` for small Air-focused changes. Use Help → Preview KeyPath Tour for non-mutating visual checks, the real tour for save integration checks, and verify both JSON and generated config after deleting test shortcuts. Record the installed binary hash and distinguish automated coverage from live verification.

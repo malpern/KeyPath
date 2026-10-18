@@ -50,7 +50,7 @@ fn action_supported(
         Action::KeyCode(KeyCode::ErrorUndefined) => true, // Parser's unused-slot sentinel.
         Action::KeyCode(key) => {
             let output = OsCode::from(*key);
-            (!managed_caps || !matches!(output, OsCode::KEY_CAPSLOCK | OsCode::KEY_F18))
+            (!managed_caps || !matches!(output, OsCode::KEY_F18))
                 && (key_supported(*key, usages) || output == input)
         }
         Action::MultipleKeyCodes(keys) => keys.iter().all(|key| key_supported(*key, usages)),
@@ -113,14 +113,41 @@ fn action_supported(
 }
 
 pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
+    use kanata_parser::cfg::Overrides;
     if cfg.input_devices.is_some()
         || cfg.options.macos_opts.macos_dev_names_include.is_some()
         || cfg.options.macos_opts.macos_dev_names_exclude.is_some()
+        || cfg.overrides != Overrides::new(&[])
+        || cfg.zippy.is_some()
+        || cfg.options.start_alias.is_some()
     {
         return false;
     }
 
+    // Native Caps output is handled by SessionCapsLockOutput independently
+    // of physical Caps capture. Never add it to the input eligibility set.
+    let mut output_usages = usages.to_vec();
+    if !output_usages.contains(&57) {
+        output_usages.push(57);
+    }
     let virtual_inputs: Vec<u16> = cfg.fake_keys.values().map(|index| *index as u16).collect();
+    // Chords v2 store actions outside the layer tree. Check captured inputs
+    // and recursively validate their separately stored output actions.
+    if let Some(chords) = cfg.layout.b().chords_v2.as_ref() {
+        for entry in chords.chords().mapping.values() {
+            for chord in &entry.chords {
+                if !chord.participating_keys.iter().all(|raw| {
+                    OsCode::try_from(usize::from(*raw)).ok().is_some_and(|key| {
+                        cfg.mapped_keys.contains(&key)
+                            && PageCode::try_from(key)
+                                .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
+                    })
+                }) || !action_supported(chord.action, OsCode::KEY_RESERVED, &output_usages, &virtual_inputs, false) {
+                    return false;
+                }
+            }
+        }
+    }
     cfg.layout.b().layers.iter().all(|layer| layer.iter().enumerate().all(|(row, actions)| {
         actions.iter().enumerate().all(|(position, action)| {
             // Only physical rows have an unchanged-input exemption. A virtual
@@ -142,7 +169,7 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
                     return allowed;
                 }
             }
-            action_supported(action, input, usages, &virtual_inputs, false)
+            action_supported(action, input, &output_usages, &virtual_inputs, false)
         })
     }))
 }
@@ -156,20 +183,47 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
         || cfg.options.macos_opts.macos_dev_names_include.is_some()
         || cfg.options.macos_opts.macos_dev_names_exclude.is_some()
         || cfg.overrides != Overrides::new(&[])
-        || cfg.layout.b().chords_v2.is_some()
         || cfg.zippy.is_some()
         || cfg.options.start_alias.is_some()
-        || !cfg.mapped_keys.contains(&OsCode::KEY_CAPSLOCK)
-        || cfg.mapped_keys.contains(&OsCode::KEY_F18)
+        || !cfg.source_keys.contains(&OsCode::KEY_CAPSLOCK)
+        || cfg.source_keys.contains(&OsCode::KEY_F18)
     {
         return false;
     }
     let usages: Vec<u32> = output_usages
         .iter()
         .copied()
-        .filter(|usage| !matches!(usage, 57 | 109))
+        .filter(|usage| *usage != 109)
         .collect();
+    let mut usages = usages;
+    if !usages.contains(&57) {
+        usages.push(57);
+    }
     let virtual_inputs: Vec<u16> = cfg.fake_keys.values().map(|index| *index as u16).collect();
+    // Chords v2 live outside the layer action tree. Validate both the physical
+    // participant inputs and each separately stored chord action before launch.
+    if let Some(chords) = cfg.layout.b().chords_v2.as_ref() {
+        for entry in chords.chords().mapping.values() {
+            for chord in &entry.chords {
+                if !chord.participating_keys.iter().all(|raw| {
+                    OsCode::try_from(usize::from(*raw)).ok().is_some_and(|key| {
+                        cfg.mapped_keys.contains(&key)
+                            && (key == OsCode::KEY_CAPSLOCK
+                                || PageCode::try_from(key)
+                                    .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code)))
+                    })
+                }) || !action_supported(
+                    chord.action,
+                    OsCode::KEY_RESERVED,
+                    &usages,
+                    &virtual_inputs,
+                    true,
+                ) {
+                    return false;
+                }
+            }
+        }
+    }
     cfg.layout.b().layers.iter().all(|layer| {
         layer.iter().enumerate().all(|(row, actions)| {
             actions.iter().enumerate().all(|(position, action)| {
@@ -182,7 +236,7 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
                 // physical input. They cannot be processed by captured input;
                 // repeat is refused globally, so cannot replay them either.
                 if row == 0
-                    && !cfg.mapped_keys.contains(&input)
+                    && !cfg.source_keys.contains(&input)
                     && (matches!(action, Action::KeyCode(key) if OsCode::from(*key) == input)
                         || matches!(action, Action::Trans))
                 {
@@ -207,6 +261,16 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_caps_output_does_not_require_capturing_physical_caps() {
+        for action in ["caps", "(tap-hold 200 200 esc caps)", "(macro caps)", "(tap-dance 200 (esc caps))"] {
+            let cfg = kanata_parser::cfg::new_from_str(&format!("(defsrc a)(deflayer base {action})"), Default::default()).unwrap();
+            assert!(supported(&cfg, &[4, 41]), "{action}");
+        }
+        let input = kanata_parser::cfg::new_from_str("(defsrc caps)(deflayer base esc)", Default::default()).unwrap();
+        assert!(!supported(&input, &[4, 41]), "Output support must not authorize physical Caps capture");
+    }
 
     fn managed(text: &str) -> bool {
         let cfg = kanata_parser::cfg::new_from_str(text, Default::default()).unwrap();
@@ -235,23 +299,32 @@ mod tests {
     }
 
     #[test]
-    fn managed_caps_rejects_source_transparency_repeat_and_reserved_outputs() {
+    fn managed_caps_accepts_native_latch_outputs() {
         for action in [
             "caps",
+            "(tap-hold 200 200 esc caps)",
+            "(macro esc caps)",
+            "(tap-dance 200 (esc caps))",
+            "(one-shot 200 caps)",
+            "(multi esc caps)",
+        ] {
+            assert!(
+                managed(&format!("(defsrc caps)(deflayer base {action})")),
+                "{action}"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_caps_rejects_source_transparency_repeat_and_reserved_outputs() {
+        for action in [
             "f18",
             "_",
             "use-defsrc",
             "rpt-any",
-            "(multi esc caps)",
-            "(tap-hold 200 200 esc caps)",
             "(tap-hold 200 200 esc f18)",
-            "(tap-hold 200 200 caps lctl)",
-            "(tap-hold-release-timeout 200 200 esc lctl caps)",
             "(tap-hold-release-timeout 200 200 esc lctl f18)",
-            "(macro esc caps)",
             "(macro esc f18)",
-            "(tap-dance 200 (esc caps))",
-            "(one-shot 200 caps)",
             "(multi esc rpt-any)",
             "(multi esc use-defsrc)",
         ] {
@@ -260,23 +333,25 @@ mod tests {
                 "{action}"
             );
         }
-        assert!(!managed("(defsrc caps a)(deflayer base esc caps)"));
-        assert!(!managed(
+        assert!(managed("(defsrc caps a)(deflayer base esc caps)"));
+        assert!(managed(
             "(defchords grp 200 (x) caps)(defsrc caps)(deflayer base (chord grp x))"
         ));
         assert!(!managed(
             "(defvirtualkeys vk_bad f18)(defsrc caps)(deflayer base esc)"
         ));
-        assert!(!managed(
+        assert!(managed(
             "(defcfg process-unmapped-keys yes)(defsrc caps)(deflayer base esc)"
         ));
+        assert!(!managed("(defcfg process-unmapped-keys yes)(defsrc caps f18)(deflayer base esc f18)"));
+        assert!(!managed("(defcfg process-unmapped-keys yes)(defsrc a)(deflayer base a)"));
         assert!(!managed("(defsrc caps f18)(deflayer base esc a)"));
         assert!(!managed("(defsrc caps f18)(deflayer base esc f18)"));
         assert!(!managed("(defsrc caps)(deflayer base esc)(deflayer nav _)"));
-        assert!(!managed(
+        assert!(managed(
             "(defvirtualkeys vk_bad (macro caps))(defsrc caps)(deflayer base esc)"
         ));
-        assert!(!managed("(defvirtualkeys vk_test XX)(defsrc caps)(deflayer base (switch ((input virtual vk_test)) esc break () caps break))"));
+        assert!(managed("(defvirtualkeys vk_test XX)(defsrc caps)(deflayer base (switch ((input virtual vk_test)) esc break () caps break))"));
     }
 
     #[test]
@@ -299,15 +374,18 @@ mod tests {
     }
 
     #[test]
-    fn managed_caps_refuses_global_overrides_and_chords_v2() {
+    fn managed_caps_refuses_global_overrides_and_unsafe_chords_v2() {
         assert!(!managed(
             "(defoverrides (a) (caps))(defsrc caps a)(deflayer base esc a)"
         ));
         assert!(!managed(
             "(defoverrides (a) (b))(defsrc caps a)(deflayer base esc a)"
         ));
-        assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) caps 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
-        assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) esc 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
+        assert!(managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) caps 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
+        assert!(managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) esc 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
+        assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) f18 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
+        assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) (macro f18) 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
+        assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) caps 100 all-released ())(defsrc caps)(deflayer base esc)"));
     }
 
     #[test]
@@ -389,4 +467,59 @@ mod tests {
         let cfg = kanata_parser::cfg::new_from_str("(defvirtualkeys vk_test volu)(defalias kp-a (switch ((input virtual vk_test)) b break () a break))(defsrc a)(deflayer base @kp-a)", Default::default()).unwrap();
         assert!(!supported(&cfg, &[4, 5]));
     }
+
+    #[test]
+    fn legacy_session_simple_mapping() {
+        let cfg = kanata_parser::cfg::new_from_str("(defsrc a)(deflayer base b)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), true);
+    }
+
+    #[test]
+    fn legacy_session_startup_unsupported() {
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg alias-to-trigger-on-load boot)(defalias boot volu)(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
+    #[test]
+    fn legacy_session_startup_opaque() {
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg alias-to-trigger-on-load boot)(defalias boot b)(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
+    #[test]
+    fn legacy_session_override_unsupported() {
+        let cfg = kanata_parser::cfg::new_from_str("(defoverrides (a) (volu))(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
+    #[test]
+    fn legacy_session_override_opaque() {
+        let cfg = kanata_parser::cfg::new_from_str("(defoverrides (a) (b))(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
+    #[test]
+    fn legacy_session_chord_unsupported() {
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) volu 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
+    #[test]
+    fn legacy_session_chord_nested_unsupported() {
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) (macro volu) 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
+    #[test]
+    fn legacy_session_chord_supported() {
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) esc 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), true);
+    }
+
+    #[test]
+    fn legacy_session_chord_uncapturable_input() {
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) esc 100 all-released ())(defsrc caps a)(deflayer base caps a)", Default::default()).unwrap();
+        assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
+    }
+
 }

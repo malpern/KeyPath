@@ -82,11 +82,15 @@ extension KeyboardVisualizationViewModel {
     }
 
     /// Pre-warm launcher mappings cache at startup so layer switch is instant.
-    func prewarmLauncherMappings() {
+    @discardableResult
+    func prewarmLauncherMappings(store: RuleCollectionStore = .shared) -> Task<Void, Never> {
         Task {
-            let mappings = await Self.buildLauncherMappings()
+            let mappings = await Self.buildLauncherMappings(store: store)
             await MainActor.run {
                 cachedLauncherMappings = mappings
+                // The drawer can preview launcher icons while the runtime stays on base.
+                // Keep this snapshot current; the view decides whether to display it.
+                launcherMappings = mappings
                 AppLogger.shared.info("🚀 [KeyboardViz] Pre-warmed \(mappings.count) launcher mappings")
             }
 
@@ -97,8 +101,8 @@ extension KeyboardVisualizationViewModel {
     }
 
     /// Build launcher mappings from rule collections (shared by load and prewarm).
-    private static func buildLauncherMappings() async -> [String: LauncherMapping] {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+    private static func buildLauncherMappings(store: RuleCollectionStore = .shared) async -> [String: LauncherMapping] {
+        let collections = await store.loadCollections()
 
         guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
               let config = launcherCollection.configuration.launcherGridConfig

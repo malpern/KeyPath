@@ -1,3 +1,4 @@
+import KeyPathCore
 import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathPermissions
@@ -167,7 +168,7 @@ struct PermissionOracleTests {
             kanata: granted,
             timestamp: now, backend: .driverKit
         )
-        #expect(axIssue.blockingIssue?.contains("KeyPath needs Accessibility") == true)
+        #expect(axIssue.blockingIssue?.contains("KeyPath needs \(AccessibilityPermissionPresentation.current.name)") == true)
 
         // KeyPath IM denied — soft (overlay only), NOT a blocking issue (#931)
         let keyPathIMBlocked = PermissionOracle.PermissionSet(

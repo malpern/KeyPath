@@ -66,11 +66,19 @@ public final class ActionDispatcher {
 
     private var fakeKeyTask: Task<Void, Never>?
     private var notifyTask: Task<Void, Never>?
-    private var scriptTask: Task<Void, Never>?
+    private(set) var scriptTask: Task<Void, Never>?
+    private let scriptSecurityService: ScriptSecurityService
+    private let scriptExecutor: (@MainActor (String) async throws -> Void)?
 
     // MARK: - Initialization
 
-    private init() {}
+    init(
+        scriptSecurityService: ScriptSecurityService = .shared,
+        scriptExecutor: (@MainActor (String) async throws -> Void)? = nil
+    ) {
+        self.scriptSecurityService = scriptSecurityService
+        self.scriptExecutor = scriptExecutor
+    }
 
     // MARK: - Dispatch
 
@@ -586,7 +594,7 @@ public final class ActionDispatcher {
 
         // Check permission first for better error message
         guard WindowManager.shared.hasAccessibilityPermission else {
-            let message = "Window Management requires Accessibility permission. Enable in System Settings > Privacy & Security > Accessibility."
+            let message = "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath)."
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
@@ -611,7 +619,7 @@ public final class ActionDispatcher {
     /// Format: keypath://folder/{path}
     private func handleFolder(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         // Reconstruct path from path components (handles paths with slashes)
-        let pathString = uri.pathComponents.joined(separator: "/")
+        let pathString = uri.fileActionPath
 
         guard !pathString.isEmpty else {
             let message = "folder action requires path: keypath://folder/{path}"
@@ -621,8 +629,7 @@ public final class ActionDispatcher {
         }
 
         // Expand tilde and decode URL encoding
-        let decodedPath = pathString.removingPercentEncoding ?? pathString
-        let expandedPath = (decodedPath as NSString).expandingTildeInPath
+        let expandedPath = (pathString as NSString).expandingTildeInPath
 
         AppLogger.shared.log("📁 [ActionDispatcher] Opening folder: \(expandedPath)")
 
@@ -662,7 +669,7 @@ public final class ActionDispatcher {
     /// Format: keypath://script/{path}
     private func handleScript(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         // Reconstruct path from path components
-        let pathString = uri.pathComponents.joined(separator: "/")
+        let pathString = uri.fileActionPath
 
         guard !pathString.isEmpty else {
             let message = "script action requires path: keypath://script/{path}"
@@ -672,13 +679,12 @@ public final class ActionDispatcher {
         }
 
         // Expand tilde and decode URL encoding
-        let decodedPath = pathString.removingPercentEncoding ?? pathString
-        let expandedPath = (decodedPath as NSString).expandingTildeInPath
+        let expandedPath = (pathString as NSString).expandingTildeInPath
 
         AppLogger.shared.log("📜 [ActionDispatcher] Script execution requested: \(expandedPath)")
 
         // Check security
-        let securityService = ScriptSecurityService.shared
+        let securityService = scriptSecurityService
         let checkResult = securityService.checkExecution(at: expandedPath)
 
         switch checkResult {
@@ -716,7 +722,7 @@ public final class ActionDispatcher {
             AppLogger.shared.log("🔐 [ActionDispatcher] Script needs user confirmation")
             if let handler = onScriptConfirmationNeeded {
                 handler(path, { [weak self] in
-                    LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
+                    // Approval waives another prompt, not current security/file checks.
                     // User confirmed - execute the script
                     self?.executeScript(at: path)
                 }, {
@@ -725,34 +731,57 @@ public final class ActionDispatcher {
                 })
             } else {
                 // No UI handler registered, cannot show dialog
-                onError?("Script execution requires confirmation but no UI is available")
+                let message = "Script execution requires confirmation but no UI is available"
+                onError?(message)
+                return .failed("script", NSError(domain: "ActionDispatcher", code: 11, userInfo: [
+                    NSLocalizedDescriptionKey: message
+                ]))
             }
-            return .success // Return success as we're showing the dialog
+            return .success // Approval UI is handling this request.
 
         case .allowed:
             // Execute directly
-            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             executeScript(at: expandedPath)
             return .success
         }
     }
 
-    /// Execute a script at the given path
+    /// Confirmation does not authorize execution after scripts are disabled or removed.
+    private func scriptRemainsExecutable(at path: String) -> Bool {
+        switch scriptSecurityService.checkExecution(at: path) {
+        case .allowed, .needsConfirmation:
+            return true
+        case .disabled:
+            onError?("Script execution is disabled. Enable it in Settings to run scripts.")
+        case let .fileNotFound(path):
+            onError?("Script not found: \(path)")
+        case let .notExecutable(path):
+            onError?("Script is not executable: \(path)")
+        }
+        return false
+    }
+
+    /// Execute an already-approved script, subject to current security settings.
     private func executeScript(at path: String) {
-        let securityService = ScriptSecurityService.shared
+        guard scriptRemainsExecutable(at: path) else { return }
+        let securityService = scriptSecurityService
         // Check script type on main actor before entering task
         let isAppleScriptFile = securityService.isAppleScript(path)
         let isInterpretedScript = securityService.isInterpretedScript(path)
 
         scriptTask?.cancel()
         scriptTask = Task { [weak self] in
+            guard let self, !Task.isCancelled, scriptRemainsExecutable(at: path) else { return }
+            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             do {
-                if isAppleScriptFile {
-                    try await self?.executeAppleScript(at: path)
+                if let executor = scriptExecutor {
+                    try await executor(path)
+                } else if isAppleScriptFile {
+                    try await executeAppleScript(at: path)
                 } else if isInterpretedScript {
-                    try await self?.executeInterpretedScript(at: path)
+                    try await executeInterpretedScript(at: path)
                 } else {
-                    try await self?.executeShellScript(at: path)
+                    try await executeShellScript(at: path)
                 }
 
                 securityService.logExecution(path: path, success: true, error: nil)
@@ -760,7 +789,7 @@ public final class ActionDispatcher {
             } catch {
                 securityService.logExecution(path: path, success: false, error: error.localizedDescription)
                 AppLogger.shared.log("❌ [ActionDispatcher] Script failed: \(path) - \(error)")
-                self?.onError?("Script execution failed: \(error.localizedDescription)")
+                onError?("Script execution failed: \(error.localizedDescription)")
             }
         }
     }

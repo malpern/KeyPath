@@ -169,7 +169,7 @@ extension PackDetailView {
             // picker + monitor canvas + floating action cards. Pack Detail
             // embeds the same view so the experience is identical.
             // Rules uses horizontal padding of 12 for this particular editor.
-            embeddedEditor(horizontalPadding: 12) {
+            Group {
                 WindowSnappingView(
                     mappings: collection.mappings,
                     convention: collection.windowKeyConvention ?? .standard,

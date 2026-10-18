@@ -44,25 +44,11 @@ struct AIConfigGenerationSettingsSection: View {
 
             // Biometric auth toggle (only show if key is configured)
             if hasAPIKey {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Require \(BiometricAuthService.shared.biometricTypeName)")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("Confirm before using API")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { BiometricAuthService.shared.isEnabled },
-                        set: { BiometricAuthService.shared.isEnabled = $0 }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                }
-                .accessibilityIdentifier("settings-ai-biometric-toggle")
-                .accessibilityLabel("Require biometric authentication")
+                SettingsToggleRow(
+                    title: "Require \(BiometricAuthService.shared.biometricTypeName)", subtitle: "Confirm before using API",
+                    isOn: Binding(get: { BiometricAuthService.shared.isEnabled }, set: { BiometricAuthService.shared.isEnabled = $0 }),
+                    identifier: "settings-ai-biometric-toggle"
+                )
             }
         }
         .onAppear {
@@ -110,8 +96,7 @@ struct AIConfigGenerationSettingsSection: View {
                 Button("Remove Saved Key") {
                     removeAPIKey()
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .settingsAction()
                 .accessibilityIdentifier("settings-ai-remove-key-button")
             } else {
                 // Environment variable - just show indicator
@@ -123,8 +108,7 @@ struct AIConfigGenerationSettingsSection: View {
             Button("Remove") {
                 removeAPIKey()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .settingsAction()
             .accessibilityIdentifier("settings-ai-remove-key-button")
         } else if isAddingKey {
             // Adding key - show cancel
@@ -134,15 +118,13 @@ struct AIConfigGenerationSettingsSection: View {
                 validationError = nil
                 saveFailed = false
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .settingsAction()
         } else {
             // No key - show add button
             Button("Add Key") {
                 isAddingKey = true
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .settingsPrimaryAction()
             .accessibilityIdentifier("settings-ai-add-key-button")
         }
     }
@@ -162,8 +144,7 @@ struct AIConfigGenerationSettingsSection: View {
                     Button("Save") {
                         Task { await saveAPIKey() }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .settingsPrimaryAction()
                     .disabled(apiKeyInput.isEmpty)
                     .accessibilityIdentifier("settings-ai-save-key-button")
                 }
@@ -181,8 +162,7 @@ struct AIConfigGenerationSettingsSection: View {
                     Button("Retry") {
                         storeValidatedKey()
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                    .settingsAction()
                     .disabled(apiKeyInput.isEmpty || isValidating)
                     .accessibilityIdentifier("settings-ai-retry-save-button")
                 }
@@ -378,8 +358,7 @@ private struct AIUsageHistoryView: View {
                         Button("Clear History") {
                             AICostTracker.shared.clearHistory()
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                        .settingsAction()
                         .accessibilityIdentifier("ai-usage-clear-button")
                     }
                 }

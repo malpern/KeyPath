@@ -124,7 +124,7 @@ public struct SystemSnapshot: Sendable {
             var issues: [Issue] = []
             if !permissions.isSystemReady {
                 issues.append(.permissionMissing(app: "KeyPath", permission: "Accessibility / effective input access",
-                                                 action: "Grant Accessibility first, then retry the current-process check"))
+                                                 action: "Grant \(AccessibilityPermissionPresentation.current.name) first, then retry the current-process check"))
             }
             if !components.requiredRuntimePayloadPresent {
                 issues.append(.componentMissing(name: "Bundled session runtime", autoFix: false))
@@ -150,7 +150,7 @@ public struct SystemSnapshot: Sendable {
                     .permissionMissing(
                         app: "KeyPath",
                         permission: "Accessibility",
-                        action: "Enable in System Settings > Privacy & Security > Accessibility"
+                        action: "Enable in \(AccessibilityPermissionPresentation.current.settingsPath)"
                     )
                 )
             }
@@ -591,10 +591,12 @@ public enum Issue: Equatable {
     /// `detail` is the user-facing error message (e.g., "Duplicate alias: beh_base_;").
     case configParseError(detail: String)
 
-    public var title: String {
+    public var title: String { displayTitle(accessibility: .current) }
+
+    public func displayTitle(accessibility: AccessibilityPermissionPresentation) -> String {
         switch self {
         case let .permissionMissing(app, permission, _):
-            "\(app) needs \(permission) permission"
+            "\(app) needs \(accessibility.displayName(for: permission)) permission"
         case let .componentMissing(name, _):
             "\(name) not installed"
         case let .componentUnhealthy(name, _):

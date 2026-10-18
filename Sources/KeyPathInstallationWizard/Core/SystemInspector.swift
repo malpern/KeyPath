@@ -260,7 +260,7 @@ public enum SystemInspector {
                 case .permission(.kanataInputMonitoring):
                     "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
                 case .permission(.kanataAccessibility):
-                    "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility."
+                    "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in \(AccessibilityPermissionPresentation.current.settingsPath)."
                 default:
                     "Permission not verified."
                 }
@@ -389,7 +389,7 @@ public enum SystemInspector {
                     severity: .error,
                     category: .permissions,
                     title: "Kanata Engine Accessibility Permission",
-                    description: "macOS rejected Kanata Engine after a rebuild. Remove and re-add the Kanata Engine entry in System Settings > Privacy & Security > Accessibility.",
+                    description: "macOS rejected Kanata Engine after a rebuild. Remove and re-add the Kanata Engine entry in \(AccessibilityPermissionPresentation.current.settingsPath).",
                     autoFixAction: nil,
                     userAction: "Re-grant Accessibility permission for Kanata Engine in System Settings"
                 ))

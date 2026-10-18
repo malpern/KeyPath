@@ -3,7 +3,7 @@ import KeyPathCore
 import SwiftUI
 
 extension OverlayKeycapView {
-    var keycapBody: some View {
+    private var keycapSurface: some View {
         ZStack {
             // Key background with subtle shadow
             // Animated color transition for launcher mode (per-key timing variation)
@@ -122,20 +122,28 @@ extension OverlayKeycapView {
                 }
             }
         }
-        // Click behavior based on drawer state:
-        // - Drawer CLOSED + launcher mode: tap gestures with count disambiguation (double-click edits, single-click executes)
-        // - Drawer CLOSED + base mode: only Touch ID key captures clicks, all other keys pass through for window drag
-        // - Drawer OPEN: all keys capture clicks for mapping via DragGesture
-        // Touch ID uses highPriorityGesture(TapGesture) so it wins over the parent keyboard's
-        // highPriorityGesture(DragGesture) which would otherwise swallow tap events.
-        .highPriorityGesture(
-            TapGesture()
-                .onEnded {
-                    guard key.layoutRole == .touchId, let onKeyClick else { return }
-                    onKeyClick(key, layerKeyInfo)
-                },
-            including: key.layoutRole == .touchId ? .all : .none
-        )
+    }
+
+    @ViewBuilder
+    private var interactiveKeycap: some View {
+        if key.layoutRole == .touchId {
+            // A drawer control is a button, not a selectable keyboard key.
+            // Keep it outside the tap/drag recognizers: disabling those with
+            // GestureMask.none also disables the nested drawer tap recognizer.
+            Button {
+                onKeyClick?(key, layerKeyInfo)
+            } label: {
+                keycapSurface
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(keycapAccessibilityId)
+        } else {
+            selectableKeycap
+        }
+    }
+
+    private var selectableKeycap: some View {
+        keycapSurface
         // Launcher mode (inspector closed): double-click opens edit panel, single-click executes shortcut.
         // onTapGesture(count:2) before count:1 makes SwiftUI delay the single tap to disambiguate.
         .onTapGesture(count: 2) {
@@ -157,6 +165,10 @@ extension OverlayKeycapView {
                 },
             including: isInspectorVisible ? .all : .none
         )
+    }
+
+    var keycapBody: some View {
+        interactiveKeycap
         .onAppear {
             loadAppIconIfNeeded()
             loadFaviconIfNeeded()
@@ -208,6 +220,9 @@ extension OverlayKeycapView {
 
     /// Accessibility label describing the key and its current mapping
     var keycapAccessibilityLabel: String {
+        if key.layoutRole == .touchId {
+            return isInspectorVisible ? "Close settings drawer" : "Open settings drawer"
+        }
         let keyName = key.label.isEmpty ? "Key \(key.keyCode)" : key.label
 
         // Launcher mode: describe the app/URL this key launches

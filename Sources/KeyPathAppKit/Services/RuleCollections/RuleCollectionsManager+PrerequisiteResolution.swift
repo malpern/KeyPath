@@ -146,7 +146,7 @@ extension RuleCollectionsManager {
         }
     }
 
-    private func prerequisiteResolutionContext(
+    func prerequisiteResolutionContext(
         operation: RulePrerequisiteOperation,
         candidate: RuleCollection,
         prerequisites: [RulePrerequisite]

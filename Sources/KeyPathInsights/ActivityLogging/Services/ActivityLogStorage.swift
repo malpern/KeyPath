@@ -12,10 +12,33 @@ public actor ActivityLogStorage {
 
     // MARK: - Properties
 
-    private let encryption: ActivityLogEncryption
+    private let encrypt: @Sendable (Data) async throws -> Data
+    private let decrypt: @Sendable (Data) async throws -> Data
+    private let deleteKey: @Sendable () async throws -> Void
+    private let mutationRequested: @Sendable () -> Void
     private let baseDirectory: URL
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+
+    // Actor isolation alone does not serialize a transaction across encryption awaits.
+    private var mutationInProgress = false
+    private var mutationWaiters: [CheckedContinuation<Void, Never>] = []
+
+    private func acquireMutation() async {
+        if !mutationInProgress {
+            mutationInProgress = true
+            return
+        }
+        await withCheckedContinuation { mutationWaiters.append($0) }
+    }
+
+    private func releaseMutation() {
+        if mutationWaiters.isEmpty {
+            mutationInProgress = false
+        } else {
+            mutationWaiters.removeFirst().resume()
+        }
+    }
 
     // MARK: - Errors
 
@@ -55,10 +78,18 @@ public actor ActivityLogStorage {
             .appendingPathComponent(directoryName, isDirectory: true)
     }
 
-    private init() {
-        encryption = ActivityLogEncryption.shared
-
-        baseDirectory = Self.defaultBaseDirectory
+    init(
+        baseDirectory: URL = ActivityLogStorage.defaultBaseDirectory,
+        encrypt: @escaping @Sendable (Data) async throws -> Data = ActivityLogStorage.encryptWithSharedKey,
+        decrypt: @escaping @Sendable (Data) async throws -> Data = ActivityLogStorage.decryptWithSharedKey,
+        deleteKey: @escaping @Sendable () async throws -> Void = ActivityLogStorage.deleteSharedKey,
+        mutationRequested: @escaping @Sendable () -> Void = {}
+    ) {
+        self.encrypt = encrypt
+        self.decrypt = decrypt
+        self.deleteKey = deleteKey
+        self.mutationRequested = mutationRequested
+        self.baseDirectory = baseDirectory
 
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -67,18 +98,33 @@ public actor ActivityLogStorage {
         decoder.dateDecodingStrategy = .iso8601
     }
 
+    private nonisolated static func encryptWithSharedKey(_ data: Data) async throws -> Data {
+        try await ActivityLogEncryption.shared.encrypt(data)
+    }
+
+    private nonisolated static func decryptWithSharedKey(_ data: Data) async throws -> Data {
+        try await ActivityLogEncryption.shared.decrypt(data)
+    }
+
+    private nonisolated static func deleteSharedKey() async throws {
+        try await ActivityLogEncryption.shared.deleteKey()
+    }
+
     // MARK: - Public Interface
 
     /// Append events to the current month's log file
     public func append(_ events: [ActivityEvent]) async throws {
         guard !events.isEmpty else { return }
 
+        mutationRequested()
+        await acquireMutation()
+        defer { releaseMutation() }
         try ensureDirectoryExists()
 
         let filePath = currentMonthFilePath()
 
         // Read existing events (if any)
-        var allEvents = await (try? readEventsFromFile(filePath)) ?? []
+        var allEvents = try await readEventsFromFile(filePath)
         allEvents.append(contentsOf: events)
 
         // Write back encrypted
@@ -163,6 +209,9 @@ public actor ActivityLogStorage {
 
     /// Clear all activity logs
     public func clearAll() async throws {
+        mutationRequested()
+        await acquireMutation()
+        defer { releaseMutation() }
         guard FileManager.default.fileExists(atPath: baseDirectory.path) else {
             return
         }
@@ -178,7 +227,7 @@ public actor ActivityLogStorage {
         }
 
         // Also delete the encryption key
-        try await encryption.deleteKey()
+        try await deleteKey()
 
         AppLogger.shared.log("📊 [ActivityLogStorage] Cleared all activity logs")
     }
@@ -230,15 +279,16 @@ public actor ActivityLogStorage {
 
         do {
             let encryptedData = try Data(contentsOf: path)
-            let decryptedData = try await encryption.decrypt(encryptedData)
+            let decryptedData = try await decrypt(encryptedData)
 
             // Parse JSON Lines format
-            let jsonString = String(data: decryptedData, encoding: .utf8) ?? ""
+            guard let jsonString = String(data: decryptedData, encoding: .utf8) else {
+                throw StorageError.invalidFileFormat
+            }
             let lines = jsonString.components(separatedBy: .newlines).filter { !$0.isEmpty }
 
-            return lines.compactMap { line in
-                guard let lineData = line.data(using: .utf8) else { return nil }
-                return try? decoder.decode(ActivityEvent.self, from: lineData)
+            return try lines.map { line in
+                try decoder.decode(ActivityEvent.self, from: Data(line.utf8))
             }
         } catch {
             throw StorageError.readFailed(error)
@@ -258,7 +308,7 @@ public actor ActivityLogStorage {
                 throw StorageError.invalidFileFormat
             }
 
-            let encryptedData = try await encryption.encrypt(plainData)
+            let encryptedData = try await encrypt(plainData)
             try encryptedData.write(to: path, options: .atomic)
         } catch let error as StorageError {
             throw error

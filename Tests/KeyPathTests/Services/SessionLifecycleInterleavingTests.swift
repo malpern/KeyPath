@@ -80,6 +80,34 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         return result ?? fallback
     }
 
+    func testCapsPreparationReasonBelongsOnlyToFailedGeneration() async {
+        coordinator.testSessionCapsPreparation = { throw CancellationError() }
+        let restarted = await coordinator.restartKanata()
+        XCTAssertFalse(restarted)
+        let failedGeneration = coordinator.sessionIntentGeneration
+        XCTAssertTrue(coordinator.preparationFailureReason(for: failedGeneration)?.contains("Connect one compatible keyboard") == true)
+        XCTAssertNil(coordinator.preparationFailureReason(for: failedGeneration &+ 1))
+
+        coordinator.setTerminationPreparationActive(true)
+        XCTAssertNil(coordinator.preparationFailureReason(for: failedGeneration))
+    }
+
+    func testCancelledCapsPreparationDoesNotPublishRefusal() async {
+        let pause = Pause()
+        coordinator.testSessionCapsPreparation = {
+            await pause.suspend()
+            throw CancellationError()
+        }
+        let restart = Task { await self.coordinator.restartKanata() }
+        await pause.waitUntilEntered()
+        let generation = coordinator.sessionIntentGeneration
+        restart.cancel()
+        pause.release()
+        let restarted = await completion(of: restart, fallback: true)
+        XCTAssertFalse(restarted)
+        XCTAssertNil(coordinator.preparationFailureReason(for: generation))
+    }
+
     func testRepeatedHealthyStartTransfersSupervisionToLatestIntent() async {
         ServiceLifecycleCoordinator.testSessionStart = nil
         var adopted: [UInt64] = []
@@ -151,6 +179,74 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertTrue(stopResult)
         XCTAssertFalse(held)
         XCTAssertEqual(starts, 1)
+    }
+
+    func testCapsSelectionRefusalPreservesRunningWorkerAndSupervision() async {
+        var live = false
+        var starts = 0
+        var stops = 0
+        var supervised: [UInt64] = []
+        var errors: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { _ in
+            starts += 1
+            live = true
+            return true
+        }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; live = false; return true }
+        let started = await coordinator.startKanata()
+        XCTAssertTrue(started)
+        coordinator.testSessionSupervisionStarted = { supervised.append($0) }
+        coordinator.onError = { if let error = $0 { errors.append(error) } }
+        coordinator.testSessionCapsPreparation = {
+            throw NSError(domain: "CapsSelectionTest", code: 1)
+        }
+
+        let restarted = await coordinator.restartKanata(reason: "Caps mode changed")
+
+        XCTAssertFalse(restarted)
+        XCTAssertTrue(live, "Refusing Caps setup must preserve the previously working runtime")
+        XCTAssertEqual(starts, 1)
+        XCTAssertEqual(stops, 0, "Keyboard eligibility must be checked before stopping")
+        XCTAssertEqual(supervised, [coordinator.sessionIntentGeneration],
+                       "The retained worker must follow the new lifecycle intent")
+        XCTAssertEqual(errors.count, 1)
+        XCTAssertTrue(errors.first?.contains("Caps Lock could not be set up") == true)
+    }
+
+    func testCapsPreparationRunsOnceBeforeRestartStopAndLaunch() async {
+        var events: [String] = []
+        coordinator.testSessionCapsPreparation = { events.append("prepare") }
+        ServiceLifecycleCoordinator.testSessionStop = { events.append("stop"); return true }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in events.append("start"); return true }
+
+        let restarted = await coordinator.restartKanata()
+
+        XCTAssertTrue(restarted)
+        XCTAssertEqual(events, ["prepare", "stop", "start"],
+                       "A restart must not repeat selection persistence after stopping")
+    }
+
+    func testStopSupersedesSuspendedCapsPreparationWithoutRestartLaunch() async {
+        let pause = Pause()
+        var events: [String] = []
+        coordinator.testSessionCapsPreparation = {
+            events.append("prepare")
+            await pause.suspend()
+        }
+        ServiceLifecycleCoordinator.testSessionStop = { events.append("stop"); return true }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in events.append("start"); return true }
+        let restart = Task { await coordinator.restartKanata() }
+        await pause.waitUntilEntered()
+        let stop = await nextRequest { await self.coordinator.stopKanata() }
+        XCTAssertEqual(events, ["prepare"], "Preflight must precede destructive restart work")
+        pause.release()
+
+        let restarted = await completion(of: restart, fallback: false)
+        let stopped = await completion(of: stop, fallback: false)
+
+        XCTAssertFalse(restarted)
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(events, ["prepare", "stop"], "Only the newer explicit stop may stop the runtime")
     }
 
     func testRestartHoldsAdmissionAcrossStopAndSkipsStartAfterNewStop() async {
@@ -413,6 +509,24 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "owned", pid: 123, uid: 501, cleanedUp: true))
         XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(report("managed-caps-restoration-pending"), nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
         XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(nil, nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
+    }
+
+    func testWakeStartupRetriesLateWakeOnlyAfterOwnedCleanup() {
+        func report(_ state: SessionRuntimeReport.State, reason: String) -> SessionRuntimeReport {
+            SessionRuntimeReport(nonce: "owned", pid: 123, uid: 502, state: state,
+                                 accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                 tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                 failure: state == .failed ? "managed-caps-restoration-pending" : reason,
+                                 retirementReason: reason)
+        }
+        for state in [SessionRuntimeReport.State.stopped, .failed] {
+            let wake = report(state, reason: "system-wake-observed")
+            XCTAssertTrue(ServiceLifecycleCoordinator.canRetryWakeStartup(wake, nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
+            XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(wake, nonce: "owned", pid: 123, uid: 502, cleanedUp: false))
+            XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(wake, nonce: "other", pid: 123, uid: 502, cleanedUp: true))
+            XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(report(state, reason: "system-will-sleep"), nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
+        }
+        XCTAssertFalse(ServiceLifecycleCoordinator.canRetryWakeStartup(report(.running, reason: "system-wake-observed"), nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
     }
 
     func testScreenWakeResumesWithoutWaitingForSystemWake() async {

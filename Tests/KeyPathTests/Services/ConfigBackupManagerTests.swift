@@ -125,6 +125,21 @@ final class ConfigBackupManagerTests: XCTestCase {
         XCTAssertTrue(restored.contains("(defsrc caps)"))
     }
 
+    func testRawRestoreRefusesToSplitManagedConfiguration() throws {
+        try writeValidConfig()
+        let manager = ConfigBackupManager(configPath: configPath)
+        XCTAssertTrue(manager.createPreEditBackup())
+        let backup = try XCTUnwrap(manager.getAvailableBackups().first)
+        let edited = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+        try writeValidConfig(edited)
+        let metadata = Data("{\"schemaVersion\":1,\"collections\":[]}".utf8)
+        let metadataURL = URL(fileURLWithPath: tempDir).appendingPathComponent("RuleCollections.json")
+        try metadata.write(to: metadataURL)
+        XCTAssertThrowsError(try manager.restoreFromBackup(backup))
+        XCTAssertEqual(try String(contentsOfFile: configPath, encoding: .utf8), edited)
+        XCTAssertEqual(try Data(contentsOf: metadataURL), metadata)
+    }
+
     // MARK: - restoreLatestValidBackup
 
     func testRestoreLatestValidBackup_NoBackups_ReturnsFalse() {

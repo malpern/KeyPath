@@ -2,6 +2,7 @@ import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 import Testing
+import KeyPathRulesCore
 
 // MARK: - KeyPathActionURI Parsing Tests
 
@@ -756,5 +757,50 @@ extension ActionDispatchResult: Equatable {
         default:
             false
         }
+    }
+}
+
+
+@Suite("Action payload round trips", .serialized)
+struct ActionPayloadRoundTripTests {
+    @Test("Full folder URI opens the absolute path, decoding exactly once")
+    @MainActor
+    func absoluteFolderURI() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("KeyPath-%20-folder-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var components = URLComponents()
+        components.scheme = "keypath"
+        components.host = "folder"
+        components.path = directory.path
+        let text = try #require(components.string)
+        let uri = try #require(KeyPathActionURI(string: text))
+        #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+    }
+
+    @Test("Shorthand folder paths preserve literal punctuation")
+    @MainActor
+    func shorthandFolderPunctuation() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("KeyPath-%20-what?:name-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let uri = try #require(KeyPathActionURI(string: "folder:\(directory.path)"))
+        #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+    }
+
+    @Test("Generated notification payload is parsed with exact text")
+    func notificationRoundTrip() throws {
+        let title = "Done & ready? \"quoted\""
+        let body = "100% complete #1 & next=yes"
+        let output = KeyAction.notify(title: title, body: body, sound: true).kanataOutput
+        let prefix = "(push-msg \""
+        #expect(output.hasPrefix(prefix))
+        let message = String(output.dropFirst(prefix.count).dropLast(2))
+        let uri = try #require(KeyPathActionURI(string: message))
+        #expect(uri.action == "notify")
+        #expect(uri.queryItems["title"] == title)
+        #expect(uri.queryItems["body"] == body)
+        #expect(uri.queryItems["sound"] == "1")
+        #expect(KanataBehaviorRenderer.parseActionString(output) == .notify(title: title, body: body, sound: true))
     }
 }

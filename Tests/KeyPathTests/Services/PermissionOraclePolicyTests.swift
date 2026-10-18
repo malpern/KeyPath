@@ -1,3 +1,4 @@
+import KeyPathCore
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathPermissions
@@ -40,7 +41,7 @@ struct PermissionOraclePolicyTests {
         let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
-        #expect(issue.contains("Accessibility"))
+        #expect(issue.contains(AccessibilityPermissionPresentation.current.name))
         #expect(!issue.contains("Input Monitoring"))
         #expect(issue.contains("KeyPath"))
     }
@@ -102,7 +103,7 @@ struct PermissionOraclePolicyTests {
         let issue = snap.blockingIssue ?? ""
 
         #expect(issue.contains("Kanata"))
-        #expect(!issue.contains("KeyPath needs Accessibility"))
+        #expect(!issue.contains("KeyPath needs \(AccessibilityPermissionPresentation.current.name)"))
         #expect(!issue.contains("KeyPath needs Input Monitoring"))
     }
 

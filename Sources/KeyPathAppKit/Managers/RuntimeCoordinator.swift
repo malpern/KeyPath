@@ -116,6 +116,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var mappingConflictContinuation: CheckedContinuation<UUID?, Never>?
 
     // Forward prerequisite resolution state (#869)
+    var pendingRuleSetup: RuleSetupSession?
     var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
     var prerequisiteResolutionContinuation:
         CheckedContinuation<RulePrerequisiteResolutionChoice?, Never>?
@@ -324,11 +325,23 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             isRuntimeTransitioning: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.isRuntimeTransitionInProgress
             },
+            startRuntimeForExplicitApply: { [serviceLifecycleCoordinator] in
+                await serviceLifecycleCoordinator.startKanata(reason: "Applying onboarding rules after interrupted startup")
+            },
+            runtimeWantsRunning: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionWantsRunning
+            },
+            runtimeIntentGeneration: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionIntentGeneration
+            },
             currentManagedCaps: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.sessionManagedCapsActive
             },
             restartForManagedCapsChange: { [serviceLifecycleCoordinator] in
                 await serviceLifecycleCoordinator.restartKanata(reason: "Caps runtime mode changed during config reload")
+            },
+            managedCapsRestartFailureReason: { [serviceLifecycleCoordinator] generation in
+                serviceLifecycleCoordinator.preparationFailureReason(for: generation)
             }
         )
 
@@ -446,6 +459,17 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onMappingConflictResolution = { [weak self] context in
             await self?.promptForMappingConflict(context)
+        }
+        ruleCollectionsManager.onPrerequisiteSetup = { [weak self] context, apply in
+            guard let self else { return .failure(CancellationError()) }
+            return await withCheckedContinuation { continuation in
+                self.pendingRuleSetup = RuleSetupSession(context: context, apply: apply) { [weak self] result in
+                    self?.pendingRuleSetup = nil
+                    self?.notifyStateChanged()
+                    continuation.resume(returning: result)
+                }
+                self.notifyStateChanged()
+            }
         }
         ruleCollectionsManager.onPrerequisiteResolution = { [weak self] context in
             await self?.promptForPrerequisiteResolution(context)
@@ -576,17 +600,29 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await installerEngine.inspectSystem()
     }
 
+    private(set) var uninstallCleanupCompleted = false
+
     func uninstall(
         deleteConfig: Bool,
         removeVirtualHID: Bool = false,
         allowAdminFallback: Bool = false
     ) async -> InstallerReport {
-        await installerEngine.uninstall(
+        // Telemetry has its own debounced writer, outside the config operation
+        // gate. Drain it before backup and keep it closed through app termination.
+        KindaVimTelemetryStore.shared.suspendForUninstall()
+        let report = await installerEngine.uninstall(
             deleteConfig: deleteConfig,
             removeVirtualHID: removeVirtualHID,
             allowAdminFallback: allowAdminFallback,
             using: privilegeBroker
         )
+        // Successful uninstall already verified runtime cleanup and intentionally
+        // leaves configuration admission suspended until process exit.
+        uninstallCleanupCompleted = report.success
+        if !report.success {
+            KindaVimTelemetryStore.shared.resumeAfterFailedUninstall()
+        }
+        return report
     }
 
     private func captureRecentKanataErrorMessage() -> String? {
@@ -772,7 +808,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Create a backup before opening config for editing
     /// Returns true if backup was created successfully
     func createPreEditBackup() -> Bool {
-        configBackupManager.createPreEditBackup()
+        configBackupManager.createPreEditBackup(generationPreferences: RuleBackupPreferences(defaults: ruleCollectionsManager.preferencesService.persistenceDefaults))
     }
 
     /// Get list of available configuration backups
@@ -781,13 +817,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     /// Restore configuration from a specific backup
-    func restoreFromBackup(_ backup: BackupInfo) throws {
-        try configBackupManager.restoreFromBackup(backup)
-
-        // Trigger reload after restoration
-        Task {
-            _ = await self.triggerConfigReload()
-        }
+    func restoreFromBackup(_ backup: BackupInfo) async -> SaveResult {
+        await ruleCollectionsManager.restoreConfigurationBackup(backup)
     }
 
     func resetToDefaultConfig() async throws {
@@ -798,7 +829,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
 
         // Create a safety backup of the current config (if valid) before resetting
-        let backupCreated = configBackupManager.createPreEditBackup()
+        let backupCreated = configBackupManager.createPreEditBackup(generationPreferences: RuleBackupPreferences(defaults: ruleCollectionsManager.preferencesService.persistenceDefaults))
         if backupCreated {
             AppLogger.shared.log("💾 [Reset] Safety backup created before default reset")
         } else {
@@ -1088,8 +1119,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// deliberately suppress that callback so they can verify the live result
     /// use this same path explicitly, keeping state and overlay notifications
     /// consistent without issuing a duplicate reload.
-    func applyPersistedRuleChanges() async -> ReloadResult {
-        let result = await triggerConfigReload()
+    func applyPersistedRuleChanges(recoverStoppedRuntime: Bool = false) async -> ReloadResult {
+        let result = await configReloadCoordinator.triggerConfigReload(recoverStoppedRuntime: recoverStoppedRuntime)
         notifyStateChanged()
         AppLogger.shared.debug(
             "🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification"

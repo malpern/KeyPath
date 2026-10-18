@@ -14,11 +14,11 @@ public struct LeaderKeyPreference: Codable, Equatable, Sendable {
     /// Whether leader key is enabled at all
     public var enabled: Bool
 
-    /// Default configuration: Space → Nav layer, enabled
+    /// Fresh profiles leave Leader off until the user enables it. Stored preferences remain authoritative.
     public static let `default` = LeaderKeyPreference(
         key: "space",
         targetLayer: .navigation,
-        enabled: true
+        enabled: false
     )
 
     public init(key: String, targetLayer: RuleCollectionLayer, enabled: Bool) {

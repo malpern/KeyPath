@@ -59,6 +59,7 @@ class MainAppStateController {
 
     @ObservationIgnored private var validator: (any WizardSystemValidating)?
     @ObservationIgnored private var inProgressValidation: Task<Void, Never>?
+    @ObservationIgnored private var validationRefreshPending = false
     @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
     @ObservationIgnored private var onSystemHealthy: (() -> Void)?
     @ObservationIgnored private var hasRunInitialValidation = false
@@ -420,7 +421,7 @@ class MainAppStateController {
             validator?.invalidateCaches()
             AppLogger.shared.log("🔄 [MainAppStateController] Force refresh - cooldown cleared")
         }
-        await performValidation()
+        await performValidation(requiresFreshResult: force)
     }
 
     /// Invalidate validation cooldown (call when system state may have changed externally)
@@ -436,7 +437,7 @@ class MainAppStateController {
         AppLogger.shared.log("🔄 [MainAppStateController] Revalidate requested - clearing cooldown")
         lastValidationTime = nil
         validator?.invalidateCaches()
-        await performValidation()
+        await performValidation(requiresFreshResult: true)
     }
 
     // MARK: - Private Implementation
@@ -450,8 +451,9 @@ class MainAppStateController {
         case sessionRecoveryRefused(String)
     }
 
-    private func performValidation() async {
+    private func performValidation(requiresFreshResult: Bool = false) async {
         if let inProgressValidation {
+            if requiresFreshResult { validationRefreshPending = true }
             AppLogger.shared.log(
                 "🔍 [MainAppStateController] Validation already in progress - waiting for published result"
             )
@@ -461,11 +463,17 @@ class MainAppStateController {
 
         let task = Task<Void, Never> { @MainActor [weak self] in
             guard let self else { return }
-            await performValidationBody()
+            repeat {
+                validationRefreshPending = false
+                await performValidationBody()
+                // An explicit refresh may arrive after this capture started. Invalidate
+                // again because the completed capture can have repopulated caches.
+                if validationRefreshPending { validator?.invalidateCaches() }
+            } while validationRefreshPending
+            inProgressValidation = nil
         }
         inProgressValidation = task
         await task.value
-        inProgressValidation = nil
     }
 
     private func performValidationBody() async {

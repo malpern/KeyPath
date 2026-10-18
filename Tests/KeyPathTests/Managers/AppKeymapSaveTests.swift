@@ -368,7 +368,8 @@ final class AppKeymapSaveTests: KeyPathTestCase {
             RuleCollectionIdentifier.macFunctionKeys,
             RuleCollectionIdentifier.vimNavigation,
             RuleCollectionIdentifier.homeRowMods,
-            RuleCollectionIdentifier.homeRowLayerToggles
+            RuleCollectionIdentifier.homeRowLayerToggles,
+            RuleCollectionIdentifier.capsLockRemap
         ] {
             let collections = RuleCollectionCatalog().defaultCollections().map { original in
                 var collection = original
@@ -391,10 +392,10 @@ final class AppKeymapSaveTests: KeyPathTestCase {
             }
         }
 
-        // Stored Caps and media profiles remain intact when an app edit cannot run them.
+        // Stored media profiles remain intact when an app edit cannot run them.
         // Generate them for inspection, but require the real validator to reject
         // before any app source, include, main config, or journal is written.
-        for selected in [RuleCollectionIdentifier.capsLockRemap, RuleCollectionIdentifier.macFunctionKeys] {
+        for selected in [RuleCollectionIdentifier.macFunctionKeys] {
             let collections = RuleCollectionCatalog().defaultCollections().map { original in
                 var collection = original
                 collection.isEnabled = collection.id == selected
@@ -417,7 +418,7 @@ final class AppKeymapSaveTests: KeyPathTestCase {
                         reloads += 1
                         return Self.reload(.applied)
                     }
-                    XCTAssertFalse(result.success, "\(selected) must reject unsupported Caps input or media output")
+                    XCTAssertFalse(result.success, "\(selected) must reject unsupported media output")
                     XCTAssertTrue(result.error?.localizedDescription.contains("driverless session") == true)
                     try self.assertOriginalFiles(fixture)
                     for (name, bytes) in sourceBefore {

@@ -793,6 +793,106 @@ final class RuleCollectionsManagerPrerequisiteResolutionTests: KeyPathTestCase {
         )
     }
 
+    func testInteractiveSetupChoosesAmbiguousProviderAndCommitsOnce() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let first = layerContentProvider(id: uuid(80), name: "First", enabled: false)
+        let second = layerContentProvider(id: uuid(81), name: "Second", enabled: false)
+        let candidate = homeRowToggles(id: uuid(82), enabled: false, assignments: ["a": "fun"])
+        manager.ruleCollections = [first, second, candidate]
+        var saves = 0
+        manager.onBeforeSave = { saves += 1 }
+        manager.onPrerequisiteSetup = { context, apply in
+            XCTAssertNil(context.recommendedProviderIDs)
+            let invalid = await apply([])
+            XCTAssertFalse(invalid.success)
+            XCTAssertFalse(manager.ruleCollections[id: candidate.id]!.isEnabled)
+            return await apply([second.id])
+        }
+        let result = await manager.toggleCollectionResult(id: candidate.id, isEnabled: true, bypassOwnershipCheck: true)
+        XCTAssertTrue(result.success, "\(String(describing: result.error))")
+        XCTAssertEqual(saves, 1)
+        XCTAssertTrue(manager.ruleCollections[id: second.id]!.isEnabled)
+        XCTAssertFalse(manager.ruleCollections[id: first.id]!.isEnabled)
+        XCTAssertTrue(manager.ruleCollections[id: candidate.id]!.isEnabled)
+    }
+
+    func testInteractiveSetupRejectsProviderConflictAndAllowsAnotherChoice() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let bad = layerContentProvider(id: uuid(83), name: "Conflicting", enabled: false, activatorKey: "f")
+        let good = layerContentProvider(id: uuid(84), name: "Compatible", enabled: false, activatorKey: "g")
+        let existing = RuleCollection(id: uuid(85), name: "Existing F", summary: "Test", category: .custom,
+                                      mappings: [KeyMapping(input: "f", action: .keystroke(key: "x"))], isEnabled: true)
+        let candidate = homeRowToggles(id: uuid(86), enabled: false, assignments: ["a": "fun"])
+        manager.ruleCollections = [bad, good, existing, candidate]
+        manager.onPrerequisiteSetup = { _, apply in
+            let rejected = await apply([bad.id])
+            XCTAssertFalse(rejected.success)
+            XCTAssertTrue(rejected.error?.localizedDescription.contains("Existing F") == true)
+            XCTAssertFalse(manager.ruleCollections[id: bad.id]!.isEnabled)
+            XCTAssertTrue(manager.ruleCollections[id: existing.id]!.isEnabled)
+            return await apply([good.id])
+        }
+        let result = await manager.toggleCollectionResult(id: candidate.id, isEnabled: true, bypassOwnershipCheck: true)
+        XCTAssertTrue(result.success, "\(String(describing: result.error))")
+        XCTAssertTrue(manager.ruleCollections[id: existing.id]!.isEnabled)
+    }
+
+    func testWindowSnappingSetupEnablesLeaderInSameSave() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        manager.onPrerequisiteSetup = { context, apply in
+            XCTAssertTrue(context.availableProviders.contains { $0.id == RuleCollectionIdentifier.leaderKey })
+            return await apply([RuleCollectionIdentifier.leaderKey])
+        }
+        let result = await manager.toggleCollectionResult(id: RuleCollectionIdentifier.windowSnapping,
+                                                          isEnabled: true, bypassOwnershipCheck: true)
+        XCTAssertTrue(result.success, "\(String(describing: result.error))")
+        XCTAssertTrue(manager.ruleCollections[id: RuleCollectionIdentifier.leaderKey]!.isEnabled)
+        XCTAssertTrue(manager.ruleCollections[id: RuleCollectionIdentifier.windowSnapping]!.isEnabled)
+    }
+
+    func testInteractiveSetupKeepsChoiceAvailableAfterRejectedReload() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        let provider = layerContentProvider(id: uuid(90), name: "Function", enabled: false)
+        let candidate = homeRowToggles(id: uuid(91), enabled: false, assignments: ["a": "fun"])
+        manager.ruleCollections = [provider, candidate]
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            return ReloadResult(success: reloads != 1, response: nil,
+                                errorMessage: reloads == 1 ? "Rejected for test" : nil, protocol: nil)
+        }
+        manager.onPrerequisiteSetup = { _, apply in
+            let rejected = await apply([provider.id])
+            XCTAssertFalse(rejected.success)
+            XCTAssertFalse(manager.ruleCollections[id: provider.id]!.isEnabled)
+            XCTAssertFalse(manager.ruleCollections[id: candidate.id]!.isEnabled)
+            return await apply([provider.id])
+        }
+        let result = await manager.toggleCollectionResult(id: candidate.id, isEnabled: true, bypassOwnershipCheck: true)
+        XCTAssertTrue(result.success, "\(String(describing: result.error))")
+        XCTAssertTrue(manager.ruleCollections[id: provider.id]!.isEnabled)
+        XCTAssertTrue(manager.ruleCollections[id: candidate.id]!.isEnabled)
+    }
+
+    func testWindowLayoutEditDoesNotEnableDisabledRule() async throws {
+        let manager = try makeManager()
+        defer { TestEnvironment.forceTestMode = false }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections().map { rule in
+            var copy = rule
+            copy.isEnabled = false
+            return copy
+        }
+        await manager.updateWindowKeyConvention(id: RuleCollectionIdentifier.windowSnapping, convention: .vim)
+        let updated = try XCTUnwrap(manager.ruleCollections[id: RuleCollectionIdentifier.windowSnapping])
+        XCTAssertFalse(updated.isEnabled, "Choosing a layout must not turn on window shortcuts")
+        XCTAssertEqual(updated.windowKeyConvention, .vim)
+    }
+
     private func makeManager() throws -> RuleCollectionsManager {
         try SessionBridgeTestFixture.requireAvailable()
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())

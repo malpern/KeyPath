@@ -46,7 +46,7 @@ Requires the navigation layer to be active (hold Leader key).
 
 ## Backup Caps Lock
 
-**Driverless eligibility:** The current driverless runtime rejects Caps Lock output, so the Backup Caps Lock presets below cannot be activated. See [Caps Lock and F18]({{ '/guides/driverless-caps-lock/' | relative_url }}) for supported Caps input remaps.
+**Driverless behavior:** Backup Caps Lock toggles the native macOS Caps Lock state. Physical Caps Lock input remaps additionally need [compatible keyboard setup]({{ '/guides/driverless-caps-lock/' | relative_url }}).
 
 **Bring back Caps Lock when you need it.** If you've remapped Caps Lock to something more useful (Escape, Hyper, etc.), you might occasionally still need the original Caps Lock for typing in ALL CAPS.
 

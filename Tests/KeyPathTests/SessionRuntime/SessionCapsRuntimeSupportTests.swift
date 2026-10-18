@@ -67,6 +67,40 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         XCTAssertFalse(staleReason.contains("Settings > General"))
     }
 
+    func testFirstTourRuleCanReachAutomaticSetupWithoutAnExistingSelection() throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        let defaults = UserDefaults.standard
+        let key = SessionCapsRuntimeSupport.automaticSetupDisabledKey
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original { defaults.set(original, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+        defaults.removeObject(forKey: key)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: file) }
+        try "(defsrc caps)(deflayer base (tap-hold-press 200 200 esc caps))"
+            .write(to: file, atomically: true, encoding: .utf8)
+        let eligible = SessionCapsRuntimeSupport.validate(
+            configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+            environment: [:], selectionData: nil, requireSelection: false
+        )
+        guard case .valid = eligible.result else { return XCTFail("First tour rule must reach automatic keyboard setup") }
+        XCTAssertTrue(eligible.managedCaps)
+        // Admission does not authorize the worker to run without a verified selection.
+        let worker = SessionCapsRuntimeSupport.validate(
+            configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+            environment: [:], selectionData: nil
+        )
+        guard case .invalid = worker.result else { return XCTFail("Worker must still require a selection") }
+        defaults.set(true, forKey: key)
+        let disabled = SessionCapsRuntimeSupport.validate(
+            configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+            environment: [:], selectionData: nil, requireSelection: false
+        )
+        guard case .invalid = disabled.result else { return XCTFail("Explicit opt-out must remain respected") }
+    }
+
     func testOrphanMutationMarkerBlocksRecoveryEvenWithoutIntent() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)

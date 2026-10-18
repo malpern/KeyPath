@@ -94,7 +94,7 @@ final class PermissionOracleInputMonitoringTests: XCTestCase {
             keyPathAX: .denied, keyPathIM: .granted, kanataAX: .granted, kanataIM: .granted
         )
         XCTAssertNotNil(snap.blockingIssue)
-        XCTAssertTrue(snap.blockingIssue?.contains("Accessibility") ?? false)
+        XCTAssertTrue(snap.blockingIssue?.contains(AccessibilityPermissionPresentation.current.name) ?? false)
     }
 
     /// Kanata's Input Monitoring remains a hard blocker (it drives remapping).

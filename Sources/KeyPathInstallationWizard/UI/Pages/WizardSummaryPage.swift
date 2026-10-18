@@ -7,7 +7,8 @@ import SwiftUI
 public struct WizardSummaryPage: View {
     public let onStartService: () -> Void
     public let onDismiss: () -> Void
-    public let opensRulesOnCompletion: Bool
+    public let opensKeyboardOnCompletion: Bool
+    public let startsTourOnCompletion: Bool
     public let onNavigateToPage: ((WizardPage) -> Void)?
     public let isValidating: Bool // Show validating activity state during summary refresh
     @Binding public var showAllItems: Bool // Lifted to parent to drive navigation sequence
@@ -45,11 +46,13 @@ public struct WizardSummaryPage: View {
         isValidating: Bool,
         showAllItems: Binding<Bool>,
         navSequence: Binding<[WizardPage]>,
-        opensRulesOnCompletion: Bool = false
+        opensKeyboardOnCompletion: Bool = false,
+        startsTourOnCompletion: Bool = false
     ) {
         self.onStartService = onStartService
         self.onDismiss = onDismiss
-        self.opensRulesOnCompletion = opensRulesOnCompletion
+        self.opensKeyboardOnCompletion = opensKeyboardOnCompletion
+        self.startsTourOnCompletion = startsTourOnCompletion
         self.onNavigateToPage = onNavigateToPage
         self.isValidating = isValidating
         _showAllItems = showAllItems
@@ -145,13 +148,13 @@ public struct WizardSummaryPage: View {
                 .font(.title2.weight(.semibold))
                 .foregroundColor(.primary)
 
-            Button(opensRulesOnCompletion ? "Open Rules" : "Close Setup") {
+            Button(startsTourOnCompletion ? "Start Tour" : (opensKeyboardOnCompletion ? "Show Keyboard" : "Close Setup")) {
                 onDismiss()
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton())
             .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("wizard-summary-complete-button")
-            .accessibilityLabel(opensRulesOnCompletion ? "Open Rules" : "Close Setup")
+            .accessibilityLabel(startsTourOnCompletion ? "Start Tour" : (opensKeyboardOnCompletion ? "Show Keyboard" : "Close Setup"))
             .padding(.top, WizardDesign.Spacing.elementGap)
 
             Spacer()
@@ -159,6 +162,12 @@ public struct WizardSummaryPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .transition(.opacity)
         .accessibilityIdentifier("wizard-summary-status-success")
+        .task {
+            guard startsTourOnCompletion else { return }
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            onDismiss()
+        }
     }
 
     // MARK: - Issues and Validating Content

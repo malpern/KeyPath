@@ -19,15 +19,20 @@ public final class SessionCapsMappingLease {
 
     public struct Backend {
         public let enumerate: () throws -> [Policy.DeviceIdentity]
+        /// Exact, unfiltered registry lookup. An unavailable lookup must throw;
+        /// the default retains evidence for backends without this capability.
+        public let registryEntryExists: (UInt64) throws -> Bool
         public let read: (Policy.DeviceIdentity) throws -> Snapshot
         /// Must join all mutation child processes before returning or throwing.
         /// The durable in-flight marker can be cleared only after that guarantee.
         public let write: (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void
         public init(enumerate: @escaping () throws -> [Policy.DeviceIdentity],
                     read: @escaping (Policy.DeviceIdentity) throws -> Snapshot,
-                    write: @escaping (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void)
+                    write: @escaping (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void,
+                    registryEntryExists: @escaping (UInt64) throws -> Bool = { _ in true })
         {
             self.enumerate = enumerate
+            self.registryEntryExists = registryEntryExists
             self.read = read
             self.write = write
         }
@@ -124,6 +129,17 @@ public final class SessionCapsMappingLease {
             let record = loaded.record
             guard record.owner == expectedOwner, record.owner.uid == getuid() else { throw Refusal.wrongOwner }
             guard bootSessionUUID == record.owner.bootSessionUUID else { throw Policy.Refusal.differentBoot }
+            // IORegistry IDs identify one service for this boot. Once that exact
+            // service is gone, its property is gone too. Retire only its intent;
+            // a replacement with the same serial/location is never a restore target.
+            // requireNoMutation above remains mandatory: a queued selector-based
+            // hidutil child could otherwise write to the replacement later.
+            if try !backend.registryEntryExists(record.device.registryEntryID) {
+                try requireNoMutation(directoryFD: fd)
+                try verifyJournal(loaded, directoryFD: fd)
+                guard unlinkat(fd, journal, 0) == 0, fsync(fd) == 0 else { throw Refusal.journalIO }
+                return
+            }
             try verifyInstance(record)
             let snapshot = try backend.read(record.device)
             guard snapshot.device == record.device else { throw Policy.Refusal.differentDevice }

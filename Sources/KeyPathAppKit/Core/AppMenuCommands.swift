@@ -33,7 +33,6 @@ struct AppMenuCommands: Commands {
                     Label("Repair/Remove\u{2026}", systemImage: "wrench.and.screwdriver")
                 }
             )
-            .keyboardShortcut(",", modifiers: .command)
 
             Button(
                 action: {
@@ -198,6 +197,11 @@ struct AppMenuCommands: Commands {
                     }
                 )
                 .accessibilityIdentifier("menu-replay-keypath-tour")
+
+                Button("Preview KeyPath Tour…") {
+                    FirstSuccessTourPreviewWindowController.show()
+                }
+                .accessibilityIdentifier("menu-preview-keypath-tour")
             }
         }
     }

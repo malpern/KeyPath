@@ -420,8 +420,9 @@ CLI leader reconciliation uses the same raw journal with the fixed canonical
 leader preference role. It generates from a local candidate, compares the exact
 defaults preimage before staging, and publishes the shared preference only after
 the config and preference commit together. CLI admission recovers and reloads a
-retained raw revision before deriving another candidate, including for dry runs.
-CLI dry runs never mutate defaults.
+retained raw revision before deriving another candidate. CLI dry runs refuse
+while any recovery journal is present, leaving config files, journals, defaults,
+and the running engine untouched. Run a normal apply to recover before previewing.
 
 Every generation entry reads the leader revision after retained-journal recovery.
 Rule managers reload their injected preference store; pack admission refreshes the

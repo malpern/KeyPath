@@ -238,6 +238,19 @@ extension RuleCollectionsManager {
                     candidate.configuration = .homeRowMods(HomeRowModsConfig())
                 }
 
+                if isEnabled, let onPrerequisiteSetup {
+                    let missing = prerequisites(for: candidate, disablingCollectionIDs: additionalCollectionIDsToDisable)
+                    if !missing.isEmpty {
+                        let context = prerequisiteResolutionContext(operation: .enable, candidate: candidate, prerequisites: missing)
+                        let setupCandidate = candidate
+                        return await onPrerequisiteSetup(context) { [self] providerIDs in
+                            await applyRuleSetup(candidate: setupCandidate, providerIDs: providerIDs,
+                                                 disablingIDs: additionalCollectionIDsToDisable, skipReload: skipReload,
+                                                 packRecord: packRecord, mutationPermit: permit)
+                        }
+                    }
+                }
+
                 var prerequisiteProviderIDs: [UUID] = []
                 if isEnabled {
                     guard let confirmedProviderIDs = await confirmedPrerequisiteProviderIDs(
@@ -539,7 +552,7 @@ extension RuleCollectionsManager {
 
     /// Update window snapping key convention (Standard vs Vim)
     func updateWindowKeyConvention(id: UUID, convention: WindowKeyConvention) async {
-        _ = await updateCollectionSettings(id: id) { rule in
+        _ = await updateCollectionSettings(id: id, enableExisting: false) { rule in
             rule.windowKeyConvention = convention
             rule.mappings = RuleCollectionCatalog.windowMappings(for: convention)
         }
@@ -634,6 +647,30 @@ extension RuleCollectionsManager {
             let wasNewlyEnabled = !candidate.isEnabled
             let applied = await applyLauncherConfig(id: id, config: config, mutationPermit: permit)
             return applied && wasNewlyEnabled
+        }
+    }
+
+    /// Merge a drawer edit under the same lease that commits JSON and generated
+    /// configuration. Hidden mappings and edits from other surfaces stay intact.
+    @discardableResult
+    func editLauncherConfiguration(
+        _ edit: @escaping @MainActor @Sendable (inout LauncherGridConfig) -> Void
+    ) async -> Bool {
+        await withRuleMutation(failure: false) { [self] permit in
+            guard await recoverAndSnapshotRuleState(mutationPermit: permit) != nil else { return false }
+            let id = RuleCollectionIdentifier.launcher
+            guard var candidate = ruleCollections.first(where: { $0.id == id })
+                ?? RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id }),
+                var config = candidate.configuration.launcherGridConfig
+            else { return false }
+            let previous = config
+            edit(&config)
+            guard config != previous else { return true }
+            candidate.configuration.updateLauncherGridConfig(config)
+            let applied = await applyProposedCollectionWithPrerequisites(candidate, mutationPermit: permit)
+            guard applied != nil else { return false }
+            await warmLauncherIconCache(for: config)
+            return true
         }
     }
 
@@ -1041,5 +1078,56 @@ extension RuleCollectionsManager {
     /// Get existing custom rule for the given input key, if any
     func getCustomRule(forInput input: String) -> CustomRule? {
         customRules.first { $0.input.caseInsensitiveCompare(input) == .orderedSame }
+    }
+}
+
+extension RuleCollectionsManager {
+    /// Revalidate the complete proposal under the operation lease, then commit it once.
+    func applyRuleSetup(candidate: RuleCollection, providerIDs: [UUID],
+                        disablingIDs: Set<UUID> = [], skipReload: Bool = false,
+                        packRecord: InstalledPackTracker.RecordChange? = nil,
+                        mutationPermit: ConfigurationOperationGate.Permit) async -> SaveResult
+    {
+        let snapshot = snapshotRuleState()
+        let leaderSnapshot = snapshotLeaderPreference()
+        func reject(_ message: String) -> SaveResult {
+            ruleCollections = snapshot.collections
+            customRules = snapshot.customRules
+            pendingLeaderKeyPreference = nil
+            refreshLayerIndicatorState()
+            return .failure(KeyPathError.configuration(.validationFailed(errors: [message])))
+        }
+        let missing = prerequisites(for: candidate, disablingCollectionIDs: disablingIDs)
+        let permitted = Set(missing.flatMap(\.availableProviderCollectionIDs))
+        guard Set(providerIDs).isSubset(of: permitted),
+              missing.allSatisfy({ !Set($0.availableProviderCollectionIDs).isDisjoint(with: providerIDs) })
+        else {
+            return reject("Choose a supporting rule for each requirement.")
+        }
+        for index in ruleCollections.indices where disablingIDs.contains(ruleCollections[index].id) {
+            ruleCollections[index].isEnabled = false
+        }
+        applyPrerequisiteChangeInMemory(candidate: candidate, providerIDs: providerIDs)
+        let selected = Set(providerIDs + [candidate.id])
+        let graph = RuleCollectionDependencyGraphAdapter().build(collections: ruleCollections, customRules: customRules)
+        for id in selected {
+            for requirement in graph.requirements(for: id) where graph.activeProviders(for: requirement.capability).isEmpty {
+                return reject("This option needs another supporting rule. Choose a different activation method.")
+            }
+            guard let collection = ruleCollections.first(where: { $0.id == id }) else { continue }
+            if let conflict = conflictInfo(for: collection) {
+                return reject(
+                    "\(collection.name) conflicts with \(conflict.displayName) on \(conflict.keys.sorted().joined(separator: ", ")). Choose another activation method to keep your existing shortcuts."
+                )
+            }
+        }
+        if selected.contains(RuleCollectionIdentifier.leaderKey) {
+            let leader = ruleCollections.first { $0.id == RuleCollectionIdentifier.leaderKey }
+            syncLeaderKeyPreference(key: leader.flatMap { leaderKeyOutput(from: $0) } ?? leaderSnapshot.value.key, enabled: true)
+        }
+        return await commitRuleMutationResult(snapshot: snapshot, skipReload: skipReload,
+                                              failureContext: candidate.name,
+                                              leaderPreferenceBefore: selected.contains(RuleCollectionIdentifier.leaderKey) ? leaderSnapshot : nil,
+                                              packRecord: packRecord, mutationPermit: mutationPermit)
     }
 }

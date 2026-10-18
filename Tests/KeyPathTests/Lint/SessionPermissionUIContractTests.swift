@@ -25,10 +25,11 @@ final class SessionPermissionUIContractTests: XCTestCase {
 
     func testEffectiveInputAccessAndMissingWorkerEvidenceRemainDistinct() throws {
         let text = try source("Sources/KeyPathInstallationWizard/UI/Pages/WizardInputMonitoringPage.swift")
-        XCTAssertFalse(text.contains("snapshot.keyPath.inputMonitoring"))
+        XCTAssertTrue(text.contains("snapshot.keyPath.inputMonitoring.isReady ? .granted : snapshot.kanata.inputMonitoring"))
         XCTAssertTrue(text.contains("snapshot.kanata.inputMonitoring"))
         XCTAssertTrue(text.contains("if case .unknown = snapshot.kanata.inputMonitoring"))
-        XCTAssertTrue(text.contains("if !sessionInputNeedsVerification, keyPathGuidance == .manualFallback"))
+        XCTAssertTrue(text.contains("if sessionInputNeedsVerification {\n            verifySessionInputAccess()\n            return"))
+        XCTAssertTrue(text.contains("switch keyPathGuidance"))
         XCTAssertTrue(text.contains("startKanata(reason: \"Wizard verifying session input access\")"))
     }
 

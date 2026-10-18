@@ -2,8 +2,8 @@ import KeyPathCore
 
 public extension SystemStateProvider {
     /// Raw capture capabilities, without combining listening and posting access.
-    func currentProcessRawPermissionCapabilities() async -> PermissionOracle.PermissionSet {
-        await PermissionOracle.shared.currentProcessCapabilities()
+    nonisolated func currentProcessRawPermissionCapabilities() -> PermissionOracle.PermissionSet {
+        PermissionOracle.shared.currentProcessCapabilities()
     }
 
     /// Raw posting authorization for bounded runtime diagnostics.
@@ -14,6 +14,11 @@ public extension SystemStateProvider {
     /// Passive capabilities of the independently launched remapper executable.
     func currentProcessPermissionCapabilities() async -> PermissionOracle.PermissionSet {
         await PermissionOracle.shared.currentProcessSessionCapabilities()
+    }
+
+    /// A single passive sample with raw facts kept distinct from readiness policy.
+    func currentProcessSessionCapabilitySnapshot() async -> PermissionOracle.SessionCapabilitySnapshot {
+        await PermissionOracle.shared.currentProcessSessionCapabilitySnapshot()
     }
 
     /// Bind session evidence through the canonical permission snapshot owner.

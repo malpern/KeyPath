@@ -1,5 +1,6 @@
 import AppKit
 import KeyPathCore
+import KeyPathPermissions
 
 /// Manages global keyboard shortcuts for KeyPath.
 /// Default: Option+Command+K toggles the keyboard overlay visibility.
@@ -37,10 +38,36 @@ final class GlobalHotkeyService {
 
     /// Local event monitor handle (for when KeyPath is focused)
     private var localMonitor: Any?
+    private var activationObserver: NSObjectProtocol?
 
     // MARK: - Initialization
 
-    private init() {}
+    private let notificationCenter: NotificationCenter
+    private let permissionsReady: () -> Bool
+    private let addGlobalMonitor: (@escaping (NSEvent) -> Void) -> Any?
+    private let addLocalMonitor: (@escaping (NSEvent) -> NSEvent?) -> Any?
+    private let removeMonitor: (Any) -> Void
+
+    init(
+        notificationCenter: NotificationCenter = .default,
+        permissionsReady: @escaping () -> Bool = {
+            let permissions = SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
+            return permissions.accessibility.isReady && permissions.inputMonitoring.isReady
+        },
+        addGlobalMonitor: @escaping (@escaping (NSEvent) -> Void) -> Any? = {
+            NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: $0)
+        },
+        addLocalMonitor: @escaping (@escaping (NSEvent) -> NSEvent?) -> Any? = {
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: $0)
+        },
+        removeMonitor: @escaping (Any) -> Void = { NSEvent.removeMonitor($0) }
+    ) {
+        self.notificationCenter = notificationCenter
+        self.permissionsReady = permissionsReady
+        self.addGlobalMonitor = addGlobalMonitor
+        self.addLocalMonitor = addLocalMonitor
+        self.removeMonitor = removeMonitor
+    }
 
     // MARK: - Public Interface
 
@@ -51,30 +78,49 @@ final class GlobalHotkeyService {
             return
         }
 
-        guard globalMonitor == nil else {
+        // Initial setup can run before consent. Recheck after returning from Settings
+        // without prompting, but only while monitoring is explicitly requested.
+        if activationObserver == nil {
+            activationObserver = notificationCenter.addObserver(
+                forName: NSApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.startMonitoring()
+                }
+            }
+        }
+        guard permissionsReady() else { return }
+
+        guard globalMonitor == nil || localMonitor == nil else {
             AppLogger.shared.log("⌨️ [GlobalHotkey] Already monitoring")
             return
         }
 
         // Global monitor for when KeyPath is not focused
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            Task { @MainActor in
-                self?.handleKeyEvent(event)
+        if globalMonitor == nil {
+            globalMonitor = addGlobalMonitor { [weak self] event in
+                Task { @MainActor in
+                    self?.handleKeyEvent(event)
+                }
             }
         }
 
         // Local monitor for when KeyPath is focused
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // Check synchronously if this is our hotkey
-            guard let self, let action = action(for: event) else { return event }
+        if localMonitor == nil {
+            localMonitor = addLocalMonitor { [weak self] event in
+                // Check synchronously if this is our hotkey
+                guard let self, let action = action(for: event) else { return event }
 
-            // Trigger the action on main actor
-            Task { @MainActor in
-                self.perform(action)
+                // Trigger the action on main actor
+                Task { @MainActor in
+                    self.perform(action)
+                }
+
+                // Consume the event
+                return nil
             }
-
-            // Consume the event
-            return nil
         }
 
         AppLogger.shared.log("⌨️ [GlobalHotkey] Started monitoring (⌥⌘K, ⌥⌘L, ⌥⌘D)")
@@ -82,12 +128,16 @@ final class GlobalHotkeyService {
 
     /// Stop monitoring for the global hotkey.
     func stopMonitoring() {
+        if let activationObserver {
+            notificationCenter.removeObserver(activationObserver)
+            self.activationObserver = nil
+        }
         if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
+            removeMonitor(monitor)
             globalMonitor = nil
         }
         if let monitor = localMonitor {
-            NSEvent.removeMonitor(monitor)
+            removeMonitor(monitor)
             localMonitor = nil
         }
         AppLogger.shared.log("⌨️ [GlobalHotkey] Stopped monitoring")

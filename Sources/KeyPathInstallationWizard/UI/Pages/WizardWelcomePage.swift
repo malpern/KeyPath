@@ -33,6 +33,7 @@ struct WizardWelcomePage: View {
         .padding(.vertical, WizardDesign.Spacing.pageVertical)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("wizard-welcome-page")
         .onAppear { animateKeycapsIn() }
     }
@@ -117,17 +118,15 @@ struct WizardWelcomePage: View {
         .accessibilityAddTraits(.isHeader)
     }
 
-    // MARK: - Footer: expectation + CTA
+    // MARK: - Footer: CTA + privacy
 
     private var footer: some View {
         VStack(spacing: WizardDesign.Spacing.elementGap) {
-            Text("Enable Accessibility and Input Monitoring, then start remapping. We'll guide you through each step.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("wizard-welcome-expectation")
+            WizardButton("Get Started", style: .primary, isDefaultAction: true) {
+                onGetStarted()
+            }
+            .accessibilityIdentifier("wizard-welcome-get-started")
+            .padding(.bottom, WizardDesign.Spacing.elementGap)
 
             HStack(spacing: WizardDesign.Spacing.labelGap) {
                 Image(systemName: "lock.fill")
@@ -140,11 +139,7 @@ struct WizardWelcomePage: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("wizard-welcome-privacy")
-            .padding(.bottom, WizardDesign.Spacing.elementGap)
 
-            WizardButton("Get Started", style: .primary, isDefaultAction: true) {
-                onGetStarted()
-            }
         }
     }
 

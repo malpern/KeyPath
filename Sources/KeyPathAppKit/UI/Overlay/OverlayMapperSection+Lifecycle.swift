@@ -87,27 +87,9 @@ extension OverlayMapperSection {
             handleSetAppCondition(notification)
         }
 
-        let withAutoSave = withSetAppCondition.onChange(of: viewModel.isRecordingOutput) { wasRecording, isRecording in
-            guard wasRecording, !isRecording else { return }
-            guard !shouldShowHealthGate else { return }
-
-            let hasOutputAction = viewModel.selectedApp != nil ||
-                viewModel.selectedSystemAction != nil ||
-                viewModel.selectedURL != nil
-            let hasKeyRemapping = viewModel.inputLabel.lowercased() != viewModel.outputLabel.lowercased()
-
-            guard hasOutputAction || hasKeyRemapping else { return }
-            autosaveCurrentMapping()
-        }
-
-        let withShiftAutoSave = withAutoSave.onChange(of: viewModel.isRecordingShiftedOutput) { wasRecording, isRecording in
-            guard wasRecording, !isRecording else { return }
-            guard !shouldShowHealthGate else { return }
-            guard viewModel.hasShiftedOutputConfigured else { return }
-            autosaveCurrentMapping()
-        }
-
-        let withDoubleTapAutoSave = withShiftAutoSave.onChange(of: viewModel.isRecordingDoubleTap) { wasRecording, isRecording in
+        // Output and shifted-output capture are saved by finalizeCapture().
+        // Saving again when their recording flag changes races the same rule creation.
+        let withDoubleTapAutoSave = withSetAppCondition.onChange(of: viewModel.isRecordingDoubleTap) { wasRecording, isRecording in
             guard wasRecording, !isRecording else { return }
             guard !shouldShowHealthGate else { return }
             guard !viewModel.doubleTapAction.isEmpty else { return }

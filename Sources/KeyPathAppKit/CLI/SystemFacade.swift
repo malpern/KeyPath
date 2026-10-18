@@ -363,8 +363,8 @@ public struct SystemFacade: Sendable {
         return ["\(bundlePath)/Contents/MacOS/keypath-cli", host.bridgeLibraryPath, host.bundledCorePath]
     }
 
-    static func issues(from context: SystemContext) -> [CLISystemIssue] {
-        if context.permissions.backend == .session { return sessionIssues(from: context) }
+    static func issues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation = .current) -> [CLISystemIssue] {
+        if context.permissions.backend == .session { return sessionIssues(from: context, accessibility: accessibility) }
         var issues: [CLISystemIssue] = []
 
         if !context.helper.isInstalled {
@@ -383,7 +383,7 @@ public struct SystemFacade: Sendable {
             ))
         }
 
-        appendPermissionIssues(from: context, to: &issues)
+        appendPermissionIssues(from: context, accessibility: accessibility, to: &issues)
 
         for conflict in context.conflicts.conflicts {
             issues.append(.init(
@@ -466,13 +466,13 @@ public struct SystemFacade: Sendable {
         return issues
     }
 
-    private static func sessionIssues(from context: SystemContext) -> [CLISystemIssue] {
+    private static func sessionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation) -> [CLISystemIssue] {
         var issues: [CLISystemIssue] = []
         let appAX = context.permissions.keyPath.accessibility
         appendPermissionIssue(
             status: appAX.isReady ? context.permissions.kanata.accessibility : appAX,
-            subject: "KeyPath", permission: "Accessibility",
-            deniedAction: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
+            subject: "KeyPath", permission: accessibility.name,
+            deniedAction: accessibility.grantInstruction,
             remediationURL: WizardSystemPaths.accessibilitySettings, to: &issues
         )
         // This status is effective input access from the process that owns the
@@ -525,12 +525,12 @@ public struct SystemFacade: Sendable {
         return issues
     }
 
-    private static func appendPermissionIssues(from context: SystemContext, to issues: inout [CLISystemIssue]) {
+    private static func appendPermissionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation, to issues: inout [CLISystemIssue]) {
         appendPermissionIssue(
             status: context.permissions.keyPath.accessibility,
             subject: "KeyPath",
-            permission: "Accessibility",
-            deniedAction: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
+            permission: accessibility.name,
+            deniedAction: accessibility.grantInstruction,
             remediationURL: WizardSystemPaths.accessibilitySettings,
             to: &issues
         )
@@ -546,8 +546,8 @@ public struct SystemFacade: Sendable {
         appendPermissionIssue(
             status: context.permissions.kanata.accessibility,
             subject: "Kanata",
-            permission: "Accessibility",
-            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine Accessibility",
+            permission: accessibility.name,
+            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine \(accessibility.name)",
             remediationURL: WizardSystemPaths.accessibilitySettings,
             to: &issues
         )

@@ -94,52 +94,38 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
-    func testCapsLockPackIsRejectedWithoutChangingFilesStoresOrTracker() async throws {
+    func testCapsLockPackCanBeSavedBeforeLifecycleDiscoversKeyboard() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
         let (manager, tempDir) = try makeTestManager()
         defer { try? FileManager.default.removeItem(at: tempDir) }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
-        try await manager.configurationService.saveRuleState(
-            ruleCollections: manager.ruleCollections, customRules: manager.customRules,
-            collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore
-        )
-        let stateBefore = manager.snapshotRuleState()
-        let trackerURL = tempDir.appendingPathComponent("caps-installed-packs.json")
-        let tracker = InstalledPackTracker(fileURL: trackerURL)
-        let previousRecord = InstalledPackRecord(packID: PackRegistry.capsLockToEscape.id, version: "0.9.0", installedAt: Date(timeIntervalSince1970: 42))
-        try await tracker.upsert(previousRecord)
-        let files = ["keypath.kbd", "RuleCollections.json", "CustomRules.json", "caps-installed-packs.json"].map { tempDir.appendingPathComponent($0) }
-        let before = try files.map { try Data(contentsOf: $0) }
+        let originalRules = manager.customRules
+        let tracker = InstalledPackTracker(fileURL: tempDir.appendingPathComponent("caps-installed-packs.json"))
         let configuration = try XCTUnwrap(FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(
             from: XCTUnwrap(manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap }).configuration
         ))
-        XCTAssertEqual(configuration.tapHoldPickerConfig?.inputKey, "caps")
         var reloads = 0
         manager.onRulesChanged = {
             reloads += 1
-            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+            return ReloadResult(success: false, response: nil, errorMessage: "Keyboard not attached", protocol: nil, disposition: .pending)
         }
-        do {
-            _ = try await PackInstaller.shared.install(
-                PackRegistry.capsLockToEscape, collectionConfiguration: configuration,
-                manager: manager, installedPackTracker: tracker
-            )
-            XCTFail("Physical Caps remapping must remain outside the driverless profile")
-        } catch let error as PackInstaller.InstallError {
-            guard case let .saveFailed(reason) = error else { return XCTFail("Unexpected rejection: \(error)") }
-            XCTAssertTrue(reason.contains("driverless session"), reason)
-        }
-        XCTAssertEqual(reloads, 0)
-        XCTAssertEqual(manager.snapshotRuleState().collections, stateBefore.collections)
-        XCTAssertEqual(manager.snapshotRuleState().customRules, stateBefore.customRules)
-        XCTAssertEqual(try files.map { try Data(contentsOf: $0) }, before)
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.capsLockToEscape, collectionConfiguration: configuration,
+            manager: manager, installedPackTracker: tracker
+        )
+        XCTAssertEqual(reloads, 1)
         let storedCollections = await manager.ruleCollectionStore.loadCollections()
+        let caps = try XCTUnwrap(storedCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        XCTAssertTrue(caps.isEnabled)
+        XCTAssertEqual(caps.configuration, configuration)
         let storedRules = try await manager.customRulesStore.loadForMutation()
-        XCTAssertEqual(storedCollections, stateBefore.collections)
-        XCTAssertEqual(storedRules, stateBefore.customRules)
-        let recordAfter = await tracker.record(for: PackRegistry.capsLockToEscape.id)
-        XCTAssertEqual(recordAfter, previousRecord)
+        XCTAssertEqual(storedRules, originalRules)
+        let record = await tracker.record(for: PackRegistry.capsLockToEscape.id)
+        XCTAssertEqual(record?.version, PackRegistry.capsLockToEscape.version)
+        let text = try String(contentsOf: tempDir.appendingPathComponent("keypath.kbd"), encoding: .utf8)
+        XCTAssertTrue(text.contains("caps"))
+        XCTAssertTrue(text.contains("esc"))
     }
 
     @MainActor
@@ -153,7 +139,7 @@ final class GenericPackConfigTests: XCTestCase {
     }
 
     @MainActor
-    func testFirstSuccessCapsLockConfigurationDoesNotInstallHyperEarly() throws {
+    func testFirstSuccessCapsLockConfigurationUsesDriverlessSafeHold() throws {
         let catalogConfiguration = try XCTUnwrap(
             RuleCollectionCatalog().defaultCollections()
                 .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
@@ -426,6 +412,27 @@ final class GenericPackConfigTests: XCTestCase {
                 onboardingConfiguration: onboardingConfiguration
             )
         )
+    }
+
+    @MainActor
+    func testHyperStepAcceptsEscapeHyperConfigurationProducedByReplayingCapsStep() throws {
+        let catalog = try XCTUnwrap(RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap }))
+        let hyper = try XCTUnwrap(PackRegistry.launcher.managedDefaults
+            .first(where: { $0.collectionID == RuleCollectionIdentifier.capsLockRemap })?.defaultConfiguration)
+        let escape = try XCTUnwrap(FirstSuccessOnboardingWindowController
+            .escapeOnlyCapsLockConfiguration(from: catalog.configuration))
+        var replayed = catalog
+        replayed.configuration = try XCTUnwrap(FirstSuccessOnboardingWindowController
+            .escapeOnlyCapsLockConfiguration(from: catalog.configuration, preservingHoldFrom: hyper))
+        XCTAssertNotEqual(replayed.configuration, hyper, "The replay adds the original Caps Lock hold option")
+        XCTAssertFalse(FirstSuccessOnboardingWindowController.capsLockRequiresHyperRulesHandoff(
+            existing: replayed, catalogConfiguration: catalog.configuration,
+            escapeConfiguration: escape, hyperConfiguration: hyper))
+        replayed.configuration.updateSelectedHoldOutput("lctl")
+        XCTAssertTrue(FirstSuccessOnboardingWindowController.capsLockRequiresHyperRulesHandoff(
+            existing: replayed, catalogConfiguration: catalog.configuration,
+            escapeConfiguration: escape, hyperConfiguration: hyper))
     }
 
     @MainActor
@@ -1805,6 +1812,57 @@ final class GenericPackConfigTests: XCTestCase {
                 )
             }
         )
+    }
+
+    @MainActor
+    func testFirstSuccessRealCapsAndLauncherProfilesAreSessionCompatible() async throws {
+        let defaults = PreferencesService.canonicalDefaults
+        let preferenceKey = PreferencesService.leaderKeyPreferenceKey
+        let previousPreference = defaults.object(forKey: preferenceKey)
+        defer {
+            if let previousPreference { defaults.set(previousPreference, forKey: preferenceKey) }
+            else { defaults.removeObject(forKey: preferenceKey) }
+        }
+        defaults.set(try JSONEncoder().encode(LeaderKeyPreference.default), forKey: preferenceKey)
+        try SessionBridgeTestFixture.requireAvailable()
+        let (manager, directory) = try makeTestManager()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections().filter { $0.id != RuleCollectionIdentifier.macFunctionKeys }
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let caps = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        let escape = try XCTUnwrap(FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(from: caps.configuration))
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.capsLockToEscape, collectionConfiguration: escape,
+            manager: manager, skipFinalReload: true
+        )
+        let launcher = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.launcher })
+        let empty = try XCTUnwrap(FirstSuccessOnboardingWindowController.emptyQuickLauncherConfiguration(from: launcher.configuration))
+        var candidate = manager.ruleCollections
+        let hyper = try XCTUnwrap(PackRegistry.launcher.managedDefaults.first { $0.collectionID == RuleCollectionIdentifier.capsLockRemap }?.defaultConfiguration)
+        for index in candidate.indices {
+            if candidate[index].id == RuleCollectionIdentifier.capsLockRemap { candidate[index].configuration = hyper; candidate[index].isEnabled = true }
+            if candidate[index].id == RuleCollectionIdentifier.launcher { candidate[index].configuration = empty; candidate[index].isEnabled = true }
+        }
+        let generated = KanataConfiguration.generateFromCollections(candidate, inputs: .empty)
+        let launcherStart = try XCTUnwrap(generated.range(of: "(deflayer launcher")).lowerBound
+        let oldTransparentFallback = generated.replacingOccurrences(
+            of: "@beh_base_caps", with: "_", range: launcherStart..<generated.endIndex
+        )
+        let legacyFile = directory.appendingPathComponent("transparent-launcher.kbd")
+        try oldTransparentFallback.write(to: legacyFile, atomically: true, encoding: .utf8)
+        let rejected = SessionCapsRuntimeSupport.validate(
+            configPath: legacyFile.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+            environment: [:], selectionData: nil, requireSelection: false
+        )
+        guard case .invalid = rejected.result else { return XCTFail("The old transparent Caps fallback must remain rejected") }
+        _ = try await PackInstaller.shared.install(
+            PackRegistry.launcher, collectionConfiguration: empty,
+            managedDefaultPolicy: .useRecommended, manager: manager, skipFinalReload: true
+        )
+        var configured = try XCTUnwrap(empty.launcherGridConfig)
+        configured.mappings = [LauncherMapping(key: "s", action: .launchApp(name: "Safari", bundleId: "com.apple.Safari"))]
+        let saved = await manager.applyLauncherConfig(id: RuleCollectionIdentifier.launcher, config: configured, skipReload: true)
+        XCTAssertTrue(saved, "The tour's first real shortcut must pass session validation")
     }
 
     @MainActor

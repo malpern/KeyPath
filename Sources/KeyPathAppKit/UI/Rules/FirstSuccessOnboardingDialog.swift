@@ -1,3 +1,4 @@
+import KeyPathCore
 import AppKit
 import KeyPathInstallationWizard
 import KeyPathRulesCore
@@ -277,7 +278,7 @@ struct FirstSuccessOnboardingDialog: View {
     let makeCapsLockEscape: @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
     let addHyperHold: @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult
     let saveLauncherShortcut: @MainActor @Sendable (LauncherMapping) async -> FirstSuccessOnboardingSession.ActionResult
-    let finishInRules: () -> Void
+    let finishInKeyboard: () -> Void
     let dismiss: () -> Void
 
     @State private var keyboardInput = FirstSuccessKeyboardInputCoordinator()
@@ -292,15 +293,22 @@ struct FirstSuccessOnboardingDialog: View {
         makeCapsLockEscape: @escaping @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult,
         addHyperHold: @escaping @MainActor @Sendable () async -> FirstSuccessOnboardingSession.ActionResult,
         saveLauncherShortcut: @escaping @MainActor @Sendable (LauncherMapping) async -> FirstSuccessOnboardingSession.ActionResult,
-        finishInRules: @escaping () -> Void,
+        finishInKeyboard: @escaping () -> Void,
         dismiss: @escaping () -> Void,
-        launcherChoice: FirstSuccessLauncherChoiceModel = FirstSuccessLauncherChoiceModel()
+        launcherChoice: FirstSuccessLauncherChoiceModel = FirstSuccessLauncherChoiceModel(),
+        settledPreview: Bool = false
     ) {
+        let entrance = KeyboardStageEntranceController()
+        if settledPreview {
+            entrance.firstVisibleFramePresented(at: 0, reduceMotion: true)
+            entrance.settle()
+        }
+        _keyboardEntrance = State(initialValue: entrance)
         self.actionCoordinator = actionCoordinator
         self.makeCapsLockEscape = makeCapsLockEscape
         self.addHyperHold = addHyperHold
         self.saveLauncherShortcut = saveLauncherShortcut
-        self.finishInRules = finishInRules
+        self.finishInKeyboard = finishInKeyboard
         self.dismiss = dismiss
         _launcherChoice = State(initialValue: launcherChoice)
     }
@@ -377,6 +385,7 @@ struct FirstSuccessOnboardingDialog: View {
                 // the continuous transition and preserve the exact light endpoint.
                 .environment(\.colorScheme, palette.nativeColorScheme)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("first-success-onboarding-dialog")
         .onAppear {
             keyboardInput.start()
@@ -434,9 +443,10 @@ struct FirstSuccessOnboardingDialog: View {
                 ),
                 secondaryPlacement: .trailing
             )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("first-success-onboarding-button-bar")
         }
-        .frame(minWidth: 960, idealWidth: 1120, minHeight: 650, idealHeight: 720)
+        .frame(minWidth: 960, idealWidth: 1120, minHeight: 520, idealHeight: 720)
     }
 
     private var displayMode: KeyboardStageDisplayMode {
@@ -493,7 +503,7 @@ struct FirstSuccessOnboardingDialog: View {
                 return String(localized: "Choose an app and letter", bundle: KeyPathAppKitResources.bundle)
             }
         case .rules:
-            return String(localized: "Explore Rules", bundle: KeyPathAppKitResources.bundle)
+            return String(localized: "Open Keyboard", bundle: KeyPathAppKitResources.bundle)
         }
     }
 
@@ -550,7 +560,7 @@ struct FirstSuccessOnboardingDialog: View {
                 break
             }
         case .rules:
-            finishInRules()
+            finishInKeyboard()
         }
     }
 
@@ -719,6 +729,7 @@ private struct FirstSuccessJourneyContent: View {
             }
             .padding(.trailing, 42)
         }
+        .id(session.step)
     }
 }
 
@@ -773,6 +784,8 @@ private struct FirstSuccessLessonCopy: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.trailing, 6)
         }
+        // Each lesson starts at its heading, even after scrolling the previous one.
+        .id(session.step)
         .scrollIndicators(.hidden)
         .onScrollGeometryChange(for: FirstSuccessCopyScrollMetrics.self) { geometry in
             FirstSuccessCopyScrollMetrics(
@@ -1078,9 +1091,15 @@ private struct FirstSuccessStatusRegion: View {
                     )
                     .accessibilityHidden(true)
 
-                Text(failureMessage(for: failure))
-                    .font(.subheadline)
-                    .foregroundStyle(palette.detailText.color)
+                Group {
+                    if session.savedButNotActive == failure, let reason = session.inactiveReason {
+                        Text(verbatim: reason)
+                    } else {
+                        Text(failureMessage(for: failure))
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(palette.detailText.color)
             }
 
             Spacer()
@@ -1154,12 +1173,14 @@ private struct FirstSuccessKeyboardHero: View {
             displayMode: displayMode
         )
 
-        KeyboardStageHost(
-            scene: scene,
-            interaction: interaction,
-            renderer: .automatic,
-            entrance: entrance
-        )
+        FirstSuccessKeyboardHeroLayout(shortcutLabel: shortcutLabel) {
+            KeyboardStageHost(
+                scene: scene,
+                interaction: interaction,
+                renderer: .automatic,
+                entrance: entrance
+            )
+        }
         .environment(\.firstSuccessOnboardingPalette, .light)
         .environment(\.colorScheme, .light)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1167,6 +1188,13 @@ private struct FirstSuccessKeyboardHero: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier("first-success-keyboard-hero")
+    }
+
+    private var shortcutLabel: String? {
+        guard session.step == .launcher,
+              let app = launcherChoice.selectedApp,
+              !launcherChoice.canonicalKey.isEmpty else { return nil }
+        return "Hyper + \(launcherChoice.displayedKey.uppercased()) → \(app.name)"
     }
 
     private var moment: KeyboardStageMoment {
@@ -1251,7 +1279,30 @@ private struct FirstSuccessKeyboardHero: View {
                 Text("Held Caps Lock prepares Hyper, and the highlighted letters are available shortcut keys you can choose.", bundle: KeyPathAppKitResources.bundle)
             }
         case .handoff:
-            Text("The guided shortcuts are ready. The next action opens Rules to discover more keyboard changes.", bundle: KeyPathAppKitResources.bundle)
+            Text("The guided shortcuts are ready. Open the keyboard to see your mappings and explore more shortcuts.", bundle: KeyPathAppKitResources.bundle)
         }
+    }
+}
+
+/// Keeps the keyboard's proposed size independent of optional shortcut text.
+struct FirstSuccessKeyboardHeroLayout<Content: View>: View {
+    let shortcutLabel: String?
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .overlay(alignment: .bottom) {
+                if let shortcutLabel {
+                    Text(shortcutLabel)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                        .allowsHitTesting(false)
+                        .accessibilityIdentifier("first-success-launcher-shortcut-label")
+                }
+            }
     }
 }

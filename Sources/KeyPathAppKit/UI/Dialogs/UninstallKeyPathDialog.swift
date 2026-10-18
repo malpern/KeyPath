@@ -64,7 +64,14 @@ struct UninstallKeyPathDialog: View {
         lastError = report.failureReason
         if report.success {
             backupMessage = report.logs.first
-            NSApplication.shared.terminate(nil)
+            // AppKit can ignore terminate while the uninstall sheet is still modal.
+            // End the sheet first, then let its dismissal reach the run loop.
+            dismiss()
+            try? await Task.sleep(for: .milliseconds(300))
+            // Leave the Swift concurrency task before AppKit enters its quit run loop.
+            DispatchQueue.main.async {
+                NSApplication.shared.terminate(nil)
+            }
         }
     }
 }

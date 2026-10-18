@@ -174,7 +174,10 @@ public final class PackInstaller {
         installedPackTracker: InstalledPackTracker = .shared,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws -> InstalledPackRecord {
-        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+        if let id = pack.associatedCollectionID, let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: id) {
+            throw InstallError.saveFailed(reason)
+        }
+        return try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             AppLogger.shared.log(
                 "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"

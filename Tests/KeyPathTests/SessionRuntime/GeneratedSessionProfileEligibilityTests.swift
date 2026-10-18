@@ -113,8 +113,8 @@ final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
         try collectionBytes.write(to: collectionsURL)
         try ruleBytes.write(to: rulesURL)
         do {
-            try await service.writeConfigurationContent("(defsrc caps)(deflayer base esc)")
-            XCTFail("Unsupported Caps remapping must fail before writing")
+            try await service.writeConfigurationContent("(defsrc caps)(deflayer base f18)")
+            XCTFail("Reserved F18 remapping must fail before writing")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
         }
