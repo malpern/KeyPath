@@ -439,6 +439,7 @@ final class ServiceLifecycleCoordinator {
                     _ = await stopSessionAdmitted(reason: "Superseded start")
                     return false
                 }
+                if result { await invalidatePermissionsForNewSessionRuntime() }
                 return result
             }
         #endif

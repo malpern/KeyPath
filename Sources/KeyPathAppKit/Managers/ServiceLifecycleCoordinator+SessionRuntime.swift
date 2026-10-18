@@ -125,6 +125,7 @@ extension ServiceLifecycleCoordinator {
                             _ = await stopSessionRuntime()
                             return false
                         }
+                        await invalidatePermissionsForNewSessionRuntime()
                         onError?(nil)
                         onWarning?(nil)
                         onStateChanged?()
@@ -193,6 +194,13 @@ extension ServiceLifecycleCoordinator {
     func retainOwnedSessionSupervision(generation: UInt64) {
         guard sessionStartIsCurrent(generation) else { return }
         superviseSessionRuntime(generation: generation)
+    }
+
+    /// Permission evidence sampled before this worker existed describes no
+    /// runtime (startup) or the previous one (wake). Validation published from
+    /// it would show a false setup issue right after a successful start.
+    func invalidatePermissionsForNewSessionRuntime() async {
+        await SystemStateProvider.shared.invalidatePermissionSnapshot()
     }
 
     private func adoptRunningSession(generation: UInt64, responding: Bool) async -> Bool {

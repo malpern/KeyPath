@@ -17,7 +17,7 @@ public actor PermissionOracle {
 
     public func configureSessionCapabilityProvider(_ provider: @escaping @Sendable () async -> PermissionSet?) {
         sessionCapabilityProvider = provider
-        lastSnapshot = nil
+        invalidateCache()
     }
 
     /// Raw non-prompting AX and Input Monitoring facts for this process.
@@ -251,6 +251,22 @@ public actor PermissionOracle {
     /// Prevents concurrent callers from duplicating permission checks.
     private var inFlightSnapshot: Task<Snapshot, Never>?
 
+    /// Advanced by every invalidation. A computation that began before an
+    /// invalidation describes the old state: it is neither shared with later
+    /// callers nor written to the cache.
+    private var cacheGeneration: UInt64 = 0
+
+    #if DEBUG
+        /// Replaces the OS permission reads so tests can exercise caching and
+        /// coalescing, including a computation suspended across an invalidation.
+        private var testSnapshotGenerator: (@Sendable () async -> Snapshot)?
+
+        public func setTestSnapshotGenerator(_ generator: (@Sendable () async -> Snapshot)?) {
+            testSnapshotGenerator = generator
+            invalidateCache()
+        }
+    #endif
+
     /// Cache TTL for sub-2-second goal
     private let cacheTTL: TimeInterval = 1.5
 
@@ -263,8 +279,10 @@ public actor PermissionOracle {
     /// Force cache invalidation - useful after UDP configuration changes
     public func invalidateCache() {
         AppLogger.shared.log("🔮 [Oracle] Cache invalidated - next check will be fresh")
+        cacheGeneration &+= 1
         lastSnapshot = nil
         lastSnapshotTime = nil
+        inFlightSnapshot = nil
     }
 
     /// Synchronous, non-prompting Accessibility status for call sites that cannot
@@ -282,7 +300,7 @@ public actor PermissionOracle {
     /// subsequent callers wait for the same result.
     public func currentSnapshot() async -> Snapshot {
         // Fast-path for unit tests: avoid heavy OS calls and network timeouts
-        if TestEnvironment.isRunningTests {
+        if TestEnvironment.isRunningTests, !hasTestSnapshotGenerator {
             // Honor cache semantics in tests to keep behavior deterministic
             if let cachedTime = lastSnapshotTime,
                let cached = lastSnapshot,
@@ -325,16 +343,32 @@ public actor PermissionOracle {
         }
 
         // Start new computation
-        let task = Task { await self.generateSnapshot() }
+        let generation = cacheGeneration
+        let task = Task { await self.generateSnapshot(generation: generation) }
         inFlightSnapshot = task
         let result = await task.value
-        inFlightSnapshot = nil
+        if generation == cacheGeneration { inFlightSnapshot = nil }
         return result
+    }
+
+    private var hasTestSnapshotGenerator: Bool {
+        #if DEBUG
+            testSnapshotGenerator != nil
+        #else
+            false
+        #endif
     }
 
     /// Generate a fresh permission snapshot. Called by `currentSnapshot()` when
     /// the cache is stale and no in-flight computation exists.
-    private func generateSnapshot() async -> Snapshot {
+    private func generateSnapshot(generation: UInt64) async -> Snapshot {
+        #if DEBUG
+            if let testSnapshotGenerator {
+                let snapshot = await testSnapshotGenerator()
+                cache(snapshot, generation: generation)
+                return snapshot
+            }
+        #endif
         AppLogger.shared.log("🔮 [Oracle] Generating fresh permission snapshot")
         let start = Date()
 
@@ -372,18 +406,23 @@ public actor PermissionOracle {
             logPermissionTransitions(from: previous, to: snapshot)
         }
 
-        // Cache the result
+        cache(snapshot, generation: generation)
+        return snapshot
+    }
+
+    private func cache(_ snapshot: Snapshot, generation: UInt64) {
+        guard generation == cacheGeneration else {
+            AppLogger.shared.log("🔮 [Oracle] Discarding snapshot computed before cache invalidation")
+            return
+        }
         lastSnapshot = snapshot
         lastSnapshotTime = snapshot.timestamp
-
-        return snapshot
     }
 
     /// Force refresh (bypass cache) - use after permission changes
     public func forceRefresh() async -> Snapshot {
         AppLogger.shared.log("🔮 [Oracle] Forcing permission refresh (cache invalidated)")
-        lastSnapshot = nil
-        lastSnapshotTime = nil
+        invalidateCache()
         return await currentSnapshot()
     }
 

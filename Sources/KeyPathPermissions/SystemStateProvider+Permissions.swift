@@ -41,6 +41,12 @@ public extension SystemStateProvider {
         await PermissionOracle.shared.forceRefresh()
     }
 
+    /// Discard permission evidence gathered before a runtime change, including
+    /// an in-flight sample, so the next decision reads the current runtime.
+    func invalidatePermissionSnapshot() async {
+        await PermissionOracle.shared.invalidateCache()
+    }
+
     /// Synchronous KeyPath Accessibility status for hot paths that cannot await.
     ///
     /// Kept behind `SystemStateProvider` so even sync permission probes have one
