@@ -1,6 +1,7 @@
 import AppKit
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathWizardCore
 @preconcurrency import XCTest
 
 /// No NSRunningApplication, process signal, CGEvent or host launch is used here.
@@ -404,6 +405,9 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         coordinator.testSessionWakeReady = { ready }
         coordinator.testSessionWakeWait = { [self] in
             XCTAssertEqual(starts, 1)
+            XCTAssertTrue(coordinator.isRecoveringFromSystemWake)
+            let transient = await coordinator.isInTransientRuntimeStartupWindow()
+            XCTAssertTrue(transient)
             waits += 1
             if waits == 1 { coordinator.sessionWakeEpoch += 1 }
             else { ready = true }
@@ -414,6 +418,35 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertTrue(resumed)
         XCTAssertEqual(waits, 2)
         XCTAssertEqual(starts, 2)
+        XCTAssertFalse(coordinator.isRecoveringFromSystemWake)
+        XCTAssertNil(coordinator.sessionWakeRecovery)
+    }
+
+    func testWakeRecoveryPublishesCheckingWithoutPermissionOrHealthPolling() async {
+        _ = await coordinator.startKanata()
+        let controller = MainAppStateController()
+        controller.configure(serviceLifecycle: coordinator, onSystemHealthy: {})
+        controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
+        controller.configureStartupGateTestingState(permissionsOverride: {
+            XCTFail("Normal wake recovery must not probe locked-session permissions")
+            return SystemContextBuilder().build().permissions
+        }, healthOverride: {
+            XCTFail("Normal wake recovery must not validate a retired worker")
+            return .init(isRunning: false, isResponding: false, inputCaptureReady: false)
+        })
+        defer { controller.resetStartupGateTestingState() }
+        coordinator.testSessionWakeReady = { false }
+        coordinator.testSessionWakeWait = { [self] in
+            await controller.revalidate()
+            XCTAssertEqual(controller.validationState, .checking)
+            XCTAssertTrue(controller.issues.isEmpty)
+            XCTAssertEqual(controller.lastAdaptedState, .initializing)
+            coordinator.setTerminationPreparationActive(true)
+            XCTAssertFalse(coordinator.isRecoveringFromSystemWake)
+        }
+        _ = await coordinator.resumeAfterSystemWake(expectedGeneration: coordinator.sessionIntentGeneration,
+                                                    launchWakeEpoch: 0, wakeAlreadyObserved: true)
+        XCTAssertNil(coordinator.sessionWakeRecovery)
     }
 
     func testManualStopWhileSleepingPreventsWakeRestart() async {

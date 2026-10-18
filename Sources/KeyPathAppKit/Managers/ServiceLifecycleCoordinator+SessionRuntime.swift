@@ -444,6 +444,16 @@ extension ServiceLifecycleCoordinator {
                                wakeAlreadyObserved: Bool, retiredAt: Date? = nil) async -> Bool
     {
         guard sessionStartIsCurrent(expectedGeneration) else { return false }
+        let recoveryID = UUID()
+        sessionWakeRecoveryRevision &+= 1
+        sessionWakeRecovery = (expectedGeneration, recoveryID)
+        defer {
+            if sessionWakeRecovery?.id == recoveryID {
+                sessionWakeRecovery = nil
+                sessionWakeRecoveryRevision &+= 1
+                onStateChanged?()
+            }
+        }
         // This supervisor now owns recovery rather than the retired worker.
         // Starting/cleaning a replacement must not cancel the task running this loop.
         // Stop, Quit and newer starts still invalidate its intent generation.

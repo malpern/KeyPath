@@ -744,6 +744,56 @@ struct MainAppStateControllerBehaviorTests {
         }
     }
 
+    @Test("Recovery completion refreshes validation even if runtime remains stopped")
+    func failedRecoveryRefreshesUnchangedHealth() {
+        let controller = MainAppStateController()
+        #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1))
+        #expect(!controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1))
+        #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 2))
+    }
+
+    @Test("Recovery finishing during capture discards the retired runtime snapshot")
+    func wakeRecoveryDuringSnapshotRevalidates() async {
+        let controller = MainAppStateController()
+        let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+        let validator = SequenceSystemValidator(contexts: [
+            SystemContextBuilder(servicesHealthy: false, kanataTCPConfigured: true, componentsInstalled: true).build(),
+            SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()
+        ])
+        validator.beforeCheck = { [weak validator] in
+            if validator?.checkCount == 1 { lifecycle.sessionWakeRecoveryRevision &+= 2 }
+        }
+        controller.setValidator(validator)
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { .init(isRunning: true, isResponding: true, inputCaptureReady: true) }
+        )
+        defer { controller.resetStartupGateTestingState() }
+        await controller.revalidate()
+        #expect(validator.checkCount == 2)
+        #expect(controller.validationState == .success)
+    }
+
+    @Test("Restoration refusal during snapshot cannot publish stale success")
+    func recoveryRefusalDuringSnapshotWins() async {
+        let controller = MainAppStateController()
+        let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
+        lifecycle.testSessionCapsRecovery = { throw SessionCapsMappingLease.Refusal.mutationUncertain }
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+        let validator = SequenceSystemValidator(contexts: [SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()])
+        validator.beforeCheck = { _ = await lifecycle.restoreSessionCaps(for: nil) }
+        controller.setValidator(validator)
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { .init(isRunning: true, isResponding: true, inputCaptureReady: true) }
+        )
+        defer { controller.resetStartupGateTestingState() }
+        await controller.revalidate()
+        #expect(controller.validationState?.hasCriticalIssues == true)
+        #expect(controller.issues.first?.description.contains("recovery record was retained") == true)
+    }
+
     private func sessionPermissions(
         inputMonitoring: PermissionOracle.Status,
         workerAX: PermissionOracle.Status = .granted,
@@ -820,6 +870,7 @@ private final class GatedCountingValidator: WizardSystemValidating {
 
 @MainActor
 private final class SequenceSystemValidator: WizardSystemValidating {
+    var beforeCheck: (() async -> Void)?
     private var snapshots: [SystemSnapshot]
     private(set) var checkCount = 0
 
@@ -844,6 +895,7 @@ private final class SequenceSystemValidator: WizardSystemValidating {
 
     func checkSystem() async -> SystemSnapshot {
         checkCount += 1
+        await beforeCheck?()
         if snapshots.count > 1 {
             return snapshots.removeFirst()
         }

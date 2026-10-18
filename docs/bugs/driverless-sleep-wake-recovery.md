@@ -305,3 +305,21 @@ Event Quit request timed out without an observed application quit; the verified
 signal shutdown must not be presented as a menu Quit test. Continuous one-minute
 sleep remains unproven; prior genuine shorter sleep/dark-wake coverage is recorded
 above. This private candidate has not been merged or publicly released.
+
+### Wake validation UI correction — 2026-10-17
+
+Air evidence at 19:46:10 showed validation declaring a blocking setup issue while
+owned wake recovery was waiting for wake/unlock. Recovery became ready at
+19:46:13 and the runtime started at 19:46:15; validation cleared at 19:46:17.
+The runtime recovered correctly, but its deliberate waiting period was absent
+from the validation model.
+
+The coordinator now exposes generation-owned wake recovery with a unique owner
+and persistent revision. Validation presents `.checking` / `.initializing` with
+no setup issues during that interval. Stop or a newer intent invalidates ownership;
+completion or failure clears it. Configuration and restoration refusals override
+pending recovery. The persistent revision prevents a snapshot captured before
+recovery from publishing after recovery has completed. Runtime polling compares
+that revision as well as health, so failed recovery still triggers validation
+when the runtime remains stopped. This does not lengthen a generic startup grace
+period or change keyboard recovery behavior.

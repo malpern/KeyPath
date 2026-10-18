@@ -120,6 +120,7 @@ class MainAppStateController {
 
     @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
     @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
+    @ObservationIgnored private var lastKnownRecoveryRevision: UInt64?
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
@@ -282,6 +283,13 @@ class MainAppStateController {
 
     /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
     /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
+    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64) -> Bool {
+        let changed = lastKnownRuntimeHealthy != isHealthy || lastKnownRecoveryRevision != recoveryRevision
+        lastKnownRuntimeHealthy = isHealthy
+        lastKnownRecoveryRevision = recoveryRevision
+        return changed
+    }
+
     private func subscribeToServiceHealth() {
         guard let serviceLifecycle else { return }
 
@@ -295,8 +303,9 @@ class MainAppStateController {
                 let isHealthy = runtimeStatus.isRunning
                 let wasHealthy = lastKnownRuntimeHealthy
 
-                if wasHealthy != isHealthy {
-                    lastKnownRuntimeHealthy = isHealthy
+                if runtimeValidationNeedsRefresh(isHealthy: isHealthy,
+                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision)
+                {
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
@@ -444,6 +453,7 @@ class MainAppStateController {
 
     private enum KanataStartupGateResult: Equatable {
         case ready
+        case recoveringFromWake
         case transientTimeout
         case definitiveFailure
         case missingSessionPermissions
@@ -489,6 +499,9 @@ class MainAppStateController {
         switch await evaluateKanataStartupGate() {
         case .ready:
             break
+        case .recoveringFromWake:
+            publishWakeRecoveryInProgress()
+            return
         case let .invalidSessionConfiguration(reason):
             publishSessionConfigurationRefusal(reason)
             return
@@ -533,7 +546,28 @@ class MainAppStateController {
         // SystemValidator owns the canonical capture timeout so every consumer
         // receives the same first-class `.timedOut` snapshot evidence.
         AppLogger.shared.log("🔍 [MainAppStateController] Canonical validation run started")
+        let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
         let snapshot = await validator.checkSystem()
+        if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+            publishSessionConfigurationRefusal(refusal, recovery: true)
+            return
+        }
+        if let refusal = serviceLifecycle?.configurationRefusalForStartup() {
+            publishSessionConfigurationRefusal(refusal)
+            return
+        }
+        // Recovery can begin while a snapshot is suspended. Do not publish that
+        // retired worker's missing-runtime result as a setup failure.
+        if serviceLifecycle?.isRecoveringFromSystemWake == true {
+            publishWakeRecoveryInProgress()
+            return
+        }
+
+        if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision {
+            publishWakeRecoveryInProgress()
+            validationRefreshPending = true
+            return
+        }
 
         let validationDuration = Date().timeIntervalSince(validationStart)
         AppLogger.shared.log(
@@ -771,6 +805,14 @@ class MainAppStateController {
         AppLogger.shared.error("Driverless configuration refused: \(reason)")
     }
 
+    private func publishWakeRecoveryInProgress() {
+        validationState = .checking
+        lastAdaptedState = .initializing
+        issues = []
+        lastValidationDate = Date()
+        lastValidationTime = Date()
+    }
+
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
         if KanataRuntimeBackend.selected == .session,
            let refusal = serviceLifecycle?.configurationRefusalForStartup()
@@ -780,6 +822,7 @@ class MainAppStateController {
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
             return .sessionRecoveryRefused(refusal)
         }
+        if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
         let timing = startupGateTiming()
         let start = startupGateNow()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
@@ -790,6 +833,7 @@ class MainAppStateController {
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
             }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
             if KanataRuntimeBackend.selected == .session {
                 let permissions: PermissionOracle.Snapshot
                 #if DEBUG
@@ -801,15 +845,19 @@ class MainAppStateController {
                 #else
                     permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
                 #endif
+                if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
                 if Self.hasDefinitiveSessionPermissionFailure(permissions) {
                     return .missingSessionPermissions
                 }
             }
+            let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
             let health = await currentKanataStartupHealth()
             // Recovery may finish while health is suspended; stale readiness must not win.
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
             }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+            if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision { continue }
             let isReady = health.isReady
             if isReady {
                 if checks > 0 {

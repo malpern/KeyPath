@@ -19,6 +19,14 @@ final class ServiceLifecycleCoordinator {
     var sessionSupervisionTask: Task<Void, Never>?
     var sessionCleanupTask: Task<Void, Never>?
     var sessionTerminationGuard: SessionCapsMappingLease.TerminationGuard?
+    var sessionWakeRecoveryRevision: UInt64 = 0
+    var sessionWakeRecovery: (generation: UInt64, id: UUID)?
+    var isRecoveringFromSystemWake: Bool {
+        guard let recovery = sessionWakeRecovery else { return false }
+        return recovery.generation == sessionIntentGeneration && sessionWantsRunning
+            && recoveryRefusalForStartup == nil && sessionConfigurationRefusal == nil
+    }
+
     var sessionWakeEpoch: UInt64 = 0
     var sessionLaunchWakeEpoch: UInt64 = 0
     /// Set only after an owned held-key startup refusal has been fully cleaned up.
@@ -459,7 +467,7 @@ final class ServiceLifecycleCoordinator {
         // Session starts are owned and awaited here. Once the attempt returns,
         // no service is starting in the background. A creation/attempt-age grace
         // would hide Start after a completed permission refusal.
-        return isStartingKanata
+        return isStartingKanata || isRecoveringFromSystemWake
     }
 
     static func shouldAcceptPostStartRuntime(
