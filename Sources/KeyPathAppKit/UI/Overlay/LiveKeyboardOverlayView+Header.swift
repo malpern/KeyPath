@@ -183,6 +183,8 @@ struct OverlayDragHeader: View {
     @State private var headerAppearedAt: Date
     @State private var hasSeenKanataConnection: Bool
     @State private var tcpStartupGraceExpired = false
+    @State private var tcpRecoveryGrace = OverlayTCPRecoveryGrace()
+    @State private var tcpRecoveryGraceExpired = false
 
     /// Tracks whether the KindaVim Mode Display pack is installed, so the
     /// header can render its mode badge without polling on every redraw.
@@ -355,6 +357,20 @@ struct OverlayDragHeader: View {
                 hasSeenKanataConnection = true
             }
         }
+        .onChange(of: isKanataConnected, initial: true) { _, _ in
+            updateTCPRecoveryGrace()
+        }
+        .onChange(of: MainAppStateController.shared.validationState == .checking) { _, _ in
+            updateTCPRecoveryGrace()
+        }
+        .task(id: tcpRecoveryGrace.deadline) {
+            guard let deadline = tcpRecoveryGrace.deadline else { return }
+            do {
+                try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow)))
+            } catch { return }
+            guard !Task.isCancelled else { return }
+            tcpRecoveryGraceExpired = true
+        }
         .task(id: healthDismissedAt) {
             await scheduleTCPStartupGraceExpiration()
         }
@@ -414,9 +430,19 @@ struct OverlayDragHeader: View {
         .resolve(
             isConnected: isKanataConnected,
             hasSeenConnection: hasSeenKanataConnection,
-            isWithinStartupGrace: !tcpStartupGraceExpired,
+            isWithinStartupGrace: !tcpStartupGraceExpired
+                || (!tcpRecoveryGraceExpired && tcpRecoveryGrace.isActive(at: Date())),
             isCheckingHealth: MainAppStateController.shared.validationState == .checking
         )
+    }
+
+    private func updateTCPRecoveryGrace() {
+        tcpRecoveryGrace.update(
+            isConnected: isKanataConnected,
+            isCheckingHealth: MainAppStateController.shared.validationState == .checking,
+            now: Date()
+        )
+        tcpRecoveryGraceExpired = !tcpRecoveryGrace.isActive(at: Date())
     }
 
     private func scheduleTCPStartupGraceExpiration() async {

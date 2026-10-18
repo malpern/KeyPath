@@ -40,6 +40,31 @@ enum HealthIndicatorState: Equatable {
     case dismissed
 }
 
+/// One bounded settling window per disconnected episode. Routine validation must
+/// not keep renewing it and conceal a genuinely failed event stream.
+struct OverlayTCPRecoveryGrace {
+    static let duration: TimeInterval = 5
+    private(set) var awaitingValidation = false
+    private(set) var deadline: Date?
+    private var consumed = false
+
+    mutating func update(isConnected: Bool, isCheckingHealth: Bool, now: Date) {
+        if isConnected {
+            self = Self()
+        } else if !consumed, isCheckingHealth {
+            awaitingValidation = true
+        } else if awaitingValidation, !isCheckingHealth {
+            awaitingValidation = false
+            consumed = true
+            deadline = now.addingTimeInterval(Self.duration)
+        }
+    }
+
+    func isActive(at now: Date) -> Bool {
+        awaitingValidation || deadline.map { now < $0 } == true
+    }
+}
+
 enum OverlayTCPStatusPresentation: Equatable {
     case hidden
     case starting
