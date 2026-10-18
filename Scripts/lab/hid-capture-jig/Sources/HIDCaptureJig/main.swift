@@ -1242,6 +1242,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private let bearMonitor = TypoverBearMonitorSession()
     private let resourceMonitor = SystemResourceMonitor()
     private var window: NSWindow!
+    private var keyUpMonitor: Any?
     private var canvas: CaptureCanvas!
     private var timer: Timer?
     private var lastCommandID = ""
@@ -1266,6 +1267,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     func applicationDidFinishLaunching(_: Notification) {
         NSApp.setActivationPolicy(.regular)
         buildWindow()
+        // Capture before AppKit shortcut dispatch, which can omit Command-key
+        // releases from the responder. Consume here to avoid double recording.
+        keyUpMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
+            guard let self, event.window === self.window,
+                  self.window.isKeyWindow, self.window.firstResponder === self.canvas else {
+                return event
+            }
+            self.canvas.keyUp(with: event)
+            return nil
+        }
         resourceMonitor.sampleIfNeeded(nowNs: monotonicNow(), force: true)
         canvas.systemReadiness = resourceMonitor.assessment
         prepareStateDirectory()
