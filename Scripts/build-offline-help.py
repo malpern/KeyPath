@@ -93,6 +93,10 @@ if __name__ == '__main__':
         version_root = args.publish_root / args.app_version
         revision_root = version_root / manifest['revision']
         if not revision_root.exists():
-            shutil.copytree(args.output, revision_root)
+            revision_root.mkdir(parents=True)
+            for name in [*manifest['files'], 'manifest.json']:
+                target = revision_root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(args.output / name, target)
         version_root.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(args.output / 'manifest.json', version_root / 'manifest.json')
