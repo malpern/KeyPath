@@ -235,7 +235,8 @@ Functional ZIP `KeyPath-tour-fix.zip` SHA-256:
 `70eebd0d27452ef28d233604a58bf04c6d2c4bccf465dc9c334c2d8fcac7e4d7`;
 executable SHA-256:
 `a79ab1185afd3a078b6a0111f929ffb974518a8b573d8ce23fb49db78920988f`.
-This replacement is not notarized and has not been delivered to the Air.
+At this point in the run the replacement was not notarized or delivered; see
+the October 18 packaging update below for the current artifact status.
 The replacement receipt and source manifest identify its exact base plus patch.
 
 Live regression passed: reject Caps setup, compare the prior configuration files
@@ -289,3 +290,23 @@ verifies both hashes, and pauses after delivery. No Air installation occurred.
 Physical Caps tour/hold acceptance is still pending; notarization is not a test
 of that behavior. The rig is online with its pinned firmware and not assigned to
 another VM. A new owned-guest admission is waiting behind shared provisioning.
+
+
+### Physical tour follow-up: UI targeting blocked
+
+Owned lease `cbx_d63d055d962b` completed admission and readiness, root-console
+preparation, and pinned Python installation. Product testing did not start:
+CUA selected the concurrent Typover macOS VM when binding to
+`com.parallels.macvm`, even after opening the KeyPath guest from Control Center.
+The selected process's Window menu exposed only the Typover window. No guest
+keyboard input or fixture reports were sent, and Typover's lease was not changed.
+This is an automation targeting limitation, not a newly observed KeyPath failure.
+
+Collected artifacts at
+`/Volumes/KeyPath Lab/CrabBox/KeyPathInstallerLab/artifacts/cbx_d63d055d962b/20261018T121056Z`.
+Destroyed the owned guest successfully; destruction warned that its hydration-stop
+marker could not be written over guest SSH, then confirmed provider deletion.
+Air SSH still timed out. Delivery remains queued, and physical Caps Lock tour,
+tap Escape, and hold Hyper acceptance remains open. Resume this test when the UI
+can target the owned VM unambiguously, or complete it on the Air; do not recreate
+another guest merely to repeat this targeting failure.
