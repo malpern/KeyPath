@@ -332,3 +332,11 @@ On October 18, after the competing VM was released, a fresh binding correctly
 selected owned lease `cbx_5a95a4b49d72`; both AX title and screenshot matched.
 This verifies the single-console workaround, not a fix to CUA's multiple-process
 selection limitation and not physical Caps Lock acceptance.
+
+The targeting-only recheck also opened and dismissed the host Window menu on the
+correct lease. Guest readiness did not complete before cleanup: the provider
+reported `starting` and refused ordinary deletion as busy. The supported
+`recover-wedged` route stopped and deleted only this lease successfully. The
+remaining readiness waiter was terminated after provider deletion. Thus console
+selection is verified, but this run does not establish guest readiness or any
+additional product acceptance result.
