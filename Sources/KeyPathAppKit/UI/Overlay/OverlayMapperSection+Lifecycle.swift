@@ -17,6 +17,12 @@ extension OverlayMapperSection {
             guard !shouldShowHealthGate, let kanataViewModel else { return }
             viewModel.configure(kanataManager: kanataViewModel.underlyingManager)
             viewModel.setLayer(kanataViewModel.currentLayerName)
+            if let pending = MapperDrawerSelectionRequest.take() {
+                applyDrawerKeySelection(pending)
+                onKeySelected?(viewModel.inputKeyCode)
+                updateConfiguredBehaviorSlots()
+                return
+            }
             let defaultKeyCode: UInt16 = 0
             let layerInfo = layerKeyMap[defaultKeyCode]
             let inputLabel = "a"
@@ -236,17 +242,22 @@ extension OverlayMapperSection {
     }
 
     private func handleDrawerKeySelection(_ notification: Notification) {
+        MapperDrawerSelectionRequest.pending = nil
+        applyDrawerKeySelection(notification.userInfo ?? [:])
+    }
+
+    private func applyDrawerKeySelection(_ userInfo: [AnyHashable: Any]) {
         guard !shouldShowHealthGate else { return }
-        guard let keyCode = notification.userInfo?["keyCode"] as? UInt16,
-              let inputKey = notification.userInfo?["inputKey"] as? String,
-              let outputKey = notification.userInfo?["outputKey"] as? String
+        guard let keyCode = userInfo["keyCode"] as? UInt16,
+              let inputKey = userInfo["inputKey"] as? String,
+              let outputKey = userInfo["outputKey"] as? String
         else { return }
 
-        let appId = notification.userInfo?["appIdentifier"] as? String
-        let systemId = notification.userInfo?["systemActionIdentifier"] as? String
-        let urlId = notification.userInfo?["urlIdentifier"] as? String
-        let shiftedOutputKey = notification.userInfo?["shiftedOutputKey"] as? String
-        let displayLabel = notification.userInfo?["displayLabel"] as? String
+        let appId = userInfo["appIdentifier"] as? String
+        let systemId = userInfo["systemActionIdentifier"] as? String
+        let urlId = userInfo["urlIdentifier"] as? String
+        let shiftedOutputKey = userInfo["shiftedOutputKey"] as? String
+        let displayLabel = userInfo["displayLabel"] as? String
 
         viewModel.setInputFromKeyClick(
             keyCode: keyCode,
@@ -267,8 +278,8 @@ extension OverlayMapperSection {
             viewModel.loadBehaviorFromExistingRule(kanataManager: manager)
         }
 
-        if let bundleId = notification.userInfo?["appBundleId"] as? String,
-           let displayName = notification.userInfo?["appDisplayName"] as? String
+        if let bundleId = userInfo["appBundleId"] as? String,
+           let displayName = userInfo["appDisplayName"] as? String
         {
             viewModel.selectedAppCondition = AppConditionInfo(
                 bundleIdentifier: bundleId,

@@ -38,6 +38,8 @@ struct OverlayKeycapView: View {
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when key is double-clicked in launcher mode (opens edit panel)
     var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Right-click "Remap…"; works whether or not the drawer is open.
+    var onKeyRemap: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// GMK colorway for keycap styling
     var colorway: GMKColorway = .default
     /// Layout total width for rainbow gradient calculation (default 15 for standard keyboards)

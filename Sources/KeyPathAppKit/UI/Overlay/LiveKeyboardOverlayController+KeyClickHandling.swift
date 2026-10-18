@@ -71,6 +71,49 @@ extension LiveKeyboardOverlayController {
             }
         }
 
+        let userInfo = mapperSelection(key: key, layerInfo: layerInfo)
+        AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(userInfo["outputKey"] ?? inputKey) [layer: \(viewModel.currentLayerName)]")
+
+        guard isInspectorVisible else {
+            AppLogger.shared.log("🖱️ [OverlayController] Key click ignored (drawer not visible)")
+            return
+        }
+
+        viewModel.selectedKeyCode = key.keyCode
+        Foundation.NotificationCenter.default.post(
+            name: Foundation.Notification.Name.mapperDrawerKeySelected,
+            object: nil,
+            userInfo: userInfo
+        )
+    }
+
+    var isInspectorVisible: Bool {
+        uiState.isInspectorOpen || uiState.isInspectorAnimating || uiState.inspectorReveal > 0
+    }
+
+    /// Right-click "Remap…": show this key in the mapper, opening the drawer if needed.
+    /// A drawer that is not on screen yet receives the key as a pending selection,
+    /// because the mapper selects its default key when it appears.
+    func openMapper(for key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+        guard key.layoutRole != .touchId, kanataViewModel != nil else { return }
+        let userInfo = mapperSelection(key: key, layerInfo: layerInfo)
+        AppLogger.shared.log("🖱️ [OverlayController] Remap requested from context menu: \(key.label) (keyCode: \(key.keyCode))")
+        viewModel.selectedKeyCode = key.keyCode
+        MapperDrawerSelectionRequest.pending = userInfo
+        UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
+        if isInspectorVisible {
+            Foundation.NotificationCenter.default.post(
+                name: Foundation.Notification.Name.mapperDrawerKeySelected,
+                object: nil,
+                userInfo: userInfo
+            )
+        } else {
+            toggleInspectorPanel()
+        }
+    }
+
+    func mapperSelection(key: PhysicalKey, layerInfo: LayerKeyInfo?) -> [String: Any] {
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
         let outputKey: String = if let simpleOutput = layerInfo?.outputKey {
             simpleOutput
         } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
@@ -78,18 +121,7 @@ extension LiveKeyboardOverlayController {
         } else {
             inputKey
         }
-
         let currentLayer = viewModel.currentLayerName
-
-        AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
-
-        let inspectorVisible = uiState.isInspectorOpen || uiState.isInspectorAnimating || uiState.inspectorReveal > 0
-        guard inspectorVisible else {
-            AppLogger.shared.log("🖱️ [OverlayController] Key click ignored (drawer not visible)")
-            return
-        }
-
-        viewModel.selectedKeyCode = key.keyCode
 
         var userInfo: [String: Any] = [
             "keyCode": key.keyCode,
@@ -112,11 +144,7 @@ extension LiveKeyboardOverlayController {
         if let shiftedOutput = kanataViewModel?.underlyingManager.getCustomRule(forInput: inputKey)?.shiftedOutput {
             userInfo["shiftedOutputKey"] = shiftedOutput
         }
-        Foundation.NotificationCenter.default.post(
-            name: Foundation.Notification.Name.mapperDrawerKeySelected,
-            object: nil,
-            userInfo: userInfo
-        )
+        return userInfo
     }
 
     func handleKeyDoubleClick(key: PhysicalKey, layerInfo _: LayerKeyInfo?) {
@@ -138,5 +166,17 @@ extension LiveKeyboardOverlayController {
                 userInfo: ["key": normalizedKey]
             )
         }
+    }
+}
+
+/// One-shot key selection for a mapper that is not on screen yet. Consumed when
+/// the mapper appears, or cleared when a visible mapper handles the selection.
+@MainActor
+enum MapperDrawerSelectionRequest {
+    static var pending: [String: Any]?
+
+    static func take() -> [String: Any]? {
+        defer { pending = nil }
+        return pending
     }
 }

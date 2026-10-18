@@ -171,6 +171,7 @@ extension LiveKeyboardOverlayView {
                     customIcons: viewModel.customIcons,
                     onKeyClick: onKeyClick,
                     onKeyDoubleClick: onKeyDoubleClick,
+                    onKeyRemap: onKeyRemap,
                     selectedKeyCode: viewModel.selectedKeyCode,
                     hoveredRuleKeyCode: viewModel.hoveredRuleKeyCode,
                     vimHintsActive: kindaVimPackInstalled && VimHintLayer.isCurrentlyRendering,

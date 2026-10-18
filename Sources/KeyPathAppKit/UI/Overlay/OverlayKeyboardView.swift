@@ -42,6 +42,8 @@ struct OverlayKeyboardView: View {
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when a key is double-clicked in launcher mode (opens edit panel)
     var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Right-click "Remap…"; works whether or not the drawer is open.
+    var onKeyRemap: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Key code of currently selected key in mapper drawer (shows selection highlight)
     var selectedKeyCode: UInt16?
     /// Key code being hovered in rules/launcher tabs (for secondary highlight)
@@ -494,6 +496,7 @@ struct OverlayKeyboardView: View {
             tapHoldIdleLabel: tapHoldIdleLabels[key.keyCode],
             onKeyClick: onKeyClick,
             onKeyDoubleClick: onKeyDoubleClick,
+            onKeyRemap: onKeyRemap,
             colorway: activeColorway,
             // Pass layout width for rainbow gradient calculation
             layoutTotalWidth: layout.totalWidth,

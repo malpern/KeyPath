@@ -165,6 +165,18 @@ extension OverlayKeycapView {
                     },
                 including: isInspectorVisible ? .all : .none
             )
+            .contextMenu {
+                if let onKeyRemap {
+                    Button("Remap \u{201C}\(keyMenuName)\u{201D}\u{2026}") {
+                        onKeyRemap(key, layerKeyInfo)
+                    }
+                    .accessibilityIdentifier("overlay-key-remap-\(key.keyCode)")
+                }
+            }
+    }
+
+    private var keyMenuName: String {
+        key.label.isEmpty ? "Key \(key.keyCode)" : key.label.count == 1 ? key.label.uppercased() : key.label
     }
 
     var keycapBody: some View {
