@@ -733,6 +733,8 @@ collections match). Previous app archived as
 
 Live locked-screen launch: `Startup retired state=secureInput` → recovery gate
 `secure-input` → `Runtime recovery in progress - wizard not shown`; no failed
-validation. Resume after unlock and readiness verification pending at time of
-writing. Evidence: `~/keypath-review-evidence/20261018-secure-input-startup/`.
+validation. Unlocked at 12:36:07: gate `ready`, `Session runtime ready (System wake)` 1.35 s
+later, single `Validation SUCCESS`, no failed validation or wizard. Canonical
+verifier passed: parent 95627, worker 48424, TCP 127.0.0.1:37001. Physical key
+output after unlock not yet confirmed by the user. Evidence: `~/keypath-review-evidence/20261018-secure-input-startup/`.
 The `663c0ed2a` installer in Air Downloads is superseded.
