@@ -395,3 +395,35 @@ Collected guest artifacts:
 The lab confirmed deletion of owned UUID
 `70889833-c185-422b-9479-a14652aea03d`; cleanup warned only that its optional
 hydration stop marker could not be written over SSH before provider deletion.
+
+## Air current-candidate follow-up — October 18, 06:54 Pacific
+
+Delivered and installed the current tour-fix DMG with matching source/remote
+hashes, Developer ID/Gatekeeper/stapler verification, preserving existing rules
+and preferences. The previous app was archived in Downloads before replacement.
+User confirmed Caps Lock works immediately after waking and after 30 seconds,
+with no warning. Live owned-session verification passed for parent 61704,
+worker 65630 and TCP 37001; latest validation reported no blocking issues.
+
+However, logs reveal a remaining startup UX defect. Initial launch at 06:51
+refused managed Caps activation with `physicalKeysHeld` and stopped; after the
+user released all keys and the app was reopened, startup passed. The code uses
+combined session key state, so this does not prove the user was physically
+holding a specific key. Ordinary startup treats this transient condition as a
+terminal failure; only the System wake path retries it today.
+
+The 06:54:18.780 system-wake notification was followed by six held-key activation
+refusals, then runtime Ready at 06:54:28.266 and successful validation at
+06:54:29.750. This is successful automatic recovery with a roughly 9.5-second
+notification-to-ready interval, not evidence of zero recovery delay. User-visible
+no-warning acceptance passed. Repeated `Terminal failure` log lines during this
+recoverable condition are misleading diagnostic severity.
+
+Before production: handle held-key startup as a transient wait using the existing
+lifecycle recovery machinery, retain the all-up guard, test release-to-ready and
+cancellation/real failures, then repeat the affected launch and wake checks. Do
+not remove the guard or mask genuine failures. Source review/integration and final
+Air appearance/Quit-reopen checks also remain. Evidence: `air-install-latest.log`,
+`air-install-retry.log`, `air-wake-final.log`, `air-wake-power.log` under the current
+October 18 tour-final evidence directory. This finding supersedes the earlier
+statement that this candidate has no newly identified product defect remaining.
