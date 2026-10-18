@@ -550,3 +550,33 @@ Notarization `40739346-2453-45f6-adf2-f6897f7cab2c` accepted; staple and Gatekee
 passed. Air Downloads delivery `KeyPath-20261018-brand-final.dmg` verified against
 SHA-256 `615e0104a9496ae319b61cce05ad263d94a1dccc107c90e3608674a917958dc9`.
 Preview and evidence: `/Users/malpern/keypath-review-evidence/20261018-installer-type/`.
+
+### Splash and tagline unification — 2026-10-18
+
+Source `7a3130399` implements the approved centered amber-keycap splash with native
+ivory serif wordmark and warm-gray **Keys that do more.** tagline. Retired both
+old poster resources, including their baked-in old tagline. Brand policy is now
+`docs/design/keypath-brand.md`. Welcome, About and current installer already use
+the selected tagline; repository copy search found no remaining active use of the
+retired tagline.
+
+Activity is limited to the launch handoff, pauses for Reduce Motion, and is stopped
+when the splash hides or hosts a menu-action sheet. Existing startup timing and
+runtime behavior are unchanged. Native SwiftUI preview verified loading and static
+states at the real 640×440 window size; evidence `preview.png` and `preview-idle.png`
+in `/Users/malpern/keypath-review-evidence/20261018-splash-brand/`. The preview
+contained only the splash component; KeyPath was not installed/launched on mini.
+
+Production build, signing identity/bundle contract, strict signature, pinned
+SwiftFormat lint and accessibility checks passed. All six ReopenPolicy cases
+passed through the safe runner (77 seconds including compilation). App notarization
+`592d58da-5991-48b1-abee-4b661f6aff6e` accepted; app staple and Gatekeeper passed.
+This UI-only iteration does not replace the outstanding physical held-key startup
+acceptance recorded above. On Air, a brief launch check should confirm the new
+splash hands off cleanly to setup/keyboard without lingering activity.
+
+DMG notarization `98fc76ba-88e3-4a3d-b6d6-707fc19d22a2` accepted. Final image
+staple/validate and Gatekeeper passed. Delivered to Air Downloads as
+`KeyPath-20261018-splash-brand.dmg` with verified matching SHA-256
+`1f4c5cc900cb30cc338ce09b0d957873cb9784d306a21678f0bc70abe6c2bcd0`.
+Delivery only; the Air's installed app and settings were not changed in this pass.
