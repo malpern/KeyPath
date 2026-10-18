@@ -225,8 +225,16 @@ The gate's exit code alone is not acceptance: findings were triaged separately.
 
 Confirmed and fixed: termination handlers were installed after managed HID
 acquisition, and parent cleanup could force-kill a mutation still joining.
-Install handlers before acquisition and never escalate session cleanup to SIGKILL;
-retain ownership and report pending cleanup when the graceful wait expires.
+Install handlers before acquisition and run HID work on an actual background
+queue, joining without pumping the main run loop. A 30-second graceful shutdown
+allows bounded acquisition and restoration to join. Escalation requires the
+validated Caps journal lock with no mutation marker and no foreign owner; hold
+that lock through signal delivery until the exact worker is observed dead.
+If exclusion or death cannot be verified, retain ownership and a cleanup-only
+task independent of running intent. Never adopt a worker pending cleanup.
+Release exclusion only after death, then restore the journal and outputs.
+Repeated recovery refusals are deduplicated; uncertain mutation evidence is
+never cleared automatically.
 Confirmed and fixed: startup interrupted by sleep or session departure did not
 arm recovery. After verified cleanup, schedule recovery outside the held lifecycle
 admission. Sleep requires a fresh wake signal; console changes require active

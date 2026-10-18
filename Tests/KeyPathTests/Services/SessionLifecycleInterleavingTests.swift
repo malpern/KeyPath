@@ -121,6 +121,29 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertEqual(adopted.last, coordinator.sessionIntentGeneration)
     }
 
+    func testHealthyWorkerPendingCleanupCannotBeAdopted() async {
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        coordinator.testSessionRunningReadiness = { true }
+        var adopted = false
+        coordinator.testSessionSupervisionStarted = { _ in adopted = true }
+        coordinator.sessionCleanupTask = Task {}
+        defer { coordinator.sessionCleanupTask = nil }
+        let started = await coordinator.startKanata()
+        XCTAssertFalse(started)
+        XCTAssertFalse(adopted)
+    }
+
+    func testRepeatedCapsRecoveryRefusalIsReportedOnce() async {
+        var errors = 0
+        coordinator.onError = { _ in errors += 1 }
+        coordinator.testSessionCapsRecovery = { throw CancellationError() }
+        let first = await coordinator.restoreSessionCaps(for: nil)
+        let second = await coordinator.restoreSessionCaps(for: nil)
+        XCTAssertFalse(first)
+        XCTAssertFalse(second)
+        XCTAssertEqual(errors, 1)
+    }
+
     func testHealthyReportWithFailedTCPStopsInsteadOfAbandoningOutputs() async {
         ServiceLifecycleCoordinator.testSessionStart = nil
         var held = true
@@ -641,7 +664,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         )
         XCTAssertFalse(exited)
         XCTAssertEqual(signals, 1)
-        XCTAssertEqual(waits, 40)
+        XCTAssertEqual(waits, 600)
     }
 
     func testShutdownCompletesAfterMutationJoinsWithoutAnotherSignal() async {

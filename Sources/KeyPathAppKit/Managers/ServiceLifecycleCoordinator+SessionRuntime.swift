@@ -196,7 +196,8 @@ extension ServiceLifecycleCoordinator {
     }
 
     private func adoptRunningSession(generation: UInt64, responding: Bool) async -> Bool {
-        guard sessionStartIsCurrent(generation) else { return false }
+        guard sessionStartIsCurrent(generation), sessionCleanupTask == nil,
+              sessionTerminationGuard == nil else { return false }
         guard responding else {
             _ = await stopSessionAdmitted(reason: "Existing session did not respond")
             return false
@@ -216,15 +217,16 @@ extension ServiceLifecycleCoordinator {
         sessionSupervisionTask = nil
         await AppContextService.shared.stop()
         if let application, !application.isTerminated {
-            let exited = await Self.awaitGracefulSessionExit(
+            let exited = sessionTerminationGuard == nil ? await Self.awaitGracefulSessionExit(
                 isTerminated: { application.isTerminated },
                 sendTermination: { _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGTERM) },
                 wait: { await self.waitForSessionTermination() }
-            )
-            guard exited else {
-                // A worker can still be joining a bounded hidutil mutation. A
-                // hard kill would strand its durable in-flight marker and F18
-                // mapping. Retain ownership and allow a later stop to finish.
+            ) : false
+            if !exited {
+                await terminateIdleSessionWorker(application, nonce: nonce)
+            }
+            guard application.isTerminated else {
+                scheduleSessionCleanup(application, nonce: nonce)
                 onError?("Keyboard cleanup is still finishing. Wait a moment and try again.")
                 return false
             }
@@ -232,17 +234,74 @@ extension ServiceLifecycleCoordinator {
         // Never clear a different launch's fields or delete its durable ledger.
         guard sessionApplication === application, sessionNonce == nonce,
               sessionReportURL == reportURL else { return false }
+        // The worker is dead: release exclusion before normal journal recovery.
+        sessionTerminationGuard?.release()
+        sessionTerminationGuard = nil
         if let application { _ = recoverSessionOutputs(for: application) }
-        guard await restoreSessionCaps(for: application) else { return false }
+        guard await restoreSessionCaps(for: application) else {
+            if let application { scheduleSessionCleanup(application, nonce: nonce) }
+            return false
+        }
         if let reportURL {
             try? FileManager.default.removeItem(at: reportURL.deletingLastPathComponent())
         }
+        sessionCleanupTask?.cancel()
+        sessionCleanupTask = nil
         sessionApplication = nil
         sessionReportURL = nil
         sessionNonce = nil
         sessionOutputsRecovered = false
         onStateChanged?()
         return true
+    }
+
+    /// Exclusion is held until the exact worker is observed dead, not merely
+    /// until kill returns. A marker or foreign owner always refuses escalation.
+    private func terminateIdleSessionWorker(_ application: NSRunningApplication, nonce: String?) async {
+        guard let nonce, sessionApplication === application, sessionNonce == nonce else { return }
+        if sessionTerminationGuard == nil {
+            let pid = application.processIdentifier, uid = getuid(), parentPID = getpid()
+            let directory = SessionCapsRuntimeSupport.journalDirectory()
+            do {
+                sessionTerminationGuard = try await Task.detached {
+                    let owner = try SessionCapsMappingPolicy.Owner(
+                        uid: uid, parentPID: parentPID, workerPID: pid, nonce: nonce,
+                        generation: nonce, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID()
+                    )
+                    return try SessionCapsMappingLease(directory: directory, backend: SessionCapsHIDUtilTransport.backend())
+                        .acquireTerminationGuard(expectedOwner: owner)
+                }.value
+            } catch { return }
+        }
+        guard !application.isTerminated else { return }
+        _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGKILL)
+        for _ in 0 ..< 40 {
+            if application.isTerminated { return }
+            await waitForSessionTermination()
+        }
+    }
+
+    /// Cleanup survives Stop intent and caller cancellation. It never starts a
+    /// replacement worker, and stale cleanup cannot touch a subsequent launch.
+    private func scheduleSessionCleanup(_ application: NSRunningApplication, nonce: String?) {
+        guard sessionCleanupTask == nil, let nonce else { return }
+        let pid = application.processIdentifier
+        sessionCleanupTask = Task.detached { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled, await self?.sessionCleanupTick(nonce: nonce, pid: pid) == true else { return }
+            }
+        }
+    }
+
+    private func sessionCleanupTick(nonce: String, pid: Int32) async -> Bool {
+        await (try? sessionOperationGate.withOperation { @MainActor [self] _ in
+            guard sessionNonce == nonce, let application = sessionApplication,
+                  application.processIdentifier == pid else { return false }
+            if !application.isTerminated { await terminateIdleSessionWorker(application, nonce: nonce) }
+            guard application.isTerminated else { return true }
+            return await !stopSessionRuntime()
+        }) ?? true
     }
 
     /// One signal boundary for owned session shutdown; injected transport keeps
@@ -256,15 +315,15 @@ extension ServiceLifecycleCoordinator {
         return send(pid, signal) == 0
     }
 
-    /// Never force-kill a worker that may be joining a mapping mutation. The
-    /// caller keeps process/journal ownership when this bounded wait expires.
+    /// Thirty seconds covers bounded acquisition plus restoration. Escalation
+    /// is separate and requires the retained mapping exclusion guard.
     static func awaitGracefulSessionExit(isTerminated: () -> Bool,
                                          sendTermination: () -> Void,
                                          wait: () async -> Void) async -> Bool
     {
         if isTerminated() { return true }
         sendTermination()
-        for _ in 0 ..< 40 {
+        for _ in 0 ..< 600 {
             if isTerminated() { return true }
             await wait()
         }
@@ -498,9 +557,11 @@ extension ServiceLifecycleCoordinator {
             return true
         } catch {
             let reason = "Caps mapping could not be restored safely. Restart was refused; its recovery record was retained."
-            sessionRecoveryRefusal = reason
-            onError?(reason)
-            onStateChanged?()
+            if sessionRecoveryRefusal != reason {
+                sessionRecoveryRefusal = reason
+                onError?(reason)
+                onStateChanged?()
+            }
             return false
         }
     }

@@ -17,6 +17,8 @@ final class ServiceLifecycleCoordinator {
     var sessionOutputsRecovered = false
     private(set) var sessionConfigurationAdmission: KanataHostBridgeValidationResult?
     var sessionSupervisionTask: Task<Void, Never>?
+    var sessionCleanupTask: Task<Void, Never>?
+    var sessionTerminationGuard: SessionCapsMappingLease.TerminationGuard?
     var sessionWakeEpoch: UInt64 = 0
     var sessionLaunchWakeEpoch: UInt64 = 0
     /// Set only after an owned held-key startup refusal has been fully cleaned up.
