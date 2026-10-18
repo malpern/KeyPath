@@ -313,7 +313,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !isHeadlessMode {
             setupMenuBarController()
-            SplashView.PosterCache.warmIfNeeded()
+            SplashView.EmblemCache.warmIfNeeded()
             NSApp.activate(ignoringOtherApps: true)
         }
 
@@ -344,7 +344,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self.initialMainWindowShown = true
                     if await self.hasCompletedInitialWizard() {
                         LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-                        self.mainWindowController?.window?.orderOut(nil)
+                        self.mainWindowController?.hideSplash()
                     } else {
                         AppLogger.shared.info("🪟 [AppDelegate] Splash fallback kept visible — initial wizard incomplete")
                         self.mainWindowController?.show(focus: false)
@@ -444,7 +444,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let completedInitialWizard = await hasCompletedInitialWizard()
         // Recheck after the health await: the tour can appear during validation.
         if FirstSuccessOnboardingWindowController.bringPresentedTourToFront() {
-            mainWindowController?.window?.orderOut(nil)
+            mainWindowController?.hideSplash()
             return
         }
         let surface = ReopenPolicy.surface(
@@ -463,7 +463,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             initialMainWindowShown = true
             // If the launch splash is somehow still up (reopen racing the launch
             // auto-hide), dismiss it — a configured app must never strand it.
-            mainWindowController?.window?.orderOut(nil)
+            mainWindowController?.hideSplash()
             LiveKeyboardOverlayController.shared.clearExplicitHideFlag()
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
 
@@ -475,7 +475,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Show the splash/main window and keep it up (no auto-hide). Only valid as the
     /// first-run onboarding surface or as a host for menu-action sheets.
-    private func showSplashWindow() {
+    private func showSplashWindow(preparing: Bool = false) {
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
@@ -497,6 +497,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         suppressLaunchSplashAutoHide = true
+        mainWindowController?.splashPresentation.isPreparing = preparing
         mainWindowController?.show(focus: true)
         initialMainWindowShown = true
     }
@@ -520,14 +521,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Preserve the branded launch beat, then hand off to the actionable wizard.
     /// Reopen/subsequent activation paths intentionally skip this delay.
     private func showSetupWizardAfterLaunchSplash(targetPage: WizardPage? = nil) async {
-        showSplashWindow()
+        showSplashWindow(preparing: true)
         let splashDelayMs = launchSplashDelayMs
         AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
         try? await Task.sleep(for: .milliseconds(splashDelayMs))
         guard !Task.isCancelled else { return }
         if targetPage == nil, await hasCompletedInitialWizard() {
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-            mainWindowController?.window?.orderOut(nil)
+            mainWindowController?.hideSplash()
         } else {
             showWizard(targetPage: targetPage)
         }
@@ -602,7 +603,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
 
                 if !self.suppressLaunchSplashAutoHide {
-                    self.mainWindowController?.window?.orderOut(nil)
+                    self.mainWindowController?.hideSplash()
                     AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
                 } else {
                     AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (user re-opened during launch)")
@@ -832,7 +833,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         // The wizard owns a separate window. Retire the launch splash at handoff
         // instead of relying on its setup-suppressed automatic dismissal.
-        mainWindowController?.window?.orderOut(nil)
+        mainWindowController?.hideSplash()
         suppressLaunchSplashAutoHide = false
         AppLogger.shared.info("[AppDelegate] Launch splash dismissed after wizard handoff")
     }

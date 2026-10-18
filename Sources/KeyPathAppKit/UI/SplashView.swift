@@ -1,160 +1,108 @@
 import AppKit
-import KeyPathCore
+import Observation
 import SwiftUI
 
-/// Minimal main-window surface. KeyPath’s primary UI is the live overlay.
+/// The same window also hosts menu-action sheets, which must not look busy.
+@MainActor
+@Observable
+final class SplashPresentation {
+    var isPreparing = true
+}
+
+/// A stable brand lockup, with activity shown only during the launch handoff.
 struct SplashView: View {
-    @State private var posterImage: NSImage? = PosterCache.image()
-    @State private var didLogAppear = false
+    @Environment(SplashPresentation.self) private var presentation
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var glowing = false
 
     @MainActor
-    enum SplashDiagnostics {
-        private static var didLogBody = false
-
-        static func logBodyOnce(posterImage: NSImage?) {
-            guard !didLogBody else { return }
-            didLogBody = true
-
-            if let posterImage {
-                AppLogger.shared.info(
-                    "🖼️ [Splash] SplashView.body evaluated with poster (\(Int(posterImage.size.width))x\(Int(posterImage.size.height)))"
-                )
-            } else {
-                AppLogger.shared.warn("🖼️ [Splash] SplashView.body evaluated with poster=nil")
-            }
-        }
-    }
-
-    @MainActor
-    enum PosterCache {
+    enum EmblemCache {
         private static var didWarm = false
-        private static var cached: NSImage?
+        private(set) static var image: NSImage?
 
         static func warmIfNeeded() {
             guard !didWarm else { return }
             didWarm = true
-
-            // quick-deploy historically didn't sync new resources, so keep a fallback
-            // to the older poster name to avoid showing a grey placeholder.
-            for candidate in ["keypath-poster-hor", "keypath-poster"] {
-                guard let url = Bundle.main.url(forResource: candidate, withExtension: "png") else {
-                    continue
-                }
-
-                let start = Date()
-                if let image = NSImage(contentsOf: url) {
-                    // Force decode now so the poster doesn't appear blank during a brief splash.
-                    _ = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
-                    cached = image
-                    let elapsed = Date().timeIntervalSince(start)
-                    AppLogger.shared.debug(
-                        "🖼️ [Splash] Warmed poster '\(candidate).png' (\(Int(image.size.width))x\(Int(image.size.height))) in \(String(format: "%.3f", elapsed))s"
-                    )
-                    return
-                }
-            }
-
-            AppLogger.shared.warn("🖼️ [Splash] Poster not found in Bundle.main resources")
-        }
-
-        static func image() -> NSImage? {
-            warmIfNeeded()
-            return cached
+            guard let url = Bundle.main.url(forResource: "keypath-splash-emblem", withExtension: "png"),
+                  let emblem = NSImage(contentsOf: url) else { return }
+            _ = emblem.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            image = emblem
         }
     }
 
+    private let ivory = Color(red: 0.97, green: 0.95, blue: 0.90)
+    private let warmGray = Color(red: 0.76, green: 0.74, blue: 0.70)
+    private let amber = Color(red: 1, green: 0.61, blue: 0.16)
+
     var body: some View {
-        let buildInfo = BuildInfo.current()
-        #if DEBUG
-            // swiftformat:disable:next redundantLet
-            let _ = SplashDiagnostics.logBodyOnce(posterImage: posterImage)
-        #endif
-        let debugLayout =
-            ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DEBUG_LAYOUT"] == "1"
-        let posterTargetWidth: CGFloat = 560
-        let posterAspect: CGFloat = {
-            guard let image = posterImage, image.size.height > 0 else { return 16.0 / 9.0 }
-            return image.size.width / image.size.height
-        }()
-        let posterTargetHeight = posterTargetWidth / posterAspect
-
         ZStack {
-            // Match the poster background so the window doesn't read as a grey "missing image" panel.
-            LinearGradient(
-                colors: [
-                    KeyPathColors.splashGradientTop,
-                    KeyPathColors.splashGradientBottom
-                ],
-                startPoint: .top,
-                endPoint: .bottom
+            Color(red: 0.025, green: 0.035, blue: 0.045)
+            RadialGradient(
+                colors: [amber.opacity(0.065), .clear],
+                center: .init(x: 0.5, y: 0.43), startRadius: 12, endRadius: 205
             )
-            .ignoresSafeArea()
-
-            VStack(spacing: 14) {
-                Image(nsImage: posterImage ?? NSApp.applicationIconImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    // Fixed-size splash poster (derived from the image aspect ratio) so it cannot
-                    // collapse to an "intrinsic" tiny width during early launch.
-                    .frame(width: posterTargetWidth, height: posterTargetHeight)
-                    .background(debugLayout ? Color.green.opacity(0.18) : Color.clear)
-                    .overlay {
-                        if debugLayout {
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.pink.opacity(0.85), lineWidth: 2)
+            VStack(spacing: 0) {
+                Spacer().frame(height: 58)
+                emblem
+                    .frame(width: 204, height: 158)
+                    .shadow(color: amber.opacity(glowing ? 0.16 : 0.07), radius: glowing ? 18 : 12)
+                    .animation(
+                        reduceMotion || !presentation.isPreparing ? nil :
+                            .easeInOut(duration: 1.6).repeatForever(autoreverses: true),
+                        value: glowing
+                    )
+                    .accessibilityHidden(true)
+                Text("KeyPath")
+                    .font(.system(size: 46, weight: .medium, design: .serif))
+                    .foregroundStyle(ivory)
+                    .padding(.top, 12)
+                Text("Keys that do more.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(warmGray)
+                    .padding(.top, 6)
+                Spacer(minLength: 24)
+                if presentation.isPreparing {
+                    VStack(spacing: 12) {
+                        TimelineView(.animation(minimumInterval: 0.55, paused: reduceMotion)) { context in
+                            let active = reduceMotion ? 1 : Int(context.date.timeIntervalSinceReferenceDate / 0.55) % 3
+                            HStack(spacing: 7) {
+                                ForEach(0 ..< 3) { index in
+                                    Circle().fill(amber.opacity(index == active ? 1 : 0.3))
+                                        .frame(width: 5, height: 5)
+                                }
+                            }
                         }
+                        .accessibilityHidden(true)
+                        Text("Getting your keyboard ready…")
+                            .font(.system(size: 12))
+                            .foregroundStyle(warmGray)
                     }
-                    .shadow(color: .black.opacity(0.16), radius: 18, x: 0, y: 10)
-                    .accessibilityIdentifier("main-window-splash-poster")
-                    .layoutPriority(1)
-
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.vertical, 24)
-
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Text("v\(buildInfo.version) (\(buildInfo.build))")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.black.opacity(0.58))
-                        .clipShape(Capsule())
-                        .overlay {
-                            Capsule()
-                                .stroke(.white.opacity(0.18), lineWidth: 1)
-                        }
-                        .shadow(color: .black.opacity(0.35), radius: 5, x: 0, y: 2)
-                        .accessibilityIdentifier("main-window-splash-build")
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("main-window-splash-loading")
+                    .padding(.bottom, 32)
+                } else {
+                    // Keep the lockup in place when a menu action presents a sheet.
+                    Spacer().frame(height: 62)
                 }
-                .padding(12)
             }
         }
+        .ignoresSafeArea()
         .onAppear {
-            // In AppKit-hosted SwiftUI, `.task` can be unreliable during early launch.
-            // Use `onAppear` so we always force a state refresh when the splash becomes visible.
-            PosterCache.warmIfNeeded()
-            posterImage = PosterCache.image()
-
-            guard !didLogAppear else { return }
-            didLogAppear = true
-
-            if let posterImage {
-                AppLogger.shared.info(
-                    "🖼️ [Splash] SplashView using poster (\(Int(posterImage.size.width))x\(Int(posterImage.size.height)))"
-                )
-            } else {
-                AppLogger.shared.warn(
-                    "🖼️ [Splash] SplashView has no poster image (using app icon fallback)"
-                )
-            }
+            EmblemCache.warmIfNeeded()
+            glowing = true
+        }
+        .onChange(of: presentation.isPreparing) { _, preparing in
+            glowing = preparing
         }
         .accessibilityIdentifier("main-window-splash")
+    }
+
+    @ViewBuilder
+    private var emblem: some View {
+        if let image = EmblemCache.image {
+            Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+        } else {
+            Image(systemName: "keyboard").font(.system(size: 78)).foregroundStyle(amber)
+        }
     }
 }
