@@ -65,8 +65,13 @@ struct AboutView: View {
             }
 
             Text("KeyPath")
-                .font(.title.weight(.semibold))
+                .font(.system(size: 32, weight: .medium, design: .serif))
                 .foregroundColor(.primary)
+
+            Text("Keys that do more.")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .accessibilityIdentifier("about-tagline")
 
             VStack(spacing: 4) {
                 Text("Version \(buildInfo.version) (Build \(buildInfo.build))")
@@ -83,10 +88,6 @@ struct AboutView: View {
                         .foregroundColor(.secondary)
                 }
             }
-
-            Text("Reliable keyboard remapping with system-level diagnostics.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
         }
         .padding(.horizontal, 32)
         .padding(.bottom, 20)
