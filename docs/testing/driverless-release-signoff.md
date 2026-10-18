@@ -3,29 +3,29 @@
 This is the current release checklist. Dated investigation notes retain their
 historical evidence; their old “remaining” sections are not the current backlog.
 
-## Candidate and scope
+## Candidate and scope (updated October 18, offline Help installed)
 
-- Current product source: `b878232f7642abfa83e1e069792611c95f8e6ee3` (tour transaction/rollback fix).
-- Apple Silicon only; driverless runtime; no Full Disk Access/browser-history suggestions.
+- Installed source: `5d5612023`; branch `design/driverless-caps-ui`.
+- Version 1.0.2 (13), Apple Silicon only; driverless; no Full Disk Access/browser-history suggestions.
 - Existing production-version migration is explicitly out of scope.
-- Current notarized installer: `~/keypath-review-evidence/20261018-tour-final/KeyPath-20261018-tour-fix.dmg`.
-- SHA-256: `b09de126d7df247959d2c86b430bb489125d78dd001526a6aba0657a87647bc1`.
-- Air delivery is queued; SSH was unreachable on October 18 at 06:08 Pacific.
-  The Air's previously accepted TCP-handoff build is not this new tour candidate.
-- This remains a private candidate on `design/driverless-caps-ui`, not a public release.
+- Current notarized installer: `/Users/malpern/keypath-review-evidence/20261018-offline-help/final/KeyPath-20261018-offline-help.dmg`.
+- SHA-256: `d0a319a8066bc772e483d599baef67e4553c99e4e7e03697614d8d14b10777ea`.
+- Delivered and installed on Air October 18; rules/preferences preserved. See final entry for verification.
+- Private candidate, not a public release. Detailed continuation: `docs/testing/production-handoff-2026-10-18.md`.
+- Dated entries below are historical; later acceptance supersedes older blocked/pending statements.
 
 ## Current automated acceptance
 
 | Check | Current result | Evidence / limits |
 | --- | --- | --- |
-| Full safe test suite | PASS on TCP-handoff predecessor, 5,569 tests | `~/keypath-review-evidence/20261017-tcp-handoff/full-runner.log`; not rerun for tour-only fix |
+| Full safe test suite | PASS on held-key runtime source, 5,525 tests | `~/keypath-review-evidence/20261018-held-key-startup/`; later branding/Help focused validation below, not a new final full-suite pass |
 | Tour/pack focused tests | PASS, 46 tests | 31 pack and 15 onboarding tests, including transaction rollback regressions |
 | Accessibility identifiers | PASS, 382 files | Current tour candidate validation |
 | Signing/notarization/Gatekeeper | PASS on current candidate | `~/keypath-review-evidence/20261018-tour-final/` |
 | Clean VM install/onboarding/uninstall/reinstall | PASS | Owned `cbx_626ccf25e58c`; normal consent, rule lifecycle, Quit/reopen, backup/removal, reinstall and reboot; details below |
 | Full four-page tour with Caps Lock setup | PASS on current candidate | Owned `cbx_6a7d61356f4e`; Caps Lock Escape, Hyper hold, Hyper+F Finder configuration, Open Keyboard/Ready |
 | Physical Caps Lock tap and hold | PASS on current candidate | ESP32 native output oracle: `caps-live/physical/caps-tap-keyup.json` and `caps-hold-keyup.json` in October 18 evidence |
-| Air sleep/wake | PASS on TCP-handoff predecessor | User verified immediate and 30-second Escape behavior without warning; current tour candidate still needs Air smoke test |
+| Air sleep/wake | PASS by user on tour-fix predecessor; repeat after held-key fix pending | October 18 06:54 logs recorded automatic recovery; current final binary needs final smoke |
 | Visual snapshot regression | PASS, 55 tests on TCP-handoff predecessor | No baseline changes or relaxed tolerances; current Air hover/appearance sign-off remains manual |
 
 ## Evidence carried forward, with limits
@@ -45,6 +45,7 @@ historical evidence; their old “remaining” sections are not the current back
 
 ## Manual Air checklist (final candidate)
 
+0. Launch while holding a normal key (e.g. Shift), then release it. Confirm automatic Ready/remapping without restarting or a terminal setup error. Test physical Caps Lock as Escape. This is the outstanding held-key fix acceptance.
 1. Sleep via Apple menu, wait one minute, wake and unlock. Test Caps Lock as
    Escape immediately and after 30 seconds. No false orange setup/TCP warning;
    a brief neutral recovery status is acceptable. Record the time for log review.
@@ -57,6 +58,8 @@ historical evidence; their old “remaining” sections are not the current back
    disable it and delete it. Confirm normal typing returns. Leave existing rules intact.
 6. Confirm the top-right hover highlight and keyboard/layer picker look correct,
    with drawer open/closed. Briefly check small overlay size and light/dark mode.
+
+7. Open Help with Wi-Fi disconnected: Installation, Privacy, one illustrated article and an internal cross-link. Content and images should render without an error. Restore Wi-Fi afterward.
 
 Additional clean onboarding/removal acceptance is owned by automated VM testing;
 it is not silently transferred to the Air checklist if the VM cannot run.
@@ -641,3 +644,18 @@ Air's running app and settings were not changed. For a manual sanity check after
 installing, disconnect Wi-Fi and open Help, Installation, Privacy, a pictured guide
 and an internal article link; all should stay readable locally. External websites
 still need connectivity. No new physical keyboard acceptance is claimed here.
+
+
+### Offline Help candidate installed on Air — October 18
+
+Installed from the verified final DMG, preserving rules/preferences. Previous app
+archived as `~/Downloads/KeyPath-before-offline-help-20261018.zip`; archive integrity
+and prior executable identity checked before removing the redundant extracted copy.
+BuildInfo: `5d5612023`, 1.0.2 (13). Installed executable SHA-256:
+`1d55e260b70993b5813b6a917d4bf3f4dca8e43ff47b676a02698e4f0769fd75`.
+Canonical installed-app verification passed Apple Silicon payloads, signing,
+Gatekeeper, stapled ticket and owned-session readiness: parent 79520, worker 79935,
+TCP 127.0.0.1:37001. Startup log reported validation SUCCESS/no blocking issues.
+Evidence: `/Users/malpern/keypath-review-evidence/20261018-offline-help/air-install/`.
+This is automated startup/readiness evidence, not physical held-key or wake acceptance.
+Continuation and exact remaining work: `production-handoff-2026-10-18.md`.
