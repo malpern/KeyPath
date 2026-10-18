@@ -752,3 +752,18 @@ Installed 13:41 with config unchanged; previous app archived as
 hid, first validation SUCCESS, indicator `dismissed -> healthy` (no transient
 blocking issue, confirming `663c0ed2a` live). Verifier: parent 81790, worker 82500,
 TCP 37001. Locked-launch splash behavior on this build: pending.
+
+### Right-click Remap on overlay keys — candidate `5e6435c17` (user request)
+
+New feature: every selectable overlay key has a context menu, "Remap “X”…", that
+opens the drawer on the mapper with that key selected, drawer open or closed. A
+closed drawer receives the key as a one-shot pending selection consumed when the
+mapper appears (no timing delays). `guides/remapping.md` updated. 3 new tests plus
+186 related overlay/mapper tests and 11 offline-Help tests pass; accessibility
+identifiers pass. Notarized (app and DMG Accepted via sops route); DMG
+`KeyPath-20261018-key-context-menu.dmg` SHA-256
+`cceb87c20a07d48dffadb301214a48e31765692202370b9e48c44783a66ab7ea`, executable
+`5c457f2bae26cde1ede0bf5bf0f1bcb000a1e81c04f8f610674a7870b5fbff18`. Installed on the
+Air 13:58, config unchanged; previous app archived as
+`~/Downloads/KeyPath-before-key-context-menu-20261018.zip`. Verifier: parent 17036,
+worker 17620, TCP 37001. Right-click behavior itself awaits the user's live check.
