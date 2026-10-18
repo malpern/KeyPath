@@ -215,3 +215,48 @@ installation and runtime readiness, not a new physical key or sleep test.
 Applicable installer matrix rows: **Session runtime stopped or not ready** and
 **Session tap active and TCP responding**. Source review and public-release
 integration remain separate gates; installation alone does not complete them.
+
+### Pre-release branch review follow-up
+
+The review gate's named Claude skill was unavailable; the CLI performed a direct
+branch review instead (runtime, permission, installation and activity storage;
+not a complete audit of all UI/docs). Its report is `wake5-final/source-review.log`.
+The gate's exit code alone is not acceptance: findings were triaged separately.
+
+Confirmed and fixed: termination handlers were installed after managed HID
+acquisition, and parent cleanup could force-kill a mutation still joining.
+Install handlers before acquisition and never escalate session cleanup to SIGKILL;
+retain ownership and report pending cleanup when the graceful wait expires.
+Confirmed and fixed: startup interrupted by sleep or session departure did not
+arm recovery. After verified cleanup, schedule recovery outside the held lifecycle
+admission. Sleep requires a fresh wake signal; console changes require active
+same-user console, no Secure Input and all keys up. Superseding Stop/Quit still
+invalidates the generation. Supervised session departures use the same recovery.
+31 focused lifecycle tests passed, including startup sleep, session return,
+unowned/incomplete cleanup rejection and graceful shutdown without escalation.
+
+Other findings:
+- Single-keyboard Caps eligibility remains an explicit compatibility limit.
+  Ownership loss must stop rather than continue injecting uncertain mappings.
+  The recovery message now explains the selected-keyboard requirement.
+- Caps ownership polling spawns hidutil subprocesses. This is a confirmed
+  efficiency follow-up; replacing it requires equivalent ownership evidence,
+  not simply polling less often. No battery-life claim is made.
+- Console observation is checked synchronously before input/output. A local
+  10,000-call probe measured 156 microseconds/call (~31ms/s at 200Hz, excluding
+  other work). Preserve the boundary checks for now; idle energy/latency on the
+  Air remains performance qualification, not a proven event-tap timeout cause.
+- Output drain overrun is a conservative terminal limit, not verified support
+  for arbitrary-length macros. Burst/macro stress coverage remains desirable.
+- Repeated Quit is intentionally coalesced into one AppKit termination reply;
+  existing termination tests cover coalescing and cancelled updates. Adding a
+  reply(false) for duplicate requests could cancel the original request.
+- Predicted restart generations can lose a specific diagnostic on competing
+  intents but do not claim success; retain the generic failure safely.
+- The ownership poll latch cannot survive an owner replacement today because
+  replacement exits the worker. No speculative change was made.
+- Accessibility fallback still requires successful event-tap creation and live
+  readiness. Cross-OS untrusted-process probe qualification remains useful.
+
+These follow-up source fixes are newer than the installed wake5-final DMG and
+require a new candidate before claiming that installation includes them.

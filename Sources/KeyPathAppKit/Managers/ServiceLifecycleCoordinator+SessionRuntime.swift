@@ -176,6 +176,9 @@ extension ServiceLifecycleCoordinator {
                 onStateChanged?()
                 return false
             }
+            if scheduleInterruptedStartupRecovery(terminalReport, nonce: nonce,
+                                                  pid: application.processIdentifier,
+                                                  generation: generation, cleanedUp: cleanedUp) { return false }
             if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
         } catch {
             if didLaunch { _ = await stopSessionRuntime() }
@@ -213,21 +216,17 @@ extension ServiceLifecycleCoordinator {
         sessionSupervisionTask = nil
         await AppContextService.shared.stop()
         if let application, !application.isTerminated {
-            _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGTERM)
-            for _ in 0 ..< 40 {
-                if application.isTerminated { break }
-                await waitForSessionTermination()
-            }
-            if !application.isTerminated {
-                _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGKILL)
-                for _ in 0 ..< 20 {
-                    if application.isTerminated { break }
-                    await waitForSessionTermination()
-                }
-                guard application.isTerminated else {
-                    onError?("Driverless runtime did not stop; restart was refused.")
-                    return false
-                }
+            let exited = await Self.awaitGracefulSessionExit(
+                isTerminated: { application.isTerminated },
+                sendTermination: { _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGTERM) },
+                wait: { await self.waitForSessionTermination() }
+            )
+            guard exited else {
+                // A worker can still be joining a bounded hidutil mutation. A
+                // hard kill would strand its durable in-flight marker and F18
+                // mapping. Retain ownership and allow a later stop to finish.
+                onError?("Keyboard cleanup is still finishing. Wait a moment and try again.")
+                return false
             }
         }
         // Never clear a different launch's fields or delete its durable ledger.
@@ -255,6 +254,21 @@ extension ServiceLifecycleCoordinator {
     ) -> Bool {
         guard pid > 0 else { return false }
         return send(pid, signal) == 0
+    }
+
+    /// Never force-kill a worker that may be joining a mapping mutation. The
+    /// caller keeps process/journal ownership when this bounded wait expires.
+    static func awaitGracefulSessionExit(isTerminated: () -> Bool,
+                                         sendTermination: () -> Void,
+                                         wait: () async -> Void) async -> Bool
+    {
+        if isTerminated() { return true }
+        sendTermination()
+        for _ in 0 ..< 40 {
+            if isTerminated() { return true }
+            await wait()
+        }
+        return isTerminated()
     }
 
     private func waitForSessionTermination() async {
@@ -325,11 +339,11 @@ extension ServiceLifecycleCoordinator {
             return false
         }
         if let failure = terminalReport?.recoveryReason,
-           failure == "system-will-sleep" || failure == "system-wake-observed"
+           Self.isRecoverableSessionBoundary(failure)
         {
             _ = await resumeAfterSystemWake(expectedGeneration: generation,
                                             launchWakeEpoch: sessionLaunchWakeEpoch,
-                                            wakeAlreadyObserved: failure == "system-wake-observed",
+                                            wakeAlreadyObserved: failure != "system-will-sleep",
                                             retiredAt: terminalReport?.timestamp)
             return false
         }
@@ -338,6 +352,31 @@ extension ServiceLifecycleCoordinator {
         onError?("Driverless remapping stopped. Original keyboard input remains available. \(recovery)")
         onStateChanged?()
         return false
+    }
+
+    static func isRecoverableSessionBoundary(_ reason: String) -> Bool {
+        ["system-will-sleep", "system-wake-observed", "session-resigned-active",
+         "console-session-change-observed", "console-session-inactive"].contains(reason)
+    }
+
+    /// Called only after startup cleanup, while admission is still held. The
+    /// separate task waits until that admission is released before relaunching.
+    @discardableResult
+    func scheduleInterruptedStartupRecovery(_ report: SessionRuntimeReport?, nonce: String,
+                                            pid: Int32, generation: UInt64, cleanedUp: Bool) -> Bool
+    {
+        guard cleanedUp, sessionStartIsCurrent(generation), let report,
+              report.belongsTo(nonce: nonce, pid: pid, uid: getuid()),
+              report.state == .stopped || report.state == .failed,
+              let reason = report.recoveryReason, Self.isRecoverableSessionBoundary(reason) else { return false }
+        let epoch = sessionLaunchWakeEpoch
+        sessionSupervisionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            _ = await resumeAfterSystemWake(expectedGeneration: generation, launchWakeEpoch: epoch,
+                                            wakeAlreadyObserved: reason != "system-will-sleep",
+                                            retiredAt: report.timestamp)
+        }
+        return true
     }
 
     /// Retirement restores old output first. A wake starts through ordinary
@@ -350,7 +389,7 @@ extension ServiceLifecycleCoordinator {
         // Starting/cleaning a replacement must not cancel the task running this loop.
         // Stop, Quit and newer starts still invalidate its intent generation.
         sessionSupervisionTask = nil
-        onWarning?("Remapping is paused while your Mac sleeps.")
+        onWarning?("Remapping will resume when your keyboard session is ready.")
         onStateChanged?()
         let recoveryStarted = Date()
         var lastBlocker: String?
@@ -419,6 +458,8 @@ extension ServiceLifecycleCoordinator {
             return "Enable \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings, then quit and reopen KeyPath."
         case "tap-disabled-by-user-input", "tap-disabled-observed", "modifying-tap-unavailable", "modifying-tap-not-enabled":
             return "Check \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings. If access is disabled, enable it, then quit and reopen KeyPath."
+        case "managed-caps-ownership-lost":
+            return "Caps Lock keyboard setup could not be verified. Connect only the selected keyboard, then quit and reopen KeyPath."
         case "tap-disabled-by-timeout":
             return "macOS stopped keyboard capture because it timed out. Quit and reopen KeyPath to recover."
         default:

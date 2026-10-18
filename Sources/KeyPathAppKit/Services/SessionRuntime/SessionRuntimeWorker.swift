@@ -139,6 +139,9 @@ public final class SessionRuntimeWorker {
     }
 
     private func start(configPath: String) {
+        // Install before any HID mutation. Shutdown waits for the synchronous
+        // acquisition to finish, then restores the owned mapping on this run loop.
+        installTerminationHandlers()
         guard capabilities.hasAllPermissions else {
             finish(.failed, reason: "missing-current-process-permission")
         }
@@ -262,6 +265,14 @@ public final class SessionRuntimeWorker {
             }
         #endif
 
+        timer = Timer(timeInterval: 0.005, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        RunLoop.main.add(timer!, forMode: .common)
+        writeReport(.running)
+    }
+
+    private func installTerminationHandlers() {
         for number in [SIGTERM, SIGINT, SIGHUP] {
             signal(number, SIG_IGN)
             // The standalone worker drives CFRunLoop directly; it does not run
@@ -277,11 +288,6 @@ public final class SessionRuntimeWorker {
             signals.append(signalSource)
             signalSource.resume()
         }
-        timer = Timer(timeInterval: 0.005, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.tick() }
-        }
-        RunLoop.main.add(timer!, forMode: .common)
-        writeReport(.running)
     }
 
     private func createModifyingTap(eventsOfInterest: CGEventMask) -> CFMachPort? {

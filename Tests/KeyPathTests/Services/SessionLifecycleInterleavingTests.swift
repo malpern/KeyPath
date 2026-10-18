@@ -576,4 +576,82 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertEqual(waits, 2)
         XCTAssertEqual(starts, 2)
     }
+
+    func testStartupSleepArmsRecoveryAndWaitsForFreshWake() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        _ = await coordinator.startKanata()
+        let retired = Date()
+        let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                          tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                          failure: "system-will-sleep")
+        coordinator.testSessionWakeReady = { true }
+        coordinator.testSessionWakeWait = { [self] in
+            XCTAssertEqual(starts, 1)
+            coordinator.observeSessionWake(NSWorkspace.didWakeNotification, at: retired.addingTimeInterval(1))
+        }
+        XCTAssertTrue(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                     generation: coordinator.sessionIntentGeneration, cleanedUp: true))
+        guard let recovery = coordinator.sessionSupervisionTask else { return XCTFail("Recovery was not armed") }
+        _ = await completion(of: recovery, fallback: ())
+        XCTAssertEqual(starts, 2)
+    }
+
+    func testStartupSessionChangeRecoversOnlyAfterConsoleReadiness() async {
+        for reason in ["session-resigned-active", "console-session-change-observed", "console-session-inactive"] {
+            var starts = 0
+            ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+            _ = await coordinator.startKanata()
+            let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
+                                              accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                              tcpPort: 37001, inputCount: 0, outputCount: 0, failure: reason)
+            var ready = false
+            coordinator.testSessionWakeReady = { ready }
+            coordinator.testSessionWakeWait = { XCTAssertEqual(starts, 1); ready = true }
+            XCTAssertTrue(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                         generation: coordinator.sessionIntentGeneration, cleanedUp: true))
+            guard let recovery = coordinator.sessionSupervisionTask else { return XCTFail("Recovery was not armed") }
+            _ = await completion(of: recovery, fallback: ())
+            XCTAssertEqual(starts, 2)
+        }
+    }
+
+    func testInterruptedStartupRejectsUnownedEvidenceAndIncompleteCleanup() async {
+        ServiceLifecycleCoordinator.testSessionStart = { _ in true }
+        _ = await coordinator.startKanata()
+        let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                          tcpPort: 37001, inputCount: 0, outputCount: 0, failure: "system-will-sleep")
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                      generation: coordinator.sessionIntentGeneration, cleanedUp: false))
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "other", pid: 123,
+                                                                      generation: coordinator.sessionIntentGeneration, cleanedUp: true))
+        XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                      generation: coordinator.sessionIntentGeneration &+ 1, cleanedUp: true))
+        XCTAssertFalse(ServiceLifecycleCoordinator.isRecoverableSessionBoundary("console-observation-unavailable"))
+        XCTAssertFalse(ServiceLifecycleCoordinator.isRecoverableSessionBoundary("managed-caps-ownership-lost"))
+    }
+
+    func testShutdownDoesNotEscalateWhileMutationIsStillJoining() async {
+        var signals = 0
+        var waits = 0
+        let exited = await ServiceLifecycleCoordinator.awaitGracefulSessionExit(
+            isTerminated: { false }, sendTermination: { signals += 1 }, wait: { waits += 1 }
+        )
+        XCTAssertFalse(exited)
+        XCTAssertEqual(signals, 1)
+        XCTAssertEqual(waits, 40)
+    }
+
+    func testShutdownCompletesAfterMutationJoinsWithoutAnotherSignal() async {
+        var signals = 0
+        var waits = 0
+        let exited = await ServiceLifecycleCoordinator.awaitGracefulSessionExit(
+            isTerminated: { waits == 3 }, sendTermination: { signals += 1 }, wait: { waits += 1 }
+        )
+        XCTAssertTrue(exited)
+        XCTAssertEqual(signals, 1)
+        XCTAssertEqual(waits, 3)
+    }
 }

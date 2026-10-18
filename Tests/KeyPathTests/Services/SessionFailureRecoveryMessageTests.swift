@@ -30,4 +30,11 @@ final class SessionFailureRecoveryMessageTests: XCTestCase {
         XCTAssertFalse(message.contains("runtime-unavailable"))
         XCTAssertTrue(message.contains("Quit and reopen KeyPath"))
     }
+
+    func testCapsOwnershipFailureExplainsTheSingleKeyboardRequirement() {
+        let message = ServiceLifecycleCoordinator.sessionFailureRecoveryMessage("managed-caps-ownership-lost")
+        XCTAssertTrue(message.contains("Connect only the selected keyboard"))
+        XCTAssertTrue(message.contains("quit and reopen KeyPath"))
+        XCTAssertFalse(message.contains("System Settings"))
+    }
 }
