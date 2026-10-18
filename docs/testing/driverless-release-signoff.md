@@ -516,3 +516,9 @@ A zero-point filename experiment was rejected: Finder ignored the invalid
 icon-view settings, losing the background and resetting icon size. A diffuse
 lighting experiment was also discarded after visual review. Neither is shipped;
 standard dmgbuild and valid native label settings remain in use.
+
+Polished installer notarization accepted (`cbbac958-664c-4161-971c-21bc98b28959`),
+stapling/Gatekeeper passed, and source/remote SHA-256 matched on delivery to Air
+Downloads: `KeyPath-20261018-polished-installer.dmg`, hash
+`b534981b81ff0887df0f697488f114cdad9599538a66b4ceffbfc8401d4547d1`.
+No app reinstall was performed for this presentation-only change.
