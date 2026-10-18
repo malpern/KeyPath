@@ -714,3 +714,25 @@ secure prompt (never argv); see `notary-pty.py` in the evidence folder. The
 `KeyPath-Profile` keychain profile lives in the separate `keypath-signing` keychain,
 whose locked-state GUI prompt blocked an agent run for 20 minutes. DMG packaging
 needs `DMGBUILD_BIN=/private/tmp/keypath-dmg-tools/bin/dmgbuild`.
+
+### Secure Input at launch — October 18, candidate `1ada9c645`
+
+Installing `663c0ed2a` at 12:01 while the Air was locked (`loginwindow` held Secure
+Input) left no worker and opened the setup wizard: startup treated `secureInput` as
+terminal. Fixed in `1ada9c645` (`docs/bugs/2026-10-18-secure-input-startup.md`);
+regression test failed before the fix, 166 neighboring tests pass.
+
+Notarized app `9c913bef-5efc-45be-937d-0b73e5b16785` and DMG
+`872314db-758b-4e00-b718-17f514875ef2` accepted; stapled, Gatekeeper and image
+verify passed. `KeyPath-20261018-secure-input.dmg`, SHA-256
+`b6d68d557a22647dea009b2e1bc763a08d7235d14a58cc46b2d6bafadccf36f4`, executable
+`67ea8cd0796dd50ebaf671c913623d09b3838e0416aac4985a110ca8a92ffb10`. Installed on the
+Air 12:14 with rules preserved (`keypath.kbd`, `CustomRules.json` unchanged; enabled
+collections match). Previous app archived as
+`~/Downloads/KeyPath-before-secure-input-20261018.zip`.
+
+Live locked-screen launch: `Startup retired state=secureInput` → recovery gate
+`secure-input` → `Runtime recovery in progress - wizard not shown`; no failed
+validation. Resume after unlock and readiness verification pending at time of
+writing. Evidence: `~/keypath-review-evidence/20261018-secure-input-startup/`.
+The `663c0ed2a` installer in Air Downloads is superseded.
