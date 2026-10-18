@@ -146,7 +146,7 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "missing-current-process-permission")
         }
         let environmentObserver = SessionRuntimeEnvironmentObserver(expectedUID: getuid()) { [weak self] reason, acknowledge in
-            guard let self else { acknowledge?(); return }
+            guard let self, !self.finished else { acknowledge?(); return }
             finish(.failed, reason: reason.rawValue, acknowledge: acknowledge)
         }
         self.environmentObserver = environmentObserver
@@ -225,7 +225,7 @@ public final class SessionRuntimeWorker {
                 // The tap is disabled. Keep the main run loop out of startup
                 // acquisition; environment shutdown cannot race this writer.
                 // Ownership is retained even when write/readback throws.
-                capsRecord = try DispatchQueue.global(qos: .userInitiated).sync {
+                capsRecord = try Self.performHIDWork {
                     let backend = SessionCapsHIDUtilTransport.backend()
                     guard try backend.enumerate() == [device] else { throw SessionCapsRuntimeSupport.Refusal.selection }
                     let lease = SessionCapsMappingLease(directory: directory, backend: backend)
@@ -281,13 +281,34 @@ public final class SessionRuntimeWorker {
             let signalSource = DispatchSource.makeSignalSource(signal: number, queue: .global())
             signalSource.setEventHandler { @Sendable [weak self] in
                 CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
-                    MainActor.assumeIsolated { self?.finish(.stopped) }
+                    MainActor.assumeIsolated {
+                        guard let self, !self.finished else { return }
+                        self.finish(.stopped)
+                    }
                 }
                 CFRunLoopWakeUp(CFRunLoopGetMain())
             }
             signals.append(signalSource)
             signalSource.resume()
         }
+    }
+
+    /// DispatchQueue.sync can execute on the caller, where Process.waitUntilExit
+    /// may pump the main run loop and reenter shutdown inside a lease mutation.
+    /// An async dispatch guarantees background execution; the semaphore joins
+    /// without servicing main-loop callbacks. Do not bound this join: the HID
+    /// transport must finish joining its child before lease exclusion can end.
+    nonisolated static func performHIDWork<Value: Sendable>(
+        _ operation: @escaping @Sendable () throws -> Value
+    ) throws -> Value {
+        let result = SessionRuntimeBackgroundResult<Value>()
+        let completion = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            result.store(Result { try operation() })
+            completion.signal()
+        }
+        completion.wait()
+        return try result.load().get()
     }
 
     private func createModifyingTap(eventsOfInterest: CGEventMask) -> CFMachPort? {
@@ -685,7 +706,7 @@ public final class SessionRuntimeWorker {
             outputs = remaining
             if let owner = capsOwner, let directory = capsDirectory {
                 do {
-                    try DispatchQueue.global(qos: .userInitiated).sync {
+                    try Self.performHIDWork {
                         try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
                     }
                     capsRecord = nil
@@ -703,5 +724,25 @@ public final class SessionRuntimeWorker {
         })
         // Process exit is the shutdown boundary for all detached bridge threads.
         exit(terminalState == .failed ? 1 : 0)
+    }
+}
+
+/// One result passes from the HID queue to its synchronously waiting caller.
+/// Every access is protected; Value and Error can cross concurrency domains.
+private final class SessionRuntimeBackgroundResult<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var result: Result<Value, Error>?
+
+    func store(_ value: Result<Value, Error>) {
+        lock.lock()
+        defer { lock.unlock() }
+        result = value
+    }
+
+    func load() -> Result<Value, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        // The semaphore is signaled only after store returns.
+        return result!
     }
 }
