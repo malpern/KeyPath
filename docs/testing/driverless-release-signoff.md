@@ -469,3 +469,14 @@ Remaining acceptance on this candidate: launch with a key held, release it,
 confirm automatic remapping without restart/error; then sleep/wake and Caps Lock
 immediately and after 30 seconds. These physical checks are not claimed by the
 unit tests or process health verification.
+
+## Installer visual polish (2026-10-18)
+
+Private DMG layout now uses native typography, explicit drag-to-install and
+open-from-Applications instructions, a crisp SF Symbols arrow, and 96-point
+icons instead of 128-point icons. Actual Finder preview checked at
+`/Users/malpern/keypath-review-evidence/20261018-installer-design/preview.png`.
+Finder user preferences can override tab/path/status visibility; the preview
+uses hidden bars. The app payload is the unchanged held-key candidate. Packaging
+passed image integrity and mounted app strict signature checks. No app rebuild
+or further functional regression run is needed for this background/layout edit.

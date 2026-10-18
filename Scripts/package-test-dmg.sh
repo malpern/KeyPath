@@ -27,7 +27,7 @@ cleanup() {
 }
 trap cleanup EXIT
 /usr/bin/sips -s format tiff -s dpiWidth 144 -s dpiHeight 144 \
-    "$DMG_DIR/dmg-background-light@2x.png" --out "$BACKGROUND_DIR/background.tiff" >/dev/null
+    "$DMG_DIR/installer-light@2x.png" --out "$BACKGROUND_DIR/background.tiff" >/dev/null
 export DMG_BACKGROUND="$BACKGROUND_DIR/background.tiff"
 "$DMGBUILD" -s "$DMG_DIR/dmgbuild-settings.py" KeyPath "$OUTPUT"
 /usr/bin/hdiutil verify "$OUTPUT"
