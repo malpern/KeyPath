@@ -498,3 +498,21 @@ stapling and Gatekeeper passed, and hash-verified delivery completed to Air
 Downloads as `KeyPath-20261018-branded-installer.dmg`. Final SHA-256:
 `cbbecef1fdc912c64958b449b8c5b6f22824f907c8cda839c4288827348263d0`.
 The app payload remains the tested held-key fix; only installer presentation changed.
+
+## Installer composition refinement (2026-10-18)
+
+Supersedes the separate cream filename plates: native app and Applications icons
+now share one installation surface. Icon centers moved inward to (205,208) and
+(455,208). The original keyboard artwork with glowing legends is used; supporting
+type is regular system sans serif, the wordmark remains serif, and the instruction
+is quieter. Native labels stay real, selectable, and readable at 13 points.
+Mounted Finder inspection passed: no clipping, correct icon placement, readable
+labels/instructions, app selection verified. Image checksum and strict packaged
+app signature passed. Evidence: `20261018-installer-polish/preview.png` and
+`package.log` in the existing review evidence root. The contained app remains the
+held-key startup fix; this is installer presentation only.
+
+A zero-point filename experiment was rejected: Finder ignored the invalid
+icon-view settings, losing the background and resetting icon size. A diffuse
+lighting experiment was also discarded after visual review. Neither is shipped;
+standard dmgbuild and valid native label settings remain in use.
