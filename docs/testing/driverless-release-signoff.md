@@ -542,3 +542,11 @@ preview verified; package signature, notarization, staple and Gatekeeper passed.
 Delivered `KeyPath-20261018-brand-refined.dmg` to Air Downloads with matching hash
 `398b4c0442bcb48e14196e0eb2e06a7847d7cdc0dd43af75a96544a4f264bf8e`.
 Evidence: `/Users/malpern/keypath-review-evidence/20261018-installer-narrow/`.
+
+Typography refinement (2026-10-18): kept the 40-point serif wordmark, warmed it
+to ivory, moved the tagline from y99 to y91, reduced it from 14 to 13 points,
+and used warm gray. Finder rendering verified. Same tested app inside.
+Notarization `40739346-2453-45f6-adf2-f6897f7cab2c` accepted; staple and Gatekeeper
+passed. Air Downloads delivery `KeyPath-20261018-brand-final.dmg` verified against
+SHA-256 `615e0104a9496ae319b61cce05ad263d94a1dccc107c90e3608674a917958dc9`.
+Preview and evidence: `/Users/malpern/keypath-review-evidence/20261018-installer-type/`.

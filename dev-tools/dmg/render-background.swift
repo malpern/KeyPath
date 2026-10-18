@@ -23,10 +23,10 @@ func label(_ text: String, y: CGFloat, height: CGFloat, font: NSFont, color: NSC
                            withAttributes: [.font: font, .foregroundColor: color, .paragraphStyle: paragraph])
 }
 let serif = NSFont.systemFont(ofSize: 40, weight: .medium).fontDescriptor.withDesign(.serif)!
-label("KeyPath", y: 40, height: 54, font: NSFont(descriptor: serif, size: 40)!, color: .white)
-label("Keys that do more.", y: 99, height: 24,
-      font: .systemFont(ofSize: 14, weight: .regular),
-      color: NSColor(white: 0.76, alpha: 1))
+label("KeyPath", y: 40, height: 54, font: NSFont(descriptor: serif, size: 40)!, color: NSColor(red: 0.97, green: 0.95, blue: 0.90, alpha: 1))
+label("Keys that do more.", y: 91, height: 24,
+      font: .systemFont(ofSize: 13, weight: .regular),
+      color: NSColor(red: 0.76, green: 0.74, blue: 0.70, alpha: 1))
 if let arrow = NSImage(systemSymbolName: "arrow.down", accessibilityDescription: nil)?
     .withSymbolConfiguration(.init(pointSize: 22, weight: .light)) {
     let tinted = NSImage(size: arrow.size)
