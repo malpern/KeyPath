@@ -148,7 +148,6 @@ extension ServiceLifecycleCoordinator {
                 AppLogger.shared
                     .info("[SessionRuntime] Startup retired state=\(terminalReport.state.rawValue) reason=\(terminalReport.recoveryReason ?? "none") failure=\(terminalReport.failure ?? "none")")
             }
-            let failure = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
             #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
                 if let terminalReport,
                    sessionStartIsCurrent(generation),
@@ -172,13 +171,14 @@ extension ServiceLifecycleCoordinator {
                                         uid: getuid(), cleanedUp: cleanedUp)
             {
                 sessionWakeRetryGeneration = generation
-                onWarning?("Waiting for your keyboard to become ready after wake.")
+                onWarning?("Waiting for your keyboard to become ready.")
                 onStateChanged?()
                 return false
             }
             if scheduleInterruptedStartupRecovery(terminalReport, nonce: nonce,
                                                   pid: application.processIdentifier,
                                                   generation: generation, cleanedUp: cleanedUp) { return false }
+            let failure = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
             if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
         } catch {
             if didLaunch { _ = await stopSessionRuntime() }
@@ -437,7 +437,9 @@ extension ServiceLifecycleCoordinator {
         guard cleanedUp, sessionStartIsCurrent(generation), let report,
               report.belongsTo(nonce: nonce, pid: pid, uid: getuid()),
               report.state == .stopped || report.state == .failed,
-              let reason = report.recoveryReason, Self.isRecoverableSessionBoundary(reason) else { return false }
+              Self.isRecoverableSessionBoundary(report.recoveryReason ?? "")
+                || Self.canRetryWakeStartup(report, nonce: nonce, pid: pid, uid: getuid(), cleanedUp: cleanedUp) else { return false }
+        let reason = report.recoveryReason
         let epoch = sessionLaunchWakeEpoch
         sessionSupervisionTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -485,7 +487,7 @@ extension ServiceLifecycleCoordinator {
                 lastBlocker = blocker
             }
             if blocker == nil {
-                AppLogger.shared.info("[SessionRuntime] Resuming after system wake")
+                AppLogger.shared.info("[SessionRuntime] Resuming after keyboard readiness")
                 sessionWakeRetryGeneration = nil
                 if await resumeSessionRuntime(expectedGeneration: expectedGeneration, reason: "System wake") { return true }
                 guard sessionStartIsCurrent(expectedGeneration),

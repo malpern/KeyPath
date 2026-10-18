@@ -427,3 +427,19 @@ Air appearance/Quit-reopen checks also remain. Evidence: `air-install-latest.log
 `air-install-retry.log`, `air-wake-final.log`, `air-wake-power.log` under the current
 October 18 tour-final evidence directory. This finding supersedes the earlier
 statement that this candidate has no newly identified product defect remaining.
+
+## Held-key startup follow-up (2026-10-18, in progress)
+
+Ordinary held-key startup now uses the existing safe readiness/retry loop after
+verified worker cleanup, preserving all-up activation and intent cancellation.
+The terminal error log is delayed until retryable cases have been classified.
+See `docs/bugs/2026-10-18-held-key-startup.md`. Build/test/install results follow
+below; this entry alone is not release acceptance.
+
+Full safe suite passed on this change (runner: 5,525 passed, exit 0; 105 seconds).
+Both new held-key lifecycle tests and the updated diagnostic-placement test
+passed. Accessibility identifiers passed across 382 files. Evidence:
+`/Users/malpern/keypath-review-evidence/20261018-held-key-startup/`.
+The initial full run found an old lint expectation that required terminal
+formatting before retry classification; it was updated to retain pre-cleanup
+diagnostic capture while checking terminal formatting occurs after retries.

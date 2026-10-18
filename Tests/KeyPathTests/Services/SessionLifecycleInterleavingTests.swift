@@ -673,6 +673,51 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         }
     }
 
+    func testHeldKeyStartupWaitsForReleaseThenResumesAutomatically() async {
+        var starts = 0
+        var errors: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        coordinator.onError = { if let error = $0 { errors.append(error) } }
+        _ = await coordinator.startKanata()
+        let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                          tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                          failure: "managed-caps-activation-refused: physicalKeysHeld")
+        var ready = false
+        coordinator.testSessionWakeReady = { ready }
+        coordinator.testSessionWakeWait = { [self] in
+            XCTAssertEqual(starts, 1)
+            XCTAssertTrue(coordinator.isRecoveringFromSystemWake)
+            XCTAssertTrue(errors.isEmpty)
+            ready = true
+        }
+        XCTAssertTrue(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                     generation: coordinator.sessionIntentGeneration, cleanedUp: true))
+        guard let recovery = coordinator.sessionSupervisionTask else { return XCTFail("Recovery was not armed") }
+        _ = await completion(of: recovery, fallback: ())
+        XCTAssertEqual(starts, 2)
+        XCTAssertTrue(errors.isEmpty)
+        XCTAssertNil(coordinator.sessionWakeRecovery)
+    }
+
+    func testHeldKeyStartupCannotRestartAfterQuit() async {
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        _ = await coordinator.startKanata()
+        let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: false,
+                                          tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                          failure: "managed-caps-activation-refused: physicalKeysHeld")
+        coordinator.testSessionWakeReady = { false }
+        coordinator.testSessionWakeWait = { [self] in coordinator.setTerminationPreparationActive(true) }
+        XCTAssertTrue(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
+                                                                     generation: coordinator.sessionIntentGeneration, cleanedUp: true))
+        guard let recovery = coordinator.sessionSupervisionTask else { return XCTFail("Recovery was not armed") }
+        _ = await completion(of: recovery, fallback: ())
+        XCTAssertEqual(starts, 1)
+        XCTAssertNil(coordinator.sessionWakeRecovery)
+    }
+
     func testInterruptedStartupRejectsUnownedEvidenceAndIncompleteCleanup() async {
         ServiceLifecycleCoordinator.testSessionStart = { _ in true }
         _ = await coordinator.startKanata()
