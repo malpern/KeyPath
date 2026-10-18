@@ -1,7 +1,7 @@
 # KeyPath brand
 
 The product tagline is **Keys that do more.** Use that exact capitalization and
-punctuation in splash, onboarding, About, installer, and future marketing artwork.
+punctuation in splash, onboarding, About, installer, Help branding, and future marketing artwork.
 The former “Tap. Remap. Done.” tagline is retired. Do not bring back the old
 poster resources as fallbacks: their lettering is baked into the images.
 
