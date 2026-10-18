@@ -57,6 +57,50 @@ public final class SessionCapsMappingLease {
         try locked { try load($0)?.record }
     }
 
+    /// Excludes every lease mutation until the caller confirms worker exit.
+    /// Hold through signal delivery AND exit observation, including a timed-out
+    /// wait. Absence of a journal/directory does not bypass this exclusion.
+    func acquireTerminationGuard(expectedOwner: Policy.Owner) throws -> TerminationGuard {
+        let guardHandle = try acquireLock()
+        do {
+            try requireNoMutation(directoryFD: guardHandle.directoryFD)
+            guard expectedOwner.uid == getuid() else { throw Refusal.wrongOwner }
+            if let entry = try load(guardHandle.directoryFD) {
+                guard entry.record.owner == expectedOwner else { throw Refusal.wrongOwner }
+            }
+            return guardHandle
+        } catch {
+            guardHandle.release()
+            throw error
+        }
+    }
+
+    /// Descriptor ownership may cross from a background acquisition to lifecycle
+    /// cleanup. Release is synchronized and idempotent; it performs no HID work.
+    final class TerminationGuard: @unchecked Sendable {
+        fileprivate let directoryFD: Int32
+        private let lockFD: Int32
+        private let releaseLock = NSLock()
+        private var released = false
+
+        fileprivate init(directoryFD: Int32, lockFD: Int32) {
+            self.directoryFD = directoryFD
+            self.lockFD = lockFD
+        }
+
+        func release() {
+            releaseLock.lock()
+            defer { releaseLock.unlock() }
+            guard !released else { return }
+            released = true
+            flock(lockFD, LOCK_UN)
+            close(lockFD)
+            close(directoryFD)
+        }
+
+        deinit { release() }
+    }
+
     /// A verified reboot ends every old writer and invalidates its registry ID.
     /// Retire owned previous-boot evidence only; never restore or inspect HID here.
     /// Marker first, then intent, so interrupted retirement remains retryable.
@@ -285,21 +329,28 @@ public final class SessionCapsMappingLease {
     }
 
     private func locked<T>(_ body: (Int32) throws -> T) throws -> T {
+        let guardHandle = try acquireLock()
+        defer { guardHandle.release() }
+        return try body(guardHandle.directoryFD)
+    }
+
+    private func acquireLock() throws -> TerminationGuard {
         if mkdir(directory.path, 0o700) != 0, errno != EEXIST { throw Refusal.unsafeDirectory }
         let dir = open(directory.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
         guard dir >= 0 else { throw Refusal.unsafeDirectory }
-        defer { close(dir) }
+        var transferred = false
+        defer { if !transferred { close(dir) } }
         var info = stat()
         guard fstat(dir, &info) == 0, info.st_uid == getuid(), info.st_mode & 0o7777 == 0o700 else {
             throw Refusal.unsafeDirectory
         }
         let lock = openat(dir, "caps-mapping.lock", O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard lock >= 0 else { throw Refusal.unsafeFile }
-        defer { close(lock) }
+        defer { if !transferred { close(lock) } }
         try checkFile(lock)
         guard flock(lock, LOCK_EX | LOCK_NB) == 0 else { throw Refusal.busy }
-        defer { flock(lock, LOCK_UN) }
-        return try body(dir)
+        transferred = true
+        return TerminationGuard(directoryFD: dir, lockFD: lock)
     }
 
     private func checkFile(_ fd: Int32) throws {
