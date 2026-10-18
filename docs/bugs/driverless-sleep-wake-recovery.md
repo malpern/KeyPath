@@ -323,3 +323,9 @@ recovery from publishing after recovery has completed. Runtime polling compares
 that revision as well as health, so failed recovery still triggers validation
 when the runtime remains stopped. This does not lengthen a generic startup grace
 period or change keyboard recovery behavior.
+
+The first packaged correction passed 5,566 tests. Air installation then exposed
+an adjacent path at 20:05:14: loginwindow enabled Secure Input, which intentionally
+retired the worker without entering the wake-recovery loop. Its separate secure
+pause/resume branch now owns the same recovery presentation until resumption ends.
+The focused lifecycle/validation gate passed 74 tests after this addition.

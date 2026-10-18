@@ -384,6 +384,16 @@ extension ServiceLifecycleCoordinator {
         guard restored, sessionStartIsCurrent(generation), sessionApplication === application,
               sessionNonce == expectedNonce else { return false }
         if terminalReport?.state == .secureInput {
+            let recoveryID = UUID()
+            sessionWakeRecoveryRevision &+= 1
+            sessionWakeRecovery = (generation, recoveryID)
+            defer {
+                if sessionWakeRecovery?.id == recoveryID {
+                    sessionWakeRecovery = nil
+                    sessionWakeRecoveryRevision &+= 1
+                    onStateChanged?()
+                }
+            }
             onWarning?("Remapping is paused during secure typing.")
             while IsSecureEventInputEnabled() {
                 guard sessionStartIsCurrent(generation), sessionApplication === application,
