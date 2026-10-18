@@ -492,3 +492,9 @@ An experiment setting Finder's fallback background color did not change filename
 contrast, so the extra packaging driver was discarded. The standard dmgbuild
 path remains. Final mounted Finder preview and strict packaged app signature
 checks passed; see `20261018-installer-brand/preview.png` in the evidence root.
+
+Branded installer notarization accepted (`ee13cd28-7036-41bc-ad5b-67a7f6d85efd`),
+stapling and Gatekeeper passed, and hash-verified delivery completed to Air
+Downloads as `KeyPath-20261018-branded-installer.dmg`. Final SHA-256:
+`cbbecef1fdc912c64958b449b8c5b6f22824f907c8cda839c4288827348263d0`.
+The app payload remains the tested held-key fix; only installer presentation changed.
