@@ -435,6 +435,7 @@ fi
 # This ensures new images/scripts added under Sources/KeyPathApp/Resources show up
 # immediately without requiring a full ./build.sh.
 mkdir -p "$RESOURCES_DIR"
+python3 "$PROJECT_DIR/Scripts/build-offline-help.py" --output "$RESOURCES_DIR/OfflineHelp"
 if command -v rsync >/dev/null 2>&1; then
     rsync -a "$PROJECT_DIR/Sources/KeyPathApp/Resources/" "$RESOURCES_DIR/"
 else

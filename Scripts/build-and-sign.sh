@@ -16,6 +16,7 @@ source "$SCRIPT_DIR/lib/submodules.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$SCRIPT_DIR/.."
 keypath_use_stable_xcode
+command -v pandoc >/dev/null || { echo "Offline help requires pandoc (brew install pandoc)." >&2; exit 2; }
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
 
@@ -309,6 +310,8 @@ echo "✅ Driverless runtime artifacts verified"
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
 
 # Copy bundled app resources (icons, sounds, and UI assets).
+python3 "$SCRIPT_DIR/build-offline-help.py" --output "$RESOURCES/OfflineHelp"
+
 if [ -d "Sources/KeyPathApp/Resources" ]; then
     ditto "Sources/KeyPathApp/Resources/" "$RESOURCES"
     echo "✅ Copied app resources"

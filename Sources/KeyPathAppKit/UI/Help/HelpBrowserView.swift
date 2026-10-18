@@ -29,7 +29,7 @@ enum HelpTopicGroup: String, CaseIterable {
 extension HelpTopic {
     static let allTopics: [HelpTopic] = [
         // Getting Started
-        HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation", group: .gettingStarted),
+        HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation-wizard", group: .gettingStarted),
         HelpTopic(id: "concepts", title: "Keyboard Concepts", icon: "keyboard", resource: "concepts", group: .gettingStarted),
         HelpTopic(id: "use-cases", title: "What You Can Build", icon: "hammer", resource: "use-cases", group: .gettingStarted),
         // Core Features
@@ -61,7 +61,11 @@ extension HelpTopic {
     ]
 
     static func topic(forResource resource: String) -> HelpTopic? {
-        allTopics.first { $0.resource == resource }
+        let resource = resource == "installation" ? "installation-wizard" : resource
+        if let topic = allTopics.first(where: { $0.resource == resource }) { return topic }
+        guard !resource.isEmpty, resource.utf8.allSatisfy({ (97 ... 122).contains($0) || (48 ... 57).contains($0) || $0 == 45 }) else { return nil }
+        return HelpTopic(id: resource, title: resource.replacingOccurrences(of: "-", with: " ").capitalized,
+                         icon: "doc.text", resource: resource, group: .reference)
     }
 }
 

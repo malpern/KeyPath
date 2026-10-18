@@ -1,6 +1,6 @@
 # Help Content Philosophy
 
-Help articles live in `Sources/KeyPathAppKit/Resources/*.md` and render in the in-app Help Browser (`HelpBrowserView.swift`). All help content follows this layered structure.
+Help articles live in `guides/*.md` and `migration/*.md` and render in the in-app Help Browser (`HelpBrowserView.swift`). The app bundles generated HTML, images and CSS for offline use; the same Markdown feeds the website and compatible downloadable updates. See [offline help](../architecture/offline-help.md) for build/publish/test commands. All help content follows this layered structure.
 
 ## Content hierarchy (this order matters)
 
