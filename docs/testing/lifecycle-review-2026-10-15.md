@@ -1,3 +1,6 @@
+> Current driverless candidate status: [release sign-off](driverless-release-signoff.md).
+> This document retains historical results or the general test matrix.
+
 # Driverless lifecycle review — October 15, 2026
 
 Scope: close the remaining launch-at-login, installation, permission-recovery and

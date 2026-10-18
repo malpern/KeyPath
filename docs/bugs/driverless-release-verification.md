@@ -1,3 +1,6 @@
+> Current candidate status: [driverless release sign-off](../testing/driverless-release-signoff.md).
+> This dated investigation retains historical evidence and is not the current backlog.
+
 # Driverless installed-app verification
 
 The release verifier required `system/com.keypath.kanata`, which the driverless

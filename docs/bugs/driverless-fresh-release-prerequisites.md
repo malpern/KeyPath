@@ -1,3 +1,6 @@
+> Current candidate status: [driverless release sign-off](../testing/driverless-release-signoff.md).
+> This dated investigation retains historical evidence and is not the current backlog.
+
 # Fresh driverless release prerequisites
 
 Read-only investigation on 2026-10-06, for integrated product

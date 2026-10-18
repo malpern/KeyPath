@@ -1,3 +1,6 @@
+> Current candidate status: [driverless release sign-off](../testing/driverless-release-signoff.md).
+> This dated investigation retains historical evidence and is not the current backlog.
+
 # Driverless production test gate
 
 The October 6 broad gate exposed three stale integration contracts. An interrupted-write test called normal staging with corrupt sources; the stronger production validator correctly refused before creating a journal. The fixture now constructs the interrupted prior write directly under the operation gate, retaining the recovery refusal and subsequent repair assertions.
