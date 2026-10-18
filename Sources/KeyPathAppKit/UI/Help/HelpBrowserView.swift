@@ -189,7 +189,29 @@ struct HelpBrowserView: View {
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $searchText, prompt: "Search help articles")
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search help articles", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .accessibilityIdentifier("help-search-field")
+                    .accessibilityLabel("Search help articles")
+                if !searchText.isEmpty {
+                    Button { searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                    .accessibilityIdentifier("help-clear-search")
+                }
+            }
+            .padding(8)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 7))
+            .padding(10)
+            .background(.bar)
+        }
         .tint(Color(nsColor: .init(red: 0.55, green: 0.42, blue: 0.30, alpha: 1.0)))
         .safeAreaInset(edge: .bottom) {
             footerLinks
