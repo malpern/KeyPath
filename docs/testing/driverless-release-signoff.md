@@ -91,9 +91,9 @@ Do not count the host regression tests as normal macOS permission-consent proof.
   the supported driverless uninstall button is required by its current ID.
   Other automation targets remain enforced. Both the original failure and the
   passing rerun are retained.
-- No application code or installer changed this pass. The current Air installer
-  remains the verified header-hover candidate; no rebuild/notarization is needed
-  for QA scripts and documentation only.
+- The initial QA consolidation changed only scripts/docs. The later TCP handoff
+  fix produced the new notarized installer named above; the installed Air app
+  remains the previous header-hover candidate as verified below.
 - Header hover and smallest-size/light-mode readability still need direct
   confirmation. Broad snapshot tolerances and noninteractive fixtures are not
   proof of those exact interaction states.
@@ -115,3 +115,31 @@ The new candidate adds a bounded five-second settling window, with regression
 coverage for successful reconnect, persistent failure, and non-renewal by routine
 health checks. Focused tests and the full suite pass. Actual sleep/wake visual
 acceptance on the new candidate remains outstanding.
+
+## Air follow-up: 21:12 recovery, October 17
+
+Micah reports sleep/wake showed only “Restarting…” and no error. Logs confirm:
+
+- 21:12:23.749: recovery gate ready after secure input cleared.
+- 21:12:25.789: overlay TCP connected.
+- 21:12:26.610: runtime ready; 21:12:28.010: validation succeeded.
+- A later wake notification at 21:12:38.888 also completed recovery:
+  runtime ready 21:12:42.242, validation succeeded 21:12:44.048.
+
+**Build identity matters:** installed executable SHA-256 is
+`45a665945852d91ae7677c29671eb2c89c25334bbf7cad86f49f0bc1eabead20`, matching
+header-hover, with parent PID 52511 running since 20:37. The new TCP handoff
+executable hash is `9c367b0c77658782f8f0ab26b25231a928fcaa473037a191223361ee34345e7a`.
+The new installer was delivered, not installed. This is a successful recovery
+observation on the old build, not live acceptance of the handoff fix. Here TCP
+reconnected before validation finished, so the old race was not exercised.
+
+The retrieved power log contains no new 21:12 actual system-sleep entry (latest
+is 20:16:53–20:17:00). Record the user-reported sleep/wake and observed recovery
+notifications without claiming a newly verified full one-minute system sleep.
+The user did not separately reconfirm Caps Lock immediate/30-second behavior
+in this report. Prior functional passes remain historical evidence.
+
+Evidence: `~/keypath-review-evidence/20261017-tcp-handoff/air-recovery-followup.log`.
+Next: install the delivered candidate and verify one genuine sleep/wake cycle,
+then finish the remaining Air interaction checks and blocked clean-VM gate.
