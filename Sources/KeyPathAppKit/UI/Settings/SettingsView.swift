@@ -17,7 +17,6 @@ struct StatusSettingsTabView: View {
     @State var systemContext: SystemContext?
     @State var wizardSystemState: WizardSystemState = .initializing
     @State var wizardIssues: [WizardIssue] = []
-    @State private var showRuntimeDetails = false
     var isDriverless: Bool {
         (permissionSnapshot?.backend ?? KanataRuntimeBackend.selected) == .session
     }
@@ -197,60 +196,45 @@ struct StatusSettingsTabView: View {
                     }
                     .frame(minWidth: 220)
 
-                    // Permissions grid
-                    SettingsSection(title: "Permissions") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            PermissionStatusRow(
-                                title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
-                                icon: "checkmark.shield",
-                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
-                                    .keyPath.accessibility,
-                                isKanata: false,
-                                onTap: { wizardInitialPage = .accessibility },
-                                identifier: isDriverless ? "settings-status-action-button-accessibility"
-                                    : "settings-status-action-button-keypath-accessibility"
-                            )
+                    // One flat list: permissions, the runtime's own checks, then system status.
+                    VStack(alignment: .leading, spacing: 8) {
+                        PermissionStatusRow(
+                            title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
+                            icon: "checkmark.shield",
+                            status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
+                                .keyPath.accessibility,
+                            isKanata: false,
+                            onTap: { wizardInitialPage = .accessibility },
+                            identifier: isDriverless ? "settings-status-action-button-accessibility"
+                                : "settings-status-action-button-keypath-accessibility"
+                        )
 
-                            PermissionStatusRow(
-                                title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
-                                icon: "keyboard",
-                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
-                                    .keyPath.inputMonitoring,
-                                isKanata: false,
-                                onTap: { wizardInitialPage = .inputMonitoring }
-                            )
+                        PermissionStatusRow(
+                            title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
+                            icon: "keyboard",
+                            status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
+                                .keyPath.inputMonitoring,
+                            isKanata: false,
+                            onTap: { wizardInitialPage = .inputMonitoring }
+                        )
 
-                            if isDriverless {
-                                DisclosureGroup("Technical details", isExpanded: $showRuntimeDetails) {
-                                    runtimePermissionRows
-                                    Text("These checks verify KeyPath’s remapping process. They use the same macOS permissions shown above.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    if let title = kanataManager.activeRuntimePathTitle {
-                                        Text(title).font(.caption).foregroundStyle(.secondary)
-                                    }
+                        runtimePermissionRows
+
+                        ForEach(systemStatusRows) { row in
+                            SettingsSystemStatusRow(
+                                id: row.id,
+                                title: row.title,
+                                icon: row.icon,
+                                status: row.status,
+                                message: row.message,
+                                onTap: row.targetPage.map { page in
+                                    { wizardInitialPage = page }
                                 }
-                                .accessibilityIdentifier("settings-runtime-details")
-                            } else {
-                                runtimePermissionRows
-                            }
-                        }
-
-                        SettingsSection(title: "System Status") {
-                            ForEach(systemStatusRows) { row in
-                                SettingsSystemStatusRow(
-                                    id: row.id,
-                                    title: row.title,
-                                    icon: row.icon,
-                                    status: row.status,
-                                    message: row.message,
-                                    onTap: row.targetPage.map { page in
-                                        { wizardInitialPage = page }
-                                    }
-                                )
-                            }
+                            )
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("settings-status-list")
 
                     Spacer()
                 }
@@ -307,140 +291,89 @@ struct StatusSettingsTabView: View {
         }
     }
 
-    @State private var showKeyboardDetails = false
-
     private var keyboardDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: SettingsDesign.sectionContentGap) {
             SettingsSectionHeader(title: "Connected Keyboard")
 
             if let activeKeyboard = autoDetectController.activeKeyboard {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Hero: icon + name + status
-                    HStack(spacing: 14) {
-                        Image(systemName: "keyboard.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 44, height: 44)
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                HStack(spacing: 10) {
+                    Image(systemName: "keyboard")
+                        .foregroundStyle(.secondary)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(activeKeyboard.keyboardName)
-                                .font(.body.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(activeKeyboard.keyboardName)
+                            .font(.body.weight(.medium))
+                        Text([activeKeyboard.manufacturer,
+                              activeKeyboard.status == .remembered ? "Remembered" : "Connected"]
+                                .compactMap(\.self).joined(separator: " · "))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
 
-                            if let manufacturer = activeKeyboard.manufacturer {
-                                Text(manufacturer)
-                                    .font(.callout)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
+                    Spacer()
 
-                        Spacer()
-
-                        HStack(spacing: 5) {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 7, height: 7)
-                            Text(activeKeyboard.status == .remembered ? "Remembered" : "Connected")
-                                .font(.caption.weight(.medium))
+                    Button {
+                        autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
+                        LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout")
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption2.weight(.semibold))
                                 .foregroundColor(.secondary)
                         }
                     }
-
-                    Divider()
-
-                    // Layout picker row
-                    HStack {
-                        Text("Layout")
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        Button {
-                            autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
-                            LiveKeyboardOverlayController.shared.showForQuickLaunch()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Not selected")
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundColor(.primary)
-                        .accessibilityIdentifier("status-search-keyboard-layouts-button")
-                    }
-
-                    // Technical details disclosure
-                    DisclosureGroup("Details", isExpanded: $showKeyboardDetails) {
-                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
-                            keyboardInfoRow(title: "VID:PID", value: activeKeyboard.vidPidKey)
-                            keyboardInfoRow(title: "Source", value: activeKeyboard.source?.rawValue.capitalized ?? "Manual")
-                            keyboardInfoRow(title: "Match", value: activeKeyboard.matchType?.rawValue ?? "None")
-                            keyboardInfoRow(title: "Confidence", value: activeKeyboard.confidence?.rawValue.capitalized ?? "Unknown")
-                        }
-                        .padding(.top, 6)
-                    }
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-
-                    // Destructive action
-                    Button(role: .destructive) {
-                        autoDetectController.forgetKeyboard(activeKeyboard.id)
-                    } label: {
-                        Text("Forget This Keyboard")
-                            .font(.callout)
-                    }
                     .buttonStyle(.plain)
-                    .foregroundColor(.red)
-                    .accessibilityIdentifier("status-forget-keyboard-button")
+                    .foregroundColor(.primary)
+                    .accessibilityIdentifier("status-search-keyboard-layouts-button")
+
+                    Menu {
+                        Button("Forget This Keyboard", role: .destructive) {
+                            autoDetectController.forgetKeyboard(activeKeyboard.id)
+                        }
+                        .accessibilityIdentifier("status-forget-keyboard-button")
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .accessibilityLabel("Keyboard options")
+                    .accessibilityIdentifier("status-keyboard-options-menu")
                 }
-                .padding(16)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color(NSColor.controlBackgroundColor))
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                )
+                // Diagnostics stay reachable without taking space.
+                .help("""
+                VID:PID \(activeKeyboard.vidPidKey) · \(activeKeyboard.source?.rawValue.capitalized ?? "Manual") · \
+                match \(activeKeyboard.matchType?.rawValue ?? "none") · \
+                \(activeKeyboard.confidence?.rawValue ?? "unknown") confidence
+                """)
                 .accessibilityIdentifier("status-connected-keyboard-panel")
             } else {
-                HStack(spacing: 14) {
+                HStack(spacing: 10) {
                     Image(systemName: "keyboard")
-                        .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                        .frame(width: 44, height: 44)
-
                     Text(permissionSnapshot?.keyPath.inputMonitoring.isReady == true
                         ? "No keyboard detected"
                         : "Keyboard discovery unavailable until Input Monitoring is enabled for KeyPath.")
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }
-                .padding(16)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color(NSColor.controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                 )
                 .accessibilityIdentifier("status-no-connected-keyboard-panel")
             }
-        }
-    }
-
-    private func keyboardInfoRow(title: String, value: String) -> some View {
-        GridRow {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.callout)
-                .textSelection(.enabled)
         }
     }
 
