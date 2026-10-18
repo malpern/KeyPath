@@ -329,3 +329,15 @@ an adjacent path at 20:05:14: loginwindow enabled Secure Input, which intentiona
 retired the worker without entering the wake-recovery loop. Its separate secure
 pause/resume branch now owns the same recovery presentation until resumption ends.
 The focused lifecycle/validation gate passed 74 tests after this addition.
+
+Final private candidate source: `9db055c21`. Both app and DMG accepted by Apple,
+stapled, and Gatekeeper accepted. Delivered and installed on Air with existing
+settings preserved; installed-app trust, owned worker and TCP checks passed.
+Installer: `~/Downloads/KeyPath-20261017-wake-ui-final.dmg`.
+Stapled DMG SHA-256:
+`4ab8ac17e33af18c1d3a685a820bbfea76cd83b889876bb5ec026aa5431bcb83`.
+Executable SHA-256:
+`c3339d0c4d402f56f77cbf817eecab8adaed8021b54c55d8fd0c2739b58b95eb`.
+Evidence: `~/keypath-review-evidence/20261017-wake-ui/final/`.
+A real sleep/wake visual check of this final candidate remains pending; automated
+validation and installation checks do not establish that manual result.
