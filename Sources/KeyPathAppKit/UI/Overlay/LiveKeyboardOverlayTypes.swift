@@ -49,10 +49,11 @@ enum OverlayTCPStatusPresentation: Equatable {
     static func resolve(
         isConnected: Bool,
         hasSeenConnection: Bool,
-        isWithinStartupGrace: Bool
+        isWithinStartupGrace: Bool,
+        isCheckingHealth: Bool = false
     ) -> Self {
         if isConnected { return .hidden }
-        if isWithinStartupGrace {
+        if isWithinStartupGrace || isCheckingHealth {
             return hasSeenConnection ? .restarting : .starting
         }
         return .disconnected

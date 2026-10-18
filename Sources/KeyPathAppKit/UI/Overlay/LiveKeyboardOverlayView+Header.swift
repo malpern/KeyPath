@@ -411,7 +411,8 @@ struct OverlayDragHeader: View {
         .resolve(
             isConnected: isKanataConnected,
             hasSeenConnection: hasSeenKanataConnection,
-            isWithinStartupGrace: !tcpStartupGraceExpired
+            isWithinStartupGrace: !tcpStartupGraceExpired,
+            isCheckingHealth: MainAppStateController.shared.validationState == .checking
         )
     }
 

@@ -341,3 +341,14 @@ Executable SHA-256:
 Evidence: `~/keypath-review-evidence/20261017-wake-ui/final/`.
 A real sleep/wake visual check of this final candidate remains pending; automated
 validation and installation checks do not establish that manual result.
+
+### Overlay TCP badge follow-up
+
+Air cycles at 20:16 and 20:17 recovered with validation success and no blocking
+setup failure, but the overlay's independent TCP badge ignored ongoing validation
+once initial startup grace expired. It could therefore show `No TCP` during the
+expected disconnect. The badge now observes the existing observable validation
+state: disconnected plus checking remains neutral (`Restarting…` after a prior
+connection); connected hides the badge, and settled disconnection still warns.
+The focused overlay/validation/lifecycle suite passed 79 tests. No transport or
+recovery behavior changed.
