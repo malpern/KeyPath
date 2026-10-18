@@ -352,3 +352,10 @@ state: disconnected plus checking remains neutral (`Restarting…` after a prior
 connection); connected hides the badge, and settled disconnection still warns.
 The focused overlay/validation/lifecycle suite passed 79 tests. No transport or
 recovery behavior changed.
+
+TCP badge candidate `16966a45d` was signed, notarized (app and DMG), stapled,
+delivered to Air Downloads as `KeyPath-20261017-wake-tcp.dmg`, and installed with
+settings preserved. Installed trust and owned-session/TCP verification passed.
+Stapled DMG SHA-256: `96f2eaf9748b2cb19ea004610a0a0994078e74af50ea0d22c92eab83ff61a828`.
+Evidence: `~/keypath-review-evidence/20261017-wake-tcp/`.
+Visual confirmation during a new physical sleep/wake cycle remains pending.
