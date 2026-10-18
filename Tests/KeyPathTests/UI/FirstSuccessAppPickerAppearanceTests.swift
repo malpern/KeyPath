@@ -20,10 +20,11 @@ final class FirstSuccessAppPickerAppearanceTests: XCTestCase {
         XCTAssertGreaterThan(background.redComponent, 0.85, "The light tour picker must supply its own light surface, even in a dark native sheet")
         // Header contains readable dark ink on that light surface.
         var darkPixels = 0
-        for y in 10..<40 {
-            for x in 14..<145 {
+        for y in 10 ..< 40 {
+            for x in 14 ..< 145 {
                 if let pixel = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
-                   pixel.redComponent < 0.3 && pixel.greenComponent < 0.3 {
+                   pixel.redComponent < 0.3, pixel.greenComponent < 0.3
+                {
                     darkPixels += 1
                 }
             }

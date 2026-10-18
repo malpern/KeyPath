@@ -8,8 +8,8 @@ final class SystemPackTransactionTests: KeyPathTestCase {
     private var directory: URL!
     private var manager: RuleCollectionsManager!
     private var tracker: InstalledPackTracker!
-    // Exercise the real managed IDs/snapshot journal with a supported physical
-    // modifier. Actual Caps rejection is covered by GenericPackConfigTests.
+    /// Exercise the real managed IDs/snapshot journal with a supported physical
+    /// modifier. Actual Caps rejection is covered by GenericPackConfigTests.
     private let pack: Pack = {
         let original = PackRegistry.launcher
         return Pack(

@@ -1,7 +1,7 @@
 import AppKit
-import SwiftUI
 import CoreGraphics
 @testable import KeyPathAppKit
+import SwiftUI
 import XCTest
 
 @MainActor
@@ -16,8 +16,7 @@ final class KeyboardStageSceneTests: XCTestCase {
                             Color.clear.onAppear { measured = geometry.size }
                                 .onChange(of: geometry.size) { _, value in measured = value }
                         }
-                    }
-                )
+                    })
                 view.frame = CGRect(origin: .zero, size: size)
                 view.layoutSubtreeIfNeeded()
                 RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
@@ -28,7 +27,7 @@ final class KeyboardStageSceneTests: XCTestCase {
         }
     }
 
-    func testAllTourPagesKeepOrdinaryKeySizeStable() throws {
+    func testAllTourPagesKeepOrdinaryKeySizeStable() {
         let moments: [KeyboardStageMoment] = [
             .capsMotivation, .capsApplying, .capsInstalled,
             .hyperMotivation, .hyperApplying, .hyperInstalled, .launcher, .handoff,

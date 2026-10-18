@@ -79,7 +79,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(commits, 1)
     }
 
-    func testUpdatePreparationRefusesQueuedAndNewStartsUntilReleased() async {
+    func testUpdatePreparationRefusesQueuedAndNewStartsUntilReleased() async throws {
         coordinator.testSessionConfigurationValidation = { .valid }
         var launches = 0
         ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
@@ -89,12 +89,14 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         let blocker = Task { @MainActor in
             try await coordinator.sessionOperationGate.withOperation { _ in
                 let start = Task { @MainActor in await coordinator.startKanata() }
-                while await coordinator.sessionIntentGeneration == generation { await Task.yield() }
+                while await coordinator.sessionIntentGeneration == generation {
+                    await Task.yield()
+                }
                 await coordinator.setUpdatePreparationActive(true)
                 return start
             }
         }
-        let queued = try! await blocker.value
+        let queued = try await blocker.value
         let queuedResult = await queued.value
         XCTAssertFalse(queuedResult)
         let started = await coordinator.startKanata()
@@ -259,8 +261,8 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     func testInvalidRestartPreservesOwnedRunningTapUntilExplicitStop() async {
         let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
-                                         accessibility: true, effectiveInputAccess: true, tapActive: true,
-                                         tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+                                          accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                          tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
         coordinator.testSessionCurrentReport = { report }
         var validations = 0, stops = 0
         coordinator.testSessionConfigurationValidation = { validations += 1; return .invalid(reason: "edited config unsupported") }
@@ -279,8 +281,8 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     func testRejectedStartAndRestartTransferRetainedTapSupervisionToLatestIntent() async {
         let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
-                                         accessibility: true, effectiveInputAccess: true, tapActive: true,
-                                         tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+                                          accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                          tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
         coordinator.testSessionCurrentReport = { report }
         coordinator.testSessionConfigurationValidation = { .valid }
         coordinator.testSessionRunningReadiness = { true }
@@ -388,14 +390,18 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         coordinator.testSessionCapabilityProbe = {
             events.append("probe-start")
             entered.continuation.yield(())
-            for await _ in release.stream { break }
+            for await _ in release.stream {
+                break
+            }
             events.append("probe-end")
             return nil
         }
         ServiceLifecycleCoordinator.testSessionStop = { events.append("stop"); return true }
         defer { ServiceLifecycleCoordinator.testSessionStop = nil }
         let probe = Task { await coordinator.sessionCapabilities() }
-        for await _ in entered.stream { break }
+        for await _ in entered.stream {
+            break
+        }
         coordinator.setTerminationPreparationActive(true)
         let stop = Task { await coordinator.stopKanata(reason: "Uninstall KeyPath") }
         _ = await coordinator.sessionCapabilities()

@@ -48,12 +48,12 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         let stale = SessionCapsSelection(device: device, bootSessionUUID: UUID().uuidString, reservesF18: true)
         let staleData = try JSONEncoder().encode(stale)
         let ordinaryWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
-                                                                         environment: [:], selectionData: staleData)
+                                                                          environment: [:], selectionData: staleData)
         guard case .valid = ordinaryWithStaleConsent.result else { return XCTFail("Stale Caps consent must not block ordinary rules") }
         XCTAssertFalse(ordinaryWithStaleConsent.managedCaps)
         try "(defsrc caps)(deflayer base esc)".write(to: file, atomically: true, encoding: .utf8)
         let capsWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
-                                                                     environment: [:], selectionData: staleData)
+                                                                      environment: [:], selectionData: staleData)
         guard case .invalid = capsWithStaleConsent.result else { return XCTFail("Caps needs fresh consent") }
         XCTAssertFalse(capsWithStaleConsent.managedCaps)
         try "(defsrc caps)(deflayer base".write(to: file, atomically: true, encoding: .utf8)
@@ -124,7 +124,7 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         XCTAssertNotEqual(oldBoot, try SessionCapsRuntimeSupport.bootSessionUUID())
         // Both PIDs are live in this boot; previous-boot identity must be classified first.
         let owner = SessionCapsMappingPolicy.Owner(uid: getuid(), parentPID: getppid(), workerPID: getpid(),
-                                                  nonce: "previous-boot", generation: "old", bootSessionUUID: oldBoot)
+                                                   nonce: "previous-boot", generation: "old", bootSessionUUID: oldBoot)
         let record = try SessionCapsMappingPolicy.acquire(original: [], device: device, devices: [device],
                                                           owner: owner, effectiveConfigSHA256: String(repeating: "a", count: 64))
         let journal = root.appendingPathComponent("caps-mapping-intent.json")

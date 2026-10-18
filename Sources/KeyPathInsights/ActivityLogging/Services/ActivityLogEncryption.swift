@@ -78,7 +78,7 @@ public actor ActivityLogEncryption {
             let key = try readKeyFromKeychain()
             cachedKey = key
             return key
-        } catch EncryptionError.keychainReadFailed(let status) where status == errSecItemNotFound {
+        } catch let EncryptionError.keychainReadFailed(status) where status == errSecItemNotFound {
             // Only absence permits creation. Denied or locked reads must preserve
             // the existing key and the logs encrypted with it.
             let key = SymmetricKey(size: .bits256)

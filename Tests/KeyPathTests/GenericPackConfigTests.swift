@@ -428,11 +428,13 @@ final class GenericPackConfigTests: XCTestCase {
         XCTAssertNotEqual(replayed.configuration, hyper, "The replay adds the original Caps Lock hold option")
         XCTAssertFalse(FirstSuccessOnboardingWindowController.capsLockRequiresHyperRulesHandoff(
             existing: replayed, catalogConfiguration: catalog.configuration,
-            escapeConfiguration: escape, hyperConfiguration: hyper))
+            escapeConfiguration: escape, hyperConfiguration: hyper
+        ))
         replayed.configuration.updateSelectedHoldOutput("lctl")
         XCTAssertTrue(FirstSuccessOnboardingWindowController.capsLockRequiresHyperRulesHandoff(
             existing: replayed, catalogConfiguration: catalog.configuration,
-            escapeConfiguration: escape, hyperConfiguration: hyper))
+            escapeConfiguration: escape, hyperConfiguration: hyper
+        ))
     }
 
     @MainActor
@@ -1823,7 +1825,7 @@ final class GenericPackConfigTests: XCTestCase {
             if let previousPreference { defaults.set(previousPreference, forKey: preferenceKey) }
             else { defaults.removeObject(forKey: preferenceKey) }
         }
-        defaults.set(try JSONEncoder().encode(LeaderKeyPreference.default), forKey: preferenceKey)
+        try defaults.set(JSONEncoder().encode(LeaderKeyPreference.default), forKey: preferenceKey)
         try SessionBridgeTestFixture.requireAvailable()
         let (manager, directory) = try makeTestManager()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -1846,7 +1848,7 @@ final class GenericPackConfigTests: XCTestCase {
         let generated = KanataConfiguration.generateFromCollections(candidate, inputs: .empty)
         let launcherStart = try XCTUnwrap(generated.range(of: "(deflayer launcher")).lowerBound
         let oldTransparentFallback = generated.replacingOccurrences(
-            of: "@beh_base_caps", with: "_", range: launcherStart..<generated.endIndex
+            of: "@beh_base_caps", with: "_", range: launcherStart ..< generated.endIndex
         )
         let legacyFile = directory.appendingPathComponent("transparent-launcher.kbd")
         try oldTransparentFallback.write(to: legacyFile, atomically: true, encoding: .utf8)

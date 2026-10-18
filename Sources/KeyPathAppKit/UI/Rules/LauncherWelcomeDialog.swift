@@ -122,7 +122,6 @@ struct LauncherWelcomeDialog: View {
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("launcher-welcome-customize-button")
-
                 }
             }
             .padding(.horizontal, 40)
@@ -286,5 +285,4 @@ struct LauncherWelcomeDialog: View {
         onComplete(config, action)
         dismiss()
     }
-
 }

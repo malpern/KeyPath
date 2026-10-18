@@ -144,69 +144,69 @@ extension OverlayKeycapView {
 
     private var selectableKeycap: some View {
         keycapSurface
-        // Launcher mode (inspector closed): double-click opens edit panel, single-click executes shortcut.
-        // onTapGesture(count:2) before count:1 makes SwiftUI delay the single tap to disambiguate.
-        .onTapGesture(count: 2) {
-            guard isLauncherMode, !isInspectorVisible, key.layoutRole != .touchId,
-                  let onKeyDoubleClick else { return }
-            onKeyDoubleClick(key, layerKeyInfo)
-        }
-        .onTapGesture {
-            guard isLauncherMode, !isInspectorVisible, key.layoutRole != .touchId,
-                  let onKeyClick else { return }
-            onKeyClick(key, layerKeyInfo)
-        }
-        // Inspector open: DragGesture for key selection (coexists with keyboard drag)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onEnded { _ in
-                    guard key.layoutRole != .touchId, let onKeyClick else { return }
-                    onKeyClick(key, layerKeyInfo)
-                },
-            including: isInspectorVisible ? .all : .none
-        )
+            // Launcher mode (inspector closed): double-click opens edit panel, single-click executes shortcut.
+            // onTapGesture(count:2) before count:1 makes SwiftUI delay the single tap to disambiguate.
+            .onTapGesture(count: 2) {
+                guard isLauncherMode, !isInspectorVisible, key.layoutRole != .touchId,
+                      let onKeyDoubleClick else { return }
+                onKeyDoubleClick(key, layerKeyInfo)
+            }
+            .onTapGesture {
+                guard isLauncherMode, !isInspectorVisible, key.layoutRole != .touchId,
+                      let onKeyClick else { return }
+                onKeyClick(key, layerKeyInfo)
+            }
+            // Inspector open: DragGesture for key selection (coexists with keyboard drag)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onEnded { _ in
+                        guard key.layoutRole != .touchId, let onKeyClick else { return }
+                        onKeyClick(key, layerKeyInfo)
+                    },
+                including: isInspectorVisible ? .all : .none
+            )
     }
 
     var keycapBody: some View {
         interactiveKeycap
-        .onAppear {
-            loadAppIconIfNeeded()
-            loadFaviconIfNeeded()
-        }
-        .onChange(of: layerKeyInfo?.appLaunchIdentifier) { _, newValue in
-            if newValue != nil {
-                loadAppIconIfNeeded()
-            } else {
-                appIcon = nil
-            }
-        }
-        .onChange(of: layerKeyInfo?.urlIdentifier) { _, newValue in
-            if newValue != nil {
-                loadFaviconIfNeeded()
-            } else {
-                faviconImage = nil
-            }
-        }
-        .onChange(of: launcherMapping?.id) { _, newValue in
-            // Reload icons when launcher mapping changes
-            if newValue != nil {
+            .onAppear {
                 loadAppIconIfNeeded()
                 loadFaviconIfNeeded()
-            } else {
-                appIcon = nil
-                faviconImage = nil
             }
-        }
-        // Accessibility: Make each key discoverable and clickable by automation
-        .accessibilityElement(children: .ignore)
-        .accessibilityIdentifier(keycapAccessibilityId)
-        .accessibilityLabel(keycapAccessibilityLabel)
-        .accessibilityValue(keycapAccessibilityValue)
-        .accessibilityAddTraits(isAutomationClickable ? .isButton : [])
-        .accessibilityAction {
-            guard isAutomationClickable, let onKeyClick else { return }
-            onKeyClick(key, layerKeyInfo)
-        }
+            .onChange(of: layerKeyInfo?.appLaunchIdentifier) { _, newValue in
+                if newValue != nil {
+                    loadAppIconIfNeeded()
+                } else {
+                    appIcon = nil
+                }
+            }
+            .onChange(of: layerKeyInfo?.urlIdentifier) { _, newValue in
+                if newValue != nil {
+                    loadFaviconIfNeeded()
+                } else {
+                    faviconImage = nil
+                }
+            }
+            .onChange(of: launcherMapping?.id) { _, newValue in
+                // Reload icons when launcher mapping changes
+                if newValue != nil {
+                    loadAppIconIfNeeded()
+                    loadFaviconIfNeeded()
+                } else {
+                    appIcon = nil
+                    faviconImage = nil
+                }
+            }
+            // Accessibility: Make each key discoverable and clickable by automation
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier(keycapAccessibilityId)
+            .accessibilityLabel(keycapAccessibilityLabel)
+            .accessibilityValue(keycapAccessibilityValue)
+            .accessibilityAddTraits(isAutomationClickable ? .isButton : [])
+            .accessibilityAction {
+                guard isAutomationClickable, let onKeyClick else { return }
+                onKeyClick(key, layerKeyInfo)
+            }
     }
 
     var isAutomationClickable: Bool {

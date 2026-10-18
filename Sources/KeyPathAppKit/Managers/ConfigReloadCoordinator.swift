@@ -104,7 +104,8 @@ final class ConfigReloadCoordinator {
             expectedIntent = runtimeIntentGeneration()
             healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
             guard started, healthStatus.isHealthy, !Task.isCancelled,
-                  expectedIntent == runtimeIntentGeneration() else {
+                  expectedIntent == runtimeIntentGeneration()
+            else {
                 return ReloadResult(success: false, response: nil,
                                     errorMessage: healthStatus.reason ?? "Session startup did not establish readiness",
                                     protocol: nil, disposition: .pending)

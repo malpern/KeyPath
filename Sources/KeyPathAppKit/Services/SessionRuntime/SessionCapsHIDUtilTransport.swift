@@ -10,7 +10,7 @@ public enum SessionCapsHIDUtilTransport {
     public typealias Policy = SessionCapsMappingPolicy
 
     public static func selector(_ device: Policy.DeviceIdentity) throws -> String {
-        guard device.registryEntryID != 0, (device.vendorID != 0 || (device.appleBuiltIn == true && device.productID == 0 && (device.locationID ?? 0) != 0)), device.vendorID <= 0xFFFF,
+        guard device.registryEntryID != 0, device.vendorID != 0 || (device.appleBuiltIn == true && device.productID == 0 && (device.locationID ?? 0) != 0), device.vendorID <= 0xFFFF,
               device.productID <= 0xFFFF, (device.locationID ?? 0) != 0 || device.serialNumber != nil else { throw Policy.Refusal.invalidDevice }
         if let serial = device.serialNumber {
             guard !serial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, serial.utf8.count <= 1024 else { throw Policy.Refusal.invalidDevice }
@@ -111,7 +111,7 @@ public enum SessionCapsHIDUtilTransport {
             let vendor = try number("VendorID", maximum: 0xFFFF)
             let product = try number("ProductID", maximum: 0xFFFF)
             let location = try number("LocationID", maximum: UInt64(UInt32.max))
-            guard registry != 0, (vendor != 0 || (appleBuiltIn && product == 0)), location != 0 else { throw Refusal.unsupportedOutput }
+            guard registry != 0, vendor != 0 || (appleBuiltIn && product == 0), location != 0 else { throw Refusal.unsupportedOutput }
             var serial: String?
             if let value = row["SerialNumber"] {
                 guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -152,7 +152,7 @@ public enum SessionCapsHIDUtilTransport {
         var entries: io_iterator_t = 0
         guard IORegistryCreateIterator(kIOMainPortDefault, kIOServicePlane,
                                        IOOptionBits(kIORegistryIterateRecursively), &entries) == KERN_SUCCESS,
-              entries != 0 else { throw Refusal.commandFailed }
+            entries != 0 else { throw Refusal.commandFailed }
         defer { IOObjectRelease(entries) }
         while true {
             let entry = IOIteratorNext(entries)
@@ -182,7 +182,7 @@ public enum SessionCapsHIDUtilTransport {
         /// Real hidutil is queued but has executed no user code. Root may resume the orphan later.
         /// Does not claim death inside an opaque HID mutation call; never used for restore/read.
         static func terminateOwnerWithSuspendedWriter(record: Policy.Record, mappings: [Policy.Mapping],
-                                                     publishCheckpoint: (Int32) throws -> Void) throws -> Never
+                                                      publishCheckpoint: (Int32) throws -> Void) throws -> Never
         {
             guard SessionCapsMappingLease.terminateWithQueuedWriter(record: record, mappings: mappings) else {
                 throw SessionCapsMappingLease.Refusal.mutationUncertain
@@ -229,7 +229,9 @@ public enum SessionCapsHIDUtilTransport {
             }
             var status: Int32 = 0
             var observed: pid_t
-            repeat { observed = waitpid(childPID, &status, WNOHANG) } while observed < 0 && errno == EINTR
+            repeat {
+                observed = waitpid(childPID, &status, WNOHANG)
+            } while observed < 0 && errno == EINTR
             guard observed == 0 else {
                 if observed == childPID || (observed < 0 && errno == ECHILD) { unreaped = false }
                 throw Refusal.commandFailed

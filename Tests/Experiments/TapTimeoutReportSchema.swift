@@ -5,8 +5,8 @@ struct TapTimeoutReportSchemaTests {
     static func main() throws {
         typealias Diagnostic = SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic
         let diagnostic = Diagnostic(initialization: .identityDigestUnavailable,
-                                   preparation: .commandChangedDuringRead,
-                                   callbackFirstResult: .reportAgeInvalid)
+                                    preparation: .commandChangedDuringRead,
+                                    callbackFirstResult: .reportAgeInvalid)
         let report = SessionRuntimeReport(
             nonce: "inert", pid: 10, uid: 502, state: .running,
             accessibility: true, effectiveInputAccess: true, tapActive: true,
@@ -61,7 +61,8 @@ struct TapTimeoutReportSchemaTests {
         }
 
         for (field, unknownStatus) in [("initialization", "unknown"), ("preparation", "unknown"),
-                                       ("callbackFirstResult", "unknown")] {
+                                       ("callbackFirstResult", "unknown")]
+        {
             var badStatus = nested; badStatus[field] = unknownStatus
             root["experimentalTapTimeout"] = badStatus
             let data = try JSONSerialization.data(withJSONObject: root)
@@ -86,7 +87,8 @@ struct TapTimeoutReportSchemaTests {
         let evidenceData = try JSONEncoder().encode(evidence)
         let decodedEvidence = try JSONDecoder().decode(SessionRuntimeReport.ExperimentalTapDiagnostics.self, from: evidenceData)
         precondition(decodedEvidence == evidence)
-        let historical = Data(#"{"rawTapCallbackCount":0,"qMapped":true,"aMapped":false,"registeredTap":{"outcome":"observed","requestedMask":7168,"rows":[{"mask":7168,"enabled":true}],"rawAccessibility":"granted","rawPostEvent":"granted","rawListenEvent":"granted","queryLimit":128,"enumerationAttempted":true}}"#.utf8)
+        let historical = Data(#"{"rawTapCallbackCount":0,"qMapped":true,"aMapped":false,"registeredTap":{"outcome":"observed","requestedMask":7168,"rows":[{"mask":7168,"enabled":true}],"rawAccessibility":"granted","rawPostEvent":"granted","rawListenEvent":"granted","queryLimit":128,"enumerationAttempted":true}}"#
+            .utf8)
         let legacy = try JSONDecoder().decode(SessionRuntimeReport.ExperimentalTapDiagnostics.self, from: historical)
         precondition(legacy.registeredTap?.rows.first?.timing == nil && legacy.postDelayRegisteredTap == nil)
         let timingObject = try JSONSerialization.jsonObject(with: JSONEncoder().encode(timing)) as! [String: Any]

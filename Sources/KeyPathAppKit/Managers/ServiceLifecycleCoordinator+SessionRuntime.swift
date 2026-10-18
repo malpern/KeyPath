@@ -145,7 +145,8 @@ extension ServiceLifecycleCoordinator {
             }
             let terminalReport = sessionReportURL.flatMap(Self.readSessionReport)
             if let terminalReport, terminalReport.belongsTo(nonce: nonce, pid: application.processIdentifier, uid: getuid()) {
-                AppLogger.shared.info("[SessionRuntime] Startup retired state=\(terminalReport.state.rawValue) reason=\(terminalReport.recoveryReason ?? "none") failure=\(terminalReport.failure ?? "none")")
+                AppLogger.shared
+                    .info("[SessionRuntime] Startup retired state=\(terminalReport.state.rawValue) reason=\(terminalReport.recoveryReason ?? "none") failure=\(terminalReport.failure ?? "none")")
             }
             let failure = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
             #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
@@ -168,7 +169,8 @@ extension ServiceLifecycleCoordinator {
             let cleanedUp = await stopSessionRuntime()
             if reason == "System wake", sessionStartIsCurrent(generation),
                Self.canRetryWakeStartup(terminalReport, nonce: nonce, pid: application.processIdentifier,
-                                        uid: getuid(), cleanedUp: cleanedUp) {
+                                        uid: getuid(), cleanedUp: cleanedUp)
+            {
                 sessionWakeRetryGeneration = generation
                 onWarning?("Waiting for your keyboard to become ready after wake.")
                 onStateChanged?()
@@ -323,7 +325,8 @@ extension ServiceLifecycleCoordinator {
             return false
         }
         if let failure = terminalReport?.recoveryReason,
-           failure == "system-will-sleep" || failure == "system-wake-observed" {
+           failure == "system-will-sleep" || failure == "system-wake-observed"
+        {
             _ = await resumeAfterSystemWake(expectedGeneration: generation,
                                             launchWakeEpoch: sessionLaunchWakeEpoch,
                                             wakeAlreadyObserved: failure == "system-wake-observed",
@@ -340,7 +343,8 @@ extension ServiceLifecycleCoordinator {
     /// Retirement restores old output first. A wake starts through ordinary
     /// admission; it never reuses the retired worker or its event queues.
     func resumeAfterSystemWake(expectedGeneration: UInt64, launchWakeEpoch: UInt64,
-                               wakeAlreadyObserved: Bool, retiredAt: Date? = nil) async -> Bool {
+                               wakeAlreadyObserved: Bool, retiredAt: Date? = nil) async -> Bool
+    {
         guard sessionStartIsCurrent(expectedGeneration) else { return false }
         // This supervisor now owns recovery rather than the retired worker.
         // Starting/cleaning a replacement must not cancel the task running this loop.
@@ -383,7 +387,8 @@ extension ServiceLifecycleCoordinator {
     }
 
     static func canRetryWakeStartup(_ report: SessionRuntimeReport?, nonce: String,
-                                    pid: Int32, uid: UInt32, cleanedUp: Bool) -> Bool {
+                                    pid: Int32, uid: UInt32, cleanedUp: Bool) -> Bool
+    {
         guard cleanedUp, let report, report.belongsTo(nonce: nonce, pid: pid, uid: uid) else { return false }
         // A late system-wake notification can retire the replacement before
         // startup has installed its supervisor. Preserve the same recovery loop
@@ -460,7 +465,8 @@ extension ServiceLifecycleCoordinator {
     }
 
     private func recoverSessionCapsOnDisk(directory: URL, nonce: String?, pid: Int32?,
-                                          parentPID: Int32, uid: UInt32) async throws {
+                                          parentPID: Int32, uid: UInt32) async throws
+    {
         try await Task.detached {
             let owner: SessionCapsMappingPolicy.Owner? = if let nonce, let pid {
                 try .init(uid: uid, parentPID: parentPID, workerPID: pid, nonce: nonce,
@@ -518,10 +524,11 @@ extension ServiceLifecycleCoordinator {
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
         if !capabilitiesOnly, SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current()).managedCaps,
-           let device = try SessionCapsRuntimeSupport.selectedDevice() {
+           let device = try SessionCapsRuntimeSupport.selectedDevice()
+        {
             let selection = try SessionCapsSelection(device: device, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID(), reservesF18: true)
-            configuration.environment = [
-                SessionCapsRuntimeSupport.selectionEnvironmentKey: String(decoding: try JSONEncoder().encode(selection), as: UTF8.self)
+            configuration.environment = try [
+                SessionCapsRuntimeSupport.selectionEnvironmentKey: String(decoding: JSONEncoder().encode(selection), as: UTF8.self)
             ]
         }
         AppLogger.shared.log(

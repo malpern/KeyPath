@@ -478,9 +478,9 @@ public actor PermissionOracle {
     ) -> (status: Status, source: String, confidence: Confidence) {
         switch apiStatus {
         case .granted, .denied:
-            return (apiStatus, "keypath.ax-api+im-api", .high)
+            (apiStatus, "keypath.ax-api+im-api", .high)
         case .unknown, .error:
-            return (.unknown, "keypath.ax-api-only", .low)
+            (.unknown, "keypath.ax-api-only", .low)
         }
     }
 

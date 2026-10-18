@@ -1,6 +1,6 @@
+import AppKit
 @testable import KeyPathAppKit
 import KeyPathCore
-import AppKit
 @preconcurrency import XCTest
 
 /// No NSRunningApplication, process signal, CGEvent or host launch is used here.
@@ -358,6 +358,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertEqual(starts, 1)
         XCTAssertFalse(coordinator.sessionWantsRunning)
     }
+
     func testWakeBeforeTerminalReportResumesFreshAdmission() async {
         var reasons: [String] = []
         ServiceLifecycleCoordinator.testSessionStart = { reasons.append($0); return true }
@@ -365,7 +366,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         coordinator.testSessionWakeReady = { true }
         coordinator.sessionWakeEpoch = 1
         let resumed = await coordinator.resumeAfterSystemWake(
-            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false
+        )
         XCTAssertTrue(resumed)
         XCTAssertEqual(reasons, ["Manual start", "System wake"])
     }
@@ -384,7 +386,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
             else { ready = true }
         }
         let resumed = await coordinator.resumeAfterSystemWake(
-            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false
+        )
         XCTAssertTrue(resumed)
         XCTAssertEqual(waits, 2)
         XCTAssertEqual(starts, 2)
@@ -401,7 +404,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
             coordinator.sessionWakeEpoch += 1
         }
         let resumed = await coordinator.resumeAfterSystemWake(
-            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false
+        )
         XCTAssertFalse(resumed)
         XCTAssertEqual(starts, 1)
     }
@@ -412,7 +416,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         _ = await coordinator.startKanata()
         coordinator.testSessionWakeReady = { true }
         let resumed = await coordinator.resumeAfterSystemWake(
-            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true)
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true
+        )
         XCTAssertTrue(resumed)
         XCTAssertEqual(starts, 2)
     }
@@ -423,7 +428,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         coordinator.testSessionWakeReady = { true }
         coordinator.testSessionWakeWait = { [self] in coordinator.setTerminationPreparationActive(true) }
         let resumed = await coordinator.resumeAfterSystemWake(
-            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false)
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: false
+        )
         XCTAssertFalse(resumed)
     }
 
@@ -477,7 +483,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
                 else { _ = await coordinator.stopKanata() }
             }
             let resumed = await coordinator.resumeAfterSystemWake(
-                expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true)
+                expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true
+            )
             XCTAssertFalse(resumed)
             XCTAssertEqual(starts, 2)
         }
@@ -490,7 +497,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         coordinator.sessionWakeRetryGeneration = coordinator.sessionIntentGeneration
         coordinator.testSessionWakeReady = { true }
         let resumed = await coordinator.resumeAfterSystemWake(
-            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true)
+            expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0, wakeAlreadyObserved: true
+        )
         XCTAssertFalse(resumed)
         XCTAssertEqual(starts, 2)
     }
@@ -538,7 +546,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         coordinator.testSessionWakeReady = { true }
         let resumed = await coordinator.resumeAfterSystemWake(
             expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0,
-            wakeAlreadyObserved: false, retiredAt: retired)
+            wakeAlreadyObserved: false, retiredAt: retired
+        )
         XCTAssertTrue(resumed)
         XCTAssertEqual(starts, 2)
     }
@@ -561,10 +570,10 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         }
         let resumed = await coordinator.resumeAfterSystemWake(
             expectedGeneration: coordinator.sessionIntentGeneration, launchWakeEpoch: 0,
-            wakeAlreadyObserved: false, retiredAt: retired)
+            wakeAlreadyObserved: false, retiredAt: retired
+        )
         XCTAssertTrue(resumed)
         XCTAssertEqual(waits, 2)
         XCTAssertEqual(starts, 2)
     }
-
 }

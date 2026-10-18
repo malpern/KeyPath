@@ -189,8 +189,8 @@ final class SimpleModsSaveTests: KeyPathTestCase {
         let original = "(defcfg)\n(defsrc f1 f3)\n;; KP:BEGIN simple_mods id=fixture version=1\n(deflayermap (base)\n)\n;; KP:END id=fixture\n"
         try original.write(to: url, atomically: true, encoding: .utf8)
         let service = ConfigurationService.sessionTestService(configDirectory: directory.path,
-                                           ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
-                                           customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
+                                                              ruleCollectionStore: .testStore(at: directory.appendingPathComponent("RuleCollections.json")),
+                                                              customRulesStore: .testStore(at: directory.appendingPathComponent("CustomRules.json")))
         try await body(Fixture(url: url, original: original, coordinator: SaveCoordinator(configurationService: service)))
     }
 }

@@ -1,8 +1,8 @@
 import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
-import Testing
 import KeyPathRulesCore
+import Testing
 
 // MARK: - KeyPathActionURI Parsing Tests
 
@@ -759,7 +759,6 @@ extension ActionDispatchResult: Equatable {
         }
     }
 }
-
 
 @Suite("Action payload round trips", .serialized)
 struct ActionPayloadRoundTripTests {

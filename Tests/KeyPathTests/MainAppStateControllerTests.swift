@@ -541,9 +541,13 @@ struct MainAppStateControllerBehaviorTests {
         let validator = GatedCountingValidator(context: context)
         let controller = configuredController(validator: validator)
         let first = Task { await controller.refreshValidation() }
-        while validator.checkCount == 0 { await Task.yield() }
+        while validator.checkCount == 0 {
+            await Task.yield()
+        }
         let refresh = Task { await controller.revalidate() }
-        while validator.invalidationCount == 0 { await Task.yield() }
+        while validator.invalidationCount == 0 {
+            await Task.yield()
+        }
         validator.open()
         await first.value
         await refresh.value
@@ -597,7 +601,7 @@ struct MainAppStateControllerBehaviorTests {
         for status in [PermissionOracle.Status.granted, .unknown] {
             let controller = MainAppStateController()
             var healthProbes = 0
-            var now = Date(timeIntervalSince1970: 1_000)
+            var now = Date(timeIntervalSince1970: 1000)
             controller.configureStartupGateTestingState(
                 nowOverride: { now },
                 permissionsOverride: { sessionPermissions(inputMonitoring: status) },
@@ -780,7 +784,9 @@ private final class GatedCountingValidator: WizardSystemValidating {
     private(set) var checkCount = 0
     private(set) var invalidationCount = 0
 
-    func invalidateCaches() { invalidationCount += 1 }
+    func invalidateCaches() {
+        invalidationCount += 1
+    }
 
     init(context: SystemContext) {
         snapshot = SystemSnapshot(

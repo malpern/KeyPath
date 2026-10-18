@@ -49,7 +49,7 @@ public class WizardStateMachine {
 
     public init() {}
 
-    // Inspection seam: tests can delay a snapshot without querying host permissions.
+    /// Inspection seam: tests can delay a snapshot without querying host permissions.
     @ObservationIgnored var stateDetector: (@MainActor () async -> SystemStateResult)?
 
     // MARK: - State Updates

@@ -35,6 +35,7 @@ final class ServiceLifecycleCoordinator {
               sessionPreparationFailure?.generation == generation else { return nil }
         return sessionPreparationFailure?.reason
     }
+
     private var updatePreparationActive = false
     private var terminationPreparationActive = false
     var startsSuppressed: Bool {
@@ -165,7 +166,8 @@ final class ServiceLifecycleCoordinator {
     ) {
         self.kanataDaemonService = kanataDaemonService
         for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
-                     NSWorkspace.sessionDidBecomeActiveNotification] {
+                     NSWorkspace.sessionDidBecomeActiveNotification]
+        {
             let notifications = NSWorkspace.shared.notificationCenter.notifications(named: name)
             sessionWakeObservationTasks.append(Task { [weak self] in
                 for await _ in notifications {

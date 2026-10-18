@@ -302,6 +302,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         // Then - should NOT auto-navigate because we're in grace period
         XCTAssertEqual(stateMachine.currentPage, .inputMonitoring)
     }
+
     func testAutomaticNavigationDoesNotPretendUserInteracted() {
         let machine = WizardStateMachine()
         machine.navigateToPage(.accessibility, userInitiated: false)
@@ -310,5 +311,4 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         machine.navigateToPage(.summary, userInitiated: false)
         XCTAssertTrue(machine.userInteractionMode)
     }
-
 }

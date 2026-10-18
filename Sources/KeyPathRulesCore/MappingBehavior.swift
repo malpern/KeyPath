@@ -524,5 +524,4 @@ public extension KeyAction {
         guard !title.isEmpty else { return nil }
         return .notify(title: title, body: body, sound: sound)
     }
-
 }

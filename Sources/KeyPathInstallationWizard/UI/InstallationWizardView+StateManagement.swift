@@ -154,7 +154,8 @@ public extension InstallationWizardView {
             let appliedStateVersion = stateMachine.stateVersion
             let permSnapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
             guard stateMachine.stateVersion == appliedStateVersion,
-                  stateMachine.inspectionRequestID == requestID else {
+                  stateMachine.inspectionRequestID == requestID
+            else {
                 AppLogger.shared.log("🔍 [Wizard] Initial permission follow-up superseded by a newer system check")
                 return
             }
@@ -211,7 +212,7 @@ public extension InstallationWizardView {
                 // Never yank the user off the welcome page mid-read; validation has
                 // already resolved by the time they click Get Started, which routes onward.
                 guard stateMachine.stateVersion == appliedStateVersion,
-                  stateMachine.inspectionRequestID == requestID else { return }
+                      stateMachine.inspectionRequestID == requestID else { return }
                 guard stateMachine.currentPage != .welcome else { return }
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,

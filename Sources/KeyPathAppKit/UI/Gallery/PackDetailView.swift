@@ -264,7 +264,8 @@ struct PackDetailView: View {
                             if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                         }
                     }
-                    Text(pack.associatedCollectionID.flatMap { RuleCollectionCatalog.driverlessUnavailableReason(for: $0) } ?? (isWindowSnappingPack ? "Arrange windows from your keyboard." : displayTagline))
+                    Text(pack.associatedCollectionID
+                        .flatMap { RuleCollectionCatalog.driverlessUnavailableReason(for: $0) } ?? (isWindowSnappingPack ? "Arrange windows from your keyboard." : displayTagline))
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

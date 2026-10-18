@@ -11,7 +11,7 @@ public enum FirstSuccessOnboardingGate {
     public static let hasShownKey = "onboarding_first_success_shown"
 
     /// Both backends support the tour; session startup prepares the Caps Lock mapping.
-    public static func supportsTour(backend: KanataRuntimeBackend = .selected) -> Bool {
+    public static func supportsTour(backend _: KanataRuntimeBackend = .selected) -> Bool {
         true
     }
 
@@ -36,7 +36,7 @@ public enum FirstSuccessOnboardingGate {
         guard supportsTour(backend: backend),
               wizardState == .active,
               issues.isEmpty,
-              (didShowWelcomePage || defaults.bool(forKey: WizardWelcomeGate.hasSeenWelcomeKey)),
+              didShowWelcomePage || defaults.bool(forKey: WizardWelcomeGate.hasSeenWelcomeKey),
               !defaults.bool(forKey: hasShownKey)
         else {
             return false

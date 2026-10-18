@@ -23,10 +23,27 @@ public struct AccessibilityPermissionPresentation: Sendable {
         }
     }
 
-    public var settingsPath: String { "System Settings > Privacy & Security > \(name)" }
-    public var enableTitle: String { "Enable \(name)" }
-    public var enabledTitle: String { "\(name) enabled" }
-    public var openTitle: String { "Open \(name)" }
-    public var turnOnInstruction: String { "Turn on KeyPath under \(name)." }
-    public var grantInstruction: String { "Open KeyPath.app and grant \(name) in \(settingsPath)" }
+    public var settingsPath: String {
+        "System Settings > Privacy & Security > \(name)"
+    }
+
+    public var enableTitle: String {
+        "Enable \(name)"
+    }
+
+    public var enabledTitle: String {
+        "\(name) enabled"
+    }
+
+    public var openTitle: String {
+        "Open \(name)"
+    }
+
+    public var turnOnInstruction: String {
+        "Turn on KeyPath under \(name)."
+    }
+
+    public var grantInstruction: String {
+        "Open KeyPath.app and grant \(name) in \(settingsPath)"
+    }
 }

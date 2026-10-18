@@ -37,7 +37,8 @@ public extension InstallationWizardView {
         if shouldShowFirstSuccess {
             onFirstSuccess?()
         } else if stateMachine.wizardState == .active, stateMachine.wizardIssues.isEmpty,
-                  let onOpenKeyboard {
+                  let onOpenKeyboard
+        {
             onOpenKeyboard()
         }
         performDismiss()

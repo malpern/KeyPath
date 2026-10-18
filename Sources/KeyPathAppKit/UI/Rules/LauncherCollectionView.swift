@@ -67,7 +67,6 @@ struct LauncherCollectionView: View {
                     .font(.headline)
 
                 Spacer()
-
             }
 
             Picker("Activation Mode", selection: Binding(
@@ -132,7 +131,6 @@ struct LauncherCollectionView: View {
             userInfo: ["key": key]
         )
     }
-
 }
 
 // MARK: - Preview

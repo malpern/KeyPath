@@ -760,7 +760,8 @@ public final class InstallerEngine {
         allowAdminFallback: Bool
     ) async -> InstallerReport {
         guard deleteConfig, !removeVirtualHID, !allowAdminFallback,
-              let coordinator = WizardDependencies.createUninstallCoordinator?() else {
+              let coordinator = WizardDependencies.createUninstallCoordinator?()
+        else {
             return InstallerReport(success: false, failureReason: "Use Uninstall KeyPath in Settings to back up and remove this user's installation.")
         }
         let result = await coordinator.performUninstall(

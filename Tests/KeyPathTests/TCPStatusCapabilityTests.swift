@@ -2,8 +2,8 @@
 import KeyPathCore
 import XCTest
 
-extension KanataTCPClient {
-    fileprivate func seedBundledCapabilities() {
+private extension KanataTCPClient {
+    func seedBundledCapabilities() {
         cachedHello = TcpHelloOk(
             version: "1.12.1-prerelease-1", protocolVersion: 1,
             capabilities: ["reload", "layer-names", "current-layer-name"]

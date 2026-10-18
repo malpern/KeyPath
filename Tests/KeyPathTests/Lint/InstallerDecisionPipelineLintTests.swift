@@ -209,7 +209,6 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
             "Sources/KeyPathAppKit/WizardProtocolConformances.swift"
         ), encoding: .utf8)
         XCTAssertFalse(wiring.contains("UninstallCoordinator()"), "Never register the legacy privileged uninstaller")
-
     }
 
     func testDriverlessMenusDoNotOfferSystemUninstall() throws {

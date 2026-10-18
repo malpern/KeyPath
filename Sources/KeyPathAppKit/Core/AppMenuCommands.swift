@@ -115,10 +115,10 @@ struct AppMenuCommands: Commands {
             .keyboardShortcut("p", modifiers: [.command, .shift])
 
             #if DEBUG
-            Button("Input Capture Experiment") {
-                InputCaptureExperimentWindowController.shared.showWindow()
-            }
-            .keyboardShortcut("i", modifiers: [.command, .shift])
+                Button("Input Capture Experiment") {
+                    InputCaptureExperimentWindowController.shared.showWindow()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
             #endif
 
             Button("Mapper") {
@@ -148,7 +148,6 @@ struct AppMenuCommands: Commands {
                 }
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
-
         }
 
         // Extend the standard View menu with the overlay controls.

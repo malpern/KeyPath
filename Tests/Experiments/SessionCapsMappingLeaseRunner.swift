@@ -89,11 +89,12 @@ struct SessionCapsMappingLeaseRunner {
             let optIn = "KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_AFTER_JOINED_APPLY"
             let selection = "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"
             let reserve = "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18"
-            let environment = [optIn: "42", selection: String(data: try JSONEncoder().encode(fixture), encoding: .utf8)!, reserve: "1"]
+            let environment = try [optIn: "42", selection: String(data: JSONEncoder().encode(fixture), encoding: .utf8)!, reserve: "1"]
             func admitted(_ env: [String: String], uid: UInt32 = 502, pid: Int32 = 101,
-                          mappings: [Policy.Mapping]? = nil) -> Bool {
+                          mappings: [Policy.Mapping]? = nil) -> Bool
+            {
                 Lease.terminateAfterJoinedApply(record: record, mappings: mappings ?? record.applied,
-                                               environment: env, uid: uid, pid: pid)
+                                                environment: env, uid: uid, pid: pid)
             }
             try check(admitted(environment))
             let queuedOptIn = "KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_WITH_QUEUED_WRITER"
@@ -101,9 +102,10 @@ struct SessionCapsMappingLeaseRunner {
             queuedEnvironment.removeValue(forKey: optIn)
             queuedEnvironment[queuedOptIn] = "42"
             func queued(_ env: [String: String], uid: UInt32 = 502, pid: Int32 = 101,
-                        initialApply: Bool = true, mappings: [Policy.Mapping]? = nil) -> Bool {
+                        initialApply: Bool = true, mappings: [Policy.Mapping]? = nil) -> Bool
+            {
                 Lease.terminateWithQueuedWriter(record: record, mappings: mappings ?? record.applied,
-                    initialApply: initialApply, environment: env, uid: uid, pid: pid)
+                                                initialApply: initialApply, environment: env, uid: uid, pid: pid)
             }
             try check(queued(queuedEnvironment))
             try check(!queued(environment) && !queued(queuedEnvironment, uid: 501))
@@ -114,13 +116,13 @@ struct SessionCapsMappingLeaseRunner {
                 var missing = queuedEnvironment; missing.removeValue(forKey: key)
                 try check(!queued(missing))
                 for value in ["", "1", "042", "42 ", "invalid"] {
-                    if key == reserve && value == "1" { continue }
+                    if key == reserve, value == "1" { continue }
                     var invalid = queuedEnvironment; invalid[key] = value
                     try check(!queued(invalid))
                 }
             }
             var foreignQueued = queuedEnvironment
-            foreignQueued[selection] = String(data: try JSONEncoder().encode(device), encoding: .utf8)!
+            foreignQueued[selection] = try String(data: JSONEncoder().encode(device), encoding: .utf8)!
             try check(!queued(foreignQueued))
 
             try check(!admitted(environment, uid: getuid() == 502 ? 501 : getuid()))
@@ -131,21 +133,22 @@ struct SessionCapsMappingLeaseRunner {
                 try check(!admitted(missing))
                 for value in ["", "1", "042", "42 ", "invalid"] {
                     var invalid = environment; invalid[key] = value
-                    if key == reserve && value == "1" { continue }
+                    if key == reserve, value == "1" { continue }
                     try check(!admitted(invalid))
                 }
             }
             var changed = environment
-            changed[selection] = String(data: try JSONEncoder().encode(device), encoding: .utf8)!
+            changed[selection] = try String(data: JSONEncoder().encode(device), encoding: .utf8)!
             try check(!admitted(changed))
             for foreign in [device, Policy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16401,
-                                                         serialNumber: nil, locationID: 123)] {
+                                                          serialNumber: nil, locationID: 123)]
+            {
                 let foreignRecord = try Policy.acquire(original: original, device: foreign, devices: [foreign],
                                                        owner: worker, effectiveConfigSHA256: digest)
                 var foreignEnv = environment
-                foreignEnv[selection] = String(data: try JSONEncoder().encode(foreign), encoding: .utf8)!
+                foreignEnv[selection] = try String(data: JSONEncoder().encode(foreign), encoding: .utf8)!
                 try check(!Lease.terminateAfterJoinedApply(record: foreignRecord, mappings: foreignRecord.applied,
-                                                          environment: foreignEnv, uid: 502, pid: 101))
+                                                           environment: foreignEnv, uid: 502, pid: 101))
             }
         #endif
         try scenario { _, fake, lease in
@@ -319,8 +322,8 @@ struct SessionCapsMappingLeaseRunner {
         }
         let nextBoot = "B7B944DF-471A-4C22-B9F3-A4EE5522F775"
         let inertBackend = Lease.Backend(enumerate: { fatalError("retirement enumerated HID") },
-                                        read: { _ in fatalError("retirement read HID") },
-                                        write: { _, _ in fatalError("retirement wrote HID") })
+                                         read: { _ in fatalError("retirement read HID") },
+                                         write: { _, _ in fatalError("retirement wrote HID") })
         for markerPresent in [false, true] {
             try scenario { root, fake, lease in
                 _ = try acquire(lease)

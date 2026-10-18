@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
 @testable import KeyPathInstallationWizard
-import XCTest
 import KeyPathWizardCore
+import XCTest
 
 @MainActor
 final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
@@ -35,6 +35,7 @@ final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
         }
         XCTAssertTrue(coordinator.calls.isEmpty)
     }
+
     func testUserUninstallDelegatesWithoutPrivilegedBroker() async {
         let previous = WizardDependencies.createUninstallCoordinator
         defer { WizardDependencies.createUninstallCoordinator = previous }
@@ -59,5 +60,4 @@ final class InstallerEngineBrokerForwardingTests: KeyPathTestCase {
             return WizardUninstallResult(success: true, logs: ["Backup saved"])
         }
     }
-
 }

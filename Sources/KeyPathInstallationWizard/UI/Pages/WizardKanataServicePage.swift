@@ -92,7 +92,7 @@ public struct WizardKanataServicePage: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            if let cta = primaryCTAConfiguration, (serviceStatus != .stopped || startFailed) {
+            if let cta = primaryCTAConfiguration, serviceStatus != .stopped || startFailed {
                 Button(cta.label, action: cta.action)
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPerformingAction))
                     .keyboardShortcut(.defaultAction)
@@ -408,7 +408,8 @@ public struct WizardKanataServicePage: View {
             // Try to get more detailed config error from stderr log
             let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
             if KanataRuntimeBackend.selected.requiresPrivilegedServices,
-               let configError = Self.extractConfigError(from: stderrPath) {
+               let configError = Self.extractConfigError(from: stderrPath)
+            {
                 derivedStatus = .failed(error: configError)
             } else {
                 derivedStatus = .failed(error: reason)

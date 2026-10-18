@@ -1,6 +1,6 @@
 @testable import KeyPathAppKit
-import XCTest
 import KeyPathInstallationWizard
+import XCTest
 
 @MainActor
 final class SessionUninstallCoordinatorTests: XCTestCase {
@@ -39,18 +39,18 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         try FileManager.default.contentsOfDirectory(at: root.appendingPathComponent("Downloads"), includingPropertiesForKeys: nil)
     }
 
-    func testBacksUpBeforeRemovingSettingsAndTrashesOnlyCurrentApp() async throws {
+    func testBacksUpBeforeRemovingSettingsAndTrashesOnlyCurrentApp() async {
         var trashed: URL?
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { true }, resume: { XCTFail("Unexpected failure") }, trash: { url in
-                trashed = url
-                let backup = try XCTUnwrap(self.backups().first)
-                XCTAssertEqual(try String(contentsOf: backup.appendingPathComponent("0-keypath/keypath.kbd"), encoding: .utf8), "rules")
-                let prefs = try Data(contentsOf: backup.appendingPathComponent("preferences.plist"))
-                let decoded = try PropertyListSerialization.propertyList(from: prefs, format: nil) as? [String: Any]
-                XCTAssertEqual(decoded?["wizard_has_seen_welcome"] as? Bool, true)
-                try FileManager.default.removeItem(at: url)
-            })
+                                                      prepare: { true }, resume: { XCTFail("Unexpected failure") }, trash: { url in
+                                                          trashed = url
+                                                          let backup = try XCTUnwrap(self.backups().first)
+                                                          XCTAssertEqual(try String(contentsOf: backup.appendingPathComponent("0-keypath/keypath.kbd"), encoding: .utf8), "rules")
+                                                          let prefs = try Data(contentsOf: backup.appendingPathComponent("preferences.plist"))
+                                                          let decoded = try PropertyListSerialization.propertyList(from: prefs, format: nil) as? [String: Any]
+                                                          XCTAssertEqual(decoded?["wizard_has_seen_welcome"] as? Bool, true)
+                                                          try FileManager.default.removeItem(at: url)
+                                                      })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertTrue(result.success, result.failureReason ?? "")
         XCTAssertEqual(trashed, app)
@@ -58,17 +58,17 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Library/Application Support/KeyPath").path))
         XCTAssertFalse(defaults.bool(forKey: "wizard_has_seen_welcome"))
         XCTAssertTrue(WizardWelcomeGate.shouldShowWelcome(helperInstalled: false,
-            hasSeenWelcome: defaults.bool(forKey: "wizard_has_seen_welcome"), forced: false))
+                                                          hasSeenWelcome: defaults.bool(forKey: "wizard_has_seen_welcome"), forced: false))
         XCTAssertTrue(result.logs.first?.contains("KeyPath-Uninstall-Backup-") == true)
     }
 
     func testLoginItemRemovalFailurePreservesAppAndSettings() async throws {
         var resumed = false
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { true }, resume: { resumed = true }, removeLoginItem: {
-                XCTAssertEqual(try self.backups().count, 1, "Backup must already exist")
-                throw CocoaError(.fileWriteNoPermission)
-            }, trash: { _ in XCTFail("Must not trash before verified login-item removal") })
+                                                      prepare: { true }, resume: { resumed = true }, removeLoginItem: {
+                                                          XCTAssertEqual(try self.backups().count, 1, "Backup must already exist")
+                                                          throw CocoaError(.fileWriteNoPermission)
+                                                      }, trash: { _ in XCTFail("Must not trash before verified login-item removal") })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertFalse(result.success)
         XCTAssertTrue(resumed)
@@ -80,7 +80,7 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
     func testCleanupRefusalRemovesNothing() async {
         var resumed = false
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { false }, resume: { resumed = true }, trash: { _ in XCTFail("Must not trash") })
+                                                      prepare: { false }, resume: { resumed = true }, trash: { _ in XCTFail("Must not trash") })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertFalse(result.success)
         XCTAssertTrue(resumed)
@@ -91,7 +91,7 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
     func testBackupFailurePreservesSettingsAndApp() async throws {
         try write("Downloads", "not a directory")
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { true }, resume: {}, trash: { _ in XCTFail("Must not trash") })
+                                                      prepare: { true }, resume: {}, trash: { _ in XCTFail("Must not trash") })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertFalse(result.success)
         XCTAssertTrue(result.failureReason?.contains("Backup failed") == true)
@@ -107,7 +107,7 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         try FileManager.default.moveItem(at: config, to: external)
         try FileManager.default.createSymbolicLink(at: config, withDestinationURL: external)
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { true }, resume: {}, trash: { try FileManager.default.removeItem(at: $0) })
+                                                      prepare: { true }, resume: {}, trash: { try FileManager.default.removeItem(at: $0) })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertTrue(result.success)
         XCTAssertEqual(try String(contentsOf: external.appendingPathComponent("keypath.kbd"), encoding: .utf8), "rules")
@@ -118,21 +118,22 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
 
     func testTrashFailureReportsBackupForRecovery() async throws {
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { true }, resume: {}, trash: { _ in throw CocoaError(.fileWriteNoPermission) })
+                                                      prepare: { true }, resume: {}, trash: { _ in throw CocoaError(.fileWriteNoPermission) })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertFalse(result.success)
         XCTAssertTrue(result.failureReason?.contains("Your backup is at") == true)
         XCTAssertEqual(try backups().count, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: app.path))
     }
+
     func testLinkedParentIsRefusedWithoutDeletingExternalRules() async throws {
         let configParent = root.appendingPathComponent(".config")
         let external = root.appendingPathComponent("dotfiles")
         try FileManager.default.moveItem(at: configParent, to: external)
         try FileManager.default.createSymbolicLink(at: configParent, withDestinationURL: external)
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
-            prepare: { XCTFail("Must refuse before shutdown"); return true }, resume: {},
-            trash: { _ in XCTFail("Must not trash") })
+                                                      prepare: { XCTFail("Must refuse before shutdown"); return true }, resume: {},
+                                                      trash: { _ in XCTFail("Must not trash") })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertFalse(result.success)
         XCTAssertTrue(result.failureReason?.contains("linked folder") == true)
@@ -149,7 +150,9 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         let writer = Task {
             try await gate.withOperation { _ in
                 entered.fulfill()
-                for await _ in release.stream { break }
+                for await _ in release.stream {
+                    break
+                }
             }
         }
         await fulfillment(of: [entered], timeout: 2)
@@ -165,5 +168,4 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         let resumed = try await gate.withOperation { _ in true }
         XCTAssertTrue(resumed)
     }
-
 }

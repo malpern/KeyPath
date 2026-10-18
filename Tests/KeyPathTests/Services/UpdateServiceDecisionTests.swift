@@ -62,6 +62,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         XCTAssertTrue(retried)
         XCTAssertEqual(installCount, 1)
     }
+
     @MainActor
     func testAbortDuringSuspendedCleanupDoesNotInvokeOldHandler() async {
         let service = UpdateService.testService()
@@ -73,7 +74,9 @@ final class UpdateServiceDecisionTests: XCTestCase {
         let preparation = Task { @MainActor in
             await service.postponeInstallation(version: "test", install: { installCount += 1 })
         }
-        while cleanup == nil { await Task.yield() }
+        while cleanup == nil {
+            await Task.yield()
+        }
         service.cancelPreparedUpdate()
         cleanup?.resume(returning: true)
         await preparation.value
@@ -98,15 +101,21 @@ final class UpdateServiceDecisionTests: XCTestCase {
         let first = Task { @MainActor in
             await service.postponeInstallation(version: "A", install: { installed.append("A") })
         }
-        while cleanup == nil { await Task.yield() }
+        while cleanup == nil {
+            await Task.yield()
+        }
         service.cancelPreparedUpdate()
         XCTAssertFalse(preparationActive)
         await service.postponeInstallation(version: "B", install: { installed.append("B") })
         XCTAssertTrue(preparationActive)
         cleanup?.resume(returning: false)
         await first.value
-        while cleanups < 2 { await Task.yield() }
-        while installed.isEmpty { await Task.yield() }
+        while cleanups < 2 {
+            await Task.yield()
+        }
+        while installed.isEmpty {
+            await Task.yield()
+        }
         XCTAssertEqual(installed, ["B"])
         XCTAssertTrue(preparationActive)
         service.cancelPreparedUpdate()
@@ -123,7 +132,9 @@ final class UpdateServiceDecisionTests: XCTestCase {
         let preparation = Task { @MainActor in
             await service.postponeInstallation(version: "test", install: { XCTFail("aborted update installed") })
         }
-        while cleanup == nil { await Task.yield() }
+        while cleanup == nil {
+            await Task.yield()
+        }
         service.cancelPreparedUpdate()
         cleanup?.resume(returning: false)
         await preparation.value

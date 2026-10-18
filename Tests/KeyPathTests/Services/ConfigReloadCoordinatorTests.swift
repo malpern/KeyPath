@@ -178,7 +178,7 @@ struct ConfigReloadCoordinatorTests {
     func backgroundReloadPreservesManualStop() async {
         let state = MutableRuntimeTransition(isTransitioning: false)
         let (sut, _, _) = Self.makeSUT(healthy: false,
-            startRuntimeForExplicitApply: { state.restartCount += 1; return true })
+                                       startRuntimeForExplicitApply: { state.restartCount += 1; return true })
         let result = await sut.triggerConfigReload()
         #expect(result.disposition == .pending)
         #expect(state.restartCount == 0)
@@ -188,8 +188,8 @@ struct ConfigReloadCoordinatorTests {
     func explicitRetryRequiresReadiness(startResult: Bool) async {
         let state = MutableRuntimeTransition(isTransitioning: false)
         let (sut, engine, _) = Self.makeSUT(healthy: false,
-            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "wrong") },
-            startRuntimeForExplicitApply: { state.restartCount += 1; return startResult })
+                                            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "wrong") },
+                                            startRuntimeForExplicitApply: { state.restartCount += 1; return startResult })
         let result = await sut.triggerConfigReload(recoverStoppedRuntime: true)
         #expect(result.disposition == .pending)
         #expect(state.restartCount == 1)
@@ -201,7 +201,7 @@ struct ConfigReloadCoordinatorTests {
     func explicitRetryWaitsForTransition() async {
         let state = MutableRuntimeTransition(isTransitioning: true)
         let (sut, _, _) = Self.makeSUT(healthy: false, runtimeTransitionState: state,
-            startRuntimeForExplicitApply: { state.restartCount += 1; return true })
+                                       startRuntimeForExplicitApply: { state.restartCount += 1; return true })
         #expect(await sut.triggerConfigReload(recoverStoppedRuntime: true).disposition == .pending)
         #expect(state.restartCount == 0)
     }
@@ -468,7 +468,9 @@ struct ConfigReloadCoordinatorTests {
             },
             transitionRetryMaximumPolls: 1,
             transitionRetryWait: {
-                while transition.isTransitioning { await Task.yield() }
+                while transition.isTransitioning {
+                    await Task.yield()
+                }
             }
         )
         coordinator.onDeferredReloadSuccess = { applied.fulfill() }

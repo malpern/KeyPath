@@ -82,7 +82,7 @@ struct RegisteredTapObservationTests {
             let postDelay = classify([tap(), delayed], expectedTapID: 27)
             precondition(postDelay.outcome == .observed && !postDelay.rows[0].enabled)
             precondition(postDelay.rows[0].timing == .init(eventTapID: 27, options: 0,
-                                                         minUsecLatency: 10, avgUsecLatency: 250, maxUsecLatency: 1_003_625))
+                                                           minUsecLatency: 10, avgUsecLatency: 250, maxUsecLatency: 1_003_625))
             precondition(classify([tap()], expectedTapID: 27).outcome == .absent)
             delayed.tappingProcess = 9
             precondition(classify([delayed], expectedTapID: 27).outcome == .absent)

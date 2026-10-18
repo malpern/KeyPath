@@ -23,7 +23,9 @@ final class OverlayDismissalTests: XCTestCase {
         let openingTimer = try XCTUnwrap(controller.inspectorAnimationTimer)
         openingTimer.fire() // Queues a MainActor update that must not survive the close.
         controller.closeInspector(animated: false)
-        for _ in 0..<10 { await Task.yield() }
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
         XCTAssertFalse(openingTimer.isValid)
         XCTAssertNil(controller.inspectorAnimationTimer)
         XCTAssertEqual(controller.uiState.inspectorReveal, 0)

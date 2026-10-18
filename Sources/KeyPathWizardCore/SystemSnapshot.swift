@@ -591,7 +591,9 @@ public enum Issue: Equatable {
     /// `detail` is the user-facing error message (e.g., "Duplicate alias: beh_base_;").
     case configParseError(detail: String)
 
-    public var title: String { displayTitle(accessibility: .current) }
+    public var title: String {
+        displayTitle(accessibility: .current)
+    }
 
     public func displayTitle(accessibility: AccessibilityPermissionPresentation) -> String {
         switch self {

@@ -378,9 +378,9 @@ private struct KeyboardStageApplicationTargetLabel: View {
             )
             if availableWidth > 60 {
                 Text(verbatim: application.name)
-                .font(.system(size: max(10, min(15, availableWidth * 0.055)), weight: .semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                    .font(.system(size: max(10, min(15, availableWidth * 0.055)), weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
         .foregroundStyle(foregroundColor)

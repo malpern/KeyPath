@@ -1,6 +1,6 @@
 @testable import KeyPathInstallationWizard
-import XCTest
 import KeyPathWizardCore
+import XCTest
 
 @MainActor
 final class WizardAsyncOperationManagerTests: XCTestCase {
@@ -11,7 +11,9 @@ final class WizardAsyncOperationManagerTests: XCTestCase {
         let gate = AsyncStream<Void>.makeStream()
         manager.execute(operation: AsyncOperation(id: "state_detection", name: "Check") { _ in true }) { _ in
             entered.fulfill()
-            for await _ in gate.stream { break }
+            for await _ in gate.stream {
+                break
+            }
             finished.fulfill()
         }
         await fulfillment(of: [entered], timeout: 2)
@@ -30,7 +32,9 @@ final class WizardAsyncOperationManagerTests: XCTestCase {
         manager.execute(operation: AsyncOperation(id: "state_detection", name: "First") { _ in true }) { _ in
             manager.execute(operation: AsyncOperation(id: "state_detection", name: "Replacement") { _ in
                 replacementStarted.fulfill()
-                for await _ in gate.stream { break }
+                for await _ in gate.stream {
+                    break
+                }
                 return true
             }) { _ in replacementFinished.fulfill() }
             oldCallbackFinished.fulfill()
@@ -41,6 +45,7 @@ final class WizardAsyncOperationManagerTests: XCTestCase {
         await fulfillment(of: [replacementFinished], timeout: 2)
         XCTAssertFalse(manager.hasRunningOperations)
     }
+
     func testDeadlineRetiresCheckBeforeNonCooperativeWorkReturns() async {
         let manager = WizardAsyncOperationManager()
         let started = expectation(description: "Started")
@@ -130,5 +135,4 @@ final class WizardAsyncOperationManagerTests: XCTestCase {
         XCTAssertFalse(view.asyncOperationManager.hasRunningOperations)
         XCTAssertEqual(view.stateMachine.stateVersion, 0)
     }
-
 }

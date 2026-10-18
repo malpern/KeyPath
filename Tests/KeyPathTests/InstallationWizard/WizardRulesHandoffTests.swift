@@ -25,7 +25,6 @@ final class WizardRulesHandoffTests: XCTestCase {
         XCTAssertEqual(events, ["tour", "dismiss"])
     }
 
-
     func testPreviouslyPresentedTourQueuesKeyboardBeforeDismissal() {
         let defaults = UserDefaults.standard
         let previous = defaults.object(forKey: FirstSuccessOnboardingGate.hasShownKey)

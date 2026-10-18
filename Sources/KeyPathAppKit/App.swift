@@ -424,7 +424,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Runtime health alone must not bypass the fresh-install Welcome page.
         guard hasExistingConfig,
               !WizardWelcomeGate.shouldShowWelcome(helperInstalled: false),
-              !FirstSuccessOnboardingGate.isPending() else {
+              !FirstSuccessOnboardingGate.isPending()
+        else {
             LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
             return false
         }
@@ -749,7 +750,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
-                if !(await InstallerEngine().inspectSystem().isReady) {
+                if await !(InstallerEngine().inspectSystem().isReady) {
                     NotificationCenter.default.post(name: .showWizard, object: nil)
                 }
             }

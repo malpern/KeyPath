@@ -102,7 +102,9 @@ actor ConfigurationOperationGate {
             if pendingOperations == 0 {
                 let waiters = uninstallWaiters
                 uninstallWaiters.removeAll()
-                for waiter in waiters { waiter.resume() }
+                for waiter in waiters {
+                    waiter.resume()
+                }
             }
         }
         try Task.checkCancellation()

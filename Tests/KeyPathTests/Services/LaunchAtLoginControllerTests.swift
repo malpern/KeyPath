@@ -9,12 +9,19 @@ final class LaunchAtLoginControllerTests: XCTestCase {
         private var value: SMAppService.Status = .notRegistered
         var resultingStatus: SMAppService.Status = .enabled
         var rejectChange = false
-        var status: SMAppService.Status { lock.withLock { value } }
-        func setStatus(_ status: SMAppService.Status) { lock.withLock { value = status } }
+        var status: SMAppService.Status {
+            lock.withLock { value }
+        }
+
+        func setStatus(_ status: SMAppService.Status) {
+            lock.withLock { value = status }
+        }
+
         func register() throws {
             if rejectChange { throw CocoaError(.fileWriteNoPermission) }
             setStatus(resultingStatus)
         }
+
         func unregister() async throws {
             if rejectChange { throw CocoaError(.fileWriteNoPermission) }
             setStatus(.notRegistered)

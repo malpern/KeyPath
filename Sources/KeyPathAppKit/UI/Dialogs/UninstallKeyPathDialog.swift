@@ -21,9 +21,11 @@ struct UninstallKeyPathDialog: View {
                     .font(.callout)
                     .textSelection(.enabled)
             } else {
-                Text("Your rules and settings will be backed up in Downloads. KeyPath will stop remapping, restore its keyboard mappings, clear saved settings, and move the app to Trash. Reinstalling starts fresh.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "Your rules and settings will be backed up in Downloads. KeyPath will stop remapping, restore its keyboard mappings, clear saved settings, and move the app to Trash. Reinstalling starts fresh."
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
                 Text("macOS permission grants will remain.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

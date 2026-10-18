@@ -7,7 +7,7 @@ struct PermissionStatusRow: View {
     let status: PermissionOracle.Status?
     let isKanata: Bool
     let onTap: (() -> Void)?
-    var identifier: String? = nil
+    var identifier: String?
 
     var body: some View {
         Button(action: { onTap?() }) {
@@ -96,8 +96,8 @@ struct StatusDetailAction: Identifiable {
     let title: String
     let icon: String?
     let handler: () -> Void
-    var identifier: String? = nil
-    var accessibilityTitle: String? = nil
+    var identifier: String?
+    var accessibilityTitle: String?
 }
 
 struct StatusDetail: Identifiable {

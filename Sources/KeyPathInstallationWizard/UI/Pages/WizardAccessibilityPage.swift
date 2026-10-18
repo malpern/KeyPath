@@ -112,8 +112,6 @@ public struct WizardAccessibilityPage: View {
             .fixedSize(horizontal: false, vertical: true)
             .background(WizardDesign.Colors.wizardBackground)
             .wizardDetailPage()
-
-
         }
         .task {
             // Set initial snapshot immediately so the page renders correct state

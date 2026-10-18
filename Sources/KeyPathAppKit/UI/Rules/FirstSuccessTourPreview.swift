@@ -14,7 +14,9 @@ final class FirstSuccessTourPreviewModel {
         case failed = "Save failed"
         case blocked = "Existing setup"
         case inactive = "Saved, inactive"
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
     }
 
     var coordinator = FirstSuccessOnboardingActionCoordinator()
@@ -30,7 +32,7 @@ final class FirstSuccessTourPreviewModel {
         if page.rawValue > 0 { session.finish(.capsLockEscape, result: .applied) }
         if page.rawValue > 1 { session.finish(.hyper, result: .applied) }
         choice = FirstSuccessLauncherChoiceModel()
-        if scenario != .fresh && scenario != .blocked {
+        if scenario != .fresh, scenario != .blocked {
             choice.selectedApp = AppLaunchInfo(
                 name: "Safari", bundleIdentifier: "com.apple.Safari",
                 icon: NSImage(systemSymbolName: "safari", accessibilityDescription: "Safari") ?? NSImage()
@@ -54,7 +56,9 @@ final class FirstSuccessTourPreviewModel {
     }
 
     /// All action buttons exercise the normal presentation flow, never disk.
-    func simulateSave() -> FirstSuccessOnboardingSession.ActionResult { .applied }
+    func simulateSave() -> FirstSuccessOnboardingSession.ActionResult {
+        .applied
+    }
 
     func dialog(close: @escaping () -> Void = {}) -> FirstSuccessOnboardingDialog {
         FirstSuccessOnboardingDialog(
@@ -142,9 +146,11 @@ final class FirstSuccessTourPreviewWindowController: NSWindowController, NSWindo
         window.delegate = self
     }
 
-    required init?(coder: NSCoder) { nil }
+    required init?(coder _: NSCoder) {
+        nil
+    }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_: Notification) {
         Self.current = nil
     }
 }

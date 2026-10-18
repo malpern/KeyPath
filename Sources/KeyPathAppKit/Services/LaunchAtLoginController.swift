@@ -19,7 +19,9 @@ final class LaunchAtLoginController {
         statusProvider = SMAppServiceStatusProvider(serviceFactory: { _ in service })
     }
 
-    var isEnabled: Bool { status == .enabled || status == .requiresApproval }
+    var isEnabled: Bool {
+        status == .enabled || status == .requiresApproval
+    }
 
     func refresh() async {
         guard !isBusy else { return }
@@ -39,7 +41,7 @@ final class LaunchAtLoginController {
             // Apple's synchronous IPC must never block the UI actor.
             try await Task.detached {
                 if enabled {
-                    if current != .enabled && current != .requiresApproval {
+                    if current != .enabled, current != .requiresApproval {
                         try service.register()
                     }
                 } else if current == .enabled || current == .requiresApproval {

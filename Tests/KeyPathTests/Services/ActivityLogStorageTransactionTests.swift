@@ -31,7 +31,7 @@ final class ActivityLogStorageTransactionTests: XCTestCase, @unchecked Sendable 
     }
 
     func testAppendPreservesInvalidUTF8History() async throws {
-        try await assertMalformedHistoryPreserved(Data([0xff, 0xfe]))
+        try await assertMalformedHistoryPreserved(Data([0xFF, 0xFE]))
     }
 
     func testAppendPreservesHistoryContainingInvalidJSONLine() async throws {
@@ -118,7 +118,9 @@ private actor EncryptionGate {
             first = false
             blocked = true
             didBlock = true
-            for waiter in blockedWaiters { waiter.resume() }
+            for waiter in blockedWaiters {
+                waiter.resume()
+            }
             blockedWaiters.removeAll()
             await withCheckedContinuation { releaseWaiter = $0 }
         }

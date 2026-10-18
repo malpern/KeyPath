@@ -63,5 +63,4 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         XCTAssertEqual(permissionItems.count, 2)
         XCTAssertTrue(permissionItems.allSatisfy { $0.status == .unverified })
     }
-
 }

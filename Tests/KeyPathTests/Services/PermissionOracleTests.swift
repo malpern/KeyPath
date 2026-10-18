@@ -1,6 +1,6 @@
-import KeyPathCore
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathPermissions
 import Testing
 

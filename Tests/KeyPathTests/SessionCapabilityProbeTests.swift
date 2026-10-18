@@ -44,6 +44,6 @@ final class SessionCapabilityProbeTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: configuration), original)
         let attributes = try FileManager.default.attributesOfItem(atPath: reportURL.path)
         XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
-        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: directory.path)), ["keypath.kbd", "capability.json"])
+        XCTAssertEqual(try Set(FileManager.default.contentsOfDirectory(atPath: directory.path)), ["keypath.kbd", "capability.json"])
     }
 }

@@ -139,7 +139,6 @@ struct WizardWelcomePage: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("wizard-welcome-privacy")
-
         }
     }
 

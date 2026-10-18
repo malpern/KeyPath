@@ -487,7 +487,8 @@ public final class ConfigurationService: FileConfigurationProviding {
                 deviceGenerationInput: deviceGenerationInput
             )
             if let restoringBackupContent,
-               !AppConfigGenerator.matchesManagedContent(restoringBackupContent, expected: newConfig.content) {
+               !AppConfigGenerator.matchesManagedContent(restoringBackupContent, expected: newConfig.content)
+            {
                 throw RuleBackupSnapshot.Failure.inconsistentSnapshot
             }
             // Capture a coherent source/config revision while holding the operation lease.

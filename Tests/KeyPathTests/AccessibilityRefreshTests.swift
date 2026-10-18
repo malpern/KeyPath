@@ -1,5 +1,5 @@
-import Testing
 @testable import KeyPathPermissions
+import Testing
 
 struct AccessibilityRefreshTests {
     @Test func trustedProcessDoesNotNeedCrossProcessProbe() {

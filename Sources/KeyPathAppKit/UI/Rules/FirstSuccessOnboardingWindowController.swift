@@ -21,7 +21,9 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
     private static var currentController: FirstSuccessOnboardingWindowController?
     private let actionCoordinator: FirstSuccessOnboardingActionCoordinator
 
-    static var isPresented: Bool { currentController != nil }
+    static var isPresented: Bool {
+        currentController != nil
+    }
 
     static func show(
         kanataViewModel: KanataViewModel?,
@@ -420,7 +422,7 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         // the tour cannot break an existing shortcut layer.
         let selectedHoldOutput = existingHoldOutput.flatMap { output in
             holdOptions.contains(where: { $0.output == output }) ? output : nil
-        } ?? ("caps")
+        } ?? "caps"
 
         return .tapHoldPicker(TapHoldPickerConfig(
             inputKey: tapHold.inputKey,
@@ -755,7 +757,8 @@ final class FirstSuccessOnboardingWindowController: NSWindowController {
         guard disposition == .applied else {
             if disposition != .pending,
                let reason = failureReason?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !reason.isEmpty {
+               !reason.isEmpty
+            {
                 return .savedButNotActiveWithReason(reason)
             }
             return .savedButNotActive

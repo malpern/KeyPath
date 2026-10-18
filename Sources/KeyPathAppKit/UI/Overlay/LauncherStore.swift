@@ -10,7 +10,10 @@ final class LauncherStore {
     private let manager: RuleCollectionsManager?
     var saveError: String?
     private var pendingMutationCount = 0
-    var isSaving: Bool { pendingMutationCount > 0 }
+    var isSaving: Bool {
+        pendingMutationCount > 0
+    }
+
     private let ruleCollectionStore: RuleCollectionStore
     private(set) var pendingSave: Task<Void, Never>?
 

@@ -34,7 +34,7 @@ final class SessionCapsSelectionTests: XCTestCase {
 
     private let boot = UUID().uuidString
     private let device = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 42, vendorID: 1234,
-                                                                productID: 5678, serialNumber: nil, locationID: 123)
+                                                                 productID: 5678, serialNumber: nil, locationID: 123)
 
     func testConsentRequiresCurrentBootAndF18Reservation() throws {
         let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)

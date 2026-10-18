@@ -101,7 +101,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
 
         public init(rawTapCallbackCount: UInt64, qMapped: Bool, aMapped: Bool, configSHA256: String?, registeredTap: RegisteredTapObservation? = nil,
                     postDelayRegisteredTap: RegisteredTapObservation? = nil, postDelayQueryUptimeNanos: UInt64? = nil,
-                    rawTimeoutCallbackCount: UInt64? = nil, rawUserInputDisabledCallbackCount: UInt64? = nil) {
+                    rawTimeoutCallbackCount: UInt64? = nil, rawUserInputDisabledCallbackCount: UInt64? = nil)
+        {
             self.rawTapCallbackCount = rawTapCallbackCount
             self.qMapped = qMapped
             self.aMapped = aMapped
@@ -117,6 +118,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             case rawTapCallbackCount, qMapped, aMapped, configSHA256, registeredTap
             case postDelayRegisteredTap, postDelayQueryUptimeNanos, rawTimeoutCallbackCount, rawUserInputDisabledCallbackCount
         }
+
         private struct Field: CodingKey {
             let stringValue: String
             var intValue: Int? {
@@ -136,7 +138,14 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
             let fields = try decoder.container(keyedBy: Field.self)
             let actual = Set(fields.allKeys.map(\.stringValue))
             let required: Set = ["rawTapCallbackCount", "qMapped", "aMapped"]
-            guard required.isSubset(of: actual), actual.isSubset(of: required.union(["configSHA256", "registeredTap", "postDelayRegisteredTap", "postDelayQueryUptimeNanos", "rawTimeoutCallbackCount", "rawUserInputDisabledCallbackCount"])) else {
+            guard required.isSubset(of: actual), actual.isSubset(of: required.union([
+                "configSHA256",
+                "registeredTap",
+                "postDelayRegisteredTap",
+                "postDelayQueryUptimeNanos",
+                "rawTimeoutCallbackCount",
+                "rawUserInputDisabledCallbackCount"
+            ])) else {
                 throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected experimental tap diagnostics fields"))
             }
             let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -179,7 +188,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
                 public let maxUsecLatency: Float
 
                 public init(eventTapID: UInt32, options: UInt32, minUsecLatency: Float,
-                            avgUsecLatency: Float, maxUsecLatency: Float) {
+                            avgUsecLatency: Float, maxUsecLatency: Float)
+                {
                     self.eventTapID = eventTapID; self.options = options
                     self.minUsecLatency = minUsecLatency; self.avgUsecLatency = avgUsecLatency
                     self.maxUsecLatency = maxUsecLatency
@@ -338,7 +348,9 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.managedCapsGeneration = managedCapsGeneration
     }
 
-    public var recoveryReason: String? { retirementReason ?? failure }
+    public var recoveryReason: String? {
+        retirementReason ?? failure
+    }
 
     /// Cleanup evidence remains useful after a stalled worker dies. Callers must
     /// confirm termination separately before replaying this launch's ledger.

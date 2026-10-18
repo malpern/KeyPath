@@ -29,7 +29,8 @@ enum SessionCapsRuntimeSupport {
 
     static func selectedDevice(environment: [String: String] = ProcessInfo.processInfo.environment,
                                selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey),
-                               registryEntryExists: (UInt64) throws -> Bool = SessionCapsHIDUtilTransport.registryEntryExists) throws -> Policy.DeviceIdentity? {
+                               registryEntryExists: (UInt64) throws -> Bool = SessionCapsHIDUtilTransport.registryEntryExists) throws -> Policy.DeviceIdentity?
+    {
         #if DEBUG
             if environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"] != nil {
                 return try experimentalDevice(environment: environment)

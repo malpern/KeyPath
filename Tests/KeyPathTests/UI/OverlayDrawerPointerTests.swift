@@ -34,13 +34,14 @@ final class OverlayDrawerPointerTests: XCTestCase {
         window.contentView = NSHostingView(rootView:
             view.frame(width: 100, height: 100)
                 .contentShape(Rectangle())
-                .simultaneousGesture(DragGesture(minimumDistance: 3, coordinateSpace: .global).onChanged { _ in }.onEnded { _ in })
-        )
+                .simultaneousGesture(DragGesture(minimumDistance: 3, coordinateSpace: .global).onChanged { _ in }.onEnded { _ in }))
         window.orderFront(nil)
         defer { window.close() }
         window.contentView?.layoutSubtreeIfNeeded()
         // Let SwiftUI install its recognizers before delivering local window events.
-        for _ in 0..<10 { await Task.yield() }
+        for _ in 0 ..< 10 {
+            await Task.yield()
+        }
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseDragged, .leftMouseUp] {
             let event = try XCTUnwrap(NSEvent.mouseEvent(
                 with: type, location: NSPoint(x: type == .leftMouseDown ? 50 : 51, y: 50), modifierFlags: [],

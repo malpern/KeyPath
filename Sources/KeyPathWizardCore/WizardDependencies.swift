@@ -35,7 +35,6 @@ public enum WizardDependencies {
     /// HelperMaintenance instance
     public static var helperMaintenance: (any WizardHelperMaintaining)?
 
-
     /// PermissionRequestService instance
     public static var permissionRequestService: (any WizardPermissionRequesting)?
 

@@ -75,7 +75,7 @@
             directory = reportURL.deletingLastPathComponent()
         }
 
-        // Used by the standalone admission tests; production always captures its actual identity.
+        /// Used by the standalone admission tests; production always captures its actual identity.
         init(identity: Identity, directory: URL) {
             self.identity = identity
             self.directory = directory
@@ -159,7 +159,8 @@
         func delayIfAdmitted(keyCode: Int, keyDown: Bool, repeatEvent: Bool, mapped: Bool,
                              heldUsages: [UInt32], reportAge: TimeInterval, now: TimeInterval,
                              environmentCurrent: Bool, secureInput: Bool,
-                             sleep: (UInt32) -> Void = { usleep($0) }) {
+                             sleep: (UInt32) -> Void = { usleep($0) })
+        {
             let observeFirstResult = keyCode == 11 && keyDown
             guard !spent else { if observeFirstResult { recordCallbackResult(.alreadySpent) }; return }
             guard let command = pending else { if observeFirstResult { recordCallbackResult(.commandNotPrepared) }; return }

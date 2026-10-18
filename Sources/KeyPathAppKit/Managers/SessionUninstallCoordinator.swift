@@ -48,7 +48,10 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             var parent = home.appendingPathComponent(path).deletingLastPathComponent()
             while parent.path != home.path, parent.path != "/" {
                 if (try? files.attributesOfItem(atPath: parent.path)[.type]) as? FileAttributeType == .typeSymbolicLink {
-                    return WizardUninstallResult(success: false, failureReason: "Settings are inside a linked folder (\(parent.path)). Nothing was removed. Move KeyPath's settings to a local folder before uninstalling.")
+                    return WizardUninstallResult(
+                        success: false,
+                        failureReason: "Settings are inside a linked folder (\(parent.path)). Nothing was removed. Move KeyPath's settings to a local folder before uninstalling."
+                    )
                 }
                 parent.deleteLastPathComponent()
             }
@@ -100,7 +103,11 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             return WizardUninstallResult(success: true, logs: ["Backup saved to \(backup.path)"])
         } catch {
             await resume()
-            return WizardUninstallResult(success: false, failureReason: "Uninstall could not finish. Your backup is at \(backup.path). \(error.localizedDescription)", logs: ["Backup saved to \(backup.path)"])
+            return WizardUninstallResult(
+                success: false,
+                failureReason: "Uninstall could not finish. Your backup is at \(backup.path). \(error.localizedDescription)",
+                logs: ["Backup saved to \(backup.path)"]
+            )
         }
     }
 }

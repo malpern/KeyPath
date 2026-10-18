@@ -1,7 +1,7 @@
 @testable import KeyPathAppKit
 @testable import KeyPathInstallationWizard
-import KeyPathWizardCore
 import KeyPathPermissions
+import KeyPathWizardCore
 @preconcurrency import XCTest
 
 @MainActor

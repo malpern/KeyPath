@@ -1,5 +1,5 @@
-import KeyPathCore
 import AppKit
+import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathRulesCore
 import SwiftUI

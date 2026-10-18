@@ -74,7 +74,7 @@ public final class SessionCapsMappingLease {
                 return false
             }
             if let marker = try loadFile(mutationMarker, directoryFD: fd) {
-                let ownerKeys: Set<String> = ["uid", "parentPID", "workerPID", "nonce", "generation", "bootSessionUUID"]
+                let ownerKeys: Set = ["uid", "parentPID", "workerPID", "nonce", "generation", "bootSessionUUID"]
                 guard let object = try JSONSerialization.jsonObject(with: marker.data) as? [String: Any],
                       Set(object.keys) == ownerKeys else { throw Refusal.unsafeFile }
                 let owner = try JSONDecoder().decode(Policy.Owner.self, from: marker.data)
@@ -196,8 +196,8 @@ public final class SessionCapsMappingLease {
                 try SessionCapsHIDUtilTransport.terminateOwnerWithSuspendedWriter(record: record, mappings: mappings) { childPID in
                     let proof = try JSONSerialization.data(withJSONObject: [
                         "phase": "queued-writer-before-execution", "childPID": childPID,
-                        "owner": try JSONSerialization.jsonObject(with: JSONEncoder().encode(record.owner)),
-                        "device": try JSONSerialization.jsonObject(with: JSONEncoder().encode(record.device))
+                        "owner": JSONSerialization.jsonObject(with: JSONEncoder().encode(record.owner)),
+                        "device": JSONSerialization.jsonObject(with: JSONEncoder().encode(record.device))
                     ], options: [.sortedKeys])
                     guard proof.count <= 4096 else { throw Refusal.mutationUncertain }
                     let checkpoint = openat(directoryFD, "caps-mapping-queued-writer-checkpoint.json",
@@ -251,8 +251,8 @@ public final class SessionCapsMappingLease {
         /// Inert unless a disposable worker opts into its exact selected registry.
         /// Called only after successful joined write, while the owner marker is durable.
         static func terminateAfterJoinedApply(record: Policy.Record, mappings: [Policy.Mapping],
-                                             environment: [String: String] = ProcessInfo.processInfo.environment,
-                                             uid: UInt32 = getuid(), pid: Int32 = getpid()) -> Bool
+                                              environment: [String: String] = ProcessInfo.processInfo.environment,
+                                              uid: UInt32 = getuid(), pid: Int32 = getpid()) -> Bool
         {
             guard uid == 502, record.owner.uid == uid, pid == record.owner.workerPID,
                   pid != record.owner.parentPID, mappings == record.applied,

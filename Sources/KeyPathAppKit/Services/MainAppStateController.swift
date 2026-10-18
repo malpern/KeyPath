@@ -759,7 +759,7 @@ class MainAppStateController {
                               category: .systemRequirements, title: recovery ? "Keyboard recovery requires attention" : "Configuration cannot run in driverless mode",
                               description: reason, autoFixAction: nil,
                               userAction: recovery ? "The recovery record was preserved. Do not clear it to force a restart."
-                                : "Edit the configuration and retry. Existing rules were preserved.")]
+                                  : "Edit the configuration and retry. Existing rules were preserved.")]
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil
         lastAdaptedState = .serviceNotRunning
@@ -773,7 +773,8 @@ class MainAppStateController {
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
         if KanataRuntimeBackend.selected == .session,
-           let refusal = serviceLifecycle?.configurationRefusalForStartup() {
+           let refusal = serviceLifecycle?.configurationRefusalForStartup()
+        {
             return .invalidSessionConfiguration(refusal)
         }
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {

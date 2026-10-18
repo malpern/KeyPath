@@ -90,7 +90,9 @@ public final class UpdateService: NSObject {
     }
 
     /// Session releases use manual replacement until updater shutdown is qualified.
-    public var usesManualDownloads: Bool { KanataRuntimeBackend.selected == .session }
+    public var usesManualDownloads: Bool {
+        KanataRuntimeBackend.selected == .session
+    }
 
     @ObservationIgnored var openDownloadPage: @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }
     private static let downloadURL = URL(string: "https://github.com/malpern/KeyPath/releases/latest")!
@@ -381,7 +383,9 @@ extension UpdateService {
     // MARK: - Update Lifecycle
 
     #if DEBUG
-        static func testService() -> UpdateService { UpdateService() }
+        static func testService() -> UpdateService {
+            UpdateService()
+        }
     #endif
 
     private func postponeInstallation(version: String, handler: SparkleInstallHandler) async {
