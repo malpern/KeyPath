@@ -316,9 +316,31 @@ struct StatusSettingsTabView: View {
 
                     Spacer()
 
-                    Button {
-                        autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
-                        LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                    Menu {
+                        ForEach(PhysicalLayout.layoutsByCategory(), id: \.category) { group in
+                            if !group.layouts.isEmpty {
+                                Section(group.category.displayName) {
+                                    ForEach(group.layouts) { layout in
+                                        Button {
+                                            autoDetectController.selectLayout(layout.id)
+                                        } label: {
+                                            if layout.id == activeKeyboard.layoutId {
+                                                Label(layout.name, systemImage: "checkmark")
+                                            } else {
+                                                Text(layout.name)
+                                            }
+                                        }
+                                        .accessibilityIdentifier("status-layout-option-\(layout.id)")
+                                    }
+                                }
+                            }
+                        }
+                        Divider()
+                        Button("Search All Keyboards\u{2026}") {
+                            autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
+                            LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                        }
+                        .accessibilityIdentifier("status-search-keyboard-layouts-button")
                     } label: {
                         HStack(spacing: 4) {
                             Text(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout")
@@ -327,9 +349,11 @@ struct StatusSettingsTabView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.primary)
-                    .accessibilityIdentifier("status-search-keyboard-layouts-button")
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .accessibilityLabel("Keyboard layout")
+                    .accessibilityIdentifier("status-keyboard-layout-menu")
 
                     Button("Forget", role: .destructive) {
                         autoDetectController.forgetKeyboard(activeKeyboard.id)
