@@ -135,7 +135,7 @@ final class RecentKeypressesService {
                 now.timeIntervalSince(recent.timestamp) < deduplicationWindow
         }) {
             let millisDiff = Int(now.timeIntervalSince(duplicate.timestamp) * 1000)
-            AppLogger.shared.info("🚫 [Keypresses] Skipping duplicate: \(key) \(action) within \(millisDiff)ms")
+            AppLogger.shared.debug("🚫 [Keypresses] Skipping duplicate: \(key) \(action) within \(millisDiff)ms")
             return
         }
 
@@ -217,7 +217,7 @@ final class RecentKeypressesService {
                     diagnosis = "Irregular intervals with releases → unclear cause, may be hardware"
                 }
 
-                AppLogger.shared.info(
+                AppLogger.shared.debug(
                     """
                     ⚠️ [DUPLICATE DETECTION] Key '\(key)' pressed \(consecutiveKeyCount)x in \(totalMs)ms
                        Layer: \(layer)

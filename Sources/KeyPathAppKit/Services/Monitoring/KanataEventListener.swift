@@ -771,7 +771,7 @@ actor KanataEventListener {
 
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("hold-activated") {
-                AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
+                AppLogger.shared.debug("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
                 let activation = KanataHoldActivation(
                     key: key,
                     action: action,
@@ -828,7 +828,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("oneshot-activated") {
-                AppLogger.shared.log("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
+                AppLogger.shared.debug("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
                 let activation = KanataOneShotActivation(
                     key: key,
                     modifiers: modifiers,
@@ -854,7 +854,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("chord-resolved") {
-                AppLogger.shared.log("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
+                AppLogger.shared.debug("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
                 let resolution = KanataChordResolution(
                     keys: keys,
                     action: action,
@@ -881,7 +881,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("tap-dance-resolved") {
-                AppLogger.shared.log("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
+                AppLogger.shared.debug("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
                 let resolution = KanataTapDanceResolution(
                     key: key,
                     tapCount: tapCount,
