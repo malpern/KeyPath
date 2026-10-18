@@ -606,3 +606,38 @@ image integrity, packaged app signature and Gatekeeper passed. Delivered to Air
 Downloads as `KeyPath-20261018-brand-complete.dmg`; source and remote SHA-256 match:
 `0e2bdc00d530176f9d69521872b075bad936c10e7a0d0d64d0c2fef535bd358f`.
 This supersedes the splash-brand installer for the next install/test. Delivery only.
+
+### Offline Help and compatible web updates — 2026-10-18
+
+Source `95a24503a` adds a bundled Help baseline and compatible background content
+updates; `b1dca7df0` filters publication to manifest-listed files. Final signed app
+BuildInfo records `5d5612023`, including the Privacy clarification that Help content
+may refresh while app updates remain manual. No runtime/permission behavior changed.
+
+Validation: 12 focused Swift Testing cases passed (OfflineHelpStore and ReopenPolicy).
+Generation/link/asset lint, pinned SwiftFormat, accessibility and signed bundle
+contracts passed. The native production Help view rendered locally; current setup,
+Privacy and article cross-links were checked. A fresh nonpersistent WebKit sweep
+blocked every HTTP(S) request and passed all 43 articles / 66 image references.
+Evidence: `/Users/malpern/keypath-review-evidence/20261018-offline-help/`.
+
+A real HTTPS integration probe used the prior bundled baseline, downloaded the new
+Privacy revision, and retained it on a new store instance with offline transport.
+The 106 signed-bundle files match their manifest hashes with no unlisted payloads.
+Final revision: `b6c89de219bb62272283ce6c59e46d41050cc5f7f421cdee62ec5943d6b7d53c`.
+Compatible documentation feed published on gh-pages at `d9ea895e2`.
+
+App notarization `e953c530-e012-4f9f-813f-807db12c7e59` accepted; app staple,
+validation and Gatekeeper passed. The Help-only QA fixture was closed afterward;
+KeyPath was not installed/launched on the mini, and no host network/TCC state changed.
+Broader pending physical held-key startup acceptance remains unchanged.
+
+Final DMG notarization `6fd2a093-fd0c-421b-860f-9f1931013407`, staple/validate,
+Gatekeeper and image integrity passed. Delivered to Air Downloads as
+`KeyPath-20261018-offline-help.dmg`; source/remote SHA-256 verified equal:
+`d0a319a8066bc772e483d599baef67e4553c99e4e7e03697614d8d14b10777ea`.
+The final live feed manifest also equals the signed bundle. Delivery only: the
+Air's running app and settings were not changed. For a manual sanity check after
+installing, disconnect Wi-Fi and open Help, Installation, Privacy, a pictured guide
+and an internal article link; all should stay readable locally. External websites
+still need connectivity. No new physical keyboard acceptance is claimed here.
