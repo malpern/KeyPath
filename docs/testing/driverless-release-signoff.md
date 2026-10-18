@@ -580,3 +580,29 @@ staple/validate and Gatekeeper passed. Delivered to Air Downloads as
 `KeyPath-20261018-splash-brand.dmg` with verified matching SHA-256
 `1f4c5cc900cb30cc338ce09b0d957873cb9784d306a21678f0bc70abe6c2bcd0`.
 Delivery only; the Air's installed app and settings were not changed in this pass.
+
+### About and Help branding follow-up — 2026-10-18
+
+`cc471f1e4` replaces the separate AboutView's generic diagnostics description with
+**Keys that do more.**, placed beneath a serif KeyPath wordmark and above version
+metadata. The menu's standard macOS About panel already used the correct tagline
+and remains the menu destination; no new diagnostics/update surface was activated.
+Native preview of the extracted, unchanged header layout passed; screenshot at
+`/Users/malpern/keypath-review-evidence/20261018-about-brand/about-header.png`.
+Pinned SwiftFormat and accessibility checks passed. Production build/bundle/signing
+checks passed; app BuildInfo records `d1da418e0`.
+
+Audited in-app Help Browser, local guides, Help copy and its illustrated header
+banner. No retired tagline found there; the banner says “KeyPath Documentation”.
+`d1da418e0` records exact tagline spelling/punctuation in help authoring guidelines
+and brand policy. Article copy remains focused on users' goals.
+
+App notarization `019d73d4-29e6-4e29-b3a0-6dbb80ea1ce5` accepted; staple and
+Gatekeeper passed. This follow-up changes presentation/copy only and includes the
+previously tested splash. Prior functional QA/manual acceptance status is unchanged.
+
+Final DMG notarization `e2ba8e3c-fd11-4317-8fe8-fa74c56236fe`, staple/validate,
+image integrity, packaged app signature and Gatekeeper passed. Delivered to Air
+Downloads as `KeyPath-20261018-brand-complete.dmg`; source and remote SHA-256 match:
+`0e2bdc00d530176f9d69521872b075bad936c10e7a0d0d64d0c2fef535bd358f`.
+This supersedes the splash-brand installer for the next install/test. Delivery only.
