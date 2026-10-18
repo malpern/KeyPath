@@ -271,3 +271,21 @@ The scheduled capacity waiter is paused: the available-VM batch has run, and the
 old artifact must not be admitted again automatically. Remaining release work:
 physical Caps tour/hold acceptance, notarized packaging of this new fix, and
 release review/integration. The Air was not modified during this batch.
+
+## Tour rollback installer — October 18
+
+Packaged the exact tested functional ZIP after committing its source as
+`b878232f7642abfa83e1e069792611c95f8e6ee3`. Apple accepted the app submission
+`e7965bb9-fc43-42ff-b426-ba03ec2e736e` and installer submission
+`700707c7-ff82-4551-8348-9f6e85b68ab6`. App and DMG tickets were stapled and
+validated; Gatekeeper accepted the DMG as Notarized Developer ID.
+
+Installer: `~/keypath-review-evidence/20261018-tour-final/KeyPath-20261018-tour-fix.dmg`.
+Final stapled SHA-256:
+`b09de126d7df247959d2c86b430bb489125d78dd001526a6aba0657a87647bc1`.
+Executable remains `a79ab1185afd3a078b6a0111f929ffb974518a8b573d8ce23fb49db78920988f`.
+Air SSH timed out; the existing delivery automation now targets this installer,
+verifies both hashes, and pauses after delivery. No Air installation occurred.
+Physical Caps tour/hold acceptance is still pending; notarization is not a test
+of that behavior. The rig is online with its pinned firmware and not assigned to
+another VM. A new owned-guest admission is waiting behind shared provisioning.
