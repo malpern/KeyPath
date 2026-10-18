@@ -22,6 +22,6 @@ symlinks = {"Applications": "/Applications"}
 hide_extensions = []
 
 icon_locations = {
-    os.path.basename(APP_PATH): (205, 208),
-    "Applications": (455, 208),
+    os.path.basename(APP_PATH): (505, 112),
+    "Applications": (505, 288),
 }

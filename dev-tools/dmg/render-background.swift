@@ -12,44 +12,39 @@ NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
 let artwork = NSImage(contentsOf: directory.appendingPathComponent("dmg-bg-keyboard-legends.png"))!
 artwork.draw(in: NSRect(origin: .zero, size: size))
-// One shared installation surface supports the drag gesture and keeps
-// Finder's mandatory dark filenames readable, without button-like label pills.
-let stage = NSRect(x: 110, y: 400 - 145 - 160, width: 440, height: 160)
-let surface = NSBezierPath(roundedRect: stage, xRadius: 24, yRadius: 24)
-NSGraphicsContext.saveGraphicsState()
-let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.24)
-shadow.shadowBlurRadius = 22
-shadow.shadowOffset = NSSize(width: 0, height: -6)
-shadow.set()
-NSColor(red: 0.96, green: 0.945, blue: 0.91, alpha: 1).setFill()
-surface.fill()
-NSGraphicsContext.restoreGraphicsState()
-NSColor.white.withAlphaComponent(0.55).setStroke()
-surface.lineWidth = 0.5
-surface.stroke()
+// A full-height installation column keeps native Finder labels legible while
+// preserving the brand artwork as an unobstructed hero on the left.
+NSColor(red: 0.91, green: 0.92, blue: 0.93, alpha: 1).setFill()
+NSRect(x: 350, y: 0, width: 310, height: 400).fill()
 func label(_ text: String, y: CGFloat, height: CGFloat, font: NSFont, color: NSColor) {
     let paragraph = NSMutableParagraphStyle()
-    paragraph.alignment = .center
-    (text as NSString).draw(in: NSRect(x: 24, y: 400-y-height, width: 612, height: height),
+    paragraph.alignment = .left
+    (text as NSString).draw(in: NSRect(x: 36, y: 400-y-height, width: 290, height: height),
                            withAttributes: [.font: font, .foregroundColor: color, .paragraphStyle: paragraph])
 }
 let serif = NSFont.systemFont(ofSize: 40, weight: .medium).fontDescriptor.withDesign(.serif)!
-label("KeyPath", y: 26, height: 54, font: NSFont(descriptor: serif, size: 40)!, color: .white)
-label("Keys that do more.", y: 82, height: 24,
+label("KeyPath", y: 40, height: 54, font: NSFont(descriptor: serif, size: 40)!, color: .white)
+label("Keys that do more.", y: 99, height: 24,
       font: .systemFont(ofSize: 14, weight: .regular),
       color: NSColor(white: 0.76, alpha: 1))
-if let arrow = NSImage(systemSymbolName: "arrow.right", accessibilityDescription: nil)?
-    .withSymbolConfiguration(.init(pointSize: 26, weight: .light)) {
+if let arrow = NSImage(systemSymbolName: "arrow.down", accessibilityDescription: nil)?
+    .withSymbolConfiguration(.init(pointSize: 22, weight: .light)) {
     let tinted = NSImage(size: arrow.size)
     tinted.lockFocus()
-    NSColor(red: 0.38, green: 0.32, blue: 0.25, alpha: 1).setFill()
+    NSColor(white: 0.48, alpha: 1).setFill()
     NSRect(origin: .zero, size: arrow.size).fill()
     arrow.draw(at: .zero, from: .zero, operation: .destinationIn, fraction: 1)
     tinted.unlockFocus()
-    tinted.draw(in: NSRect(x: 314, y: 400-208-14, width: 32, height: 28))
+    tinted.draw(in: NSRect(x: 495, y: 400-210-14, width: 20, height: 28))
 }
-label("Drag KeyPath to Applications to install.", y: 361, height: 24,
+label("Your keyboard. Your way.", y: 354, height: 24,
       font: .systemFont(ofSize: 13, weight: .regular), color: NSColor(white: 0.78, alpha: 1))
+let instructionStyle = NSMutableParagraphStyle()
+instructionStyle.alignment = .center
+("Drag to Applications" as NSString).draw(
+    in: NSRect(x: 365, y: 352, width: 280, height: 22),
+    withAttributes: [.font: NSFont.systemFont(ofSize: 13, weight: .medium),
+                     .foregroundColor: NSColor(white: 0.34, alpha: 1),
+                     .paragraphStyle: instructionStyle])
 NSGraphicsContext.restoreGraphicsState()
 try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent("installer-branded@2x.png"))

@@ -522,3 +522,16 @@ stapling/Gatekeeper passed, and source/remote SHA-256 matched on delivery to Air
 Downloads: `KeyPath-20261018-polished-installer.dmg`, hash
 `b534981b81ff0887df0f697488f114cdad9599538a66b4ceffbfc8401d4547d1`.
 No app reinstall was performed for this presentation-only change.
+
+### Installer design revision — 2026-10-18
+
+User rejected the cream card layout. Replaced it with a split composition: historical
+KeyPath wordmark, tagline and amber keyboard on the left; native app and Applications
+icons in a vertical drag path on a full-height silver column on the right.
+Actual Finder preview: `/Users/malpern/keypath-review-evidence/20261018-installer-split/preview.png`.
+App unchanged from tested held-key build. Packaged strict signature, image integrity,
+Apple notarization, stapling and Gatekeeper passed. Submission
+`499d2a03-7142-4dca-8d0c-6b25f389d63b`.
+Delivered to Air Downloads as `KeyPath-20261018-brand-layout.dmg`, remote hash verified:
+`9ffb8208fcf6cdb354c104228a05943d0511b71b8f4f2fc081292c78e60af487`.
+Presentation-only change; outstanding physical held-key acceptance remains unchanged.
