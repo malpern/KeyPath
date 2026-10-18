@@ -781,3 +781,19 @@ contracts pass. Notarized (Accepted); `KeyPath-20261018-settings-list.dmg` SHA-2
 Air 15:18, config unchanged; previous app archived as
 `~/Downloads/KeyPath-before-settings-list-20261018.zip`. Verifier: parent 8383,
 worker 9062, TCP 37001. Visual acceptance by the user pending.
+
+### Catalog update loop and settings follow-ups — candidate `ec67a56e0`
+
+User reported "Review Catalog Updates" for Window Snapping persisting after apply.
+Fixed in `529cc3fb8` (`docs/bugs/2026-10-18-catalog-update-loop.md`); two regression
+tests failed before the fix; 175 rule-collection/catalog tests pass. The Air's real
+`RuleCollections.json` (22 collections, standard window convention) checked against
+the fixed catalog: no pending updates. `ec67a56e0` also drops the duplicate runtime
+permission rows in driverless mode (four-row status list) and replaces the options
+menu with a plain "Forget" link; 67 settings/catalog tests and accessibility and
+Computer Use contracts pass. Notarized (Accepted); `KeyPath-20261018-catalog-fix.dmg`
+SHA-256 `7976a7c587474d09bef80ebb2949c0af32a91cdf87496cc916283b35ac6e6aa6`,
+executable `1516e282289584a5c472daef38670d397c796c95299f88a543f3dacf5065fed7`.
+Installed on the Air 15:33 (`keypath.kbd`, `CustomRules.json` unchanged); previous
+app archived as `~/Downloads/KeyPath-before-catalog-fix-20261018.zip`. Verifier:
+parent 42745, worker 43374, TCP 37001.
