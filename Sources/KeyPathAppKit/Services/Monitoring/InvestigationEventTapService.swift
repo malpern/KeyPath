@@ -100,7 +100,9 @@ final class InvestigationEventTapService {
         Task.detached(priority: .utility) {
             let correlation = await DuplicateKeyInvestigationTracker.shared.recordSystemEvent(observed)
             if correlation.suggestsUnmatchedAutorepeat {
-                AppLogger.shared.info(DuplicateInvestigationSupport.makeAutorepeatMismatchLog(correlation))
+                if DuplicateInvestigationSupport.isEnabled() {
+                    AppLogger.shared.info(DuplicateInvestigationSupport.makeAutorepeatMismatchLog(correlation))
+                }
                 await StuckKeyRecoveryService.shared.handleAutorepeatMismatch(correlation)
             }
         }
