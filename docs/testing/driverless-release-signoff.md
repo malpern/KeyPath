@@ -701,7 +701,16 @@ and permission-lint tests pass. Evidence: `~/keypath-review-evidence/20261018-st
 Startup-path manual items (held key, wake, Quit/reopen, reboot, splash) must be run on
 the candidate containing this fix, not the sidebar build.
 
-Candidate `663c0ed2a` built and Developer ID-signed (`dist/KeyPath.app`). Notarization
-is waiting on a keychain-access prompt on the mini's console: the packaging script
-first let `xcrun` select Xcode-beta's `notarytool`, which the `KeyPath-Profile` item
-does not trust. Use Xcode-27's `notarytool` (`DEVELOPER_DIR`) for this profile.
+Candidate `663c0ed2a` built, Developer ID-signed and notarized: app
+`5b2e358f-40f5-42f6-83bb-f423449bf266`, DMG `edb06c54-a6a2-42f4-90fd-54632c2ad731`,
+both Accepted, stapled and validated; image verify and Gatekeeper passed. Delivered
+to Air Downloads as `KeyPath-20261018-startup-snapshot.dmg`, SHA-256
+`200f9f3c9fc539adfe2523b7afb90a6242dcffb237232f62e2f5791cf078988a` (matches on the
+Air); executable `4a801527131842a912edfd465549db646107396addfd189fc6c72dd1fb83f696`.
+Not installed yet; the Air still runs `401de17b5`.
+
+Notarize with Apple ID + `APPLE_NOTARY_PASSWORD` from sops, answering notarytool's
+secure prompt (never argv); see `notary-pty.py` in the evidence folder. The
+`KeyPath-Profile` keychain profile lives in the separate `keypath-signing` keychain,
+whose locked-state GUI prompt blocked an agent run for 20 minutes. DMG packaging
+needs `DMGBUILD_BIN=/private/tmp/keypath-dmg-tools/bin/dmgbuild`.
