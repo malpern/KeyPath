@@ -14,7 +14,7 @@ historical evidence; their old “remaining” sections are not the current back
   The TCP handoff candidate is notarized and copied to Air Downloads with matching
   SHA-256 `d7f2cc1459c3afc2161633c919a76a1778f1b2d4b1bf7287297cae21944e299e`.
   Installed on the Air at 21:22; signature, stapling, Gatekeeper, owned-session
-  runtime and TCP checks passed. Sleep/wake visual acceptance is pending.
+  runtime and TCP checks passed. User-reported wake behavior and visual acceptance passed; see latest evidence below.
 - This remains a private candidate on `design/driverless-caps-ui`, not a public release.
 
 ## Current automated acceptance
@@ -180,3 +180,29 @@ Together with the prior 5,569-test suite, source contracts and installed trust/
 runtime checks, available automated checks pass. Clean guest acceptance remains
 blocked by shared lab capacity; manual sleep/wake on the installed candidate is
 not yet recorded as passed.
+
+## Latest Air acceptance — 21:31, October 17
+
+Micah confirms Caps Lock works immediately and after 30 seconds following
+sleep/wake, with no warning. Installed executable hash was reverified as the
+TCP handoff build (`9c367b0c…`). Mark functional Caps Lock and neutral recovery
+presentation **PASS by user observation on the current build**.
+
+Logs independently confirm TCP reconnect at 21:31:16.316, runtime ready at
+21:31:16.844 and validation success at 21:31:16.850. A later system wake signal
+also recovered and validated successfully at 21:31:38.967. Evidence:
+`20261017-tcp-handoff/air-final-sleep-wake.log`.
+
+The power-log query still returns no new system-sleep entry after 20:17;
+therefore the duration/depth of sleep is not independently established by this
+capture. This does not negate the observed working recovery, but do not describe
+it as a power-log-verified one-minute sleep. The deterministic regression tests
+cover the adverse validation-before-stream ordering; this live cycle connected
+the stream before validation.
+
+Both Parallels slots remain occupied. A 30-minute thread follow-up is scheduled
+to resume clean-account QA through the console-account route when capacity is
+available, without touching other leases. Remaining manual items: Caps Lock hold
+(if configured), Quit/reopen, reboot/login, rule editing, and hover/drawer/appearance.
+Release review/integration remains pending. No repeated full test run is needed
+without new changes or failures.
