@@ -560,8 +560,8 @@ extension ServiceLifecycleCoordinator {
             if sessionRecoveryRefusal != reason {
                 sessionRecoveryRefusal = reason
                 onError?(reason)
-                onStateChanged?()
             }
+            onStateChanged?()
             return false
         }
     }
