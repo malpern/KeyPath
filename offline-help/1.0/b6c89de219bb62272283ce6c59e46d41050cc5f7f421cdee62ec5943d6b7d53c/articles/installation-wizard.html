@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Installation Wizard</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-installation-wizard.png" alt="Guide illustration" /></p>
+<h1 id="set-up-keypath">Set up KeyPath</h1>
+<p>The driverless version runs while you are signed in and uses <strong>Accessibility</strong> to apply mappings. Setup does not install a keyboard driver or request Full Disk Access. A separate Input Monitoring step is not part of this setup.</p>
+<h2 id="first-launch">First launch</h2>
+<ol type="1">
+<li>Open the downloaded disk image and drag <strong>KeyPath</strong> to <strong>Applications</strong>.</li>
+<li>Open KeyPath from Applications and choose <strong>Get Started</strong>.</li>
+<li>Follow the wizard to enable KeyPath in <strong>System Settings → Privacy &amp; Security → Accessibility</strong>. macOS may ask for your password.</li>
+<li>Return to KeyPath. Remapping starts automatically, then the keyboard tour walks you through your first mapping.</li>
+</ol>
+<p>If you opened the app from Downloads or the disk image, move it to Applications and reopen it before granting access. If startup fails, KeyPath shows recovery instructions instead of asking you to start the runtime as a routine setup step.</p>
+<h2 id="caps-lock-can-do-two-jobs">Caps Lock can do two jobs</h2>
+<p>The tour can set up Escape on a quick Caps Lock tap and Hyper when held, then help you make a shortcut. KeyPath prepares a compatible keyboard automatically. If it cannot, use <strong>Settings → General → Keyboard Setup</strong> to review the keyboard. See <a href="help://driverless-caps-lock">Caps Lock and F18</a> for compatibility, the F18 reservation, and recovery details.</p>
+<h2 id="keep-mappings-available-after-login">Keep mappings available after login</h2>
+<p>Enable <strong>Launch at login</strong> in <strong>Settings → General → Startup</strong>. It is optional. If macOS needs approval, KeyPath offers <strong>Open Login Items</strong>. This starts KeyPath after you sign in; it does not remap the login screen or protected password fields.</p>
+<h2 id="run-setup-again">Run setup again</h2>
+<p>Choose <strong>File → Set Up KeyPath…</strong>, or use the setup action in KeyPath’s menu-bar menu. Setup helps with missing permissions or a runtime that has not started.</p>
+<h2 id="updates-and-removal">Updates and removal</h2>
+<p>Choose <strong>Download Update</strong> to open the official releases page. Quit KeyPath before replacing the app. Your rules are stored separately and are kept.</p>
+<p>Use <strong>Settings → Repair/Remove → Uninstall KeyPath</strong> to back up your settings to Downloads, remove your rules and preferences, disable launch at login, and move the app to the Trash. Reinstalling after this starts onboarding again. Moving only the app to the Trash leaves your rules and preferences behind. This build does not remove older system services or a driver installed by another app. Keep any Karabiner-Elements driver used by Karabiner-Elements.</p>
+<h2 id="when-remapping-is-unavailable">When remapping is unavailable</h2>
+<p>KeyPath does not remap protected password-entry or Secure Input contexts, or the login screen. Do not rely on a remapped key to enter a password. Check KeyPath’s status before relying on remapping after a permissions change or keyboard change.</p>
+<p>See <a href="help://privacy">Privacy and permissions</a> for more.</p>
+</body></html>

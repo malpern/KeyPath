@@ -27,7 +27,7 @@
     "articles/neovim-terminal.html": "f1787d3a628e627c3cf1045540447a9842e93756e00ed2051cbbd27dd5021324",
     "articles/numpad-layer.html": "7378250cf44b58e7603391e43483aac02fbcecab9795f7938f940d3c861a63ed",
     "articles/packs.html": "3560c0676d0c5cf3066834ba65edf6cab9f42d88091a4588226dc3b54f56da06",
-    "articles/privacy.html": "7e08b02af4d21d171b01cf2251a260d193694ba32879dc635e69fab827d192da",
+    "articles/privacy.html": "cbbb9de910e99fd179b74f7c7e32402b0a1e028b76140347a16b750d32e99182",
     "articles/qmk-import.html": "70b3b5c6f0b27179d9bb60284039ee11ffc8534d53bf1c0a2a271ab4c8b21ffb",
     "articles/quick-launcher.html": "f0d91808bcad5d02c56641b4f6af0ece58944a08101aad00f2550b6b0246b9ac",
     "articles/remapping.html": "5ad82faa3c398e872c94d2f65cf881f2275740a3d189eaf88d0ce27faf53cbe7",
@@ -108,6 +108,6 @@
     "assets/tap-hold-custom-rules-tab.png": "9de856eb0ab25a0096d4c55ad8a9e132ca5f2a23488d07e6baf5a47ee9952311",
     "assets/tap-hold-rule-editor.png": "1073378bf5534306b2c54f8fb7850c0f6e16c2313ca9e393105995b1d2ed9b1a"
   },
-  "revision": "8b84b64a3856ae86b1e760046279fdd0b45e03ea1000f8bd45fe191b076c0084",
+  "revision": "b6c89de219bb62272283ce6c59e46d41050cc5f7f421cdee62ec5943d6b7d53c",
   "schema": 1
 }

@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Make Rules Work Together</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-conflict-resolution.png" alt="Guide illustration" /></p>
+<h1 id="make-rules-work-together">Make Rules Work Together</h1>
+<p>As your setup grows, two rules may try to control the same key. A rule can also rely on behavior supplied by another rule—for example, a home-row key that opens the Function layer needs that layer to contain useful actions.</p>
+<p>KeyPath checks before it changes your setup. When it finds a problem, it pauses and explains what will happen so you can keep the current setup, switch rules, or continue intentionally.</p>
+<p>The illustration above shows the two situations: rules meeting at the same key, and a rule using a bridge to reach behavior supplied elsewhere.</p>
+<hr />
+<h2 id="two-kinds-of-conflict">Two kinds of conflict</h2>
+<h3 id="two-rules-want-the-same-key">Two rules want the same key</h3>
+<p>A key can have only one active behavior in the same place. If two rules both claim that key, KeyPath asks which rule you want to keep.</p>
+<p>For example, <strong>Home Row Mods</strong> and <strong>Home Row Layer Toggles</strong> might both use the semicolon key:</p>
+<pre><code>Screenshot — choosing between two rules:
+
++----------------------------------+
+| Switch to Home Row Layer         |
+| Toggles?                         |
+|                                  |
+| Home Row Mods uses the same keys.|
+|                                  |
+| [ Keep Home Row Mods ]           |
+| [ Switch to Layer Toggles ]      |
++----------------------------------+</code></pre>
+<ul>
+<li><strong>Keep the current rule</strong> makes no change.</li>
+<li><strong>Switch to the new rule</strong> turns off the conflicting rule, then turns on the one you chose.</li>
+<li>Closing the window or pressing Escape makes no change.</li>
+</ul>
+<p>The rule KeyPath turns off is not deleted. You can turn it on again later, at which point KeyPath will ask you to choose again if the conflict still exists.</p>
+<p>Some packs are intentionally different ways to solve the same problem. When installing one would conflict with an installed pack, KeyPath uses the same <strong>Keep</strong> or <strong>Switch</strong> choice and names both packs before changing anything.</p>
+<p>When a conflict is found while saving an edited rule, KeyPath shows the rules involved and lets you choose which one to disable:</p>
+<pre><code>Screenshot — resolving a conflict while saving:
+
++----------------------------------+
+| Rule Conflict                    |
+|                                  |
+| Two rules configure the ; key    |
+| with different behaviors.        |
+|                                  |
+| [ Disable Home Row Mods ]        |
+| [ Disable Layer Toggles ]        |
++----------------------------------+</code></pre>
+<h3 id="one-rule-needs-another">One rule needs another</h3>
+<p>Some rules work together rather than competing. KeyPath calls the supplied behavior a requirement. Common examples include:</p>
+<ul>
+<li>Home-row layer keys that need Function, Symbol, Numpad, or Navigation content.</li>
+<li>A launcher that needs a working Hyper key.</li>
+<li>A rule on a secondary layer that needs a way to enter that layer.</li>
+</ul>
+<p>KeyPath checks the behavior, not just a particular built-in rule name. If a different enabled rule already supplies the same behavior, your change proceeds without a warning.</p>
+<hr />
+<h2 id="when-turning-on-or-editing-a-rule">When turning on or editing a rule</h2>
+<p>If a change introduces a requirement that is not active, KeyPath shows the rule, the behavior it needs, and the affected keys or actions.</p>
+<pre><code>Screenshot — adding the rules a change needs:
+
++----------------------------------+
+| Enable the rules this change     |
+| needs?                           |
+|                                  |
+| Layer Toggles needs Function.    |
+| Provided by Function.            |
+| 2 affected keys: A and ;         |
+|                                  |
+| [ Save Without Them ]            |
+| [ Enable Required Rules &amp; Save ] |
++----------------------------------+</code></pre>
+<p>Choose based on what you want:</p>
+<ul>
+<li><strong>Enable Required Rules &amp; Save</strong> turns on the clearly matching providers and saves your edit as one change. When you are turning on a rule rather than editing it, the button says <strong>Enable Required Rules &amp; Turn On</strong>.</li>
+<li><strong>Save Without Them</strong> saves only your edit. The affected keys or actions may do nothing until you turn on a matching provider. When enabling a rule, this action says <strong>Turn On Without Them</strong>.</li>
+<li>Closing the window or pressing Escape cancels the change.</li>
+</ul>
+<p>KeyPath offers the one-click fix only when each missing requirement has one clear provider. If several rules could provide the same behavior, KeyPath lists the possibilities and asks you to choose manually instead of guessing.</p>
+<p>An old, already-acknowledged missing requirement will not interrupt an unrelated edit. The warning returns only when your new change introduces a new problem.</p>
+<hr />
+<h2 id="when-turning-off-a-rule">When turning off a rule</h2>
+<p>Before disabling a rule, KeyPath checks whether another enabled rule still uses what it supplies.</p>
+<pre><code>Screenshot — keeping behavior another rule uses:
+
++----------------------------------+
+| Function is still used by        |
+| another rule                     |
+|                                  |
+| Layer Toggles uses Function.     |
+| 2 affected keys: A and ;         |
+|                                  |
+| [ Disable Anyway ]               |
+| [ Keep Function Enabled ]        |
++----------------------------------+</code></pre>
+<ul>
+<li><strong>Keep Function Enabled</strong> is the safe default and changes nothing.</li>
+<li><strong>Disable Anyway</strong> turns off only Function. KeyPath does not silently delete or rewrite the rules that use it, so their affected keys may do nothing.</li>
+<li>Closing the window or pressing Escape is the same as keeping Function enabled.</li>
+</ul>
+<p>If another active rule supplies the same behavior, KeyPath does not warn because the dependent rule will continue to work.</p>
+<hr />
+<h2 id="what-keypath-changesand-what-it-does-not">What KeyPath changes—and what it does not</h2>
+<p>KeyPath keeps conflict resolution predictable:</p>
+<ul>
+<li>It explains the actual affected keys, mappings, or layer path when that detail is available.</li>
+<li>A confirmed multi-rule fix is applied together. If the configuration cannot be applied, KeyPath rolls back the whole change.</li>
+<li>It never chooses between several equally valid providers without asking.</li>
+<li>It never automatically disables dependent rules.</li>
+<li>It does not remove your custom configuration when a rule is turned off.</li>
+</ul>
+<p>When you are unsure, choose the emphasized safe action. You can inspect the rules involved and try the change again later.</p>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://layers">A Whole Second Keyboard Under Your Fingers</a></strong> — understand the layers that commonly depend on one another.</li>
+<li><strong><a href="help://quick-launcher">Launch Anything With One Keystroke</a></strong> — see how Quick Launcher and the Hyper key work together.</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — configure home-row behaviors without overlapping assignments.</li>
+<li><strong><a href="help://packs">Packs &amp; Layers</a></strong> — browse coordinated rules that are designed to work together.</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>

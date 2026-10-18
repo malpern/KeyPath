@@ -1,0 +1,117 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Arrow Keys at Full Speed</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-key-repeat-control.png" alt="Guide illustration" /></p>
+<h1 id="arrow-keys-and-delete-at-full-speed">Arrow Keys and Delete at Full Speed</h1>
+<p>Your arrow keys move through text at the same sluggish speed as every other key. Holding → to get across a line takes forever. Holding Delete to clear a word feels like watching paint dry. Fast Navigation makes navigation and deletion keys repeat 3× faster while keeping regular typing steady — no accidental repeated characters.</p>
+<hr />
+<h2 id="what-you-get">What You Get</h2>
+<p>Enable <strong>Fast Navigation</strong> and you get per-key repeat speed control. KeyPath describes speed in repeats per second, so higher values always feel faster:</p>
+<ul>
+<li><strong>Arrow keys</strong> (←→↑↓) — start repeating in 150 ms, then repeat 50 times per second (20 ms interval)</li>
+<li><strong>Delete</strong> (⌫) — starts in 210 ms, then repeats 50 times per second</li>
+<li><strong>Forward Delete</strong> — starts in 210 ms, then repeats 50 times per second</li>
+<li><strong>Regular keys</strong> (letters, numbers) — start after 500 ms, then repeat about 33 times per second (30 ms interval)</li>
+</ul>
+<p>The result: hold an arrow key and it flies. Hold a letter and it stays steady.</p>
+<hr />
+<h2 id="enabling-it">Enabling It</h2>
+<p>Fast Navigation is <strong>enabled by default</strong> for new installations. To check or toggle:</p>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Fast Navigation</strong> (hare icon)</li>
+<li>Toggle on/off or choose a preset</li>
+</ol>
+<hr />
+<h2 id="presets">Presets</h2>
+<p>Three named presets to get started quickly:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Repeat start delay</th>
+<th>Repeat speed</th>
+<th>Feel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Balanced</strong> (default)</td>
+<td>150 ms</td>
+<td>50 repeats/sec (20 ms interval)</td>
+<td>Fast arrows, steady text</td>
+</tr>
+<tr>
+<td><strong>Fast Navigation</strong></td>
+<td>120 ms</td>
+<td>67 repeats/sec (15 ms interval)</td>
+<td>Maximum speed for power users</td>
+</tr>
+<tr>
+<td><strong>Careful</strong></td>
+<td>300 ms</td>
+<td>40 repeats/sec (25 ms interval)</td>
+<td>Slower, fewer accidental repeats</td>
+</tr>
+</tbody>
+</table>
+<p>Select a preset card in the pack detail view. You can further customize in Settings.</p>
+<hr />
+<h2 id="custom-settings">Custom Settings</h2>
+<p>Click <strong>Settings…</strong> in the pack detail view to fine-tune:</p>
+<h3 id="global-defaults">Global defaults</h3>
+<ul>
+<li><strong>Repeat start delay</strong> — how long you hold a key before repeating starts. Moving right starts later.</li>
+<li><strong>Repeat speed</strong> — how quickly the key repeats after it starts. Moving right is always faster.</li>
+<li><strong>Interval</strong> — the equivalent milliseconds between repeats, shown as a secondary technical detail.</li>
+</ul>
+<h3 id="per-key-overrides">Per-key overrides</h3>
+<ul>
+<li><strong>Arrow keys</strong> — toggle fast arrows on/off, then adjust start delay and repeat speed independently</li>
+<li><strong>Delete</strong> — toggle fast delete, adjust separately</li>
+<li><strong>Forward Delete</strong> — toggle and adjust</li>
+<li><strong>Custom keys</strong> — add any key to the override list with its own speed settings</li>
+</ul>
+<p>For example, <strong>50 repeats/sec</strong> and a <strong>20 ms interval</strong> describe the same setting. KeyPath stores the interval because that is what the keyboard engine uses, while the main control shows repeats per second because it matches the way speed feels.</p>
+<hr />
+<h2 id="the-test-area">The Test Area</h2>
+<p>The pack detail view includes a live test area: a text field where you can hold arrow keys and delete to <em>feel</em> the difference. Try holding an arrow, then holding a letter — the speed difference is immediately obvious.</p>
+<hr />
+<h2 id="how-it-works">How It Works</h2>
+<p>KeyPath uses Kanata's <code>defcfg</code> key-repeat settings to set different speeds for different keys. Instead of the system-wide repeat rate (which applies uniformly to all keys), KeyPath configures:</p>
+<ol type="1">
+<li>A <strong>slow global rate</strong> for regular typing keys (prevents accidental repeats)</li>
+<li>A <strong>fast override</strong> for navigation and deletion keys (makes cursor movement instant)</li>
+</ol>
+<p>This is not a hack — it's using the keyboard firmware's built-in repeat control, just configured per-key instead of globally.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li><strong>Pair with Vim Navigation</strong> — fast arrow keys make the H/J/K/L navigation layer even snappier for long-distance moves</li>
+<li><strong>Adjust delete carefully</strong> — too fast and you'll overshoot. The 210 ms start delay gives you time to lift your finger.</li>
+<li><strong>The test area is your friend</strong> — adjust values, then immediately feel the result in the test text field</li>
+<li>Works standalone — no dependency on any other pack</li>
+</ul>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="arrow-keys-dont-feel-faster">Arrow keys don't feel faster</h3>
+<ol type="1">
+<li>Verify Fast Navigation is <strong>enabled</strong> (check the Rules tab)</li>
+<li>Make sure KeyPath's service is running (green indicator)</li>
+<li>Check that System Settings → Keyboard → Key Repeat hasn't overridden things — KeyPath's settings take precedence when the service is active</li>
+</ol>
+<h3 id="im-getting-accidental-repeated-characters-when-typing">I'm getting accidental repeated characters when typing</h3>
+<p>The global repeat start delay (500 ms) should prevent this. If you've lowered it:</p>
+<ol type="1">
+<li>Go to Settings in the pack detail</li>
+<li>Increase the global repeat start delay back toward 500 ms</li>
+<li>Only lower the per-key overrides for arrow/delete keys</li>
+</ol>
+<h3 id="i-want-different-speeds-for-updown-vs-leftright">I want different speeds for up/down vs. left/right</h3>
+<p>Currently all four arrow keys share the same override settings. Per-direction tuning is a potential future enhancement.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://vim-navigation">Navigate Text Like a Keyboard Ninja</a></strong> — Combine fast arrows with home-row navigation</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on how KeyPath controls key behavior</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>

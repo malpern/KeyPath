@@ -1,0 +1,244 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Navigate Like a Keyboard Ninja</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-vim-navigation.png" alt="Guide illustration" /></p>
+<h1 id="navigate-text-like-a-keyboard-ninja">Navigate Text Like a Keyboard Ninja</h1>
+<p>Every time you move your hand to the arrow keys, you lose a second. Multiply that by hundreds of times a day and you're spending real time just… reaching. Vim Navigation puts arrows, copy/paste, undo, search, and line jumps under your fingers — without leaving the home row.</p>
+<hr />
+<h2 id="what-you-get">What You Get</h2>
+<p>Enable <strong>Vim Navigation</strong> and your keyboard gains a navigation layer:</p>
+<ul>
+<li><strong>Hold Space + H/J/K/L</strong> → arrow keys (left, down, up, right)</li>
+<li><strong>Hold Space + Y</strong> → copy, <strong>P</strong> → paste, <strong>U</strong> → undo</li>
+<li><strong>Hold Space + /</strong> → Find (⌘F), <strong>N</strong> → next match</li>
+<li><strong>Hold Space + 0</strong> → line start, <strong>4</strong> → line end</li>
+<li><strong>Hold Space + G</strong> → top of document (Shift+G → bottom)</li>
+<li><strong>Hold Space + D</strong> → delete word, <strong>X</strong> → delete character</li>
+<li><strong>Hold Space + O</strong> → open new line below (Shift+O → above)</li>
+</ul>
+<p>Release Space and you're back to normal typing. Space still types a space when you tap it.</p>
+<hr />
+<h2 id="enabling-it">Enabling It</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Vim Navigation</strong> in the Navigation section</li>
+<li>Toggle it <strong>on</strong> — it's enabled by default for new installations</li>
+</ol>
+<p>Vim Navigation is the foundation that every other layer pack depends on. It defines the Leader key (Space by default) that activates all layers.</p>
+<p><img class="help-img" src="../assets/pack-detail-vim-navigation.png" alt="Screenshot — Vim Navigation pack detail showing the full mapping table" /></p>
+<hr />
+<h2 id="how-it-works">How It Works</h2>
+<ol type="1">
+<li><strong>Tap Space</strong> → types a normal space character</li>
+<li><strong>Hold Space</strong> → activates the navigation layer (the overlay shows your mappings)</li>
+<li><strong>While holding Space, press a key</strong> → fires the mapped action (arrow, copy, undo, etc.)</li>
+<li><strong>Release Space</strong> → back to normal typing instantly</li>
+</ol>
+<p>The overlay highlights active mappings in orange when you're in the navigation layer, so you always know what's available.</p>
+<hr />
+<h2 id="the-full-mapping-table">The Full Mapping Table</h2>
+<h3 id="movement">Movement</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+<th>Vim equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H</td>
+<td>← Left</td>
+<td><code>h</code></td>
+</tr>
+<tr>
+<td>J</td>
+<td>↓ Down</td>
+<td><code>j</code></td>
+</tr>
+<tr>
+<td>K</td>
+<td>↑ Up</td>
+<td><code>k</code></td>
+</tr>
+<tr>
+<td>L</td>
+<td>→ Right</td>
+<td><code>l</code></td>
+</tr>
+<tr>
+<td>0</td>
+<td>Line start (⌘←)</td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Line end (⌘→)</td>
+<td><code>$</code></td>
+</tr>
+<tr>
+<td>G</td>
+<td>Top of document (⌘↑)</td>
+<td><code>gg</code></td>
+</tr>
+<tr>
+<td>Shift+G</td>
+<td>Bottom of document (⌘↓)</td>
+<td><code>G</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="search">Search</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+<th>Vim equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/</td>
+<td>Find (⌘F)</td>
+<td><code>/</code></td>
+</tr>
+<tr>
+<td>N</td>
+<td>Next match (⌘G)</td>
+<td><code>n</code></td>
+</tr>
+<tr>
+<td>Shift+N</td>
+<td>Previous match (⌘⇧G)</td>
+<td><code>N</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="editing">Editing</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+<th>Vim equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Y</td>
+<td>Copy (⌘C)</td>
+<td><code>y</code> (yank)</td>
+</tr>
+<tr>
+<td>P</td>
+<td>Paste (⌘V)</td>
+<td><code>p</code> (put)</td>
+</tr>
+<tr>
+<td>U</td>
+<td>Undo (⌘Z)</td>
+<td><code>u</code></td>
+</tr>
+<tr>
+<td>R</td>
+<td>Redo (⌘⇧Z)</td>
+<td><code>Ctrl+R</code></td>
+</tr>
+<tr>
+<td>X</td>
+<td>Delete character (Del)</td>
+<td><code>x</code></td>
+</tr>
+<tr>
+<td>D</td>
+<td>Delete previous word (⌥⌫)</td>
+<td><code>db</code></td>
+</tr>
+<tr>
+<td>O</td>
+<td>Open line below (⌘→ Enter)</td>
+<td><code>o</code></td>
+</tr>
+<tr>
+<td>Shift+O</td>
+<td>Open line above (↑ ⌘→ Enter)</td>
+<td><code>O</code></td>
+</tr>
+<tr>
+<td>A</td>
+<td>Move right (append position)</td>
+<td><code>a</code></td>
+</tr>
+<tr>
+<td>Shift+A</td>
+<td>End of line (⌘→)</td>
+<td><code>A</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="page-navigation-with-ctrl-held">Page Navigation (with Ctrl held)</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D + Ctrl</td>
+<td>Page Down</td>
+</tr>
+<tr>
+<td>U + Ctrl</td>
+<td>Page Up</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li><strong>Start with H/J/K/L</strong> — arrow replacement is the biggest daily win. The rest will come naturally.</li>
+<li><strong>Pair with Home Row Mods</strong> — hold Space for arrows, then add ⇧ (Shift via D key) to select text while navigating. One hand navigates, the other modifies.</li>
+<li><strong>Vim users:</strong> the mnemonics are intentionally familiar, but the outputs are macOS shortcuts (⌘C not yank registers). This works everywhere — TextEdit, Safari, Xcode, Slack.</li>
+<li><strong>Not a Vim user?</strong> That's fine. Think of it as "Space + arrows on the home row" — the Vim names are just convenient labels.</li>
+</ul>
+<hr />
+<h2 id="changing-the-leader-key">Changing the Leader Key</h2>
+<p>Space is the default Leader key, but you can change it. See <strong><a href="help://leader-key">Choose Your Leader Key</a></strong> for alternatives (Caps Lock, Tab, Backtick).</p>
+<hr />
+<h2 id="what-depends-on-this">What Depends on This</h2>
+<p>Vim Navigation defines the foundation layer. When you enable it, these packs gain access to the Leader key for their own layers:</p>
+<ul>
+<li><strong><a href="help://window-management">Windows &amp; App Shortcuts</a></strong> — Leader → W → window actions</li>
+<li><strong>Numpad</strong> — Leader → ; → number entry</li>
+<li><strong>Symbol</strong> — Leader → S → programming symbols</li>
+<li><strong>Function</strong> — Leader → F → F-keys and media</li>
+<li><strong><a href="help://simple-packs">Quick Tweaks</a></strong> — Delete Enhancement, Mission Control</li>
+</ul>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="space-feels-slow-or-laggy">Space feels slow or laggy</h3>
+<p>The tap/hold threshold defaults to 180ms. If Space feels delayed when typing, you can:</p>
+<ol type="1">
+<li>Type faster (release Space within the threshold)</li>
+<li>Adjust the hold timing in the <strong>Leader Key</strong> pack settings</li>
+</ol>
+<h3 id="navigation-keys-do-nothing">Navigation keys do nothing</h3>
+<ol type="1">
+<li>Check that Vim Navigation is toggled <strong>on</strong> in the Rules tab</li>
+<li>Make sure you're <em>holding</em> Space, not tapping it</li>
+<li>Verify KeyPath's service is running (green indicator in the overlay header)</li>
+</ol>
+<h3 id="i-want-word-by-word-movement-wb">I want word-by-word movement (w/b)</h3>
+<p>The base Vim Navigation pack uses macOS standard shortcuts. For word motions (⌥← and ⌥→), enable the <strong><a href="help://neovim-terminal">Neovim in the Terminal</a></strong> collection which adds W and B keys.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://leader-key">Choose Your Leader Key</a></strong> — Switch from Space to Caps Lock, Tab, or Backtick</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Add modifiers to your home row for Shift-selection while navigating</li>
+<li><strong><a href="help://neovim-terminal">Neovim in the Terminal</a></strong> — Extended Vim motions for terminal power users</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers, momentary activation, and tap-hold</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>
