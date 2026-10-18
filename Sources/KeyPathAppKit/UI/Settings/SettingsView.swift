@@ -218,7 +218,11 @@ struct StatusSettingsTabView: View {
                             onTap: { wizardInitialPage = .inputMonitoring }
                         )
 
-                        runtimePermissionRows
+                        // In driverless mode these match the two rows above; only the
+                        // legacy backend's separate runtime has its own permissions.
+                        if !isDriverless {
+                            runtimePermissionRows
+                        }
 
                         ForEach(systemStatusRows) { row in
                             SettingsSystemStatusRow(
@@ -327,20 +331,15 @@ struct StatusSettingsTabView: View {
                     .foregroundColor(.primary)
                     .accessibilityIdentifier("status-search-keyboard-layouts-button")
 
-                    Menu {
-                        Button("Forget This Keyboard", role: .destructive) {
-                            autoDetectController.forgetKeyboard(activeKeyboard.id)
-                        }
-                        .accessibilityIdentifier("status-forget-keyboard-button")
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(.secondary)
+                    Button("Forget", role: .destructive) {
+                        autoDetectController.forgetKeyboard(activeKeyboard.id)
                     }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .accessibilityLabel("Keyboard options")
-                    .accessibilityIdentifier("status-keyboard-options-menu")
+                    .buttonStyle(.plain)
+                    .font(.callout)
+                    .foregroundColor(.red)
+                    .help("Forget This Keyboard")
+                    .accessibilityLabel("Forget This Keyboard")
+                    .accessibilityIdentifier("status-forget-keyboard-button")
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
