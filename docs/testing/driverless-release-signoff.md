@@ -310,3 +310,25 @@ Air SSH still timed out. Delivery remains queued, and physical Caps Lock tour,
 tap Escape, and hold Hyper acceptance remains open. Resume this test when the UI
 can target the owned VM unambiguously, or complete it on the Air; do not recreate
 another guest merely to repeat this targeting failure.
+
+
+### VM console targeting workaround
+
+Use one Parallels macOS console at a time for host CUA testing. Multiple guests
+share `com.parallels.macvm`; selecting that bundle does not select a lease, and
+the selected process's Window menu cannot switch to a different VM process.
+The available macOS CUA API has no documented PID selector. Do not rename app
+bundles or alter their signatures to work around this.
+
+Before admission, confirm no competing console is active. If another tenant is
+using one, wait for its normal release. After admission, bind the app afresh and
+require its AX window title to contain the exact owned lease ID before every
+input batch. Also check the screenshot against that title after any focus or
+process change. A mismatch stops input immediately; it never justifies stopping
+another tenant's guest. This serializes host-console UI work only, not independent
+builds, unit tests, or guest command-line checks.
+
+On October 18, after the competing VM was released, a fresh binding correctly
+selected owned lease `cbx_5a95a4b49d72`; both AX title and screenshot matched.
+This verifies the single-console workaround, not a fix to CUA's multiple-process
+selection limitation and not physical Caps Lock acceptance.
