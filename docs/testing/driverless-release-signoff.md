@@ -5,24 +5,26 @@ historical evidence; their old “remaining” sections are not the current back
 
 ## Candidate and scope
 
-- Product source: `13392c083139df3c8f3582300db474f0a5864889`.
+- Product source: `9d163f88e` (TCP recovery handoff fix).
 - Apple Silicon only; driverless runtime; no Full Disk Access/browser-history suggestions.
 - Existing production-version migration is explicitly out of scope.
-- Air installer: `~/Downloads/KeyPath-20261017-header-hover.dmg`.
-- Stapled installer SHA-256: `8e33c3839caa58d9f1327682401560973551b4506e81998ca0aa04d8c505bb19`.
-- Signed app and installer accepted by Apple; installed trust/owned-session/TCP
-  checks passed at delivery. Rules and settings were preserved.
+- Air installer: `~/Downloads/KeyPath-20261017-tcp-handoff.dmg`.
+- Installer packaging/delivery evidence: `~/keypath-review-evidence/20261017-tcp-handoff/`.
+- Previous header-hover candidate passed installed trust/owned-session/TCP checks.
+  The TCP handoff candidate is notarized and copied to Air Downloads with matching
+  SHA-256 `d7f2cc1459c3afc2161633c919a76a1778f1b2d4b1bf7287297cae21944e299e`.
+  It has not been installed or live-tested in this iteration.
 - This remains a private candidate on `design/driverless-caps-ui`, not a public release.
 
 ## Current automated acceptance
 
 | Check | Current result | Evidence / limits |
 | --- | --- | --- |
-| Full safe test suite | PASS, 5,567 tests in 154 seconds | `~/keypath-review-evidence/20261017-final-qa/full-runner.log` |
+| Full safe test suite | PASS, 5,569 tests in 134 seconds | `~/keypath-review-evidence/20261017-tcp-handoff/full-runner.log` |
 | Accessibility identifiers | PASS, 382 files | `accessibility.log` in that evidence folder |
 | Computer Use source contract | PASS after stale expectations corrected | Current preview choices and driverless uninstall replace obsolete picker/system-helper controls. This proves source targets, not clicks. |
-| Signing/notarization/Gatekeeper | PASS | `~/keypath-review-evidence/20261017-header-hover/` |
-| Air installed runtime | PASS, current installed candidate | Fresh evidence in `20261017-final-qa/air-verification.log` |
+| Signing/notarization/Gatekeeper | PASS | `~/keypath-review-evidence/20261017-tcp-handoff/` |
+| Air installed runtime | PASS, previous header-hover candidate | Fresh evidence in `20261017-final-qa/air-verification.log` |
 | Clean VM install/onboarding/uninstall/reinstall | BLOCKED | Two clean admissions failed in Parallels startup before product installation. This gate is not passed. |
 | Visual snapshot regression | PASS, 55 tests in 66 seconds | Metal entrance frames, hard views and scenario snapshots; no baseline changes or relaxed tolerances. Overlay/General/Repair reference images also reviewed. Hover interaction is still a manual check. |
 
@@ -104,3 +106,12 @@ A later read-only process inventory found other Virtualization.framework workers
 and CrabBox activity on the host. Their ownership was not established and none
 were stopped. This is evidence of shared host activity, not proof of the start
 failure’s cause. Preflight capacity alone did not predict the provisioning failure.
+
+## TCP handoff follow-up
+
+The 20:49 wake showed a 761 ms gap between successful runtime validation and
+the overlay receiving a TCP event. The checking-only suppression was incomplete.
+The new candidate adds a bounded five-second settling window, with regression
+coverage for successful reconnect, persistent failure, and non-renewal by routine
+health checks. Focused tests and the full suite pass. Actual sleep/wake visual
+acceptance on the new candidate remains outstanding.
