@@ -13,7 +13,8 @@ historical evidence; their old “remaining” sections are not the current back
 - Previous header-hover candidate passed installed trust/owned-session/TCP checks.
   The TCP handoff candidate is notarized and copied to Air Downloads with matching
   SHA-256 `d7f2cc1459c3afc2161633c919a76a1778f1b2d4b1bf7287297cae21944e299e`.
-  It has not been installed or live-tested in this iteration.
+  Installed on the Air at 21:22; signature, stapling, Gatekeeper, owned-session
+  runtime and TCP checks passed. Sleep/wake visual acceptance is pending.
 - This remains a private candidate on `design/driverless-caps-ui`, not a public release.
 
 ## Current automated acceptance
@@ -24,9 +25,9 @@ historical evidence; their old “remaining” sections are not the current back
 | Accessibility identifiers | PASS, 382 files | `accessibility.log` in that evidence folder |
 | Computer Use source contract | PASS after stale expectations corrected | Current preview choices and driverless uninstall replace obsolete picker/system-helper controls. This proves source targets, not clicks. |
 | Signing/notarization/Gatekeeper | PASS | `~/keypath-review-evidence/20261017-tcp-handoff/` |
-| Air installed runtime | PASS, previous header-hover candidate | Fresh evidence in `20261017-final-qa/air-verification.log` |
+| Air installed runtime | PASS, TCP handoff candidate | `20261017-tcp-handoff/air-installed-verification.log`; executable hash verified |
 | Clean VM install/onboarding/uninstall/reinstall | BLOCKED | Two clean admissions failed in Parallels startup before product installation. This gate is not passed. |
-| Visual snapshot regression | PASS, 55 tests in 66 seconds | Metal entrance frames, hard views and scenario snapshots; no baseline changes or relaxed tolerances. Overlay/General/Repair reference images also reviewed. Hover interaction is still a manual check. |
+| Visual snapshot regression | PASS, 55 tests on TCP handoff source; 135 seconds including rebuild | Metal entrance frames, hard views and scenario snapshots; no baseline changes or relaxed tolerances. Overlay/General/Repair reference images also reviewed. Hover interaction is still a manual check. |
 
 ## Evidence carried forward, with limits
 
@@ -143,3 +144,39 @@ in this report. Prior functional passes remain historical evidence.
 Evidence: `~/keypath-review-evidence/20261017-tcp-handoff/air-recovery-followup.log`.
 Next: install the delivered candidate and verify one genuine sleep/wake cycle,
 then finish the remaining Air interaction checks and blocked clean-VM gate.
+
+## Installation and continued automated QA: 21:22, October 17
+
+Installed the delivered TCP handoff DMG on the Air, preserving the previous app
+in Trash and leaving settings intact. Verified executable SHA-256
+`9c367b0c77658782f8f0ab26b25231a928fcaa473037a191223361ee34345e7a`, valid signature,
+stapled notarization, Gatekeeper acceptance, parent PID 15560, worker PID 16291,
+and owned TCP endpoint 127.0.0.1:37001. Micah has been told it is ready for the
+next sleep/wake test. Evidence: `air-install.log`, `air-installed-verification.log`
+in the TCP handoff evidence directory. Computer Use source contracts also pass.
+
+### Lab diagnosis and current capacity
+
+The correct provider log is `/Library/Logs/parallels.log` (not the nonexistent
+`/Library/Logs/Parallels/parallels.log`). It confirms clone cleanup and
+`PRL_ERR_VM_START_FAILED` for the earlier attempts. The failed launch logged
+“Failed to find audit port for uid 505”; `clawd` has no GUI domain. This suggests
+an account/session problem but does not alone establish the complete root cause.
+
+The default controller route uses `clawd` and reports zero Parallels leases.
+The supported console route, `vm-lab --host malpern@mini keypath preflight`,
+correctly reports two leases, matching read-only provider inventory:
+`cbx_345abf6018d5` and `cbx_d21f6077b13c`. Both are other work's running guests.
+Capacity is two, so no new admission was attempted and no existing guest was
+stopped/adopted. This is a capacity block for the clean acceptance run, not a
+product failure. Resume through the supported console-account route when capacity
+is available; do not repeat the zero-lease default-route assumption.
+Evidence: `lab-provider-diagnosis.log`, `lab-provider-inventory.txt`,
+`lab-user-context.txt`, and `lab-console-preflight.log` in the TCP handoff folder.
+
+Final automated result for this iteration: 55 visual snapshot tests passed with
+zero failures and unchanged baselines (`20261017-tcp-handoff/snapshot-runner.log`).
+Together with the prior 5,569-test suite, source contracts and installed trust/
+runtime checks, available automated checks pass. Clean guest acceptance remains
+blocked by shared lab capacity; manual sleep/wake on the installed candidate is
+not yet recorded as passed.
