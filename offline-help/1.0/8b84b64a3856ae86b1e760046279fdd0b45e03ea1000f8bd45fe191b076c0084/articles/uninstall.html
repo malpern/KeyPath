@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Uninstall KeyPath</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><h1 id="uninstall-keypath">Uninstall KeyPath</h1>
+<p>Open <strong>Settings → Advanced → Uninstall KeyPath…</strong>, then choose <strong>Back Up and Uninstall</strong>.</p>
+<p>KeyPath stops remapping and restores keyboard mappings it owns. It saves your rules, preferences, and app data in a private <strong>KeyPath-Uninstall-Backup-…</strong> folder in <strong>Downloads</strong>, removes the active settings and caches, moves the app to Trash, and quits. Keep the backup if you may want your rules later; <code>README.txt</code> identifies the original locations and <code>preferences.plist</code> contains your saved preferences.</p>
+<p>Reinstalling starts with fresh KeyPath settings. macOS permission grants remain, so previously approved permission steps may already be complete.</p>
+<p>If backup or keyboard cleanup fails, nothing is removed. If a later removal step fails, the dialog identifies the backup folder and explains the failure.</p>
+<p>A configuration folder that is itself a symbolic link is backed up and detached; its original target is preserved. If a parent folder such as <code>~/.config</code> is linked, uninstall refuses to delete through it. Move KeyPath's settings to a local folder before retrying.</p>
+<p>Dragging the app to Trash in Finder keeps your settings. Use the Settings action when you want a fresh reinstall.</p>
+</body></html>

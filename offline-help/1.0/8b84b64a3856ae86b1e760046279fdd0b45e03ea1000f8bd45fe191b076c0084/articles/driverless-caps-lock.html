@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Caps Lock in driverless KeyPath</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><h1 id="caps-lock-in-driverless-keypath">Caps Lock in driverless KeyPath</h1>
+<p>Choose a Caps Lock rule in <strong>Rules</strong>, such as Escape on tap and Hyper on hold. KeyPath prepares Caps Lock automatically when it can identify exactly one compatible keyboard and automatic setup is enabled. You do not normally need to select a keyboard before using the tour.</p>
+<p>If setup cannot identify one compatible keyboard, open <strong>Settings → General</strong> to review Caps Lock setup. A virtual keyboard in a VM is not a compatible physical keyboard. KeyPath refuses ambiguous setup rather than choosing a device arbitrarily.</p>
+<h2 id="why-f18-is-involved">Why F18 is involved</h2>
+<p>Caps Lock changes macOS's lock state before ordinary driverless interception. KeyPath uses a macOS mapping on the selected keyboard:</p>
+<pre class="text"><code>Physical Caps Lock → macOS substitutes F18 → KeyPath applies your Caps Lock rule</code></pre>
+<p>F18 is an internal intermediate key. Configure a Caps Lock rule, not an F18 rule. This does not install a keyboard driver or require Full Disk Access. Accessibility is used by driverless setup; a separate Input Monitoring step is not required in the tested flow.</p>
+<h2 id="what-if-i-use-f18">What if I use F18?</h2>
+<p><strong>Managed Caps remapping reserves F18.</strong> A real F18 event cannot be reliably distinguished from Caps Lock that macOS changed into F18. Managed configurations therefore reject native F18 input and output.</p>
+<p>If you need F18, disable managed Caps setup and use another trigger key. Ordinary configurations without managed Caps can still use F18. KeyPath does not automatically select another intermediate key.</p>
+<h2 id="can-i-still-turn-caps-lock-on">Can I still turn Caps Lock on?</h2>
+<p>Yes. Caps Lock output uses the native macOS lock state. Backup Caps Lock and multi-tap rules can toggle it; holding or repeating that output does not repeatedly toggle the state. This is distinct from remapping the physical Caps Lock input, which needs compatible keyboard setup.</p>
+<h2 id="restarts-and-connected-keyboards">Restarts and connected keyboards</h2>
+<p>The saved selection identifies one keyboard instance for the current boot. When it becomes stale, automatic setup can discover an eligible keyboard again; it does not trust an old device identifier after reconnect or reboot. Exactly one compatible keyboard is required for automatic selection.</p>
+<p>KeyPath checks existing mappings and ownership before changing or restoring them. Conflicting mappings are refused. If safe restoration cannot be verified, the recovery record is retained and restart can be blocked. Follow the displayed recovery instructions instead of overwriting another mapping.</p>
+<p>Disabling setup preserves your rules. A configuration that still uses physical Caps Lock needs setup enabled again, or a different trigger.</p>
+<h2 id="other-limitations">Other limitations</h2>
+<ul>
+<li>Managed Caps setup does not promise arbitrary multi-keyboard behavior.</li>
+<li>Protected password fields and Secure Input do not gain dynamic remapping. Do not rely on a Caps remap for password entry.</li>
+<li>Media and brightness remapping remain unavailable in driverless mode. Your keyboard's normal media controls remain managed by macOS.</li>
+</ul>
+<h2 id="validation-status">Validation status</h2>
+<p>The current implementation includes automatic selection and native Caps Lock output. These describe code behavior, not a completed hardware certification. Physical USB qualification of the current candidate, including reconnect and restart recovery, remains a release gate. Earlier physical tests do not substitute for testing this candidate.</p>
+<h2 id="updating-keypath">Updating KeyPath</h2>
+<p>Choose <strong>Download Update…</strong>, download the new app, then quit KeyPath before replacing it. Your rules are kept. This driverless version uses manual downloads.</p>
+</body></html>

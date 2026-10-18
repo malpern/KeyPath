@@ -1,0 +1,171 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Alternative Layouts</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-alternative-layouts.png" alt="Guide illustration" /></p>
+<h1 id="alternative-layouts">Alternative Layouts</h1>
+<p>Most people type on QWERTY — a layout designed in the 1870s to prevent typewriter jams, not for comfort or speed. Alternative layouts rearrange the keys to put the most-used letters on the home row, reduce finger travel, and promote comfortable typing patterns.</p>
+<p>KeyPath supports 8 keymaps out of the box, and its keyboard overlay updates instantly when you switch — so you can see the new layout right on your screen while you learn.</p>
+<hr />
+<h2 id="why-consider-switching">Why consider switching?</h2>
+<p>The case for an alternative layout comes down to ergonomics:</p>
+<pre><code>  QWERTY home row:          Colemak home row:
+  ┌───┬───┬───┬───┬───┐    ┌───┬───┬───┬───┬───┐
+  │ A │ S │ D │ F │ G │    │ A │ R │ S │ T │ D │
+  └───┴───┴───┴───┴───┘    └───┴───┴───┴───┴───┘
+    ↑                         ↑
+    32% of English on         74% of English on
+    the home row              the home row</code></pre>
+<p>On QWERTY, your fingers leave the home row for most letters. On an ergonomic layout like Colemak or Dvorak, the most frequent letters are right under your fingertips. Less reaching means less strain, especially over long typing sessions.</p>
+<p>That said, switching layouts is a commitment — expect weeks of slower typing before you regain speed. Many people find it worthwhile; others prefer to stay on QWERTY and use <a href="help://home-row-mods">Shortcuts Without Reaching</a> or a <a href="help://use-cases">Hyper key</a> instead.</p>
+<hr />
+<h2 id="supported-layouts">Supported layouts</h2>
+<h3 id="colemak">Colemak</h3>
+<p>The most popular QWERTY alternative. Moves 17 keys but keeps many common shortcuts (Z, X, C, V) in their QWERTY positions.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ Q │ W │ F │ P │ G │ J │ L │ U │ Y │ ; │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ A │ R │ S │ T │ D │ H │ N │ E │ I │ O │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ Z │ X │ C │ V │ B │ K │ M │ , │ . │ / │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> People who want better ergonomics but don't want to relearn every shortcut. Cut/Copy/Paste stay in the same spot.</p>
+<p><a href="https://colemak.com/">Learn more about Colemak</a></p>
+<hr />
+<h3 id="colemak-dh">Colemak-DH</h3>
+<p>A modern refinement of Colemak that moves D and H off the center column to reduce lateral finger stretches — especially useful on columnar and split keyboards.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ Q │ W │ F │ P │ B │ J │ L │ U │ Y │ ; │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ A │ R │ S │ T │ G │ M │ N │ E │ I │ O │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ Z │ X │ C │ D │ V │ K │ H │ , │ . │ / │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> Split and columnar keyboard users. If you own a Corne, Sofle, or Kinesis, this is a strong choice.</p>
+<p><a href="https://colemakmods.github.io/mod-dh/">Learn more about Colemak-DH</a></p>
+<hr />
+<h3 id="dvorak">Dvorak</h3>
+<p>The classic alternative layout, designed in the 1930s. Emphasizes hand alternation and puts all vowels on the left home row.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ &#39; │ , │ . │ P │ Y │ F │ G │ C │ R │ L │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ A │ O │ E │ U │ I │ D │ H │ T │ N │ S │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ ; │ Q │ J │ K │ X │ B │ M │ W │ V │ Z │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> People who want maximum home row usage and don't mind relearning all shortcuts. Dvorak is built into every operating system.</p>
+<p><a href="https://en.wikipedia.org/wiki/Dvorak_keyboard_layout">Learn more about Dvorak</a></p>
+<hr />
+<h3 id="workman">Workman</h3>
+<p>Designed to reduce lateral finger movement and prioritize comfortable key positions based on actual finger mechanics, not just distance.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ Q │ D │ R │ W │ B │ J │ F │ U │ P │ ; │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ A │ S │ H │ T │ G │ Y │ N │ E │ O │ I │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ Z │ X │ M │ C │ V │ K │ L │ , │ . │ / │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> People who find Colemak's same-hand sequences uncomfortable and want a layout that feels natural for extended typing.</p>
+<p><a href="https://workmanlayout.org/">Learn more about Workman</a></p>
+<hr />
+<h3 id="graphite">Graphite</h3>
+<p>A newer layout optimized for low finger travel with 65% home row usage and balanced hand distribution.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ B │ L │ D │ W │ Z │ Y │ O │ U │ J │ ; │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ N │ R │ T │ S │ G │ P │ H │ A │ E │ I │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ Q │ X │ M │ C │ V │ K │ F │ , │ . │ / │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> People who want cutting-edge optimization and are comfortable with a layout that doesn't prioritize QWERTY shortcut compatibility.</p>
+<p><a href="https://github.com/joa/graphite">Learn more about Graphite</a></p>
+<hr />
+<h3 id="azerty">AZERTY</h3>
+<p>The standard French keyboard layout, used in France and Belgium. Swaps A/Q and Z/W from QWERTY and moves M to the home row.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ A │ Z │ E │ R │ T │ Y │ U │ I │ O │ P │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ Q │ S │ D │ F │ G │ H │ J │ K │ L │ M │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ W │ X │ C │ V │ B │ N │ , │ ; │ : │ ! │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> French-speaking users who need the standard national layout displayed in KeyPath's overlay.</p>
+<p><a href="https://en.wikipedia.org/wiki/AZERTY">Learn more about AZERTY</a></p>
+<hr />
+<h3 id="qwertz">QWERTZ</h3>
+<p>The standard German keyboard layout, also used across Central Europe. The main difference from QWERTY is swapped Y and Z keys.</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │ Q │ W │ E │ R │ T │ Z │ U │ I │ O │ P │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ A │ S │ D │ F │ G │ H │ J │ K │ L │ ö │  ← home row
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ Y │ X │ C │ V │ B │ N │ M │ , │ . │ - │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘</code></pre>
+<p><strong>Best for:</strong> German-speaking users who want the correct national layout in KeyPath's overlay.</p>
+<p><a href="https://en.wikipedia.org/wiki/QWERTZ">Learn more about QWERTZ</a></p>
+<hr />
+<h2 id="how-to-switch-in-keypath">How to switch in KeyPath</h2>
+<p>Changing your keyboard overlay to a different layout takes two clicks:</p>
+<ol type="1">
+<li>Open KeyPath — the keyboard overlay appears</li>
+<li>Click the <strong>gear icon</strong> on the overlay to reveal the settings tabs</li>
+<li>Click the <strong>Keymap</strong> tab</li>
+<li>Click any layout card — the overlay updates instantly</li>
+</ol>
+<p><img class="help-img" src="../assets/alt-layouts-settings-toolbar.png" alt="Screenshot" /> Screenshot — Settings toolbar (after clicking the gear):</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │                                                     │
+  │     [ Keymap ]  [ Layout ]  [ Keycaps ]  [ Sounds ] │
+  │       ^^^^^^^                                       │
+  │       selected                                      │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<p><img class="help-img" src="../assets/alt-layouts-keymap-picker.png" alt="Screenshot" /> Screenshot — Keymap picker (2-column grid of layout cards):</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  Keymap                                             │
+  │                                                     │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │  ▣ QWERTY    │  │    Dvorak    │                 │
+  │  │  (selected)  │  │              │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │   Colemak    │  │  Colemak-DH  │                 │
+  │  │              │  │              │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │   Workman    │  │   Graphite   │                 │
+  │  │              │  │              │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │                                                     │
+  │  INTERNATIONAL                                      │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │    AZERTY    │  │   QWERTZ     │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<p>KeyPath doesn't change your operating system's input method. The overlay's geometry follows your selected physical keyboard layout, and its labels follow your selected keymap. Driverless rules use physical key positions; the characters your apps receive also depend on the macOS input source and any input method. Changing the overlay alone does not verify an OS layout or IME combination.</p>
+<p><strong>Tip:</strong> If you're learning a new layout, keep the KeyPath overlay visible on your desktop as a cheat sheet. As you build muscle memory, you'll glance at it less.</p>
+<hr />
+<h2 id="tips-for-learning-a-new-layout">Tips for learning a new layout</h2>
+<ol type="1">
+<li><strong>Start with 15 minutes a day.</strong> Don't switch cold turkey — practice on a typing tutor alongside your regular layout.</li>
+<li><strong>Use KeyPath's overlay</strong> as a visual reference. It shows the layout on your actual keyboard.</li>
+<li><strong>Expect 2-4 weeks</strong> of slower typing before you start to feel comfortable. Most people reach their QWERTY speed in 1-3 months.</li>
+<li><strong>Keep shortcuts familiar.</strong> Layouts like Colemak preserve Z/X/C/V positions, so Cut/Copy/Paste still work. On Dvorak, consider remapping shortcuts separately.</li>
+<li><strong>Combine with Home Row Mods.</strong> <a href="help://home-row-mods">Shortcuts Without Reaching</a> can be configured for your home row positions. Verify modifier shortcuts with your macOS input source and apps; not every layout or IME combination has physical compatibility evidence.</li>
+</ol>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Layers, modifiers, and tap-hold fundamentals</li>
+<li><strong><a href="help://keyboard-layouts">Keyboard Layouts</a></strong> — Physical keyboard support (ANSI, split, ergonomic)</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Modifiers on the home row, compatible with any layout</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — All KeyPath features at a glance</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — Fine-tune dual-role key behavior</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://colemak.com/">Colemak</a></strong> — Official Colemak site with learning resources</li>
+<li><strong><a href="https://colemakmods.github.io/mod-dh/">Colemak-DH</a></strong> — The DH modification explained</li>
+<li><strong><a href="https://workmanlayout.org/">Workman Layout</a></strong> — Workman's design philosophy</li>
+<li><strong><a href="https://github.com/joa/graphite">Graphite</a></strong> — Graphite layout source and analysis</li>
+<li><strong><a href="https://www.keybr.com/">KeyBr</a></strong> — Free typing tutor that supports alternative layouts</li>
+<li><strong><a href="https://monkeytype.com/">MonkeyType</a></strong> — Typing practice and speed testing</li>
+<li><strong><a href="https://www.youtube.com/watch?v=3zgJLUHQYjY&amp;list=PLCZYyvXAdQpsVKWXVE-7u2w07XXp9NoWI">Ben Vallack's layout journey</a></strong> — One person's transition through multiple layouts</li>
+</ul>
+</body></html>

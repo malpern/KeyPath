@@ -1,0 +1,215 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Running Scripts</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-script-execution.png" alt="Guide illustration" /></p>
+<h1 id="running-scripts">Running Scripts</h1>
+<p>KeyPath can run scripts when you press a key — shell scripts, AppleScript, Python, Ruby, Perl, or Lua. This lets you trigger custom automation from your keyboard: deploy a project, toggle system settings, control apps that don't have keyboard shortcuts, or anything else a script can do.</p>
+<p>Script execution is powerful, so it's off by default and guarded by a confirmation system. This guide covers how to enable it, how to use it, and how the security model works.</p>
+<hr />
+<h2 id="enabling-script-execution">Enabling script execution</h2>
+<p>Scripts are disabled by default. To turn them on:</p>
+<ol type="1">
+<li>Open <strong>KeyPath Settings</strong></li>
+<li>Go to the <strong>Script Execution</strong> section</li>
+<li>Toggle <strong>Enable Script Execution</strong></li>
+<li>Confirm in the security dialog</li>
+</ol>
+<p>The confirmation dialog explains what scripts can do — run commands, access files, and make network requests. This is a one-time decision; you can disable it again at any time.</p>
+<hr />
+<h2 id="running-your-first-script">Running your first script</h2>
+<p>Create a simple script:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/scripts/hello.sh</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">osascript</span> <span class="at">-e</span> <span class="st">&#39;display notification &quot;Hello from KeyPath!&quot; with title &quot;Script&quot;&#39;</span></span></code></pre></div>
+<p>Make it executable:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> +x ~/scripts/hello.sh</span></code></pre></div>
+<p>Now trigger it from KeyPath using an action URI in your Kanata config:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(push-msg <span class="st">&quot;script:~/scripts/hello.sh&quot;</span>)</span></code></pre></div>
+<p>Or test it from Terminal:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://script/~/scripts/hello.sh&quot;</span></span></code></pre></div>
+<p>The first time a script runs, KeyPath shows a confirmation dialog with the script path. You can check "Don't show again" to skip the dialog for future scripts.</p>
+<hr />
+<h2 id="supported-script-types">Supported script types</h2>
+<p>KeyPath detects the script type by file extension and runs it with the appropriate interpreter:</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>Interpreter</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.sh</code></td>
+<td><code>/bin/bash</code></td>
+<td>Standard shell scripts</td>
+</tr>
+<tr>
+<td><code>.bash</code></td>
+<td><code>/bin/bash</code></td>
+<td>Explicit Bash scripts</td>
+</tr>
+<tr>
+<td><code>.zsh</code></td>
+<td><code>/bin/zsh</code></td>
+<td>Zsh scripts (macOS default shell)</td>
+</tr>
+<tr>
+<td><code>.py</code></td>
+<td><code>/usr/bin/python3</code></td>
+<td>Python 3 (probes common paths)</td>
+</tr>
+<tr>
+<td><code>.rb</code></td>
+<td><code>/usr/bin/ruby</code></td>
+<td>Ruby (ships with macOS)</td>
+</tr>
+<tr>
+<td><code>.pl</code></td>
+<td><code>/usr/bin/perl</code></td>
+<td>Perl (ships with macOS)</td>
+</tr>
+<tr>
+<td><code>.lua</code></td>
+<td><code>/usr/local/bin/lua</code></td>
+<td>Lua (Homebrew or manual install)</td>
+</tr>
+<tr>
+<td><code>.scpt</code></td>
+<td>Compiled AppleScript</td>
+<td>Pre-compiled AppleScript bundles</td>
+</tr>
+<tr>
+<td><code>.applescript</code></td>
+<td>Text AppleScript</td>
+<td>Plain-text AppleScript source</td>
+</tr>
+</tbody>
+</table>
+<p>Scripts without a recognized extension are executed directly (must be executable).</p>
+<hr />
+<h2 id="applescript-integration">AppleScript integration</h2>
+<p>AppleScript is particularly useful because it can control other Mac apps:</p>
+<pre class="applescript"><code>-- ~/scripts/toggle-dark-mode.applescript
+tell application &quot;System Events&quot;
+    tell appearance preferences
+        set dark mode to not dark mode
+    end tell
+end tell</code></pre>
+<div class="sourceCode" id="cb6"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">;; In your Kanata config:</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>(push-msg <span class="st">&quot;script:~/scripts/toggle-dark-mode.applescript&quot;</span>)</span></code></pre></div>
+<p>More examples:</p>
+<pre class="applescript"><code>-- Open a specific URL in Safari
+tell application &quot;Safari&quot; to open location &quot;https://github.com&quot;
+
+-- Resize the frontmost window
+tell application &quot;System Events&quot;
+    tell process (name of first application process whose frontmost is true)
+        set size of window 1 to {1200, 800}
+    end tell
+end tell
+
+-- Toggle Do Not Disturb (macOS 12+)
+do shell script &quot;shortcuts run &#39;Toggle Focus&#39;&quot;</code></pre>
+<hr />
+<h2 id="practical-examples">Practical examples</h2>
+<h3 id="deploy-a-project">Deploy a project</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/scripts/deploy.sh</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~/Projects/myapp</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin main</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">osascript</span> <span class="at">-e</span> <span class="st">&#39;display notification &quot;Deployed!&quot; with title &quot;Deploy&quot;&#39;</span></span></code></pre></div>
+<h3 id="toggle-bluetooth">Toggle Bluetooth</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/scripts/toggle-bluetooth.sh</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="ex">blueutil</span> <span class="at">--power</span> <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-q</span> <span class="st">&quot;1&quot;</span><span class="kw">;</span> <span class="cf">then</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="ex">blueutil</span> <span class="at">--power</span> 0</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="ex">osascript</span> <span class="at">-e</span> <span class="st">&#39;display notification &quot;Bluetooth off&quot; with title &quot;Bluetooth&quot;&#39;</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="ex">blueutil</span> <span class="at">--power</span> 1</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="ex">osascript</span> <span class="at">-e</span> <span class="st">&#39;display notification &quot;Bluetooth on&quot; with title &quot;Bluetooth&quot;&#39;</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="cf">fi</span></span></code></pre></div>
+<h3 id="open-a-project-in-your-editor">Open a project in your editor</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/scripts/open-project.sh</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="at">-a</span> <span class="st">&quot;Visual Studio Code&quot;</span> ~/Projects/myapp</span></code></pre></div>
+<h3 id="quick-note-to-clipboard">Quick note to clipboard</h3>
+<div class="sourceCode" id="cb11"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/usr/bin/env python3</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ~/scripts/timestamp-clip.py</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> subprocess, datetime</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> datetime.datetime.now().strftime(<span class="st">&quot;%Y-%m-</span><span class="sc">%d</span><span class="st"> %H:%M&quot;</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>subprocess.run([<span class="st">&quot;pbcopy&quot;</span>], <span class="bu">input</span><span class="op">=</span>ts.encode())</span></code></pre></div>
+<hr />
+<h2 id="the-uri-format">The URI format</h2>
+<p>Two equivalent ways to reference a script:</p>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>Syntax</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Kanata config</td>
+<td>Shorthand</td>
+<td><code>script:~/scripts/hello.sh</code></td>
+</tr>
+<tr>
+<td>Deep link</td>
+<td>Full URI</td>
+<td><code>keypath://script/~/scripts/hello.sh</code></td>
+</tr>
+</tbody>
+</table>
+<p>Tilde (<code>~</code>) is expanded to your home directory. Paths with spaces work when URL-encoded in the full URI format.</p>
+<hr />
+<h2 id="security-model">Security model</h2>
+<p>Script execution has three layers of protection:</p>
+<h3 id="1-global-toggle">1. Global toggle</h3>
+<p>Script execution is off by default. Nothing runs until you explicitly enable it in Settings. You can disable it at any time to block all script execution instantly.</p>
+<h3 id="2-first-run-confirmation">2. First-run confirmation</h3>
+<p>The first time any script runs, KeyPath shows a confirmation dialog:</p>
+<pre><code>  ┌─────────────────────────────────────────────────┐
+  │  ⚠️  Script Execution                           │
+  │                                                  │
+  │  ~/scripts/hello.sh                              │
+  │                                                  │
+  │  This script can:                                │
+  │  • Execute system commands                       │
+  │  • Read and write files                          │
+  │  • Access the network                            │
+  │  • Control other applications                    │
+  │                                                  │
+  │  ☐ Don&#39;t show this warning again                 │
+  │                                                  │
+  │          [ Cancel ]  [ Run Script ]              │
+  └─────────────────────────────────────────────────┘</code></pre>
+<p>Check "Don't show again" only if you trust all scripts you'll run. This bypasses the dialog for future scripts.</p>
+<h3 id="3-execution-log">3. Execution log</h3>
+<p>KeyPath logs every script execution — path, timestamp, success/failure, and any errors. View the log in <strong>Settings &gt; Script Execution &gt; View Execution Log</strong>.</p>
+<h3 id="what-scripts-cant-do">What scripts can't do</h3>
+<ul>
+<li>Scripts run with your user permissions — they can't do anything you couldn't do in Terminal</li>
+<li>Scripts have a 60-second timeout — long-running processes are killed</li>
+<li>Scripts don't have access to KeyPath's internal state beyond what the action URI system provides</li>
+</ul>
+<hr />
+<h2 id="using-scripts-with-keyboard-shortcuts">Using scripts with keyboard shortcuts</h2>
+<p>The most common pattern: bind a script to a key on a navigation layer or through the Quick Launcher.</p>
+<h3 id="on-a-navigation-layer">On a navigation layer</h3>
+<div class="sourceCode" id="cb13"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">;; In your Kanata config, on the nav layer:</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>(push-msg <span class="st">&quot;script:~/scripts/deploy.sh&quot;</span>)</span></code></pre></div>
+<h3 id="through-the-cli">Through the CLI</h3>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Trigger a script directly</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://script/~/scripts/hello.sh&quot;</span></span></code></pre></div>
+<h3 id="through-shortcuts-or-siri">Through Shortcuts or Siri</h3>
+<p>Use the "Send KeyPath Action" Shortcut with the URI <code>keypath://script/~/scripts/hello.sh</code>.</p>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://action-uri-reference">Action URI Reference</a></strong> — Full reference for all <code>keypath://</code> action types</li>
+<li><strong><a href="help://cli">Command Line</a></strong> — CLI reference</li>
+<li><strong><a href="help://siri-and-shortcuts">Siri &amp; Shortcuts</a></strong> — Trigger scripts via Shortcuts</li>
+<li><strong><a href="help://packs">Packs &amp; Layers</a></strong> — Set up layers to bind scripts to keys</li>
+</ul>
+</body></html>

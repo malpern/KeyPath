@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Type Memorable Shortcut Paths</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-leader-key.png" alt="Guide illustration" /></p>
+<h1 id="type-memorable-shortcut-paths">Type Memorable Shortcut Paths</h1>
+<p>Shortcut combinations are easy to exhaust and hard to remember. Sequences let you type a short path instead: <code>Leader → W → L</code> for window left, or <code>Leader → S → M</code> for Messages. Each key narrows the path until the action is unambiguous.</p>
+<hr />
+<h2 id="create-a-sequence">Create a Sequence</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon.</li>
+<li>Go to the <strong>Rules</strong> tab.</li>
+<li>Find <strong>Sequences</strong> and turn it on.</li>
+<li>Click <strong>Customize…</strong>.</li>
+<li>Add a sequence, choose its keys in order, and select the layer it activates.</li>
+<li>Click <strong>Save</strong>.</li>
+</ol>
+<p>Screenshot — the timing control in the Sequences editor:</p>
+<pre><code>┌─ Sequences ────────────────────────────────────────────┐
+│ Key Sequence     Leader  →  W  →  L                   │
+│ Action           Activate Window                      │
+│                                                        │
+│ Sequence pause limit                    500 ms          │
+│ ├──────────────●──────────────────────────────┤         │
+│ The timer restarts after each matching key.            │
+└────────────────────────────────────────────────────────┘</code></pre>
+<hr />
+<h2 id="tune-the-pause-between-keys">Tune the Pause Between Keys</h2>
+<p><strong>Sequence pause limit</strong> is the longest pause allowed after the most recent matching key. The timer restarts every time you enter the next correct key.</p>
+<pre><code>Leader pressed
+    │
+    ├── W pressed after 300 ms  → timer restarts
+    │
+    ├── L pressed after 400 ms  → sequence completes
+    │
+    └── pause longer than the limit → incomplete sequence clears</code></pre>
+<p>A larger value gives you more time between keys, which is helpful while learning. It also leaves an incomplete sequence pending longer. A smaller value clears mistakes sooner but requires a tighter rhythm.</p>
+<p>Start with <strong>500 ms</strong>. Increase it if sequences clear before you finish; reduce it if an incomplete sequence feels slow to get out of the way. KeyPath supports values from <strong>300 to 2000 ms</strong>.</p>
+<hr />
+<h2 id="what-happens-when-a-sequence-fails">What Happens When a Sequence Fails?</h2>
+<p>KeyPath clears the pending path when you pause longer than the Sequence pause limit or press a key that cannot complete any configured sequence. Start the path again from your Leader key.</p>
+<p>If two sequences overlap—such as <code>Leader → W</code> and <code>Leader → W → L</code>—the editor warns you because the shorter path can make the longer one ambiguous.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li>Use two or three keys after Leader; short paths become muscle memory quickly.</li>
+<li>Choose mnemonic letters, such as <code>W → L</code> for “window left.”</li>
+<li>Keep related actions under the same first key.</li>
+<li>Raise the pause limit temporarily while learning, then tighten it later.</li>
+</ul>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://leader-key">Choose Your Leader Key</a></strong> — Pick the key that starts your shortcut paths</li>
+<li><strong><a href="help://chords">Press Two Keys at Once</a></strong> — Use simultaneous keys instead of an ordered path</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See sequences in a complete keyboard workflow</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc#sequences">Kanata sequence documentation</a></strong> — Engine-level details for advanced configurations ↗</li>
+</ul>
+</body></html>
