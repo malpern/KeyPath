@@ -268,3 +268,40 @@ Other findings:
 
 These follow-up source fixes are newer than the installed wake5-final DMG and
 require a new candidate before claiming that installation includes them.
+
+### Final reviewed candidate installed on Air — 2026-10-17 19:44 Pacific
+
+Source commit `27fd77d96` includes the startup/session recovery fixes, retained
+termination exclusion, non-pumping HID joins, cleanup supervision, and release
+key-event logging cleanup. The experimental branch and its history are preserved.
+
+Validation:
+- Full suite after lifecycle fixes: 5,562 reported passing, zero failures.
+- Subsequent log-only changes: 28 diagnostic/recovery tests and 94 listener/UI/
+  keypress tests passed. No remapping behavior changed in those logging edits.
+- Seven termination-lock tests include actual subprocess flock contention;
+  three background-join tests cover off-main execution and main-loop exclusion.
+- Canonical signed Apple Silicon build and packaged identity checks passed.
+- App notarization accepted: `dc9a0e87-0b36-47d0-a062-3130ab5216d8`.
+- DMG notarization accepted: `cc832d04-7d98-40b2-9710-7f25ed2ab5d7`.
+- App and DMG stapled; installed Gatekeeper/resource/Metal/rpath/CLI checks pass.
+- Air final installer: `~/Downloads/KeyPath-20261017-wake8-final.dmg`.
+- Stapled DMG SHA-256: `fd7e2cc23262bd306af67b6190e2c6b92153e23008f6019f699e6384c30fc2c2`.
+- Installed executable matches the packaged executable:
+  `0307ddfb4ecd43fff84483eaa7657f97582c38354375a2ef990de08b2dc3e271`.
+- Owned parent/worker, active modifying tap, TCP response, and managed Caps
+  generation verified. Graceful signal shutdown left no owned processes;
+  relaunch passed the installed-app verifier again. User settings preserved.
+
+Evidence: `~/keypath-review-evidence/20261017-sleep-wake/wake8-final/`.
+The detailed key-event stream is now opt-in in release builds; conditional
+key/action diagnostics are debug-level. No new key-detail lines appeared in the
+post-install sample, but inputCount was zero, so that sample alone is not a
+physical-input test. Earlier diagnostic logs were not deleted.
+
+Remaining manual sign-off: a real sleep/wake cycle with Caps Lock immediately
+and 30 seconds after unlock, and ordinary menu Quit/reopen. The scripted Apple
+Event Quit request timed out without an observed application quit; the verified
+signal shutdown must not be presented as a menu Quit test. Continuous one-minute
+sleep remains unproven; prior genuine shorter sleep/dark-wake coverage is recorded
+above. This private candidate has not been merged or publicly released.
