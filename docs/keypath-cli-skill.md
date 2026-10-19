@@ -43,7 +43,21 @@ keypath restart --json --timeout 60
 open keypath://runtime/restart      # same operation from Shortcuts/Raycast/Hammerspoon (no result)
 ```
 
-Install, repair and uninstall remain app-only (they need permission prompts).
+### Setup, health and uninstall
+
+```bash
+keypath doctor --json               # {ready, issues:[{title, category, fix, needsUser, settingsURL}], state, ...}
+keypath setup --json --no-open      # repair + start; report what needs the user without opening Settings
+keypath setup --wait 300            # opens each needed Settings pane once and polls until granted
+keypath uninstall --json            # plan only, exit 2, nothing changed
+keypath uninstall --yes [--reset-permissions]
+```
+
+Exit codes for doctor/setup: `0` ready, `7` a permission needs the user (only a
+person can grant TCC; tell Micah which switch, do not retry in a loop), `1` other,
+`6` app unreachable (`doctor` does not launch it, `setup` does). Never run
+`uninstall --yes` without the user's explicit go-ahead: it removes their KeyPath
+data (after backing it up to ~/Downloads) and moves the app to the Trash.
 
 ### Configuration Reload & Logs
 

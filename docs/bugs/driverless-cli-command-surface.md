@@ -3,8 +3,9 @@
 > **Update 2026-10-19:** `status`, `start`, `stop` and `restart` are back, in a new
 > form. The CLI no longer controls a daemon; it asks the running app over the
 > same-user `RuntimeControl` socket, and the app performs the operation through
-> `RuntimeCoordinator`. See `docs/architecture/cli-runtime-control.md`. Install,
-> repair and uninstall remain unregistered.
+> `RuntimeCoordinator`. `doctor`, `setup` (alias `repair`) and `uninstall` followed
+> the same way, as root commands. See `docs/architecture/cli-runtime-control.md`.
+> The old `system install|repair|uninstall` registrations stay removed.
 
 The driverless package omits the helper and LaunchDaemon, but its CLI registered
 legacy service start/stop/restart/status commands and their root shortcuts.

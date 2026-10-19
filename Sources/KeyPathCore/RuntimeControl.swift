@@ -11,15 +11,42 @@ import Foundation
 public enum RuntimeControl {
     public enum Operation: String, Codable, Sendable, CaseIterable {
         case status, start, stop, restart
+        /// Full health check from inside the app: permissions, runtime, config.
+        case doctor
+        /// The app's own repair, then start remapping if nothing needs the user.
+        case repair
+        /// The app's own uninstall (backup, restore the keyboard, remove data,
+        /// move the app to the Trash). Refused unless `confirmed` is true.
+        case uninstall
     }
 
     public struct Request: Codable, Sendable, Equatable {
         public let operation: Operation
         public let reason: String?
+        public let confirmed: Bool?
 
-        public init(operation: Operation, reason: String? = nil) {
+        public init(operation: Operation, reason: String? = nil, confirmed: Bool? = nil) {
             self.operation = operation
             self.reason = reason
+            self.confirmed = confirmed
+        }
+    }
+
+    /// One problem the app found, with the fix. `needsUser` marks the ones only
+    /// a person can do (macOS permission switches); `settingsURL` opens the pane.
+    public struct Issue: Codable, Sendable, Equatable {
+        public let title: String
+        public let category: String
+        public let fix: String
+        public let needsUser: Bool
+        public let settingsURL: String?
+
+        public init(title: String, category: String, fix: String, needsUser: Bool, settingsURL: String?) {
+            self.title = title
+            self.category = category
+            self.fix = fix
+            self.needsUser = needsUser
+            self.settingsURL = settingsURL
         }
     }
 
@@ -41,10 +68,19 @@ public enum RuntimeControl {
         public let layer: String?
         public let appPID: Int32
         public let appVersion: String
+        /// doctor/repair: whether the whole system is ready, and what is not.
+        public var ready: Bool?
+        public var issues: [Issue]?
+        /// repair/uninstall: what happened, e.g. where the uninstall backup went.
+        public var message: String?
 
         public init(ok: Bool, operation: Operation, state: State, workerPID: Int?, failure: String?,
-                    lastError: String?, layer: String?, appPID: Int32, appVersion: String)
+                    lastError: String?, layer: String?, appPID: Int32, appVersion: String,
+                    ready: Bool? = nil, issues: [Issue]? = nil, message: String? = nil)
         {
+            self.ready = ready
+            self.issues = issues
+            self.message = message
             self.ok = ok
             self.operation = operation
             self.state = state

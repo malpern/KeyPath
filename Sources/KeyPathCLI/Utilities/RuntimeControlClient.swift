@@ -12,8 +12,42 @@ enum RuntimeControlClient {
     /// 6 KeyPath.app is not running or did not answer.
     static let notRunningExit = ExitCode.failure
 
-    static func send(_ operation: RuntimeControl.Operation, timeout: Int) throws -> RuntimeControl.Response {
-        try RuntimeControl.send(.init(operation: operation), timeout: TimeInterval(timeout))
+    static func send(_ operation: RuntimeControl.Operation, timeout: Int, confirmed: Bool? = nil) throws -> RuntimeControl.Response {
+        try RuntimeControl.send(.init(operation: operation, confirmed: confirmed), timeout: TimeInterval(timeout))
+    }
+
+    /// Ask, launching the app first when it is not running.
+    static func sendLaunching(_ operation: RuntimeControl.Operation, timeout: Int, ctx: OutputContext,
+                              confirmed: Bool? = nil) throws -> RuntimeControl.Response
+    {
+        do {
+            return try send(operation, timeout: timeout, confirmed: confirmed)
+        } catch RuntimeControl.ClientError.appNotRunning {
+            CLIOutput.progress("Launching KeyPath.app...", context: ctx)
+            try launchApp(timeout: max(timeout, 30))
+            return try send(operation, timeout: timeout, confirmed: confirmed)
+        }
+    }
+
+    static func humanIssues(_ response: RuntimeControl.Response, noColor: Bool) -> String {
+        guard let issues = response.issues, !issues.isEmpty else {
+            return response.ready == true ? ANSIColor.green("✓ Everything is ready.", noColor: noColor) : ""
+        }
+        var lines: [String] = []
+        for issue in issues {
+            let mark = issue.needsUser ? ANSIColor.yellow("!", noColor: noColor) : ANSIColor.red("✗", noColor: noColor)
+            lines.append("\(mark) \(issue.title)")
+            lines.append("    Fix: \(issue.fix)")
+            if let url = issue.settingsURL { lines.append("    Open: \(url)") }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// 0 ready, 7 a person must grant a permission, 1 anything else.
+    static func readinessExit(_ response: RuntimeControl.Response) -> ExitCode? {
+        if response.ready == true { return nil }
+        if response.issues?.contains(where: \.needsUser) == true { return CLIExitCode.permissionBlocked.exitCode }
+        return .failure
     }
 
     /// The app that contains this CLI, else the installed one.
@@ -132,7 +166,7 @@ enum RuntimeControlClient {
             case .start: succeeded ? "Remapping started." : "Remapping did not start."
             case .stop: succeeded ? "Remapping stopped." : "Remapping did not stop."
             case .restart: succeeded ? "Remapping restarted." : "Remapping did not restart."
-            case .status: ""
+            default: ""
             }
             return verb + "\n" + humanStatus(response, noColor: ctx.noColor)
         }

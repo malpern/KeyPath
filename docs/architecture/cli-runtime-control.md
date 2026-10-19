@@ -41,9 +41,23 @@ The legacy daemon commands these replace were unregistered for that reason
 the socket; `stop` succeeds when the app is not running. `keypath://runtime/{start,stop,restart}`
 runs the same handler with no result, for Shortcuts, Raycast and Hammerspoon.
 
-## Not covered
+## Doctor, setup and uninstall
 
-Install, repair and uninstall stay app-only: they need permission prompts and
-installer postconditions the CLI cannot answer. `Scripts/verify-installed-app.sh`
-remains the release-grade check because it verifies process ownership and the
-TCP listener independently of the app's own report.
+- `doctor` runs `InstallerEngine().inspectSystem()` inside the app and maps
+  `SystemFacade.issues(from:)` to `RuntimeControl.Issue`, so the CLI sees the same
+  issues as `system inspect` but from the process that holds the permissions.
+  `ready` = `SystemFacade.isOperational` and the runtime is running.
+- `repair` runs the About window's repair (`InstallerEngine().run(intent: .repair,
+  using: PrivilegeBroker())`), starts the runtime if it is not running, then answers
+  with a doctor report. `keypath setup` (alias `repair`) loops: for each issue with
+  `needsUser`, open its `settingsURL` once, poll `doctor` every 2 s, and repair again
+  once nothing needs the user, until ready or `--wait` passes (exit 7).
+- `uninstall` requires `confirmed: true` in the request (the CLI sends it only with
+  `--yes`) and calls `WizardDependencies.createUninstallCoordinator`, the same
+  `SessionUninstallCoordinator` the Settings button uses. On success the app answers,
+  then quits 1.5 s later. `--reset-permissions` runs `tccutil reset` for Accessibility,
+  ListenEvent and PostEvent on `com.keypath.KeyPath` from the CLI afterwards.
+- There is no separate install: the CLI ships inside the app, so first run is `setup`.
+
+`Scripts/verify-installed-app.sh` remains the release-grade check because it verifies
+process ownership and the TCP listener independently of the app's own report.

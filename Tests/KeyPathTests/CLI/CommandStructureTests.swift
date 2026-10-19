@@ -78,6 +78,30 @@ final class CommandStructureTests: XCTestCase {
         }
     }
 
+    func testLifecycleCommandsParse() throws {
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["doctor", "--json"]) is Doctor)
+        let setup = try XCTUnwrap(KeyPathCLI.parseAsRoot(["setup", "--wait", "60", "--no-open"]) as? Setup)
+        XCTAssertEqual(setup.wait, 60)
+        XCTAssertTrue(setup.noOpen)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["repair"]) is Setup, "repair is an alias for setup")
+        let uninstall = try XCTUnwrap(KeyPathCLI.parseAsRoot(["uninstall", "--yes", "--reset-permissions"]) as? Uninstall)
+        XCTAssertTrue(uninstall.yes)
+        XCTAssertTrue(uninstall.resetPermissions)
+    }
+
+    /// Without --yes nothing is sent to the app: the plan prints and the exit is 2.
+    func testUninstallWithoutYesChangesNothing() async throws {
+        for arguments in [["uninstall"], ["uninstall", "--json"], ["uninstall", "--yes", "--dry-run"]] {
+            var command = try XCTUnwrap(KeyPathCLI.parseAsRoot(arguments) as? Uninstall)
+            do {
+                try await command.run()
+                XCTFail("\(arguments) must refuse")
+            } catch let exit as ExitCode {
+                XCTAssertEqual(exit.rawValue, 2, arguments.joined(separator: " "))
+            }
+        }
+    }
+
     func testSupportedConfigSimulatorAndDiagnosticsRemainRegistered() throws {
         XCTAssertTrue(try KeyPathCLI.parseAsRoot(["config", "check", "--json"]) is ConfigCheck)
         XCTAssertTrue(try KeyPathCLI.parseAsRoot(["simulate", "a", "--dry-run"]) is Simulate)

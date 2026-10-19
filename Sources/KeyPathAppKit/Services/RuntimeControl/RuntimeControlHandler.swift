@@ -1,5 +1,8 @@
+import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathInstallationWizard
+import KeyPathWizardCore
 
 /// Answers `RuntimeControl` requests from the app's own view of the runtime.
 /// Lifecycle changes go through `RuntimeCoordinator`, which serializes them with
@@ -17,14 +20,76 @@ enum RuntimeControlHandler {
 
     static func handle(_ request: RuntimeControl.Request, manager: RuntimeCoordinator) async -> RuntimeControl.Response {
         let reason = request.reason.map { "CLI: \($0)" } ?? "CLI \(request.operation.rawValue)"
-        let ok: Bool = switch request.operation {
-        case .status: true
-        case .start: await manager.startKanata(reason: reason)
-        case .stop: await manager.stopKanata(reason: reason)
-        case .restart: await manager.restartKanata(reason: reason)
+        switch request.operation {
+        case .status, .start, .stop, .restart:
+            let ok: Bool = switch request.operation {
+            case .start: await manager.startKanata(reason: reason)
+            case .stop: await manager.stopKanata(reason: reason)
+            case .restart: await manager.restartKanata(reason: reason)
+            default: true
+            }
+            let status = await manager.currentRuntimeStatusInternal()
+            return response(ok: ok, operation: request.operation, status: status, lastError: manager.lastError)
+        case .doctor:
+            return await doctor(operation: .doctor, ok: true, message: nil, manager: manager)
+        case .repair:
+            return await repair(manager: manager, reason: reason)
+        case .uninstall:
+            return await uninstall(confirmed: request.confirmed == true, manager: manager)
+        }
+    }
+
+    /// The same inspection `keypath system inspect` and the About window use, run
+    /// inside the app so it sees this process's permissions and its runtime.
+    static func doctor(operation: RuntimeControl.Operation, ok: Bool, message: String?,
+                       manager: RuntimeCoordinator) async -> RuntimeControl.Response
+    {
+        let context = await InstallerEngine().inspectSystem()
+        let issues = SystemFacade.issues(from: context).map { issue in
+            RuntimeControl.Issue(title: issue.title, category: issue.category, fix: issue.action,
+                                 needsUser: issue.requiresUserAction, settingsURL: issue.remediationURL)
         }
         let status = await manager.currentRuntimeStatusInternal()
-        return response(ok: ok, operation: request.operation, status: status, lastError: manager.lastError)
+        var result = response(ok: ok, operation: operation, status: status, lastError: manager.lastError)
+        result.ready = SystemFacade.isOperational(context) && status.isRunning
+        result.issues = issues
+        result.message = message
+        return result
+    }
+
+    /// The About window's Repair, then start remapping unless a person is needed.
+    static func repair(manager: RuntimeCoordinator, reason: String) async -> RuntimeControl.Response {
+        let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        if await !manager.currentRuntimeStatusInternal().isRunning {
+            _ = await manager.startKanata(reason: reason)
+        }
+        return await doctor(operation: .repair, ok: report.success, message: report.failureReason, manager: manager)
+    }
+
+    /// The app's own uninstall. On success the app quits shortly after answering.
+    static func uninstall(confirmed: Bool, manager: RuntimeCoordinator) async -> RuntimeControl.Response {
+        let status = await manager.currentRuntimeStatusInternal()
+        guard confirmed else {
+            var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
+            refused.message = "Uninstall needs confirmation; nothing was changed."
+            return refused
+        }
+        guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
+            var unavailable = response(ok: false, operation: .uninstall, status: status, lastError: nil)
+            unavailable.message = "Uninstall is unavailable in this build."
+            return unavailable
+        }
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        var answer = await response(ok: result.success, operation: .uninstall,
+                                    status: manager.currentRuntimeStatusInternal(), lastError: nil)
+        answer.message = result.success ? result.logs.first : result.failureReason
+        if result.success {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.5))
+                NSApp.terminate(nil)
+            }
+        }
+        return answer
     }
 
     static func response(ok: Bool, operation: RuntimeControl.Operation,
