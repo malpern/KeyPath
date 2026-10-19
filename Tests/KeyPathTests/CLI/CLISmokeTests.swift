@@ -139,8 +139,10 @@ final class CLISmokeTests: XCTestCase {
 
     // MARK: - Porcelain shortcuts
 
-    func testStatusShortcutIsUnavailable() {
-        XCTAssertThrowsError(try KeyPathCLI.parseAsRoot(["status"]))
+    func testStatusShortcutForwardsGlobals() throws {
+        let cmd = try KeyPathCLI.parseAsRoot(["status", "--json", "--timeout", "5"]) as! StatusShortcut
+        XCTAssertTrue(cmd.globals.json)
+        XCTAssertEqual(cmd.globals.timeout, 5)
     }
 
     func testRemapShortcutParses() throws {

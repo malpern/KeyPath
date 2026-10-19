@@ -5,7 +5,7 @@ import KeyPathAppKit
 struct RestartShortcut: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "restart",
-        abstract: "Restart the Kanata service (shortcut for 'service restart')",
+        abstract: "Restart remapping (shortcut for 'service restart')",
         shouldDisplay: false
     )
 

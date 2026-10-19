@@ -165,8 +165,12 @@ public struct HelpExamples: AsyncParsableCommand {
 
     private static let serviceExamples: [ExampleEntry] = [
         ExampleEntry(
-            description: "Open KeyPath to manage remapping and check the live session",
-            commands: ["open -a KeyPath"]
+            description: "Check whether remapping is running (exit 0 running, 1 not, 6 app not running)",
+            commands: ["keypath status --json"]
+        ),
+        ExampleEntry(
+            description: "Turn remapping off and back on",
+            commands: ["keypath stop", "keypath start"]
         ),
         ExampleEntry(
             description: "Reload configuration while KeyPath is remapping",

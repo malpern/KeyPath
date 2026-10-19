@@ -26,11 +26,26 @@ editing config files directly.
 
 ## Command Reference
 
-### Configuration Reload & Logs
+### Runtime: status, start, stop, restart
 
-Open KeyPath.app to manage remapping and inspect live session readiness.
-The driverless CLI does not expose service start/stop/restart/status or their
-root shortcuts; parsing those commands fails before any service operation.
+The running KeyPath app owns the driverless runtime; these commands ask it over a
+same-user socket (`~/Library/Application Support/KeyPath/control/runtime.sock`).
+Branch on the exit code, not the prose: `0` done/running, `1` not running or the
+operation failed (see `failure` / `lastError` in `--json`), `6` the app is not
+running or did not answer. `start` and `restart` launch the app if needed;
+`stop` succeeds when the app is not running. Each waits for the app to finish.
+
+```bash
+keypath status --json               # {state, workerPID, failure, lastError, layer, appPID, appVersion}
+keypath start --json                # also: keypath service start
+keypath stop --json
+keypath restart --json --timeout 60
+open keypath://runtime/restart      # same operation from Shortcuts/Raycast/Hammerspoon (no result)
+```
+
+Install, repair and uninstall remain app-only (they need permission prompts).
+
+### Configuration Reload & Logs
 
 ```bash
 keypath service reload              # Reload config without restart

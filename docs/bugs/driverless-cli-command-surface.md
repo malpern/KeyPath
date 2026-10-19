@@ -1,5 +1,11 @@
 # Driverless CLI command surface and fixed session endpoint
 
+> **Update 2026-10-19:** `status`, `start`, `stop` and `restart` are back, in a new
+> form. The CLI no longer controls a daemon; it asks the running app over the
+> same-user `RuntimeControl` socket, and the app performs the operation through
+> `RuntimeCoordinator`. See `docs/architecture/cli-runtime-control.md`. Install,
+> repair and uninstall remain unregistered.
+
 The driverless package omits the helper and LaunchDaemon, but its CLI registered
 legacy service start/stop/restart/status commands and their root shortcuts.
 Those registrations are removed; parsing rejects them before any façade or

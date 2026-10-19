@@ -834,3 +834,26 @@ struct ActionDispatcherOverlayTests {
         #expect(!called)
     }
 }
+
+@Suite("ActionDispatcher Runtime Actions", .serialized)
+struct ActionDispatcherRuntimeTests {
+    @Test("Routes runtime URIs to the runtime callback and rejects unknown ones")
+    @MainActor
+    func routesRuntimeCommands() throws {
+        var received: [RuntimeCommand] = []
+        ActionDispatcher.shared.onRuntimeAction = { received.append($0) }
+        defer { ActionDispatcher.shared.onRuntimeAction = nil }
+
+        for raw in ["keypath://runtime/start", "keypath://runtime/STOP", "keypath://runtime/restart"] {
+            let uri = try #require(KeyPathActionURI(string: raw))
+            #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+        }
+        #expect(received == [.start, .stop, .restart])
+
+        let unknown = try #require(KeyPathActionURI(string: "keypath://runtime/pause"))
+        #expect(ActionDispatcher.shared.dispatch(unknown) == .unknownAction("runtime/pause"))
+        let missing = try #require(KeyPathActionURI(string: "keypath://runtime"))
+        #expect(ActionDispatcher.shared.dispatch(missing) == .missingTarget("runtime"))
+        #expect(received.count == 3)
+    }
+}

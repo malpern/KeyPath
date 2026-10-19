@@ -20,6 +20,12 @@ public enum OverlayCommand: String, Sendable {
     case toggle, show, hide
 }
 
+/// `keypath://runtime/{start|stop|restart}`: the same lifecycle operations as
+/// `keypath start|stop|restart`, for Shortcuts, Raycast or Hammerspoon.
+public enum RuntimeCommand: String, Sendable {
+    case start, stop, restart
+}
+
 // MARK: - ActionDispatcher
 
 /// Dispatches `keypath://` action URIs to their handlers.
@@ -56,6 +62,9 @@ public final class ActionDispatcher {
 
     /// Called when an overlay action is received (toggle, show, hide).
     public var onOverlayAction: ((OverlayCommand) -> Void)?
+
+    /// Called for keypath://runtime/{start|stop|restart}
+    public var onRuntimeAction: ((RuntimeCommand) -> Void)?
 
     /// Called when a settings tab action is received.
     public var onSettingsAction: ((Notification.Name) -> Void)?
@@ -128,6 +137,8 @@ public final class ActionDispatcher {
             return handleScript(uri)
         case "overlay":
             return handleOverlay(uri)
+        case "runtime":
+            return handleRuntime(uri)
         default:
             let message = "Unknown action type: \(uri.action)"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
@@ -639,6 +650,20 @@ public final class ActionDispatcher {
             return .unknownAction("overlay/\(raw)")
         }
         onOverlayAction?(command)
+        return .success
+    }
+
+    private func handleRuntime(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard let raw = uri.target?.lowercased() else {
+            return .missingTarget("runtime")
+        }
+        guard let command = RuntimeCommand(rawValue: raw) else {
+            let message = "Unknown runtime action: \(raw). Use start, stop or restart."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .unknownAction("runtime/\(raw)")
+        }
+        onRuntimeAction?(command)
         return .success
     }
 
