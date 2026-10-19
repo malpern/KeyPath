@@ -404,7 +404,7 @@ final class AutoDetectKeyboardController {
             do {
                 try await bindingStore.saveBinding(binding)
             } catch {
-                AppLogger.shared.warn("🔌 [AutoDetect] Failed to save binding for \(keyboard.keyboardName): \(error.localizedDescription)")
+                AppLogger.shared.warnUnlessQuietTest("🔌 [AutoDetect] Failed to save binding for \(keyboard.keyboardName): \(error.localizedDescription)")
             }
         }
 

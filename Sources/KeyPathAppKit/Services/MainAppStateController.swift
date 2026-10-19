@@ -748,11 +748,11 @@ class MainAppStateController {
             )
             let signature = "\(adapted.state):\(blockingIssues.map(\.title).joined(separator: ","))"
             if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
-                AppLogger.shared.error(
+                AppLogger.shared.errorUnlessQuietTest(
                     "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)"
                 )
                 for issue in blockingIssues {
-                    AppLogger.shared.error(
+                    AppLogger.shared.errorUnlessQuietTest(
                         "❌ [MainAppStateController]   - \(issue.title): \(issue.description)"
                     )
                 }
@@ -802,7 +802,7 @@ class MainAppStateController {
         lastInstallerStateMatrixPlan = []
         lastValidationDate = Date()
         lastValidationTime = Date()
-        AppLogger.shared.error("Driverless configuration refused: \(reason)")
+        AppLogger.shared.errorUnlessQuietTest("Driverless configuration refused: \(reason)")
     }
 
     private func publishWakeRecoveryInProgress() {
