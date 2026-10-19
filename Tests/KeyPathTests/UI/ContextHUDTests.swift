@@ -817,7 +817,7 @@ final class ContextHUDPreferencesTests: XCTestCase {
     }
 
     func testDisplayModeAllCasesExist() {
-        XCTAssertEqual(ContextHUDDisplayMode.allCases.count, 3)
+        XCTAssertEqual(ContextHUDDisplayMode.allCases, [.overlayOnly, .hudOnly, .both, .none])
     }
 
     func testTriggerModeAllCasesExist() {

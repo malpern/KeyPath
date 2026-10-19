@@ -14,7 +14,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var window: NSWindow?
     let viewModel = KeyboardVisualizationViewModel()
     let uiState = LiveKeyboardOverlayUIState()
-    private var hasAutoHiddenForCurrentSettingsSession = false
+    private(set) var hasAutoHiddenForCurrentSettingsSession = false
     private var wasVisibleBeforeAutoHide = false
     var collapsedFrameBeforeInspector: NSRect?
     var lastWindowFrame: NSRect?
@@ -109,6 +109,11 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var wasVisibleBeforeAppSuppression: Bool = false
     var isAppSuppressed: Bool = false
     private var visibilityAnimationToken = UUID()
+
+    /// Shows the overlay on its own while a layer is active (see OverlayLayerRevealPolicy).
+    var layerReveal = OverlayLayerRevealPolicy(configuration: .disabled)
+    var layerRevealWorkItem: DispatchWorkItem?
+    var layerConcealWorkItem: DispatchWorkItem?
 
     override private init() {
         super.init()
@@ -297,6 +302,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var isVisible: Bool {
         get { window?.isVisible ?? false }
         set {
+            // Any explicit show or hide makes the overlay the user's again.
+            applyLayerRevealEffects(layerReveal.userTookControl())
             if newValue {
                 guard canShowOverlay(reason: "visibility setter") else { return }
                 showWindow()
@@ -492,7 +499,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     // MARK: - Window Management
 
-    private func showWindow() {
+    func showWindow(showingHints: Bool = true) {
         guard canShowOverlay(reason: "show window") else { return }
         visibilityAnimationToken = UUID()
 
@@ -542,7 +549,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         // Show hint bubble if user hasn't learned the shortcut yet
-        if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
+        if showingHints, FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
             showHintBubbleAfterHealthIndicator()
         }
 
@@ -552,7 +559,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         healthObserver?.refresh()
     }
 
-    private func hideWindow() {
+    func hideWindow() {
         let token = UUID()
         visibilityAnimationToken = token
         // Save frame BEFORE closing inspector (which modifies the frame)

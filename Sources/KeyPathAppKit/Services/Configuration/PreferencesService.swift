@@ -77,17 +77,19 @@ enum CommunicationProtocol: String, CaseIterable {
     }
 }
 
-/// Display mode for the Context HUD
+/// What appears while a layer is active: the keyboard overlay, the shortcut list, both, or nothing.
 enum ContextHUDDisplayMode: String, CaseIterable {
     case overlayOnly
     case hudOnly
     case both
+    case none
 
     var displayName: String {
         switch self {
         case .overlayOnly: "Overlay Only"
         case .hudOnly: "HUD Only"
         case .both: "Both"
+        case .none: "Nothing"
         }
     }
 }

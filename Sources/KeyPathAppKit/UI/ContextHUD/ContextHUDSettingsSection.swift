@@ -22,7 +22,11 @@ struct ContextHUDSettingsSection: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
 
-                            HStack(spacing: 10) {
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: SettingsDesign.compactOptionWidth), spacing: SettingsDesign.optionGap)],
+                                alignment: .leading,
+                                spacing: SettingsDesign.optionGap
+                            ) {
                                 displayModeCard(
                                     mode: .overlayOnly,
                                     icon: "keyboard",
@@ -40,6 +44,12 @@ struct ContextHUDSettingsSection: View {
                                     icon: "rectangle.on.rectangle",
                                     title: "Both",
                                     subtitle: "Overlay + List"
+                                )
+                                displayModeCard(
+                                    mode: .none,
+                                    icon: "eye.slash",
+                                    title: "Nothing",
+                                    subtitle: "Stay out of the way"
                                 )
                             }
                         }
@@ -186,7 +196,7 @@ struct ContextHUDSettingsSection: View {
         SettingsOptionCard(
             icon: icon, title: title, subtitle: subtitle,
             isSelected: displayMode == mode,
-            cardWidth: SettingsDesign.compactOptionWidth
+            cardWidth: nil
         ) {
             displayMode = mode
             services.preferences.contextHUDDisplayMode = mode

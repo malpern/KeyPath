@@ -8,7 +8,10 @@ title: General settings
 Open KeyPath → Settings → General.
 
 - **Startup:** enable **Launch at login** to make your mappings available after you sign in. If macOS asks for approval, use **Open Login Items**. Turning it off does not stop your current session.
-- **Shortcut List:** choose the keyboard overlay, compact list, or both, then choose Hold or Tap to show it.
+- **Shortcut List:** choose what appears while a layer is active: the keyboard overlay, the compact list, both, or nothing. Then choose Hold or Tap.
+  - With **Hold**, the overlay appears when you hold the layer key and pause for a moment. Quick moves like Space then J never bring it up, so it only shows when you're looking for a key. It hides as soon as you let go.
+  - With **Tap**, it appears as soon as you tap the layer on and hides when you tap it off.
+  - An overlay you opened yourself (⌥⌘K) stays open either way.
 - **Keyboard Appearance:** compare key-label previews, choose whether unmapped keys stay normal or dim, and turn layer notifications on or off.
 - **Recording:** choose sequences or combinations, and whether recording captures physical keys or includes your mappings.
 - **Keyboard Setup:** Caps Lock is set up automatically when your rules need it. Manual keyboard setup is available under its disclosure. You can also import Karabiner rules here.

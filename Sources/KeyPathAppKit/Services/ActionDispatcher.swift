@@ -15,6 +15,11 @@ public enum ActionDispatchResult: Sendable {
     case failed(String, Error)
 }
 
+/// What a key binding can ask the keyboard overlay to do.
+public enum OverlayCommand: String, Sendable {
+    case toggle, show, hide
+}
+
 // MARK: - ActionDispatcher
 
 /// Dispatches `keypath://` action URIs to their handlers.
@@ -31,6 +36,7 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://settings/{tab}` - Open Settings to a tab (status, rules, general, advanced, repair, logs)
 /// - `keypath://folder/{path}` - Open a folder in Finder
 /// - `keypath://script/{path}` - Execute a script (requires security approval)
+/// - `keypath://overlay/{toggle|show|hide}` - Show or hide the keyboard overlay (`overlay:toggle` from push-msg)
 @MainActor
 public final class ActionDispatcher {
     // MARK: - Singleton
@@ -47,6 +53,9 @@ public final class ActionDispatcher {
 
     /// Called when a rule-related action is received
     public var onRuleAction: ((String, [String]) -> Void)?
+
+    /// Called when an overlay action is received (toggle, show, hide).
+    public var onOverlayAction: ((OverlayCommand) -> Void)?
 
     /// Called when a settings tab action is received.
     public var onSettingsAction: ((Notification.Name) -> Void)?
@@ -117,6 +126,8 @@ public final class ActionDispatcher {
             return handleFolder(uri)
         case "script":
             return handleScript(uri)
+        case "overlay":
+            return handleOverlay(uri)
         default:
             let message = "Unknown action type: \(uri.action)"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
@@ -613,6 +624,22 @@ public final class ActionDispatcher {
                 NSLocalizedDescriptionKey: message
             ]))
         }
+    }
+
+    /// Show or hide the keyboard overlay from a key binding.
+    /// Format: keypath://overlay/toggle (or show, hide); push-msg shorthand `overlay:toggle`.
+    private func handleOverlay(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard let raw = uri.target?.lowercased() else {
+            return .missingTarget("overlay")
+        }
+        guard let command = OverlayCommand(rawValue: raw) else {
+            let message = "Unknown overlay action: \(raw). Use toggle, show or hide."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .unknownAction("overlay/\(raw)")
+        }
+        onOverlayAction?(command)
+        return .success
     }
 
     /// Open a folder in Finder

@@ -803,3 +803,34 @@ struct ActionPayloadRoundTripTests {
         #expect(KanataBehaviorRenderer.parseActionString(output) == .notify(title: title, body: body, sound: true))
     }
 }
+
+@Suite("ActionDispatcher Overlay Actions", .serialized)
+struct ActionDispatcherOverlayTests {
+    @Test("Routes overlay URIs and push-msg shorthand to the overlay callback")
+    @MainActor
+    func routesOverlayCommands() throws {
+        var received: [OverlayCommand] = []
+        ActionDispatcher.shared.onOverlayAction = { received.append($0) }
+        defer { ActionDispatcher.shared.onOverlayAction = nil }
+
+        for raw in ["keypath://overlay/toggle", "keypath://overlay/show", "overlay:hide", "keypath://overlay/TOGGLE"] {
+            let uri = try #require(KeyPathActionURI(string: raw))
+            #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+        }
+        #expect(received == [.toggle, .show, .hide, .toggle])
+    }
+
+    @Test("Rejects unknown or missing overlay commands without calling the overlay")
+    @MainActor
+    func rejectsUnknownOverlayCommands() throws {
+        var called = false
+        ActionDispatcher.shared.onOverlayAction = { _ in called = true }
+        defer { ActionDispatcher.shared.onOverlayAction = nil }
+
+        let unknown = try #require(KeyPathActionURI(string: "keypath://overlay/flip"))
+        #expect(ActionDispatcher.shared.dispatch(unknown) == .unknownAction("overlay/flip"))
+        let missing = try #require(KeyPathActionURI(string: "keypath://overlay"))
+        #expect(ActionDispatcher.shared.dispatch(missing) == .missingTarget("overlay"))
+        #expect(!called)
+    }
+}

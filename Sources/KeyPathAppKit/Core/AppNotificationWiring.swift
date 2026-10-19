@@ -146,6 +146,19 @@ enum AppNotificationWiring {
             UserNotificationService.shared.notifyActionError(message)
         }
 
+        // Wire overlay actions (keypath://overlay/..., push-msg "overlay:toggle") to the overlay
+        ActionDispatcher.shared.onOverlayAction = { command in
+            let overlay = LiveKeyboardOverlayController.shared
+            switch command {
+            case .toggle:
+                overlay.toggle()
+            case .show:
+                if !overlay.isVisible { overlay.toggle() }
+            case .hide:
+                if overlay.isVisible { overlay.hideExplicitly() }
+            }
+        }
+
         // Wire layer action to update the overlay and layer indicator
         ActionDispatcher.shared.onLayerAction = { layerName in
             Task { @MainActor in

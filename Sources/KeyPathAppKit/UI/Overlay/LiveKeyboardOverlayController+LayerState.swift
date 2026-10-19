@@ -67,6 +67,7 @@ extension LiveKeyboardOverlayController {
             Task { @MainActor in
                 guard let self else { return }
                 guard let key, action == "press" else { return }
+                self.applyLayerRevealEffects(self.layerReveal.keyPressed())
 
                 if let overrideLayer = self.oneShotOverride.clearOnKeyPress(
                     key,
@@ -90,6 +91,7 @@ extension LiveKeyboardOverlayController {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         handleLauncherLayerTransition(normalizedLayer: normalized)
+        noteLayerForReveal(normalized)
 
         switch source {
         case .push:

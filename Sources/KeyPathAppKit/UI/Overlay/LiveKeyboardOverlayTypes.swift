@@ -271,8 +271,6 @@ final class OneShotLayerOverrideState {
 // MARK: - Notification Integration
 
 extension Notification.Name {
-    /// Posted when the live keyboard overlay should be toggled
-    static let toggleLiveKeyboardOverlay = Notification.Name("KeyPath.ToggleLiveKeyboardOverlay")
     /// Posted when accessibility test mode preference changes (overlay must recreate its window)
     static let accessibilityTestModeChanged = Notification.Name("KeyPath.AccessibilityTestModeChanged")
     /// Posted when the Kanata layer changes (userInfo["layerName"] = String)
