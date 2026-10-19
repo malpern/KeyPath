@@ -108,7 +108,9 @@ public final class AppLogger {
         {
             logDirectory = homeOverride + "/Library/Logs/KeyPath"
         } else {
-            logDirectory = NSHomeDirectory() + "/Library/Logs/KeyPath"
+            // AppPaths redirects to the per-process test sandbox under test, so a
+            // plain `swift test` never writes into the developer's real debug log.
+            logDirectory = AppPaths.logsDirectory.path
         }
 
         dateFormatter = DateFormatter()
