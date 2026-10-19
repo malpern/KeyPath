@@ -30,7 +30,7 @@ enum VimCategory: String, CaseIterable, Identifiable {
 
     var commandInputs: [String] {
         switch self {
-        case .navigation: ["h", "j", "k", "l", "0", "4", "a", "g"]
+        case .navigation: ["h", "j", "k", "l", "w", "b", "e", "0", "4", "a", "g"]
         case .editing: ["x", "r", "d", "u", "o"]
         case .search: ["/", "n"]
         case .clipboard: ["y", "p"]

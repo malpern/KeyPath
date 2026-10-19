@@ -74,7 +74,11 @@ enum VimLayerReference {
         "r": Curated(title: "Redo"),
         "d": Curated(title: "Delete previous word", ctrlTitle: "Page down"),
         "u": Curated(title: "Undo", ctrlTitle: "Page up"),
-        "o": Curated(title: "New line below", shiftTitle: "New line above")
+        "o": Curated(title: "New line below", shiftTitle: "New line above"),
+        // Word motions (Neovim Terminal)
+        "w": Curated(title: "Next word"),
+        "b": Curated(title: "Previous word"),
+        "e": Curated(title: "End of word")
     ]
 
     private static let capTitles: [String: String] = [
@@ -82,7 +86,8 @@ enum VimLayerReference {
         "Bottom of document": "Bottom", "Delete character": "Delete", "Delete previous word": "Del ←",
         "New line below": "Open", "New line above": "Open ↑", "Next match": "Next",
         "Previous match": "Prev", "Append": "After", "Append at line end": "At end",
-        "Page down": "Pg ↓", "Page up": "Pg ↑"
+        "Page down": "Pg ↓", "Page up": "Pg ↑",
+        "Next word": "Word →", "Previous word": "← Word", "End of word": "Wd end"
     ]
 
     /// Short form for a keycap, where a full title like "Delete previous word" would truncate.

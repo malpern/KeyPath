@@ -45,7 +45,7 @@ final class VimLayerReferenceTests: XCTestCase {
 
     func testUnknownKeysFallBackToTheirDescriptionAndHaveNoCategory() {
         let entry = VimLayerReference.entry(for: KeyMapping(
-            input: "w", action: .keystroke(key: "A-right"), description: "w — word forward"
+            input: "q", action: .keystroke(key: "A-right"), description: "q — word forward"
         ))
         XCTAssertEqual(entry.title, "Word forward")
         XCTAssertEqual(entry.sends, "⌥→")

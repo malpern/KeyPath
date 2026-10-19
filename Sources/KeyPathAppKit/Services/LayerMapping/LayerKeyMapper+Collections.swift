@@ -59,31 +59,6 @@ extension LayerKeyMapper {
         ".": "Space ▶"
     ]
 
-    /// Neovim Terminal overlay labels — vim vocabulary with word motions.
-    /// (Used to be shared with the retired KindaVim rule collection.)
-    private static let neovimOverlayLabels: [String: String] = [
-        "h": "←",
-        "j": "↓",
-        "k": "↑",
-        "l": "→",
-        "0": "0",
-        "4": "$",
-        "a": "a",
-        "g": "gg",
-        "/": "find",
-        "n": "next",
-        "y": "yank",
-        "p": "put",
-        "x": "del",
-        "r": "redo",
-        "d": "d",
-        "u": "undo",
-        "o": "o",
-        "w": "w",
-        "b": "b",
-        "e": "e",
-    ]
-
     /// Build mapping from key names to short vim overlay labels for VIM collections
     /// - Parameters:
     ///   - layerName: The layer to build mapping for
@@ -122,8 +97,9 @@ extension LayerKeyMapper {
                 AppLogger.shared.info("🗺️ [VimLabel] Found Neovim Terminal collection for layer '\(layerName)', \(collection.mappings.count) mappings")
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
-                    if let vimLabel = Self.neovimOverlayLabels[mapping.input.lowercased()] {
-                        map[kanataKey] = vimLabel
+                    // Same names as Vim Navigation, plus the word motions.
+                    if let label = VimLayerReference.presentation(forInput: mapping.input)?.keycapLabel {
+                        map[kanataKey] = label
                     }
                 }
             }
