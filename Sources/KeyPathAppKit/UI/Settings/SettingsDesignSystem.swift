@@ -14,6 +14,14 @@ enum SettingsDesign {
     static let optionWidth: CGFloat = 240
     static let compactOptionWidth: CGFloat = 190
     static let optionGap: CGFloat = 10
+
+    /// Grouped panels: a faint tint relative to the window, lighter in dark mode.
+    static let groupFill = Color.primary.opacity(0.045)
+    static let groupStroke = Color.primary.opacity(0.08)
+    /// Pointer hover on rows and cards.
+    static let hoverFill = Color.primary.opacity(0.06)
+    /// Unselected key chips and small tokens inside a panel.
+    static let chipFill = Color.primary.opacity(0.09)
 }
 
 struct SettingsSectionHeader: View {
@@ -93,9 +101,9 @@ extension View {
     /// window (lighter in dark mode, slightly darker in light mode), as in System
     /// Settings, instead of the darker control background.
     func settingsGroupBackground() -> some View {
-        background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius))
+        background(SettingsDesign.groupFill, in: RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius))
             .overlay(RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+                .strokeBorder(SettingsDesign.groupStroke, lineWidth: 0.5))
     }
 
     func settingsBackground() -> some View {

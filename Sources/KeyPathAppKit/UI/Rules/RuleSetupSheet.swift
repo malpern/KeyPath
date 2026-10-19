@@ -162,7 +162,7 @@ struct RuleSetupSheet: View {
     private func keycap(_ label: String) -> some View {
         Text(label).font(.caption.monospaced().weight(.medium))
             .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: SettingsDesign.optionRadius))
+            .background(SettingsDesign.chipFill, in: RoundedRectangle(cornerRadius: SettingsDesign.optionRadius))
             .overlay(RoundedRectangle(cornerRadius: SettingsDesign.optionRadius).stroke(.secondary.opacity(0.3)))
     }
 }

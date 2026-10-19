@@ -292,7 +292,6 @@ struct RulesTabView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
 
             Divider()
 

@@ -119,7 +119,7 @@ struct AutoShiftCollectionView: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .fill(SettingsDesign.groupFill)
         )
     }
 
@@ -234,9 +234,9 @@ struct AutoShiftCollectionView: View {
         } else if isHovered {
             Color(NSColor.controlAccentColor).opacity(0.2)
         } else if isEnabled {
-            Color(NSColor.controlBackgroundColor)
+            SettingsDesign.chipFill
         } else {
-            Color(NSColor.controlBackgroundColor).opacity(0.3)
+            SettingsDesign.chipFill.opacity(0.4)
         }
     }
 
@@ -299,7 +299,7 @@ struct AutoShiftCollectionView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.35))
+                .fill(SettingsDesign.groupFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -358,7 +358,7 @@ struct AutoShiftCollectionView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.35))
+                .fill(SettingsDesign.groupFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)

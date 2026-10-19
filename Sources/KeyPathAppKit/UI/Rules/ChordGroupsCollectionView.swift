@@ -250,7 +250,7 @@ struct ChordGroupsCollectionView: View {
                 Spacer()
             }
             .padding(8)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(SettingsDesign.groupFill)
             .clipShape(.rect(cornerRadius: 8))
 
             // Chords list
@@ -382,7 +382,7 @@ struct InlineChordRowView: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(SettingsDesign.groupFill)
         .clipShape(.rect(cornerRadius: 6))
     }
 

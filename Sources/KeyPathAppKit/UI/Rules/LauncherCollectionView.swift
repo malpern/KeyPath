@@ -43,7 +43,7 @@ struct LauncherCollectionView: View {
                     .padding(.bottom, 12)
             }
             .frame(maxWidth: .infinity)
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+            .background(SettingsDesign.groupFill)
 
             Divider()
 

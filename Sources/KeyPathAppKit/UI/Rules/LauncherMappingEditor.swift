@@ -355,7 +355,7 @@ struct LauncherMappingEditor: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)

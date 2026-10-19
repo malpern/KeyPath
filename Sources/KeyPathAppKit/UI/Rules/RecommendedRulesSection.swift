@@ -65,7 +65,7 @@ struct RecommendedRulesSection: View {
             .frame(width: 200, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.4))
+                    .fill(SettingsDesign.groupFill)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
