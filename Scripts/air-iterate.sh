@@ -63,8 +63,10 @@ exe="$app/Contents/MacOS/KeyPath"
 codesign --verify --deep --strict "$stage"
 
 # One rolling backup of the app being replaced (rules/preferences are untouched).
-rm -rf "$HOME/.keypath-iterate/KeyPath-previous.app"
-ditto "$app" "$HOME/.keypath-iterate/KeyPath-previous.app"
+if [ -d "$app" ]; then
+    rm -rf "$HOME/.keypath-iterate/KeyPath-previous.app"
+    ditto "$app" "$HOME/.keypath-iterate/KeyPath-previous.app"
+fi
 
 pids=$(ps -axww -o pid=,args= | awk -v e="$exe" '{p=$1; $1=""; sub(/^ /,""); if ($0==e || index($0, e" ")==1) print p}')
 parent=$(ps -axww -o pid=,args= | awk -v e="$exe" '{p=$1; $1=""; sub(/^ /,""); if ($0==e) print p}')
@@ -77,16 +79,25 @@ done
 [ $alive = 0 ] || { echo "old KeyPath processes did not exit"; exit 1; }
 
 aside="/Applications/.KeyPath-old-$$.app"
-mv "$app" "$aside"
-if ! ditto "$stage" "$app"; then rm -rf "$app"; mv "$aside" "$app"; echo "copy failed, restored"; exit 1; fi
+[ -d "$app" ] && mv "$app" "$aside"
+if ! ditto "$stage" "$app"; then
+    rm -rf "$app"; [ -d "$aside" ] && mv "$aside" "$app"; echo "copy failed, restored"; exit 1
+fi
 rm -rf "$aside"
 open "$app"
 sleep 8
 cd "$HOME/.keypath-iterate"
+# Signature, bundle and CLI checks never depend on the screen: fail on them.
+if ! CHECK_RUNTIME=0 REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 bash ./verify-installed-app.sh >verify.log 2>&1; then
+    tail -5 verify.log
+    exit 1
+fi
 if ! REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 bash ./verify-installed-app.sh >verify.log 2>&1; then
-    # A locked screen holds Secure Input; KeyPath waits and starts after unlock.
-    if ioreg -l -w0 | grep -q '"kCGSSessionSecureInputPID"'; then
-        echo "Installed. Secure Input is active (screen locked or password field): remapping starts when it ends."
+    # Only the runtime check may wait: a locked screen holds Secure Input and
+    # KeyPath starts after unlock. Any other Secure Input holder is a failure.
+    locked=$(ioreg -n Root -d1 -a | plutil -extract IOConsoleUsers.0.CGSSessionScreenIsLocked raw - 2>/dev/null || true)
+    if [ "$locked" = "true" ] && ioreg -l -w0 | grep -q '"kCGSSessionSecureInputPID"'; then
+        echo "Installed and verified. The screen is locked: remapping starts after unlock."
         exit 0
     fi
     tail -5 verify.log
@@ -94,4 +105,5 @@ if ! REQUIRE_NOTARIZED=0 REQUIRE_STAPLED=0 bash ./verify-installed-app.sh >verif
 fi
 tail -2 verify.log
 REMOTE
-echo "Installed on $AIR_HOST at $(date '+%T'). Roll back: ditto ~/.keypath-iterate/KeyPath-previous.app over /Applications/KeyPath.app"
+echo "Installed on $AIR_HOST at $(date '+%T')."
+echo "Roll back (on the Air, KeyPath quit): mv /Applications/KeyPath.app /Applications/.KeyPath-bad.app && ditto ~/.keypath-iterate/KeyPath-previous.app /Applications/KeyPath.app && rm -rf /Applications/.KeyPath-bad.app"
