@@ -25,7 +25,10 @@ extension LayerKeyMapper {
 
             // Map regular keys from this collection's mappings
             if collection.targetLayer == targetLayer {
-                for mapping in collection.mappings {
+                // Preset-based rules (Home Row Arrows) keep their keys in the selected
+                // preset, not in `mappings`; without them the keys draw unowned and pale.
+                let presetMappings = collection.configuration.layerPresetPickerConfig?.selectedMappings ?? []
+                for mapping in collection.mappings + presetMappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     map[kanataKey] = collection.id
                 }
