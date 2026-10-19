@@ -53,10 +53,14 @@ runs the same handler with no result, for Shortcuts, Raycast and Hammerspoon.
   `needsUser`, open its `settingsURL` once, poll `doctor` every 2 s, and repair again
   once nothing needs the user, until ready or `--wait` passes (exit 7).
 - `uninstall` requires `confirmed: true` in the request (the CLI sends it only with
-  `--yes`) and calls `WizardDependencies.createUninstallCoordinator`, the same
-  `SessionUninstallCoordinator` the Settings button uses. On success the app answers,
-  then quits 1.5 s later. `--reset-permissions` runs `tccutil reset` for Accessibility,
-  ListenEvent and PostEvent on `com.keypath.KeyPath` from the CLI afterwards.
+  `--yes`) and calls `RuntimeCoordinator.uninstall(deleteConfig: true)`, the same entry
+  point as the Settings Uninstall dialog. It records that cleanup finished, without
+  which `applicationShouldTerminate` refuses to quit. The control socket is withdrawn
+  first (the backup cannot copy a socket) and restored if the uninstall fails. On
+  success the app answers, then quits a second later. `--reset-permissions` runs
+  `tccutil reset` for Accessibility, ListenEvent and PostEvent on `com.keypath.KeyPath`
+  from the CLI *before* the uninstall: tccutil resolves the bundle id, which fails once
+  the app is in the Trash.
 - There is no separate install: the CLI ships inside the app, so first run is `setup`.
 
 `Scripts/verify-installed-app.sh` remains the release-grade check because it verifies
