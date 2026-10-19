@@ -20,6 +20,12 @@ SSH=(ssh -o ControlPath=none -o BatchMode=yes -o ConnectTimeout=10 "$AIR_HOST")
 APP="$REPO/dist/KeyPath.app"
 cd "$REPO"
 
+# Keep the Air's display awake for an hour. If it reaches the lock screen,
+# loginwindow holds Secure Input and the engine stops seeing keys, which reads
+# as a broken build. Uses the dotfiles `agent-awake` when the Air has it.
+"${SSH[@]}" 'if [ -x ~/.local/bin/agent-awake ]; then ~/.local/bin/agent-awake local 60;
+    else nohup caffeinate -d -i -t 3600 >/dev/null 2>&1 & fi' || true
+
 # The pinned stable Xcode may be absent on this Mac; fall back deliberately.
 if [ -z "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ] && [ ! -d /Applications/Xcode-26.6.0.app ] \
     && [ -d /Applications/Xcode-27.app ]; then
