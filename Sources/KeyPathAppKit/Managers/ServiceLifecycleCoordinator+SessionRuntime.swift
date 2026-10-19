@@ -424,6 +424,14 @@ extension ServiceLifecycleCoordinator {
                                             retiredAt: terminalReport?.timestamp)
             return false
         }
+        if let terminalReport {
+            AppLogger.shared
+                .warnUnlessQuietTest(
+                    "[SessionRuntime] Session ended: state=\(terminalReport.state) failure=\(terminalReport.failure ?? "none") retirementReason=\(terminalReport.retirementReason ?? "none") at=\(terminalReport.timestamp)"
+                )
+        } else {
+            AppLogger.shared.warnUnlessQuietTest("[SessionRuntime] Session ended without a terminal report")
+        }
         let recovery = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
             ?? "Quit and reopen KeyPath to recover."
         onError?("Driverless remapping stopped. Original keyboard input remains available. \(recovery)")

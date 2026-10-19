@@ -135,6 +135,7 @@ public final class SessionRuntimeWorker {
 
     private func runLoop() -> Never {
         CFRunLoopRun()
+        AppLogger.shared.log("🛑 [SessionWorker] Run loop exited; retiring")
         finish(.stopped)
     }
 
@@ -283,6 +284,7 @@ public final class SessionRuntimeWorker {
                 CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
                     MainActor.assumeIsolated {
                         guard let self, !self.finished else { return }
+                        AppLogger.shared.log("🛑 [SessionWorker] Received signal \(number); retiring")
                         self.finish(.stopped)
                     }
                 }
@@ -693,6 +695,9 @@ public final class SessionRuntimeWorker {
         acknowledge: (() -> Void)? = nil
     ) -> Never {
         finished = true
+        // Every exit records why, so a stop with no failure is still explainable.
+        AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
+        AppLogger.shared.flushBuffer()
         capsInput.revoke()
         var terminalState = state
         var terminalReason = reason
