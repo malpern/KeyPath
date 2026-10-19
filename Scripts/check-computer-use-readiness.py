@@ -80,7 +80,6 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         '"settings-recording-behavior-picker"',
         '"settings-open-keypath-log-button"',
         '"settings-open-kanata-log-button"',
-        '"settings-import-karabiner-button"',
         '"settings-layer-indicator-toggle"',
         '"settings-verbose-logging-toggle"',
     ],
@@ -133,6 +132,7 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
     "Sources/KeyPathAppKit/UI/Rules/RulesSummaryView.swift": [
         "focusRuleCollection(from:",
         "collectionMatchesNavigationTarget",
+        '"rules-import-karabiner-button"',
     ],
     "Sources/KeyPathAppKit/UI/Rules/CustomRulesView+Subviews.swift": [
         '"custom-rules-inline-input"',

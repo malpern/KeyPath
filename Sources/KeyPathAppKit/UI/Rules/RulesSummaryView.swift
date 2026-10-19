@@ -15,6 +15,7 @@ struct RulesTabView: View {
     @State var recommendationFocusCollectionId: UUID?
     @State private var showingResetConfirmation = false
     @State private var showingCatalogUpdateReview = false
+    @State private var showingKarabinerImport = false
     @State private var showingNewRuleSheet = false
     @State var settingsToastManager = WizardToastManager()
     @State private var createButtonHovered = false
@@ -256,6 +257,18 @@ struct RulesTabView: View {
                 .tint(.red)
                 .accessibilityIdentifier("rules-reset-button")
                 .accessibilityLabel("Reset Rules")
+
+                Button {
+                    showingKarabinerImport = true
+                } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                }
+                .settingsAction()
+                .controlSize(.large)
+                .help("Import rules from Karabiner-Elements")
+                .accessibilityIdentifier("rules-import-karabiner-button")
+                .accessibilityLabel("Import from Karabiner")
+                .sheet(isPresented: $showingKarabinerImport) { KarabinerImportSheet() }
 
                 Button {
                     openConfigInEditor()

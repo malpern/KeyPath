@@ -9,7 +9,6 @@ struct GeneralSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @Environment(\.services) private var services
     @State private var settingsToastManager = WizardToastManager()
-    @State private var showingKarabinerImport = false
 
     var body: some View {
         generalSettingsContent
@@ -93,20 +92,8 @@ struct GeneralSettingsTabView: View {
                     }
                 }
 
-                SettingsSection(title: "Keyboard Setup") {
-                    SettingsCard {
-                        VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
-                            SessionCapsSettingsSection()
-                            Divider()
-                            SettingsControlRow(title: "Import from Karabiner", icon: "square.and.arrow.down") {
-                                Button("Import…") { showingKarabinerImport = true }
-                                    .settingsAction()
-                                    .accessibilityIdentifier("settings-import-karabiner-button")
-                                    .accessibilityLabel("Import from Karabiner")
-                            }
-                        }
-                    }
-                    .sheet(isPresented: $showingKarabinerImport) { KarabinerImportSheet() }
+                SettingsSection(title: "Caps Lock") {
+                    SettingsCard { SessionCapsSettingsSection() }
                 }
 
                 SettingsSection(title: "Advanced") {

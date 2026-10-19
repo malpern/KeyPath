@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 import SwiftUI
 
 struct SessionCapsSettingsSection: View {
@@ -7,51 +8,87 @@ struct SessionCapsSettingsSection: View {
     @State private var device: SessionCapsMappingPolicy.DeviceIdentity?
     @State private var boot = ""
     @State private var reservesF18 = false
-    @State private var hasSelection = false
+    @State private var automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
     @State private var busy = false
     @State private var message: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+        VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
             HStack(spacing: SettingsDesign.rowGap) {
                 Image(systemName: "capslock").foregroundStyle(.secondary).frame(width: 20)
                 VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
-                    Text("Caps Lock").font(.body.weight(.medium))
-                    Text("Set up automatically when your rules need it.").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            DisclosureGroup("Advanced keyboard setup") {
-                Text("Manual setup supports one compatible keyboard and reserves F18. If a disconnect causes a recovery warning, follow that warning first.")
-                    .font(.caption).foregroundStyle(.secondary).padding(.vertical, 8)
-                if device != nil {
-                    Text("Compatible keyboard connected")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                SettingsToggleRow(title: "Reserve F18 for Caps Lock", isOn: $reservesF18, identifier: "settings-caps-reserve-f18")
-                    .disabled(busy)
-                    .accessibilityIdentifier("settings-caps-reserve-f18")
-                HStack {
-                    Button("Review Keyboard") { Task { await reviewKeyboard() } }
-                        .disabled(busy)
-                        .accessibilityIdentifier("settings-caps-review-keyboard")
-                    Button("Enable Caps Lock Remapping") { Task { await applySelection(enabled: true) } }
-                        .disabled(busy || device == nil || !reservesF18)
-                        .accessibilityIdentifier("settings-caps-enable")
-                    if hasSelection {
-                        Button("Disable") { Task { await applySelection(enabled: false) } }
-                            .disabled(busy)
-                            .accessibilityIdentifier("settings-caps-disable")
+                    HStack(spacing: 4) {
+                        Text("Caps Lock remapping").font(.body.weight(.medium))
+                        InfoTip("KeyPath uses F18 behind the scenes, so avoid using F18 for anything else.")
                     }
+                    Text(statusText).font(.caption).foregroundStyle(statusIsWarning ? Color.orange : .secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .settingsAction()
-                if let message {
-                    Text(message).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if !automaticDisabled, device == nil, !busy {
+                    Button("Check Again") { Task { await reviewKeyboard() } }
+                        .settingsAction()
+                        .accessibilityIdentifier("settings-caps-check-again")
                 }
+                Toggle("Caps Lock remapping", isOn: Binding(
+                    get: { !automaticDisabled },
+                    set: { enabled in Task { await setEnabled(enabled) } }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(busy)
+                .accessibilityIdentifier("settings-caps-toggle")
             }
-            .accessibilityIdentifier("settings-caps-advanced")
+            if let message {
+                Text(message).font(.caption).foregroundStyle(.orange)
+                    .padding(.leading, 20 + SettingsDesign.rowGap)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .task { await reviewKeyboard() }
+    }
+
+    private var rulesUseCaps: Bool {
+        Self.rulesUseCapsLock(collections: runtime.ruleCollections, customRules: runtime.customRules)
+    }
+
+    private var statusText: String {
+        if automaticDisabled {
+            return rulesUseCaps ? "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run" : "Off"
+        }
+        guard let device else { return "Connect one compatible keyboard" }
+        return "On \u{00B7} " + (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")
+    }
+
+    private var statusIsWarning: Bool {
+        (automaticDisabled && rulesUseCaps) || (!automaticDisabled && device == nil && !busy)
+    }
+
+    static func rulesUseCapsLock(collections: [RuleCollection], customRules: [CustomRule]) -> Bool {
+        let names: Set = ["caps", "capslock", "caps_lock"]
+        let inCollections = collections.contains { collection in
+            guard collection.isEnabled else { return false }
+            if case let .tapHoldPicker(config) = collection.configuration, names.contains(config.inputKey.lowercased()) {
+                return true
+            }
+            return collection.mappings.contains { names.contains($0.input.lowercased()) }
+        }
+        return inCollections || customRules.contains { $0.isEnabled && names.contains($0.input.lowercased()) }
+    }
+
+    /// On: allow automatic setup, saving this keyboard now when one is connected.
+    /// Off: clear the saved keyboard and stop automatic setup (the former Disable).
+    @MainActor
+    private func setEnabled(_ enabled: Bool) async {
+        message = nil
+        if enabled, device == nil {
+            UserDefaults.standard.set(false, forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
+            automaticDisabled = false
+            return
+        }
+        reservesF18 = enabled
+        await applySelection(enabled: enabled)
+        automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
     }
 
     @MainActor
@@ -59,23 +96,16 @@ struct SessionCapsSettingsSection: View {
         guard !busy else { return }
         busy = true
         defer { busy = false }
-        hasSelection = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey) != nil
         do {
             let found = try await Task.detached {
                 try (SessionCapsHIDUtilTransport.backend().enumerate(), SessionCapsRuntimeSupport.bootSessionUUID())
             }.value
             boot = found.1
             device = found.0.count == 1 ? found.0.first : nil
-            if let data = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey),
-               let selection = try? SessionCapsSelection.decode(data, currentBoot: boot),
-               selection.device == device
-            {
-                reservesF18 = true
-                message = "Caps Lock setup is saved for this keyboard."
-            } else {
-                reservesF18 = false
-                message = device == nil ? "Connect exactly one compatible keyboard to enable Caps Lock remapping." : "Confirm that you do not use F18, then enable Caps Lock remapping."
-            }
+            let saved = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
+                .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
+            reservesF18 = saved?.device == device
+            message = nil
         } catch {
             device = nil
             message = "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run."
@@ -97,7 +127,6 @@ struct SessionCapsSettingsSection: View {
             return
         }
         UserDefaults.standard.set(!enabled, forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
-        hasSelection = enabled
-        message = enabled ? "Caps Lock setup saved. Start KeyPath Runtime to apply your rules." : "Caps Lock setup disabled. To run a profile with Caps Lock rules, enable setup again or use Rules → Edit Configuration to change those rules."
+        message = nil
     }
 }
