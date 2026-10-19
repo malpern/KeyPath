@@ -419,8 +419,9 @@ final class ServiceLifecycleCoordinator {
               (try? SessionCapsRuntimeSupport.selectedDevice()) == nil,
               !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey) else { return }
         let selection = try await Task.detached {
-            try SessionCapsRuntimeSupport.automaticSelection(
-                devices: SessionCapsHIDUtilTransport.backend().enumerate(),
+            let inventory = try SessionCapsHIDUtilTransport.inventory()
+            return try SessionCapsRuntimeSupport.automaticSelection(
+                devices: inventory.devices, withheld: inventory.withheld,
                 boot: SessionCapsRuntimeSupport.bootSessionUUID()
             )
         }.value

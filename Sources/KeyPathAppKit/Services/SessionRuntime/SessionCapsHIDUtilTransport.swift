@@ -80,53 +80,100 @@ public enum SessionCapsHIDUtilTransport {
         return .init(device: device, mappings: mappings)
     }
 
+    /// Keyboard services from one `hidutil list`. `devices` are the instances a
+    /// lease may target. `withheld` counts other physical keyboards: ones whose
+    /// shape is not supported, or whose locator would also select another
+    /// service. They are never targets, but they mean "exactly one keyboard"
+    /// cannot be assumed. Virtual services without a location (Karabiner's
+    /// DriverKit keyboard, the Parallels platform keyboard) are ignored.
+    public struct Inventory: Sendable, Equatable {
+        public let devices: [Policy.DeviceIdentity]
+        public let withheld: Int
+    }
+
     public static func parseServices(_ ndjson: String) throws -> [Policy.DeviceIdentity] {
+        try parseInventory(ndjson).devices
+    }
+
+    /// Output that breaks the witnessed grammar still refuses the whole list.
+    /// A well-formed service that cannot be a target is skipped by itself, so
+    /// one odd keyboard no longer hides every other one.
+    public static func parseInventory(_ ndjson: String) throws -> Inventory {
         guard ndjson.utf8.count <= 65536 else { throw Refusal.excessiveOutput }
-        var devices: [Policy.DeviceIdentity] = []
+        struct Locator { let registry: UInt64?; let vendor: UInt64?; let product: UInt64?; let location: UInt64; let serial: String? }
+        var candidates: [Policy.DeviceIdentity] = []
+        var others: [Locator] = []
         for line in ndjson.split(separator: "\n", omittingEmptySubsequences: false) {
             if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
             guard let row = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
                   let type = row["type"] as? String, ["service", "device"].contains(type) else { throw Refusal.unsupportedOutput }
             if type == "device" { continue }
-            func number(_ key: String, maximum: UInt64 = UInt64.max) throws -> UInt64 {
+            func optional(_ key: String, maximum: UInt64 = UInt64.max) throws -> UInt64? {
+                guard let raw = row[key] else { return nil }
                 // JSON booleans and floats bridge through NSNumber too. Check
                 // their concrete representation before accepting an integer.
-                guard let value = row[key] as? NSNumber,
+                guard let value = raw as? NSNumber,
                       String(cString: value.objCType) != "c",
                       !["f", "d"].contains(String(cString: value.objCType)),
                       let integer = UInt64(value.stringValue), integer <= maximum else { throw Refusal.unsupportedOutput }
                 return integer
             }
+            func number(_ key: String, maximum: UInt64 = UInt64.max) throws -> UInt64 {
+                guard let value = try optional(key, maximum: maximum) else { throw Refusal.unsupportedOutput }
+                return value
+            }
             let page = try number("PrimaryUsagePage", maximum: 0xFFFF)
             let usage = try number("PrimaryUsage", maximum: 0xFFFF)
             if page != 1 || usage != 6 { continue }
-            // Witnessed Parallels platform keyboard is not a physical device
-            // eligible for a managed mapping lease. Do not infer USB identity.
-            if row["Transport"] as? String == "AppleVirtualPlatformHIDBridge",
-               try number("LocationID", maximum: UInt64(UInt32.max)) == 0 { continue }
-            guard let ioClass = row["IOClass"] as? String, !ioClass.isEmpty else { throw Refusal.unsupportedOutput }
-            let appleBuiltIn = ioClass == "AppleHIDKeyboardEventDriverV2" && row["Built-In"] as? Bool == true && row["Transport"] as? String == "FIFO"
-            guard ioClass == "AppleUserHIDEventService" || appleBuiltIn else { throw Refusal.unsupportedOutput }
-            let registry = try number("IORegistryEntryID")
-            let vendor = try number("VendorID", maximum: 0xFFFF)
-            let product = try number("ProductID", maximum: 0xFFFF)
-            let location = try number("LocationID", maximum: UInt64(UInt32.max))
-            guard registry != 0, vendor != 0 || (appleBuiltIn && product == 0), location != 0 else { throw Refusal.unsupportedOutput }
+            let registry = try optional("IORegistryEntryID")
+            let vendor = try optional("VendorID", maximum: 0xFFFF)
+            let product = try optional("ProductID", maximum: 0xFFFF)
+            // Every target selector carries a nonzero LocationID, so a service
+            // without one can never be written by a lease. Witnessed: Karabiner
+            // VirtualHIDKeyboard (AppleUserHIDEventService, no Transport) and the
+            // Parallels AppleVirtualPlatformHIDBridge keyboard, both LocationID 0.
+            guard let location = try optional("LocationID", maximum: UInt64(UInt32.max)), location != 0 else { continue }
             var serial: String?
             if let value = row["SerialNumber"] {
                 guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                       string.utf8.count <= 1024 else { throw Refusal.unsupportedOutput }
                 serial = string
             }
-            let device = Policy.DeviceIdentity(registryEntryID: registry, vendorID: UInt32(vendor),
-                                               productID: UInt32(product), serialNumber: serial, locationID: UInt32(location), appleBuiltIn: appleBuiltIn ? true : nil)
-            guard !devices.contains(where: { $0.registryEntryID == registry ||
-                    ($0.vendorID == device.vendorID && $0.productID == device.productID && $0.locationID == device.locationID &&
-                        ($0.serialNumber == nil || device.serialNumber == nil || $0.serialNumber == device.serialNumber))
-            }) else { throw Policy.Refusal.ambiguousDevice }
-            devices.append(device)
+            let ioClass = row["IOClass"] as? String
+            let appleBuiltIn = ioClass == "AppleHIDKeyboardEventDriverV2" && row["Built-In"] as? Bool == true && row["Transport"] as? String == "FIFO"
+            guard ioClass == "AppleUserHIDEventService" || appleBuiltIn,
+                  let registry, registry != 0, let vendor, let product,
+                  vendor != 0 || (appleBuiltIn && product == 0)
+            else {
+                // A located keyboard of an unsupported shape. Keep its locator:
+                // a target sharing it would have the mapping written here too.
+                others.append(Locator(registry: registry, vendor: vendor, product: product, location: location, serial: serial))
+                continue
+            }
+            candidates.append(Policy.DeviceIdentity(registryEntryID: registry, vendorID: UInt32(vendor),
+                                                    productID: UInt32(product), serialNumber: serial,
+                                                    locationID: UInt32(location), appleBuiltIn: appleBuiltIn ? true : nil))
         }
-        return devices
+        let locators = candidates.map {
+            Locator(registry: $0.registryEntryID, vendor: UInt64($0.vendorID), product: UInt64($0.productID),
+                    location: UInt64($0.locationID ?? 0), serial: $0.serialNumber)
+        }
+        /// A service whose registry ID or hidutil locator is shared cannot be
+        /// addressed alone (for example one keyboard exposing two keyboard
+        /// interfaces). Every sharer is withheld; none is chosen arbitrarily.
+        func collides(_ a: Locator, _ b: Locator) -> Bool {
+            if let id = a.registry, id == b.registry { return true }
+            return a.vendor != nil && a.vendor == b.vendor && a.product != nil && a.product == b.product && a.location == b.location
+                && (a.serial == nil || b.serial == nil || a.serial == b.serial)
+        }
+        var devices: [Policy.DeviceIdentity] = []
+        var withheld = others.count
+        for (index, device) in candidates.enumerated() {
+            let shared = locators.indices.contains { $0 != index && collides(locators[index], locators[$0]) }
+                || others.contains { collides(locators[index], $0) }
+            if shared { withheld += 1 } else { devices.append(device) }
+        }
+        return Inventory(devices: devices, withheld: withheld)
     }
 
     /// One compatible keyboard with its display name. The name is for the
@@ -142,7 +189,13 @@ public enum SessionCapsHIDUtilTransport {
     /// Eligibility comes from `parseServices`; names are a best-effort overlay
     /// keyed by registry ID, so a missing or odd name never admits a device.
     public static func parseKeyboards(_ ndjson: String) throws -> [Keyboard] {
-        let devices = try parseServices(ndjson)
+        try parseKeyboardList(ndjson).keyboards
+    }
+
+    /// Named targets plus the count of physical keyboards that cannot be one.
+    public static func parseKeyboardList(_ ndjson: String) throws -> (keyboards: [Keyboard], withheld: Int) {
+        let inventory = try parseInventory(ndjson)
+        let devices = inventory.devices
         var names: [UInt64: String] = [:]
         for line in ndjson.split(separator: "\n") {
             guard let row = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
@@ -157,16 +210,22 @@ public enum SessionCapsHIDUtilTransport {
         }
         // Two identical keyboards share a product name; number them in list order.
         var seen: [String: Int] = [:]
-        return zip(devices, base).map { device, name in
+        let keyboards = zip(devices, base).map { device, name in
             guard base.count(where: { $0 == name }) > 1 else { return Keyboard(device: device, name: name) }
             seen[name, default: 0] += 1
             return Keyboard(device: device, name: "\(name) \(seen[name]!)")
         }
+        return (keyboards, inventory.withheld)
     }
 
     /// Synchronous; call off the main actor.
-    public static func keyboards(run: ([String]) throws -> String = runHIDUtil) throws -> [Keyboard] {
-        try parseKeyboards(run(["list", "--ndjson", "--matching", "keyboard"]))
+    public static func keyboards(run: ([String]) throws -> String = runHIDUtil) throws -> (keyboards: [Keyboard], withheld: Int) {
+        try parseKeyboardList(run(["list", "--ndjson", "--matching", "keyboard"]))
+    }
+
+    /// Synchronous; call off the main actor.
+    public static func inventory(run: ([String]) throws -> String = runHIDUtil) throws -> Inventory {
+        try parseInventory(run(["list", "--ndjson", "--matching", "keyboard"]))
     }
 
     /// Query the exact ID without keyboard eligibility filters. The fast match

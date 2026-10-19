@@ -71,8 +71,10 @@ enum SessionCapsRuntimeSupport {
     }
 
     /// Only discovers a selection. Mapping writes remain owned by the worker lease.
-    static func automaticSelection(devices: [Policy.DeviceIdentity], boot: String) throws -> SessionCapsSelection {
-        guard devices.count == 1 else { throw Refusal.selection }
+    /// A withheld keyboard (one KeyPath cannot target) still counts: the user
+    /// may type on it, so the lone eligible one is not picked on their behalf.
+    static func automaticSelection(devices: [Policy.DeviceIdentity], withheld: Int = 0, boot: String) throws -> SessionCapsSelection {
+        guard devices.count == 1, withheld == 0 else { throw Refusal.selection }
         let selection = SessionCapsSelection(device: devices[0], bootSessionUUID: boot, reservesF18: true)
         _ = try selection.approvedDevice(currentBoot: boot)
         return selection

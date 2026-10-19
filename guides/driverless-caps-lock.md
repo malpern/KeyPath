@@ -76,6 +76,13 @@ chosen keyboard and KeyPath restarts while only one keyboard remains, it uses
 that one; when you plug yours back in, pick it again from the menu in
 **Settings → General**.
 
+Some keyboards can't be chosen. Virtual keyboards from other remapping tools
+(such as Karabiner-Elements) and virtual machines are left out of the list.
+A keyboard that macOS shows as several keyboard devices, or one KeyPath does
+not recognize, is also left out, because KeyPath cannot change only that one;
+Settings says how many were left out. While such a keyboard is connected,
+KeyPath does not choose for you, even if only one keyboard is in the list.
+
 KeyPath checks existing mappings and ownership before changing or restoring
 them. Conflicting mappings are refused. If safe restoration cannot be verified,
 the recovery record is retained and restart can be blocked. Follow the displayed
