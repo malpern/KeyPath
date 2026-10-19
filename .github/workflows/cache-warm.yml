@@ -22,6 +22,8 @@ jobs:
           submodules: true
 
       - name: Verify runner disk reserve
+        env:
+          KEYPATH_MIN_FREE_DISK_GIB: "40"
         run: ./Scripts/lab/host-disk-reserve
 
       - name: Ensure Metal toolchain
