@@ -195,4 +195,37 @@ final class SessionCapsIntermediateTests: XCTestCase {
         XCTAssertEqual(try SessionCapsRuntimeSupport.selected(environment: [:], selectionData: saved, registryEntryExists: { _ in true })?.device, device)
         XCTAssertEqual(SessionCapsRuntimeSupport.preferredIntermediate(environment: [:], selectionData: saved), 104)
     }
+
+    /// Regression (Air, 2026-10-19): `keypath-cli rule add f18 f20 --apply`
+    /// reloaded a profile using F18 into a session that still reserved F18.
+    /// The session now judges a reloaded profile against its own lease.
+    func testReloadedProfileMustStillFitTheLeasedKey() throws {
+        let device = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 0x303A, productID: 0x4002,
+                                           serialNumber: "fixture-1", locationID: 123)
+        let owner = Policy.Owner(uid: 502, parentPID: 100, workerPID: 101, nonce: "n", generation: "g",
+                                 bootSessionUUID: "A7B944DF-471A-4C22-B9F3-A4EE5522F775")
+        let f18Lease = try Policy.acquire(original: [], device: device, devices: [device], owner: owner,
+                                          effectiveConfigSHA256: String(repeating: "a", count: 64))
+        typealias Admission = SessionCapsRuntimeSupport.Admission
+        XCTAssertTrue(SessionRuntimeWorker.profileFitsLease(Admission(result: .valid, managedCaps: true, intermediateUsage: 109), record: f18Lease))
+        // The profile now uses F18: admission without re-choice refuses, or
+        // (with re-choice) lands on another key. Either way the lease no longer fits.
+        XCTAssertFalse(SessionRuntimeWorker.profileFitsLease(Admission(result: .invalid(reason: "uses f18"), managedCaps: false, intermediateUsage: 109), record: f18Lease))
+        XCTAssertFalse(SessionRuntimeWorker.profileFitsLease(Admission(result: .valid, managedCaps: true, intermediateUsage: 110), record: f18Lease))
+        // The Caps rule was removed: an ordinary profile also needs a restart.
+        XCTAssertFalse(SessionRuntimeWorker.profileFitsLease(Admission(result: .valid, managedCaps: false, intermediateUsage: 109), record: f18Lease))
+    }
+
+    @MainActor
+    func testStartupBannerUsesTheSameWordingAsSettings() {
+        let f20 = SessionCapsConflict.unknown(destination: 0x7_0000_006F)
+        XCTAssertEqual(ServiceLifecycleCoordinator.capsConflictMessage(conflict: f20, raycast: nil), f20.message)
+        XCTAssertTrue(ServiceLifecycleCoordinator.capsConflictMessage(conflict: f20, raycast: nil).contains("(to F20)"))
+        XCTAssertEqual(ServiceLifecycleCoordinator.capsConflictMessage(conflict: .raycastHyperKey, raycast: nil),
+                       SessionCapsConflict.raycastHyperKey.message)
+        // Row unreadable: Raycast's own setting still names it.
+        XCTAssertEqual(ServiceLifecycleCoordinator.capsConflictMessage(conflict: nil, raycast: .init(enabled: true, keyCode: 57)),
+                       SessionCapsConflict.raycastHyperKey.message)
+        XCTAssertTrue(ServiceLifecycleCoordinator.capsConflictMessage(conflict: nil, raycast: nil).contains("Modifier Keys"))
+    }
 }

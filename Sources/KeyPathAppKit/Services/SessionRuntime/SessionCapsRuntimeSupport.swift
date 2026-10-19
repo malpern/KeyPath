@@ -24,6 +24,9 @@ enum SessionCapsRuntimeSupport {
         #endif
     }
 
+    /// Worker failure meaning "the reloaded profile needs a restart": it
+    /// uses the reserved key, or no longer runs as managed Caps.
+    static let profileChangedReason = "managed-caps-profile-changed"
     static let automaticSetupDisabledKey = "keypath.session.caps.automatic.disabled"
     static let selectionKey = "keypath.session.caps.selection.v1"
     static let selectionEnvironmentKey = "KEYPATH_SESSION_CAPS_SELECTION"
@@ -91,7 +94,7 @@ enum SessionCapsRuntimeSupport {
         return (admission.result, admission.managedCaps)
     }
 
-    struct Admission {
+    struct Admission: Sendable {
         let result: KanataHostBridgeValidationResult
         let managedCaps: Bool
         /// The intermediate the profile was admitted with. It differs from the

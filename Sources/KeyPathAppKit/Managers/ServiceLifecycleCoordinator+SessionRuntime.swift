@@ -424,6 +424,13 @@ extension ServiceLifecycleCoordinator {
                                             retiredAt: terminalReport?.timestamp)
             return false
         }
+        if terminalReport?.failure == SessionCapsRuntimeSupport.profileChangedReason {
+            // A reload changed what Caps Lock needs. Start again through normal
+            // admission, which chooses a free reserved key.
+            AppLogger.shared.info("[SessionRuntime] Reloaded profile needs a Caps restart")
+            _ = await resumeSessionRuntime(expectedGeneration: generation, reason: "Caps Lock profile changed")
+            return false
+        }
         if let terminalReport {
             AppLogger.shared
                 .warnUnlessQuietTest(
@@ -539,6 +546,16 @@ extension ServiceLifecycleCoordinator {
             && report.failure == "managed-caps-activation-refused: physicalKeysHeld"
     }
 
+    /// The conflict as Settings words it; when the row cannot be read, fall
+    /// back on Raycast's own setting, else the generic wording.
+    static func capsConflictMessage(conflict: SessionCapsConflict?,
+                                    raycast: SessionCapsConflict.RaycastHyperKey?) -> String
+    {
+        if let conflict { return conflict.message }
+        return (raycast?.enabled == true && raycast?.keyCode == 57
+            ? SessionCapsConflict.raycastHyperKey : .unknown(destination: 0)).message
+    }
+
     private func sessionWakeReadinessBlocker() -> String? {
         #if DEBUG
             if let ready = testSessionWakeReady { return ready() ? nil : "test-not-ready" }
@@ -560,11 +577,14 @@ extension ServiceLifecycleCoordinator {
         case "tap-disabled-by-user-input", "tap-disabled-observed", "modifying-tap-unavailable", "modifying-tap-not-enabled":
             return "Check \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings. If access is disabled, enable it, then quit and reopen KeyPath."
         case "managed-caps-activation-refused: capsAlreadyMapped":
-            // The worker saw a Caps row it did not write. Name Raycast when its
-            // own setting says Hyper Key is on Caps; otherwise stay generic.
-            let raycast = SessionCapsRuntimeSupport.raycastHyperKey()
-            return (raycast?.enabled == true && raycast?.keyCode == 57
-                ? SessionCapsConflict.raycastHyperKey : .unknown(destination: 0)).message
+            // The worker saw a Caps row it did not write. Read that row, as
+            // Settings does, so both name the same owner and key.
+            return capsConflictMessage(
+                conflict: (try? SessionCapsRuntimeSupport.selectedDevice())
+                    .flatMap { $0 }
+                    .flatMap { try? SessionCapsRuntimeSupport.capsConflict(on: $0) },
+                raycast: SessionCapsRuntimeSupport.raycastHyperKey()
+            )
         case "managed-caps-activation-refused: intermediateCollision":
             return "Another app started using KeyPath\u{2019}s Caps Lock key. Quit and reopen KeyPath so it can choose another key."
         case "managed-caps-ownership-lost":
