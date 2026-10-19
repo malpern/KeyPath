@@ -559,6 +559,14 @@ extension ServiceLifecycleCoordinator {
             return "Enable \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings, then quit and reopen KeyPath."
         case "tap-disabled-by-user-input", "tap-disabled-observed", "modifying-tap-unavailable", "modifying-tap-not-enabled":
             return "Check \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings. If access is disabled, enable it, then quit and reopen KeyPath."
+        case "managed-caps-activation-refused: capsAlreadyMapped":
+            // The worker saw a Caps row it did not write. Name Raycast when its
+            // own setting says Hyper Key is on Caps; otherwise stay generic.
+            let raycast = SessionCapsRuntimeSupport.raycastHyperKey()
+            return (raycast?.enabled == true && raycast?.keyCode == 57
+                ? SessionCapsConflict.raycastHyperKey : .unknown(destination: 0)).message
+        case "managed-caps-activation-refused: intermediateCollision":
+            return "Another app started using KeyPath\u{2019}s Caps Lock key. Quit and reopen KeyPath so it can choose another key."
         case "managed-caps-ownership-lost":
             return "Caps Lock keyboard setup could not be verified. Connect only the selected keyboard, then quit and reopen KeyPath."
         case "tap-disabled-by-timeout":
@@ -667,13 +675,12 @@ extension ServiceLifecycleCoordinator {
             "--session-owner", String(getpid()), "--session-port", String(KeyPathConstants.Networking.defaultTCPPort),
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
-        if !capabilitiesOnly, SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current()).managedCaps,
-           let device = try SessionCapsRuntimeSupport.selectedDevice()
-        {
-            let selection = try SessionCapsSelection(device: device, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID(), reservesF18: true)
+        sessionCapsIntermediate = nil
+        if !capabilitiesOnly, let selection = try await chooseCapsSelection() {
             configuration.environment = try [
                 SessionCapsRuntimeSupport.selectionEnvironmentKey: String(decoding: JSONEncoder().encode(selection), as: UTF8.self)
             ]
+            sessionCapsIntermediate = selection.intermediateUsage
         }
         AppLogger.shared.log(
             "Session application launch requested parentPID=\(getpid()) nonce=\(nonce) capabilitiesOnly=\(capabilitiesOnly)"
@@ -699,6 +706,36 @@ extension ServiceLifecycleCoordinator {
             try? FileManager.default.removeItem(at: directory)
             throw error
         }
+    }
+
+    /// Re-checks the intermediate at every session start: a key another app
+    /// mapped, a keyboard shortcut, or a new rule since the last start moves
+    /// the reservation to the next free key, saved so Settings shows it.
+    /// nil when the profile does not need managed Caps.
+    private func chooseCapsSelection() async throws -> SessionCapsSelection? {
+        let path = KeyPathConstants.Config.mainConfigPath
+        guard SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current()).managedCaps,
+              let current = try SessionCapsRuntimeSupport.selected() else { return nil }
+        let device = current.device
+        let occupied: Set<UInt32>
+        do {
+            occupied = try await Task.detached { try SessionCapsRuntimeSupport.occupiedIntermediates(own: device) }.value
+        } catch {
+            // Unknown is not free, but refusing every start over an unreadable
+            // property is worse: the lease still refuses a Caps or intermediate
+            // row on the chosen keyboard itself.
+            AppLogger.shared.warn("[SessionRuntime] Could not read other key mappings for the Caps intermediate: \(error)")
+            occupied = []
+        }
+        let admission = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current(), occupied: occupied)
+        guard admission.managedCaps else { return nil }
+        let selection = current.with(intermediateUsage: admission.intermediateUsage)
+        if selection != current {
+            AppLogger.shared
+                .info("[SessionRuntime] Caps intermediate moved from \(SessionCapsIntermediate.label(current.intermediateUsage)) to \(SessionCapsIntermediate.label(selection.intermediateUsage))")
+            try SessionCapsSelectionStore.save(selection)
+        }
+        return selection
     }
 
     private static func readSessionReport(_ url: URL) -> SessionRuntimeReport? {

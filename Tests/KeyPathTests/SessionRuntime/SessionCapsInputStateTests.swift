@@ -78,4 +78,25 @@ final class SessionCapsInputStateTests: XCTestCase {
         // Lease/config collision refusal belongs to admission, not this helper.
         XCTAssertEqual(state.logicalUsage(capturedUsage: 109, value: 1), 57)
     }
+
+    func testChosenIntermediateIsTheOnlyTranslatedKey() {
+        var state = SessionCapsInputState()
+        state.activate(generation: "one", intermediateUsage: 110)
+        XCTAssertEqual(state.logicalUsage(capturedUsage: 110, value: 1), 57)
+        // F18 is an ordinary key again once another intermediate is chosen.
+        XCTAssertEqual(state.logicalUsage(capturedUsage: 109, value: 1), 109)
+        state.didAdmit(capturedUsage: 110, value: 1, generation: "one")
+        XCTAssertEqual(state.logicalUsage(capturedUsage: 110, value: 0), 57)
+        // Re-activating the same generation on another key drops the admitted press.
+        state.activate(generation: "one", intermediateUsage: 104)
+        XCTAssertNil(state.logicalUsage(capturedUsage: 104, value: 0))
+        XCTAssertEqual(state.logicalUsage(capturedUsage: 110, value: 0), 110)
+        // Revocation keeps the reserved key physical rather than handing late
+        // releases to the runtime as ordinary input.
+        state.revoke()
+        XCTAssertNil(state.logicalUsage(capturedUsage: 104, value: 0))
+        // A non-pool key is refused and revokes.
+        state.activate(generation: "two", intermediateUsage: 57)
+        XCTAssertNil(state.leaseGeneration)
+    }
 }

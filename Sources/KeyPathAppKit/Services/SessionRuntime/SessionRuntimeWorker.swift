@@ -158,7 +158,8 @@ public final class SessionRuntimeWorker {
         // Capture before engine validation; stale consent must not block ordinary
         // profiles, but managed admission must validate these exact bytes.
         let capsDigest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
-        let admission = SessionCapsRuntimeSupport.validate(configPath: configPath, runtimeHost: .current())
+        // The parent chose the intermediate; run exactly that one.
+        let admission = SessionCapsRuntimeSupport.admit(configPath: configPath, runtimeHost: .current(), rechoose: false)
         guard case .valid = admission.result else {
             finish(.failed, reason: "config-requires-advanced-driver-backend-or-is-invalid")
         }
@@ -211,7 +212,8 @@ public final class SessionRuntimeWorker {
             CGEvent.tapEnable(tap: startupTap, enable: false)
             do {
                 guard runtime?.isInputMapped(usagePage: 7, usage: 57) == true,
-                      let device = try SessionCapsRuntimeSupport.selectedDevice(), let capsDigest,
+                      let selection = try SessionCapsRuntimeSupport.selected(), let capsDigest,
+                      selection.intermediateUsage == admission.intermediateUsage,
                       try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest
                 else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity
@@ -226,16 +228,19 @@ public final class SessionRuntimeWorker {
                 // The tap is disabled. Keep the main run loop out of startup
                 // acquisition; environment shutdown cannot race this writer.
                 // Ownership is retained even when write/readback throws.
+                let device = selection.device
+                let intermediate = SessionCapsMappingPolicy.packed(selection.intermediateUsage)
                 capsRecord = try Self.performHIDWork {
                     let backend = SessionCapsHIDUtilTransport.backend()
                     do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {
                         throw SessionCapsRuntimeSupport.Refusal.selection
                     }
                     let lease = SessionCapsMappingLease(directory: directory, backend: backend)
-                    return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device)
+                    return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device,
+                                             intermediate: intermediate)
                 }
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
-                capsInput.activate(generation: owner.generation)
+                capsInput.activate(generation: owner.generation, intermediateUsage: selection.intermediateUsage)
             } catch {
                 AppLogger.shared.warn("Managed Caps activation refused: \(error)")
                 finish(.failed, reason: "managed-caps-activation-refused: \(error)")

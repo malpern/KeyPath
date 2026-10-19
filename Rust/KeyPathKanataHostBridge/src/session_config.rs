@@ -32,7 +32,7 @@ fn action_supported(
     input: OsCode,
     usages: &[u32],
     virtual_inputs: &[u16],
-    managed_caps: bool,
+    reserved: Option<OsCode>,
 ) -> bool {
     match action {
         Action::NoOp
@@ -43,37 +43,36 @@ fn action_supported(
         // Src and transparency can resolve using a replay/virtual coordinate,
         // and Repeat can replay such an action at a different coordinate. A
         // managed profile cannot prove these safe from the defining input alone.
-        Action::Trans | Action::Src | Action::Repeat => !managed_caps,
+        Action::Trans | Action::Src | Action::Repeat => reserved.is_none(),
         // Releasing a layer changes keyberon state only. Release-key remains
         // unavailable; it has different emitted-key ownership semantics.
         Action::ReleaseState(ReleasableState::Layer(_)) => true,
         Action::KeyCode(KeyCode::ErrorUndefined) => true, // Parser's unused-slot sentinel.
         Action::KeyCode(key) => {
             let output = OsCode::from(*key);
-            (!managed_caps || !matches!(output, OsCode::KEY_F18))
-                && (key_supported(*key, usages) || output == input)
+            reserved != Some(output) && (key_supported(*key, usages) || output == input)
         }
         Action::MultipleKeyCodes(keys) => keys.iter().all(|key| key_supported(*key, usages)),
         Action::MultipleActions(actions) => actions
             .iter()
-            .all(|a| action_supported(a, input, usages, virtual_inputs, managed_caps)),
+            .all(|a| action_supported(a, input, usages, virtual_inputs, reserved)),
         Action::HoldTap(ht) => [&ht.hold, &ht.tap, &ht.timeout_action]
             .iter()
-            .all(|a| action_supported(a, input, usages, virtual_inputs, managed_caps)),
+            .all(|a| action_supported(a, input, usages, virtual_inputs, reserved)),
         Action::OneShot(os) => {
-            action_supported(os.action, input, usages, virtual_inputs, managed_caps)
+            action_supported(os.action, input, usages, virtual_inputs, reserved)
         }
         Action::TapDance(td) => td
             .actions
             .iter()
-            .all(|a| action_supported(a, input, usages, virtual_inputs, managed_caps)),
+            .all(|a| action_supported(a, input, usages, virtual_inputs, reserved)),
         Action::Chords(chords) => chords
             .chords
             .iter()
-            .all(|(_, a)| action_supported(a, input, usages, virtual_inputs, managed_caps)),
+            .all(|(_, a)| action_supported(a, input, usages, virtual_inputs, reserved)),
         Action::Fork(fork) => {
-            action_supported(&fork.left, input, usages, virtual_inputs, managed_caps)
-                && action_supported(&fork.right, input, usages, virtual_inputs, managed_caps)
+            action_supported(&fork.left, input, usages, virtual_inputs, reserved)
+                && action_supported(&fork.right, input, usages, virtual_inputs, reserved)
         }
         Action::Switch(switch) => {
             // AppConfigGenerator emits one active virtual-input predicate per
@@ -92,7 +91,7 @@ fn action_supported(
                             *condition == [op, coord]
                         });
                     generated_condition
-                        && action_supported(branch, input, usages, virtual_inputs, managed_caps)
+                        && action_supported(branch, input, usages, virtual_inputs, reserved)
                 })
         }
         Action::Custom(custom) => custom_supported(custom),
@@ -142,7 +141,7 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
                             && PageCode::try_from(key)
                                 .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
                     })
-                }) || !action_supported(chord.action, OsCode::KEY_RESERVED, &output_usages, &virtual_inputs, false) {
+                }) || !action_supported(chord.action, OsCode::KEY_RESERVED, &output_usages, &virtual_inputs, None) {
                     return false;
                 }
             }
@@ -169,15 +168,46 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
                     return allowed;
                 }
             }
-            action_supported(action, input, &output_usages, &virtual_inputs, false)
+            action_supported(action, input, &output_usages, &virtual_inputs, None)
         })
     }))
 }
 
+/// The managed-Caps intermediate keys (F13-F20) by keyboard-page usage. The
+/// event tap cannot see F21-F24, so they are never an intermediate.
+pub(crate) fn intermediate_key(usage: u32) -> Option<OsCode> {
+    Some(match usage {
+        104 => OsCode::KEY_F13,
+        105 => OsCode::KEY_F14,
+        106 => OsCode::KEY_F15,
+        107 => OsCode::KEY_F16,
+        108 => OsCode::KEY_F17,
+        109 => OsCode::KEY_F18,
+        110 => OsCode::KEY_F19,
+        111 => OsCode::KEY_F20,
+        _ => return None,
+    })
+}
+
+/// Explicit managed-Caps admission with F18 as the intermediate.
+#[cfg(test)]
+pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> bool {
+    supported_with_managed_caps_reserving(cfg, output_usages, 109)
+}
+
 /// Explicit managed-Caps admission. The HID/CG transport owns logical Caps input
 /// separately from the emitted key map; adding HID 57 to that map is never safe.
-pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> bool {
+/// `reserved_usage` is the intermediate Caps travels as; the profile may
+/// neither read nor emit it.
+pub(crate) fn supported_with_managed_caps_reserving(
+    cfg: &Cfg,
+    output_usages: &[u32],
+    reserved_usage: u32,
+) -> bool {
     use kanata_parser::cfg::Overrides;
+    let Some(reserved) = intermediate_key(reserved_usage) else {
+        return false;
+    };
 
     if cfg.input_devices.is_some()
         || cfg.options.macos_opts.macos_dev_names_include.is_some()
@@ -186,14 +216,14 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
         || cfg.zippy.is_some()
         || cfg.options.start_alias.is_some()
         || !cfg.source_keys.contains(&OsCode::KEY_CAPSLOCK)
-        || cfg.source_keys.contains(&OsCode::KEY_F18)
+        || cfg.source_keys.contains(&reserved)
     {
         return false;
     }
     let usages: Vec<u32> = output_usages
         .iter()
         .copied()
-        .filter(|usage| *usage != 109)
+        .filter(|usage| *usage != reserved_usage)
         .collect();
     let mut usages = usages;
     if !usages.contains(&57) {
@@ -217,7 +247,7 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
                     OsCode::KEY_RESERVED,
                     &usages,
                     &virtual_inputs,
-                    true,
+                    Some(reserved),
                 ) {
                     return false;
                 }
@@ -252,7 +282,7 @@ pub(crate) fn supported_with_managed_caps(cfg: &Cfg, output_usages: &[u32]) -> b
                         || matches!(action, Action::KeyCode(KeyCode::ErrorUndefined))
                         || (input == OsCode::KEY_RESERVED && matches!(action, Action::NoOp));
                 }
-                action_supported(action, input, &usages, &virtual_inputs, true)
+                action_supported(action, input, &usages, &virtual_inputs, Some(reserved))
             })
         })
     })
@@ -386,6 +416,30 @@ mod tests {
         assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) f18 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
         assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) (macro f18) 100 all-released ())(defsrc caps a)(deflayer base esc a)"));
         assert!(!managed("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) caps 100 all-released ())(defsrc caps)(deflayer base esc)"));
+    }
+
+    #[test]
+    fn chosen_intermediate_reserves_that_key_and_frees_f18() {
+        let parse = |text: &str| kanata_parser::cfg::new_from_str(text, Default::default()).unwrap();
+        let usages = [4, 5, 41, 57, 109, 110, 111, 224];
+        // A profile using F18 cannot run with F18 as the intermediate, but can with F19.
+        let f18_rule = parse("(defsrc caps f18)(deflayer base esc a)");
+        assert!(!supported_with_managed_caps_reserving(&f18_rule, &usages, 109));
+        assert!(supported_with_managed_caps_reserving(&f18_rule, &usages, 110));
+        let f18_output = parse("(defsrc caps a)(deflayer base esc f18)");
+        assert!(supported_with_managed_caps_reserving(&f18_output, &usages, 110));
+        // The chosen key is reserved exactly as F18 was.
+        assert!(!supported_with_managed_caps_reserving(&parse("(defsrc caps f19)(deflayer base esc a)"), &usages, 110));
+        assert!(!supported_with_managed_caps_reserving(&parse("(defsrc caps a)(deflayer base esc f19)"), &usages, 110));
+        assert!(!supported_with_managed_caps_reserving(&parse("(defsrc caps a)(deflayer base (tap-hold 200 200 esc f19) a)"), &usages, 110));
+        // Only F13-F20 can be an intermediate.
+        let plain = parse("(defsrc caps)(deflayer base esc)");
+        for usage in [0, 57, 103, 112, 115] {
+            assert!(!supported_with_managed_caps_reserving(&plain, &usages, usage), "{usage}");
+        }
+        for usage in 104..=111 {
+            assert!(supported_with_managed_caps_reserving(&plain, &usages, usage), "{usage}");
+        }
     }
 
     #[test]

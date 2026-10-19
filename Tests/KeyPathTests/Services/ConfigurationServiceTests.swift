@@ -418,7 +418,7 @@ class ConfigurationServiceTests: KeyPathTestCase {
         )
     }
 
-    func testSaveConfigurationRejectsReservedF18WithoutChangingCommittedConfig() async throws {
+    func testSaveConfigurationRejectsUnsupportedCapsOutputWithoutChangingCommittedConfig() async throws {
         try SessionBridgeTestFixture.requireAvailable()
         try await configService.saveConfiguration(input: "tab", output: "esc")
         let before = try Data(contentsOf: URL(fileURLWithPath: configService.configurationPath))
@@ -427,12 +427,21 @@ class ConfigurationServiceTests: KeyPathTestCase {
         }
         defer { observer.cancel() }
         do {
-            try await configService.saveConfiguration(input: "caps", output: "f18")
-            XCTFail("Reserved F18 remapping must be rejected before writing")
+            try await configService.saveConfiguration(input: "caps", output: "pp")
+            XCTFail("Unsupported Caps output must be rejected before writing")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
         }
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: configService.configurationPath)), before)
+    }
+
+    /// F18 used to be the fixed Caps intermediate, so Caps to F18 was refused.
+    /// The intermediate now moves to another free key instead.
+    func testSaveConfigurationAcceptsCapsToF18() async throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        try await configService.saveConfiguration(input: "caps", output: "f18")
+        let saved = try String(contentsOfFile: configService.configurationPath, encoding: .utf8)
+        XCTAssertTrue(saved.contains("f18"), saved)
     }
 
     // MARK: - Error Parsing Tests

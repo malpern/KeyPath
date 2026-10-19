@@ -135,8 +135,8 @@ public final class SessionCapsMappingLease {
 
     /// A durable journal is fsynced before the first HID mutation. Any thrown
     /// write/readback error leaves intent pending, even if the write took effect.
-    public func acquire(owner: Policy.Owner, configSHA256: String,
-                        device: Policy.DeviceIdentity) throws -> Policy.Record
+    public func acquire(owner: Policy.Owner, configSHA256: String, device: Policy.DeviceIdentity,
+                        intermediate: UInt64 = Policy.f18) throws -> Policy.Record
     {
         try locked { fd in
             try requireNoMutation(directoryFD: fd)
@@ -146,7 +146,8 @@ public final class SessionCapsMappingLease {
             let snapshot = try backend.read(device)
             guard snapshot.device == device else { throw Policy.Refusal.differentDevice }
             let record = try Policy.acquire(original: snapshot.mappings, device: device, devices: devices,
-                                            owner: owner, effectiveConfigSHA256: configSHA256)
+                                            owner: owner, effectiveConfigSHA256: configSHA256,
+                                            intermediate: intermediate)
             let persisted = try persist(record, directoryFD: fd)
             // Recheck the selected service immediately before mutation. Never
             // clear a journal on an unconfirmed mutation or a failed readback.
@@ -338,7 +339,8 @@ public final class SessionCapsMappingLease {
         // Reuse policy's exact registry and selector uniqueness checks without
         // losing or normalizing any original mapping rows.
         _ = try Policy.acquire(original: record.original, device: record.device, devices: backend.enumerate(),
-                               owner: record.owner, effectiveConfigSHA256: record.effectiveConfigSHA256)
+                               owner: record.owner, effectiveConfigSHA256: record.effectiveConfigSHA256,
+                               intermediate: record.intermediate)
     }
 
     private func locked<T>(_ body: (Int32) throws -> T) throws -> T {

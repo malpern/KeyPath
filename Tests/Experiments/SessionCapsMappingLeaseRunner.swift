@@ -582,6 +582,41 @@ struct SessionCapsMappingLeaseRunner {
         refused { _ = try failed.enumerate() }
         refused { _ = try failed.read(liveDevice) }
         refused { try failed.write(liveDevice, []) }
+        // A chosen intermediate is journaled and restored like F18.
+        let f19 = Policy.packed(110)
+        try scenario { root, fake, lease in
+            fake.mappings = original + [.init(source: Policy.f18, destination: 0x7_0000_0004)]
+            let before = fake.mappings
+            let record = try lease.acquire(owner: owner, configSHA256: digest, device: device, intermediate: f19)
+            try check(record.intermediate == f19 && fake.mappings == before + [.init(source: Policy.caps, destination: f19)])
+            let journal = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("caps-mapping-intent.json"))) as? [String: Any]
+            try check((journal?["intermediate"] as? NSNumber)?.uint64Value == f19 && journal?["version"] as? Int == 2)
+            try check(lease.pendingRecord() == record)
+            try restore(lease)
+            try check(fake.mappings == before)
+        }
+        try scenario { _, fake, lease in
+            fake.mappings = original + [.init(source: 0x7_0000_0004, destination: f19)]
+            refused { _ = try lease.acquire(owner: owner, configSHA256: digest, device: device, intermediate: f19) }
+            try check(fake.writes == 0)
+        }
+        // A version-1 journal from before the choice still restores, as F18.
+        try scenario { root, fake, lease in
+            _ = try acquire(lease)
+            let url = root.appendingPathComponent("caps-mapping-intent.json")
+            var object = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+            object["version"] = 1
+            object.removeValue(forKey: "intermediate")
+            let handle = try FileHandle(forWritingTo: url)
+            try handle.truncate(atOffset: 0)
+            try handle.write(contentsOf: JSONSerialization.data(withJSONObject: object))
+            try handle.synchronize()
+            try handle.close()
+            let legacy = try lease.pendingRecord()
+            try check(legacy?.version == 1 && legacy?.intermediate == Policy.f18)
+            try restore(lease)
+            try check(fake.mappings == original)
+        }
         print("PASS: durable Caps lease fake transport scenarios")
     }
 }

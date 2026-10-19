@@ -36,8 +36,53 @@ final class SessionCapsMappingPolicyTests: XCTestCase {
     func testRefusesCapsSourceAndEitherSideOfF18IncludingExistingDesiredMapping() {
         assertRefusal(.capsAlreadyMapped) { try acquire([.init(source: Policy.caps, destination: 0x7_0000_0004)]) }
         assertRefusal(.capsAlreadyMapped) { try acquire([.init(source: Policy.caps, destination: Policy.f18)]) }
-        assertRefusal(.f18Collision) { try acquire([.init(source: Policy.f18, destination: 0x7_0000_0004)]) }
-        assertRefusal(.f18Collision) { try acquire([.init(source: 0x7_0000_0004, destination: Policy.f18)]) }
+        assertRefusal(.intermediateCollision) { try acquire([.init(source: Policy.f18, destination: 0x7_0000_0004)]) }
+        assertRefusal(.intermediateCollision) { try acquire([.init(source: 0x7_0000_0004, destination: Policy.f18)]) }
+    }
+
+    func testChosenIntermediateIsReservedInsteadOfF18() throws {
+        let f19 = Policy.packed(110)
+        let record = try Policy.acquire(original: [.init(source: Policy.f18, destination: 0x7_0000_0004)], device: device,
+                                        devices: [device], owner: owner, effectiveConfigSHA256: digest, intermediate: f19)
+        XCTAssertEqual(record.version, 2)
+        XCTAssertEqual(record.intermediate, f19)
+        XCTAssertEqual(record.applied.last, .init(source: Policy.caps, destination: f19))
+        let data = try JSONEncoder().encode(record)
+        XCTAssertEqual(try JSONDecoder().decode(Policy.Record.self, from: data), record)
+        assertRefusal(.intermediateCollision) {
+            try Policy.acquire(original: [.init(source: 0x7_0000_0004, destination: f19)], device: device,
+                               devices: [device], owner: owner, effectiveConfigSHA256: digest, intermediate: f19)
+        }
+        // F21 has no macOS keycode; Caps itself and other pages are not intermediates.
+        for bad in [Policy.packed(112), Policy.caps, 0xC_0000_006E] {
+            assertRefusal(.invalidIntermediate) {
+                try Policy.acquire(original: [], device: device, devices: [device], owner: owner,
+                                   effectiveConfigSHA256: digest, intermediate: bad)
+            }
+        }
+        // A record whose intermediate disagrees with its applied row is refused.
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        object["intermediate"] = Policy.f18
+        XCTAssertThrowsError(try JSONDecoder().decode(Policy.Record.self, from: JSONSerialization.data(withJSONObject: object)))
+    }
+
+    /// A journal written before the intermediate was a choice has no
+    /// `intermediate` field. It must still restore, as F18.
+    func testVersionOneJournalDecodesAsF18AndKeepsItsShape() throws {
+        let record = try acquire(unrelated)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(record)) as? [String: Any])
+        object["version"] = 1
+        object.removeValue(forKey: "intermediate")
+        let legacy = try JSONDecoder().decode(Policy.Record.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(legacy.version, 1)
+        XCTAssertEqual(legacy.intermediate, Policy.f18)
+        XCTAssertEqual(try Policy.restore(record: legacy, current: legacy.applied, device: device,
+                                          bootSessionUUID: owner.bootSessionUUID), unrelated)
+        let reencoded = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy)) as? [String: Any])
+        XCTAssertNil(reencoded["intermediate"])
+        object["intermediate"] = Policy.f18
+        XCTAssertThrowsError(try JSONDecoder().decode(Policy.Record.self, from: JSONSerialization.data(withJSONObject: object)),
+                             "A version-1 record never carried an intermediate field")
     }
 
     func testDuplicateSourcesAndMalformedUsagesAreRefusedWithoutDiscardingRows() {
@@ -106,12 +151,12 @@ final class SessionCapsMappingPolicyTests: XCTestCase {
         let data = try JSONEncoder().encode(record)
         XCTAssertEqual(try JSONDecoder().decode(Policy.Record.self, from: data), record)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        for key in ["version", "device", "owner", "effectiveConfigSHA256", "original", "applied"] {
+        for key in ["version", "device", "owner", "effectiveConfigSHA256", "intermediate", "original", "applied"] {
             var incomplete = object
             incomplete.removeValue(forKey: key)
             XCTAssertThrowsError(try JSONDecoder().decode(Policy.Record.self, from: JSONSerialization.data(withJSONObject: incomplete)))
         }
-        for change: [String: Any] in [["version": 2], ["applied": []], ["effectiveConfigSHA256": "bad"], ["unowned": true]] {
+        for change: [String: Any] in [["version": 3], ["applied": []], ["effectiveConfigSHA256": "bad"], ["unowned": true]] {
             var tampered = object
             tampered.merge(change) { _, new in new }
             XCTAssertThrowsError(try JSONDecoder().decode(Policy.Record.self, from: JSONSerialization.data(withJSONObject: tampered)))

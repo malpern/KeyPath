@@ -80,6 +80,40 @@ public enum SessionCapsHIDUtilTransport {
         return .init(device: device, mappings: mappings)
     }
 
+    /// Every service's UserKeyMapping from one unscoped `hidutil property
+    /// --get UserKeyMapping`, keyed by registry ID. Each block uses the same
+    /// grammar as `parseProperty`; any block that breaks it refuses the whole
+    /// read, so an unreadable row is never mistaken for a free key.
+    public static func parseAllMappings(_ output: String) throws -> [UInt64: [Policy.Mapping]] {
+        guard output.utf8.count <= 1_048_576 else { throw Refusal.excessiveOutput }
+        var lines = output.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard let header = lines.first,
+              header.split(whereSeparator: \.isWhitespace) == ["RegistryID", "Key", "Value"] else { throw Refusal.unsupportedOutput }
+        lines.removeFirst()
+        var result: [UInt64: [Policy.Mapping]] = [:]
+        var current: (id: UInt64, text: String)?
+        func finish() throws {
+            guard let block = current else { return }
+            let device = Policy.DeviceIdentity(registryEntryID: block.id, vendorID: 0, productID: 0, serialNumber: nil, locationID: nil)
+            guard result[block.id] == nil else { throw Refusal.unsupportedOutput }
+            result[block.id] = try parseProperty(header + "\n" + block.text, device: device).mappings
+        }
+        for line in lines {
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            if fields.count >= 3, fields[1] == "UserKeyMapping", let id = UInt64(fields[0], radix: 16), !line.hasPrefix(" ") {
+                try finish()
+                current = (id, line)
+            } else if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                continue
+            } else {
+                guard current != nil else { throw Refusal.unsupportedOutput }
+                current!.text += "\n" + line
+            }
+        }
+        try finish()
+        return result
+    }
+
     /// Keyboard services from one `hidutil list`. `devices` are the instances a
     /// lease may target. `withheld` counts other physical keyboards (distinct
     /// LocationIDs, so a multi-interface board counts once): ones whose

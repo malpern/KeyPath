@@ -14,6 +14,7 @@ bool keypath_kanata_bridge_validate_config(const char *config_path, char *error_
 bool keypath_kanata_bridge_validate_session_config(const char *config_path, const unsigned int *supported_usages, size_t supported_count, char *error_buffer, size_t error_buffer_len);
 // supported_usages describes outputs. Managed Caps admits logical HID 57 input only.
 bool keypath_kanata_bridge_validate_session_config_with_managed_caps(const char *config_path, const unsigned int *supported_usages, size_t supported_count, bool managed_caps, char *error_buffer, size_t error_buffer_len);
+bool keypath_kanata_bridge_validate_session_config_with_managed_caps_reserving(const char *config_path, const unsigned int *supported_usages, size_t supported_count, bool managed_caps, unsigned int reserved_usage, char *error_buffer, size_t error_buffer_len);
 bool keypath_kanata_bridge_passthru_is_input_mapped(unsigned int page, unsigned int code);
 void *keypath_kanata_bridge_create_runtime(const char *config_path, char *error_buffer, size_t error_buffer_len);
 bool keypath_kanata_bridge_run_runtime(const char *config_path, unsigned short tcp_port, char *error_buffer, size_t error_buffer_len);

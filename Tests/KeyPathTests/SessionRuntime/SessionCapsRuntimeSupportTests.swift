@@ -45,7 +45,7 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         let ordinary = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: environment)
         guard case .valid = ordinary.result else { return XCTFail("Ordinary native F18 profile should stay eligible") }
         XCTAssertFalse(ordinary.managedCaps)
-        let stale = SessionCapsSelection(device: device, bootSessionUUID: UUID().uuidString, reservesF18: true)
+        let stale = SessionCapsSelection(device: device, bootSessionUUID: UUID().uuidString)
         let staleData = try JSONEncoder().encode(stale)
         let ordinaryWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
                                                                           environment: [:], selectionData: staleData)
@@ -99,6 +99,52 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
             environment: [:], selectionData: nil, requireSelection: false
         )
         guard case .invalid = disabled.result else { return XCTFail("Explicit opt-out must remain respected") }
+    }
+
+    /// A rule that uses the saved intermediate, or another app that took it,
+    /// moves the reservation; the worker never moves it on its own.
+    func testAdmissionMovesTheIntermediateAwayFromRulesAndOccupiedKeys() throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        let defaults = UserDefaults.standard
+        let key = SessionCapsRuntimeSupport.automaticSetupDisabledKey
+        let original = defaults.object(forKey: key)
+        defer {
+            if let original { defaults.set(original, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+        defaults.removeObject(forKey: key)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let device = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16400,
+                                                             serialNumber: nil, locationID: 123)
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        func saved(_ usage: UInt32) throws -> Data {
+            try JSONEncoder().encode(SessionCapsSelection(device: device, bootSessionUUID: boot, intermediateUsage: usage))
+        }
+        func admit(_ data: Data?, occupied: Set<UInt32> = [], rechoose: Bool = true) -> SessionCapsRuntimeSupport.Admission {
+            SessionCapsRuntimeSupport.admit(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+                                            environment: [:], selectionData: data, requireSelection: false,
+                                            occupied: occupied, rechoose: rechoose)
+        }
+
+        try "(defsrc caps f18)(deflayer base esc a)".write(to: file, atomically: true, encoding: .utf8)
+        let moved = try admit(saved(109))
+        guard case .valid = moved.result else { return XCTFail("A rule on F18 must move the reservation, not refuse") }
+        XCTAssertTrue(moved.managedCaps)
+        XCTAssertEqual(moved.intermediateUsage, 110)
+        XCTAssertEqual(try admit(saved(109), occupied: [110]).intermediateUsage, 111)
+        guard case .invalid = try admit(saved(109), rechoose: false).result else {
+            return XCTFail("The worker runs exactly the parent's key")
+        }
+
+        try "(defsrc caps)(deflayer base esc)".write(to: file, atomically: true, encoding: .utf8)
+        XCTAssertEqual(try admit(saved(104)).intermediateUsage, 104, "A free saved key is kept")
+        XCTAssertEqual(admit(nil).intermediateUsage, 109)
+        XCTAssertEqual(try admit(saved(104), occupied: [104]).intermediateUsage, 109)
+        let full = try admit(saved(109), occupied: Set(SessionCapsIntermediate.pool))
+        guard case let .invalid(reason) = full.result else { return XCTFail("No free key must refuse") }
+        XCTAssertTrue(reason.contains("F13"), reason)
+        XCTAssertFalse(full.managedCaps)
     }
 
     func testOrphanMutationMarkerBlocksRecoveryEvenWithoutIntent() throws {
