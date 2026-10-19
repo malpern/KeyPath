@@ -150,10 +150,23 @@ public final class SessionCapsMappingLease {
             let persisted = try persist(record, directoryFD: fd)
             // Recheck the selected service immediately before mutation. Never
             // clear a journal on an unconfirmed mutation or a failed readback.
-            try verifyInstance(record)
-            let beforeWrite = try backend.read(device)
-            guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
-            guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
+            do {
+                try verifyInstance(record)
+                let beforeWrite = try backend.read(device)
+                guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
+                guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
+            } catch {
+                // Refused before any write: no mutation marker exists, so nothing
+                // was applied and the intent is void. Left on disk, restore() would
+                // find current ≠ original ≠ applied and refuse every later stop.
+                if (try? requireNoMutation(directoryFD: fd)) != nil,
+                   (try? verifyJournal(persisted, directoryFD: fd)) != nil,
+                   unlinkat(fd, journal, 0) == 0
+                {
+                    _ = fsync(fd)
+                }
+                throw error
+            }
             try verifyJournal(persisted, directoryFD: fd)
             try mutate(record: record, mappings: record.applied, directoryFD: fd, initialApply: true)
             let applied = try backend.read(device)

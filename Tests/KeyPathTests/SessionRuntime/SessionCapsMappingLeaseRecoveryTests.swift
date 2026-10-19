@@ -66,6 +66,29 @@ final class SessionCapsMappingLeaseRecoveryTests: XCTestCase {
         }
     }
 
+    /// A refusal before the first write leaves no intent behind, so later stops
+    /// are not refused for a mapping KeyPath never applied.
+    func testRefusalBeforeAnyWriteLeavesNoPendingIntent() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fake = Fake()
+        fake.devices = [fake.device]
+        fake.foreignAfterFirstRead = [Policy.Mapping(source: 0x7_0000_0004, destination: 0x7_0000_0005)]
+        let owner = Policy.Owner(uid: getuid(), parentPID: 100, workerPID: 101, nonce: "nonce",
+                                 generation: "one", bootSessionUUID: UUID().uuidString)
+        let lease = SessionCapsMappingLease(directory: root, backend: fake.backend)
+        XCTAssertThrowsError(try lease.acquire(owner: owner, configSHA256: String(repeating: "a", count: 64),
+                                               device: fake.device))
+        { error in
+            XCTAssertEqual(error as? Policy.Refusal, .foreignMapping)
+        }
+        XCTAssertEqual(fake.writes, 0)
+        XCTAssertNil(try lease.pendingRecord())
+        XCTAssertNoThrow(try lease.restore(expectedOwner: owner, bootSessionUUID: owner.bootSessionUUID))
+    }
+
     private final class Fake {
         let device = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16400,
                                            serialNumber: nil, locationID: 123)
@@ -75,9 +98,14 @@ final class SessionCapsMappingLeaseRecoveryTests: XCTestCase {
         var failLookup = false
         var failRead = false
         var writes = 0
+        var reads = 0
+        /// Mappings an outside process applies after the lease's first read.
+        var foreignAfterFirstRead: [Policy.Mapping]?
         var backend: SessionCapsMappingLease.Backend {
             .init(enumerate: { self.devices }, read: { device in
                 if self.failRead { throw Failure.unavailable }
+                self.reads += 1
+                if self.reads > 1, let foreign = self.foreignAfterFirstRead { return .init(device: device, mappings: foreign) }
                 return .init(device: device, mappings: self.mappings)
             }, write: { _, mappings in
                 self.writes += 1
