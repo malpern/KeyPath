@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import KeyPathCore
+import LocalAuthentication
 import Security
 
 /// Handles encryption/decryption of activity logs using AES-GCM
@@ -170,13 +171,15 @@ public actor ActivityLogEncryption {
     }
 
     private func readKeyFromKeychain() throws -> SymmetricKey {
+        // Activity logging runs in the background; it must never interrupt
+        // setup with Keychain authorization dialogs.
+        let context = LAContext()
+        context.interactionNotAllowed = !userOpenedActivityHistory
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.keychainService,
             kSecAttrAccount as String: Self.keychainAccount,
-            // Activity logging runs in the background; it must never interrupt
-            // setup with Keychain authorization dialogs.
-            kSecUseAuthenticationUI as String: userOpenedActivityHistory ? kSecUseAuthenticationUIAllow : kSecUseAuthenticationUIFail,
+            kSecUseAuthenticationContext as String: context,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
