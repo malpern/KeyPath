@@ -172,6 +172,10 @@ extension LiveKeyboardOverlayView {
                     onKeyClick: onKeyClick,
                     onKeyDoubleClick: onKeyDoubleClick,
                     onKeyRemap: onKeyRemap,
+                    onKeyReset: onKeyReset,
+                    resettableInputs: LiveKeyboardOverlayController.resettableInputs(
+                        in: kanataViewModel?.customRules ?? [], layer: viewModel.currentLayerName
+                    ),
                     selectedKeyCode: viewModel.selectedKeyCode,
                     hoveredRuleKeyCode: viewModel.hoveredRuleKeyCode,
                     vimHintsActive: kindaVimPackInstalled && VimHintLayer.isCurrentlyRendering,

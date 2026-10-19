@@ -163,7 +163,7 @@ To see or change what a key does, right-click it and choose **Remap**. The setti
 Changed your mind? Nothing is permanent:
 
 - **Pack Gallery** — click **Uninstall** on the pack
-- **Overlay** — right-click the key, choose **Remap**, and set it back to its original output
+- **Overlay** — right-click the key and choose **Reset to Default** (shown for remaps you made on the current layer)
 - **CLI** — `keypath unmap caps_lock`
 
 Experiment freely.

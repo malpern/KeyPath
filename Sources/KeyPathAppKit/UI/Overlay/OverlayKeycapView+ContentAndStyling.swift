@@ -166,11 +166,25 @@ extension OverlayKeycapView {
                 including: isInspectorVisible ? .all : .none
             )
             .contextMenu {
-                if let onKeyRemap {
-                    Button("Remap \u{201C}\(keyMenuName)\u{201D}\u{2026}") {
-                        onKeyRemap(key, layerKeyInfo)
+                if isLauncherMode, let onKeyDoubleClick {
+                    // Same as double-clicking a launcher key: open its shortcut editor.
+                    Button("Edit Shortcut\u{2026}") {
+                        onKeyDoubleClick(key, layerKeyInfo)
                     }
-                    .accessibilityIdentifier("overlay-key-remap-\(key.keyCode)")
+                    .accessibilityIdentifier("overlay-key-edit-shortcut-\(key.keyCode)")
+                } else {
+                    if let onKeyRemap {
+                        Button("Remap \u{201C}\(keyMenuName)\u{201D}\u{2026}") {
+                            onKeyRemap(key, layerKeyInfo)
+                        }
+                        .accessibilityIdentifier("overlay-key-remap-\(key.keyCode)")
+                    }
+                    if isResettable, let onKeyReset {
+                        Button("Reset \u{201C}\(keyMenuName)\u{201D} to Default") {
+                            onKeyReset(key)
+                        }
+                        .accessibilityIdentifier("overlay-key-reset-\(key.keyCode)")
+                    }
                 }
             }
     }

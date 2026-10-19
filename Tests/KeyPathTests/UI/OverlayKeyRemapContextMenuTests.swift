@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathRulesCore
 import XCTest
 
 /// Right-click "Remap…" on an overlay key opens the mapper for that key, with the
@@ -35,5 +36,26 @@ final class OverlayKeyRemapContextMenuTests: XCTestCase {
         XCTAssertEqual(drawerKey.layoutRole, .touchId)
         controller.openMapper(for: drawerKey, layerInfo: nil)
         XCTAssertNil(MapperDrawerSelectionRequest.pending)
+    }
+
+    // MARK: - Reset to Default
+
+    private func rule(_ input: String, layer: RuleCollectionLayer = .base, pack: String? = nil) -> CustomRule {
+        CustomRule(input: input, action: .keystroke(key: "esc"), targetLayer: layer, packSource: pack)
+    }
+
+    func testResetOffersOnlyTheUsersRuleOnTheCurrentLayer() {
+        let mine = rule("A")
+        let rules = [rule("a", layer: .navigation), rule("a", pack: "home-row-mods"), mine]
+        XCTAssertEqual(LiveKeyboardOverlayController.resettableRule(input: "a", layer: "base", in: rules)?.id, mine.id)
+        XCTAssertNil(LiveKeyboardOverlayController.resettableRule(input: "b", layer: "base", in: rules))
+    }
+
+    func testPackRulesAndOtherLayersAreNeverResettable() {
+        let rules = [rule("caps", pack: "caps-lock-remap"), rule("j", layer: .navigation)]
+        XCTAssertNil(LiveKeyboardOverlayController.resettableRule(input: "caps", layer: "base", in: rules))
+        XCTAssertNil(LiveKeyboardOverlayController.resettableRule(input: "j", layer: "base", in: rules))
+        XCTAssertEqual(LiveKeyboardOverlayController.resettableInputs(in: rules, layer: "nav"), ["j"])
+        XCTAssertEqual(LiveKeyboardOverlayController.resettableInputs(in: rules, layer: "base"), [])
     }
 }

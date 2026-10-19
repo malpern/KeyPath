@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 extension LiveKeyboardOverlayController {
     // MARK: - Key Click Handling
@@ -110,6 +111,31 @@ extension LiveKeyboardOverlayController {
         } else {
             toggleInspectorPanel()
         }
+    }
+
+    /// Right-click "Reset to Default": remove the user's own rule for this key on
+    /// the current layer through the canonical rule transaction.
+    func resetKeyToDefault(_ key: PhysicalKey) {
+        guard let kanataViewModel else { return }
+        let input = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
+        guard let rule = Self.resettableRule(input: input, layer: viewModel.currentLayerName,
+                                             in: kanataViewModel.customRules) else { return }
+        AppLogger.shared.log("🖱️ [OverlayController] Reset to default from context menu: \(input) [layer: \(viewModel.currentLayerName)]")
+        Task { await kanataViewModel.removeCustomRule(rule.id) }
+    }
+
+    /// Only rules the user made, for this input, on this layer. Pack rules and
+    /// other layers are excluded: Reset removes exactly what the key shows here.
+    static func resettableRule(input: String, layer: String, in rules: [CustomRule]) -> CustomRule? {
+        rules.first {
+            $0.packSource == nil && $0.input.caseInsensitiveCompare(input) == .orderedSame
+                && $0.targetLayer.kanataName == layer.lowercased()
+        }
+    }
+
+    static func resettableInputs(in rules: [CustomRule], layer: String) -> Set<String> {
+        Set(rules.filter { $0.packSource == nil && $0.targetLayer.kanataName == layer.lowercased() }
+            .map { $0.input.lowercased() })
     }
 
     func mapperSelection(key: PhysicalKey, layerInfo: LayerKeyInfo?) -> [String: Any] {

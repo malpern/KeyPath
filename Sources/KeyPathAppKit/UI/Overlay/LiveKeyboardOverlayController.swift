@@ -786,6 +786,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             onKeyRemap: { [weak self] key, layerInfo in
                 self?.openMapper(for: key, layerInfo: layerInfo)
             },
+            onKeyReset: { [weak self] key in
+                self?.resetKeyToDefault(key)
+            },
             onClose: { [weak self] in
                 self?.hideExplicitly()
                 self?.showOverlayHiddenHint()

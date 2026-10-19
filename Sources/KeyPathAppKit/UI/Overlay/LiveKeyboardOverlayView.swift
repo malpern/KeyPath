@@ -19,6 +19,7 @@ struct LiveKeyboardOverlayView: View {
     var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Right-click "Remap…"; works whether or not the drawer is open.
     var onKeyRemap: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    var onKeyReset: ((PhysicalKey) -> Void)?
     /// Callback when the overlay close button is pressed
     var onClose: (() -> Void)?
     /// Callback when the inspector button is pressed
