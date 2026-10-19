@@ -61,18 +61,22 @@ struct AdvancedSettingsTabView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         // Simulator
                         SettingsSection(title: "Simulator") {
-                            Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            SettingsCard {
+                                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                                    Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
 
-                            Button {
-                                SimulatorWindowController.shared.showWindow()
-                            } label: {
-                                Label("Open Simulator", systemImage: "keyboard")
+                                    Button {
+                                        SimulatorWindowController.shared.showWindow()
+                                    } label: {
+                                        Label("Open Simulator", systemImage: "keyboard")
+                                    }
+                                    .settingsAction()
+                                    .accessibilityIdentifier("settings-open-simulator-button")
+                                    .accessibilityLabel("Open Simulator")
+                                }
                             }
-                            .settingsAction()
-                            .accessibilityIdentifier("settings-open-simulator-button")
-                            .accessibilityLabel("Open Simulator")
                         }
                     }
 
@@ -84,7 +88,7 @@ struct AdvancedSettingsTabView: View {
                 // Duplicate apps warning
                 if duplicateAppCopies.count > 1 {
                     SettingsSection(title: "Other Copies of KeyPath") {
-                        duplicateAppsSection
+                        SettingsCard { duplicateAppsSection }
                     }
                     .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
@@ -172,51 +176,54 @@ struct AdvancedSettingsTabView: View {
 
     private var configBackupsSection: some View {
         SettingsSection(title: "Configuration Backups") {
-            Text("KeyPath keeps up to 5 recent rule and configuration backups. Older config-only backups can be opened for manual recovery.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            SettingsCard {
+                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                    Text("KeyPath keeps up to 5 recent rule and configuration backups. Older config-only backups can be opened for manual recovery.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
-            if backups.isEmpty {
-                Text("No backups yet")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary.opacity(0.6))
-                    .padding(.vertical, 4)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(backups.enumerated()), id: \.element.filename) { index, backup in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(backup.createdAt.relativeDescription)
-                                    .font(.subheadline)
-                                Text("\(backup.formattedDate) \u{2022} \(backup.formattedSize)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                    if backups.isEmpty {
+                        Text("No backups yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary.opacity(0.6))
+                            .padding(.vertical, 4)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(backups.enumerated()), id: \.element.filename) { index, backup in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(backup.createdAt.relativeDescription)
+                                            .font(.subheadline)
+                                        Text("\(backup.formattedDate) \u{2022} \(backup.formattedSize)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    Button("Open") {
+                                        openFileInPreferredEditor(URL(fileURLWithPath: backup.fullPath))
+                                    }
+                                    .accessibilityIdentifier("settings-open-backup-\(index)")
+
+                                    Button("Restore") {
+                                        backupToRestore = backup
+                                        showingRestoreConfirm = true
+                                    }
+                                    .settingsAction()
+                                    .accessibilityIdentifier("settings-restore-backup-\(index)")
+                                    .disabled(restoreInProgress || !FileManager.default.fileExists(atPath: backup.fullPath + ".json"))
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+
+                                if index < backups.count - 1 {
+                                    Divider()
+                                }
                             }
-
-                            Spacer()
-
-                            Button("Open") {
-                                openFileInPreferredEditor(URL(fileURLWithPath: backup.fullPath))
-                            }
-                            .accessibilityIdentifier("settings-open-backup-\(index)")
-
-                            Button("Restore") {
-                                backupToRestore = backup
-                                showingRestoreConfirm = true
-                            }
-                            .settingsAction()
-                            .accessibilityIdentifier("settings-restore-backup-\(index)")
-                            .disabled(restoreInProgress || !FileManager.default.fileExists(atPath: backup.fullPath + ".json"))
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-
-                        if index < backups.count - 1 {
-                            Divider()
                         }
                     }
                 }
-                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
             }
         }
     }

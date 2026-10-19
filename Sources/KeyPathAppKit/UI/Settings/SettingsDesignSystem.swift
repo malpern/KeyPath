@@ -26,8 +26,9 @@ struct SettingsSectionHeader: View {
             if let icon {
                 Image(systemName: icon).foregroundStyle(color).font(.body)
             }
-            Text(title).font(.headline).foregroundStyle(.secondary)
+            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
         }
+        .padding(.leading, 4)
         .accessibilityAddTraits(.isHeader)
     }
 }
@@ -52,9 +53,7 @@ struct SettingsCard<Content: View>: View {
         content
             .padding(SettingsDesign.cardInset)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
+            .settingsGroupBackground()
     }
 }
 
@@ -90,6 +89,15 @@ struct SettingsToggleRow: View {
 }
 
 extension View {
+    /// The one grouped-box treatment for Settings: a faint tint relative to the
+    /// window (lighter in dark mode, slightly darker in light mode), as in System
+    /// Settings, instead of the darker control background.
+    func settingsGroupBackground() -> some View {
+        background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+    }
+
     func settingsBackground() -> some View {
         frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(Color(nsColor: .windowBackgroundColor))

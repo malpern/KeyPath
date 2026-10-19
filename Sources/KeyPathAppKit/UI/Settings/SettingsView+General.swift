@@ -94,13 +94,16 @@ struct GeneralSettingsTabView: View {
                 }
 
                 SettingsSection(title: "Keyboard Setup") {
-                    SettingsCard { SessionCapsSettingsSection() }
                     SettingsCard {
-                        SettingsControlRow(title: "Import from Karabiner", icon: "square.and.arrow.down") {
-                            Button("Import…") { showingKarabinerImport = true }
-                                .settingsAction()
-                                .accessibilityIdentifier("settings-import-karabiner-button")
-                                .accessibilityLabel("Import from Karabiner")
+                        VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                            SessionCapsSettingsSection()
+                            Divider()
+                            SettingsControlRow(title: "Import from Karabiner", icon: "square.and.arrow.down") {
+                                Button("Import…") { showingKarabinerImport = true }
+                                    .settingsAction()
+                                    .accessibilityIdentifier("settings-import-karabiner-button")
+                                    .accessibilityLabel("Import from Karabiner")
+                            }
                         }
                     }
                     .sheet(isPresented: $showingKarabinerImport) { KarabinerImportSheet() }
@@ -108,35 +111,35 @@ struct GeneralSettingsTabView: View {
 
                 SettingsSection(title: "Advanced") {
                     SettingsCard {
-                        DisclosureGroup {
-                            VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
-                                HStack {
-                                    Button("KeyPath Log") { openLogFile(KeyPathConstants.Logs.userDebugLog) }
-                                        .settingsAction().accessibilityIdentifier("settings-open-keypath-log-button")
-                                    Button("Runtime Log") { openLogFile(WizardSystemPaths.kanataLogFile) }
-                                        .settingsAction().accessibilityIdentifier("settings-open-kanata-log-button")
-                                }
-                                VerboseLoggingToggle()
-                            }.padding(.top, SettingsDesign.rowGap)
-                        } label: { Label("Logs & Diagnostics", systemImage: "waveform.path.ecg") }
-                            .accessibilityIdentifier("settings-logs-disclosure")
-                    }
-                    if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                        SettingsCard {
+                        VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                             DisclosureGroup {
-                                VirtualKeysInspectorView()
-                            } label: { Label("Virtual Keys", systemImage: "keyboard.badge.ellipsis") }
-                                .accessibilityIdentifier("settings-virtual-keys-disclosure")
+                                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                                    HStack {
+                                        Button("KeyPath Log") { openLogFile(KeyPathConstants.Logs.userDebugLog) }
+                                            .settingsAction().accessibilityIdentifier("settings-open-keypath-log-button")
+                                        Button("Runtime Log") { openLogFile(WizardSystemPaths.kanataLogFile) }
+                                            .settingsAction().accessibilityIdentifier("settings-open-kanata-log-button")
+                                    }
+                                    VerboseLoggingToggle()
+                                }.padding(.top, SettingsDesign.rowGap)
+                            } label: { Label("Logs & Diagnostics", systemImage: "waveform.path.ecg") }
+                                .accessibilityIdentifier("settings-logs-disclosure")
+                            if FeatureFlags.simulatorAndVirtualKeysEnabled {
+                                Divider()
+                                DisclosureGroup {
+                                    VirtualKeysInspectorView()
+                                } label: { Label("Virtual Keys", systemImage: "keyboard.badge.ellipsis") }
+                                    .accessibilityIdentifier("settings-virtual-keys-disclosure")
+                            }
+                            #if DEBUG
+                                Divider()
+                                DisclosureGroup {
+                                    ExperimentalSettingsSection().padding(.top, SettingsDesign.rowGap)
+                                } label: { Label("Experimental", systemImage: "flask") }
+                                    .accessibilityIdentifier("settings-experimental-disclosure")
+                            #endif
                         }
                     }
-                    #if DEBUG
-                        SettingsCard {
-                            DisclosureGroup {
-                                ExperimentalSettingsSection().padding(.top, SettingsDesign.rowGap)
-                            } label: { Label("Experimental", systemImage: "flask") }
-                                .accessibilityIdentifier("settings-experimental-disclosure")
-                        }
-                    #endif
                 }
             }
             .padding(.horizontal, SettingsDesign.pageInset)

@@ -243,7 +243,9 @@ struct StatusSettingsTabView: View {
                                 )
                             }
                         }
+                        .padding(SettingsDesign.cardInset)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .settingsGroupBackground()
                         .accessibilityIdentifier("settings-status-list")
 
                         keyboardDetailsSection
@@ -370,6 +372,9 @@ struct StatusSettingsTabView: View {
                     .accessibilityLabel("Forget This Keyboard")
                     .accessibilityIdentifier("status-forget-keyboard-button")
                 }
+                .padding(.horizontal, SettingsDesign.cardInset)
+                .padding(.vertical, 10)
+                .settingsGroupBackground()
                 // Diagnostics stay reachable without taking space.
                 .help("""
                 VID:PID \(activeKeyboard.vidPidKey) · \(activeKeyboard.source?.rawValue.capitalized ?? "Manual") · \
@@ -387,7 +392,10 @@ struct StatusSettingsTabView: View {
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }
+                .padding(.horizontal, SettingsDesign.cardInset)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .settingsGroupBackground()
                 .accessibilityIdentifier("status-no-connected-keyboard-panel")
             }
         }
