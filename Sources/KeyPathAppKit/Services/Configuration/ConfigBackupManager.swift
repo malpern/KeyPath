@@ -60,8 +60,11 @@ public final class ConfigBackupManager {
             let collectionsURL = directory.appendingPathComponent("RuleCollections.json")
             if FileManager.default.fileExists(atPath: collectionsURL.path) {
                 let rulesURL = directory.appendingPathComponent("CustomRules.json")
+                let fingerprintURL = directory.appendingPathComponent("keypath-config.fingerprint")
+                let recordedFingerprint = try? String(contentsOf: fingerprintURL, encoding: .utf8)
                 let snapshot = try RuleBackupSnapshot(
                     version: 1, config: content, generationPreferences: generationPreferences,
+                    wasManagedWrite: recordedFingerprint == ConfigurationService.managedFingerprint(content),
                     collections: Data(contentsOf: collectionsURL),
                     customRules: FileManager.default.fileExists(atPath: rulesURL.path)
                         ? Data(contentsOf: rulesURL) : Data("[]".utf8)
@@ -310,6 +313,10 @@ struct RuleBackupSnapshot: Codable, Sendable {
     let version: Int
     let config: String
     var generationPreferences: RuleBackupPreferences? = nil
+    /// The backed-up config was KeyPath's own unedited write (its fingerprint
+    /// matched), so its rules alone reproduce it, under whatever generator the
+    /// restore runs. Older snapshots lack this and must match byte for byte.
+    var wasManagedWrite: Bool? = nil
     let collections: Data
     let customRules: Data
 

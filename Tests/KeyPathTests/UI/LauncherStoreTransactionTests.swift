@@ -106,6 +106,29 @@ final class LauncherStoreTransactionTests: KeyPathTestCase {
         XCTAssertEqual(manager.ruleCollections.first?.configuration.launcherGridConfig?.mappings.map(\.id), [second.id])
     }
 
+    /// A backup of KeyPath's own write still restores after the generator changes.
+    func testManagedBackupRestoresAfterGeneratorChange() async throws {
+        let backups = ConfigBackupManager(configPath: directory.appendingPathComponent("keypath.kbd").path)
+        XCTAssertTrue(backups.createPreEditBackup())
+        let backup = try XCTUnwrap(backups.getAvailableBackups().first)
+        let snapshot = try RuleBackupSnapshot.read(backup)
+        XCTAssertEqual(snapshot.wasManagedWrite, true)
+        // Model a backup taken under an older generator: same rules, different text.
+        let olderOutput = snapshot.config + "\n;; older generator output\n"
+        try olderOutput.write(toFile: backup.fullPath, atomically: true, encoding: .utf8)
+        let older = RuleBackupSnapshot(version: 1, config: olderOutput, generationPreferences: snapshot.generationPreferences,
+                                       wasManagedWrite: true, collections: snapshot.collections, customRules: snapshot.customRules)
+        try JSONEncoder().encode(older).write(to: URL(fileURLWithPath: backup.fullPath + ".json"))
+        store.deleteMapping(first.id)
+        await store.pendingSave?.value
+
+        let result = await manager.restoreConfigurationBackup(backup)
+        XCTAssertTrue(result.success, "\(String(describing: result.error))")
+        let restored = try String(contentsOf: directory.appendingPathComponent("keypath.kbd"), encoding: .utf8)
+        XCTAssertTrue(restored.contains("act_launcher_q"))
+        XCTAssertFalse(restored.contains("older generator output"))
+    }
+
     func testBackupWithMismatchedMetadataIsRejectedWithoutWrites() async throws {
         let backups = ConfigBackupManager(configPath: directory.appendingPathComponent("keypath.kbd").path)
         XCTAssertTrue(backups.createPreEditBackup())

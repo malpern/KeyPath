@@ -444,7 +444,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         leaderKeyPreference: LeaderKeyPreference? = nil,
         shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
         deviceSelections: [DeviceSelection]? = nil,
-        restoringBackupContent: String? = nil
+        restoringBackupContent: String? = nil,
+        restoringManagedBackup: Bool = false
     ) async throws -> RuleWrite {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             guard packRecord == nil || deviceSelections == nil else {
@@ -486,7 +487,9 @@ public final class ConfigurationService: FileConfigurationProviding {
                 shortcutListGenerationInput: shortcutListGenerationInput ?? persistedInputs.shortcut,
                 deviceGenerationInput: deviceGenerationInput
             )
-            if let restoringBackupContent,
+            // A backup of KeyPath's own write is restored from its rules even if
+            // the generator has changed since; anything else must match exactly.
+            if let restoringBackupContent, !restoringManagedBackup,
                !AppConfigGenerator.matchesManagedContent(restoringBackupContent, expected: newConfig.content)
             {
                 throw RuleBackupSnapshot.Failure.inconsistentSnapshot
@@ -937,7 +940,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             && lines[1].hasPrefix(";; Enabled: ")
     }
 
-    static func managedFingerprint(_ content: String) -> String {
+    nonisolated static func managedFingerprint(_ content: String) -> String {
         let normalized = content.components(separatedBy: "\n")
             .filter { !$0.hasPrefix(";; Generated: ") }
             .joined(separator: "\n")

@@ -24,6 +24,7 @@ extension RuleCollectionsManager {
                     leaderKeyPreference: backupPreferences?.leader,
                     shortcutListGenerationInput: shortcutInput,
                     restoringBackupContent: backupSnapshot.config,
+                    restoringManagedBackup: backupSnapshot.wasManagedWrite == true,
                     reloadHandler: onRulesChanged
                 )
                 if !result.success {
