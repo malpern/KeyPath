@@ -343,9 +343,9 @@ struct VimLayerCommandList: View {
 
     var body: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: SettingsDesign.optionGap, alignment: .top)],
+            columns: [GridItem(.adaptive(minimum: 260), spacing: 28, alignment: .top)],
             alignment: .leading,
-            spacing: SettingsDesign.optionGap
+            spacing: 20
         ) {
             ForEach(groups) { group in
                 VStack(alignment: .leading, spacing: 6) {
@@ -358,11 +358,13 @@ struct VimLayerCommandList: View {
                         row(entry)
                     }
                 }
-                .padding(12)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .settingsGroupBackground()
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
+        // One grouped panel with four headings: with a single pack color, separate
+        // boxes per group added weight without adding information.
+        .padding(SettingsDesign.cardInset)
+        .settingsGroupBackground()
         .accessibilityIdentifier("vim-layer-command-list")
     }
 

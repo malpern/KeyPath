@@ -189,22 +189,13 @@ struct KindaVimStatusBlock: View {
         return mode.displayName
     }
 
+    /// The overlay mode badge's color, so a mode looks the same in both places.
     private var modeTint: Color {
-        switch adapter.state.mode {
-        case .normal: .green
-        case .insert: .blue
-        case .visual: .orange
-        case .operatorPending: .purple
-        case .unknown: .secondary
-        }
+        KindaVimModeBadge.tint(for: adapter.state.mode)
     }
 
+    /// Strategy is information, not a good/bad state, so it gets no status color.
     private var strategyTint: Color {
-        switch strategyMonitor.currentStrategy {
-        case .accessibility: .green
-        case .hybrid: .blue
-        case .keyboard: .orange
-        case .ignored: .secondary
-        }
+        strategyMonitor.currentStrategy == .ignored ? .secondary : .primary
     }
 }
