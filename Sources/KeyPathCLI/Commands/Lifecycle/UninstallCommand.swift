@@ -47,17 +47,10 @@ struct Uninstall: AsyncParsableCommand {
             }
             throw ExitCode(2)
         }
-        let response: RuntimeControl.Response
-        do {
-            response = try RuntimeControlClient.sendLaunching(.uninstall, timeout: max(globals.timeout, 120),
-                                                              ctx: ctx, confirmed: true)
-        } catch {
-            let failure = RuntimeControlClient.appUnreachable(error, action: "uninstall")
-            CLIOutput.writeError(failure, context: ctx)
-            throw failure.code.exitCode
-        }
+        // tccutil finds the app by bundle id, which fails once the app is in the
+        // Trash, so clear the entries while it is still installed.
         var reset: [String] = []
-        if response.ok, resetPermissions {
+        if resetPermissions {
             for service in ["Accessibility", "ListenEvent", "PostEvent"] {
                 let tcc = Process()
                 tcc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
@@ -70,10 +63,19 @@ struct Uninstall: AsyncParsableCommand {
                 }
             }
         }
+        let response: RuntimeControl.Response
+        do {
+            response = try RuntimeControlClient.sendLaunching(.uninstall, timeout: max(globals.timeout, 120),
+                                                              ctx: ctx, confirmed: true)
+        } catch {
+            let failure = RuntimeControlClient.appUnreachable(error, action: "uninstall")
+            CLIOutput.writeError(failure, context: ctx)
+            throw failure.code.exitCode
+        }
         CLIOutput.write(response, context: ctx) {
             var lines = [response.ok ? "KeyPath was uninstalled." : "KeyPath was not uninstalled."]
             if let message = response.message { lines.append(message) }
-            if resetPermissions, response.ok {
+            if resetPermissions {
                 lines.append(reset.count == 3 ? "Permission entries cleared."
                     : "Some permission entries could not be cleared; remove KeyPath in System Settings > Privacy & Security.")
             }

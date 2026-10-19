@@ -74,21 +74,19 @@ enum RuntimeControlHandler {
             refused.message = "Uninstall needs confirmation; nothing was changed."
             return refused
         }
-        guard let coordinator = WizardDependencies.createUninstallCoordinator?() else {
-            var unavailable = response(ok: false, operation: .uninstall, status: status, lastError: nil)
-            unavailable.message = "Uninstall is unavailable in this build."
-            return unavailable
-        }
         RuntimeControlServer.shared.withdrawForUninstall()
-        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
-        if !result.success { RuntimeControlServer.shared.restoreAfterFailedUninstall() }
-        var answer = await response(ok: result.success, operation: .uninstall,
+        // The same entry point as Settings' Uninstall dialog. It also records that
+        // cleanup finished, which is what lets the app quit afterwards.
+        let report = await manager.uninstall(deleteConfig: true)
+        if !report.success { RuntimeControlServer.shared.restoreAfterFailedUninstall() }
+        var answer = await response(ok: report.success, operation: .uninstall,
                                     status: manager.currentRuntimeStatusInternal(), lastError: nil)
-        answer.message = result.success ? result.logs.first : result.failureReason
-        if result.success {
+        answer.message = report.success ? report.logs.first : report.failureReason
+        if report.success {
+            // Answer first, then quit as the dialog does, from the run loop.
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.5))
-                NSApp.terminate(nil)
+                try? await Task.sleep(for: .seconds(1))
+                DispatchQueue.main.async { NSApplication.shared.terminate(nil) }
             }
         }
         return answer
