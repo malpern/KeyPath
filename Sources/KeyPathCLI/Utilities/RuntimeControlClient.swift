@@ -80,10 +80,24 @@ enum RuntimeControlClient {
         }
     }
 
+    /// Poll until the runtime is running or has failed, or the timeout passes.
+    static func settle(after response: RuntimeControl.Response, timeout: Int) -> RuntimeControl.Response {
+        var latest = response
+        let deadline = Date().addingTimeInterval(TimeInterval(timeout))
+        while Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.5)
+            guard let status = try? send(.status, timeout: 5) else { continue }
+            latest = status
+            if status.state == .running || status.state == .failed { break }
+        }
+        return latest
+    }
+
     /// Shared body of start/stop/restart.
     static func run(_ operation: RuntimeControl.Operation, globals: GlobalOptions, launch: Bool) throws {
         let ctx = globals.outputContext
         var response: RuntimeControl.Response
+        var launched = false
         do {
             response = try send(operation, timeout: globals.timeout)
         } catch RuntimeControl.ClientError.appNotRunning where operation == .stop {
@@ -93,6 +107,7 @@ enum RuntimeControlClient {
             CLIOutput.progress("Launching KeyPath.app...", context: ctx)
             do {
                 try launchApp(timeout: globals.timeout)
+                launched = true
                 response = try send(operation == .restart ? .start : operation, timeout: globals.timeout)
             } catch {
                 let failure = appUnreachable(error, action: operation.rawValue)
@@ -105,7 +120,13 @@ enum RuntimeControlClient {
             throw failure.code.exitCode
         }
 
-        let succeeded = response.ok && (operation == .stop ? response.state != .running : response.state == .running)
+        // A freshly launched app starts remapping itself, and that can supersede
+        // this request; a runtime that reports "starting" is still on its way.
+        // Either way, report where it settles rather than the in-between state.
+        if operation != .stop, launched || response.state == .starting, response.state != .running {
+            response = settle(after: response, timeout: globals.timeout)
+        }
+        let succeeded = (response.ok || launched) && (operation == .stop ? response.state != .running : response.state == .running)
         CLIOutput.write(response, context: ctx) {
             let verb = switch operation {
             case .start: succeeded ? "Remapping started." : "Remapping did not start."
