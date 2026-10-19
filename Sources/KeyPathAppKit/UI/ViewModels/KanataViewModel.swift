@@ -581,8 +581,8 @@ class KanataViewModel {
         await manager.restartKanata(reason: reason)
     }
 
-    func setCapsSelection(_ selection: SessionCapsSelection?) async -> Bool {
-        await manager.setCapsSelection(selection)
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil) async -> Bool {
+        await manager.setCapsSelection(selection, automaticSetupDisabled: automaticSetupDisabled)
     }
 
     func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {

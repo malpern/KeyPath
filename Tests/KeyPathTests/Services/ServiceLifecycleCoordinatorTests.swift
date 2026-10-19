@@ -56,6 +56,35 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testCapsSelectionChangeRestartsARuntimeThatWasRunning() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { true }
+        defer {
+            ServiceLifecycleCoordinator.testSessionStart = nil
+            ServiceLifecycleCoordinator.testSessionStop = nil
+        }
+        _ = await coordinator.startKanata()
+        XCTAssertTrue(coordinator.sessionWantsRunning)
+        let launchesBefore = launches
+
+        for verify in [{}, { throw SessionCapsRuntimeSupport.Refusal.selection }] as [@Sendable () async throws -> Void] {
+            let wasRunning = coordinator.sessionWantsRunning
+            _ = await coordinator.changeCapsSelection(verify: verify, commit: {})
+            XCTAssertFalse(coordinator.sessionWantsRunning, "The change releases the Caps lease first")
+            await coordinator.resumeAfterCapsSelectionChange(wasRunning: wasRunning)
+            XCTAssertTrue(coordinator.sessionWantsRunning, "Committed or refused, remapping comes back")
+        }
+        XCTAssertEqual(launches, launchesBefore + 2)
+
+        // A runtime that was stopped stays stopped.
+        _ = await coordinator.stopKanata()
+        _ = await coordinator.changeCapsSelection(verify: {}, commit: {})
+        await coordinator.resumeAfterCapsSelectionChange(wasRunning: false)
+        XCTAssertFalse(coordinator.sessionWantsRunning)
+    }
+
     func testCapsSelectionRefusalPreservesConsentAndRequiresSuccessfulCleanup() async {
         var commits = 0
         var verifications = 0

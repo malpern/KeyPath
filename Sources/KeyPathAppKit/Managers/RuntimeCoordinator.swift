@@ -656,9 +656,13 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     /// Persist exact-device Caps consent only after admitted runtime restoration.
-    func setCapsSelection(_ selection: SessionCapsSelection?) async -> Bool {
+    /// The change stops the runtime to release the Caps lease; if it was running,
+    /// it is started again afterwards, whether the change committed or was refused.
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil) async -> Bool {
+        let wasRunning = serviceLifecycleCoordinator.sessionWantsRunning
+        let changed: Bool
         do {
-            return try await configurationService.operationGate.withOperation { [serviceLifecycleCoordinator] _ in
+            changed = try await configurationService.operationGate.withOperation { [serviceLifecycleCoordinator] _ in
                 await serviceLifecycleCoordinator.changeCapsSelection(verify: {
                     guard let selection else { return }
                     try await Task.detached {
@@ -666,9 +670,17 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                                                       currentBoot: SessionCapsRuntimeSupport.bootSessionUUID())
                         try SessionCapsRuntimeSupport.requirePhysicalAllUp()
                     }.value
-                }, commit: { try SessionCapsSelectionStore.save(selection) })
+                }, commit: {
+                    try SessionCapsSelectionStore.save(selection)
+                    // Before any restart: start-up reads this to decide automatic Caps setup.
+                    if let automaticSetupDisabled {
+                        UserDefaults.standard.set(automaticSetupDisabled, forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
+                    }
+                })
             }
-        } catch { return false }
+        } catch { changed = false }
+        await serviceLifecycleCoordinator.resumeAfterCapsSelectionChange(wasRunning: wasRunning)
+        return changed
     }
 
     /// Stop Kanata when the app is terminating (async version).

@@ -122,11 +122,10 @@ struct SessionCapsSettingsSection: View {
         } else { selection = nil }
         busy = true
         defer { busy = false }
-        guard await runtime.setCapsSelection(selection) else {
+        guard await runtime.setCapsSelection(selection, automaticSetupDisabled: !enabled) else {
             message = "Caps Lock setup could not be changed safely. Existing settings were kept. If the keyboard was disconnected, restart your Mac and try again."
             return
         }
-        UserDefaults.standard.set(!enabled, forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
         message = nil
     }
 }

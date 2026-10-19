@@ -252,6 +252,14 @@ final class ServiceLifecycleCoordinator {
         }
     }
 
+    /// `changeCapsSelection` stops the runtime to release the Caps lease. Start it
+    /// again if it was running before, whether the change committed or was refused,
+    /// so remapping is never left off by a settings change.
+    func resumeAfterCapsSelectionChange(wasRunning: Bool) async {
+        guard wasRunning, !sessionWantsRunning else { return }
+        await startKanata(reason: "Caps Lock setup changed")
+    }
+
     private func commitCapsSelection(generation: UInt64, commit: @MainActor () throws -> Void) throws -> Bool {
         guard generation == sessionIntentGeneration, !startsSuppressed, !Task.isCancelled else { return false }
         try commit()
