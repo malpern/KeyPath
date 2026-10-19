@@ -125,6 +125,9 @@ struct RuleSetupSheet: View {
         .frame(width: 520)
         .background(Color(nsColor: .windowBackgroundColor))
         .onExitCommand { if !saving { session.finish(.failure(CancellationError())) } }
+        // Closing the Settings window removes the sheet without a choice; resolve
+        // the waiting save. While applying, the apply's own result finishes it.
+        .onDisappear { if !saving { session.finish(.failure(CancellationError())) } }
     }
 
     private func providerChoice(_ provider: RuleCollection, index: Int, recommended: Bool) -> some View {

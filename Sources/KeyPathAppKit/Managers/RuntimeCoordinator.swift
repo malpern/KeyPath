@@ -462,6 +462,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onPrerequisiteSetup = { [weak self] context, apply in
             guard let self else { return .failure(CancellationError()) }
+            // The sheet lives in the Settings window, and this waits while holding
+            // the rule-write gate. Bring Settings forward so a request made from the
+            // overlay or a pack window is answerable, and never strand an older one.
+            pendingRuleSetup?.finish(.failure(CancellationError()))
             return await withCheckedContinuation { continuation in
                 self.pendingRuleSetup = RuleSetupSession(context: context, apply: apply) { [weak self] result in
                     self?.pendingRuleSetup = nil
@@ -469,6 +473,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                     continuation.resume(returning: result)
                 }
                 self.notifyStateChanged()
+                openPreferencesTab(.openSettingsRules)
             }
         }
         ruleCollectionsManager.onPrerequisiteResolution = { [weak self] context in
