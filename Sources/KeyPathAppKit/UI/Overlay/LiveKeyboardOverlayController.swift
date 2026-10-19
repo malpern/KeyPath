@@ -407,8 +407,9 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
         guard let window else { return }
 
-        let frame = defaultCenteredFrame(on: window.screen ?? NSScreen.main)
-        let constrained = window.constrainFrameRect(frame, to: window.screen)
+        let screen = Self.screenUnderPointer ?? window.screen
+        let frame = defaultCenteredFrame(on: screen)
+        let constrained = window.constrainFrameRect(frame, to: screen)
         window.setFrame(constrained, display: true, animate: false)
         collapsedFrameBeforeInspector = constrained
         persistWindowFrame(constrained)
@@ -623,7 +624,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func persistWindowFrame(_ frame: NSRect) {
-        frameStore.save(frame: frame)
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(center) }) ?? window?.screen {
+            frameStore.save(frame: frame, displayKey: Self.displayKey(for: screen), visibleFrame: screen.visibleFrame)
+        } else {
+            frameStore.save(frame: frame)
+        }
+    }
+
+    /// Stable name for a display across reconnects (display IDs are not).
+    static func displayKey(for screen: NSScreen) -> String {
+        "\(screen.localizedName)-\(Int(screen.frame.width))x\(Int(screen.frame.height))"
+    }
+
+    /// The display the pointer is on: where the user is working right now.
+    static var screenUnderPointer: NSScreen? {
+        let mouse = NSEvent.mouseLocation
+        return NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
     }
 
     private func defaultCenteredFrame(on screen: NSScreen?) -> NSRect {
@@ -642,8 +659,17 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         return frame
     }
 
+    /// The saved frame, placed on the display under the pointer: that display's own
+    /// remembered frame if it has one, otherwise the last frame at the same relative spot.
     private func restoreWindowFrame() -> NSRect? {
-        frameStore.restore()
+        let lastFrame = frameStore.restore()
+        guard let target = Self.screenUnderPointer else { return lastFrame }
+        return OverlayDisplayPlacement.frame(
+            savedOnTarget: frameStore.frame(forDisplay: Self.displayKey(for: target)),
+            lastFrame: lastFrame,
+            lastVisibleFrame: frameStore.lastVisibleFrame(),
+            targetVisibleFrame: target.visibleFrame
+        )
     }
 
     // MARK: - NSWindowDelegate
