@@ -71,8 +71,10 @@ The saved selection identifies one keyboard instance for the current boot.
 When it becomes stale, automatic setup can discover an eligible keyboard again;
 it does not trust an old device identifier after reconnect or reboot. Automatic
 selection only happens when exactly one compatible keyboard is connected. With
-several, choose again in **Settings → General** after you unplug and reconnect
-the chosen keyboard or restart your Mac.
+several, KeyPath asks you to choose again after a restart. If you unplug the
+chosen keyboard and KeyPath restarts while only one keyboard remains, it uses
+that one; when you plug yours back in, pick it again from the menu in
+**Settings → General**.
 
 KeyPath checks existing mappings and ownership before changing or restoring
 them. Conflicting mappings are refused. If safe restoration cannot be verified,

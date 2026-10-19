@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathRulesCore
@@ -26,7 +27,7 @@ struct SessionCapsSettingsSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                if !automaticDisabled, device == nil, !busy {
+                if !automaticDisabled, device == nil || keyboards.count > 1, !busy {
                     Button("Check Again") { Task { await reviewKeyboard() } }
                         .settingsAction()
                         .accessibilityIdentifier("settings-caps-check-again")
@@ -67,6 +68,10 @@ struct SessionCapsSettingsSection: View {
             }
         }
         .task { await reviewKeyboard() }
+        // Keyboards come and go while Settings is open; refresh on return.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await reviewKeyboard() }
+        }
     }
 
     private var rulesUseCaps: Bool {
@@ -117,7 +122,7 @@ struct SessionCapsSettingsSection: View {
     }
 
     @MainActor
-    private func reviewKeyboard() async {
+    private func reviewKeyboard(keepMessage: Bool = false) async {
         guard !busy else { return }
         busy = true
         defer { busy = false }
@@ -131,7 +136,7 @@ struct SessionCapsSettingsSection: View {
                 .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
             device = Self.effectiveDevice(saved: saved?.device, connected: keyboards.map(\.device))
             reservesF18 = saved?.device == device
-            message = nil
+            if !keepMessage { message = nil }
         } catch {
             keyboards = []
             device = nil
@@ -151,14 +156,15 @@ struct SessionCapsSettingsSection: View {
     @MainActor
     private func choose(_ chosen: SessionCapsMappingPolicy.DeviceIdentity) async {
         guard !busy, chosen != device || !reservesF18 else { return }
-        let previous = device
+        let previous = (device, reservesF18)
         device = chosen
         reservesF18 = true
         message = nil
         await applySelection(enabled: true)
         if message != nil {
-            device = previous
-            reservesF18 = false
+            (device, reservesF18) = previous
+            message = "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept."
+            await reviewKeyboard(keepMessage: true)
         }
     }
 
