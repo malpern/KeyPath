@@ -19,8 +19,11 @@ concurrency:
 
 jobs:
   build-and-test:
-    # macOS 27 AppSSO traps SwiftPM binary-artifact requests from a headless
-    # LaunchDaemon. Only the interactive runner carries swiftpm-safe.
+    # macOS 27 AppSSO trapped SwiftPM binary-artifact requests from a headless
+    # LaunchDaemon (docs: 2026-07-16-headless-swiftpm-appsso-trap.md). Since
+    # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
+    # session; the persistent scratch below means Sparkle is fetched only on a
+    # cold scratch, not on every job.
     runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
@@ -113,6 +116,37 @@ jobs:
         chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
         ./Scripts/lint-no-subprocess-in-autofixer.sh
 
+    - name: Prepare persistent SwiftPM scratch
+      # Persistent per runner: runner.workspace (_work/KeyPath) survives between
+      # jobs, while runner.temp is wiped after every job and made each build cold.
+      # One runner runs one job at a time, so jobs never share this directory
+      # concurrently. It is cleared when the toolchain changes or it grows past
+      # the cap; the 40 GiB host disk reserve above still applies.
+      env:
+        KEYPATH_SCRATCH_CAP_GIB: "30"
+      run: |
+        scratch="${{ runner.workspace }}/swiftpm-scratch"
+        stamp="$scratch/.keypath-toolchain"
+        toolchain="$(swift --version 2>&1 | head -1)"
+        state=warm
+        if [[ ! -d "$scratch" ]]; then
+          state=cold
+        elif [[ "$(cat "$stamp" 2>/dev/null)" != "$toolchain" ]]; then
+          echo "Toolchain changed; clearing $scratch"
+          rm -rf "$scratch"; state=cold-toolchain
+        else
+          size_gib=$(( $(du -sk "$scratch" | cut -f1) / 1048576 ))
+          if (( size_gib > KEYPATH_SCRATCH_CAP_GIB )); then
+            echo "Scratch is ${size_gib} GiB (cap ${KEYPATH_SCRATCH_CAP_GIB}); clearing"
+            rm -rf "$scratch"; state=cold-cap
+          fi
+        fi
+        mkdir -p "$scratch"
+        printf '%s\n' "$toolchain" > "$stamp"
+        echo "SCRATCH_PATH=$scratch" >> "$GITHUB_ENV"
+        echo "SWIFTPM_SCRATCH_STATE=$state" >> "$GITHUB_ENV"
+        echo "SwiftPM scratch: $scratch ($state)"
+
     - name: Run Test Lane - full
       env:
         KP_SIGN_DRY_RUN: "1"
@@ -123,7 +157,7 @@ jobs:
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
         KEYPATH_SWIFT_BUILD_JOBS: "4"
-        SCRATCH_PATH: ${{ runner.temp }}/keypath-build
+        # SCRATCH_PATH comes from "Prepare persistent SwiftPM scratch" via GITHUB_ENV.
       run: |
         echo "Running full named test lane..."
         export CI_ENVIRONMENT=true
@@ -193,6 +227,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Kanata Artifacts" >> $GITHUB_STEP_SUMMARY
         echo "- Cache status: \`${KANATA_CACHE_STATUS:-unknown}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- SwiftPM scratch: \`${SWIFTPM_SCRATCH_STATE:-unknown}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Coverage" >> $GITHUB_STEP_SUMMARY
         echo "- Narrow coverage enforcement moved to the scheduled/manual \`KeyPath Coverage\` workflow." >> $GITHUB_STEP_SUMMARY
