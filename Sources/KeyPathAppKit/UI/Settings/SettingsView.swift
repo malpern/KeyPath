@@ -23,6 +23,8 @@ struct StatusSettingsTabView: View {
 
     @State var tcpConfigured: Bool?
     @State var duplicateAppCopies: [String] = []
+    @State private var capsManaged = false
+    @State private var launchAtLogin = LaunchAtLoginController.shared
     @State private var settingsToastManager = WizardToastManager()
     @State var showingPermissionAlert = false
     @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
@@ -75,8 +77,9 @@ struct StatusSettingsTabView: View {
                     .padding(.top, 20)
                 }
 
-                // System Status Hero Section
-                HStack(alignment: .top, spacing: 40) {
+                // System Status Hero Section: centred against the status list so
+                // the summary stays balanced as rows are added or removed.
+                HStack(alignment: .center, spacing: 40) {
                     // Large status indicator with centered toggle
                     VStack(spacing: 16) {
                         VStack(spacing: 12) {
@@ -224,7 +227,7 @@ struct StatusSettingsTabView: View {
                             runtimePermissionRows
                         }
 
-                        ForEach(systemStatusRows) { row in
+                        ForEach(systemStatusRows + summaryRows) { row in
                             SettingsSystemStatusRow(
                                 id: row.id,
                                 title: row.title,
@@ -233,6 +236,8 @@ struct StatusSettingsTabView: View {
                                 message: row.message,
                                 onTap: row.targetPage.map { page in
                                     { wizardInitialPage = page }
+                                } ?? row.settingsDestination.map { destination in
+                                    { NotificationCenter.default.post(name: destination, object: nil) }
                                 }
                             )
                         }
@@ -342,12 +347,12 @@ struct StatusSettingsTabView: View {
                         }
                         .accessibilityIdentifier("status-search-keyboard-layouts-button")
                     } label: {
-                        HStack(spacing: 4) {
-                            Text(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout")
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundColor(.secondary)
-                        }
+                        // One Text keeps the chevron trailing; a menu label lays out
+                        // an HStack's image before its text.
+                        Text("\(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout") ")
+                            + Text(Image(systemName: "chevron.up.chevron.down"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundColor(.secondary)
                     }
                     .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
@@ -365,12 +370,6 @@ struct StatusSettingsTabView: View {
                     .accessibilityLabel("Forget This Keyboard")
                     .accessibilityIdentifier("status-forget-keyboard-button")
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
                 // Diagnostics stay reachable without taking space.
                 .help("""
                 VID:PID \(activeKeyboard.vidPidKey) · \(activeKeyboard.source?.rawValue.capitalized ?? "Manual") · \
@@ -388,13 +387,7 @@ struct StatusSettingsTabView: View {
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
                 .accessibilityIdentifier("status-no-connected-keyboard-panel")
             }
         }
@@ -450,6 +443,8 @@ struct StatusSettingsTabView: View {
         showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
             || (context.services.kanataRunning && controller.lastTCPConfigured == false)
         duplicateAppCopies = duplicates
+        capsManaged = kanataManager.underlyingManager.serviceLifecycleCoordinator.sessionManagedCapsActive
+        Task { await launchAtLogin.refresh() }
     }
 
     private func startViaInstallerEngine() async {
@@ -481,6 +476,15 @@ struct StatusSettingsTabView: View {
                 settingsToastManager.showError("Stop failed: \(reason)")
             }
         }
+    }
+
+    private var summaryRows: [SettingsSystemStatusRowModel] {
+        SettingsStatusSummaryRows.rows(
+            runtimeRunning: effectiveServiceRunning,
+            capsManaged: capsManaged,
+            launchAtLogin: launchAtLogin.hasLoaded ? launchAtLogin.status : nil,
+            appCopies: duplicateAppCopies.count
+        )
     }
 
     private var systemStatusRows: [SettingsSystemStatusRowModel] {

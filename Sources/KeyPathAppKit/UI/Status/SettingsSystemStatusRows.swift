@@ -2,6 +2,7 @@ import Foundation
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
+import ServiceManagement
 import SwiftUI
 
 struct SettingsSystemStatusRowModel: Identifiable {
@@ -11,6 +12,53 @@ struct SettingsSystemStatusRowModel: Identifiable {
     let status: InstallationStatus
     let targetPage: WizardPage?
     let message: String?
+    /// Settings tab to open when the row is not a setup-wizard step.
+    var settingsDestination: Notification.Name?
+}
+
+/// Everyday state that otherwise lives on other Settings tabs. Rows report and
+/// link; the controls stay where they are.
+enum SettingsStatusSummaryRows {
+    static func rows(
+        runtimeRunning: Bool,
+        capsManaged: Bool,
+        launchAtLogin: SMAppService.Status?,
+        appCopies: Int
+    ) -> [SettingsSystemStatusRowModel] {
+        // While the runtime is healthy, the reload coordinator keeps the worker's
+        // managed Caps Lock in step with the rules, so the worker is the truth.
+        var rows = [
+            SettingsSystemStatusRowModel(
+                id: "caps-lock", title: "Caps Lock remapping", icon: "capslock",
+                status: runtimeRunning && capsManaged ? .completed : .notStarted,
+                targetPage: nil, message: nil, settingsDestination: .openSettingsGeneral
+            ),
+            SettingsSystemStatusRowModel(
+                id: "launch-at-login", title: "Launch at login", icon: "power",
+                status: launchAtLoginStatus(launchAtLogin),
+                targetPage: nil,
+                message: launchAtLogin == .requiresApproval ? "Allow KeyPath in Login Items" : nil,
+                settingsDestination: .openSettingsGeneral
+            )
+        ]
+        if appCopies > 1 {
+            rows.append(SettingsSystemStatusRowModel(
+                id: "app-copies", title: "Multiple KeyPath copies", icon: "square.on.square",
+                status: .warning, targetPage: nil,
+                message: "\(appCopies) copies found. Review them in Repair/Remove.",
+                settingsDestination: .openSettingsAdvanced
+            ))
+        }
+        return rows
+    }
+
+    private static func launchAtLoginStatus(_ status: SMAppService.Status?) -> InstallationStatus {
+        switch status {
+        case .enabled: .completed
+        case .requiresApproval: .warning
+        default: .notStarted
+        }
+    }
 }
 
 enum SettingsSystemStatusRowsBuilder {
