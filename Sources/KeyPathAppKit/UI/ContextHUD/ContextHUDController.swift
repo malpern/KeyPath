@@ -320,7 +320,7 @@ final class ContextHUDController {
     static let precomputeLayers = ["nav", "launcher"]
 
     // showForLayer, resolveHoldLabels, precomputeNavLayer → ContextHUDController+ShowForLayer.swift
-    // showWindow, dismiss, scheduleDismiss, createWindow, positionWindow → ContextHUDController+Window.swift
+    // showWindow, dismiss, createWindow, positionWindow → ContextHUDController+Window.swift
     // buildLauncherKeyMap, preloadLauncherIcons → ContextHUDController+Window.swift
     // startBacktickMonitor, handleBacktickCandidate, showKindaVimCheatSheet → ContextHUDController+Window.swift
     // installCheatSheetDismissMonitors, dismissCheatSheet → ContextHUDController+Window.swift

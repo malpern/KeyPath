@@ -15,7 +15,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         "KeyPath.LeaderKey.Preference",
         "KeyPath.ContextHUD.DisplayMode",
         "KeyPath.ContextHUD.TriggerMode",
-        "KeyPath.ContextHUD.Timeout",
         "KeyPath.ContextHUD.HoldDelayPreset",
         "KeyPath.ContextHUD.HoldDelayCustomMs",
         "KeyPath.KindaVim.LeaderHUDMode",
@@ -71,7 +70,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             writer.overlaySuppressedBundleIDs = Set(["com.example.Editor", "com.example.Terminal"])
             writer.contextHUDDisplayMode = .both
             writer.contextHUDTriggerMode = .tapToToggle
-            writer.contextHUDTimeout = 6.5
             writer.contextHUDHoldDelayPreset = .custom
             writer.contextHUDHoldDelayCustomMs = 750
             writer.kindaVimLeaderHUDMode = .cheatSheetOnly
@@ -96,7 +94,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             XCTAssertEqual(loaded.overlaySuppressedBundleIDs, Set(["com.example.Editor", "com.example.Terminal"]))
             XCTAssertEqual(loaded.contextHUDDisplayMode, .both)
             XCTAssertEqual(loaded.contextHUDTriggerMode, .tapToToggle)
-            XCTAssertEqual(loaded.contextHUDTimeout, 6.5)
             XCTAssertEqual(loaded.contextHUDHoldDelayPreset, .custom)
             XCTAssertEqual(loaded.contextHUDHoldDelayCustomMs, 750)
             XCTAssertEqual(loaded.contextHUDHoldDelayMs, 750)
@@ -114,15 +111,12 @@ final class PreferencesServicePersistenceTests: XCTestCase {
     func testLoadClampsInvalidPersistedRuntimeAndHUDValues() {
         withPreservedDefaults {
             UserDefaults.standard.set(80, forKey: "KeyPath.TCP.ServerPort")
-            UserDefaults.standard.set(99.0, forKey: "KeyPath.ContextHUD.Timeout")
             UserDefaults.standard.set(-25, forKey: "KeyPath.ContextHUD.HoldDelayCustomMs")
 
             let prefs = PreferencesService()
 
             XCTAssertEqual(prefs.tcpServerPort, 37001)
             XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 80)
-            XCTAssertEqual(prefs.contextHUDTimeout, 10.0)
-            XCTAssertEqual(UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout"), 10.0)
             XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
             XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.ContextHUD.HoldDelayCustomMs"), 100)
         }
@@ -227,32 +221,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
     // MARK: - Value Clamping Tests
 
-    func testContextHUDTimeout_ClampedToMinimum() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 0.5
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0, "Timeout should be clamped to minimum 1.0")
-    }
-
-    func testContextHUDTimeout_ClampedToMaximum() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 15.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 10.0, "Timeout should be clamped to maximum 10.0")
-    }
-
-    func testContextHUDTimeout_AcceptsValidValue() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 5.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 5.0)
-    }
-
-    func testContextHUDTimeout_AcceptsBoundaries() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 1.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0)
-        prefs.contextHUDTimeout = 10.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 10.0)
-    }
-
     func testContextHUDHoldDelayCustomMs_ClampedToMinimum() {
         let prefs = PreferencesService()
         prefs.contextHUDHoldDelayCustomMs = 50
@@ -277,18 +245,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
         prefs.contextHUDHoldDelayCustomMs = 2000
         XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 2000)
-    }
-
-    func testContextHUDTimeout_ZeroClampedToMin() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 0
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0)
-    }
-
-    func testContextHUDTimeout_NegativeClampedToMin() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = -5
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0)
     }
 
     func testContextHUDHoldDelayCustomMs_ZeroClampedToMin() {
@@ -558,12 +514,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertTrue(prefs.isValidPort(prefs.tcpServerPort))
         XCTAssertTrue(prefs.notificationsEnabled)
         XCTAssertTrue(prefs.isSequenceMode)
-    }
-
-    func testDefaultContextHUDTimeout_InRange() {
-        let prefs = PreferencesService()
-        XCTAssertGreaterThanOrEqual(prefs.contextHUDTimeout, 1.0)
-        XCTAssertLessThanOrEqual(prefs.contextHUDTimeout, 10.0)
     }
 
     func testDefaultContextHUDHoldDelay_InRange() {

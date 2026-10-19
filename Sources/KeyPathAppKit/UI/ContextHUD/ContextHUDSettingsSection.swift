@@ -1,7 +1,8 @@
 import KeyPathCore
 import SwiftUI
 
-/// Visual settings section for the Shortcut List
+/// "While a Layer Is Active": everything KeyPath shows when you switch layers —
+/// the keyboard overlay, the shortcut list, the trigger, and the layer banner — in one place.
 struct ContextHUDSettingsSection: View {
     @Environment(\.services) private var services
     @Environment(KanataViewModel.self) private var kanataManager
@@ -12,13 +13,13 @@ struct ContextHUDSettingsSection: View {
     @State private var advancedExpanded = false
 
     var body: some View {
-        SettingsSection(title: "Shortcut List") {
+        SettingsSection(title: "While a Layer Is Active") {
             SettingsCard {
                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                     // Display Mode (only when Context HUD List is enabled)
                     if FeatureFlags.contextHUDListEnabled {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Display")
+                            Text("Show")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
 
@@ -143,6 +144,9 @@ struct ContextHUDSettingsSection: View {
                         .padding(.top, 2)
                     }
                     .accessibilityIdentifier("settings-context-hud-advanced")
+
+                    Divider()
+                    LayerIndicatorToggle()
                 }
             }
         }
@@ -195,7 +199,7 @@ struct ContextHUDSettingsSection: View {
     ) -> some View {
         SettingsOptionCard(
             icon: icon, title: title, subtitle: subtitle,
-            isSelected: displayMode == mode,
+            isSelected: services.preferences.contextHUDDisplayMode == mode,
             cardWidth: nil
         ) {
             displayMode = mode

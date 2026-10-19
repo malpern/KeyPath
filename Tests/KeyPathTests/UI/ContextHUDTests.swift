@@ -548,14 +548,12 @@ final class ContextHUDControllerTests: XCTestCase {
     private var controller: ContextHUDController!
     private var savedDisplayMode: ContextHUDDisplayMode!
     private var savedTriggerMode: ContextHUDTriggerMode!
-    private var savedTimeout: TimeInterval!
 
     override func setUp() async throws {
         try await super.setUp()
         // Save original preferences
         savedDisplayMode = PreferencesService.shared.contextHUDDisplayMode
         savedTriggerMode = PreferencesService.shared.contextHUDTriggerMode
-        savedTimeout = PreferencesService.shared.contextHUDTimeout
         // Create test controller (no notification observers)
         controller = ContextHUDController(testMode: true)
     }
@@ -566,7 +564,6 @@ final class ContextHUDControllerTests: XCTestCase {
         // Restore original preferences
         PreferencesService.shared.contextHUDDisplayMode = savedDisplayMode
         PreferencesService.shared.contextHUDTriggerMode = savedTriggerMode
-        PreferencesService.shared.contextHUDTimeout = savedTimeout
         try await super.tearDown()
     }
 
@@ -760,19 +757,16 @@ final class ContextHUDControllerTests: XCTestCase {
 final class ContextHUDPreferencesTests: XCTestCase {
     private var savedDisplayMode: ContextHUDDisplayMode!
     private var savedTriggerMode: ContextHUDTriggerMode!
-    private var savedTimeout: TimeInterval!
 
     override func setUp() async throws {
         try await super.setUp()
         savedDisplayMode = PreferencesService.shared.contextHUDDisplayMode
         savedTriggerMode = PreferencesService.shared.contextHUDTriggerMode
-        savedTimeout = PreferencesService.shared.contextHUDTimeout
     }
 
     override func tearDown() async throws {
         PreferencesService.shared.contextHUDDisplayMode = savedDisplayMode
         PreferencesService.shared.contextHUDTriggerMode = savedTriggerMode
-        PreferencesService.shared.contextHUDTimeout = savedTimeout
         try await super.tearDown()
     }
 
@@ -794,26 +788,6 @@ final class ContextHUDPreferencesTests: XCTestCase {
             await Task.yield()
         }
         XCTFail("Trigger mode did not persist as tapToToggle after retries")
-    }
-
-    func testTimeoutPersistence() async {
-        for _ in 0 ..< 20 {
-            PreferencesService.shared.contextHUDTimeout = 7.5
-            let stored = UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout")
-            if abs(stored - 7.5) < 0.01 { return }
-            await Task.yield()
-        }
-        XCTFail("Timeout did not persist as 7.5 after retries")
-    }
-
-    func testTimeoutClampedToMin() {
-        PreferencesService.shared.contextHUDTimeout = 0.5
-        XCTAssertEqual(PreferencesService.shared.contextHUDTimeout, 1.0, accuracy: 0.01)
-    }
-
-    func testTimeoutClampedToMax() {
-        PreferencesService.shared.contextHUDTimeout = 15.0
-        XCTAssertEqual(PreferencesService.shared.contextHUDTimeout, 10.0, accuracy: 0.01)
     }
 
     func testDisplayModeAllCasesExist() {

@@ -23,7 +23,7 @@ struct GeneralSettingsTabView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SettingsDesign.sectionGap) {
                 LaunchAtLoginSettingsSection()
-                // Shortcut List
+                // What appears while a layer is active (overlay, list, banner)
                 ContextHUDSettingsSection()
                 SettingsSection(title: "Keyboard Appearance") {
                     SettingsCard {
@@ -59,8 +59,6 @@ struct GeneralSettingsTabView: View {
                                     services.preferences.unmappedLayerKeyStyle = .dimmed
                                 }
                             }
-                            Divider()
-                            LayerIndicatorToggle()
                         }
                     }
                 }

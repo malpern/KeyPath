@@ -367,19 +367,6 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
-    /// Auto-dismiss timeout for the Context HUD (seconds, 1-10)
-    var contextHUDTimeout: TimeInterval {
-        didSet {
-            let clamped = Self.clampedContextHUDTimeout(contextHUDTimeout)
-            if clamped != contextHUDTimeout {
-                contextHUDTimeout = clamped
-            } else {
-                UserDefaults.standard.set(contextHUDTimeout, forKey: Keys.contextHUDTimeout)
-                AppLogger.shared.log("🎯 [Preferences] contextHUDTimeout = \(contextHUDTimeout)s")
-            }
-        }
-    }
-
     /// Preset hold duration for triggering Shortcut List/navigation layer.
     var contextHUDHoldDelayPreset: ContextHUDHoldDelayPreset {
         didSet {
@@ -475,7 +462,6 @@ final class PreferencesService: @unchecked Sendable {
         static let leaderKeyPreference = PreferencesService.leaderKeyPreferenceKey
         static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
         static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
-        static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
         static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
         static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
         static let kindaVimLeaderHUDMode = "KeyPath.KindaVim.LeaderHUDMode"
@@ -504,7 +490,6 @@ final class PreferencesService: @unchecked Sendable {
         static let accessibilityTestMode = false
         static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
-        static let contextHUDTimeout: TimeInterval = 3.0
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200
         static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.off
@@ -598,14 +583,6 @@ final class PreferencesService: @unchecked Sendable {
         contextHUDTriggerMode = ContextHUDTriggerMode(rawValue: triggerModeString)
             ?? Defaults.contextHUDTriggerMode
 
-        let storedTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
-        let rawTimeout = storedTimeout ?? Defaults.contextHUDTimeout
-        let sanitizedTimeout = Self.clampedContextHUDTimeout(rawTimeout)
-        contextHUDTimeout = sanitizedTimeout
-        if storedTimeout != nil, sanitizedTimeout != rawTimeout {
-            UserDefaults.standard.set(sanitizedTimeout, forKey: Keys.contextHUDTimeout)
-        }
-
         let holdDelayPresetString = leaderDefaults.string(forKey: Keys.contextHUDHoldDelayPreset)
             ?? Defaults.contextHUDHoldDelayPreset.rawValue
         contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset(rawValue: holdDelayPresetString)
@@ -666,10 +643,6 @@ final class PreferencesService: @unchecked Sendable {
 private extension PreferencesService {
     static func isValidPort(_ port: Int) -> Bool {
         port >= 1024 && port <= 65535
-    }
-
-    static func clampedContextHUDTimeout(_ timeout: TimeInterval) -> TimeInterval {
-        min(max(timeout, 1), 10)
     }
 
     static func clampedContextHUDHoldDelayCustomMs(_ delay: Int) -> Int {
