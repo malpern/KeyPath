@@ -42,6 +42,33 @@ final class HelperMaintenanceTests: XCTestCase {
         )
     }
 
+    /// Air, 2026-10-18: a mounted installer image (/Volumes/KeyPath) was listed as
+    /// an installed copy that "Remove Extra Copies" could never trash.
+    func testDetectDuplicateAppCopiesIgnoresReadOnlyVolumes() {
+        HelperMaintenance.testDuplicateAppPathsOverride = {
+            ["/Applications/KeyPath.app", "/Volumes/KeyPath/KeyPath.app", "/Users/test/Old/KeyPath.app"]
+        }
+        HelperMaintenance.testReadOnlyVolumeOverride = { $0.hasPrefix("/Volumes/KeyPath/") }
+        defer { HelperMaintenance.testReadOnlyVolumeOverride = nil }
+
+        XCTAssertEqual(HelperMaintenance.shared.detectDuplicateAppCopies(),
+                       ["/Applications/KeyPath.app", "/Users/test/Old/KeyPath.app"])
+    }
+
+    func testDisplayLocationUsesFinderNamesForHomeAndICloud() {
+        let home = "/Users/test"
+        XCTAssertEqual(
+            HelperMaintenance.displayLocation(
+                forAppAt: home + "/Library/Mobile Documents/com~apple~CloudDocs/Documents/Codex/KeyPath.app", home: home
+            ),
+            "iCloud Drive \u{203A} Documents \u{203A} Codex"
+        )
+        XCTAssertEqual(HelperMaintenance.displayLocation(forAppAt: home + "/Downloads/KeyPath.app", home: home),
+                       "Home \u{203A} Downloads")
+        XCTAssertEqual(HelperMaintenance.displayLocation(forAppAt: "/Volumes/Backup/KeyPath.app", home: home),
+                       "Volumes \u{203A} Backup")
+    }
+
     func testRunCleanupLogsWarningForDuplicateCopies() async {
         HelperMaintenance.testDuplicateAppPathsOverride = {
             [

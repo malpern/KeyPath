@@ -199,61 +199,61 @@ struct StatusSettingsTabView: View {
                     }
                     .frame(minWidth: 220)
 
-                    // One flat list: permissions, the runtime's own checks, then system status.
-                    VStack(alignment: .leading, spacing: 8) {
-                        PermissionStatusRow(
-                            title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
-                            icon: "checkmark.shield",
-                            status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
-                                .keyPath.accessibility,
-                            isKanata: false,
-                            onTap: { wizardInitialPage = .accessibility },
-                            identifier: isDriverless ? "settings-status-action-button-accessibility"
-                                : "settings-status-action-button-keypath-accessibility"
-                        )
-
-                        PermissionStatusRow(
-                            title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
-                            icon: "keyboard",
-                            status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
-                                .keyPath.inputMonitoring,
-                            isKanata: false,
-                            onTap: { wizardInitialPage = .inputMonitoring }
-                        )
-
-                        // In driverless mode these match the two rows above; only the
-                        // legacy backend's separate runtime has its own permissions.
-                        if !isDriverless {
-                            runtimePermissionRows
-                        }
-
-                        ForEach(systemStatusRows + summaryRows) { row in
-                            SettingsSystemStatusRow(
-                                id: row.id,
-                                title: row.title,
-                                icon: row.icon,
-                                status: row.status,
-                                message: row.message,
-                                onTap: row.targetPage.map { page in
-                                    { wizardInitialPage = page }
-                                } ?? row.settingsDestination.map { destination in
-                                    { NotificationCenter.default.post(name: destination, object: nil) }
-                                }
+                    // Right column: one flat status list, then the connected keyboard.
+                    VStack(alignment: .leading, spacing: 28) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            PermissionStatusRow(
+                                title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
+                                icon: "checkmark.shield",
+                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
+                                    .keyPath.accessibility,
+                                isKanata: false,
+                                onTap: { wizardInitialPage = .accessibility },
+                                identifier: isDriverless ? "settings-status-action-button-accessibility"
+                                    : "settings-status-action-button-keypath-accessibility"
                             )
+
+                            PermissionStatusRow(
+                                title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
+                                icon: "keyboard",
+                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
+                                    .keyPath.inputMonitoring,
+                                isKanata: false,
+                                onTap: { wizardInitialPage = .inputMonitoring }
+                            )
+
+                            // In driverless mode these match the two rows above; only the
+                            // legacy backend's separate runtime has its own permissions.
+                            if !isDriverless {
+                                runtimePermissionRows
+                            }
+
+                            ForEach(systemStatusRows + summaryRows) { row in
+                                SettingsSystemStatusRow(
+                                    id: row.id,
+                                    title: row.title,
+                                    icon: row.icon,
+                                    status: row.status,
+                                    message: row.message,
+                                    onTap: row.targetPage.map { page in
+                                        { wizardInitialPage = page }
+                                    } ?? row.settingsDestination.map { destination in
+                                        { NotificationCenter.default.post(name: destination, object: nil) }
+                                    }
+                                )
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("settings-status-list")
+
+                        keyboardDetailsSection
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("settings-status-list")
 
                     Spacer()
                 }
                 .padding(.horizontal, SettingsDesign.pageInset)
                 .padding(.top, 24)
-
-                keyboardDetailsSection
-                    .padding(.horizontal, SettingsDesign.pageInset)
-                    .padding(.top, 24)
-                    .padding(.bottom, 20)
+                .padding(.bottom, 20)
             }
         }
         .settingsBackground()

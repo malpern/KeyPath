@@ -83,7 +83,7 @@ struct AdvancedSettingsTabView: View {
 
                 // Duplicate apps warning
                 if duplicateAppCopies.count > 1 {
-                    SettingsSection(title: "\u{26A0}\u{FE0F} Multiple Installations") {
+                    SettingsSection(title: "Other Copies of KeyPath") {
                         duplicateAppsSection
                     }
                     .padding(.horizontal, SettingsDesign.pageInset)
@@ -105,13 +105,13 @@ struct AdvancedSettingsTabView: View {
             duplicateAppCopies = HelperMaintenance.shared.detectDuplicateAppCopies()
             backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
         }
-        .alert("Remove Extra Copies?", isPresented: $showingRemoveDuplicatesConfirm) {
+        .alert("Move Extra Copies to Trash?", isPresented: $showingRemoveDuplicatesConfirm) {
             Button("Cancel", role: .cancel) {}
-            Button("Remove Extras", role: .destructive) {
+            Button("Move to Trash", role: .destructive) {
                 Task { await removeDuplicateAppCopies() }
             }
         } message: {
-            Text("All KeyPath.app copies outside /Applications will be moved to the Trash.")
+            Text("The copy in Applications stays. You can restore the others from the Trash.")
         }
         .alert("Restore Configuration?", isPresented: $showingRestoreConfirm) {
             Button("Cancel", role: .cancel) {
@@ -132,52 +132,40 @@ struct AdvancedSettingsTabView: View {
     // MARK: - Sections
 
     private var duplicateAppsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                    .font(.title2)
+        let extras = duplicateAppCopies.filter { $0 != "/Applications/KeyPath.app" }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Extra copies can confuse macOS permissions. Keep only the one in Applications.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Found \(duplicateAppCopies.count) copies of KeyPath installed")
-                        .font(.body.weight(.semibold))
-
-                    Text(
-                        "Extra copies can cause stale TCC approvals and permission issues. We recommend keeping only the copy in /Applications."
-                    )
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    Text("Copies found at:")
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(duplicateAppCopies, id: \.self) { path in
-                            Text("\u{2022} \(path)")
-                                .font(.caption.monospaced())
-                                .foregroundColor(.secondary)
-                        }
+            ForEach(extras, id: \.self) { path in
+                HStack(spacing: 10) {
+                    Image(systemName: "app.dashed")
+                        .foregroundStyle(.secondary)
+                    Text(HelperMaintenance.displayLocation(forAppAt: path))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(path)
+                    Spacer()
+                    Button("Show") {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
                     }
+                    .settingsAction()
+                    .accessibilityIdentifier("settings-show-duplicate-\(abs(path.hashValue))")
                 }
             }
 
-            Button(action: {
+            Button(role: .destructive) {
                 showingRemoveDuplicatesConfirm = true
-            }) {
-                Label(
-                    removeDuplicatesInProgress ? "Removing\u{2026}" : "Remove Extra Copies", systemImage: "trash"
-                )
+            } label: {
+                Text(removeDuplicatesInProgress ? "Moving to Trash\u{2026}" : "Move Extras to Trash")
             }
-            .settingsPrimaryAction()
-            .tint(.orange)
+            .settingsAction()
             .disabled(removeDuplicatesInProgress)
             .accessibilityIdentifier("settings-remove-duplicates-button")
-            .accessibilityLabel("Remove Extra Copies")
+            .accessibilityLabel("Move extra copies to Trash")
         }
-        .padding(.vertical, 8)
     }
 
     // MARK: - Configuration Backups

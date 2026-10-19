@@ -244,6 +244,9 @@ public final class HelperMaintenance {
             !buildDirPatterns.contains { pattern in path.contains(pattern) }
         }
 
+        // A mounted installer image is not an installation and cannot be trashed.
+        paths = paths.filter { !Self.isOnReadOnlyVolume($0) }
+
         paths = Array(Set(paths)) // unique
         paths.sort { lhs, rhs in
             if lhs == "/Applications/KeyPath.app" {
@@ -255,6 +258,31 @@ public final class HelperMaintenance {
             return lhs < rhs
         }
         return paths
+    }
+
+    nonisolated static func isOnReadOnlyVolume(_ path: String) -> Bool {
+        #if DEBUG
+            if let override = testReadOnlyVolumeOverride { return override(path) }
+        #endif
+        let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeIsReadOnlyKey])
+        return values?.volumeIsReadOnly ?? false
+    }
+
+    #if DEBUG
+        nonisolated(unsafe) static var testReadOnlyVolumeOverride: ((String) -> Bool)?
+    #endif
+
+    /// A short, readable location for a copy of the app: the folder that holds it,
+    /// with the home folder and iCloud Drive named the way Finder names them.
+    nonisolated static func displayLocation(forAppAt path: String, home: String = NSHomeDirectory()) -> String {
+        var folder = (path as NSString).deletingLastPathComponent
+        let iCloud = home + "/Library/Mobile Documents/com~apple~CloudDocs"
+        if folder == iCloud || folder.hasPrefix(iCloud + "/") {
+            folder = "iCloud Drive" + folder.dropFirst(iCloud.count)
+        } else if folder == home || folder.hasPrefix(home + "/") {
+            folder = "Home" + folder.dropFirst(home.count)
+        }
+        return folder.split(separator: "/").joined(separator: " \u{203A} ")
     }
 
     // MARK: - Private steps
