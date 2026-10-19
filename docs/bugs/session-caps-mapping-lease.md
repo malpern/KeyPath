@@ -105,7 +105,25 @@ the Karabiner driver). Located services of an unsupported shape (including a bla
 whose registry ID or VID/PID/LocationID(/serial) locator is shared, are withheld:
 never a target, but counted, so automatic selection and the Settings default refuse
 to assume a single keyboard. A chosen instance that becomes withheld is absent from
-the list, so `requireUnique` still refuses its lease. Useful execution has a two-second deadline and
+the list, so `requireUnique` still refuses its lease.
+
+Exception, since 2026-10-19: keyboard services sharing VID/PID/LocationID *and*
+serial are interfaces of one physical keyboard (a LocationID names one USB
+device), not twins. The inventory lists the board once, by its lowest registry
+ID, and the lease covers its whole `serviceGroup`: that anchor plus every other
+service of the device that can emit keyboard usages (a {1,6} DeviceUsagePairs
+entry, or Keyboard-page Input items in the report descriptor). hidutil cannot
+address a service by registry ID, so there is one selector per primary-usage
+pair. `read` refuses when the group's interfaces disagree; acquire therefore
+needs every interface at the original mapping, and verification needs every
+interface at the applied one. `readGroup` lets restore accept any mixture of
+original and applied (a write that failed part-way) and rewrite all of them;
+anything else is foreign and leaves the intent pending. Witnessed: a Vial
+"cl80" in NKRO mode sends every key on its shared, mouse-primary interface
+(Report ID 6, page 7 usages 0x00–0xEF); with only the boot interface leased,
+Caps stayed native there and Caps Lock rules silently never ran. The free-key
+choice (`occupiedIntermediates`) likewise treats our Caps row on any interface
+of the chosen board as our own. Useful execution has a two-second deadline and
 64 KiB combined output limit. Failure kills the child and confirms exit before
 releasing the lease lock; OS termination latency is not claimed to be bounded. This helper is not yet connected to the app lifecycle;
 Caps profiles remain unavailable by default. Do not substitute USB device IDs or

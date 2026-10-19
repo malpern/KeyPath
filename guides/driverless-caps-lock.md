@@ -36,6 +36,13 @@ from the same menu.
 A virtual keyboard in a VM is not a compatible physical keyboard and is not
 listed.
 
+Some keyboards connect to the Mac as more than one device. Boards running QMK,
+VIA or Vial firmware often do, especially with N-key rollover turned on: every
+key, Caps Lock included, can arrive through a second connection that macOS
+labels as a mouse. KeyPath lists such a board once and remaps Caps Lock on
+every connection of it that can send keys, so the choice works whichever one
+the board uses.
+
 ## Why a function key is involved
 
 Caps Lock changes macOS's lock state before ordinary driverless interception.

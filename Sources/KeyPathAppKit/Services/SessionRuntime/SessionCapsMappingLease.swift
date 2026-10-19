@@ -26,15 +26,21 @@ public final class SessionCapsMappingLease {
         /// Must join all mutation child processes before returning or throwing.
         /// The durable in-flight marker can be cleared only after that guarantee.
         public let write: (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void
+        /// Every service the lease covers for this keyboard, by registry ID,
+        /// even when they disagree (where `read` refuses). A keyboard can
+        /// expose its keys on several interfaces; restore needs each one.
+        public let readGroup: (Policy.DeviceIdentity) throws -> [UInt64: [Policy.Mapping]]
         public init(enumerate: @escaping () throws -> [Policy.DeviceIdentity],
                     read: @escaping (Policy.DeviceIdentity) throws -> Snapshot,
                     write: @escaping (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void,
-                    registryEntryExists: @escaping (UInt64) throws -> Bool = { _ in true })
+                    registryEntryExists: @escaping (UInt64) throws -> Bool = { _ in true },
+                    readGroup: ((Policy.DeviceIdentity) throws -> [UInt64: [Policy.Mapping]])? = nil)
         {
             self.enumerate = enumerate
             self.registryEntryExists = registryEntryExists
             self.read = read
             self.write = write
+            self.readGroup = readGroup ?? { try [$0.registryEntryID: read($0).mappings] }
         }
     }
 
@@ -199,17 +205,25 @@ public final class SessionCapsMappingLease {
                 return
             }
             try verifyInstance(record)
-            let snapshot = try backend.read(record.device)
-            guard snapshot.device == record.device else { throw Policy.Refusal.differentDevice }
+            // Each interface must hold either the original or exactly our applied
+            // mappings. A write that failed part-way leaves some of each; every
+            // interface is then rewritten to original. Anything else is foreign.
+            let current = try backend.readGroup(record.device)
+            guard current[record.device.registryEntryID] != nil else { throw Policy.Refusal.differentDevice }
             // Explicit verification also resolves intent after a write that
             // failed before changing anything, or a crash after restoration.
-            if snapshot.mappings != record.original {
-                let original = try Policy.restore(record: record, current: snapshot.mappings,
-                                                  device: snapshot.device, bootSessionUUID: bootSessionUUID)
+            if current.values.contains(where: { $0 != record.original }) {
+                var original = record.original
+                for mappings in current.values where mappings != record.original {
+                    original = try Policy.restore(record: record, current: mappings,
+                                                  device: record.device, bootSessionUUID: bootSessionUUID)
+                }
                 try verifyJournal(loaded, directoryFD: fd)
                 try mutate(record: record, mappings: original, directoryFD: fd, initialApply: false)
-                let restored = try backend.read(record.device)
-                guard restored.device == record.device, restored.mappings == original else { throw Refusal.unverifiedWrite }
+                let restored = try backend.readGroup(record.device)
+                guard Set(restored.keys) == Set(current.keys), restored.values.allSatisfy({ $0 == original }) else {
+                    throw Refusal.unverifiedWrite
+                }
             }
             try requireNoMutation(directoryFD: fd)
             try verifyJournal(loaded, directoryFD: fd)

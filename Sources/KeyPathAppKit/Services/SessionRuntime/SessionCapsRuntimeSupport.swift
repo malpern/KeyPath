@@ -203,10 +203,25 @@ enum SessionCapsRuntimeSupport {
                                       shortcutKeyCodes: () -> Set<UInt16> = enabledShortcutKeyCodes) throws -> Set<UInt32>
     {
         let rows = try SessionCapsHIDUtilTransport.parseAllMappings(run(["property", "--get", "UserKeyMapping"]))
+        // Our lease covers every interface of the chosen keyboard (see
+        // `SessionCapsHIDUtilTransport.serviceGroup`), so its Caps row on any of
+        // them is ours. Without the device list, fall back to the chosen service.
+        var ownServices = Set<UInt64>()
+        if let own {
+            ownServices = [own.registryEntryID]
+            if let selector = try? SessionCapsHIDUtilTransport.locatorSelector(own),
+               let listed = try? SessionCapsHIDUtilTransport.parseServiceRows(run(["list", "--ndjson", "--matching", selector]))
+            {
+                ownServices.formUnion(listed.filter {
+                    $0.vendorID == own.vendorID && $0.productID == own.productID && $0.locationID == own.locationID
+                        && (own.serialNumber == nil || $0.serialNumber == own.serialNumber)
+                }.map(\.registryEntryID))
+            }
+        }
         var usages: [UInt64] = []
         for (registry, mappings) in rows {
             for mapping in mappings {
-                if registry == own?.registryEntryID, mapping.source == Policy.caps,
+                if ownServices.contains(registry), mapping.source == Policy.caps,
                    SessionCapsIntermediate.isCandidate(packed: mapping.destination) { continue }
                 usages += [mapping.source, mapping.destination]
             }

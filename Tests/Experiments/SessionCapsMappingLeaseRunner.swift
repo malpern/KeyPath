@@ -551,8 +551,10 @@ struct SessionCapsMappingLeaseRunner {
         }
         // Well-formed services that cannot be targeted are skipped, not admitted,
         // and an ambiguous locator withholds every sharer rather than picking one.
+        // Two interfaces of one board (same locator, distinct IDs) are one keyboard.
+        try check(SessionCapsHIDUtilTransport.parseInventory(service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service)
+            == .init(devices: [liveDevice], withheld: 0))
         for (untargetable, withheld) in [(service + "\n" + service, 1),
-                                         (service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service, 1),
                                          (service.replacingOccurrences(of: "261095424", with: "0"), 0),
                                          (service.replacingOccurrences(of: "AppleUserHIDEventService", with: "AppleUserHIDDevice"), 1)]
         {
@@ -570,9 +572,14 @@ struct SessionCapsMappingLeaseRunner {
         try check(backend.enumerate() == [liveDevice])
         try check(backend.read(liveDevice).mappings == [])
         try backend.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)])
-        try check(commands.count == 3 && commands[0] == ["list", "--ndjson", "--matching", "keyboard"])
-        let selector = try JSONSerialization.jsonObject(with: Data(commands[1][2].utf8)) as! [String: Any]
-        try check((selector["LocationID"] as? NSNumber)?.uint32Value == 261_095_424 && selector["IOPropertyMatch"] == nil)
+        // enumerate; read = list the board's services + one get per interface
+        // pair; write = list again + one set per pair.
+        try check(commands.count == 5 && commands[0] == ["list", "--ndjson", "--matching", "keyboard"])
+        try check(commands[1].prefix(3) == ["list", "--ndjson", "--matching"] && commands[2].last == "UserKeyMapping")
+        let selector = try JSONSerialization.jsonObject(with: Data(commands[2][2].utf8)) as! [String: Any]
+        try check((selector["LocationID"] as? NSNumber)?.uint32Value == 261_095_424 && selector["IOPropertyMatch"] == nil
+            && (selector["PrimaryUsage"] as? NSNumber)?.intValue == 6)
+        try check(commands[4][3] == "--set")
         let falseWrite = SessionCapsHIDUtilTransport.backend { _ in liveNull }
         refused { try falseWrite.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)]) }
         let overLimit = SessionCapsHIDUtilTransport.backend { _ in String(repeating: "x", count: 65537) }
