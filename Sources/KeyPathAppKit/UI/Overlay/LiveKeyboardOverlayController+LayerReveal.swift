@@ -51,7 +51,7 @@ extension LiveKeyboardOverlayController {
                 layerConcealWorkItem?.cancel()
                 layerConcealWorkItem = nil
             case .hide:
-                AppLogger.shared.debug("🫥 [OverlayController] Layer ended - hiding revealed overlay")
+                AppLogger.shared.log("🫥 [OverlayController] Layer ended - hiding revealed overlay")
                 hideWindow()
             }
         }
@@ -64,7 +64,7 @@ extension LiveKeyboardOverlayController {
             _ = layerReveal.userTookControl()
             return
         }
-        AppLogger.shared.debug("👁️ [OverlayController] Layer held - revealing overlay")
+        AppLogger.shared.log("👁️ [OverlayController] Layer held - revealing overlay")
         showWindow(showingHints: false)
     }
 }
