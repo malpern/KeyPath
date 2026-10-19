@@ -5,23 +5,23 @@ import XCTest
 
 final class SessionCapsSelectionTests: XCTestCase {
     func testAutomaticSelectionRejectsAmbiguousKeyboard() {
-        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [], boot: UUID().uuidString))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [], withheld: 0, boot: UUID().uuidString))
     }
 
     func testAutomaticSelectionReservesInternalKeyForOneKeyboard() throws {
-        let selection = try SessionCapsRuntimeSupport.automaticSelection(devices: [device], boot: boot)
+        let selection = try SessionCapsRuntimeSupport.automaticSelection(devices: [device], withheld: 0, boot: boot)
         XCTAssertEqual(try selection.approvedDevice(currentBoot: boot), device)
         XCTAssertTrue(selection.reservesF18)
     }
 
     func testAutomaticSelectionRefusesMultipleKeyboards() {
-        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [device, device], boot: boot))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [device, device], withheld: 0, boot: boot))
     }
 
     func testAirBuiltInServiceCanBeSelectedAndRoundTripped() throws {
         let fixture = #"{"Product":"Apple Internal Keyboard / Trackpad","VendorID":0,"Built-In":true,"IOClass":"AppleHIDKeyboardEventDriverV2","type":"service","PrimaryUsage":6,"PrimaryUsagePage":1,"IORegistryEntryID":4294970189,"Transport":"FIFO","LocationID":231,"ProductID":0}"#
         let devices = try SessionCapsHIDUtilTransport.parseServices(fixture)
-        let selected = try SessionCapsRuntimeSupport.automaticSelection(devices: devices, boot: boot)
+        let selected = try SessionCapsRuntimeSupport.automaticSelection(devices: devices, withheld: 0, boot: boot)
         XCTAssertEqual(selected.device.appleBuiltIn, true)
         XCTAssertEqual(try SessionCapsSelection.decode(JSONEncoder().encode(selected), currentBoot: boot), selected)
         let snapshot = try SessionCapsHIDUtilTransport.parseProperty("RegistryID Key Value\n100000b4d UserKeyMapping (\n)", device: selected.device)
@@ -61,7 +61,7 @@ final class SessionCapsSelectionTests: XCTestCase {
         XCTAssertNoThrow(try selected.verifyConnected(devices: [other, device], currentBoot: boot))
         XCTAssertThrowsError(try selected.verifyConnected(devices: [other], currentBoot: boot))
         // Automatic selection still never picks one of several keyboards.
-        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [other, device], boot: boot))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [other, device], withheld: 0, boot: boot))
     }
 
     func testMacBookWithExternalKeyboardListsBothWithNames() throws {
@@ -70,7 +70,7 @@ final class SessionCapsSelectionTests: XCTestCase {
         let keyboards = try SessionCapsHIDUtilTransport.parseKeyboards(builtIn + "\n" + external + "\n")
         XCTAssertEqual(keyboards.map(\.name), ["Built-in keyboard", "cl80"])
         XCTAssertEqual(keyboards.map(\.device), try SessionCapsHIDUtilTransport.parseServices(builtIn + "\n" + external))
-        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: keyboards.map(\.device), boot: boot))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: keyboards.map(\.device), withheld: 0, boot: boot))
 
         let twin = external.replacingOccurrences(of: "4294972703", with: "4294972704")
             .replacingOccurrences(of: "34673408", with: "34677248")
@@ -113,7 +113,7 @@ final class SessionCapsSelectionTests: XCTestCase {
         let second = cl80.replacingOccurrences(of: "4294972703", with: "4294972704")
         let inventory = try SessionCapsHIDUtilTransport.parseInventory([cl80, second, x2a].joined(separator: "\n"))
         XCTAssertEqual(inventory.devices.map(\.registryEntryID), [4_294_972_747])
-        XCTAssertEqual(inventory.withheld, 2)
+        XCTAssertEqual(inventory.withheld, 1, "two interfaces of one board are one keyboard")
 
         // A consented cl80 instance now refuses instead of leasing an ambiguous selector.
         let chosen = try XCTUnwrap(SessionCapsHIDUtilTransport.parseServices(cl80).first)
@@ -124,7 +124,14 @@ final class SessionCapsSelectionTests: XCTestCase {
 
         // An unsupported service sharing a target's locator withholds that target too.
         let shadow = second.replacingOccurrences(of: "AppleUserHIDEventService", with: "SomeFutureEventService")
-        XCTAssertEqual(try SessionCapsHIDUtilTransport.parseInventory(cl80 + "\n" + shadow), .init(devices: [], withheld: 2))
+        XCTAssertEqual(try SessionCapsHIDUtilTransport.parseInventory(cl80 + "\n" + shadow), .init(devices: [], withheld: 1))
+        // A blank serial is withheld alone, and shadows its locator twin.
+        let blank = second.replacingOccurrences(of: #""Product""#, with: #""SerialNumber":" ","Product""#)
+        XCTAssertEqual(try SessionCapsHIDUtilTransport.parseInventory(miniList + "\n" + blank).devices.count, 2)
+        let elsewhere = blank.replacingOccurrences(of: "34673408", with: "34600000")
+        let list = try SessionCapsHIDUtilTransport.parseInventory(miniList + "\n" + elsewhere)
+        XCTAssertEqual(list.devices.count, 3)
+        XCTAssertEqual(list.withheld, 1)
         // Distinct serial numbers disambiguate the same locator.
         let serialA = cl80.replacingOccurrences(of: #""Product""#, with: #""SerialNumber":"A","Product""#)
         let serialB = second.replacingOccurrences(of: #""Product""#, with: #""SerialNumber":"B","Product""#)
@@ -151,6 +158,10 @@ final class SessionCapsSelectionTests: XCTestCase {
         XCTAssertNil(SessionCapsSettingsSection.effectiveDevice(saved: nil, connected: []))
         XCTAssertNil(SessionCapsSettingsSection.effectiveDevice(saved: nil, connected: [other], withheld: 1))
         XCTAssertEqual(SessionCapsSettingsSection.effectiveDevice(saved: device, connected: [device], withheld: 1), device)
+        XCTAssertTrue(SessionCapsSettingsSection.showsPicker(keyboards: 1, withheld: 1))
+        XCTAssertFalse(SessionCapsSettingsSection.showsPicker(keyboards: 1, withheld: 0))
+        XCTAssertFalse(SessionCapsSettingsSection.showsPicker(keyboards: 0, withheld: 2))
+        XCTAssertTrue(SessionCapsSettingsSection.showsPicker(keyboards: 2, withheld: 0))
     }
 
     func testDecodeRejectsCorruptVersionAndUnknownConsentFields() throws {

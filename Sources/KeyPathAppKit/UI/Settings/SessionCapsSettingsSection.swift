@@ -63,7 +63,7 @@ struct SessionCapsSettingsSection: View {
                 .accessibilityIdentifier("settings-caps-keyboard-picker")
                 .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
             }
-            if !automaticDisabled, withheld > 0, !keyboards.isEmpty {
+            if !automaticDisabled, withheld > 0 {
                 Text(withheld == 1 ? "One connected keyboard can\u{2019}t be used for Caps Lock rules."
                     : "\(withheld) connected keyboards can\u{2019}t be used for Caps Lock rules.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -86,7 +86,11 @@ struct SessionCapsSettingsSection: View {
     /// With a withheld keyboard present, even one eligible keyboard is an
     /// explicit choice, matching automatic setup.
     private var showsPicker: Bool {
-        keyboards.count > 1 || (withheld > 0 && !keyboards.isEmpty)
+        Self.showsPicker(keyboards: keyboards.count, withheld: withheld)
+    }
+
+    static func showsPicker(keyboards: Int, withheld: Int) -> Bool {
+        keyboards > 1 || (withheld > 0 && keyboards > 0)
     }
 
     private var rulesUseCaps: Bool {
@@ -98,7 +102,8 @@ struct SessionCapsSettingsSection: View {
             return rulesUseCaps ? "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run" : "Off"
         }
         guard let device else {
-            return showsPicker ? "Choose which keyboard Caps Lock rules apply to" : "Connect a compatible keyboard"
+            if showsPicker { return "Choose which keyboard Caps Lock rules apply to" }
+            return withheld > 0 ? "No connected keyboard can be used" : "Connect a compatible keyboard"
         }
         let name = keyboards.first(where: { $0.device == device })?.name
             ?? (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")

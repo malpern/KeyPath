@@ -101,7 +101,7 @@ is judged alone (`parseInventory`): services with no LocationID, or LocationID 0
 are ignored because every target selector carries a nonzero LocationID (witnessed:
 Parallels `AppleVirtualPlatformHIDBridge` and the Karabiner DriverKit
 VirtualHIDKeyboard, which until 2026-10-19 made enumeration throw on any Mac with
-the Karabiner driver). Located services of an unsupported shape, and every service
+the Karabiner driver). Located services of an unsupported shape (including a blank or non-string SerialNumber), and every service
 whose registry ID or VID/PID/LocationID(/serial) locator is shared, are withheld:
 never a target, but counted, so automatic selection and the Settings default refuse
 to assume a single keyboard. A chosen instance that becomes withheld is absent from

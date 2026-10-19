@@ -81,7 +81,8 @@ public enum SessionCapsHIDUtilTransport {
     }
 
     /// Keyboard services from one `hidutil list`. `devices` are the instances a
-    /// lease may target. `withheld` counts other physical keyboards: ones whose
+    /// lease may target. `withheld` counts other physical keyboards (distinct
+    /// LocationIDs, so a multi-interface board counts once): ones whose
     /// shape is not supported, or whose locator would also select another
     /// service. They are never targets, but they mean "exactly one keyboard"
     /// cannot be assumed. Virtual services without a location (Karabiner's
@@ -133,15 +134,17 @@ public enum SessionCapsHIDUtilTransport {
             // VirtualHIDKeyboard (AppleUserHIDEventService, no Transport) and the
             // Parallels AppleVirtualPlatformHIDBridge keyboard, both LocationID 0.
             guard let location = try optional("LocationID", maximum: UInt64(UInt32.max)), location != 0 else { continue }
+            // A blank or odd serial cannot corroborate an instance. That service
+            // is withheld with no serial, so it shadows every same-locator target.
             var serial: String?
+            var serialUsable = true
             if let value = row["SerialNumber"] {
-                guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      string.utf8.count <= 1024 else { throw Refusal.unsupportedOutput }
-                serial = string
+                if let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   string.utf8.count <= 1024 { serial = string } else { serialUsable = false }
             }
             let ioClass = row["IOClass"] as? String
             let appleBuiltIn = ioClass == "AppleHIDKeyboardEventDriverV2" && row["Built-In"] as? Bool == true && row["Transport"] as? String == "FIFO"
-            guard ioClass == "AppleUserHIDEventService" || appleBuiltIn,
+            guard serialUsable, ioClass == "AppleUserHIDEventService" || appleBuiltIn,
                   let registry, registry != 0, let vendor, let product,
                   vendor != 0 || (appleBuiltIn && product == 0)
             else {
@@ -167,13 +170,14 @@ public enum SessionCapsHIDUtilTransport {
                 && (a.serial == nil || b.serial == nil || a.serial == b.serial)
         }
         var devices: [Policy.DeviceIdentity] = []
-        var withheld = others.count
+        // Count keyboards, not services: interfaces of one board share a LocationID.
+        var withheld = Set(others.map(\.location))
         for (index, device) in candidates.enumerated() {
             let shared = locators.indices.contains { $0 != index && collides(locators[index], locators[$0]) }
                 || others.contains { collides(locators[index], $0) }
-            if shared { withheld += 1 } else { devices.append(device) }
+            if shared { withheld.insert(locators[index].location) } else { devices.append(device) }
         }
-        return Inventory(devices: devices, withheld: withheld)
+        return Inventory(devices: devices, withheld: withheld.count)
     }
 
     /// One compatible keyboard with its display name. The name is for the

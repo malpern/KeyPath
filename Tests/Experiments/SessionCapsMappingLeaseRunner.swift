@@ -551,8 +551,8 @@ struct SessionCapsMappingLeaseRunner {
         }
         // Well-formed services that cannot be targeted are skipped, not admitted,
         // and an ambiguous locator withholds every sharer rather than picking one.
-        for (untargetable, withheld) in [(service + "\n" + service, 2),
-                                         (service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service, 2),
+        for (untargetable, withheld) in [(service + "\n" + service, 1),
+                                         (service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service, 1),
                                          (service.replacingOccurrences(of: "261095424", with: "0"), 0),
                                          (service.replacingOccurrences(of: "AppleUserHIDEventService", with: "AppleUserHIDDevice"), 1)]
         {
