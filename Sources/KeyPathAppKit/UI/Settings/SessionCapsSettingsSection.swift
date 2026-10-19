@@ -45,6 +45,8 @@ struct SessionCapsSettingsSection: View {
     @State private var disconnected: String?
     /// A pick made while the list was refreshing; applied after, never dropped.
     @State private var choices = SessionCapsChoiceQueue<SessionCapsMappingPolicy.DeviceIdentity>()
+    /// A refresh asked for while one ran (an unplug and replug close together).
+    @State private var refreshAgain = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
@@ -204,19 +206,26 @@ struct SessionCapsSettingsSection: View {
         }
         await applySelection(enabled: enabled)
         automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
-        await applyQueuedChoice()
+        await applyDeferredWork()
     }
 
     @MainActor
     private func reviewKeyboard(keepMessage: Bool = false) async {
+        if busy { refreshAgain = true }
         await refreshKeyboards(keepMessage: keepMessage)
-        await applyQueuedChoice()
+        await applyDeferredWork()
     }
 
     /// A keyboard picked while Settings was busy (the click that opens the
     /// menu can also activate the app and start a refresh) is applied now.
     @MainActor
-    private func applyQueuedChoice() async {
+    private func applyDeferredWork() async {
+        // Work deferred while busy: a refresh first, so a queued pick is
+        // checked against the current list, then the pick itself.
+        while refreshAgain, !busy {
+            refreshAgain = false
+            await refreshKeyboards(keepMessage: message != nil)
+        }
         guard !busy, let next = choices.takeAfterRefresh() else { return }
         await choose(next)
     }
@@ -227,17 +236,22 @@ struct SessionCapsSettingsSection: View {
         busy = true
         defer { busy = false }
         do {
+            let storedData = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
             let found = try await Task.detached {
-                try (SessionCapsHIDUtilTransport.keyboards(), SessionCapsRuntimeSupport.bootSessionUUID())
+                let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+                let stored = storedData.flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
+                // Gone means the instance no longer exists, not merely that it
+                // is unusable (a second identical keyboard withholds it).
+                let gone = try stored.map { try !SessionCapsHIDUtilTransport.registryEntryExists($0.device.registryEntryID) } ?? false
+                return try (SessionCapsHIDUtilTransport.keyboards(), boot, stored, gone)
             }.value
             boot = found.1
             keyboards = found.0.keyboards
             withheld = found.0.withheld
-            let stored = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
-                .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
+            let stored = found.2
             device = Self.effectiveDevice(saved: stored?.device, connected: keyboards.map(\.device), withheld: withheld)
             saved = stored?.device == device ? stored : nil
-            disconnected = stored != nil && saved == nil ? SessionCapsSelectionStore.savedName ?? "Your keyboard" : nil
+            disconnected = found.3 && saved == nil ? SessionCapsSelectionStore.savedName ?? "Your keyboard" : nil
             if saved != nil { SessionCapsSelectionStore.saveName(keyboards.first { $0.device == device }?.name) }
             conflict = await Self.conflict(on: device, intermediate: saved?.intermediateUsage)
             if !keepMessage { message = nil }
@@ -288,7 +302,7 @@ struct SessionCapsSettingsSection: View {
             message = "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept."
             await refreshKeyboards(keepMessage: true)
         }
-        await applyQueuedChoice()
+        await applyDeferredWork()
     }
 
     @MainActor

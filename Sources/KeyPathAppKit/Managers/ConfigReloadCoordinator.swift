@@ -28,6 +28,8 @@ final class ConfigReloadCoordinator {
     private let currentCapsIntermediate: @MainActor @Sendable () -> UInt32?
     /// The running session has Caps Lock rules paused (no usable keyboard).
     private let currentCapsPaused: @MainActor @Sendable () -> Bool
+    /// Called after an in-place reload of a profile that no longer uses Caps Lock.
+    private let capsNoLongerNeeded: (@MainActor @Sendable () -> Void)?
     private let restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)?
     private let managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)?
     private let sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))?
@@ -62,6 +64,7 @@ final class ConfigReloadCoordinator {
         currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
         currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
         currentCapsPaused: @escaping @MainActor @Sendable () -> Bool = { false },
+        capsNoLongerNeeded: (@MainActor @Sendable () -> Void)? = nil,
         restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
         managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)? = nil,
         sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
@@ -82,6 +85,7 @@ final class ConfigReloadCoordinator {
         self.currentManagedCaps = currentManagedCaps
         self.currentCapsIntermediate = currentCapsIntermediate
         self.currentCapsPaused = currentCapsPaused
+        self.capsNoLongerNeeded = capsNoLongerNeeded
         self.restartForManagedCapsChange = restartForManagedCapsChange
         self.managedCapsRestartFailureReason = managedCapsRestartFailureReason
         self.sessionValidationOverride = sessionValidationOverride
@@ -449,8 +453,14 @@ final class ConfigReloadCoordinator {
             }
             return .success(response: "Session restarted for Caps runtime mode change")
         }
+        // A profile without Caps rules has nothing paused once it is loaded.
+        let capsGone = !validation.managedCaps && admission?.capsPaused != true
+        func finished(_ result: TCPReloadResult) -> TCPReloadResult {
+            if result.isSuccess, capsGone { capsNoLongerNeeded?() }
+            return result
+        }
         if let tcpReloadOverride {
-            return await tcpReloadOverride()
+            return await finished(tcpReloadOverride())
         }
 
         // Check reload safety first
@@ -481,7 +491,7 @@ final class ConfigReloadCoordinator {
             daemonPID: currentPID.map { Int($0) }
         )
 
-        return mapped
+        return finished(mapped)
     }
 
     /// Main reload method that should be used by new code

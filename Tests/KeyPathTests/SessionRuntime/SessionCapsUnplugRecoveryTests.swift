@@ -42,6 +42,28 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         XCTAssertFalse(asked, "A healthy lease does not consult the registry")
     }
 
+    // MARK: Parent supervision
+
+    @MainActor
+    func testDisconnectAndProfileChangeRestartTheSessionOtherFailuresDoNot() {
+        XCTAssertEqual(ServiceLifecycleCoordinator.capsRestart(after: SessionCapsRuntimeSupport.keyboardDisconnectedReason),
+                       .keyboardDisconnected)
+        XCTAssertEqual(ServiceLifecycleCoordinator.capsRestart(after: SessionCapsRuntimeSupport.profileChangedReason), .profileChanged)
+        XCTAssertNil(ServiceLifecycleCoordinator.capsRestart(after: SessionCapsRuntimeSupport.ownershipLostReason),
+                     "Lost ownership stays terminal: something else changed the mapping")
+        XCTAssertNil(ServiceLifecycleCoordinator.capsRestart(after: nil))
+    }
+
+    /// The keyboard can vanish between the parent's choice and the worker's
+    /// own check; the worker then runs paused and the parent must notice.
+    @MainActor
+    func testParentNoticesWhenTheWorkerRanPaused() {
+        XCTAssertTrue(ServiceLifecycleCoordinator.workerPausedCaps(intended: true, managedCapsGeneration: nil, nonce: "n"))
+        XCTAssertTrue(ServiceLifecycleCoordinator.workerPausedCaps(intended: true, managedCapsGeneration: "old", nonce: "n"))
+        XCTAssertFalse(ServiceLifecycleCoordinator.workerPausedCaps(intended: true, managedCapsGeneration: "n", nonce: "n"))
+        XCTAssertFalse(ServiceLifecycleCoordinator.workerPausedCaps(intended: false, managedCapsGeneration: nil, nonce: "n"))
+    }
+
     // MARK: Paused admission
 
     /// The relaunch after a disconnect passes no selection. The worker must
@@ -113,8 +135,9 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         }
         SessionCapsSelectionStore.saveName("cl80")
         XCTAssertEqual(SessionCapsSelectionStore.savedName, "cl80")
-        SessionCapsSelectionStore.saveName("")
-        XCTAssertEqual(SessionCapsSelectionStore.savedName, "cl80", "An empty name never replaces a known one")
+        SessionCapsSelectionStore.saveName(nil)
+        XCTAssertNil(SessionCapsSelectionStore.savedName, "An unknown name clears the old one, never names the wrong keyboard")
+        SessionCapsSelectionStore.saveName("cl80")
         try SessionCapsSelectionStore.save(nil)
         XCTAssertNil(SessionCapsSelectionStore.savedName)
     }

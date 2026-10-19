@@ -102,8 +102,12 @@ enum SessionCapsSelectionStore {
 
     /// Remember what the chosen keyboard is called, for messages after it
     /// disconnects. Display only; the selection alone identifies the device.
+    /// An unknown name clears the old one rather than naming the wrong keyboard.
     static func saveName(_ name: String?) {
-        guard let name, !name.isEmpty, name.utf8.count <= 256 else { return }
+        guard let name, !name.isEmpty, name.utf8.count <= 256 else {
+            UserDefaults.standard.removeObject(forKey: SessionCapsRuntimeSupport.selectionNameKey)
+            return
+        }
         UserDefaults.standard.set(name, forKey: SessionCapsRuntimeSupport.selectionNameKey)
     }
 

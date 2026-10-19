@@ -126,6 +126,18 @@ extension ServiceLifecycleCoordinator {
                             return false
                         }
                         await invalidatePermissionsForNewSessionRuntime()
+                        if Self.workerPausedCaps(intended: sessionCapsIntermediate != nil,
+                                                 managedCapsGeneration: report.managedCapsGeneration, nonce: nonce)
+                        {
+                            // The keyboard went away between the choice and the
+                            // worker's own check, so the worker runs paused.
+                            sessionCapsIntermediate = nil
+                            sessionCapsNotice = nil
+                            sessionCapsPaused = Self.capsPausedMessage(
+                                disconnected: SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock",
+                                setupOff: false
+                            )
+                        }
                         onError?(nil)
                         onWarning?(sessionCapsNotice ?? sessionCapsPaused)
                         sessionCapsNotice = nil
@@ -425,19 +437,14 @@ extension ServiceLifecycleCoordinator {
                                             retiredAt: terminalReport?.timestamp)
             return false
         }
-        if terminalReport?.failure == SessionCapsRuntimeSupport.keyboardDisconnectedReason {
-            // The leased instance is gone and took its mapping with it; the
-            // restore above retired the record. Keep every other rule running.
-            sessionCapsDisconnectedName = SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock"
-            AppLogger.shared.info("[SessionRuntime] Caps keyboard disconnected; restarting with Caps Lock rules paused")
-            _ = await resumeSessionRuntime(expectedGeneration: generation, reason: "Caps Lock keyboard disconnected")
-            return false
-        }
-        if terminalReport?.failure == SessionCapsRuntimeSupport.profileChangedReason {
-            // A reload changed what Caps Lock needs. Start again through normal
-            // admission, which chooses a free reserved key.
-            AppLogger.shared.info("[SessionRuntime] Reloaded profile needs a Caps restart")
-            _ = await resumeSessionRuntime(expectedGeneration: generation, reason: "Caps Lock profile changed")
+        if let restart = Self.capsRestart(after: terminalReport?.failure) {
+            if restart == .keyboardDisconnected {
+                // The leased instance is gone and took its mapping with it; the
+                // restore above retired the record. Keep every other rule running.
+                sessionCapsDisconnectedName = SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock"
+            }
+            AppLogger.shared.info("[SessionRuntime] Restarting session: \(restart.rawValue)")
+            _ = await resumeSessionRuntime(expectedGeneration: generation, reason: restart.rawValue)
             return false
         }
         if let terminalReport {
@@ -772,8 +779,10 @@ extension ServiceLifecycleCoordinator {
         }
         let admission = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current(), occupied: occupied)
         guard admission.managedCaps else {
+            // The worker then runs paused. Keep the reason past the start,
+            // which clears errors, so Status and the warning still say it.
             if case let .invalid(reason) = admission.result {
-                onError?("Caps Lock rules are off: \(reason).")
+                sessionCapsPaused = "Caps Lock rules are off: \(reason). Your other rules keep working."
             }
             return nil
         }
@@ -791,6 +800,37 @@ extension ServiceLifecycleCoordinator {
             try SessionCapsSelectionStore.save(selection)
         }
         return selection
+    }
+
+    /// Worker failures that call for a fresh start through ordinary admission.
+    enum CapsRestart: String, Equatable {
+        /// A reload changed what Caps Lock needs; admission picks a free key.
+        case profileChanged = "Caps Lock profile changed"
+        /// The leased keyboard is gone; the next start runs paused or
+        /// re-chooses automatically when exactly one keyboard is left.
+        case keyboardDisconnected = "Caps Lock keyboard disconnected"
+    }
+
+    static func capsRestart(after failure: String?) -> CapsRestart? {
+        switch failure {
+        case SessionCapsRuntimeSupport.profileChangedReason: .profileChanged
+        case SessionCapsRuntimeSupport.keyboardDisconnectedReason: .keyboardDisconnected
+        default: nil
+        }
+    }
+
+    /// The parent chose a keyboard, but the worker's report shows no lease
+    /// for this launch: the worker admitted the profile paused.
+    static func workerPausedCaps(intended: Bool, managedCapsGeneration: String?, nonce: String) -> Bool {
+        intended && managedCapsGeneration != nonce
+    }
+
+    /// The reloaded profile no longer uses Caps Lock; nothing is paused.
+    func clearCapsPaused() {
+        guard sessionCapsPaused != nil || sessionCapsDisconnectedName != nil else { return }
+        sessionCapsPaused = nil
+        sessionCapsDisconnectedName = nil
+        onStateChanged?()
     }
 
     /// Why a running session leaves Caps Lock rules inactive. nil when the
