@@ -217,6 +217,9 @@ actor LayerKeyMapper {
 
     let simulatorService: SimulatorService
     var cache: [String: [UInt16: LayerKeyInfo]] = [:]
+    /// Bumped by every invalidation. A build that started before one must not
+    /// store its now-stale result (labels from the old rules or key-name style).
+    private var cacheGeneration = 0
     var configHash: String = ""
     /// Injectable feature-flag check. Defaults to the persisted flag; tests inject a
     /// constant so simulator integration tests never depend on process-global
@@ -251,6 +254,7 @@ actor LayerKeyMapper {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
         let cacheKey = Self.cacheKey(layer: normalizedLayer, suffix: cacheKeySuffix)
+        let generation = cacheGeneration
         AppLogger.shared
             .info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)', cacheKeySuffix: '\(cacheKeySuffix)')")
 
@@ -305,7 +309,7 @@ actor LayerKeyMapper {
             keyToVimLabel: keyToVimLabel
         )
 
-        cache[cacheKey] = mapping
+        if generation == cacheGeneration { cache[cacheKey] = mapping }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
         return (mapping, report)
     }
@@ -349,12 +353,15 @@ actor LayerKeyMapper {
 
     /// Every cache key goes through here. Key names depend on each Vim pack's
     /// plain/Vim-terms choice, so the choice is part of the key.
-    nonisolated static func cacheKey(layer: String, suffix: String) -> String {
-        "\(layer)|\(suffix)|\(VimKeyNameStyle.cacheSignature())"
+    nonisolated static func cacheKey(layer: String, suffix: String,
+                                     signature: String = VimKeyNameStyle.cacheSignature()) -> String
+    {
+        "\(layer)|\(suffix)|\(signature)"
     }
 
     /// Invalidate all cached mappings (call when config changes)
     func invalidateCache() {
+        cacheGeneration += 1
         cache.removeAll()
         configHash = ""
     }
@@ -373,6 +380,9 @@ actor LayerKeyMapper {
         allEnabledCollections: [RuleCollection] = []
     ) async {
         let normalizedLayers = layerNames.map { $0.lowercased() }
+        // Key the results by the style the labels are built with, captured now.
+        let signature = VimKeyNameStyle.cacheSignature()
+        let generation = cacheGeneration
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
 
         if !simulatorEnabled() {
@@ -447,8 +457,8 @@ actor LayerKeyMapper {
             }
 
             for await (layer, suffix, mapping) in group {
-                if let mapping {
-                    cache[Self.cacheKey(layer: layer, suffix: suffix)] = mapping
+                if let mapping, generation == cacheGeneration {
+                    cache[Self.cacheKey(layer: layer, suffix: suffix, signature: signature)] = mapping
                     AppLogger.shared.debug("🗺️ [LayerKeyMapper] Cached mapping for '\(layer)|\(suffix)' (\(mapping.count) keys)")
                 }
             }

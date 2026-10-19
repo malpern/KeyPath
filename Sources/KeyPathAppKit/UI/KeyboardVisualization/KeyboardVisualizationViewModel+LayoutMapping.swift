@@ -342,6 +342,7 @@ extension KeyboardVisualizationViewModel {
 
     /// Fire-and-forget prebuild of all layer mappings so first layer switches hit cache.
     func prebuildLayerMappingsInBackground() {
+        let generation = prebuildGeneration
         Task {
             let allCollections = await RuleCollectionStore.shared.loadCollections()
             let enabledCollections = allCollections.filter(\.isEnabled)
@@ -380,8 +381,14 @@ extension KeyboardVisualizationViewModel {
                     localCache[layer] = mapping
                 }
             }
-            await MainActor.run {
+            let installed = await MainActor.run {
+                guard generation == self.prebuildGeneration else { return false }
                 self.prebuiltLayerMappings = localCache
+                return true
+            }
+            guard installed else {
+                AppLogger.shared.info("🗺️ [KeyboardViz] Discarded a prebuild superseded by an invalidation")
+                return
             }
 
             AppLogger.shared.info("🗺️ [KeyboardViz] Background prebuild complete (\(localCache.count) layers cached)")
@@ -417,6 +424,7 @@ extension KeyboardVisualizationViewModel {
         // Keyed by layer name only, so stale entries would show old labels (e.g. after a
         // Key names switch) until the rebuild below finished.
         prebuiltLayerMappings = [:]
+        prebuildGeneration += 1
         Task {
             await layerKeyMapper.invalidateCache()
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
