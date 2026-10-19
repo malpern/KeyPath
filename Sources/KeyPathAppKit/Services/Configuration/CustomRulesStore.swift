@@ -13,9 +13,12 @@ actor CustomRulesStore {
 
     init(fileURL: URL? = nil, fileManager: FileManager = Foundation.FileManager()) {
         self.fileManager = fileManager
-        let defaultDirectory = URL(
-            fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true
-        )
+        // Under test, use the per-process sandbox like RuleCollectionStore, so a
+        // plain `swift test` (no KEYPATH_HOME_DIR_OVERRIDE) can never overwrite the
+        // developer's real ~/.config/keypath/CustomRules.json. Production is unchanged.
+        let defaultDirectory = TestEnvironment.isRunningTests
+            ? AppPaths.configDirectory
+            : URL(fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true)
         self.fileURL = fileURL ?? defaultDirectory.appendingPathComponent("CustomRules.json")
 
         let encoder = JSONEncoder()
