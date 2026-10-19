@@ -129,6 +129,44 @@ public enum SessionCapsHIDUtilTransport {
         return devices
     }
 
+    /// One compatible keyboard with its display name. The name is for the
+    /// picker only: it is never persisted or used to identify the device.
+    public struct Keyboard: Sendable, Equatable, Identifiable {
+        public let device: Policy.DeviceIdentity
+        public let name: String
+        public var id: UInt64 { device.registryEntryID }
+    }
+
+    /// Eligibility comes from `parseServices`; names are a best-effort overlay
+    /// keyed by registry ID, so a missing or odd name never admits a device.
+    public static func parseKeyboards(_ ndjson: String) throws -> [Keyboard] {
+        let devices = try parseServices(ndjson)
+        var names: [UInt64: String] = [:]
+        for line in ndjson.split(separator: "\n") {
+            guard let row = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  row["type"] as? String == "service",
+                  let id = (row["IORegistryEntryID"] as? NSNumber).flatMap({ UInt64($0.stringValue) }),
+                  let product = row["Product"] as? String else { continue }
+            let trimmed = product.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty, trimmed.utf8.count <= 256 { names[id] = trimmed }
+        }
+        let base = devices.map { device in
+            device.appleBuiltIn == true ? "Built-in keyboard" : names[device.registryEntryID] ?? "Keyboard"
+        }
+        // Two identical keyboards share a product name; number them in list order.
+        var seen: [String: Int] = [:]
+        return zip(devices, base).map { device, name in
+            guard base.count(where: { $0 == name }) > 1 else { return Keyboard(device: device, name: name) }
+            seen[name, default: 0] += 1
+            return Keyboard(device: device, name: "\(name) \(seen[name]!)")
+        }
+    }
+
+    /// Synchronous; call off the main actor.
+    public static func keyboards(run: ([String]) throws -> String = runHIDUtil) throws -> [Keyboard] {
+        try parseKeyboards(run(["list", "--ndjson", "--matching", "keyboard"]))
+    }
+
     /// Query the exact ID without keyboard eligibility filters. The fast match
     /// finds registered services; before claiming absence, inspect the registry
     /// plane too because an unregistered service can still be present there.
