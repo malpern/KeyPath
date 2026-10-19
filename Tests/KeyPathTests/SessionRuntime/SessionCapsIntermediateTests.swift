@@ -159,8 +159,9 @@ final class SessionCapsIntermediateTests: XCTestCase {
                                                                   raycast: .init(enabled: true, keyCode: 57))
         XCTAssertEqual(conflict, .raycastHyperKey)
         // Only the chosen keyboard's own services are listed and read.
-        XCTAssertEqual(asked.first, try SessionCapsHIDUtilTransport.listArguments(device))
-        XCTAssertTrue(asked.dropFirst().allSatisfy { $0.first == "property" && $0.last == "UserKeyMapping" })
+        let list = try SessionCapsHIDUtilTransport.listArguments(device)
+        XCTAssertTrue(asked.allSatisfy { $0 == list || ($0.first == "property" && $0[3] == "--get") }, "\(asked)")
+        XCTAssertTrue(asked.contains(list))
     }
 
     @MainActor

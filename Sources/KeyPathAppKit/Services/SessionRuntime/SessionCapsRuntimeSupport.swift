@@ -259,8 +259,15 @@ enum SessionCapsRuntimeSupport {
                              backend: SessionCapsMappingLease.Backend = SessionCapsHIDUtilTransport.backend(),
                              raycast: SessionCapsConflict.RaycastHyperKey? = raycastHyperKey()) throws -> SessionCapsConflict?
     {
-        // Another tool may have mapped Caps on only one interface of the board.
-        for mappings in try backend.readGroup(device).sorted(by: { $0.key < $1.key }).map(\.value) {
+        // Another tool may have mapped Caps on only one covered interface of
+        // the board. Other interfaces (consumer, raw HID) are not read.
+        let members = try backend.members(device)
+        var rows = try [backend.read(device).mappings]
+        if members.count > 1 {
+            let group = try backend.readGroup(device)
+            rows += members.sorted().filter { $0 != device.registryEntryID }.compactMap { group[$0] }
+        }
+        for mappings in rows {
             if let conflict = SessionCapsConflict.identify(mappings, raycast: raycast) { return conflict }
         }
         return nil

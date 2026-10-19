@@ -179,7 +179,12 @@ public final class SessionCapsMappingLease {
                 let beforeWrite = try backend.read(device)
                 guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
                 guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
-                guard try companionMappings(device) == companions else { throw Policy.Refusal.foreignMapping }
+                // Look the recorded companions up again rather than re-probing
+                // which interfaces exist: a probe that flips is not a foreign write.
+                if !companions.isEmpty {
+                    let group = try backend.readGroup(device)
+                    guard companions.allSatisfy({ group[$0.key] == $0.value }) else { throw Policy.Refusal.foreignMapping }
+                }
             } catch {
                 // Refused before any write: no mutation marker exists, so nothing
                 // was applied and the intent is void. Left on disk, restore() would

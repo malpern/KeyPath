@@ -9,8 +9,8 @@ public enum SessionCapsHIDUtilTransport {
     public enum Refusal: Error { case unsupportedOutput, commandFailed, timedOut, excessiveOutput }
     public typealias Policy = SessionCapsMappingPolicy
 
-    /// Diagnostics that change nothing (such as an interface whose keyboard
-    /// capability could not be read). The app and worker route this to AppLogger.
+    /// Diagnostics that change nothing. The session worker routes this to
+    /// AppLogger once at startup, before any HID work reads it.
     public nonisolated(unsafe) static var warn: (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }
 
     public static func selector(_ device: Policy.DeviceIdentity) throws -> String {
@@ -282,7 +282,10 @@ public enum SessionCapsHIDUtilTransport {
             else { continue }
             let location = integer("LocationID", maximum: UInt64(UInt32.max)).map(UInt32.init)
             rows.append(ServiceRow(registryEntryID: registry, vendorID: UInt32(vendor), productID: UInt32(product),
-                                   locationID: location, serialNumber: row["SerialNumber"] as? String,
+                                   locationID: location,
+                                   serialNumber: (row["SerialNumber"] as? String).flatMap {
+                                       $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
+                                   },
                                    primaryUsagePage: UInt32(page), primaryUsage: UInt32(usage)))
         }
         return rows
@@ -591,18 +594,34 @@ public enum SessionCapsHIDUtilTransport {
                      registryEntryExists: registryEntryExists,
                      members: { device in
                          let group = try serviceGroup(for: device, rows: rows(device), emitsKeyboardUsages: emitsKeyboardUsages)
-                         if !group.unreadable.isEmpty {
-                             warn("[SessionCaps] Keyboard capability unreadable for interfaces \(group.unreadable.map { String($0, radix: 16) }) of the chosen keyboard; Caps is mapped on \(group.members.count) of its services")
+                         // Fail closed: an interface that might deliver Caps but was
+                         // not checked would leave Caps native there, silently.
+                         guard group.unreadable.isEmpty else {
+                             warn("[SessionCaps] Keyboard capability unreadable for interfaces \(group.unreadable.map { String($0, radix: 16) }) of the chosen keyboard; Caps setup refused")
+                             throw Policy.Refusal.ambiguousDevice
                          }
                          return group.members
                      },
                      readGroup: { device in
+                         // Best effort beyond the chosen service's own pair: a raw-HID or
+                         // consumer interface that will not answer is left out. Restore
+                         // refuses when a recorded interface is missing but still exists,
+                         // and verification treats a missing companion as lost ownership.
                          let rows = try rows(device)
+                         let anchor = rows.first { $0.registryEntryID == device.registryEntryID }!
+                         let anchorPair = [anchor.primaryUsagePage, anchor.primaryUsage]
+                         var result = try pairMappings(device, pairs: [anchorPair], rows: rows, run: run)
                          var pairs: [[UInt32]] = []
-                         for row in rows where !pairs.contains([row.primaryUsagePage, row.primaryUsage]) {
+                         for row in rows where ![anchorPair].contains([row.primaryUsagePage, row.primaryUsage])
+                             && !pairs.contains([row.primaryUsagePage, row.primaryUsage])
+                         {
                              pairs.append([row.primaryUsagePage, row.primaryUsage])
                          }
-                         return try pairMappings(device, pairs: pairs, rows: rows, run: run)
+                         for pair in pairs {
+                             guard let mappings = try? pairMappings(device, pairs: [pair], rows: rows, run: run) else { continue }
+                             result.merge(mappings) { current, _ in current }
+                         }
+                         return result
                      },
                      writeEach: { device, targets in try writeTargets(device, targets, rows: rows(device), run: run) })
     }

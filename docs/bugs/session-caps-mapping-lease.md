@@ -114,7 +114,7 @@ ID. The lease covers the board's `serviceGroup`: that anchor plus every other
 service of the device that can emit keyboard usages (a {1,6} DeviceUsagePairs
 entry, or non-constant Keyboard-page Input items in the report descriptor,
 including 32-bit extended usages). An interface whose capability cannot be read
-is logged and not covered. hidutil cannot address a service by registry ID, so
+refuses the lease (fail closed): left unchecked, Caps could stay native there. hidutil cannot address a service by registry ID, so
 there is one selector per primary-usage pair (the serial is matched only when
 every service of that pair reports it), and hidutil writes a pair as a whole.
 

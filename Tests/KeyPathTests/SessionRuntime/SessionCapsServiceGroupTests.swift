@@ -41,6 +41,9 @@ final class SessionCapsServiceGroupTests: XCTestCase {
         // 32-bit extended usages name the keyboard page without a Usage Page item.
         XCTAssertTrue(Transport.descriptorHasKeyboardInput(Self.bytes("0501" + "1b00000700" + "2be7000700" + "8102")))
         XCTAssertFalse(Transport.descriptorHasKeyboardInput(Self.bytes("0501" + "0b39000700" + "c0" + "8102")), "locals end at a main item")
+        // A long item (0xFE, data size, tag, data) is skipped whole.
+        XCTAssertTrue(Transport.descriptorHasKeyboardInput(Self.bytes("fe0201aabb" + "0507" + "8102")))
+        XCTAssertFalse(Transport.descriptorHasKeyboardInput(Self.bytes("fe0201aabb" + "0501" + "8102")))
         // Truncated input never claims anything.
         XCTAssertFalse(Transport.descriptorHasKeyboardInput(Self.bytes("05")))
         XCTAssertFalse(Transport.descriptorHasKeyboardInput(Self.bytes("fe")))
@@ -74,6 +77,49 @@ final class SessionCapsServiceGroupTests: XCTestCase {
                           "the chosen service is still matched by its serial")
             XCTAssertTrue(hid.selectors.contains { !$0.contains("S1") && $0.contains(#""PrimaryUsage":2"#) })
         }
+    }
+
+    func testUnreadableInterfaceRefusesRatherThanLeaveCapsNative() throws {
+        let hid = FakeHID()
+        hid.unreadable = [FakeHID.nkro]
+        try fixture(hid) { lease, hid, owner in
+            XCTAssertThrowsError(try lease.acquire(owner: owner, configSHA256: digest, device: hid.cl80))
+            XCTAssertEqual(hid.state[FakeHID.boot], [])
+            XCTAssertEqual(hid.state[FakeHID.nkro], [])
+            XCTAssertNil(try lease.pendingRecord())
+        }
+    }
+
+    func testOnePairIsWrittenWholeSoItsTargetsMustAgree() throws {
+        let hid = FakeHID()
+        let twin = FakeHID.Service(id: 4_300_977_990, vendor: 21577, product: 37148, location: 34_673_408,
+                                   page: 1, usage: 6, name: "cl80", serial: nil)
+        hid.extra = [twin]
+        hid.state[twin.id] = []
+        let rows = try Transport.deviceRows(hid.cl80, rows: Transport.parseServiceRows(hid.listOutput(matching: nil)))
+        let mapped = [Policy.Mapping(source: Policy.caps, destination: Policy.f18)]
+        // Different targets for two services of the same pair: refused before writing.
+        XCTAssertThrowsError(try Transport.writeTargets(hid.cl80, [FakeHID.boot: mapped, twin.id: []], rows: rows, run: hid.run))
+        // A service the pair's selector reaches but that has no target: refused too.
+        XCTAssertThrowsError(try Transport.writeTargets(hid.cl80, [FakeHID.boot: mapped], rows: rows, run: hid.run))
+        XCTAssertEqual(hid.state[FakeHID.boot], [])
+        XCTAssertEqual(hid.state[twin.id], [])
+        try Transport.writeTargets(hid.cl80, [FakeHID.boot: mapped, twin.id: mapped], rows: rows, run: hid.run)
+        XCTAssertEqual(hid.state[twin.id], mapped)
+    }
+
+    func testConflictCheckReadsOnlyCoveredInterfaces() throws {
+        let hid = FakeHID()
+        hid.state[FakeHID.nkro] = raycast
+        hid.failGetOnPair = [12, 1] // the board's consumer interface is unreadable
+        let conflict = try SessionCapsRuntimeSupport.capsConflict(on: hid.cl80, backend: hid.backend,
+                                                                  raycast: .init(enabled: true, keyCode: 57))
+        XCTAssertEqual(conflict, .raycastHyperKey)
+    }
+
+    func testBlankSerialCountsAsNone() throws {
+        let row = #"{"type":"service","SerialNumber":"  ","IORegistryEntryID":5,"VendorID":1,"ProductID":2,"LocationID":3,"PrimaryUsagePage":1,"PrimaryUsage":2}"#
+        XCTAssertNil(try Transport.parseServiceRows(row).first?.serialNumber)
     }
 
     func testTwoKeyboardInterfacesAtOneLocationAreOneKeyboard() throws {
@@ -218,6 +264,9 @@ final class FakeHID {
     let services: [Service]
     var state: [UInt64: [SessionCapsMappingPolicy.Mapping]] = [FakeHID.nkro: [], FakeHID.boot: [], FakeHID.consumer: [], FakeHID.otherBoard: []]
     var failSetOnPair: [Int]?
+    var failGetOnPair: [Int]?
+    var unreadable: Set<UInt64> = []
+    var extra: [Service] = []
     var hidden: Set<UInt64> = []
     var gone: Set<UInt64> = []
     var selectors: [String] = []
@@ -234,7 +283,7 @@ final class FakeHID {
     }
 
     func emits(_ id: UInt64) -> Bool? {
-        id == FakeHID.nkro || id == FakeHID.boot || id == FakeHID.otherBoard
+        unreadable.contains(id) ? nil : id == FakeHID.nkro || id == FakeHID.boot || id == FakeHID.otherBoard
     }
 
     var backend: SessionCapsMappingLease.Backend {
@@ -243,7 +292,7 @@ final class FakeHID {
     }
 
     private var live: [Service] {
-        services.filter { !hidden.contains($0.id) && !gone.contains($0.id) }
+        (services + extra).filter { !hidden.contains($0.id) && !gone.contains($0.id) }
     }
 
     func listOutput(matching: [String: Any]?) -> String {
@@ -282,8 +331,9 @@ final class FakeHID {
         if isList { return listOutput(matching: match) }
         selectors.append(arguments[2])
         let ids = live.filter { matches($0, match) }.map(\.id)
+        let pair = [(match["PrimaryUsagePage"] as? NSNumber)?.intValue ?? -1, (match["PrimaryUsage"] as? NSNumber)?.intValue ?? -1]
+        if arguments[3] == "--get", pair == failGetOnPair { throw SessionCapsHIDUtilTransport.Refusal.commandFailed }
         if arguments[3] == "--set" {
-            let pair = [(match["PrimaryUsagePage"] as! NSNumber).intValue, (match["PrimaryUsage"] as! NSNumber).intValue]
             if pair == failSetOnPair { throw SessionCapsHIDUtilTransport.Refusal.commandFailed }
             let body = try JSONSerialization.jsonObject(with: Data(arguments[4].utf8)) as! [String: Any]
             let rows = try JSONSerialization.data(withJSONObject: body["UserKeyMapping"]!)
