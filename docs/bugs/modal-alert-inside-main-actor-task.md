@@ -37,7 +37,16 @@ main thread while the app is meant to keep working. Calling it from a main-queue
 block blocks the main queue just as surely as calling it from a main-actor task.
 Use a sheet or a non-modal window (`NonModalAlertPresenter`).
 
-## Still open
+## Why the simulation failed in the first place
 
-Why the nav layer's simulation fails for 77/77 keys on the Air, including on
-healthy runs, is a separate investigation.
+The Air's config had only the `base` layer: Vim Navigation was off, so nothing
+defined `nav`. Yet `ContextHUDController.precomputeNavLayer` asked for the `nav`
+mapping about two seconds after every launch, and the overlay asked for it on
+any `nav` layer change. `kanata-simulator` exits with `unknown layer: nav` for
+each key, so every launch ran it 77 times and logged 77 failures, and an
+explicit layer change raised the alert.
+
+`LayerKeyMapper.getMapping` now checks the config's defined layers
+(`definedLayerNames(inConfig:)`: `deflayer`, `deflayermap`, and `include`d files,
+ignoring comments). For a layer the config does not define, it returns the
+plain-label fallback mapping without simulating and without a failure report.

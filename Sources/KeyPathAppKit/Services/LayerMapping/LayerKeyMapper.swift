@@ -274,6 +274,20 @@ actor LayerKeyMapper {
             return (cached, nil)
         }
 
+        // A layer the config does not define (its pack is off, or a caller asked for the
+        // default leader layer) cannot be simulated: kanata-simulator exits with
+        // "unknown layer" for every key. Skip the 77 simulator runs and the failure report.
+        if normalizedLayer != "base",
+           let configText = try? String(contentsOfFile: configPath, encoding: .utf8),
+           !Self.definedLayerNames(inConfig: configText, configDirectory: (configPath as NSString).deletingLastPathComponent)
+           .contains(normalizedLayer)
+        {
+            AppLogger.shared.info("🗺️ [LayerKeyMapper] Layer '\(normalizedLayer)' is not in the config; using fallback mapping without simulating")
+            let mapping = buildFallbackMapping(layout: layout)
+            cache[cacheKey] = mapping
+            return (mapping, nil)
+        }
+
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Building new mapping for '\(normalizedLayer)'...")
 
         // Build key→collection reverse index for collection ownership tracking
@@ -294,6 +308,38 @@ actor LayerKeyMapper {
         cache[cacheKey] = mapping
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
         return (mapping, report)
+    }
+
+    /// Layer names a kanata config defines, lowercased: `(deflayer name ...)` and
+    /// `(deflayermap (name) ...)`, including files pulled in with `(include file)`.
+    nonisolated static func definedLayerNames(inConfig text: String, configDirectory: String?) -> Set<String> {
+        var names = Set<String>()
+        let layerPattern = #"\((?:deflayer|deflayermap)\s+\(?\s*([^\s()]+)"#
+        let includePattern = #"\(include\s+\"?([^\s()\"]+)\"?\s*\)"#
+        let stripped = text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> Substring in
+                // Drop line comments so a commented-out layer is not counted.
+                if let range = line.range(of: ";;") { return line[..<range.lowerBound] }
+                return line
+            }
+            .joined(separator: "\n")
+        func matches(_ pattern: String, in source: String) -> [String] {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+            let range = NSRange(source.startIndex..., in: source)
+            return regex.matches(in: source, range: range).compactMap { match in
+                Range(match.range(at: 1), in: source).map { String(source[$0]) }
+            }
+        }
+        names.formUnion(matches(layerPattern, in: stripped).map { $0.lowercased() })
+        if let configDirectory {
+            for file in matches(includePattern, in: stripped) {
+                let path = file.hasPrefix("/") ? file : (configDirectory as NSString).appendingPathComponent(file)
+                if let included = try? String(contentsOfFile: path, encoding: .utf8) {
+                    names.formUnion(definedLayerNames(inConfig: included, configDirectory: nil))
+                }
+            }
+        }
+        return names
     }
 
     /// Return a cached mapping if available, nil otherwise.
