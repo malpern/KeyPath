@@ -54,6 +54,17 @@ extension LiveKeyboardOverlayController {
                 self?.viewModel.invalidateLayerMappings()
             }
         }
+
+        // A Vim pack switched between plain and Vim-term key names: rebuild the labels.
+        Foundation.NotificationCenter.default.addObserver(
+            forName: .vimKeyNameStyleChanged,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (_: Foundation.Notification) in
+            Task { @MainActor in
+                self?.viewModel.invalidateLayerMappings()
+            }
+        }
     }
 
     func setupKeyInputObserver() {

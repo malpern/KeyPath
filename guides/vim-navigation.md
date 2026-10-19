@@ -41,6 +41,8 @@ Vim Navigation is the foundation that every other layer pack depends on. It defi
 
 The pack's page draws the layer on your keyboard: each key you can use while holding Space is labelled with what it does, in the same green as the overlay, with the H/J/K/L arrows in orange. Point at a key to see the Mac shortcut it sends, and use **Space + ⇧** or **Space + ⌃** above the keyboard to see what those keys do with Shift or Control. The same commands are listed underneath in four groups (Move, Edit, Search, Clipboard), with the same names the overlay and the Shortcut List use.
 
+**Key names.** Below the list, choose **Plain** (Copy, Paste, Top — the default) or **Vim terms** (yank, put, gg). The choice changes the keys on the overlay and in the Shortcut List too.
+
 ![Screenshot — Vim Navigation pack detail showing the layer on the keyboard](pack-detail-vim-navigation.png)
 
 ---

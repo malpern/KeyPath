@@ -107,12 +107,14 @@ final class ContextHUDViewModel {
             let action: String
             var variant: String?
             if let collectionId = info.collectionId, vimFamily.contains(collectionId),
-               let presentation = VimLayerReference.presentation(forInput: Self.vimInput(for: keyCode))
+               let presentation = VimLayerReference.presentation(
+                   forInput: Self.vimInput(for: keyCode), style: VimKeyNameStyle.current(for: collectionId)
+               )
             {
                 // Same names as the overlay keycaps and Settings (VimLayerReference).
                 keycap = presentation.keyLabel
                 action = presentation.title
-                variant = vimMappingsByCollection[collectionId]?[Self.vimInput(for: keyCode)].map(VimLayerReference.entry(for:))
+                variant = vimMappingsByCollection[collectionId]?[Self.vimInput(for: keyCode)].map { VimLayerReference.entry(for: $0, style: VimKeyNameStyle.current(for: collectionId)) }
                     .flatMap { entry in
                         let lines = [entry.shift, entry.ctrl].compactMap { $0 }.map { "\($0.label) \($0.title)" }
                         return lines.isEmpty ? nil : lines.joined(separator: " · ")

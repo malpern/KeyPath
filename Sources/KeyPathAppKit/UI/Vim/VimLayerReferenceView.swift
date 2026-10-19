@@ -10,12 +10,15 @@ import SwiftUI
 struct VimLayerReferenceView: View {
     let mappings: [KeyMapping]
     var activationHint: String?
+    var collectionId: UUID = RuleCollectionIdentifier.vimNavigation
+
+    @State private var nameStyle: VimKeyNameStyle = .plain
 
     @State private var highlighted: String?
     @State private var modifier: VimLayerModifier = .none
 
     private var entries: [VimLayerReferenceEntry] {
-        VimLayerReference.entries(from: mappings)
+        VimLayerReference.entries(from: mappings, style: nameStyle)
     }
 
     private var availableModifiers: [VimLayerModifier] {
@@ -36,8 +39,13 @@ struct VimLayerReferenceView: View {
                 VimLayerKeyboardMap(entries: entries, modifier: modifier, highlighted: $highlighted)
                 detailStrip
                 VimLayerCommandList(entries: entries, highlighted: $highlighted)
+                VimKeyNameStylePicker(collectionId: collectionId)
             }
             .accessibilityIdentifier("vim-layer-reference")
+            .onAppear { nameStyle = VimKeyNameStyle.current(for: collectionId) }
+            .onReceive(NotificationCenter.default.publisher(for: .vimKeyNameStyleChanged)) { _ in
+                nameStyle = VimKeyNameStyle.current(for: collectionId)
+            }
         }
     }
 
@@ -216,6 +224,14 @@ private struct VimLayerMappedKey: View {
     let isHighlighted: Bool
 
     /// The overlay's colors: pack green, with the h/j/k/l arrows emphasized in orange.
+    private var isBaseVariant: Bool {
+        variant.title == entry.title
+    }
+
+    private var keycapName: String {
+        isBaseVariant ? entry.keycap : VimLayerReference.capTitle(for: variant.title)
+    }
+
     private var accent: Color {
         VimLayerReference.arrowCluster.contains { $0.input == entry.input }
             ? KeyPathColors.layerOrange
@@ -228,12 +244,13 @@ private struct VimLayerMappedKey: View {
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.primary)
             Spacer(minLength: 0)
-            if showsTitle {
-                Text(VimLayerReference.capTitle(for: variant.title))
+            // Skip the name when it is just the key's own legend ("$" on $ in Vim terms).
+            if showsTitle, keycapName != entry.capLabel {
+                Text(keycapName)
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(accent)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.7)
             }
         }
         .padding(.horizontal, 5)
@@ -453,5 +470,45 @@ extension VimLayerReference {
     /// Spoken name for an arrow-cluster key, used by VoiceOver.
     static func entry(forArrow input: String) -> String {
         ["h": "Left", "j": "Down", "k": "Up", "l": "Right"][input] ?? input
+    }
+}
+
+/// "Key names: Plain | Vim terms" for one Vim-family pack. Changes the pack's keycaps
+/// on the overlay, its Shortcut List entries and this reference together.
+struct VimKeyNameStylePicker: View {
+    let collectionId: UUID
+    @State private var style: VimKeyNameStyle = .plain
+
+    var body: some View {
+        HStack(alignment: .center, spacing: SettingsDesign.rowGap) {
+            VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
+                Text("Key names").font(.body.weight(.medium))
+                Text(style == .vim
+                    ? "Vim's own words: yank, put, gg. Also used on the overlay and in the Shortcut List."
+                    : "Plain words: Copy, Paste, Top. Also used on the overlay and in the Shortcut List.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Picker("Key names", selection: Binding(
+                get: { style },
+                set: { newValue in
+                    style = newValue
+                    VimKeyNameStyle.set(newValue, for: collectionId)
+                }
+            )) {
+                ForEach(VimKeyNameStyle.allCases) { option in
+                    Text(option.displayName).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .accessibilityIdentifier("vim-key-name-style-picker")
+            .accessibilityLabel("Key names")
+        }
+        .padding(.top, 4)
+        .onAppear { style = VimKeyNameStyle.current(for: collectionId) }
     }
 }

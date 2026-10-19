@@ -25,6 +25,9 @@ struct NeovimTerminalCollectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             terminalScopeSection
+            VimKeyNameStylePicker(collectionId: RuleCollectionIdentifier.neovimTerminal)
+                .padding(12)
+                .settingsGroupBackground()
             topicsChecklist
         }
         .frame(maxWidth: .infinity, alignment: .leading)

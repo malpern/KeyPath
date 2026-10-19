@@ -250,7 +250,7 @@ actor LayerKeyMapper {
     ) async throws -> (mapping: [UInt16: LayerKeyInfo], report: SimulationReport?) {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
-        let cacheKey = "\(normalizedLayer)|\(cacheKeySuffix)"
+        let cacheKey = Self.cacheKey(layer: normalizedLayer, suffix: cacheKeySuffix)
         AppLogger.shared
             .info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)', cacheKeySuffix: '\(cacheKeySuffix)')")
 
@@ -344,7 +344,13 @@ actor LayerKeyMapper {
 
     /// Return a cached mapping if available, nil otherwise.
     func getCachedMapping(for layer: String, cacheKeySuffix: String = "neovim-scope-fallback") -> [UInt16: LayerKeyInfo]? {
-        cache["\(layer.lowercased())|\(cacheKeySuffix)"]
+        cache[Self.cacheKey(layer: layer.lowercased(), suffix: cacheKeySuffix)]
+    }
+
+    /// Every cache key goes through here. Key names depend on each Vim pack's
+    /// plain/Vim-terms choice, so the choice is part of the key.
+    nonisolated static func cacheKey(layer: String, suffix: String) -> String {
+        "\(layer)|\(suffix)|\(VimKeyNameStyle.cacheSignature())"
     }
 
     /// Invalidate all cached mappings (call when config changes)
@@ -372,9 +378,9 @@ actor LayerKeyMapper {
         if !simulatorEnabled() {
             let mapping = buildFallbackMapping(layout: layout)
             for layer in normalizedLayers {
-                cache["\(layer)|default"] = mapping
-                cache["\(layer)|neovim-scope-approved"] = mapping
-                cache["\(layer)|neovim-scope-fallback"] = mapping
+                cache[Self.cacheKey(layer: layer, suffix: "default")] = mapping
+                cache[Self.cacheKey(layer: layer, suffix: "neovim-scope-approved")] = mapping
+                cache[Self.cacheKey(layer: layer, suffix: "neovim-scope-fallback")] = mapping
             }
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; cached fallback mapping for \(normalizedLayers.count) layers")
             return
@@ -442,7 +448,7 @@ actor LayerKeyMapper {
 
             for await (layer, suffix, mapping) in group {
                 if let mapping {
-                    cache["\(layer)|\(suffix)"] = mapping
+                    cache[Self.cacheKey(layer: layer, suffix: suffix)] = mapping
                     AppLogger.shared.debug("🗺️ [LayerKeyMapper] Cached mapping for '\(layer)|\(suffix)' (\(mapping.count) keys)")
                 }
             }

@@ -80,7 +80,9 @@ extension LayerKeyMapper {
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     // Same names as the Shortcut List and Settings (VimLayerReference).
-                    if let label = VimLayerReference.presentation(forInput: mapping.input)?.keycapLabel {
+                    if let label = VimLayerReference.presentation(
+                        forInput: mapping.input, style: VimKeyNameStyle.current(for: collection.id)
+                    )?.keycapLabel {
                         map[kanataKey] = label
                     }
                 }
@@ -98,7 +100,9 @@ extension LayerKeyMapper {
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     // Same names as Vim Navigation, plus the word motions.
-                    if let label = VimLayerReference.presentation(forInput: mapping.input)?.keycapLabel {
+                    if let label = VimLayerReference.presentation(
+                        forInput: mapping.input, style: VimKeyNameStyle.current(for: collection.id)
+                    )?.keycapLabel {
                         map[kanataKey] = label
                     }
                 }

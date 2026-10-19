@@ -133,7 +133,7 @@ struct LayerModeKeycap: View {
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
             } else if let vimLabel = info.vimLabel, !vimLabel.isEmpty {
-                KeycapSymbols.dynamicTextLabel(vimLabel, scale: scale)
+                KeycapSymbols.dynamicTextLabel(vimLabel, scale: scale, capitalize: false)
                     .help(info.displayLabel)
             } else if !info.displayLabel.isEmpty {
                 let skipSymbolConversion = KeycapSymbols.isModifierOrSpecialKey(info.displayLabel)
