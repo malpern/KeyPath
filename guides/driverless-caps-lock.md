@@ -85,11 +85,11 @@ Caps Lock input, which needs compatible keyboard setup.
 
 ## Restarts and connected keyboards
 
-The saved selection identifies one keyboard instance for the current boot.
-When it becomes stale, automatic setup can discover an eligible keyboard again;
-it does not trust an old device identifier after reconnect or reboot. Automatic
-selection only happens when exactly one compatible keyboard is connected. With
-several, KeyPath asks you to choose again after a restart.
+The saved selection identifies one keyboard for the current boot. After a
+restart of your Mac it is never reused: automatic setup discovers an eligible
+keyboard again, which only happens when exactly one compatible keyboard is
+connected. With several, KeyPath asks you to choose again. Unplugging and
+replugging during the same boot is covered below.
 
 ## Unplugging the chosen keyboard
 
@@ -112,47 +112,31 @@ Settings → General
        Keyboard: [ Choose a keyboard ▾ ]
 ```
 
-When you plug it back in, the line changes to **cl80 was reconnected · Choose
-it again to turn Caps Lock rules back on**. Pick it from the menu. KeyPath does
-not pick it again by itself, because to macOS a replugged keyboard is a new
-device (see below).
+Plug it back into the **same USB port** and KeyPath picks it up again by
+itself within a few seconds: Caps Lock rules turn back on, with the same
+reserved key, and KeyPath says **cl80 was reconnected. Caps Lock rules are back
+on.** KeyPath treats it as the same keyboard only when all of this holds:
+
+- it is the same boot (a restart of your Mac always asks again),
+- the vendor, product and USB port match the keyboard you chose, and so does
+  the serial number when the keyboard has one,
+- exactly one connected keyboard matches. Two identical keyboards that look
+  the same to macOS are never guessed between.
+
+Plugged into a **different port**, it counts as a different keyboard. Settings
+then reads **cl80 is connected to a different port · Choose it again to turn
+Caps Lock rules back on**; pick it from the menu.
 
 If only one compatible keyboard is left after the unplug, KeyPath uses that one
 automatically, the same as at startup, and says so: **cl80 was disconnected.
-Caps Lock rules now apply to Built-in keyboard.**
+Caps Lock rules now apply to Built-in keyboard.** Plugging the cl80 back into
+the same port moves them back to it. Choosing a keyboard yourself in Settings
+in the meantime replaces that claim.
 
 While Caps Lock rules are paused, Caps Lock on every keyboard works as a normal
 Caps Lock key. The same happens when you turn **Caps Lock remapping** off, or
 when more than one keyboard is connected and none is chosen yet: rules that use
 Caps Lock don't run, and every other rule does.
-
-### Proposed, not adopted: reconnecting the same keyboard automatically
-
-Today a choice belongs to one keyboard *instance*. A keyboard that is unplugged
-and plugged back in gets a new instance, so it needs choosing again. A possible
-change: in the same boot, treat a replugged keyboard as the same one when its
-vendor, product, USB location (and serial number, when it has one) all match
-the one you chose, and it is the only connected keyboard that matches.
-
-- **For:** unplugging a keyboard to move it, or a USB hub that resets, would
-  not need a trip to Settings.
-- **Against:** two identical keyboards moved between the same ports would be
-  confused, and a keyboard without a serial number is told apart only by the
-  port it is plugged into. The current rule never maps a keyboard you did not
-  pick.
-
-This is a change to what KeyPath treats as your consent, so it waits for a
-decision. Until then, choose the keyboard again after replugging it.
-
-Some keyboards can't be chosen. Virtual keyboards from other remapping tools
-(such as Karabiner-Elements) and virtual machines are left out of the list.
-A keyboard that macOS shows as several keyboard devices, or one KeyPath does
-not recognize, is also left out, because KeyPath cannot change only that one;
-Settings says how many were left out. While such a keyboard is connected,
-KeyPath does not choose for you, even if only one keyboard is in the list.
-
-KeyPath checks existing mappings and ownership before changing or restoring
-them. Conflicting mappings are refused.
 
 ## Another app already uses Caps Lock
 

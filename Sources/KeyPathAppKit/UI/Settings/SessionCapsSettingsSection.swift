@@ -174,10 +174,13 @@ struct SessionCapsSettingsSection: View {
         (automaticDisabled && rulesUseCaps) || (!automaticDisabled && (device == nil || conflict != nil) && !busy)
     }
 
-    /// The saved keyboard is gone as that instance. A replugged keyboard is a
-    /// new instance, so it needs choosing again (see guides/driverless-caps-lock.md).
+    /// The saved keyboard is gone as that instance. Back at the same port it is
+    /// re-bound automatically and never reaches here; listed under the same
+    /// name means another port (or a twin), which needs choosing again.
     static func disconnectedStatus(name: String, listed: [String], showsPicker: Bool) -> String {
-        if listed.contains(name) { return "\(name) was reconnected \u{00B7} Choose it again to turn Caps Lock rules back on" }
+        if listed.contains(name) {
+            return "\(name) is connected to a different port \u{00B7} Choose it again to turn Caps Lock rules back on"
+        }
         return "\(name) is disconnected \u{00B7} Caps Lock rules are paused"
             + (showsPicker ? "; choose a keyboard" : "")
     }
@@ -237,13 +240,19 @@ struct SessionCapsSettingsSection: View {
         defer { busy = false }
         do {
             let storedData = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
+            let displaced = SessionCapsSelectionStore.displaced?.data
             let found = try await Task.detached {
                 let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
                 let stored = storedData.flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
                 // Gone means the instance no longer exists, not merely that it
                 // is unusable (a second identical keyboard withholds it).
                 let gone = try stored.map { try !SessionCapsHIDUtilTransport.registryEntryExists($0.device.registryEntryID) } ?? false
-                return try (SessionCapsHIDUtilTransport.keyboards(), boot, stored, gone)
+                let list = try SessionCapsHIDUtilTransport.keyboards()
+                // Replugged at the same port: the session re-binds it, so show it as chosen.
+                let devices = list.keyboards.map(\.device)
+                let rebound = SessionCapsRuntimeSupport.reboundSelection(selectionData: displaced, devices: devices, boot: boot)
+                    ?? (gone ? stored?.rebound(among: devices, currentBoot: boot) : nil)
+                return (list, boot, rebound ?? stored, gone && rebound == nil)
             }.value
             boot = found.1
             keyboards = found.0.keyboards

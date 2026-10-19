@@ -230,6 +230,13 @@ enum SessionCapsRuntimeSupport {
         try SessionCapsConflict.identify(backend.read(device).mappings, raycast: raycast)
     }
 
+    /// The saved choice re-bound to its keyboard replugged at the same port
+    /// (see `SessionCapsSelection.rebound`), or nil.
+    static func reboundSelection(selectionData: Data?, devices: [Policy.DeviceIdentity], boot: String) -> SessionCapsSelection? {
+        guard let selectionData, let stored = try? SessionCapsSelection.decode(selectionData, currentBoot: boot) else { return nil }
+        return stored.rebound(among: devices, currentBoot: boot)
+    }
+
     /// Only discovers a selection. Mapping writes remain owned by the worker lease.
     /// A withheld keyboard (one KeyPath cannot target) still counts: the user
     /// may type on it, so the lone eligible one is not picked on their behalf.

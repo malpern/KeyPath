@@ -53,9 +53,16 @@ keyboards connected.
 - The stuck-key snapshot attaches the session worker's last report in
   driverless mode instead of the daemon logs.
 
-## Open policy question
+## Same-port re-bind (decided 2026-10-19)
 
-Whether a replugged keyboard with the same VID/PID/LocationID (and serial) in
-the same boot may be re-bound without asking. Consent is per registry
-instance today; the trade-offs are written up in
-`guides/driverless-caps-lock.md` and await a decision.
+Micah chose to re-bind a replugged keyboard automatically. Consent is no
+longer strictly per registry instance: `SessionCapsSelection.rebound` accepts
+the one connected instance with the chosen keyboard's VID, PID, LocationID and
+serial (or the same absence of one), in the same boot. It refuses a different
+port, twins at one locator, the original instance still present, and any
+other boot. The choice displaced by a disconnect is kept
+(`SessionCapsSelectionStore.displaced`), so the keyboard gets it back even
+after automatic setup moved Caps rules to the built-in keyboard. Automatic
+setup tries the re-bind first. While a displaced choice exists, the session
+polls hidutil every two seconds and restarts onto the keyboard when it is
+back. An explicit choice, turning setup off, or a new boot ends the claim.

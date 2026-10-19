@@ -42,6 +42,77 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         XCTAssertFalse(asked, "A healthy lease does not consult the registry")
     }
 
+    // MARK: Same-port re-bind (Micah's decision, 2026-10-19)
+
+    private typealias Device = SessionCapsMappingPolicy.DeviceIdentity
+    private func cl80(_ registry: UInt64, location: UInt32 = 0x0110_0000, serial: String? = nil) -> Device {
+        Device(registryEntryID: registry, vendorID: 0x5449, productID: 0x911C, serialNumber: serial, locationID: location)
+    }
+
+    private func chosen(_ device: Device, boot: String) -> SessionCapsSelection {
+        SessionCapsSelection(device: device, bootSessionUUID: boot, intermediateUsage: 110)
+    }
+
+    func testSamePortReplugReboundsAndKeepsTheReservedKey() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let x2a = Device(registryEntryID: 900, vendorID: 0x1234, productID: 0x0001, serialNumber: nil, locationID: 0x0220_0000)
+        let rebound = try XCTUnwrap(chosen(cl80(100), boot: boot).rebound(among: [x2a, cl80(200)], currentBoot: boot))
+        XCTAssertEqual(rebound.device, cl80(200))
+        XCTAssertEqual(rebound.intermediateUsage, 110)
+        XCTAssertEqual(rebound.bootSessionUUID, boot)
+        let data = try JSONEncoder().encode(chosen(cl80(100), boot: boot))
+        XCTAssertEqual(SessionCapsRuntimeSupport.reboundSelection(selectionData: data, devices: [cl80(200)], boot: boot)?.device, cl80(200))
+    }
+
+    func testSerialMustMatchWhenTheChosenKeyboardHadOne() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let withSerial = chosen(cl80(100, serial: "ABC123"), boot: boot)
+        XCTAssertEqual(withSerial.rebound(among: [cl80(200, serial: "ABC123")], currentBoot: boot)?.device, cl80(200, serial: "ABC123"))
+        XCTAssertNil(withSerial.rebound(among: [cl80(200, serial: "XYZ999")], currentBoot: boot))
+        XCTAssertNil(withSerial.rebound(among: [cl80(200)], currentBoot: boot))
+        XCTAssertNil(chosen(cl80(100), boot: boot).rebound(among: [cl80(200, serial: "ABC123")], currentBoot: boot))
+    }
+
+    func testDifferentPortReplugIsNotRebound() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        XCTAssertNil(chosen(cl80(100), boot: boot).rebound(among: [cl80(200, location: 0x0330_0000)], currentBoot: boot))
+    }
+
+    func testTwinsAtTheSameLocatorAreNeverGuessedBetween() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        XCTAssertNil(chosen(cl80(100), boot: boot).rebound(among: [cl80(200), cl80(300)], currentBoot: boot))
+        // A twin at another port does not block the same-port one.
+        XCTAssertEqual(chosen(cl80(100), boot: boot).rebound(among: [cl80(200), cl80(300, location: 0x0330_0000)], currentBoot: boot)?.device,
+                       cl80(200))
+    }
+
+    /// MacBook case: the unplug moved Caps rules to the built-in keyboard,
+    /// overwriting the saved choice. The disconnected choice still re-binds.
+    func testDisplacedChoiceReboundsAfterAutomaticSetupMovedAway() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let builtIn = Device(registryEntryID: 50, vendorID: 0, productID: 0, serialNumber: nil, locationID: 0x0001_0000, appleBuiltIn: true)
+        let displaced = try JSONEncoder().encode(chosen(cl80(100), boot: boot))
+        let current = try JSONEncoder().encode(chosen(builtIn, boot: boot))
+        let devices = [builtIn, cl80(200)]
+        XCTAssertNil(SessionCapsRuntimeSupport.reboundSelection(selectionData: current, devices: devices, boot: boot),
+                     "The built-in choice is present; it is not a replug")
+        XCTAssertEqual(SessionCapsRuntimeSupport.reboundSelection(selectionData: displaced, devices: devices, boot: boot)?.device, cl80(200))
+    }
+
+    func testANewBootIsNeverRebound() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let old = chosen(cl80(100), boot: UUID().uuidString)
+        XCTAssertNil(old.rebound(among: [cl80(200)], currentBoot: boot))
+        let data = try JSONEncoder().encode(old)
+        XCTAssertNil(SessionCapsRuntimeSupport.reboundSelection(selectionData: data, devices: [cl80(200)], boot: boot))
+    }
+
+    func testAnOriginalStillConnectedIsNotSubstituted() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        XCTAssertNil(chosen(cl80(100), boot: boot).rebound(among: [cl80(100)], currentBoot: boot), "Same instance: nothing to re-bind")
+        XCTAssertNil(chosen(cl80(100), boot: boot).rebound(among: [cl80(100), cl80(200)], currentBoot: boot))
+    }
+
     // MARK: Parent supervision
 
     @MainActor
@@ -118,15 +189,16 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         XCTAssertTrue(gone.hasPrefix("cl80 is disconnected"))
         XCTAssertTrue(gone.contains("paused"))
         XCTAssertFalse(gone.hasPrefix("On"))
-        let back = SessionCapsSettingsSection.disconnectedStatus(name: "cl80", listed: ["X2A", "cl80"], showsPicker: true)
-        XCTAssertTrue(back.contains("reconnected"))
-        XCTAssertTrue(back.contains("Choose it again"))
+        let moved = SessionCapsSettingsSection.disconnectedStatus(name: "cl80", listed: ["X2A", "cl80"], showsPicker: true)
+        XCTAssertTrue(moved.contains("different port"))
+        XCTAssertTrue(moved.contains("Choose it again"))
     }
 
     @MainActor
     func testClearingTheSelectionForgetsItsName() throws {
         let defaults = UserDefaults.standard
-        let keys = [SessionCapsRuntimeSupport.selectionKey, SessionCapsRuntimeSupport.selectionNameKey]
+        let keys = [SessionCapsRuntimeSupport.selectionKey, SessionCapsRuntimeSupport.selectionNameKey,
+                    "keypath.session.caps.displaced.v1"]
         let original = keys.map { defaults.object(forKey: $0) }
         defer {
             for (key, value) in zip(keys, original) {
@@ -138,8 +210,12 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         SessionCapsSelectionStore.saveName(nil)
         XCTAssertNil(SessionCapsSelectionStore.savedName, "An unknown name clears the old one, never names the wrong keyboard")
         SessionCapsSelectionStore.saveName("cl80")
+        SessionCapsSelectionStore.setDisplaced(Data("x".utf8), name: "cl80")
+        XCTAssertEqual(SessionCapsSelectionStore.displaced?.data, Data("x".utf8))
+        XCTAssertEqual(SessionCapsSelectionStore.displaced?.name, "cl80")
         try SessionCapsSelectionStore.save(nil)
         XCTAssertNil(SessionCapsSelectionStore.savedName)
+        XCTAssertNil(SessionCapsSelectionStore.displaced, "Turning setup off ends a disconnected keyboard's claim")
     }
 
     // MARK: Stuck-key snapshot

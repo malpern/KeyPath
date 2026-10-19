@@ -147,6 +147,7 @@ extension ServiceLifecycleCoordinator {
                         superviseSessionRuntime(generation: generation)
                         guard sessionStartIsCurrent(generation), sessionApplication === application,
                               sessionNonce == nonce, !application.isTerminated else { return false }
+                        watchForCapsReconnect(generation: generation)
                         AppLogger.shared.log(
                             "Session runtime ready (\(reason)) parentPID=\(getpid()) workerPID=\(application.processIdentifier) nonce=\(nonce)"
                         )
@@ -442,6 +443,9 @@ extension ServiceLifecycleCoordinator {
                 // The leased instance is gone and took its mapping with it; the
                 // restore above retired the record. Keep every other rule running.
                 sessionCapsDisconnectedName = SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock"
+                // Kept so the same keyboard at the same port gets the choice back.
+                SessionCapsSelectionStore.setDisplaced(UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey),
+                                                       name: SessionCapsSelectionStore.savedName)
             }
             AppLogger.shared.info("[SessionRuntime] Restarting session: \(restart.rawValue)")
             _ = await resumeSessionRuntime(expectedGeneration: generation, reason: restart.rawValue)
@@ -823,6 +827,37 @@ extension ServiceLifecycleCoordinator {
     /// for this launch: the worker admitted the profile paused.
     static func workerPausedCaps(intended: Bool, managedCapsGeneration: String?, nonce: String) -> Bool {
         intended && managedCapsGeneration != nonce
+    }
+
+    /// While a disconnected keyboard's choice is kept (`displaced`), check
+    /// every two seconds for it at the same port and restart onto it. Polls
+    /// hidutil only in that state; any other start or a new boot ends it.
+    func watchForCapsReconnect(generation: UInt64) {
+        sessionCapsReconnectTask?.cancel()
+        sessionCapsReconnectTask = nil
+        guard SessionCapsSelectionStore.displaced != nil else { return }
+        sessionCapsReconnectTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard let self, !Task.isCancelled, sessionStartIsCurrent(generation),
+                      let displaced = SessionCapsSelectionStore.displaced?.data else { return }
+                let state = await Task.detached { () -> (back: Bool, stale: Bool) in
+                    guard let boot = try? SessionCapsRuntimeSupport.bootSessionUUID() else { return (false, false) }
+                    guard (try? SessionCapsSelection.decode(displaced, currentBoot: boot)) != nil else { return (false, true) }
+                    guard let list = try? SessionCapsHIDUtilTransport.inventory() else { return (false, false) }
+                    return (SessionCapsRuntimeSupport.reboundSelection(selectionData: displaced, devices: list.devices, boot: boot) != nil, false)
+                }.value
+                if state.stale {
+                    SessionCapsSelectionStore.setDisplaced(nil, name: nil)
+                    return
+                }
+                guard state.back, !Task.isCancelled, sessionStartIsCurrent(generation) else { continue }
+                sessionCapsReconnectTask = nil
+                AppLogger.shared.info("[SessionRuntime] Caps keyboard is back at the same port; restarting onto it")
+                _ = await restartKanata(reason: "Caps Lock keyboard reconnected")
+                return
+            }
+        }
     }
 
     /// The reloaded profile no longer uses Caps Lock; nothing is paused.
