@@ -403,11 +403,19 @@ extension KeyboardVisualizationViewModel {
         alert.informativeText = "\(report.failureCount)/\(report.totalKeys) keys could not be resolved. Overlay icons may be missing.\n\nClick \"Copy Error\" and paste into Claude Code to debug."
         alert.addButton(withTitle: "Copy Error")
         alert.addButton(withTitle: "Dismiss")
+        let copyableText = report.copyableText()
 
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(report.copyableText(), forType: .string)
+        // Run the modal from its own main-queue block, never from inside the
+        // main-actor task that built the mapping: a modal running inside that task
+        // held up every other main-actor task (layer changes, the overlay reveal,
+        // the shortcut list) until someone dismissed it, which on a locked or
+        // unattended Mac could be hours.
+        DispatchQueue.main.async {
+            let response = alert.runModal()
+            if response == .alertFirstButtonReturn {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(copyableText, forType: .string)
+            }
         }
     }
 
