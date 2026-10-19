@@ -563,12 +563,12 @@ struct SessionCapsMappingLeaseRunner {
         let mouse = service.replacingOccurrences(of: "\"PrimaryUsage\":6", with: "\"PrimaryUsage\":2")
         try check(SessionCapsHIDUtilTransport.parseServices(mouse) == [])
         var commands: [[String]] = []
-        let backend = SessionCapsHIDUtilTransport.backend { arguments in
+        let backend = SessionCapsHIDUtilTransport.backend(run: { arguments in
             commands.append(arguments)
             if arguments[0] == "list" { return service + "\n" + deviceRow }
             if arguments.contains("--get") { return liveNull }
             return "RegistryID  Key                   Value\n1000005f9 UserKeyMapping (" + row + ")"
-        }
+        })
         try check(backend.enumerate() == [liveDevice])
         try check(backend.read(liveDevice).mappings == [])
         try backend.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)])
@@ -580,12 +580,12 @@ struct SessionCapsMappingLeaseRunner {
         try check((selector["LocationID"] as? NSNumber)?.uint32Value == 261_095_424 && selector["IOPropertyMatch"] == nil
             && (selector["PrimaryUsage"] as? NSNumber)?.intValue == 6)
         try check(commands[4][3] == "--set")
-        let falseWrite = SessionCapsHIDUtilTransport.backend { _ in liveNull }
+        let falseWrite = SessionCapsHIDUtilTransport.backend(run: { _ in liveNull })
         refused { try falseWrite.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)]) }
-        let overLimit = SessionCapsHIDUtilTransport.backend { _ in String(repeating: "x", count: 65537) }
+        let overLimit = SessionCapsHIDUtilTransport.backend(run: { _ in String(repeating: "x", count: 65537) })
         refused { _ = try overLimit.enumerate() }
         refused { _ = try overLimit.read(liveDevice) }
-        let failed = SessionCapsHIDUtilTransport.backend { _ in throw Failure.simulated }
+        let failed = SessionCapsHIDUtilTransport.backend(run: { _ in throw Failure.simulated })
         refused { _ = try failed.enumerate() }
         refused { _ = try failed.read(liveDevice) }
         refused { try failed.write(liveDevice, []) }

@@ -151,16 +151,16 @@ final class SessionCapsIntermediateTests: XCTestCase {
         let block = "RegistryID Key Value\n1004a62dc UserKeyMapping (\n{\nHIDKeyboardModifierMappingDst = 30064771183;\nHIDKeyboardModifierMappingSrc = 30064771129;\n}\n)"
         let row = #"{"type":"service","IOClass":"AppleUserHIDEventService","IORegistryEntryID":4299842268,"VendorID":1,"ProductID":2,"LocationID":3,"PrimaryUsagePage":1,"PrimaryUsage":6}"#
         var asked: [[String]] = []
-        let backend = SessionCapsHIDUtilTransport.backend { arguments in
+        let backend = SessionCapsHIDUtilTransport.backend(run: { arguments in
             asked.append(arguments)
             return arguments.first == "list" ? row : block
-        }
+        })
         let conflict = try SessionCapsRuntimeSupport.capsConflict(on: device, backend: backend,
                                                                   raycast: .init(enabled: true, keyCode: 57))
         XCTAssertEqual(conflict, .raycastHyperKey)
         // Only the chosen keyboard's own services are listed and read.
-        XCTAssertEqual(asked, try [["list", "--ndjson", "--matching", SessionCapsHIDUtilTransport.locatorSelector(device)],
-                                   SessionCapsHIDUtilTransport.readArguments(device)])
+        XCTAssertEqual(asked.first, try SessionCapsHIDUtilTransport.listArguments(device))
+        XCTAssertTrue(asked.dropFirst().allSatisfy { $0.first == "property" && $0.last == "UserKeyMapping" })
     }
 
     @MainActor

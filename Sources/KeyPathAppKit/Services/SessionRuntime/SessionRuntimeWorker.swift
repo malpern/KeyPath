@@ -234,6 +234,7 @@ public final class SessionRuntimeWorker {
                 let device = selection.device
                 let intermediate = SessionCapsMappingPolicy.packed(selection.intermediateUsage)
                 capsRecord = try Self.performHIDWork {
+                    SessionCapsHIDUtilTransport.warn = { AppLogger.shared.warn($0) }
                     let backend = SessionCapsHIDUtilTransport.backend()
                     do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {
                         throw SessionCapsRuntimeSupport.Refusal.selection

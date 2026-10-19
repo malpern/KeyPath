@@ -200,23 +200,18 @@ enum SessionCapsRuntimeSupport {
     /// the main actor.
     static func occupiedIntermediates(own: Policy.DeviceIdentity? = nil,
                                       run: ([String]) throws -> String = SessionCapsHIDUtilTransport.runHIDUtil,
-                                      shortcutKeyCodes: () -> Set<UInt16> = enabledShortcutKeyCodes) throws -> Set<UInt32>
+                                      shortcutKeyCodes: () -> Set<UInt16> = enabledShortcutKeyCodes,
+                                      emitsKeyboardUsages: (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages) throws -> Set<UInt32>
     {
         let rows = try SessionCapsHIDUtilTransport.parseAllMappings(run(["property", "--get", "UserKeyMapping"]))
-        // Our lease covers every interface of the chosen keyboard (see
-        // `SessionCapsHIDUtilTransport.serviceGroup`), so its Caps row on any of
-        // them is ours. Without the device list, fall back to the chosen service.
+        // Our lease covers the chosen keyboard's service group (see
+        // `SessionCapsHIDUtilTransport.serviceGroup`), so its Caps row on any
+        // member is ours; on any other service it is not. Without the device
+        // list, fall back to the chosen service.
         var ownServices = Set<UInt64>()
         if let own {
-            ownServices = [own.registryEntryID]
-            if let selector = try? SessionCapsHIDUtilTransport.locatorSelector(own),
-               let listed = try? SessionCapsHIDUtilTransport.parseServiceRows(run(["list", "--ndjson", "--matching", selector]))
-            {
-                ownServices.formUnion(listed.filter {
-                    $0.vendorID == own.vendorID && $0.productID == own.productID && $0.locationID == own.locationID
-                        && (own.serialNumber == nil || $0.serialNumber == own.serialNumber)
-                }.map(\.registryEntryID))
-            }
+            ownServices = (try? SessionCapsHIDUtilTransport.groupMembers(own, run: run, emitsKeyboardUsages: emitsKeyboardUsages))
+                ?? [own.registryEntryID]
         }
         var usages: [UInt64] = []
         for (registry, mappings) in rows {
@@ -264,7 +259,11 @@ enum SessionCapsRuntimeSupport {
                              backend: SessionCapsMappingLease.Backend = SessionCapsHIDUtilTransport.backend(),
                              raycast: SessionCapsConflict.RaycastHyperKey? = raycastHyperKey()) throws -> SessionCapsConflict?
     {
-        try SessionCapsConflict.identify(backend.read(device).mappings, raycast: raycast)
+        // Another tool may have mapped Caps on only one interface of the board.
+        for mappings in try backend.readGroup(device).sorted(by: { $0.key < $1.key }).map(\.value) {
+            if let conflict = SessionCapsConflict.identify(mappings, raycast: raycast) { return conflict }
+        }
+        return nil
     }
 
     /// The saved choice re-bound to its keyboard replugged at the same port
@@ -346,6 +345,15 @@ enum SessionCapsRuntimeSupport {
         do { try Policy.requireUnique(record.device, among: backend.enumerate()) } catch { throw Refusal.selection }
         let snapshot = try backend.read(record.device)
         _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: bootSessionUUID())
+        // Every recorded companion interface must still carry exactly our mapping.
+        if !record.companions.isEmpty {
+            let group = try backend.readGroup(record.device)
+            for companion in record.companions {
+                guard group[companion.registryEntryID] == record.applied(over: companion.original) else {
+                    throw Policy.Refusal.foreignMapping
+                }
+            }
+        }
     }
 
     /// The worker's periodic lease check. Only a leased instance that no

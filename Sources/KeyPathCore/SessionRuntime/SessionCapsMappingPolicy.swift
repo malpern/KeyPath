@@ -116,10 +116,24 @@ public enum SessionCapsMappingPolicy {
         }
     }
 
+    /// Another event service of the leased keyboard (a board can deliver its
+    /// keys on several interfaces) and its mappings before the lease.
+    public struct Companion: Codable, Sendable, Equatable {
+        public let registryEntryID: UInt64
+        public let original: [Mapping]
+
+        public init(registryEntryID: UInt64, original: [Mapping]) {
+            self.registryEntryID = registryEntryID
+            self.original = original
+        }
+    }
+
     /// Persist before mutation, then independently verify `applied` before running.
     /// A record is intent, not proof that the mapping was written or that a PID lives.
     /// Version 2 names its intermediate; a version-1 record (written before
     /// the intermediate was a choice) has no such field and means F18.
+    /// Version 3 also lists companion interfaces, each with its own original;
+    /// a lease without companions is still written as version 2.
     public struct Record: Codable, Sendable, Equatable {
         public let version: Int
         public let device: DeviceIdentity
@@ -128,21 +142,33 @@ public enum SessionCapsMappingPolicy {
         public let intermediate: UInt64
         public let original: [Mapping]
         public let applied: [Mapping]
+        public let companions: [Companion]
 
         fileprivate init(device: DeviceIdentity, owner: Owner, effectiveConfigSHA256: String,
-                         intermediate: UInt64, original: [Mapping])
+                         intermediate: UInt64, original: [Mapping], companions: [Companion])
         {
-            version = 2
+            version = companions.isEmpty ? 2 : 3
             self.device = device
             self.owner = owner
             self.effectiveConfigSHA256 = effectiveConfigSHA256
             self.intermediate = intermediate
             self.original = original
+            self.companions = companions.sorted { $0.registryEntryID < $1.registryEntryID }
             applied = original + [Mapping(source: caps, destination: intermediate)]
         }
 
+        /// What the lease writes over `original` on any of its services.
+        public func applied(over original: [Mapping]) -> [Mapping] {
+            original + [Mapping(source: caps, destination: intermediate)]
+        }
+
+        /// Every leased service with its original mappings, the chosen one first.
+        public var originals: [(registryEntryID: UInt64, original: [Mapping])] {
+            [(device.registryEntryID, original)] + companions.map { ($0.registryEntryID, $0.original) }
+        }
+
         private enum CodingKeys: String, CodingKey, CaseIterable {
-            case version, device, owner, effectiveConfigSHA256, intermediate, original, applied
+            case version, device, owner, effectiveConfigSHA256, intermediate, original, applied, companions
         }
 
         public init(from decoder: Decoder) throws {
@@ -152,8 +178,9 @@ public enum SessionCapsMappingPolicy {
             let expected = Set(CodingKeys.allCases.map(\.rawValue))
             let present = Set(fields.allKeys.map(\.stringValue))
             switch version {
-            case 1: guard present == expected.subtracting([CodingKeys.intermediate.rawValue]) else { throw Refusal.invalidRecord }
-            case 2: guard present == expected else { throw Refusal.invalidRecord }
+            case 1: guard present == expected.subtracting([CodingKeys.intermediate.rawValue, CodingKeys.companions.rawValue]) else { throw Refusal.invalidRecord }
+            case 2: guard present == expected.subtracting([CodingKeys.companions.rawValue]) else { throw Refusal.invalidRecord }
+            case 3: guard present == expected else { throw Refusal.invalidRecord }
             default: throw Refusal.invalidRecord
             }
             device = try values.decode(DeviceIdentity.self, forKey: .device)
@@ -162,6 +189,7 @@ public enum SessionCapsMappingPolicy {
             intermediate = version == 1 ? f18 : try values.decode(UInt64.self, forKey: .intermediate)
             original = try values.decode([Mapping].self, forKey: .original)
             applied = try values.decode([Mapping].self, forKey: .applied)
+            companions = version == 3 ? try values.decode([Companion].self, forKey: .companions) : []
             try validateRecord(self)
         }
 
@@ -174,6 +202,7 @@ public enum SessionCapsMappingPolicy {
             if version != 1 { try values.encode(intermediate, forKey: .intermediate) }
             try values.encode(original, forKey: .original)
             try values.encode(applied, forKey: .applied)
+            if version == 3 { try values.encode(companions, forKey: .companions) }
         }
     }
 
@@ -185,8 +214,9 @@ public enum SessionCapsMappingPolicy {
         // A merged monitor event cannot establish that there is exactly one instance.
         let matching = devices.filter { $0.registryEntryID == device.registryEntryID }
         guard matching == [device] else { throw Refusal.ambiguousDevice }
-        // hidutil may match by this locator instead of registry ID. It must not
-        // select a second event service even when registry IDs are distinct.
+        // hidutil matches by this locator, not registry ID. The inventory lists
+        // a multi-interface board once, so a second match here is a second
+        // keyboard; the board's own other interfaces are the lease's companions.
         let locatorMatches = devices.filter {
             $0.vendorID == device.vendorID && $0.productID == device.productID
                 && (device.serialNumber == nil || $0.serialNumber == device.serialNumber)
@@ -195,17 +225,26 @@ public enum SessionCapsMappingPolicy {
         guard locatorMatches == [device] else { throw Refusal.ambiguousDevice }
     }
 
+    /// `companions` are the keyboard's other keyboard-capable interfaces with
+    /// their current mappings. Each is held to the same rules as `original`, so
+    /// a Caps row on any interface refuses as `capsAlreadyMapped`.
     public static func acquire(original: [Mapping], device: DeviceIdentity, devices: [DeviceIdentity],
                                owner: Owner, effectiveConfigSHA256: String,
-                               intermediate: UInt64 = f18) throws -> Record
+                               intermediate: UInt64 = f18, companions: [UInt64: [Mapping]] = [:]) throws -> Record
     {
         try requireUnique(device, among: devices)
         guard owner.isValid else { throw Refusal.invalidOwner }
         guard validDigest(effectiveConfigSHA256) else { throw Refusal.invalidConfigDigest }
         guard SessionCapsIntermediate.isCandidate(packed: intermediate) else { throw Refusal.invalidIntermediate }
         try validateOriginal(original, intermediate: intermediate)
-        return Record(device: device, owner: owner, effectiveConfigSHA256: effectiveConfigSHA256,
-                      intermediate: intermediate, original: original)
+        for mappings in companions.values {
+            try validateOriginal(mappings, intermediate: intermediate)
+        }
+        let record = Record(device: device, owner: owner, effectiveConfigSHA256: effectiveConfigSHA256,
+                            intermediate: intermediate, original: original,
+                            companions: companions.map { Companion(registryEntryID: $0.key, original: $0.value) })
+        try validateRecord(record)
+        return record
     }
 
     /// Returns the exact original array only when the same boot, device instance,
@@ -222,6 +261,21 @@ public enum SessionCapsMappingPolicy {
         return record.original
     }
 
+    /// One leased service's original, when `current` is either that original
+    /// or exactly what the lease applied there. Anything else is foreign and
+    /// requires leaving every service intact.
+    public static func restoreService(record: Record, registryEntryID: UInt64, current: [Mapping],
+                                      bootSessionUUID: String) throws -> [Mapping]
+    {
+        try validateRecord(record)
+        guard bootSessionUUID == record.owner.bootSessionUUID else { throw Refusal.differentBoot }
+        guard let original = record.originals.first(where: { $0.registryEntryID == registryEntryID })?.original else {
+            throw Refusal.differentDevice
+        }
+        guard current == original || current == record.applied(over: original) else { throw Refusal.foreignMapping }
+        return original
+    }
+
     private static func validateOriginal(_ mappings: [Mapping], intermediate: UInt64) throws {
         var sources = Set<UInt64>()
         for mapping in mappings {
@@ -235,14 +289,20 @@ public enum SessionCapsMappingPolicy {
     }
 
     private static func validateRecord(_ record: Record) throws {
-        guard [1, 2].contains(record.version), record.device.isValid, record.owner.isValid,
+        guard [1, 2, 3].contains(record.version), record.device.isValid, record.owner.isValid,
               validDigest(record.effectiveConfigSHA256),
               SessionCapsIntermediate.isCandidate(packed: record.intermediate),
-              record.applied == record.original + [Mapping(source: caps, destination: record.intermediate)]
+              record.applied == record.original + [Mapping(source: caps, destination: record.intermediate)],
+              (record.version == 3) == !record.companions.isEmpty, record.companions.count <= 16,
+              Set(record.companions.map(\.registryEntryID)).count == record.companions.count,
+              record.companions.allSatisfy({ $0.registryEntryID != 0 && $0.registryEntryID != record.device.registryEntryID })
         else {
             throw Refusal.invalidRecord
         }
         try validateOriginal(record.original, intermediate: record.intermediate)
+        for companion in record.companions {
+            try validateOriginal(companion.original, intermediate: record.intermediate)
+        }
     }
 
     private static func validDigest(_ value: String) -> Bool {
