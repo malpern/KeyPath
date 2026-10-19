@@ -3,9 +3,9 @@ import Foundation
 import KeyPathRulesCore
 @preconcurrency import XCTest
 
-/// An existing profile missing an entry must not pick up fresh-profile defaults.
+/// An existing profile missing an entry gets runnable function keys and nothing else.
 final class RuleCollectionStoreMergeTests: XCTestCase {
-    func testLostFunctionKeyEntryKeepsCatalogBehaviorAndNewEntriesStayOff() async throws {
+    func testLostFunctionKeyEntryUsesSessionSafeFunctionModeAndNewEntriesStayOff() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -19,10 +19,13 @@ final class RuleCollectionStoreMergeTests: XCTestCase {
         let loaded = await store.loadCollections()
         let original = try XCTUnwrap(originals.first { $0.id == RuleCollectionIdentifier.macFunctionKeys })
         let functionKeys = try XCTUnwrap(loaded.first { $0.id == RuleCollectionIdentifier.macFunctionKeys })
-        XCTAssertEqual(functionKeys.functionKeyMode, original.functionKeyMode)
-        XCTAssertEqual(functionKeys.isEnabled, original.isEnabled)
-        XCTAssertNotEqual(catalog.defaultCollections().first { $0.id == original.id }?.functionKeyMode,
-                          original.functionKeyMode, "The fresh-profile default differs, so this test can fail")
+        // The catalog's media definition emits consumer keys the driverless
+        // session refuses, so a refilled entry must be plain F1-F12.
+        XCTAssertEqual(functionKeys.functionKeyMode, .function)
+        XCTAssertTrue(functionKeys.isEnabled)
+        XCTAssertEqual(functionKeys.mappings.map(\.action),
+                       RuleCollectionCatalog.functionKeyMappings(for: .function).map(\.action))
+        XCTAssertNotEqual(original.functionKeyMode, .function, "The catalog default differs, so this test can fail")
         for collection in loaded where collection.id != kept.id && collection.id != original.id {
             XCTAssertFalse(collection.isEnabled, "\(collection.name) must not turn on for an existing profile")
         }

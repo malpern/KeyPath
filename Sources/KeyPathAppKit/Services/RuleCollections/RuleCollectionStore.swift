@@ -194,13 +194,22 @@ actor RuleCollectionStore {
             .filter { $0.id != RuleCollectionIdentifier.typingSounds }
 
         // An existing profile is missing an entry because the catalog gained one or
-        // its entry failed to decode. Fill it from the catalog's own definition,
-        // not the fresh-profile defaults: those put F1–F12 in function mode, which
-        // silently changed brightness/media keys for anyone whose entry was lost.
-        // Anything else that arrives this way stays off until the user enables it.
+        // its entry failed to decode. Anything that arrives this way stays off until
+        // the user enables it, except macOS Function Keys, which every generated
+        // profile needs. That one comes from the fresh-profile default (plain
+        // F1–F12), not the catalog's media definition: the driverless session
+        // cannot send consumer keys, so media mode would make the whole profile
+        // refuse to run.
+        let fresh = catalog.defaultCollections()
         for collection in catalog.originalCollections() where !upgraded.contains(where: { $0.id == collection.id }) {
+            if collection.id == RuleCollectionIdentifier.macFunctionKeys,
+               let functionKeys = fresh.first(where: { $0.id == collection.id })
+            {
+                upgraded.append(functionKeys)
+                continue
+            }
             var filled = collection
-            if filled.id != RuleCollectionIdentifier.macFunctionKeys { filled.isEnabled = false }
+            filled.isEnabled = false
             upgraded.append(filled)
         }
         return upgraded
