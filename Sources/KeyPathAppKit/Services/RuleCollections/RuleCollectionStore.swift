@@ -193,9 +193,15 @@ actor RuleCollectionStore {
         var upgraded = collections
             .filter { $0.id != RuleCollectionIdentifier.typingSounds }
 
-        let defaults = catalog.defaultCollections()
-        for collection in defaults where !upgraded.contains(where: { $0.id == collection.id }) {
-            upgraded.append(collection)
+        // An existing profile is missing an entry because the catalog gained one or
+        // its entry failed to decode. Fill it from the catalog's own definition,
+        // not the fresh-profile defaults: those put F1–F12 in function mode, which
+        // silently changed brightness/media keys for anyone whose entry was lost.
+        // Anything else that arrives this way stays off until the user enables it.
+        for collection in catalog.originalCollections() where !upgraded.contains(where: { $0.id == collection.id }) {
+            var filled = collection
+            if filled.id != RuleCollectionIdentifier.macFunctionKeys { filled.isEnabled = false }
+            upgraded.append(filled)
         }
         return upgraded
     }

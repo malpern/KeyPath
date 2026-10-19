@@ -21,6 +21,11 @@ struct RuleCollectionCatalog {
         }
     }
 
+    /// The catalog's own definitions, before fresh-profile adjustments.
+    func originalCollections() -> [RuleCollection] {
+        Self.builtInList
+    }
+
     /// Returns the launcher collection (managed separately via overlay drawer)
     func launcherCollection() -> RuleCollection {
         Self.builtInList.first { $0.id == RuleCollectionIdentifier.launcher }
