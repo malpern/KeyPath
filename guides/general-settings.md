@@ -14,7 +14,7 @@ Open KeyPath → Settings → General.
   - An overlay you opened yourself (⌥⌘K) stays open either way.
   - The **Layer change notification** (a banner and sound) is here too.
   - The same choice is in the menu bar under **While a Layer Is Active**.
-- **Keyboard Appearance:** compare key-label previews and choose whether unmapped keys stay normal or dim.
+- **Keyboard Appearance:** compare key-label previews, choose whether unmapped keys stay normal or dim, set how see-through the overlay is (**Overlay opacity**), and choose whether it fades after a while without typing (**Fade when idle**).
 - **Recording:** choose sequences or combinations, and whether recording captures physical keys or includes your mappings.
 - **Keyboard Setup:** Caps Lock is set up automatically when your rules need it. Manual keyboard setup is available under its disclosure. You can also import Karabiner rules here.
 - **Advanced:** expand Logs & Diagnostics or Virtual Keys when needed. Development builds also expose Experimental settings.

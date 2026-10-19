@@ -24,6 +24,8 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         "KeyPath.Overlay.UnmappedLayerKeyStyle",
         "KeyPath.Education.OverlayHiddenHintShowCount",
         "KeyPath.Overlay.SuppressedBundleIDs",
+        "KeyPath.Overlay.Opacity",
+        "KeyPath.Overlay.FadesWhenIdle",
     ]
 
     private func withPreservedDefaults<T>(
@@ -220,6 +222,28 @@ final class PreferencesServicePersistenceTests: XCTestCase {
     }
 
     // MARK: - Value Clamping Tests
+
+    func testOverlayOpacityAndIdleFadePersistAndClamp() {
+        withPreservedDefaults {
+            let writer = PreferencesService()
+            XCTAssertEqual(writer.overlayOpacity, 1.0)
+            XCTAssertTrue(writer.overlayFadesWhenIdle)
+
+            writer.overlayOpacity = 0.6
+            writer.overlayFadesWhenIdle = false
+            let loaded = PreferencesService()
+            XCTAssertEqual(loaded.overlayOpacity, 0.6, accuracy: 0.001)
+            XCTAssertFalse(loaded.overlayFadesWhenIdle)
+
+            // Never so faint the overlay is lost, never above fully opaque.
+            loaded.overlayOpacity = 0.05
+            XCTAssertEqual(loaded.overlayOpacity, 0.3, accuracy: 0.001)
+            loaded.overlayOpacity = 3
+            XCTAssertEqual(loaded.overlayOpacity, 1.0, accuracy: 0.001)
+            UserDefaults.standard.set(Double.nan, forKey: "KeyPath.Overlay.Opacity")
+            XCTAssertEqual(PreferencesService().overlayOpacity, 1.0, accuracy: 0.001)
+        }
+    }
 
     func testContextHUDHoldDelayCustomMs_ClampedToMinimum() {
         let prefs = PreferencesService()

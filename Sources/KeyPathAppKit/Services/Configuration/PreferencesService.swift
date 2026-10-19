@@ -290,6 +290,31 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// How opaque the keyboard overlay is at rest (0.3–1.0), so it can sit over work.
+    var overlayOpacity: Double {
+        didSet {
+            let clamped = Self.clampedOverlayOpacity(overlayOpacity)
+            if clamped != overlayOpacity {
+                overlayOpacity = clamped
+            } else {
+                UserDefaults.standard.set(overlayOpacity, forKey: Keys.overlayOpacity)
+            }
+        }
+    }
+
+    /// Whether the overlay fades out after a while without typing.
+    var overlayFadesWhenIdle: Bool {
+        didSet {
+            UserDefaults.standard.set(overlayFadesWhenIdle, forKey: Keys.overlayFadesWhenIdle)
+            AppLogger.shared.log("🎨 [Preferences] overlayFadesWhenIdle = \(overlayFadesWhenIdle)")
+        }
+    }
+
+    static func clampedOverlayOpacity(_ value: Double) -> Double {
+        guard value.isFinite else { return 1.0 }
+        return min(max(value, 0.3), 1.0)
+    }
+
     // MARK: - Leader Key Configuration
 
     /// Primary leader key preference (Space → Nav by default)
@@ -469,6 +494,8 @@ final class PreferencesService: @unchecked Sendable {
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
         static let unmappedLayerKeyStyle = "KeyPath.Overlay.UnmappedLayerKeyStyle"
+        static let overlayOpacity = "KeyPath.Overlay.Opacity"
+        static let overlayFadesWhenIdle = "KeyPath.Overlay.FadesWhenIdle"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
         static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
@@ -487,6 +514,8 @@ final class PreferencesService: @unchecked Sendable {
         #endif
         static let keyLabelStyle = KeyLabelStyle.symbols
         static let unmappedLayerKeyStyle = UnmappedLayerKeyStyle.baseLayer
+        static let overlayOpacity = 1.0
+        static let overlayFadesWhenIdle = true
         static let accessibilityTestMode = false
         static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
@@ -545,6 +574,11 @@ final class PreferencesService: @unchecked Sendable {
         let unmappedLayerKeyStyleString = UserDefaults.standard.string(forKey: Keys.unmappedLayerKeyStyle)
             ?? Defaults.unmappedLayerKeyStyle.rawValue
         unmappedLayerKeyStyle = UnmappedLayerKeyStyle(rawValue: unmappedLayerKeyStyleString) ?? Defaults.unmappedLayerKeyStyle
+        overlayOpacity = Self.clampedOverlayOpacity(
+            UserDefaults.standard.object(forKey: Keys.overlayOpacity) as? Double ?? Defaults.overlayOpacity
+        )
+        overlayFadesWhenIdle = UserDefaults.standard.object(forKey: Keys.overlayFadesWhenIdle) as? Bool
+            ?? Defaults.overlayFadesWhenIdle
 
         // Testing preferences
         accessibilityTestMode =

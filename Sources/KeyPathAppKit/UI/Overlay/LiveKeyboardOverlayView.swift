@@ -520,6 +520,7 @@ struct LiveKeyboardOverlayView: View {
             outerHorizontalPadding: outerHorizontalPadding,
             trailingOuterPadding: trailingOuterPadding,
             deepFadeAmount: viewModel.deepFadeAmount,
+            restingOpacity: PreferencesService.shared.overlayOpacity,
             reduceMotion: reduceMotion,
             onMouseMove: { viewModel.noteInteraction() }
         )

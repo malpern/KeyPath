@@ -59,6 +59,17 @@ struct GeneralSettingsTabView: View {
                                     services.preferences.unmappedLayerKeyStyle = .dimmed
                                 }
                             }
+                            Divider()
+                            OverlayOpacityRow()
+                            SettingsToggleRow(
+                                title: "Fade when idle",
+                                subtitle: "The overlay fades after a while without typing.",
+                                isOn: Binding(
+                                    get: { services.preferences.overlayFadesWhenIdle },
+                                    set: { services.preferences.overlayFadesWhenIdle = $0 }
+                                ),
+                                identifier: "settings-overlay-fade-when-idle"
+                            )
                         }
                     }
                 }
@@ -143,6 +154,36 @@ struct GeneralSettingsTabView: View {
             } catch {
                 AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")
             }
+        }
+    }
+}
+
+// MARK: - Overlay Opacity
+
+struct OverlayOpacityRow: View {
+    @Environment(\.services) private var services
+
+    var body: some View {
+        let opacity = Binding(
+            get: { services.preferences.overlayOpacity },
+            set: { services.preferences.overlayOpacity = $0 }
+        )
+        HStack(spacing: SettingsDesign.rowGap) {
+            VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
+                Text("Overlay opacity").font(.body.weight(.medium))
+                Text("Lower it to see your work through the keyboard.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Slider(value: opacity, in: 0.3 ... 1.0, step: 0.05)
+                .frame(width: 160)
+                .accessibilityIdentifier("settings-overlay-opacity-slider")
+                .accessibilityLabel("Overlay opacity")
+                .accessibilityValue("\(Int((opacity.wrappedValue * 100).rounded())) percent")
+            Text("\(Int((opacity.wrappedValue * 100).rounded()))%")
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .trailing)
         }
     }
 }
