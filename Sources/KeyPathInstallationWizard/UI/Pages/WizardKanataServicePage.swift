@@ -92,7 +92,12 @@ public struct WizardKanataServicePage: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            if let cta = primaryCTAConfiguration, serviceStatus != .stopped || startFailed {
+            // Hidden only while the one automatic start is pending. Once it has been
+            // tried, a stopped runtime always offers the button: the status clears
+            // after a success, so "failed" alone could leave the page stuck.
+            if let cta = primaryCTAConfiguration,
+               serviceStatus != .stopped || startFailed || (attemptedAutomaticStart && !isPerformingAction)
+            {
                 Button(cta.label, action: cta.action)
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPerformingAction))
                     .keyboardShortcut(.defaultAction)

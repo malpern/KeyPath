@@ -435,7 +435,14 @@ fi
 # This ensures new images/scripts added under Sources/KeyPathApp/Resources show up
 # immediately without requiring a full ./build.sh.
 mkdir -p "$RESOURCES_DIR"
-python3 "$PROJECT_DIR/Scripts/build-offline-help.py" --output "$RESOURCES_DIR/OfflineHelp"
+# Offline help needs pandoc. A UI deploy without it keeps the installed help
+# rather than aborting; a fresh build replaces the folder so no stale article stays.
+if command -v pandoc >/dev/null 2>&1; then
+    rm -rf "$RESOURCES_DIR/OfflineHelp"
+    python3 "$PROJECT_DIR/Scripts/build-offline-help.py" --output "$RESOURCES_DIR/OfflineHelp"
+else
+    echo "⚠️  pandoc not found; keeping the installed offline help (brew install pandoc to rebuild it)"
+fi
 if command -v rsync >/dev/null 2>&1; then
     rsync -a "$PROJECT_DIR/Sources/KeyPathApp/Resources/" "$RESOURCES_DIR/"
 else

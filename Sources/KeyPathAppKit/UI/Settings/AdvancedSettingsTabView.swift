@@ -143,7 +143,7 @@ struct AdvancedSettingsTabView: View {
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            ForEach(extras, id: \.self) { path in
+            ForEach(Array(extras.enumerated()), id: \.element) { index, path in
                 HStack(spacing: 10) {
                     Image(systemName: "app.dashed")
                         .foregroundStyle(.secondary)
@@ -156,7 +156,7 @@ struct AdvancedSettingsTabView: View {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
                     }
                     .settingsAction()
-                    .accessibilityIdentifier("settings-show-duplicate-\(abs(path.hashValue))")
+                    .accessibilityIdentifier("settings-show-duplicate-\(index)")
                 }
             }
 
