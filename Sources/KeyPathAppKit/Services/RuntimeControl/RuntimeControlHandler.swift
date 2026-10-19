@@ -79,7 +79,9 @@ enum RuntimeControlHandler {
             unavailable.message = "Uninstall is unavailable in this build."
             return unavailable
         }
+        RuntimeControlServer.shared.withdrawForUninstall()
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        if !result.success { RuntimeControlServer.shared.restoreAfterFailedUninstall() }
         var answer = await response(ok: result.success, operation: .uninstall,
                                     status: manager.currentRuntimeStatusInternal(), lastError: nil)
         answer.message = result.success ? result.logs.first : result.failureReason

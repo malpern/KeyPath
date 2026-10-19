@@ -20,11 +20,13 @@ final class RuntimeControlServer {
     private var acceptSource: DispatchSourceRead?
     private let queue = DispatchQueue(label: "com.keypath.runtime-control")
     private var handler: Handler?
+    private var directory: URL?
 
     /// Start listening. Safe to call once per process; later calls are ignored.
     func start(directory: URL = RuntimeControl.directoryURL, handler: @escaping Handler) {
         guard listenFD < 0 else { return }
         self.handler = handler
+        self.directory = directory
         do {
             listenFD = try Self.bindSocket(directory: directory)
         } catch {
@@ -60,6 +62,20 @@ final class RuntimeControlServer {
         acceptSource = nil
         if listenFD >= 0 { close(listenFD) }
         listenFD = -1
+    }
+
+    /// Uninstall backs up and removes Application Support, where the socket
+    /// lives, and a socket cannot be copied. Stop listening and remove it first;
+    /// connections already accepted (the uninstall request itself) stay open.
+    func withdrawForUninstall() {
+        stop()
+        if let directory { unlink(directory.appendingPathComponent("runtime.sock").path) }
+    }
+
+    /// After an uninstall that did not go through, serve again.
+    func restoreAfterFailedUninstall() {
+        guard let handler, let directory else { return }
+        start(directory: directory, handler: handler)
     }
 
     // MARK: - Connections

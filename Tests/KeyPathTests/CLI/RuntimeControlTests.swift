@@ -78,6 +78,24 @@ final class RuntimeControlTests: XCTestCase {
         XCTAssertEqual(answer.state, .running)
     }
 
+    /// Uninstall copies Application Support, and a socket cannot be copied:
+    /// the server removes it first, and serves again if the uninstall fails.
+    func testWithdrawForUninstallRemovesTheSocketAndRestoreServesAgain() async throws {
+        server.start(directory: directory) { self.response($0.operation, state: .running) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
+        server.withdrawForUninstall()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: socketPath))
+        do {
+            _ = try await send(.status)
+            XCTFail("Nothing should be listening")
+        } catch {
+            XCTAssertEqual(error as? RuntimeControl.ClientError, .appNotRunning)
+        }
+        server.restoreAfterFailedUninstall()
+        let answer = try await send(.status)
+        XCTAssertEqual(answer.state, .running)
+    }
+
     func testHandlerMapsRuntimeStatusToResponseStates() {
         let cases: [(ServiceLifecycleCoordinator.RuntimeStatus, RuntimeControl.State, Int?, String?)] = [
             (.running(pid: 7), .running, 7, nil), (.starting, .starting, nil, nil), (.stopped, .stopped, nil, nil),
