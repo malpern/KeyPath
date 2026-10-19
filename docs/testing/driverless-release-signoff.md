@@ -812,3 +812,20 @@ and Computer Use contracts pass. Notarized (Accepted);
 Air 15:50 (config and `overlayLayoutId` = macbook-us unchanged); previous app
 archived as `~/Downloads/KeyPath-before-layout-dropdown-20261018.zip`. Verifier:
 parent 80307, worker 80936, TCP 37001. Proposed freeze point for acceptance.
+
+### Status page summary rows — candidate `04fef38d7` (user request)
+
+Status gains read-only rows linking to the owning tab: Caps Lock remapping (from
+the running worker's managed-Caps evidence, which the reload coordinator keeps in
+step with the rules), Launch at login (SMAppService: on, needs approval, off) and
+Multiple KeyPath copies (only when present; previously computed but never shown
+because it was info-level). The keyboard row loses its dark fill, the layout
+chevron trails its name, and the summary column centres against the list. 3 new
+builder tests and 48 related settings/keyboard/launch tests pass; accessibility and
+Computer Use contracts pass. Notarized (Accepted);
+`KeyPath-20261018-status-summary.dmg` SHA-256
+`2934fb05aea2875ee0c2b976b295394605857925aa4d9f0f8100ee4e06d62ab9`, executable
+`5f317e88e069ea7f1b745801dd079c258bd9e1a8dfc4067688aa1b64866cce48`. Installed on the
+Air 17:38, config unchanged; previous app archived as
+`~/Downloads/KeyPath-before-status-summary-20261018.zip`. Verifier: parent 39171,
+worker 39380, TCP 37001. Visual review pending.
