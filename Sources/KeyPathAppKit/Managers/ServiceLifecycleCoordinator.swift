@@ -394,7 +394,7 @@ final class ServiceLifecycleCoordinator {
         } catch {
             guard sessionStartIsCurrent(generation) else { return false }
             retainOwnedSessionSupervision(generation: generation)
-            let reason = "Caps Lock could not be set up automatically. Connect one compatible keyboard, then try again. Your rules were kept."
+            let reason = "Caps Lock could not be set up automatically. If more than one keyboard is connected, choose one in Settings > General under Caps Lock remapping; otherwise connect a compatible keyboard and try again. Your rules were kept."
             sessionPreparationFailure = (generation, reason)
             AppLogger.shared.warn("[Session] Caps preparation refused: \(error). \(reason)")
             onError?(reason)

@@ -25,7 +25,9 @@ struct SessionCapsSelection: Codable, Sendable, Equatable {
     }
 
     func verifyConnected(devices: [SessionCapsMappingPolicy.DeviceIdentity], currentBoot: String) throws {
-        guard try devices == [approvedDevice(currentBoot: currentBoot)] else {
+        do {
+            try SessionCapsMappingPolicy.requireUnique(approvedDevice(currentBoot: currentBoot), among: devices)
+        } catch {
             throw SessionCapsRuntimeSupport.Refusal.selection
         }
     }

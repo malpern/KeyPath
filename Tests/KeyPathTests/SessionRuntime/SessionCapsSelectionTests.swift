@@ -54,6 +54,43 @@ final class SessionCapsSelectionTests: XCTestCase {
         }
     }
 
+    func testChosenKeyboardIsAcceptedBesideOtherKeyboards() throws {
+        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
+        let other = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 99, vendorID: 4321,
+                                                            productID: 8765, serialNumber: nil, locationID: 456)
+        XCTAssertNoThrow(try selected.verifyConnected(devices: [other, device], currentBoot: boot))
+        XCTAssertThrowsError(try selected.verifyConnected(devices: [other], currentBoot: boot))
+        // Automatic selection still never picks one of several keyboards.
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: [other, device], boot: boot))
+    }
+
+    func testMacBookWithExternalKeyboardListsBothWithNames() throws {
+        let builtIn = #"{"Product":"Apple Internal Keyboard / Trackpad","VendorID":0,"Built-In":true,"IOClass":"AppleHIDKeyboardEventDriverV2","type":"service","PrimaryUsage":6,"PrimaryUsagePage":1,"IORegistryEntryID":4295398400,"Transport":"FIFO","LocationID":231,"ProductID":0}"#
+        let external = #"{"Product":"cl80","VendorID":21577,"IOClass":"AppleUserHIDEventService","type":"service","PrimaryUsage":6,"PrimaryUsagePage":1,"IORegistryEntryID":4294972703,"Transport":"USB","LocationID":34673408,"ProductID":37148}"#
+        let keyboards = try SessionCapsHIDUtilTransport.parseKeyboards(builtIn + "\n" + external + "\n")
+        XCTAssertEqual(keyboards.map(\.name), ["Built-in keyboard", "cl80"])
+        XCTAssertEqual(keyboards.map(\.device), try SessionCapsHIDUtilTransport.parseServices(builtIn + "\n" + external))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: keyboards.map(\.device), boot: boot))
+
+        let twin = external.replacingOccurrences(of: "4294972703", with: "4294972704")
+            .replacingOccurrences(of: "34673408", with: "34677248")
+        let twins = try SessionCapsHIDUtilTransport.parseKeyboards(external + "\n" + twin)
+        XCTAssertEqual(twins.map(\.name), ["cl80 1", "cl80 2"])
+        let unnamed = external.replacingOccurrences(of: #""Product":"cl80","#, with: "")
+        XCTAssertEqual(try SessionCapsHIDUtilTransport.parseKeyboards(unnamed).map(\.name), ["Keyboard"])
+    }
+
+    @MainActor
+    func testSettingsPrefersConnectedSavedChoiceElseOnlyKeyboard() {
+        let other = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 99, vendorID: 4321,
+                                                            productID: 8765, serialNumber: nil, locationID: 456)
+        XCTAssertEqual(SessionCapsSettingsSection.effectiveDevice(saved: device, connected: [other, device]), device)
+        XCTAssertNil(SessionCapsSettingsSection.effectiveDevice(saved: nil, connected: [other, device]))
+        XCTAssertNil(SessionCapsSettingsSection.effectiveDevice(saved: device, connected: [other, other]))
+        XCTAssertEqual(SessionCapsSettingsSection.effectiveDevice(saved: device, connected: [other]), other)
+        XCTAssertNil(SessionCapsSettingsSection.effectiveDevice(saved: nil, connected: []))
+    }
+
     func testDecodeRejectsCorruptVersionAndUnknownConsentFields() throws {
         let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
         let data = try JSONEncoder().encode(selected)

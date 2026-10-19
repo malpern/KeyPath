@@ -16,7 +16,7 @@ Open KeyPath → Settings → General.
   - The same choice is in the menu bar under **While a Layer Is Active**.
 - **Keyboard Appearance:** compare key-label previews, choose whether unmapped keys stay normal or dim, set how see-through the overlay is (**Overlay opacity**), and choose whether it fades after a while without typing (**Fade when idle**).
 - **Recording:** choose sequences or combinations, and whether recording captures physical keys or includes your mappings.
-- **Keyboard Setup:** Caps Lock is set up automatically when your rules need it. Manual keyboard setup is available under its disclosure. You can also import Karabiner rules here.
+- **Keyboard Setup:** Caps Lock is set up automatically when your rules need it. With more than one keyboard connected, choose which one Caps Lock rules apply to ([details](driverless-caps-lock.md)). Manual keyboard setup is available under its disclosure. You can also import Karabiner rules here.
 - **Advanced:** expand Logs & Diagnostics or Virtual Keys when needed. Development builds also expose Experimental settings.
 
 Appearance previews change only how keys are displayed. Recording choices apply to recording new rules.

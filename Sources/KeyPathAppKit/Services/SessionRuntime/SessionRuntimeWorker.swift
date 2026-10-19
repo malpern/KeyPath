@@ -227,7 +227,9 @@ public final class SessionRuntimeWorker {
                 // Ownership is retained even when write/readback throws.
                 capsRecord = try Self.performHIDWork {
                     let backend = SessionCapsHIDUtilTransport.backend()
-                    guard try backend.enumerate() == [device] else { throw SessionCapsRuntimeSupport.Refusal.selection }
+                    do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {
+                        throw SessionCapsRuntimeSupport.Refusal.selection
+                    }
                     let lease = SessionCapsMappingLease(directory: directory, backend: backend)
                     return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device)
                 }

@@ -66,7 +66,7 @@ enum SessionCapsRuntimeSupport {
             guard try selectedDevice(environment: environment, selectionData: selectionData) != nil else { throw Refusal.selection }
             return (managed, true)
         } catch {
-            return (.invalid(reason: "Caps Lock setup needs a current keyboard selection with F18 reserved. Open Settings > General to select your keyboard"), false)
+            return (.invalid(reason: "Caps Lock setup needs a current keyboard selection with F18 reserved. Open Settings > General and choose your keyboard under Caps Lock remapping"), false)
         }
     }
 
@@ -135,9 +135,9 @@ enum SessionCapsRuntimeSupport {
         let backend = SessionCapsHIDUtilTransport.backend()
         let lease = SessionCapsMappingLease(directory: directory, backend: backend)
         guard let record = try lease.pendingRecord(), record.owner == owner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
-        // The initial prototype permits one physical keyboard, with F18
-        // explicitly reserved. Do not guess attribution from merged events.
-        guard try backend.enumerate() == [record.device] else { throw Refusal.selection }
+        // Other keyboards may be connected; the leased instance must be present
+        // exactly once. F18 stays reserved: merged events carry no attribution.
+        do { try Policy.requireUnique(record.device, among: backend.enumerate()) } catch { throw Refusal.selection }
         let snapshot = try backend.read(record.device)
         _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: bootSessionUUID())
     }

@@ -149,9 +149,10 @@ public enum SessionCapsMappingPolicy {
         }
     }
 
-    public static func acquire(original: [Mapping], device: DeviceIdentity, devices: [DeviceIdentity],
-                               owner: Owner, effectiveConfigSHA256: String) throws -> Record
-    {
+    /// The chosen keyboard must be connected exactly once, by registry ID and by
+    /// the locator hidutil matches on. Other keyboards may be connected: the
+    /// mapping is written only to this instance, and F18 is reserved for all.
+    public static func requireUnique(_ device: DeviceIdentity, among devices: [DeviceIdentity]) throws {
         guard device.isValid else { throw Refusal.invalidDevice }
         // A merged monitor event cannot establish that there is exactly one instance.
         let matching = devices.filter { $0.registryEntryID == device.registryEntryID }
@@ -164,6 +165,12 @@ public enum SessionCapsMappingPolicy {
                 && (device.locationID == nil || $0.locationID == device.locationID)
         }
         guard locatorMatches == [device] else { throw Refusal.ambiguousDevice }
+    }
+
+    public static func acquire(original: [Mapping], device: DeviceIdentity, devices: [DeviceIdentity],
+                               owner: Owner, effectiveConfigSHA256: String) throws -> Record
+    {
+        try requireUnique(device, among: devices)
         guard owner.isValid else { throw Refusal.invalidOwner }
         guard validDigest(effectiveConfigSHA256) else { throw Refusal.invalidConfigDigest }
         try validateOriginal(original)

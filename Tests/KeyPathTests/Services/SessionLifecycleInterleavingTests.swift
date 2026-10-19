@@ -86,7 +86,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let restarted = await coordinator.restartKanata()
         XCTAssertFalse(restarted)
         let failedGeneration = coordinator.sessionIntentGeneration
-        XCTAssertTrue(coordinator.preparationFailureReason(for: failedGeneration)?.contains("Connect one compatible keyboard") == true)
+        XCTAssertTrue(coordinator.preparationFailureReason(for: failedGeneration)?.contains("choose one in Settings > General") == true)
         XCTAssertNil(coordinator.preparationFailureReason(for: failedGeneration &+ 1))
 
         coordinator.setTerminationPreparationActive(true)
