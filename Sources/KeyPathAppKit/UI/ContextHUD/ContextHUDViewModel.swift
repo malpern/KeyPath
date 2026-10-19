@@ -52,6 +52,11 @@ final class ContextHUDViewModel {
         // Build collection lookup by UUID
         let collectionLookup = Dictionary(uniqueKeysWithValues: collections.map { ($0.id, $0) })
 
+        let vimMappingsByInput: [String: KeyMapping] = Dictionary(
+            (collectionLookup[RuleCollectionIdentifier.vimNavigation]?.mappings ?? []).map { ($0.input.lowercased(), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         // Filter out transparent keys, identity mappings, and raw HID codes
         let entries: [HUDKeyEntry] = keyMap.compactMap { keyCode, info in
             guard !info.isTransparent else { return nil }
@@ -91,7 +96,19 @@ final class ContextHUDViewModel {
             // For VIM entries: use lowercase keycap (vim is case-sensitive),
             // override with vim notation, use English description
             let action: String
-            if let vimLabel = info.vimLabel {
+            var variant: String?
+            if info.collectionId == RuleCollectionIdentifier.vimNavigation,
+               let presentation = VimLayerReference.presentation(forInput: Self.vimInput(for: keyCode))
+            {
+                // Same names as the overlay keycaps and Settings (VimLayerReference).
+                keycap = presentation.keyLabel
+                action = presentation.title
+                variant = vimMappingsByInput[Self.vimInput(for: keyCode)].map(VimLayerReference.entry(for:))
+                    .flatMap { entry in
+                        let lines = [entry.shift, entry.ctrl].compactMap { $0 }.map { "\($0.label) \($0.title)" }
+                        return lines.isEmpty ? nil : lines.joined(separator: " · ")
+                    }
+            } else if let vimLabel = info.vimLabel {
                 keycap = keycap.lowercased()
                 if let override = Self.vimKeycapOverrides[keycap] {
                     keycap = override
@@ -109,7 +126,9 @@ final class ContextHUDViewModel {
                 urlIdentifier: info.urlIdentifier,
                 holdAction: holdLabel,
                 color: color,
-                keyCode: keyCode
+                keyCode: keyCode,
+
+                variant: variant
             )
         }.sorted { $0.keyCode < $1.keyCode }
 
@@ -166,15 +185,21 @@ final class ContextHUDViewModel {
             groupMap.removeValue(forKey: RuleCollectionIdentifier.vimNavigation)
             var subGroupEntries: [String: (order: Int, entries: [HUDKeyEntry])] = [:]
             for entry in vimGroup.entries {
-                let vimLabel = keyMap[entry.keyCode]?.vimLabel
-                let sub = vimLabel.flatMap { Self.vimSubcategories[$0] }
+                // Same groups as Settings: Move, Edit, Search, Clipboard.
+                let category = VimLayerReference.presentation(forInput: Self.vimInput(for: entry.keyCode))?.category
+                let sub = category.map { (name: $0.title, order: VimCategory.allCases.firstIndex(of: $0) ?? 99) }
                     ?? (name: "Other", order: 99)
                 subGroupEntries[sub.name, default: (order: sub.order, entries: [])].entries.append(entry)
+            }
+            // Same order as Settings: h j k l, then Start, End, After, Top, and so on.
+            let order = VimCategory.allCases.flatMap(\.commandInputs)
+            func rank(_ entry: HUDKeyEntry) -> Int {
+                order.firstIndex(of: Self.vimInput(for: entry.keyCode)) ?? Int.max
             }
             for (name, group) in subGroupEntries {
                 vimSubGroups.append(HUDKeyGroup(
                     name: name, color: vimGroup.color,
-                    entries: group.entries, sortOrder: group.order
+                    entries: group.entries.sorted { rank($0) < rank($1) }, sortOrder: group.order
                 ))
             }
         }
@@ -319,22 +344,11 @@ final class ContextHUDViewModel {
         "4": "$",
     ]
 
-    /// VIM subcategory mapping: vimLabel → (subcategory name, sort order)
-    /// Used to split the single "Vim Navigation" group into semantic sub-groups
-    static let vimSubcategories: [String: (name: String, order: Int)] = [
-        // Movement
-        "←": ("Movement", 0), "↓": ("Movement", 0),
-        "↑": ("Movement", 0), "→": ("Movement", 0),
-        "0": ("Movement", 0), "$": ("Movement", 0),
-        "gg": ("Movement", 0),
-        // Editing
-        "a": ("Editing", 1), "yank": ("Editing", 1),
-        "put": ("Editing", 1), "del": ("Editing", 1),
-        "d": ("Editing", 1), "undo": ("Editing", 1),
-        "redo": ("Editing", 1), "o": ("Editing", 1),
-        // Search
-        "find": ("Search", 2), "next": ("Search", 2),
-    ]
+    /// The Vim input key for a key code, as the Vim rule names it ("/" not "slash").
+    static func vimInput(for keyCode: UInt16) -> String {
+        let name = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
+        return name == "slash" ? "/" : name
+    }
 
     /// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
     static let neovimSubcategories: [String: (name: String, order: Int)] = [
@@ -399,7 +413,8 @@ final class ContextHUDViewModel {
 
         switch id {
         case RuleCollectionIdentifier.vimNavigation:
-            return KeyPathColors.layerOrange
+            // The overlay's navigation color (KeycapRenderingUtilities.LayerColors).
+            return KeyPathColors.layerGreen
         case RuleCollectionIdentifier.kindaVim:
             return KeyPathColors.layerGreen
         case RuleCollectionIdentifier.neovimTerminal:

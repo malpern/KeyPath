@@ -119,10 +119,10 @@ final class ContextHUDViewModelTests: XCTestCase {
     func testUpdatePopulatesGroups() {
         let vm = ContextHUDViewModel()
         let keyMap: [UInt16: LayerKeyInfo] = [
-            0: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
-            1: .mapped(displayLabel: "Down", outputKey: "down", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"),
+            4: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"), // h
+            38: .mapped(displayLabel: "Down", outputKey: "down", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"), // j
         ]
 
         let collection = RuleCollection(
@@ -138,9 +138,9 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.layerName, "nav")
         XCTAssertEqual(vm.style, .defaultList)
-        // Vim entries are split into sub-groups; both are Movement
+        // Vim entries are split into sub-groups; h and j are both Move
         XCTAssertEqual(vm.groups.count, 1)
-        XCTAssertEqual(vm.groups.first?.name, "Movement")
+        XCTAssertEqual(vm.groups.first?.name, "Move")
         XCTAssertEqual(vm.groups.first?.entries.count, 2)
     }
 
@@ -213,7 +213,7 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.groups.count, 2)
         let names = vm.groups.map(\.name).sorted()
-        XCTAssertEqual(names, ["Movement", "Window Snapping"])
+        XCTAssertEqual(names, ["Move", "Window Snapping"])
     }
 
     func testEntriesSortedByKeyCode() {
@@ -326,13 +326,14 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
 
-        XCTAssertEqual(vm.groups.count, 3, "Should have Movement, Editing, Search sub-groups")
+        // Same groups, order and names as Settings (VimLayerReference / VimCategory).
         let names = vm.groups.map(\.name)
-        XCTAssertEqual(names, ["Movement", "Editing", "Search"],
-                       "Sub-groups should be ordered: Movement → Editing → Search")
-        XCTAssertEqual(vm.groups[0].entries.count, 2) // Movement: ← ↓
-        XCTAssertEqual(vm.groups[1].entries.count, 2) // Editing: a, yank
-        XCTAssertEqual(vm.groups[2].entries.count, 1) // Search: find
+        XCTAssertEqual(names, ["Move", "Search", "Clipboard"],
+                       "Sub-groups follow Settings: Move → Edit → Search → Clipboard")
+        XCTAssertEqual(vm.groups[0].entries.map(\.keycap), ["h", "j", "a"], "Move lists h j k l before Append")
+        XCTAssertEqual(vm.groups[0].entries.map(\.action), ["Left", "Down", "Append"])
+        XCTAssertEqual(vm.groups[1].entries.map(\.action), ["Find"])
+        XCTAssertEqual(vm.groups[2].entries.map(\.action), ["Copy"], "y reads Copy, not Yank")
     }
 
     func testVimSubGroupsPreserveColor() {
@@ -378,7 +379,7 @@ final class ContextHUDViewModelTests: XCTestCase {
         vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
 
         let names = vm.groups.map(\.name)
-        XCTAssertTrue(names.contains("Movement"))
+        XCTAssertTrue(names.contains("Move"))
         XCTAssertTrue(names.contains("Other"))
     }
 

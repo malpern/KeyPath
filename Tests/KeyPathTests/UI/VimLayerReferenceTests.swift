@@ -82,4 +82,30 @@ final class VimLayerReferenceTests: XCTestCase {
             }
         }
     }
+
+    func testOneNameAndGroupPerKeyAcrossSurfaces() throws {
+        let h = try XCTUnwrap(VimLayerReference.presentation(forInput: "h"))
+        XCTAssertEqual(h.keycapLabel, "←", "h/j/k/l stay arrows on keycaps")
+        XCTAssertEqual(h.category, .navigation)
+
+        let y = try XCTUnwrap(VimLayerReference.presentation(forInput: "y"))
+        XCTAssertEqual([y.keycapLabel, y.title], ["Copy", "Copy"])
+        XCTAssertEqual(y.category, .clipboard)
+
+        let o = try XCTUnwrap(VimLayerReference.presentation(forInput: "o"))
+        XCTAssertEqual(o.keycapLabel, "Open", "never a bare O next to the 0 key")
+
+        let g = try XCTUnwrap(VimLayerReference.presentation(forInput: "g"))
+        XCTAssertEqual([g.keyLabel, g.keycapLabel], ["gg", "Top"])
+        XCTAssertNil(VimLayerReference.presentation(forInput: "q"))
+    }
+
+    func testOverlayDrawsAnArrowOnlyWhenTheKeysOwnLabelIsAnArrow() {
+        let append = LayerKeyInfo.mapped(displayLabel: "→", outputKey: "right", outputKeyCode: 124, vimLabel: "After")
+        XCTAssertNil(LayerModeKeycap.arrowGlyph(for: append), "a sends → but reads After")
+        let left = LayerKeyInfo.mapped(displayLabel: "←", outputKey: "left", outputKeyCode: 123, vimLabel: "←")
+        XCTAssertEqual(LayerModeKeycap.arrowGlyph(for: left), "←")
+        let plainArrow = LayerKeyInfo.mapped(displayLabel: "↓", outputKey: "down", outputKeyCode: 125)
+        XCTAssertEqual(LayerModeKeycap.arrowGlyph(for: plainArrow), "↓", "keys with no label still show their arrow")
+    }
 }

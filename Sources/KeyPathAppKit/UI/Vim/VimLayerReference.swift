@@ -90,6 +90,30 @@ enum VimLayerReference {
         capTitles[title] ?? title
     }
 
+    /// How one shipped Vim key reads on every surface (overlay keycap, Shortcut List,
+    /// Settings), so the same key never has three names.
+    struct KeyPresentation: Equatable {
+        /// Legend for the key itself ("$" on the 4 key, "gg" for g).
+        let keyLabel: String
+        /// Short label that fits a one-unit keycap: arrows for h/j/k/l, else a word.
+        let keycapLabel: String
+        /// Full name for lists and detail lines.
+        let title: String
+        let category: VimCategory?
+    }
+
+    static func presentation(forInput rawInput: String) -> KeyPresentation? {
+        let input = rawInput.lowercased()
+        guard let known = curated[input] else { return nil }
+        let arrow = arrowCluster.first { $0.input == input }?.arrow
+        return KeyPresentation(
+            keyLabel: known.listLabel ?? known.capLabel ?? input,
+            keycapLabel: arrow ?? capTitle(for: known.title),
+            title: known.title,
+            category: VimCategory.allCases.first { $0.commandInputs.contains(input) }
+        )
+    }
+
     /// The four home-row arrows, drawn as one cluster in the list instead of four rows.
     static let arrowCluster: [(input: String, arrow: String)] = [
         ("h", "←"), ("j", "↓"), ("k", "↑"), ("l", "→")

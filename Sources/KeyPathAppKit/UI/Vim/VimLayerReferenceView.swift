@@ -215,8 +215,11 @@ private struct VimLayerMappedKey: View {
     let showsTitle: Bool
     let isHighlighted: Bool
 
+    /// The overlay's colors: pack green, with the h/j/k/l arrows emphasized in orange.
     private var accent: Color {
-        entry.category?.accentColor ?? .secondary
+        VimLayerReference.arrowCluster.contains { $0.input == entry.input }
+            ? KeyPathColors.layerOrange
+            : (entry.category?.accentColor ?? .secondary)
     }
 
     var body: some View {
@@ -368,7 +371,7 @@ struct VimLayerCommandList: View {
             ForEach(VimLayerReference.arrowCluster, id: \.input) { item in
                 VStack(spacing: 0) {
                     Text(item.input).font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    Text(item.arrow).font(.system(size: 9, weight: .semibold)).foregroundStyle(VimCategory.navigation.accentColor)
+                    Text(item.arrow).font(.system(size: 9, weight: .semibold)).foregroundStyle(KeyPathColors.layerOrange)
                 }
                 .frame(width: 30, height: 32)
                 .background(highlighted == item.input ? SettingsDesign.hoverFill : SettingsDesign.chipFill, in: .rect(cornerRadius: 5))

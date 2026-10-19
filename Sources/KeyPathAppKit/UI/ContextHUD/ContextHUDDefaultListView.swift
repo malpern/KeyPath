@@ -180,10 +180,18 @@ struct HUDKeycapChip: View {
                     .font(.headline)
                     .foregroundStyle(.white.opacity(0.8))
             } else {
-                Text(entry.action)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(entry.action)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .lineLimit(1)
+                    if let variant = entry.variant {
+                        Text(variant)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
+                }
             }
 
             if let holdAction = entry.holdAction {

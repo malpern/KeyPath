@@ -43,27 +43,6 @@ extension LayerKeyMapper {
         return map
     }
 
-    /// Short vim-language labels for overlay keycaps, keyed by input key
-    private static let vimOverlayLabels: [String: String] = [
-        "h": "←",
-        "j": "↓",
-        "k": "↑",
-        "l": "→",
-        "0": "0",
-        "4": "$",
-        "a": "a",
-        "g": "gg",
-        "/": "find",
-        "n": "next",
-        "y": "yank",
-        "p": "put",
-        "x": "del",
-        "r": "redo",
-        "d": "d",
-        "u": "undo",
-        "o": "o",
-    ]
-
     /// Neovim Terminal overlay labels — vim vocabulary with word motions.
     /// (Used to be shared with the retired KindaVim rule collection.)
     private static let neovimOverlayLabels: [String: String] = [
@@ -109,8 +88,9 @@ extension LayerKeyMapper {
                 AppLogger.shared.info("🗺️ [VimLabel] Found VIM collection for layer '\(layerName)', \(collection.mappings.count) mappings")
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
-                    if let vimLabel = Self.vimOverlayLabels[mapping.input.lowercased()] {
-                        map[kanataKey] = vimLabel
+                    // Same names as the Shortcut List and Settings (VimLayerReference).
+                    if let label = VimLayerReference.presentation(forInput: mapping.input)?.keycapLabel {
+                        map[kanataKey] = label
                     }
                 }
             } else if collection.id == RuleCollectionIdentifier.neovimTerminal {
