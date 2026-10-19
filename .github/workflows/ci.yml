@@ -199,7 +199,7 @@ jobs:
 
   code-quality:
     runs-on: [self-hosted, macOS, keypath]
-    timeout-minutes: 5
+    timeout-minutes: 15
     # This job does not share test state, but it does share the only physical
     # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
     # before its fixed per-rule safety timeout.
