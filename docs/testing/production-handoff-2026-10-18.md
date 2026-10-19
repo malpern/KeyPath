@@ -2,6 +2,9 @@
 
 ## Start here
 
+**Mode change (October 18, evening): public release is paused.** Work is rapid local iteration on the existing app: redesign and refine features on the Air. Use `Scripts/air-iterate.sh` (signed, not notarized; see `docs/ITERATION_WORKFLOW.md`). Do not notarize, package DMGs or run release gates unless asked. Keep focused tests, regression tests for real defects, and the rules below (no mini install, preserve settings, tagline). Latest installed build: `04fef38d7` (Status summary rows). The acceptance checklist below remains useful when a release resumes.
+
+
 **Latest follow-up:** Sidebar search placement fixed in `401de17b5`. A newer notarized installer is delivered to Air Downloads as `KeyPath-20261018-help-sidebar.dmg`, SHA-256 `cde1199a857853f698678ea3bb4ad8a2f94c63d6eabbfdd57e20f8535c9197f6`. It is **not installed**; the installed app remains `5d5612023` below. Install the sidebar candidate before final acceptance if requested. Search/filter/clear, close/hide and reopen/query retention passed in a native production-view fixture. Evidence: `/Users/malpern/keypath-review-evidence/20261018-help-sidebar/`. No keyboard/runtime code changed.
 
 User wants a polished production-ready Apple Silicon driverless KeyPath with minimal permissions. Latest request: install the updated offline-Help build on the Air, identify exactly what remains, and hand work to another agent. Installation and launch completed. Canonical verifier PASSED: Apple Silicon payloads, signature, Gatekeeper, stapled ticket, owned parent PID79520, worker PID79935 and TCP127.0.0.1:37001. Startup log reports validation SUCCESS/no blocking issues. Evidence: `/Users/malpern/keypath-review-evidence/20261018-offline-help/air-install/install.log` and `verification.log`. No physical key output was asserted by this readiness check.
