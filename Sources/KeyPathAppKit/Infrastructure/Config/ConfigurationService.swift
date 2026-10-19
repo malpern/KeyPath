@@ -897,6 +897,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// managed transaction; arbitrary handwritten directives are never erased.
     private func matchesGlobalManagedContent(_ existing: String, expected: String) -> Bool {
         if AppConfigGenerator.matchesManagedContent(existing, expected: expected) { return true }
+        if isUnchangedSinceManagedWrite(existing) { return true }
         guard let manifest = try? String(contentsOf: deviceTargetingManifestURL, encoding: .utf8),
               manifest == deviceTargetingRegion(from: existing)
         else { return false }
@@ -904,6 +905,56 @@ public final class ConfigurationService: FileConfigurationProviding {
             removingDynamicDeviceTargeting(from: existing),
             expected: removingDynamicDeviceTargeting(from: expected)
         )
+    }
+
+    // MARK: - Managed write fingerprint
+
+    /// A file KeyPath wrote itself stays reproducible across generator changes:
+    /// each committed managed write records a fingerprint of its content, and a
+    /// file that still matches it has not been edited by hand since. Without this,
+    /// any change to the generator's output made every upgrader's next global save
+    /// fail the byte-for-byte comparison against the new generator.
+    ///
+    /// Files written before fingerprints existed have none. Those that still open
+    /// with the generator's preamble are accepted once, as they were before this check
+    /// existed; the pre-edit backup taken before every rule write keeps a copy, and
+    /// the write records a fingerprint so later hand edits are protected. A file
+    /// without the preamble is never treated as managed.
+    private func isUnchangedSinceManagedWrite(_ existing: String) -> Bool {
+        if let recorded = try? String(contentsOf: managedConfigFingerprintURL, encoding: .utf8) {
+            return recorded == Self.managedFingerprint(existing)
+        }
+        return Self.hasGeneratedPreamble(existing)
+    }
+
+    /// The generator's opening lines: its header, then the enabled-rules summary
+    /// (written since May 2026). The header line alone is not enough: people
+    /// edit generated files and keep it.
+    static func hasGeneratedPreamble(_ content: String) -> Bool {
+        let lines = content.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: false)
+        return lines.count >= 2
+            && lines[0] + "\n" == KanataConfiguration.managedHeader
+            && lines[1].hasPrefix(";; Enabled: ")
+    }
+
+    static func managedFingerprint(_ content: String) -> String {
+        let normalized = content.components(separatedBy: "\n")
+            .filter { !$0.hasPrefix(";; Generated: ") }
+            .joined(separator: "\n")
+        return SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func recordManagedConfigFingerprint(_ content: String) {
+        do {
+            try Data(Self.managedFingerprint(content).utf8).write(to: managedConfigFingerprintURL, options: .atomic)
+        } catch {
+            // Best effort: without it the next save falls back to regenerating and comparing.
+            AppLogger.shared.log("⚠️ [ConfigService] Could not record config fingerprint: \(error.localizedDescription)")
+        }
+    }
+
+    var managedConfigFingerprintURL: URL {
+        URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-config.fingerprint")
     }
 
     private var deviceTargetingManifestURL: URL {
@@ -998,6 +1049,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private func publishSavedConfiguration(_ newConfig: KanataConfiguration) async {
         setCurrentConfiguration(newConfig)
+        recordManagedConfigFingerprint(newConfig.content)
         let snapshot = observersSnapshot()
         let tasks = snapshot.map { observer in
             Task { @MainActor in await observer(newConfig) }

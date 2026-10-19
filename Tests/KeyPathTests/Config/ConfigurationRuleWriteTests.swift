@@ -164,6 +164,70 @@ final class ConfigurationRuleWriteTests: KeyPathTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
     }
 
+    /// A file KeyPath wrote stays editable after the generator's output changes.
+    func testUnchangedManagedFileSurvivesGeneratorChange() async throws {
+        try await service.saveRuleState(
+            ruleCollections: [collection("Original")], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        // Model the previous release's output: same rules, different generator text.
+        let olderOutput = try String(contentsOf: configURL, encoding: .utf8) + "\n;; older generator output\n"
+        try olderOutput.write(to: configURL, atomically: true, encoding: .utf8)
+        try Data(ConfigurationService.managedFingerprint(olderOutput).utf8)
+            .write(to: service.managedConfigFingerprintURL)
+
+        try await service.saveRuleState(
+            ruleCollections: [collection("Candidate")], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let saved = try String(contentsOf: configURL, encoding: .utf8)
+        XCTAssertFalse(saved.contains("older generator output"))
+        XCTAssertEqual(try String(contentsOf: service.managedConfigFingerprintURL, encoding: .utf8),
+                       ConfigurationService.managedFingerprint(saved))
+    }
+
+    /// Upgraders have no fingerprint yet; a generated file is accepted once and fingerprinted.
+    func testGeneratedFileWithoutFingerprintIsAcceptedAndFingerprinted() async throws {
+        try await service.saveRuleState(
+            ruleCollections: [collection("Original")], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        let legacy = try String(contentsOf: configURL, encoding: .utf8) + "\n;; written by an older release\n"
+        try legacy.write(to: configURL, atomically: true, encoding: .utf8)
+        try FileManager.default.removeItem(at: service.managedConfigFingerprintURL)
+
+        try await service.saveRuleState(
+            ruleCollections: [collection("Candidate")], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        XCTAssertFalse(try String(contentsOf: configURL, encoding: .utf8).contains("older release"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: service.managedConfigFingerprintURL.path))
+    }
+
+    /// Without a fingerprint, a file lacking KeyPath's header is still never treated as managed.
+    func testHandwrittenFileWithoutFingerprintIsPreserved() async throws {
+        try await service.saveRuleState(
+            ruleCollections: [collection("Original")], customRules: [],
+            collectionStore: collections, customStore: customRules
+        )
+        let configURL = URL(fileURLWithPath: service.configurationPath)
+        try ";; handwritten global configuration".write(to: configURL, atomically: true, encoding: .utf8)
+        try FileManager.default.removeItem(at: service.managedConfigFingerprintURL)
+
+        do {
+            try await service.saveRuleState(
+                ruleCollections: [collection("Candidate")], customRules: [],
+                collectionStore: collections, customStore: customRules
+            )
+            XCTFail("A handwritten file must be preserved")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("configuration was preserved"))
+        }
+        XCTAssertEqual(try String(contentsOf: configURL, encoding: .utf8), ";; handwritten global configuration")
+    }
+
     func testCachedExternalCapsConfigIsPreservedBeforeManagedSave() async throws {
         try await service.saveRuleState(
             ruleCollections: [collection("Original")], customRules: [],
