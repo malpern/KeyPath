@@ -26,6 +26,9 @@ if [ -z "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ] && [ ! -d /Applications/Xcode-2
     export KEYPATH_DEV_XCODE_DEVELOPER_DIR=/Applications/Xcode-27.app/Contents/Developer
 fi
 
+# Sign from the login keychain unless the caller chose a signing command.
+export KP_SIGN_CMD="${KP_SIGN_CMD:-$SCRIPT_DIR/lib/codesign-login-keychain.sh}"
+
 if [ "${1:-}" != "--no-build" ]; then
     SKIP_NOTARIZE=1 SKIP_DEPLOY=1 SKIP_SPARKLE=1 SKIP_SNAPSHOTS=1 SKIP_WEBSITE=1 \
         Scripts/build-and-sign.sh
