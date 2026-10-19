@@ -11,7 +11,9 @@ final class KanataManagerResetTests: KeyPathTestCase {
         try await manager.resetToDefaultConfig()
 
         // Then: the default config file should exist and be a valid Kanata config
-        let path = NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+        // Read the file reset wrote. Test hosts redirect the config directory, so a
+        // hard-coded ~/.config path reads a stale file (on CI, one from July).
+        let path = manager.configPath
         let written = try String(contentsOfFile: path, encoding: .utf8)
 
         // Verify the file was written and contains essential elements
