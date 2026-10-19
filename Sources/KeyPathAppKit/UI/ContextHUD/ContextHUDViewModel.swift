@@ -57,6 +57,11 @@ final class ContextHUDViewModel {
             uniquingKeysWith: { first, _ in first }
         )
 
+        let missionControlMappingsByInput: [String: KeyMapping] = Dictionary(
+            (collectionLookup[RuleCollectionIdentifier.missionControl]?.mappings ?? []).map { ($0.input.lowercased(), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         // Filter out transparent keys, identity mappings, and raw HID codes
         let entries: [HUDKeyEntry] = keyMap.compactMap { keyCode, info in
             guard !info.isTransparent else { return nil }
@@ -108,6 +113,11 @@ final class ContextHUDViewModel {
                         let lines = [entry.shift, entry.ctrl].compactMap { $0 }.map { "\($0.label) \($0.title)" }
                         return lines.isEmpty ? nil : lines.joined(separator: " · ")
                     }
+            } else if info.collectionId == RuleCollectionIdentifier.missionControl,
+                      let description = missionControlMappingsByInput[Self.vimInput(for: keyCode)]?.description
+            {
+                // The rule's own names (App Exposé, Show Desktop), not the raw shortcuts.
+                action = description
             } else if let vimLabel = info.vimLabel {
                 keycap = keycap.lowercased()
                 if let override = Self.vimKeycapOverrides[keycap] {
@@ -344,10 +354,10 @@ final class ContextHUDViewModel {
         "4": "$",
     ]
 
-    /// The Vim input key for a key code, as the Vim rule names it ("/" not "slash").
+    /// The input key for a key code, as rules name it ("/" not "slash", "," not "comma").
     static func vimInput(for keyCode: UInt16) -> String {
         let name = OverlayKeyboardView.keyCodeToKanataName(keyCode).lowercased()
-        return name == "slash" ? "/" : name
+        return ["slash": "/", "comma": ",", "dot": "."][name] ?? name
     }
 
     /// Neovim Terminal subcategory mapping: vimLabel → (subcategory name, sort order)
@@ -405,30 +415,8 @@ final class ContextHUDViewModel {
         return upper
     }
 
-    /// Get collection color matching the overlay's color scheme
+    /// Same color the overlay gives this rule's keys (one table, so the two never drift).
     private func collectionColor(for collectionId: UUID?) -> Color {
-        guard let id = collectionId else {
-            return KeyPathColors.layerOrange
-        }
-
-        switch id {
-        case RuleCollectionIdentifier.vimNavigation:
-            // The overlay's navigation color (KeycapRenderingUtilities.LayerColors).
-            return KeyPathColors.layerGreen
-        case RuleCollectionIdentifier.kindaVim:
-            return KeyPathColors.layerGreen
-        case RuleCollectionIdentifier.neovimTerminal:
-            return KeyPathColors.layerBlue
-        case RuleCollectionIdentifier.windowSnapping:
-            return .purple
-        case RuleCollectionIdentifier.symbolLayer:
-            return .blue
-        case RuleCollectionIdentifier.launcher:
-            return .cyan
-        case RuleCollectionIdentifier.vallackNavigation:
-            return KeyPathColors.layerGreen
-        default:
-            return KeyPathColors.layerOrange
-        }
+        KeycapSymbols.collectionColor(for: collectionId)
     }
 }

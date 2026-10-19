@@ -17,4 +17,15 @@ final class LayerKeyMapperOwnershipTests: XCTestCase {
             XCTAssertEqual(owned[key], RuleCollectionIdentifier.homeRowArrows, key)
         }
     }
+
+    /// Mission Control's "," (Previous Desktop) was drawn uncolored: the map stored the
+    /// config name while lookups use the simulator name ("comm").
+    func testPunctuationKeysAreOwnedUnderTheSimulatorName() throws {
+        var missionControl = try XCTUnwrap(RuleCollectionCatalog().defaultCollections().first { $0.id == RuleCollectionIdentifier.missionControl })
+        missionControl.isEnabled = true
+        let mapper = LayerKeyMapper()
+        let owned = mapper.buildKeyCollectionMap(for: missionControl.targetLayer.kanataName, collections: [missionControl])
+        XCTAssertEqual(owned[mapper.toSimulatorKeyName("comma")], RuleCollectionIdentifier.missionControl)
+        XCTAssertEqual(owned[mapper.toSimulatorKeyName("dot")], RuleCollectionIdentifier.missionControl)
+    }
 }

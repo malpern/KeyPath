@@ -31,6 +31,9 @@ extension LayerKeyMapper {
                 for mapping in collection.mappings + presetMappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     map[kanataKey] = collection.id
+                    // Lookups use simulator names ("comm" for ","), which differ from
+                    // config names for punctuation; record both so "," is owned too.
+                    map[toSimulatorKeyName(kanataKey)] = collection.id
                 }
             }
 
@@ -45,6 +48,16 @@ extension LayerKeyMapper {
 
         return map
     }
+
+    /// Mission Control keycap labels: what each key opens, short enough for one unit.
+    static let missionControlKeycapLabels: [String: String] = [
+        "m": "Mission",
+        "q": "Exposé",
+        "t": "Desktop",
+        "c": "Alerts",
+        ",": "◀ Space",
+        ".": "Space ▶"
+    ]
 
     /// Neovim Terminal overlay labels — vim vocabulary with word motions.
     /// (Used to be shared with the retired KindaVim rule collection.)
@@ -94,6 +107,15 @@ extension LayerKeyMapper {
                     // Same names as the Shortcut List and Settings (VimLayerReference).
                     if let label = VimLayerReference.presentation(forInput: mapping.input)?.keycapLabel {
                         map[kanataKey] = label
+                    }
+                }
+            } else if collection.id == RuleCollectionIdentifier.missionControl {
+                // Short names instead of the raw shortcuts (↓⌃, N⇧⌃, F11) the keys send.
+                for mapping in collection.mappings {
+                    let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
+                    if let label = Self.missionControlKeycapLabels[mapping.input.lowercased()] {
+                        map[kanataKey] = label
+                        map[toSimulatorKeyName(kanataKey)] = label
                     }
                 }
             } else if collection.id == RuleCollectionIdentifier.neovimTerminal {
