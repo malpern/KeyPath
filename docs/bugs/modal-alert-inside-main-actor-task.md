@@ -21,15 +21,21 @@ someone dismissed the alert. On the Air the alert sat behind the lock screen.
 
 ## Fix
 
-The alert still appears once per layer, but `runModal()` now runs from its own
-`DispatchQueue.main.async` block, after the task that built the mapping has
-finished, so it no longer holds that task open.
+The first attempt moved `runModal()` into its own `DispatchQueue.main.async`
+block. That did not work, and a second `sample` showed why: the modal loop then
+sat inside a main-queue block, and the main queue is serial, so main-actor
+tasks (which run through it) still waited behind the alert.
+
+The alert is now shown as an ordinary, non-modal window by
+`NonModalAlertPresenter`, which wires the alert's buttons to its own handler.
+Nothing waits on it. It still appears once per layer.
 
 ## Rule
 
-Never call `runModal()` (or anything else that spins a nested run loop) from
-inside a Swift concurrency task on the main actor. Use a sheet, a non-modal
-window, or hop to a plain main-queue block first.
+Never call `runModal()`, or anything else that spins a nested run loop, on the
+main thread while the app is meant to keep working. Calling it from a main-queue
+block blocks the main queue just as surely as calling it from a main-actor task.
+Use a sheet or a non-modal window (`NonModalAlertPresenter`).
 
 ## Still open
 
