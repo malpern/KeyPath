@@ -447,9 +447,9 @@ extension ServiceLifecycleCoordinator {
               // Secure Input at launch (a locked screen or password field) is a
               // wait, not a setup failure; the loop resumes once it ends.
               report.state == .secureInput
-                || (report.state == .stopped || report.state == .failed)
-                && (Self.isRecoverableSessionBoundary(report.recoveryReason ?? "")
-                    || Self.canRetryWakeStartup(report, nonce: nonce, pid: pid, uid: getuid(), cleanedUp: cleanedUp))
+              || (report.state == .stopped || report.state == .failed)
+              && (Self.isRecoverableSessionBoundary(report.recoveryReason ?? "")
+                  || Self.canRetryWakeStartup(report, nonce: nonce, pid: pid, uid: getuid(), cleanedUp: cleanedUp))
         else { return false }
         let reason = report.recoveryReason
         let epoch = sessionLaunchWakeEpoch
