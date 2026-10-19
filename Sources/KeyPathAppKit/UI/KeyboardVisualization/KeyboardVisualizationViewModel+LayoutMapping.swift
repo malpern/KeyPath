@@ -414,6 +414,9 @@ extension KeyboardVisualizationViewModel {
         AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping for '\(currentLayerName)'")
         AppLogger.shared.info("🔔 [KeyboardViz] Current layerKeyMap has \(layerKeyMap.count) entries, keyCode 0 = '\(layerKeyMap[0]?.displayLabel ?? "nil")'")
         cachedLauncherMappings = nil
+        // Keyed by layer name only, so stale entries would show old labels (e.g. after a
+        // Key names switch) until the rebuild below finished.
+        prebuiltLayerMappings = [:]
         Task {
             await layerKeyMapper.invalidateCache()
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")
