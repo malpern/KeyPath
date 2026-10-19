@@ -29,6 +29,7 @@ final class ConfigReloadCoordinator {
     private let restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)?
     private let managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)?
     private let sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))?
+    private let admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)?
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -60,7 +61,8 @@ final class ConfigReloadCoordinator {
         currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
         restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
         managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)? = nil,
-        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
+        admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil
     ) {
         self.startRuntimeForExplicitApply = startRuntimeForExplicitApply
         self.engineClient = engineClient
@@ -79,6 +81,7 @@ final class ConfigReloadCoordinator {
         self.restartForManagedCapsChange = restartForManagedCapsChange
         self.managedCapsRestartFailureReason = managedCapsRestartFailureReason
         self.sessionValidationOverride = sessionValidationOverride
+        self.admittedIntermediateOverride = admittedIntermediateOverride
     }
 
     // MARK: - Reload Operations
@@ -414,8 +417,9 @@ final class ConfigReloadCoordinator {
         }
         // A rule that now uses the running intermediate key needs the session
         // to restart on another one; a reload would hand that key to Caps.
+        let admitted = admission?.intermediateUsage ?? admittedIntermediateOverride?()
         let intermediateMoved = validation.managedCaps
-            && admission.map { running in currentCapsIntermediate().map { $0 != running.intermediateUsage } ?? false } == true
+            && admitted.map { admitted in currentCapsIntermediate().map { $0 != admitted } ?? false } == true
 
         if validation.managedCaps != currentManagedCaps() || intermediateMoved {
             guard runtimeWantsRunning(), expectedIntent == runtimeIntentGeneration() else {

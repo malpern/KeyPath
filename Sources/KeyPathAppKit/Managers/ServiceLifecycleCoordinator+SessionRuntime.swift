@@ -676,11 +676,15 @@ extension ServiceLifecycleCoordinator {
             "--session-config", KeyPathConstants.Config.mainConfigPath
         ]
         sessionCapsIntermediate = nil
-        if !capabilitiesOnly, let selection = try await chooseCapsSelection() {
-            configuration.environment = try [
-                SessionCapsRuntimeSupport.selectionEnvironmentKey: String(decoding: JSONEncoder().encode(selection), as: UTF8.self)
-            ]
-            sessionCapsIntermediate = selection.intermediateUsage
+        if !capabilitiesOnly {
+            // Always say explicitly; the worker must not fall back to a saved
+            // selection this launch declined.
+            var passed = SessionCapsRuntimeSupport.noSelection
+            if let selection = try await chooseCapsSelection() {
+                passed = try String(decoding: JSONEncoder().encode(selection), as: UTF8.self)
+                sessionCapsIntermediate = selection.intermediateUsage
+            }
+            configuration.environment = [SessionCapsRuntimeSupport.selectionEnvironmentKey: passed]
         }
         AppLogger.shared.log(
             "Session application launch requested parentPID=\(getpid()) nonce=\(nonce) capabilitiesOnly=\(capabilitiesOnly)"
@@ -728,7 +732,12 @@ extension ServiceLifecycleCoordinator {
             occupied = []
         }
         let admission = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current(), occupied: occupied)
-        guard admission.managedCaps else { return nil }
+        guard admission.managedCaps else {
+            if case let .invalid(reason) = admission.result {
+                onError?("Caps Lock rules are off: \(reason).")
+            }
+            return nil
+        }
         let selection = current.with(intermediateUsage: admission.intermediateUsage)
         if selection != current {
             AppLogger.shared

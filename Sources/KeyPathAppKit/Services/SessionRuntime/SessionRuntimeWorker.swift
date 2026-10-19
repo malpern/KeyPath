@@ -307,6 +307,15 @@ public final class SessionRuntimeWorker {
     /// An async dispatch guarantees background execution; the semaphore joins
     /// without servicing main-loop callbacks. Do not bound this join: the HID
     /// transport must finish joining its child before lease exclusion can end.
+    /// Backstop to admission: the runtime must never emit the key this
+    /// lease reserved. Any other key, F18 included, is ordinary output.
+    nonisolated static func emitsReservedKey(usagePage: UInt32, usage: UInt32,
+                                             record: SessionCapsMappingPolicy.Record?) -> Bool
+    {
+        guard let record else { return false }
+        return SessionCapsMappingPolicy.packed(usage) == record.intermediate && usagePage == 7
+    }
+
     nonisolated static func performHIDWork<Value: Sendable>(
         _ operation: @escaping @Sendable () throws -> Value
     ) throws -> Value {
@@ -453,7 +462,7 @@ public final class SessionRuntimeWorker {
                 if Date().timeIntervalSince(lastReport) >= 0.5 { writeReport(.running) }
                 return
             case let .success(event?):
-                if capsRecord != nil, event.usagePage == 7, event.usage == 109 {
+                if Self.emitsReservedKey(usagePage: event.usagePage, usage: event.usage, record: capsRecord) {
                     finish(.failed, reason: "managed-caps-reserved-output")
                 }
                 do {

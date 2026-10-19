@@ -229,9 +229,12 @@ struct SessionCapsSettingsSection: View {
         if enabled {
             guard let device else { return }
             // Keep the reserved key across a keyboard change; the next session
-            // start re-checks it and moves it if it is no longer free.
+            // start re-checks it and moves it if it is no longer free. Read it
+            // fresh: a session start may have moved it since Settings opened.
+            let stored = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
+                .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
             selection = SessionCapsSelection(device: device, bootSessionUUID: boot,
-                                             intermediateUsage: saved?.intermediateUsage ?? SessionCapsIntermediate.defaultUsage)
+                                             intermediateUsage: stored?.intermediateUsage ?? SessionCapsIntermediate.defaultUsage)
         } else { selection = nil }
         busy = true
         defer { busy = false }

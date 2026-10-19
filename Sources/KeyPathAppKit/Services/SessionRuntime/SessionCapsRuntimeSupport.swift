@@ -27,6 +27,15 @@ enum SessionCapsRuntimeSupport {
     static let automaticSetupDisabledKey = "keypath.session.caps.automatic.disabled"
     static let selectionKey = "keypath.session.caps.selection.v1"
     static let selectionEnvironmentKey = "KEYPATH_SESSION_CAPS_SELECTION"
+    /// What the app passes when it launched the worker without managed Caps.
+    /// The worker then never falls back to the saved selection, which the
+    /// app may have declined (for example when no intermediate was free).
+    static let noSelection = "none"
+
+    private static func selectionSource(_ environment: [String: String], _ selectionData: Data?) -> Data? {
+        guard let passed = environment[selectionEnvironmentKey] else { return selectionData }
+        return passed == noSelection ? nil : Data(passed.utf8)
+    }
 
     static func selectedDevice(environment: [String: String] = ProcessInfo.processInfo.environment,
                                selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey),
@@ -46,8 +55,7 @@ enum SessionCapsRuntimeSupport {
                 }
             }
         #endif
-        let data = environment[selectionEnvironmentKey].map { Data($0.utf8) } ?? selectionData
-        guard let data else { return nil }
+        guard let data = selectionSource(environment, selectionData) else { return nil }
         let selection = try SessionCapsSelection.decode(data, currentBoot: bootSessionUUID())
         // Boot-valid consent still belongs to one registry instance. Let the
         // existing automatic-setup policy rediscover after a disconnect instead
@@ -64,7 +72,7 @@ enum SessionCapsRuntimeSupport {
         #if DEBUG
             if environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"] != nil { return SessionCapsIntermediate.defaultUsage }
         #endif
-        let data = environment[selectionEnvironmentKey].map { Data($0.utf8) } ?? selectionData
+        let data = selectionSource(environment, selectionData)
         guard let data, let boot = try? bootSessionUUID(),
               let selection = try? SessionCapsSelection.decode(data, currentBoot: boot)
         else {

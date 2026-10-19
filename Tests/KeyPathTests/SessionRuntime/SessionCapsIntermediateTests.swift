@@ -165,4 +165,34 @@ final class SessionCapsIntermediateTests: XCTestCase {
         let message = ServiceLifecycleCoordinator.sessionFailureRecoveryMessage("managed-caps-activation-refused: capsAlreadyMapped")
         XCTAssertTrue(message.contains("Caps Lock"), message)
     }
+
+    /// The runtime may emit F18 once F19 is reserved; only the lease's own
+    /// intermediate stops the session.
+    func testWorkerBackstopFollowsTheLeasedIntermediate() throws {
+        let device = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 0x303A, productID: 0x4002,
+                                           serialNumber: "fixture-1", locationID: 123)
+        let owner = Policy.Owner(uid: 502, parentPID: 100, workerPID: 101, nonce: "n", generation: "g",
+                                 bootSessionUUID: "A7B944DF-471A-4C22-B9F3-A4EE5522F775")
+        let record = try Policy.acquire(original: [], device: device, devices: [device], owner: owner,
+                                        effectiveConfigSHA256: String(repeating: "a", count: 64),
+                                        intermediate: Policy.packed(110))
+        XCTAssertTrue(SessionRuntimeWorker.emitsReservedKey(usagePage: 7, usage: 110, record: record))
+        XCTAssertFalse(SessionRuntimeWorker.emitsReservedKey(usagePage: 7, usage: 109, record: record))
+        XCTAssertFalse(SessionRuntimeWorker.emitsReservedKey(usagePage: 12, usage: 110, record: record))
+        XCTAssertFalse(SessionRuntimeWorker.emitsReservedKey(usagePage: 7, usage: 110, record: nil))
+    }
+
+    /// A launch that declined managed Caps says so; the worker must not pick
+    /// up the saved selection behind the app's back.
+    func testExplicitNoSelectionNeverFallsBackToTheSavedOne() throws {
+        let device = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 1234, productID: 5678,
+                                           serialNumber: nil, locationID: 123)
+        let saved = try JSONEncoder().encode(SessionCapsSelection(device: device, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID(),
+                                                                  intermediateUsage: 104))
+        let none = [SessionCapsRuntimeSupport.selectionEnvironmentKey: SessionCapsRuntimeSupport.noSelection]
+        XCTAssertNil(try SessionCapsRuntimeSupport.selected(environment: none, selectionData: saved, registryEntryExists: { _ in true }))
+        XCTAssertEqual(SessionCapsRuntimeSupport.preferredIntermediate(environment: none, selectionData: saved), 109)
+        XCTAssertEqual(try SessionCapsRuntimeSupport.selected(environment: [:], selectionData: saved, registryEntryExists: { _ in true })?.device, device)
+        XCTAssertEqual(SessionCapsRuntimeSupport.preferredIntermediate(environment: [:], selectionData: saved), 104)
+    }
 }
