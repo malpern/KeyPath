@@ -340,11 +340,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             currentCapsIntermediate: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.sessionManagedCapsActive ? serviceLifecycleCoordinator.sessionCapsIntermediate : nil
             },
+            currentCapsPaused: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionCapsPaused != nil
+            },
             restartForManagedCapsChange: { [serviceLifecycleCoordinator] in
                 await serviceLifecycleCoordinator.restartKanata(reason: "Caps runtime mode changed during config reload")
-            },
-            managedCapsRestartFailureReason: { [serviceLifecycleCoordinator] generation in
-                serviceLifecycleCoordinator.preparationFailureReason(for: generation)
             }
         )
 
@@ -390,6 +390,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         serviceLifecycleCoordinator.onStateChanged = { [weak self] in
             self?.notifyStateChanged()
+        }
+        StuckKeyRecoveryService.shared.sessionReportProvider = { [weak self] in
+            self?.serviceLifecycleCoordinator.lastSessionReportForDiagnostics()
         }
         // Wire up ConfigReloadCoordinator callbacks
         configReloadCoordinator.onReloadSuccess = { [weak self] in
@@ -1089,7 +1092,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             pendingRuleConflict: pendingRuleConflict,
             pendingMappingConflict: pendingMappingConflict,
             pendingPrerequisiteResolution: pendingPrerequisiteResolution,
-            pendingDependentResolution: pendingDependentResolution
+            pendingDependentResolution: pendingDependentResolution,
+            capsPausedMessage: serviceLifecycleCoordinator.sessionCapsPaused
         )
     }
 

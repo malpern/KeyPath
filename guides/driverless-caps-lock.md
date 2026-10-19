@@ -89,10 +89,60 @@ The saved selection identifies one keyboard instance for the current boot.
 When it becomes stale, automatic setup can discover an eligible keyboard again;
 it does not trust an old device identifier after reconnect or reboot. Automatic
 selection only happens when exactly one compatible keyboard is connected. With
-several, KeyPath asks you to choose again after a restart. If you unplug the
-chosen keyboard and KeyPath restarts while only one keyboard remains, it uses
-that one; when you plug yours back in, pick it again from the menu in
-**Settings → General**.
+several, KeyPath asks you to choose again after a restart.
+
+## Unplugging the chosen keyboard
+
+macOS removes the Caps Lock mapping together with the keyboard, so nothing is
+left behind. KeyPath keeps running: all your other rules keep working, and
+Caps Lock rules pause until a keyboard is chosen again.
+
+```text
+Status
+
+  Keyboard remapping
+  Running normally. cl80 was disconnected. Caps Lock rules are paused;
+  your other rules keep working. Choose a keyboard in Settings > General
+  to turn them back on.
+
+Settings → General
+
+  ⇪  Caps Lock remapping                              [ On ]
+     cl80 is disconnected · Caps Lock rules are paused; choose a keyboard
+       Keyboard: [ Choose a keyboard ▾ ]
+```
+
+When you plug it back in, the line changes to **cl80 was reconnected · Choose
+it again to turn Caps Lock rules back on**. Pick it from the menu. KeyPath does
+not pick it again by itself, because to macOS a replugged keyboard is a new
+device (see below).
+
+If only one compatible keyboard is left after the unplug, KeyPath uses that one
+automatically, the same as at startup, and says so: **cl80 was disconnected.
+Caps Lock rules now apply to Built-in keyboard.**
+
+While Caps Lock rules are paused, Caps Lock on every keyboard works as a normal
+Caps Lock key. The same happens when you turn **Caps Lock remapping** off, or
+when more than one keyboard is connected and none is chosen yet: rules that use
+Caps Lock don't run, and every other rule does.
+
+### Proposed, not adopted: reconnecting the same keyboard automatically
+
+Today a choice belongs to one keyboard *instance*. A keyboard that is unplugged
+and plugged back in gets a new instance, so it needs choosing again. A possible
+change: in the same boot, treat a replugged keyboard as the same one when its
+vendor, product, USB location (and serial number, when it has one) all match
+the one you chose, and it is the only connected keyboard that matches.
+
+- **For:** unplugging a keyboard to move it, or a USB hub that resets, would
+  not need a trip to Settings.
+- **Against:** two identical keyboards moved between the same ports would be
+  confused, and a keyboard without a serial number is told apart only by the
+  port it is plugged into. The current rule never maps a keyboard you did not
+  pick.
+
+This is a change to what KeyPath treats as your consent, so it waits for a
+decision. Until then, choose the keyboard again after replugging it.
 
 Some keyboards can't be chosen. Virtual keyboards from other remapping tools
 (such as Karabiner-Elements) and virtual machines are left out of the list.
@@ -131,8 +181,8 @@ KeyPath never removes another app's mapping. Once it is gone, choose
 the recovery record is retained and restart can be blocked. Follow the displayed
 recovery instructions instead of overwriting another mapping.
 
-Disabling setup preserves your rules. A configuration that still uses physical
-Caps Lock needs setup enabled again, or a different trigger.
+Disabling setup preserves your rules. Rules that use physical Caps Lock stay
+paused until setup is on again; your other rules keep running.
 
 ## Other limitations
 

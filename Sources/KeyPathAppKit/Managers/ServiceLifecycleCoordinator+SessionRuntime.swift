@@ -127,7 +127,8 @@ extension ServiceLifecycleCoordinator {
                         }
                         await invalidatePermissionsForNewSessionRuntime()
                         onError?(nil)
-                        onWarning?(nil)
+                        onWarning?(sessionCapsNotice ?? sessionCapsPaused)
+                        sessionCapsNotice = nil
                         onStateChanged?()
                         guard sessionStartIsCurrent(generation), sessionApplication === application,
                               sessionNonce == nonce, !application.isTerminated else { return false }
@@ -424,6 +425,14 @@ extension ServiceLifecycleCoordinator {
                                             retiredAt: terminalReport?.timestamp)
             return false
         }
+        if terminalReport?.failure == SessionCapsRuntimeSupport.keyboardDisconnectedReason {
+            // The leased instance is gone and took its mapping with it; the
+            // restore above retired the record. Keep every other rule running.
+            sessionCapsDisconnectedName = SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock"
+            AppLogger.shared.info("[SessionRuntime] Caps keyboard disconnected; restarting with Caps Lock rules paused")
+            _ = await resumeSessionRuntime(expectedGeneration: generation, reason: "Caps Lock keyboard disconnected")
+            return false
+        }
         if terminalReport?.failure == SessionCapsRuntimeSupport.profileChangedReason {
             // A reload changed what Caps Lock needs. Start again through normal
             // admission, which chooses a free reserved key.
@@ -587,8 +596,10 @@ extension ServiceLifecycleCoordinator {
             )
         case "managed-caps-activation-refused: intermediateCollision":
             return "Another app started using KeyPath\u{2019}s Caps Lock key. Quit and reopen KeyPath so it can choose another key."
-        case "managed-caps-ownership-lost":
-            return "Caps Lock keyboard setup could not be verified. Connect only the selected keyboard, then quit and reopen KeyPath."
+        case SessionCapsRuntimeSupport.keyboardDisconnectedReason:
+            return "The keyboard chosen for Caps Lock was disconnected. Choose a keyboard again in Settings > General."
+        case SessionCapsRuntimeSupport.ownershipLostReason:
+            return "KeyPath could no longer verify its Caps Lock mapping on the chosen keyboard, so it stopped and restored it. If another app changed Caps Lock, or a second identical keyboard is connected, fix that, then quit and reopen KeyPath."
         case "tap-disabled-by-timeout":
             return "macOS stopped keyboard capture because it timed out. Quit and reopen KeyPath to recover."
         default:
@@ -697,6 +708,7 @@ extension ServiceLifecycleCoordinator {
         ]
         sessionCapsIntermediate = nil
         if !capabilitiesOnly {
+            sessionCapsPaused = nil
             // Always say explicitly; the worker must not fall back to a saved
             // selection this launch declined.
             var passed = SessionCapsRuntimeSupport.noSelection
@@ -738,8 +750,15 @@ extension ServiceLifecycleCoordinator {
     /// nil when the profile does not need managed Caps.
     private func chooseCapsSelection() async throws -> SessionCapsSelection? {
         let path = KeyPathConstants.Config.mainConfigPath
-        guard SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current()).managedCaps,
-              let current = try SessionCapsRuntimeSupport.selected() else { return nil }
+        let needed = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current())
+        if needed.capsPaused {
+            sessionCapsPaused = Self.capsPausedMessage(
+                disconnected: sessionCapsDisconnectedName,
+                setupOff: UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
+            )
+            return nil
+        }
+        guard needed.managedCaps, let current = try SessionCapsRuntimeSupport.selected() else { return nil }
         let device = current.device
         let occupied: Set<UInt32>
         do {
@@ -758,6 +777,13 @@ extension ServiceLifecycleCoordinator {
             }
             return nil
         }
+        if let lost = sessionCapsDisconnectedName {
+            // Automatic setup found exactly one other keyboard (see
+            // guides/driverless-caps-lock.md); say where Caps rules went.
+            sessionCapsNotice = "\(lost) was disconnected. Caps Lock rules now apply to "
+                + (SessionCapsSelectionStore.savedName.map { "\($0)." } ?? "your other keyboard.")
+            sessionCapsDisconnectedName = nil
+        }
         let selection = current.with(intermediateUsage: admission.intermediateUsage)
         if selection != current {
             AppLogger.shared
@@ -765,6 +791,21 @@ extension ServiceLifecycleCoordinator {
             try SessionCapsSelectionStore.save(selection)
         }
         return selection
+    }
+
+    /// Why a running session leaves Caps Lock rules inactive. nil when the
+    /// user turned Caps Lock setup off: Settings already says so.
+    static func capsPausedMessage(disconnected: String?, setupOff: Bool) -> String? {
+        guard !setupOff else { return nil }
+        let rest = "Caps Lock rules are paused; your other rules keep working. Choose a keyboard in Settings > General to turn them back on."
+        guard let disconnected else { return rest }
+        return "\(disconnected) was disconnected. " + rest
+    }
+
+    /// The worker's last report, current or not, for incident diagnostics.
+    func lastSessionReportForDiagnostics() -> (report: SessionRuntimeReport, current: Bool)? {
+        guard let report = sessionReportURL.flatMap(Self.readSessionReport) else { return nil }
+        return (report, currentSessionReport() == report)
     }
 
     private static func readSessionReport(_ url: URL) -> SessionRuntimeReport? {

@@ -36,6 +36,10 @@ final class StuckKeyRecoveryService {
     /// Called after diagnostic capture so app/UI code can surface user-initiated repair.
     var onIncidentDetected: ((StuckKeyIncident) -> Void)?
 
+    /// The driverless worker's last report and whether it is still current.
+    /// Wired by RuntimeCoordinator; the legacy daemon logs say nothing about it.
+    var sessionReportProvider: (@MainActor () -> (report: SessionRuntimeReport, current: Bool)?)?
+
     /// Evaluate an AutorepeatMismatch correlation and surface an incident if the key is truly stuck.
     ///
     /// A stuck key is distinguished from normal autorepeat by checking that kanata has been
@@ -105,7 +109,9 @@ final class StuckKeyRecoveryService {
         let snapshot = DiagnosticSnapshotData(
             correlation: correlation,
             tracker: tracker,
-            lastIncidentDescription: lastIncidentDescription
+            lastIncidentDescription: lastIncidentDescription,
+            evidence: KanataRuntimeBackend.selected == .session
+                ? .sessionWorker(sessionReportProvider?()) : .daemonLogs
         )
 
         await Task.detached(priority: .utility) {
@@ -153,23 +159,7 @@ final class StuckKeyRecoveryService {
         lines.append("session_id: \(snapshot.tracker.sessionID.map(String.init) ?? "none")")
         lines.append("")
 
-        lines.append("=== Kanata Stderr (last 50 lines) ===")
-        lines.append(contentsOf: logTail(path: KeyPathConstants.Logs.kanataStderr, maxLines: 50))
-        lines.append("")
-
-        // The diagnostic gold lives in stdout, not stderr: key-input traces, VHID
-        // connection events ("connected", "driver connected:", "output backend
-        // unavailable during write", "dropping KEY_X Release"). The 2026-06-10 MAL-57
-        // incidents were diagnosed entirely from stdout. The high-volume
-        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false"
-        // lines are kept because they indicate driver disconnects.
-        lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
-        lines.append(contentsOf: logTail(
-            path: KeyPathConstants.Logs.kanataStdout,
-            maxLines: 200,
-            excludingLinesContaining: "virtual_hid_keyboard_ready true"
-        ))
-        lines.append("")
+        lines.append(contentsOf: runtimeEvidenceLines(snapshot.evidence))
 
         // CPU starvation is the leading trigger for the VHID disconnects
         // behind stuck keys (MAL-57); record load so incidents can confirm or
@@ -189,7 +179,67 @@ final class StuckKeyRecoveryService {
         } catch {
             AppLogger.shared.error("[StuckKeyRecovery] Failed to write diagnostic snapshot: \(error)")
         }
+        pruneSnapshots(in: diagnosticsDir)
+    }
 
+    /// What the snapshot attaches about the remapping runtime.
+    enum RuntimeEvidence: Sendable {
+        /// The privileged daemon's stderr/stdout logs (legacy backend).
+        case daemonLogs
+        /// Driverless: the session worker's last report, if it ever wrote one.
+        /// The daemon logs belong to a pre-driverless install and are stale.
+        case sessionWorker((report: SessionRuntimeReport, current: Bool)?)
+    }
+
+    nonisolated static func runtimeEvidenceLines(
+        _ evidence: RuntimeEvidence,
+        stderrPath: String = KeyPathConstants.Logs.kanataStderr,
+        stdoutPath: String = KeyPathConstants.Logs.kanataStdout
+    ) -> [String] {
+        var lines: [String] = []
+        if case let .sessionWorker(worker) = evidence {
+            lines.append("=== Session Worker ===")
+            guard let worker else {
+                lines.append("(no worker report: the session runtime was never started by this app)")
+                lines.append("")
+                return lines
+            }
+            let report = worker.report
+            lines.append("report_current: \(worker.current)")
+            lines.append("state: \(report.state.rawValue)")
+            lines.append("worker_pid: \(report.pid)")
+            lines.append("report_timestamp: \(ISO8601DateFormatter().string(from: report.timestamp))")
+            lines.append("failure: \(report.failure ?? "none")")
+            lines.append("retirement_reason: \(report.retirementReason ?? "none")")
+            lines.append("tap_active: \(report.tapActive)")
+            lines.append("accessibility: \(report.accessibility) input_access: \(report.effectiveInputAccess)")
+            lines.append("input_count: \(report.inputCount) output_count: \(report.outputCount)")
+            lines.append("held_output_usages: \(report.heldOutputUsages.isEmpty ? "none" : report.heldOutputUsages.map(String.init).joined(separator: ","))")
+            lines.append("managed_caps: \(report.managedCapsGeneration == nil ? "no" : "yes")")
+            lines.append("")
+            return lines
+        }
+        lines.append("=== Kanata Stderr (last 50 lines) ===")
+        lines.append(contentsOf: logTail(path: stderrPath, maxLines: 50))
+        lines.append("")
+
+        // The diagnostic gold lives in stdout, not stderr: key-input traces, VHID
+        // connection events ("connected", "driver connected:", "output backend
+        // unavailable during write", "dropping KEY_X Release"). The 2026-06-10 MAL-57
+        // incidents were diagnosed entirely from stdout. The high-volume
+        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false"
+        // lines are kept because they indicate driver disconnects.
+        lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
+        lines.append(contentsOf: logTail(
+            path: stdoutPath,
+            maxLines: 200,
+            excludingLinesContaining: "virtual_hid_keyboard_ready true"
+        ))
+        lines.append("")
+        return lines
+    }
+
+    private nonisolated static func pruneSnapshots(in diagnosticsDir: URL) {
         // Keep at most 20 incident files
         if let files = try? FileManager.default.contentsOfDirectory(
             at: diagnosticsDir,
@@ -306,6 +356,7 @@ private struct DiagnosticSnapshotData: Sendable {
     let correlation: InvestigationSystemEventCorrelation
     let tracker: InvestigationReloadSnapshot
     let lastIncidentDescription: String
+    let evidence: StuckKeyRecoveryService.RuntimeEvidence
 }
 
 extension Notification.Name {

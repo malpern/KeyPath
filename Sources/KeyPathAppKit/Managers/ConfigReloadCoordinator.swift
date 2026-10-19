@@ -26,6 +26,8 @@ final class ConfigReloadCoordinator {
     private let runtimeIntentGeneration: @MainActor @Sendable () -> UInt64
     private let currentManagedCaps: @MainActor @Sendable () -> Bool
     private let currentCapsIntermediate: @MainActor @Sendable () -> UInt32?
+    /// The running session has Caps Lock rules paused (no usable keyboard).
+    private let currentCapsPaused: @MainActor @Sendable () -> Bool
     private let restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)?
     private let managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)?
     private let sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))?
@@ -59,6 +61,7 @@ final class ConfigReloadCoordinator {
         runtimeIntentGeneration: @escaping @MainActor @Sendable () -> UInt64 = { 0 },
         currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
         currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
+        currentCapsPaused: @escaping @MainActor @Sendable () -> Bool = { false },
         restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
         managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)? = nil,
         sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
@@ -78,6 +81,7 @@ final class ConfigReloadCoordinator {
         self.runtimeIntentGeneration = runtimeIntentGeneration
         self.currentManagedCaps = currentManagedCaps
         self.currentCapsIntermediate = currentCapsIntermediate
+        self.currentCapsPaused = currentCapsPaused
         self.restartForManagedCapsChange = restartForManagedCapsChange
         self.managedCapsRestartFailureReason = managedCapsRestartFailureReason
         self.sessionValidationOverride = sessionValidationOverride
@@ -421,7 +425,12 @@ final class ConfigReloadCoordinator {
         let intermediateMoved = validation.managedCaps
             && admitted.map { admitted in currentCapsIntermediate().map { $0 != admitted } ?? false } == true
 
-        if validation.managedCaps != currentManagedCaps() || intermediateMoved {
+        // A session already running with Caps Lock paused found no keyboard at
+        // its last start. Restarting it for every save would only interrupt
+        // the other rules; choosing a keyboard restarts it.
+        let staysPaused = validation.managedCaps && !currentManagedCaps() && currentCapsPaused()
+
+        if validation.managedCaps != currentManagedCaps() || intermediateMoved, !staysPaused {
             guard runtimeWantsRunning(), expectedIntent == runtimeIntentGeneration() else {
                 return .networkError(Self.runtimeIntentChangedMessage)
             }
@@ -431,7 +440,10 @@ final class ConfigReloadCoordinator {
             let restartGeneration = runtimeIntentGeneration() &+ 1
             let restarted = await restartForManagedCapsChange()
             guard runtimeWantsRunning() else { return .networkError(Self.runtimeIntentChangedMessage) }
-            guard restarted, currentManagedCaps() == validation.managedCaps else {
+            // Restarting can also land paused: automatic setup found no keyboard.
+            guard restarted, currentManagedCaps() == validation.managedCaps
+                || validation.managedCaps && currentCapsPaused()
+            else {
                 return .failure(error: managedCapsRestartFailureReason?(restartGeneration)
                     ?? "The session did not restart in the required Caps runtime mode", response: "")
             }
@@ -456,7 +468,7 @@ final class ConfigReloadCoordinator {
         guard expectedIntent == runtimeIntentGeneration() else {
             return .networkError(Self.runtimeIntentChangedMessage)
         }
-        guard currentManagedCaps() == validation.managedCaps else {
+        guard currentManagedCaps() == validation.managedCaps || staysPaused && currentCapsPaused() else {
             return .failure(error: "The Caps runtime mode changed during reload; retry after the session settles", response: "")
         }
         AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")

@@ -35,6 +35,8 @@ class KanataViewModel {
     var lastConfigUpdate: Date = .init()
     var activeRuntimePathTitle: String?
     var activeRuntimePathDetail: String?
+    /// Why the running session leaves Caps Lock rules inactive, if it does.
+    var capsPausedMessage: String?
 
     // Validation-specific UI state
     var showingValidationAlert = false
@@ -133,6 +135,7 @@ class KanataViewModel {
         lastConfigUpdate = state.lastConfigUpdate
         activeRuntimePathTitle = state.activeRuntimePathTitle
         activeRuntimePathDetail = state.activeRuntimePathDetail
+        capsPausedMessage = state.capsPausedMessage
         saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
 

@@ -531,9 +531,11 @@ public final class SessionRuntimeWorker {
         guard let directory = capsDirectory else { finish(.failed, reason: "managed-caps-directory-unavailable") }
         let configPath = capsConfigPath, admittedDigest = capsAdmittedDigest
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let valid: Bool
-            do { try SessionCapsRuntimeSupport.verifyActive(directory: directory, owner: record.owner); valid = true }
-            catch { valid = false }
+            let lost = SessionCapsRuntimeSupport.leaseCheckFailure(
+                registryEntryID: record.device.registryEntryID,
+                verify: { try SessionCapsRuntimeSupport.verifyActive(directory: directory, owner: record.owner) },
+                registryEntryExists: SessionCapsHIDUtilTransport.registryEntryExists
+            )
             // Any reload path (the app, the CLI, a raw TCP client) can load a
             // profile that now uses the leased key. Re-admit a changed profile
             // under that key; the app restarts the session to choose another.
@@ -548,7 +550,7 @@ public final class SessionRuntimeWorker {
                 MainActor.assumeIsolated {
                     guard let self, !self.finished, self.capsRecord?.owner == record.owner else { return }
                     self.capsCheckInFlight = false
-                    if !valid { self.finish(.failed, reason: "managed-caps-ownership-lost") }
+                    if let lost { self.finish(.failed, reason: lost) }
                     if !fits { self.finish(.failed, reason: SessionCapsRuntimeSupport.profileChangedReason) }
                     self.capsAdmittedDigest = digest
                 }

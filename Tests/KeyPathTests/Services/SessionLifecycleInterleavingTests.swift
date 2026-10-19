@@ -81,16 +81,22 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         return result ?? fallback
     }
 
-    func testCapsPreparationReasonBelongsOnlyToFailedGeneration() async {
-        coordinator.testSessionCapsPreparation = { throw CancellationError() }
-        let restarted = await coordinator.restartKanata()
-        XCTAssertFalse(restarted)
-        let failedGeneration = coordinator.sessionIntentGeneration
-        XCTAssertTrue(coordinator.preparationFailureReason(for: failedGeneration)?.contains("choose one in Settings > General") == true)
-        XCTAssertNil(coordinator.preparationFailureReason(for: failedGeneration &+ 1))
-
-        coordinator.setTerminationPreparationActive(true)
-        XCTAssertNil(coordinator.preparationFailureReason(for: failedGeneration))
+    /// Regression (mini, 2026-10-19): with the chosen keyboard unplugged and
+    /// several others connected, automatic Caps setup cannot choose, and that
+    /// used to refuse the whole start. The session now starts with Caps Lock
+    /// rules paused; every other rule runs.
+    func testFailedCapsPreparationStillStartsTheSession() async {
+        struct NoKeyboard: Error {}
+        var launches: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { reason in
+            launches.append(reason)
+            return true
+        }
+        defer { ServiceLifecycleCoordinator.testSessionStart = { _ in false } }
+        coordinator.testSessionCapsPreparation = { throw NoKeyboard() }
+        let started = await coordinator.startKanata()
+        XCTAssertTrue(started)
+        XCTAssertEqual(launches.count, 1)
     }
 
     func testCancelledCapsPreparationDoesNotPublishRefusal() async {
@@ -106,7 +112,8 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         pause.release()
         let restarted = await completion(of: restart, fallback: true)
         XCTAssertFalse(restarted)
-        XCTAssertNil(coordinator.preparationFailureReason(for: generation))
+        XCTAssertNotEqual(coordinator.sessionIntentGeneration, generation, "The cancelled restart is retired")
+        XCTAssertFalse(coordinator.sessionWantsRunning)
     }
 
     func testRepeatedHealthyStartTransfersSupervisionToLatestIntent() async {
@@ -205,21 +212,20 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         XCTAssertEqual(starts, 1)
     }
 
-    func testCapsSelectionRefusalPreservesRunningWorkerAndSupervision() async {
-        var live = false
+    /// A keyboard that cannot be chosen automatically no longer vetoes the
+    /// restart (which used to leave a just-saved profile unapplied): the
+    /// session restarts with Caps Lock rules paused, and nothing is an error.
+    func testCapsSelectionRefusalRestartsWithCapsPaused() async {
         var starts = 0
         var stops = 0
-        var supervised: [UInt64] = []
         var errors: [String] = []
         ServiceLifecycleCoordinator.testSessionStart = { _ in
             starts += 1
-            live = true
             return true
         }
-        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; live = false; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
         let started = await coordinator.startKanata()
         XCTAssertTrue(started)
-        coordinator.testSessionSupervisionStarted = { supervised.append($0) }
         coordinator.onError = { if let error = $0 { errors.append(error) } }
         coordinator.testSessionCapsPreparation = {
             throw NSError(domain: "CapsSelectionTest", code: 1)
@@ -227,14 +233,10 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
 
         let restarted = await coordinator.restartKanata(reason: "Caps mode changed")
 
-        XCTAssertFalse(restarted)
-        XCTAssertTrue(live, "Refusing Caps setup must preserve the previously working runtime")
-        XCTAssertEqual(starts, 1)
-        XCTAssertEqual(stops, 0, "Keyboard eligibility must be checked before stopping")
-        XCTAssertEqual(supervised, [coordinator.sessionIntentGeneration],
-                       "The retained worker must follow the new lifecycle intent")
-        XCTAssertEqual(errors.count, 1)
-        XCTAssertTrue(errors.first?.contains("Caps Lock could not be set up") == true)
+        XCTAssertTrue(restarted)
+        XCTAssertEqual(starts, 2)
+        XCTAssertEqual(stops, 1)
+        XCTAssertEqual(errors, [])
     }
 
     func testCapsPreparationRunsOnceBeforeRestartStopAndLaunch() async {

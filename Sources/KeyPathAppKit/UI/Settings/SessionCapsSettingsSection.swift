@@ -1,8 +1,31 @@
 import AppKit
+import Combine
 import Foundation
 import KeyPathCore
 import KeyPathRulesCore
 import SwiftUI
+
+/// Keyboard picks are never dropped. One made while Settings is busy waits
+/// for that work, then applies; a later pick replaces an earlier waiting one.
+struct SessionCapsChoiceQueue<Device: Equatable> {
+    private(set) var pending: Device?
+
+    /// The device to apply now, or nil when it was queued.
+    mutating func submit(_ device: Device, busy: Bool) -> Device? {
+        if busy {
+            pending = device
+            return nil
+        }
+        pending = nil
+        return device
+    }
+
+    /// The waiting pick, once.
+    mutating func takeAfterRefresh() -> Device? {
+        defer { pending = nil }
+        return pending
+    }
+}
 
 struct SessionCapsSettingsSection: View {
     @Environment(KanataViewModel.self) private var runtime
@@ -18,6 +41,10 @@ struct SessionCapsSettingsSection: View {
     @State private var automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
     @State private var busy = false
     @State private var message: String?
+    /// The saved keyboard when it is no longer connected as that instance.
+    @State private var disconnected: String?
+    /// A pick made while the list was refreshing; applied after, never dropped.
+    @State private var choices = SessionCapsChoiceQueue<SessionCapsMappingPolicy.DeviceIdentity>()
 
     var body: some View {
         VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
@@ -48,7 +75,7 @@ struct SessionCapsSettingsSection: View {
             }
             if !automaticDisabled, showsPicker {
                 Picker("Keyboard", selection: Binding(
-                    get: { device?.registryEntryID },
+                    get: { choices.pending?.registryEntryID ?? device?.registryEntryID },
                     set: { id in
                         guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
                         Task { await choose(chosen.device) }
@@ -90,6 +117,16 @@ struct SessionCapsSettingsSection: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await reviewKeyboard() }
         }
+        // ...and while it stays open: an unplugged keyboard must not keep
+        // reading "On". hidutil can trail the HID notification slightly.
+        .onReceive(NotificationCenter.default.publisher(for: .hidKeyboardConnected).merge(
+            with: NotificationCenter.default.publisher(for: .hidKeyboardDisconnected)
+        )) { _ in
+            Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                await reviewKeyboard()
+            }
+        }
     }
 
     /// With a withheld keyboard present, even one eligible keyboard is an
@@ -120,6 +157,9 @@ struct SessionCapsSettingsSection: View {
             return rulesUseCaps ? "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run" : "Off"
         }
         guard let device else {
+            if let disconnected {
+                return Self.disconnectedStatus(name: disconnected, listed: keyboards.map(\.name), showsPicker: showsPicker)
+            }
             if showsPicker { return "Choose which keyboard Caps Lock rules apply to" }
             return withheld > 0 ? "No connected keyboard can be used" : "Connect a compatible keyboard"
         }
@@ -130,6 +170,14 @@ struct SessionCapsSettingsSection: View {
 
     private var statusIsWarning: Bool {
         (automaticDisabled && rulesUseCaps) || (!automaticDisabled && (device == nil || conflict != nil) && !busy)
+    }
+
+    /// The saved keyboard is gone as that instance. A replugged keyboard is a
+    /// new instance, so it needs choosing again (see guides/driverless-caps-lock.md).
+    static func disconnectedStatus(name: String, listed: [String], showsPicker: Bool) -> String {
+        if listed.contains(name) { return "\(name) was reconnected \u{00B7} Choose it again to turn Caps Lock rules back on" }
+        return "\(name) is disconnected \u{00B7} Caps Lock rules are paused"
+            + (showsPicker ? "; choose a keyboard" : "")
     }
 
     static func rulesUseCapsLock(collections: [RuleCollection], customRules: [CustomRule]) -> Bool {
@@ -156,10 +204,25 @@ struct SessionCapsSettingsSection: View {
         }
         await applySelection(enabled: enabled)
         automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
+        await applyQueuedChoice()
     }
 
     @MainActor
     private func reviewKeyboard(keepMessage: Bool = false) async {
+        await refreshKeyboards(keepMessage: keepMessage)
+        await applyQueuedChoice()
+    }
+
+    /// A keyboard picked while Settings was busy (the click that opens the
+    /// menu can also activate the app and start a refresh) is applied now.
+    @MainActor
+    private func applyQueuedChoice() async {
+        guard !busy, let next = choices.takeAfterRefresh() else { return }
+        await choose(next)
+    }
+
+    @MainActor
+    private func refreshKeyboards(keepMessage: Bool) async {
         guard !busy else { return }
         busy = true
         defer { busy = false }
@@ -174,12 +237,15 @@ struct SessionCapsSettingsSection: View {
                 .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
             device = Self.effectiveDevice(saved: stored?.device, connected: keyboards.map(\.device), withheld: withheld)
             saved = stored?.device == device ? stored : nil
+            disconnected = stored != nil && saved == nil ? SessionCapsSelectionStore.savedName ?? "Your keyboard" : nil
+            if saved != nil { SessionCapsSelectionStore.saveName(keyboards.first { $0.device == device }?.name) }
             conflict = await Self.conflict(on: device, intermediate: saved?.intermediateUsage)
             if !keepMessage { message = nil }
         } catch {
             keyboards = []
             withheld = 0
             device = nil
+            disconnected = nil
             conflict = nil
             message = "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run."
         }
@@ -209,8 +275,10 @@ struct SessionCapsSettingsSection: View {
     }
 
     @MainActor
-    private func choose(_ chosen: SessionCapsMappingPolicy.DeviceIdentity) async {
-        guard !busy, chosen != device || saved?.device != chosen else { return }
+    private func choose(_ picked: SessionCapsMappingPolicy.DeviceIdentity) async {
+        // Busy means a refresh or another change is running; queue the pick.
+        guard let chosen = choices.submit(picked, busy: busy),
+              chosen != device || saved?.device != chosen else { return }
         let previous = (device, saved)
         device = chosen
         message = nil
@@ -218,8 +286,9 @@ struct SessionCapsSettingsSection: View {
         if message != nil {
             (device, saved) = previous
             message = "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept."
-            await reviewKeyboard(keepMessage: true)
+            await refreshKeyboards(keepMessage: true)
         }
+        await applyQueuedChoice()
     }
 
     @MainActor
@@ -244,6 +313,8 @@ struct SessionCapsSettingsSection: View {
         }
         message = nil
         saved = selection
+        disconnected = nil
+        SessionCapsSelectionStore.saveName(keyboards.first { $0.device == selection?.device }?.name)
         conflict = await Self.conflict(on: selection?.device, intermediate: selection?.intermediateUsage)
     }
 }

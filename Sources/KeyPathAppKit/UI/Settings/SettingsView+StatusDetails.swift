@@ -156,6 +156,12 @@ extension StatusSettingsTabView {
         return details
     }
 
+    /// A stopped runtime says why when it knows, instead of only how to start it.
+    static func stoppedMessage(lastError: String?) -> String {
+        guard let lastError, !lastError.isEmpty else { return "Runtime is stopped. Use the switch above to turn it on." }
+        return "Runtime is stopped. \(lastError)"
+    }
+
     var serviceStatusDetail: StatusDetail {
         guard let context = systemContext else {
             return StatusDetail(
@@ -182,6 +188,14 @@ extension StatusSettingsTabView {
                 } else {
                     "Running normally."
                 }
+            if isDriverless, let paused = kanataManager.capsPausedMessage {
+                return StatusDetail(
+                    title: "Keyboard remapping",
+                    message: "\(runtimeMessage) \(paused)",
+                    icon: "capslock",
+                    level: .warning
+                )
+            }
             return StatusDetail(
                 title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
                 message: "\(runtimeMessage) Powered by Kanata.",
@@ -201,7 +215,7 @@ extension StatusSettingsTabView {
 
         return StatusDetail(
             title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
-            message: "Runtime is stopped. Use the switch above to turn it on.",
+            message: Self.stoppedMessage(lastError: kanataManager.lastError),
             icon: "pause.circle",
             level: .warning,
             actions: [
