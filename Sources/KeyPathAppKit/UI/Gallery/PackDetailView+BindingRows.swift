@@ -193,11 +193,18 @@ extension PackDetailView {
                     isInstalled: isInstalled
                 )
             }
+        } else if pack.id == PackRegistry.vimNavigation.id, let collection = liveAssociatedCollection,
+                  !collection.mappings.isEmpty
+        {
+            // Vim draws its layer on the keyboard instead of the generic table.
+            embeddedEditor {
+                VimLayerReferenceView(mappings: collection.mappings)
+            }
         } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
                   !collection.mappings.isEmpty
         {
             // Collection-backed pack with no explicit bindings and a plain
-            // `.table` config (Vim Navigation, Mission Control, Numpad).
+            // `.table` config (Mission Control, Numpad).
             // Uses the same MappingTableContent view Rules uses so the
             // table styling matches exactly.
             embeddedEditor {

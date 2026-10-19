@@ -39,7 +39,9 @@ Release Space and you're back to normal typing. Space still types a space when y
 
 Vim Navigation is the foundation that every other layer pack depends on. It defines the Leader key (Space by default) that activates all layers.
 
-![Screenshot — Vim Navigation pack detail showing the full mapping table](pack-detail-vim-navigation.png)
+The pack's page draws the layer on your keyboard: each key you can use while holding Space is labelled with what it does and colored by kind (move, edit, find, clipboard). Point at a key to see the Mac shortcut it sends, and use **Space + ⇧** or **Space + ⌃** above the keyboard to see what those keys do with Shift or Control. The same commands are listed underneath, grouped the same way.
+
+![Screenshot — Vim Navigation pack detail showing the layer on the keyboard](pack-detail-vim-navigation.png)
 
 ---
 

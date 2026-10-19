@@ -603,8 +603,8 @@ struct ExpandableCollectionRow: View {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 16)
                     } else if collection?.id == RuleCollectionIdentifier.vimNavigation {
-                        // Vim uses animated category cards
-                        VimCommandCardsView(mappings: collection?.mappings ?? [])
+                        // Vim draws its layer on the keyboard, same view as the Gallery detail
+                        VimLayerReferenceView(mappings: collection?.mappings ?? [])
                             .padding(.top, 8)
                             .padding(.bottom, 12)
                             .padding(.horizontal, 12)
