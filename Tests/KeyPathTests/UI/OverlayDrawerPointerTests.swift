@@ -15,14 +15,16 @@ final class OverlayDrawerPointerTests: XCTestCase {
 
     private func checkPointerClick(inspectorVisible: Bool) async throws {
         _ = NSApplication.shared
-        var clicks = 0
+        // Exactly one click: a second fulfillment fails the test.
+        let clickedOnce = expectation(description: "drawer key clicked once")
+        clickedOnce.assertForOverFulfill = true
         let key = PhysicalKey(keyCode: 0xFFFF, label: "🔒", x: 0, y: 0, width: 1, height: 1)
         let view = OverlayKeyboardView(
             layout: PhysicalLayout(id: "drawer-test", name: "Drawer", keys: [key]),
             keymap: .qwertyUS, includeKeymapPunctuation: false, pressedKeyCodes: [],
             onKeyClick: { clicked, _ in
                 XCTAssertEqual(clicked.keyCode, 0xFFFF)
-                clicks += 1
+                clickedOnce.fulfill()
             },
             isInspectorVisible: inspectorVisible
         )
@@ -50,8 +52,8 @@ final class OverlayDrawerPointerTests: XCTestCase {
             ))
             window.sendEvent(event)
         }
-        // Tap disambiguation is asynchronous; give the real recognizer its click interval.
-        try await Task.sleep(for: .seconds(NSEvent.doubleClickInterval + 0.1))
-        XCTAssertEqual(clicks, 1, "One pointer click must toggle the drawer exactly once (open=\(inspectorVisible))")
+        // Tap disambiguation is asynchronous: the recognizer waits out the
+        // double-click interval before reporting the click.
+        await fulfillment(of: [clickedOnce], timeout: NSEvent.doubleClickInterval + 5)
     }
 }
