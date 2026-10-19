@@ -473,7 +473,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func autoHideOnceForSettings() {
         guard !hasAutoHiddenForCurrentSettingsSession else { return }
         hasAutoHiddenForCurrentSettingsSession = true
-        wasVisibleBeforeAutoHide = isVisible
+        wasVisibleBeforeAutoHide = isVisibleByChoice
         if isVisible {
             isVisible = false
         }
@@ -496,6 +496,13 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if shouldRestore, !isVisible {
             isVisible = true
         }
+    }
+
+    /// Visible because the user opened it, not only because a layer is held.
+    /// A held-layer reveal is temporary: restoring it later would leave the
+    /// overlay open (and persisted open) after the layer is long released.
+    var isVisibleByChoice: Bool {
+        isVisible && layerReveal.state != .revealed
     }
 
     // MARK: - Window Management
