@@ -81,17 +81,26 @@ public struct WizardInputMonitoringPage: View {
                 .frame(maxWidth: 560)
 
             if hasInputMonitoringIssues {
-                Button("Open System Settings") {
-                    openInputMonitoringSettings()
+                Button(keyPathActionTitle) {
+                    handleKeyPathInputMonitoringAction()
                 }
                 .buttonStyle(WizardDesign.Component.PrimaryButton())
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("wizard_input_monitoring_fix_keypath")
 
-                Text("Turn on KeyPath under Input Monitoring.")
+                Text(sessionInputNeedsVerification
+                    ? "KeyPath checks access by starting remapping."
+                    : "Turn on KeyPath under Input Monitoring.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+
+                // The automatic prompt can fail to register on macOS 26/27, leaving
+                // no KeyPath row to turn on (#931). Escalate to manual steps.
+                if keyPathGuidance == .manualFallback {
+                    InputMonitoringManualFallbackCard()
+                        .frame(maxWidth: 560)
+                }
             } else {
                 Label("Input Monitoring enabled", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
@@ -345,8 +354,17 @@ public struct WizardInputMonitoringPage: View {
         }
     }
 
+    /// Ask macOS for access (which adds KeyPath's row to the list), then open the
+    /// pane. Recording the attempt lets `keyPathGuidance` escalate to the manual
+    /// card if the grant never registers (#931).
     private func openInputMonitoringSettings() {
-        openInputMonitoringPreferencesPanel()
+        if keyPathRequestAttemptedAt == nil { keyPathRequestAttemptedAt = Date() }
+        Task { @MainActor in
+            if let service = WizardDependencies.permissionRequestService {
+                _ = await service.requestInputMonitoringPermission(ignoreCooldown: true)
+            }
+            openInputMonitoringPreferencesPanel()
+        }
     }
 
     private func handleKeyPathInputMonitoringAction() {

@@ -98,6 +98,12 @@ public struct WizardAccessibilityPage: View {
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                         }
+
+                        // No KeyPath row after the request: offer the manual add (#933).
+                        if keyPathAccessibilityGuidance == .manualFallback {
+                            AccessibilityManualFallbackCard()
+                                .frame(maxWidth: 560)
+                        }
                     } else {
                         Label(AccessibilityPermissionPresentation.current.enabledTitle, systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
@@ -207,7 +213,15 @@ public struct WizardAccessibilityPage: View {
     private func openAccessibilityPermissionGrant() {
         AppLogger.shared.log("🔐 [WizardAccessibilityPage] Accessibility permission flow starting")
 
-        openAccessibilitySettings()
+        // Ask macOS first (this adds KeyPath's row), and record the attempt so the
+        // manual card appears if the grant never registers.
+        if keyPathRequestAttemptedAt == nil { keyPathRequestAttemptedAt = Date() }
+        Task { @MainActor in
+            if let service = WizardDependencies.permissionRequestService {
+                _ = await service.requestAccessibilityPermission(ignoreCooldown: true)
+            }
+            openAccessibilitySettings()
+        }
     }
 
     private func openAccessibilitySettings() {
