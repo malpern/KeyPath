@@ -50,7 +50,7 @@ The pack's page draws the layer on your keyboard: each key you can use while hol
 ## How It Works
 
 1. **Tap Space** → types a normal space character
-2. **Hold Space** → activates the navigation layer (the overlay shows your mappings)
+2. **Hold Space** → activates the navigation layer (to see your mappings while you hold it, choose **Overlay** under **While a Layer Is Active** in Settings)
 3. **While holding Space, press a key** → fires the mapped action (arrow, copy, undo, etc.)
 4. **Release Space** → back to normal typing instantly
 

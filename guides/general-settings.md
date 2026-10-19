@@ -8,7 +8,7 @@ title: General settings
 Open KeyPath → Settings → General.
 
 - **Startup:** enable **Launch at login** to make your mappings available after you sign in. If macOS asks for approval, use **Open Login Items**. Turning it off does not stop your current session.
-- **While a Layer Is Active:** choose what appears while a layer is active: the keyboard overlay, the compact list, both, or nothing. Then choose Hold or Tap.
+- **While a Layer Is Active:** choose what appears while a layer is active: the keyboard overlay, the compact list, both, or nothing (the default). Then choose Hold or Tap.
   - With **Hold**, the overlay appears when you hold the layer key and pause for a moment. Quick moves like Space then J never bring it up, so it only shows when you're looking for a key. It hides as soon as you let go.
   - With **Tap**, it appears as soon as you tap the layer on and hides when you tap it off.
   - An overlay you opened yourself (⌥⌘K) stays open either way.

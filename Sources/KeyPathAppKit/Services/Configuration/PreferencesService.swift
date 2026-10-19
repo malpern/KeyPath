@@ -517,7 +517,9 @@ final class PreferencesService: @unchecked Sendable {
         static let overlayOpacity = 1.0
         static let overlayFadesWhenIdle = true
         static let accessibilityTestMode = false
-        static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
+        // Nothing pops up on a layer hold unless the user picks it: holding Space to
+        // type must not flash a window for people who never asked for one.
+        static let contextHUDDisplayMode = ContextHUDDisplayMode.none
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200

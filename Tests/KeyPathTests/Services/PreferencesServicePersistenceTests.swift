@@ -142,7 +142,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             XCTAssertEqual(prefs.communicationProtocol, .tcp)
             XCTAssertEqual(prefs.keyLabelStyle, .symbols)
             XCTAssertEqual(prefs.unmappedLayerKeyStyle, .baseLayer)
-            XCTAssertEqual(prefs.contextHUDDisplayMode, .overlayOnly)
+            XCTAssertEqual(prefs.contextHUDDisplayMode, .none)
             XCTAssertEqual(prefs.contextHUDTriggerMode, .holdToShow)
             XCTAssertEqual(prefs.contextHUDHoldDelayPreset, .long)
             XCTAssertEqual(prefs.kindaVimLeaderHUDMode, .off)
