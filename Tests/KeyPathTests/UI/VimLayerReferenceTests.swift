@@ -2,6 +2,7 @@
 import KeyPathRulesCore
 import XCTest
 
+@MainActor
 final class VimLayerReferenceTests: XCTestCase {
     func testCuratedKeysUseReadableTitlesInsteadOfCatalogDescriptions() {
         let entry = VimLayerReference.entry(for: KeyMapping(
