@@ -53,14 +53,10 @@ public struct RulesFacade: Sendable {
         guard let collectionLoader else { return [] }
         let collections = await collectionLoader()
         // Custom rules first, exactly as generateConfiguration orders them.
-        let after = RuleCollectionDeduplicator.detectConflicts(
-            in: rules.asRuleCollections() + collections
-        )
+        let after = AdmissionEngine.mappingConflicts(in: rules.asRuleCollections() + collections)
         guard !after.isEmpty else { return [] }
         let before = Set(
-            RuleCollectionDeduplicator
-                .detectConflicts(in: baselineRules.asRuleCollections() + collections)
-                .map(\.description)
+            AdmissionEngine.mappingConflicts(in: baselineRules.asRuleCollections() + collections).map(\.description)
         )
         return after.filter { !before.contains($0.description) }
     }

@@ -25,12 +25,13 @@ enum AdmissionVerdictPresenter {
     static func present(_ verdict: AdmissionVerdict, name: (AdmissionSubject) -> String) -> AdmissionPresentation {
         let subject = displayName(verdict.subject, name)
         switch verdict.reason {
-        case let .conflict(key, layer, parties):
+        case let .conflict(key, layer, parties, details):
             let names = parties.map { displayName($0, name) }
             let who = names.count == 2 ? "\(names[0]) and \(names[1])" : names.joined(separator: ", ")
+            let what = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
             return AdmissionPresentation(
                 title: "Key conflict on \(key)",
-                explanation: "\(who) both map \(key) on the \(layer) layer. Only one can win.",
+                explanation: "\(who) both map \(key) on the \(layer) layer\(what). Only one can win.",
                 options: verdict.fixes.map { option($0, name) }
             )
         case let .unmetNeed(need):

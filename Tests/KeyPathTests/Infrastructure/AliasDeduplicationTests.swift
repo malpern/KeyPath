@@ -72,7 +72,7 @@ final class AliasDeduplicationTests: XCTestCase {
             ))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [
+        let conflicts = AdmissionEngine.mappingConflicts(in: [
             hrmCollection, layerTogglesCollection,
         ])
 
@@ -104,7 +104,7 @@ final class AliasDeduplicationTests: XCTestCase {
             ))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [
+        let conflicts = AdmissionEngine.mappingConflicts(in: [
             hrmCollection, layerTogglesCollection,
         ])
 

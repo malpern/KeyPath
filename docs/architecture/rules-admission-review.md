@@ -458,6 +458,35 @@ Callers, all through this one function:
   is what `onError`, `sessionConfigurationRefusal` and `currentRuntimeStatus` all carry,
   and a CLI rendering test.
 
+### 4.4g The engine owns conflict detection (2026-10-20)
+
+Phase 3 had wrapped `RuleCollectionDeduplicator.detectConflicts`, which reported
+*display names*, and mapped names back to rule ids — so two rules titled alike were
+both blamed for one collision. Replaced, not patched: `AdmissionEngine.conflicts(in:leaderKey:)`
+computes every conflict from claims — what each owner puts on which slot — and the
+old detector is deleted. One pass over the enabled owners builds the stakes; the
+five kinds of collision are the five ways stakes disagree:
+
+| slot | collision | parties |
+|---|---|---|
+| `(input, layer)` | two owners map it; the leader key holds its base slot (#463) | the owners, by id |
+| activator `(source layer, key)` vs mappings | an activator shadows another owner's mapping (#466) | activator owner first, then mappers by name |
+| activator slot | two activators name different target layers | in claim order; identical activators are redundant, not conflicting |
+| chord group name / chord key, within one owner | duplicate `defchords` names (#464), a key in two groups | `.named` groups; the verdict's subject is the owning collection |
+| generated alias name | distinct inputs sanitise to one alias (#462) | owners by name |
+
+`Reason.conflict` gained `details` (hold action, "activates X", alias origin), so the
+presenter and the save gate's `MappingConflictInfo` say the same thing.
+`mappingConflicts(in:leaderKey:)` is the bridge to that error type for the save gate
+(`ConfigurationService.generateConfiguration`) and the CLI (`RulesFacade`); both are
+`nonisolated`, so the gate needs no main-actor hop. The deduplicator keeps only
+`dedupe` — the generator's structural "first claim wins" — which now runs after
+admission has refused every intentional overlap and warns if it ever drops anything.
+The detector's test corpus (`RuleCollectionDeduplicatorTests`, `MultiCollectionConflictTests`,
+`AliasDeduplicationTests`, the CLI and save-pipeline tests) now runs against the engine
+unchanged, which is the proof the replacement preserves behaviour; two tests were
+added for what it fixes (same-titled rules told apart; details carried).
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").

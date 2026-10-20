@@ -738,7 +738,7 @@ public final class PackInstaller {
         let name = RuleCollectionsManager.nameLookup(state)
         let verdicts = AdmissionEngine.evaluate(state, profile: profile, fileExists: fileExists).filter { verdict in
             if involvesPack(verdict.subject) { return true }
-            if case let .conflict(_, _, parties) = verdict.reason { return parties.contains(where: involvesPack) }
+            if case let .conflict(_, _, parties, _) = verdict.reason { return parties.contains(where: involvesPack) }
             if case let .packConflict(other, _) = verdict.reason { return other == pack.id }
             return false
         }

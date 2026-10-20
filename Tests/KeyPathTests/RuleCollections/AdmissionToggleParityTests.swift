@@ -44,7 +44,7 @@ final class AdmissionToggleParityTests: XCTestCase {
             let manager = makeManager(collections: c.others, rules: c.rules)
             var proposed = c.candidate
             proposed.isEnabled = true
-            let saveTime = RuleCollectionDeduplicator.detectConflicts(
+            let saveTime = AdmissionEngine.mappingConflicts(
                 in: c.others + [proposed] + c.rules.map { $0.asRuleCollection() }
             )
             let toggleTime = manager.conflictInfo(for: c.candidate)

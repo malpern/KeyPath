@@ -431,7 +431,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
         )
 
         // Conflict detection should catch shared keys between chord groups
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
 
         XCTAssertFalse(conflicts.isEmpty, "Should detect conflicts when chord groups share keys")
         XCTAssertEqual(conflicts.count, 2, "Should detect 2 conflicting keys (s and d)")
@@ -467,7 +467,7 @@ final class ChordGroupsIntegrationTests: XCTestCase {
             configuration: .chordGroups(config)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
         XCTAssertTrue(conflicts.isEmpty, "No conflicts when chord groups use distinct keys")
     }
 }

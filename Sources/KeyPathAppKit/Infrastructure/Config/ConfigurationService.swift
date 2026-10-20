@@ -1111,13 +1111,9 @@ public final class ConfigurationService: FileConfigurationProviding {
         let leaderKeyPref = leaderKeyPreference ?? storedLeaderKeyPref
         let shortcutInput = shortcutListGenerationInput
 
-        // DETECT CONFLICTS BEFORE DEDUPLICATION
-        // This catches cases where multiple collections map the same key, and where
-        // a collection activator collides with the system leader key (#463).
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
-            in: collectionsForConfig,
-            leaderKey: leaderKeyPref
-        )
+        // Admission before deduplication: two intentional claims on one slot are
+        // refused here, so `dedupe` below never resolves one in silence (ADR-039 §1).
+        let conflicts = AdmissionEngine.mappingConflicts(in: collectionsForConfig, leaderKey: leaderKeyPref)
         if !conflicts.isEmpty {
             AppLogger.shared.log(
                 "⚠️ [ConfigService] Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"

@@ -5,8 +5,8 @@ public enum AdmissionSubject: Hashable, Sendable {
     case collection(UUID)
     case customRule(UUID)
     case pack(String)
-    /// A party the detector names but no stored rule owns (leader key, a chord
-    /// group, an alias pair). Carries the detector's display name.
+    /// A party no stored rule owns (the leader key, a chord group inside a
+    /// collection). Carries its display name.
     case named(String)
 }
 
@@ -32,8 +32,10 @@ public struct AdmissionVerdict: Hashable, Sendable {
     }
 
     public enum Reason: Hashable, Sendable {
-        /// Two or more parties claim `key` on `layer`.
-        case conflict(key: String, layer: String, parties: [AdmissionSubject])
+        /// Two or more parties claim `key` on `layer`. `details` says what the
+        /// key does for each, in the parties' order, where that differs from a
+        /// plain mapping ("Home Row Mods: hold → lsft", "Arrows: activates nav").
+        case conflict(key: String, layer: String, parties: [AdmissionSubject], details: [String] = [])
         /// A need the backend or Mac cannot meet.
         case unmetNeed(RuleEnvironmentNeed)
         /// The rule uses the key reserved as the Caps Lock intermediate.

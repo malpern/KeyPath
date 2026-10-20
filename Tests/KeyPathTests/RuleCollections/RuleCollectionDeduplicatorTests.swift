@@ -23,7 +23,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .navigation
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection1, collection2])
 
         XCTAssertEqual(conflicts.count, 1)
         XCTAssertEqual(conflicts.first?.inputKey, "h")
@@ -47,7 +47,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .base
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection1, collection2])
 
         XCTAssertTrue(conflicts.isEmpty)
     }
@@ -69,7 +69,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .navigation
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection1, collection2])
 
         XCTAssertTrue(conflicts.isEmpty)
     }
@@ -94,7 +94,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         )
         disabled.isEnabled = false
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [enabled, disabled])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [enabled, disabled])
 
         XCTAssertTrue(conflicts.isEmpty)
     }
@@ -122,7 +122,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .navigation
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection1, collection2])
 
         XCTAssertEqual(conflicts.count, 2)
         let conflictKeys = conflicts.map(\.inputKey).sorted()
@@ -155,7 +155,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [navCollection, windowCollection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [navCollection, windowCollection])
 
         // "space" normalizes to the kanata key "spc"
         let activatorConflict = conflicts.first { $0.inputKey == "spc" }
@@ -186,7 +186,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [first, second])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [first, second])
 
         XCTAssertFalse(
             conflicts.contains { $0.inputKey == "spc" },
@@ -215,7 +215,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "tab", targetLayer: .custom("window"))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [first, second])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [first, second])
 
         XCTAssertTrue(conflicts.isEmpty, "Distinct activator keys do not conflict")
     }
@@ -245,7 +245,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("function"), sourceLayer: .navigation)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [fromBase, fromNav])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [fromBase, fromNav])
 
         XCTAssertFalse(
             conflicts.contains { $0.inputKey == "f" },
@@ -275,7 +275,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
         )
         disabled.isEnabled = false
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [enabled, disabled])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [enabled, disabled])
 
         XCTAssertFalse(
             conflicts.contains { $0.inputKey == "spc" },
@@ -302,7 +302,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [windowCollection],
             leaderKey: leader
         )
@@ -327,7 +327,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .navigation)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [navCollection],
             leaderKey: leader
         )
@@ -351,7 +351,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [windowCollection],
             leaderKey: leader
         )
@@ -372,7 +372,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "space", targetLayer: .custom("window"))
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [windowCollection],
             leaderKey: leader
         )
@@ -396,7 +396,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("function"), sourceLayer: .navigation)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [chained],
             leaderKey: leader
         )
@@ -419,7 +419,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .base
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [baseCollection],
             leaderKey: leader
         )
@@ -442,7 +442,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .base
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [baseCollection],
             leaderKey: leader
         )
@@ -475,7 +475,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("home-arrows"), sourceLayer: .base)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [homeRowMods, homeRowArrows])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [homeRowMods, homeRowArrows])
 
         let conflict = conflicts.first { $0.inputKey == "f" }
         XCTAssertNotNil(conflict, "An activator key colliding with another collection's base mapping should surface")
@@ -504,7 +504,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("arrows"), sourceLayer: .base)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [mapper, arrows])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [mapper, arrows])
         XCTAssertTrue(
             conflicts.contains { $0.inputKey == "f" },
             "Activator-vs-mapping conflict must be detected by identity even when collections share a name"
@@ -530,7 +530,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "g", targetLayer: .custom("arrows"), sourceLayer: .base)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [mapper, arrows])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [mapper, arrows])
         XCTAssertTrue(conflicts.isEmpty, "Activator and mapping on different keys do not conflict")
     }
 
@@ -555,7 +555,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("sym"), sourceLayer: .navigation)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [mapper, chained])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [mapper, chained])
         XCTAssertTrue(conflicts.isEmpty, "Activator from a different source layer than the mapping is valid")
     }
 
@@ -572,7 +572,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             momentaryActivator: MomentaryActivator(input: "f", targetLayer: .custom("arrows"), sourceLayer: .base)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
         XCTAssertFalse(
             conflicts.contains { $0.inputKey == "f" },
             "Same-collection activator+mapping on a key is not a cross-collection conflict"
@@ -598,7 +598,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             configuration: .chordGroups(config)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
 
         let conflict = conflicts.first { $0.inputKey == "Navigation" }
         XCTAssertNotNil(conflict, "Duplicate chord group names should be surfaced")
@@ -622,7 +622,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             configuration: .chordGroups(config)
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
 
         XCTAssertTrue(conflicts.isEmpty, "Unique chord group names do not conflict")
     }
@@ -645,7 +645,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .base
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
 
         let aliasConflict = conflicts.first { $0.inputKey.contains("caps-lock") && $0.inputKey.contains("caps_lock") }
         XCTAssertNotNil(aliasConflict, "Two keys sanitizing to the same alias name should be surfaced")
@@ -665,7 +665,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .base
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
 
         XCTAssertTrue(conflicts.isEmpty, "Simple mappings generate no alias, so no alias collision")
     }
@@ -683,7 +683,7 @@ final class RuleCollectionDeduplicatorTests: XCTestCase {
             targetLayer: .base
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection])
 
         XCTAssertTrue(conflicts.isEmpty, "Distinct sanitized stems don't collide")
     }
