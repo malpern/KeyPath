@@ -105,7 +105,43 @@ the Karabiner driver). Located services of an unsupported shape (including a bla
 whose registry ID or VID/PID/LocationID(/serial) locator is shared, are withheld:
 never a target, but counted, so automatic selection and the Settings default refuse
 to assume a single keyboard. A chosen instance that becomes withheld is absent from
-the list, so `requireUnique` still refuses its lease. Useful execution has a two-second deadline and
+the list, so `requireUnique` still refuses its lease.
+
+Exception, since 2026-10-19: keyboard services sharing VID/PID/LocationID *and*
+serial are interfaces of one physical keyboard (a LocationID names one USB
+device), not twins. The inventory lists the board once, by its lowest registry
+ID. The lease covers the board's `serviceGroup`: that anchor plus every other
+service of the device that can emit keyboard usages (a {1,6} DeviceUsagePairs
+entry, or non-constant Keyboard-page Input items in the report descriptor,
+including 32-bit extended usages). An interface whose capability cannot be read
+refuses the lease (fail closed): left unchecked, Caps could stay native there. hidutil cannot address a service by registry ID, so
+there is one selector per primary-usage pair (the serial is matched only when
+every service of that pair reports it), and hidutil writes a pair as a whole.
+
+The record (version 3, written only when there are companions) lists each
+companion interface with its own original mappings; applied is original plus
+Caps→intermediate on every interface. A Caps row on any interface refuses as
+`capsAlreadyMapped`, and the conflict owner (Raycast) is named from any
+interface. Restore reads every service of the device and requires each recorded
+interface to hold its original or exactly its applied mapping (a write that
+failed part-way leaves a mixture), then rewrites originals. The covered set never
+shrinks: a recorded interface that still exists but is missing from the read
+refuses and keeps the intent; one that is gone took its mapping with it.
+Verification needs every recorded interface at its applied mapping. Witnessed: a
+Vial "cl80" in NKRO mode sends every key on its shared, mouse-primary interface
+(Report ID 6, page 7 usages 0x00–0xEF); with only the boot interface leased,
+Caps stayed native there and Caps Lock rules silently never ran. The free-key
+choice (`occupiedIntermediates`) treats our Caps row on a covered interface as
+our own, and a Caps row on any other service, even of the same board, as taken.
+A companion read is retried once; one that still cannot be read is logged and
+left out of that read. Verification then skips it for that tick (the chosen
+interface was verified), while restore still refuses rather than shrink.
+
+Known limits: an interface that appears without a reconnect is not covered until
+the next lease; the DEBUG queued-writer experiment still uses the single-service
+`writeArguments`. A version-3 journal is unreadable to builds that predate it:
+downgrading with a lease pending leaves the companion mapped until the board
+reconnects or the Mac restarts, because the older build cannot restore it. Useful execution has a two-second deadline and
 64 KiB combined output limit. Failure kills the child and confirms exit before
 releasing the lease lock; OS termination latency is not claimed to be bounded. This helper is not yet connected to the app lifecycle;
 Caps profiles remain unavailable by default. Do not substitute USB device IDs or

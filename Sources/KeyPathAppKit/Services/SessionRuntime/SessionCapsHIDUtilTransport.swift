@@ -9,18 +9,41 @@ public enum SessionCapsHIDUtilTransport {
     public enum Refusal: Error { case unsupportedOutput, commandFailed, timedOut, excessiveOutput }
     public typealias Policy = SessionCapsMappingPolicy
 
+    /// Diagnostics that change nothing. The session worker routes this to
+    /// AppLogger once at startup, before any HID work reads it.
+    public nonisolated(unsafe) static var warn: (String) -> Void = { FileHandle.standardError.write(Data(($0 + "\n").utf8)) }
+
     public static func selector(_ device: Policy.DeviceIdentity) throws -> String {
+        try selector(device, primaryUsagePage: 1, primaryUsage: 6)
+    }
+
+    /// One primary-usage pair of the chosen physical keyboard. hidutil cannot
+    /// address a service by registry ID, so a keyboard whose keys also arrive
+    /// on another interface (QMK's shared NKRO interface is mouse-primary) is
+    /// reached by one selector per pair; see `serviceGroup`.
+    public static func selector(_ device: Policy.DeviceIdentity, primaryUsagePage: UInt32, primaryUsage: UInt32) throws -> String {
+        var match = try locatorMatch(device)
+        match["PrimaryUsagePage"] = primaryUsagePage
+        match["PrimaryUsage"] = primaryUsage
+        return try String(decoding: JSONSerialization.data(withJSONObject: match, options: [.sortedKeys]), as: UTF8.self)
+    }
+
+    /// Every service of the chosen physical keyboard, whatever its usage.
+    public static func locatorSelector(_ device: Policy.DeviceIdentity) throws -> String {
+        try String(decoding: JSONSerialization.data(withJSONObject: locatorMatch(device), options: [.sortedKeys]), as: UTF8.self)
+    }
+
+    private static func locatorMatch(_ device: Policy.DeviceIdentity) throws -> [String: Any] {
         guard device.registryEntryID != 0, device.vendorID != 0 || (device.appleBuiltIn == true && device.productID == 0 && (device.locationID ?? 0) != 0), device.vendorID <= 0xFFFF,
               device.productID <= 0xFFFF, (device.locationID ?? 0) != 0 || device.serialNumber != nil else { throw Policy.Refusal.invalidDevice }
         if let serial = device.serialNumber {
             guard !serial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, serial.utf8.count <= 1024 else { throw Policy.Refusal.invalidDevice }
         }
-        var match: [String: Any] = ["VendorID": device.vendorID, "ProductID": device.productID,
-                                    "PrimaryUsagePage": 1, "PrimaryUsage": 6]
+        var match: [String: Any] = ["VendorID": device.vendorID, "ProductID": device.productID]
         if let location = device.locationID { match["LocationID"] = location }
         // SerialNumber is not a supported top-level matching key in hidutil help.
         if let serial = device.serialNumber { match["IOPropertyMatch"] = ["SerialNumber": serial] }
-        return try String(decoding: JSONSerialization.data(withJSONObject: match, options: [.sortedKeys]), as: UTF8.self)
+        return match
     }
 
     /// These arguments are for Process(executableURL: /usr/bin/hidutil), never a shell.
@@ -203,15 +226,257 @@ public enum SessionCapsHIDUtilTransport {
             return a.vendor != nil && a.vendor == b.vendor && a.product != nil && a.product == b.product && a.location == b.location
                 && (a.serial == nil || b.serial == nil || a.serial == b.serial)
         }
+        /// A LocationID names one USB device, so keyboard services with the same
+        /// VID/PID/LocationID and serial are interfaces of one physical keyboard,
+        /// not twins. It is listed once, by its lowest registry ID, and the lease
+        /// covers every interface (`serviceGroup`). Any other overlap is withheld.
+        func sameKeyboard(_ a: Locator, _ b: Locator) -> Bool {
+            a.registry != b.registry && a.vendor == b.vendor && a.product == b.product
+                && a.location == b.location && a.serial == b.serial
+        }
         var devices: [Policy.DeviceIdentity] = []
         // Count keyboards, not services: interfaces of one board share a LocationID.
         var withheld = Set(others.map(\.location))
         for (index, device) in candidates.enumerated() {
-            let shared = locators.indices.contains { $0 != index && collides(locators[index], locators[$0]) }
-                || others.contains { collides(locators[index], $0) }
-            if shared { withheld.insert(locators[index].location) } else { devices.append(device) }
+            let peers = locators.indices.filter { $0 != index && collides(locators[index], locators[$0]) }
+            let ambiguous = others.contains { collides(locators[index], $0) }
+                || !peers.allSatisfy { sameKeyboard(locators[index], locators[$0]) }
+            if ambiguous {
+                withheld.insert(locators[index].location)
+            } else if peers.allSatisfy({ (locators[$0].registry ?? 0) > device.registryEntryID }) {
+                devices.append(device)
+            }
         }
         return Inventory(devices: devices, withheld: withheld.count)
+    }
+
+    /// One event service of an unfiltered `hidutil list`, as grouping needs it.
+    public struct ServiceRow: Sendable, Equatable {
+        public let registryEntryID: UInt64
+        public let vendorID: UInt32
+        public let productID: UInt32
+        public let locationID: UInt32?
+        public let serialNumber: String?
+        public let primaryUsagePage: UInt32
+        public let primaryUsage: UInt32
+    }
+
+    /// Service rows only; device rows and services missing an identity field
+    /// are skipped. Output that breaks the JSON grammar refuses.
+    public static func parseServiceRows(_ ndjson: String) throws -> [ServiceRow] {
+        guard ndjson.utf8.count <= 65536 else { throw Refusal.excessiveOutput }
+        var rows: [ServiceRow] = []
+        for line in ndjson.split(separator: "\n") where !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard let row = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let type = row["type"] as? String else { throw Refusal.unsupportedOutput }
+            guard type == "service" else { continue }
+            func integer(_ key: String, maximum: UInt64) -> UInt64? {
+                guard let value = row[key] as? NSNumber, String(cString: value.objCType) != "c",
+                      !["f", "d"].contains(String(cString: value.objCType)),
+                      let number = UInt64(value.stringValue), number <= maximum else { return nil }
+                return number
+            }
+            guard let registry = integer("IORegistryEntryID", maximum: .max), registry != 0,
+                  let vendor = integer("VendorID", maximum: 0xFFFF), let product = integer("ProductID", maximum: 0xFFFF),
+                  let page = integer("PrimaryUsagePage", maximum: 0xFFFF), let usage = integer("PrimaryUsage", maximum: 0xFFFF)
+            else { continue }
+            let location = integer("LocationID", maximum: UInt64(UInt32.max)).map(UInt32.init)
+            rows.append(ServiceRow(registryEntryID: registry, vendorID: UInt32(vendor), productID: UInt32(product),
+                                   locationID: location,
+                                   serialNumber: (row["SerialNumber"] as? String).flatMap {
+                                       $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
+                                   },
+                                   primaryUsagePage: UInt32(page), primaryUsage: UInt32(usage)))
+        }
+        return rows
+    }
+
+    /// True when a HID report descriptor declares a data (non-constant) Input
+    /// item whose usages are on the Keyboard/Keypad page (0x07): either the
+    /// current Usage Page, or a 32-bit extended Usage/Usage Minimum naming it.
+    /// LED outputs (page 0x08), feature reports and constant padding do not count.
+    public static func descriptorHasKeyboardInput(_ bytes: [UInt8]) -> Bool {
+        var page: UInt32 = 0
+        var stack: [UInt32] = []
+        var extendedKeyboard = false
+        var index = 0
+        while index < bytes.count {
+            let prefix = bytes[index]
+            if prefix == 0xFE { // Long item: data size in the next byte.
+                guard index + 1 < bytes.count else { return false }
+                index += 3 + Int(bytes[index + 1])
+                continue
+            }
+            let size = [0, 1, 2, 4][Int(prefix & 0x03)]
+            guard index + size < bytes.count else { return false }
+            var value: UInt32 = 0
+            for offset in 0 ..< size {
+                value |= UInt32(bytes[index + 1 + offset]) << (8 * offset)
+            }
+            switch prefix & 0xFC {
+            case 0x04: page = value // Usage Page (global)
+            case 0xA4: stack.append(page) // Push
+            case 0xB4: page = stack.popLast() ?? page // Pop
+            case 0x08, 0x18, 0x28: // Usage, Usage Minimum, Usage Maximum (local)
+                if size == 4, value >> 16 == 0x07 { extendedKeyboard = true }
+            case 0x80: // Input (main): bit 0 set means constant padding.
+                if value & 1 == 0, page == 0x07 || extendedKeyboard { return true }
+                extendedKeyboard = false
+            case 0x90, 0xB0, 0xA0, 0xC0: extendedKeyboard = false // Other main items end the locals.
+            default: break
+            }
+            index += 1 + size
+        }
+        return false
+    }
+
+    /// Whether an event service can emit keyboard usages: a top-level Keyboard
+    /// collection in its DeviceUsagePairs, or keyboard-page inputs in its
+    /// device's report descriptor. nil when neither property is readable.
+    public static func serviceEmitsKeyboardUsages(_ registryEntryID: UInt64) -> Bool? {
+        guard registryEntryID != 0, let matching = IORegistryEntryIDMatching(registryEntryID) else { return nil }
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+        var readable = false
+        if let pairs = IORegistryEntryCreateCFProperty(service, "DeviceUsagePairs" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? [[String: Any]]
+        {
+            readable = true
+            if pairs.contains(where: { ($0["DeviceUsagePage"] as? NSNumber)?.intValue == 1 && ($0["DeviceUsage"] as? NSNumber)?.intValue == 6 }) {
+                return true
+            }
+        }
+        if let descriptor = IORegistryEntrySearchCFProperty(service, "IOService", "ReportDescriptor" as CFString, kCFAllocatorDefault,
+                                                            IOOptionBits(kIORegistryIterateRecursively | kIORegistryIterateParents)) as? Data
+        {
+            return descriptorHasKeyboardInput([UInt8](descriptor))
+        }
+        return readable ? false : nil
+    }
+
+    /// The chosen keyboard's event services: the leased service plus every
+    /// other service of the same physical device that can emit keyboard usages.
+    /// A board in NKRO mode sends every key, Caps included, on such an
+    /// interface; mapping only the boot interface leaves Caps native there.
+    public struct ServiceGroup: Sendable, Equatable {
+        public let anchor: UInt64
+        /// Services the lease covers: every service sharing a covered pair.
+        public let members: Set<UInt64>
+        /// Primary-usage pairs to address, anchor's first.
+        public let pairs: [[UInt32]]
+        /// Other services of the device whose keyboard capability could not be read.
+        public let unreadable: [UInt64]
+    }
+
+    /// Services of the chosen physical keyboard. A LocationID names one USB
+    /// device, so another interface may lack the serial the chosen one reports.
+    static func deviceRows(_ device: Policy.DeviceIdentity, rows: [ServiceRow]) throws -> [ServiceRow] {
+        let local = rows.filter {
+            $0.vendorID == device.vendorID && $0.productID == device.productID && $0.locationID == device.locationID
+                && (device.serialNumber == nil || $0.serialNumber == nil || $0.serialNumber == device.serialNumber)
+        }
+        guard let anchor = local.first(where: { $0.registryEntryID == device.registryEntryID }),
+              anchor.serialNumber == device.serialNumber || device.serialNumber == nil
+        else { throw Policy.Refusal.differentDevice }
+        return local
+    }
+
+    public static func serviceGroup(for device: Policy.DeviceIdentity, rows: [ServiceRow],
+                                    emitsKeyboardUsages: (UInt64) -> Bool?) throws -> ServiceGroup
+    {
+        let local = try deviceRows(device, rows: rows)
+        let anchor = local.first { $0.registryEntryID == device.registryEntryID }!
+        var pairs = [[anchor.primaryUsagePage, anchor.primaryUsage]]
+        var unreadable: [UInt64] = []
+        for row in local where row.registryEntryID != anchor.registryEntryID {
+            let pair = [row.primaryUsagePage, row.primaryUsage]
+            guard !pairs.contains(pair) else { continue }
+            switch emitsKeyboardUsages(row.registryEntryID) {
+            case true?: pairs.append(pair)
+            case nil: unreadable.append(row.registryEntryID)
+            case false?: break
+            }
+        }
+        // Every service a selector reaches is a member, whether or not it can
+        // emit Caps itself, so read-back and restoration cover all of them.
+        let members = Set(local.filter { pairs.contains([$0.primaryUsagePage, $0.primaryUsage]) }.map(\.registryEntryID))
+        return ServiceGroup(anchor: anchor.registryEntryID, members: members, pairs: pairs, unreadable: unreadable)
+    }
+
+    /// One pair's selector. The serial is matched only when every service of
+    /// that pair reports it; the LocationID already names the device.
+    static func pairSelector(_ device: Policy.DeviceIdentity, pair: [UInt32], rows: [ServiceRow]) throws -> String {
+        let inPair = rows.filter { [$0.primaryUsagePage, $0.primaryUsage] == pair }
+        let withSerial = device.serialNumber != nil && inPair.allSatisfy { $0.serialNumber == device.serialNumber }
+        let identity = withSerial || (device.locationID ?? 0) == 0 ? device
+            : Policy.DeviceIdentity(registryEntryID: device.registryEntryID, vendorID: device.vendorID, productID: device.productID,
+                                    serialNumber: nil, locationID: device.locationID, appleBuiltIn: device.appleBuiltIn)
+        return try selector(identity, primaryUsagePage: pair[0], primaryUsage: pair[1])
+    }
+
+    /// Listing for the chosen keyboard's services: by LocationID alone when it
+    /// has one, so an interface without the serial is still found.
+    static func listArguments(_ device: Policy.DeviceIdentity) throws -> [String] {
+        let identity = (device.locationID ?? 0) == 0 ? device
+            : Policy.DeviceIdentity(registryEntryID: device.registryEntryID, vendorID: device.vendorID, productID: device.productID,
+                                    serialNumber: nil, locationID: device.locationID, appleBuiltIn: device.appleBuiltIn)
+        return try ["list", "--ndjson", "--matching", locatorSelector(identity)]
+    }
+
+    /// Mappings of the given pairs' services, by registry ID.
+    static func pairMappings(_ device: Policy.DeviceIdentity, pairs: [[UInt32]], rows: [ServiceRow],
+                             run: ([String]) throws -> String) throws -> [UInt64: [Policy.Mapping]]
+    {
+        var result: [UInt64: [Policy.Mapping]] = [:]
+        for pair in pairs {
+            let selector = try pairSelector(device, pair: pair, rows: rows)
+            for (id, mappings) in try parseAllMappings(run(["property", "--matching", selector, "--get", "UserKeyMapping"])) {
+                guard result.updateValue(mappings, forKey: id) == nil else { throw Refusal.unsupportedOutput }
+            }
+        }
+        return result
+    }
+
+    /// Writes each target to its service, one selector per pair. Every service
+    /// a pair's selector reaches must have a target, and they must agree:
+    /// hidutil writes a pair as a whole. Every pair is attempted before
+    /// refusing, so a partial failure leaves as little behind as possible.
+    static func writeTargets(_ device: Policy.DeviceIdentity, _ targets: [UInt64: [Policy.Mapping]], rows: [ServiceRow],
+                             run: ([String]) throws -> String) throws
+    {
+        var byPair: [[UInt32]: [Policy.Mapping]] = [:]
+        for (id, mappings) in targets {
+            guard let row = rows.first(where: { $0.registryEntryID == id }) else { throw Policy.Refusal.differentDevice }
+            let pair = [row.primaryUsagePage, row.primaryUsage]
+            if let existing = byPair[pair], existing != mappings { throw Refusal.unsupportedOutput }
+            byPair[pair] = mappings
+        }
+        for pair in byPair.keys {
+            let reached = rows.filter { [$0.primaryUsagePage, $0.primaryUsage] == pair }.map(\.registryEntryID)
+            guard reached.allSatisfy({ targets[$0] != nil }) else { throw Refusal.unsupportedOutput }
+        }
+        var written = Set<UInt64>()
+        var failure: Error?
+        for pair in byPair.keys.sorted(by: { $0.lexicographicallyPrecedes($1) }) {
+            do {
+                let json = try "{\"UserKeyMapping\":" + String(decoding: JSONEncoder().encode(byPair[pair]!), as: UTF8.self) + "}"
+                let selector = try pairSelector(device, pair: pair, rows: rows)
+                for (id, readback) in try parseAllMappings(run(["property", "--matching", selector, "--set", json])) {
+                    guard readback == targets[id] else { throw SessionCapsMappingLease.Refusal.unverifiedWrite }
+                    written.insert(id)
+                }
+            } catch { failure = failure ?? error }
+        }
+        if let failure { throw failure }
+        guard written == Set(targets.keys) else { throw SessionCapsMappingLease.Refusal.unverifiedWrite }
+    }
+
+    /// Covered services of `device` (see `serviceGroup`); synchronous.
+    static func groupMembers(_ device: Policy.DeviceIdentity, run: ([String]) throws -> String,
+                             emitsKeyboardUsages: (UInt64) -> Bool?) throws -> Set<UInt64>
+    {
+        try serviceGroup(for: device, rows: parseServiceRows(run(listArguments(device))), emitsKeyboardUsages: emitsKeyboardUsages).members
     }
 
     /// One compatible keyboard with its display name. The name is for the
@@ -306,13 +571,65 @@ public enum SessionCapsHIDUtilTransport {
 
     /// Injected execution keeps focused tests entirely off host HID state.
     /// The real runner is synchronous and must be called off the main actor.
-    public static func backend(run: @escaping ([String]) throws -> String = runHIDUtil) -> SessionCapsMappingLease.Backend {
-        .init(enumerate: { try parseServices(run(["list", "--ndjson", "--matching", "keyboard"])) },
-              read: { try parseProperty(run(readArguments($0)), device: $0) },
-              write: { device, mappings in
-                  let result = try parseProperty(run(writeArguments(device, mappings: mappings)), device: device)
-                  guard result.mappings == mappings else { throw SessionCapsMappingLease.Refusal.unverifiedWrite }
-              }, registryEntryExists: registryEntryExists)
+    /// The lease covers the chosen keyboard's `serviceGroup`: `members` lists
+    /// it, `readGroup` reads every service of the device, and `writeEach`
+    /// writes per-service targets. `read`/`write` address the chosen service.
+    /// `run` is last so that `backend { arguments in … }` binds the trailing closure to it.
+    public static func backend(emitsKeyboardUsages: @escaping (UInt64) -> Bool? = serviceEmitsKeyboardUsages,
+                               registryEntryExists: @escaping (UInt64) throws -> Bool = registryEntryExists,
+                               run: @escaping ([String]) throws -> String = runHIDUtil) -> SessionCapsMappingLease.Backend
+    {
+        func rows(_ device: Policy.DeviceIdentity) throws -> [ServiceRow] {
+            try deviceRows(device, rows: parseServiceRows(run(listArguments(device))))
+        }
+        func anchorMappings(_ device: Policy.DeviceIdentity, _ rows: [ServiceRow]) throws -> [Policy.Mapping] {
+            let anchor = rows.first { $0.registryEntryID == device.registryEntryID }!
+            let all = try pairMappings(device, pairs: [[anchor.primaryUsagePage, anchor.primaryUsage]], rows: rows, run: run)
+            guard let mappings = all[device.registryEntryID] else { throw Policy.Refusal.differentDevice }
+            return mappings
+        }
+        return .init(enumerate: { try parseServices(run(["list", "--ndjson", "--matching", "keyboard"])) },
+                     read: { device in try .init(device: device, mappings: anchorMappings(device, rows(device))) },
+                     write: { device, mappings in try writeTargets(device, [device.registryEntryID: mappings], rows: rows(device), run: run) },
+                     registryEntryExists: registryEntryExists,
+                     members: { device in
+                         let group = try serviceGroup(for: device, rows: rows(device), emitsKeyboardUsages: emitsKeyboardUsages)
+                         // Fail closed: an interface that might deliver Caps but was
+                         // not checked would leave Caps native there, silently.
+                         guard group.unreadable.isEmpty else {
+                             warn("[SessionCaps] Keyboard capability unreadable for interfaces \(group.unreadable.map { String($0, radix: 16) }) of the chosen keyboard; Caps setup refused")
+                             throw Policy.Refusal.ambiguousDevice
+                         }
+                         return group.members
+                     },
+                     readGroup: { device in
+                         // Best effort beyond the chosen service's own pair: a raw-HID or
+                         // consumer interface that will not answer is left out. Restore
+                         // refuses when a recorded interface is missing but still exists,
+                         // and verification treats a missing companion as lost ownership.
+                         let rows = try rows(device)
+                         let anchor = rows.first { $0.registryEntryID == device.registryEntryID }!
+                         let anchorPair = [anchor.primaryUsagePage, anchor.primaryUsage]
+                         var result = try pairMappings(device, pairs: [anchorPair], rows: rows, run: run)
+                         var pairs: [[UInt32]] = []
+                         for row in rows where ![anchorPair].contains([row.primaryUsagePage, row.primaryUsage])
+                             && !pairs.contains([row.primaryUsagePage, row.primaryUsage])
+                         {
+                             pairs.append([row.primaryUsagePage, row.primaryUsage])
+                         }
+                         for pair in pairs {
+                             // One retry: a single hidutil hiccup must not read as absence.
+                             guard let mappings = (try? pairMappings(device, pairs: [pair], rows: rows, run: run))
+                                 ?? (try? pairMappings(device, pairs: [pair], rows: rows, run: run))
+                             else {
+                                 warn("[SessionCaps] Could not read UserKeyMapping for interface pair \(pair) of the chosen keyboard; left out of this read")
+                                 continue
+                             }
+                             result.merge(mappings) { current, _ in current }
+                         }
+                         return result
+                     },
+                     writeEach: { device, targets in try writeTargets(device, targets, rows: rows(device), run: run) })
     }
 
     #if DEBUG

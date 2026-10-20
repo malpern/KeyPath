@@ -200,13 +200,23 @@ enum SessionCapsRuntimeSupport {
     /// the main actor.
     static func occupiedIntermediates(own: Policy.DeviceIdentity? = nil,
                                       run: ([String]) throws -> String = SessionCapsHIDUtilTransport.runHIDUtil,
-                                      shortcutKeyCodes: () -> Set<UInt16> = enabledShortcutKeyCodes) throws -> Set<UInt32>
+                                      shortcutKeyCodes: () -> Set<UInt16> = enabledShortcutKeyCodes,
+                                      emitsKeyboardUsages: (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages) throws -> Set<UInt32>
     {
         let rows = try SessionCapsHIDUtilTransport.parseAllMappings(run(["property", "--get", "UserKeyMapping"]))
+        // Our lease covers the chosen keyboard's service group (see
+        // `SessionCapsHIDUtilTransport.serviceGroup`), so its Caps row on any
+        // member is ours; on any other service it is not. Without the device
+        // list, fall back to the chosen service.
+        var ownServices = Set<UInt64>()
+        if let own {
+            ownServices = (try? SessionCapsHIDUtilTransport.groupMembers(own, run: run, emitsKeyboardUsages: emitsKeyboardUsages))
+                ?? [own.registryEntryID]
+        }
         var usages: [UInt64] = []
         for (registry, mappings) in rows {
             for mapping in mappings {
-                if registry == own?.registryEntryID, mapping.source == Policy.caps,
+                if ownServices.contains(registry), mapping.source == Policy.caps,
                    SessionCapsIntermediate.isCandidate(packed: mapping.destination) { continue }
                 usages += [mapping.source, mapping.destination]
             }
@@ -249,7 +259,18 @@ enum SessionCapsRuntimeSupport {
                              backend: SessionCapsMappingLease.Backend = SessionCapsHIDUtilTransport.backend(),
                              raycast: SessionCapsConflict.RaycastHyperKey? = raycastHyperKey()) throws -> SessionCapsConflict?
     {
-        try SessionCapsConflict.identify(backend.read(device).mappings, raycast: raycast)
+        // Another tool may have mapped Caps on only one covered interface of
+        // the board. Other interfaces (consumer, raw HID) are not read.
+        let members = try backend.members(device)
+        var rows = try [backend.read(device).mappings]
+        if members.count > 1 {
+            let group = try backend.readGroup(device)
+            rows += members.sorted().filter { $0 != device.registryEntryID }.compactMap { group[$0] }
+        }
+        for mappings in rows {
+            if let conflict = SessionCapsConflict.identify(mappings, raycast: raycast) { return conflict }
+        }
+        return nil
     }
 
     /// The saved choice re-bound to its keyboard replugged at the same port
@@ -322,15 +343,28 @@ enum SessionCapsRuntimeSupport {
         return beforeValidation
     }
 
-    static func verifyActive(directory: URL, owner: Policy.Owner) throws {
-        let backend = SessionCapsHIDUtilTransport.backend()
+    static func verifyActive(directory: URL, owner: Policy.Owner,
+                             backend: SessionCapsMappingLease.Backend = SessionCapsHIDUtilTransport.backend(),
+                             bootSessionUUID boot: () throws -> String = bootSessionUUID) throws
+    {
         let lease = SessionCapsMappingLease(directory: directory, backend: backend)
         guard let record = try lease.pendingRecord(), record.owner == owner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
         // Other keyboards may be connected; the leased instance must be present
         // exactly once. The intermediate stays reserved: merged events carry no attribution.
         do { try Policy.requireUnique(record.device, among: backend.enumerate()) } catch { throw Refusal.selection }
         let snapshot = try backend.read(record.device)
-        _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: bootSessionUUID())
+        _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: boot())
+        // Every recorded companion interface must still carry exactly our
+        // mapping. One that could not be read this tick is not a foreign
+        // write: it is checked again next tick (the chosen interface was just
+        // verified). A different mapping is foreign; restore decides the rest.
+        if !record.companions.isEmpty {
+            let group = try backend.readGroup(record.device)
+            for companion in record.companions {
+                guard let mappings = group[companion.registryEntryID] else { continue }
+                guard mappings == record.applied(over: companion.original) else { throw Policy.Refusal.foreignMapping }
+            }
+        }
     }
 
     /// The worker's periodic lease check. Only a leased instance that no

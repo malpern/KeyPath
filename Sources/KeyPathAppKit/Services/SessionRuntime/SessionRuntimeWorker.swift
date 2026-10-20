@@ -233,6 +233,8 @@ public final class SessionRuntimeWorker {
                 // Ownership is retained even when write/readback throws.
                 let device = selection.device
                 let intermediate = SessionCapsMappingPolicy.packed(selection.intermediateUsage)
+                // Before any HID work: the transport's diagnostics go to the log.
+                SessionCapsHIDUtilTransport.warn = { AppLogger.shared.warn($0) }
                 capsRecord = try Self.performHIDWork {
                     let backend = SessionCapsHIDUtilTransport.backend()
                     do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {

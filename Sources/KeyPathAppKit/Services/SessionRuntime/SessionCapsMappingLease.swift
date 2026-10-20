@@ -26,15 +26,37 @@ public final class SessionCapsMappingLease {
         /// Must join all mutation child processes before returning or throwing.
         /// The durable in-flight marker can be cleared only after that guarantee.
         public let write: (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void
+        /// The keyboard's services the lease covers, the chosen one included.
+        /// A board can deliver its keys on several interfaces (QMK's NKRO
+        /// interface is mouse-primary); each one that can emit keyboard usages
+        /// is a member. The default covers the chosen service only.
+        public let members: (Policy.DeviceIdentity) throws -> Set<UInt64>
+        /// Mappings of the keyboard's services by registry ID; covers at least
+        /// `members`. Restore and verification look up recorded companions here.
+        public let readGroup: (Policy.DeviceIdentity) throws -> [UInt64: [Policy.Mapping]]
+        /// Writes each service its own target and verifies readback. Same
+        /// joining guarantee as `write`; refuses rather than touch an unlisted service.
+        public let writeEach: (Policy.DeviceIdentity, [UInt64: [Policy.Mapping]]) throws -> Void
         public init(enumerate: @escaping () throws -> [Policy.DeviceIdentity],
                     read: @escaping (Policy.DeviceIdentity) throws -> Snapshot,
                     write: @escaping (Policy.DeviceIdentity, [Policy.Mapping]) throws -> Void,
-                    registryEntryExists: @escaping (UInt64) throws -> Bool = { _ in true })
+                    registryEntryExists: @escaping (UInt64) throws -> Bool = { _ in true },
+                    members: ((Policy.DeviceIdentity) throws -> Set<UInt64>)? = nil,
+                    readGroup: ((Policy.DeviceIdentity) throws -> [UInt64: [Policy.Mapping]])? = nil,
+                    writeEach: ((Policy.DeviceIdentity, [UInt64: [Policy.Mapping]]) throws -> Void)? = nil)
         {
             self.enumerate = enumerate
             self.registryEntryExists = registryEntryExists
             self.read = read
             self.write = write
+            self.members = members ?? { [$0.registryEntryID] }
+            self.readGroup = readGroup ?? { try [$0.registryEntryID: read($0).mappings] }
+            self.writeEach = writeEach ?? { device, targets in
+                guard Set(targets.keys) == [device.registryEntryID], let mappings = targets[device.registryEntryID] else {
+                    throw Policy.Refusal.differentDevice
+                }
+                try write(device, mappings)
+            }
         }
     }
 
@@ -145,9 +167,10 @@ public final class SessionCapsMappingLease {
             let devices = try backend.enumerate()
             let snapshot = try backend.read(device)
             guard snapshot.device == device else { throw Policy.Refusal.differentDevice }
+            let companions = try companionMappings(device)
             let record = try Policy.acquire(original: snapshot.mappings, device: device, devices: devices,
                                             owner: owner, effectiveConfigSHA256: configSHA256,
-                                            intermediate: intermediate)
+                                            intermediate: intermediate, companions: companions)
             let persisted = try persist(record, directoryFD: fd)
             // Recheck the selected service immediately before mutation. Never
             // clear a journal on an unconfirmed mutation or a failed readback.
@@ -156,6 +179,12 @@ public final class SessionCapsMappingLease {
                 let beforeWrite = try backend.read(device)
                 guard beforeWrite.device == device else { throw Policy.Refusal.differentDevice }
                 guard beforeWrite.mappings == record.original else { throw Policy.Refusal.foreignMapping }
+                // Look the recorded companions up again rather than re-probing
+                // which interfaces exist: a probe that flips is not a foreign write.
+                if !companions.isEmpty {
+                    let group = try backend.readGroup(device)
+                    guard companions.allSatisfy({ group[$0.key] == $0.value }) else { throw Policy.Refusal.foreignMapping }
+                }
             } catch {
                 // Refused before any write: no mutation marker exists, so nothing
                 // was applied and the intent is void. Left on disk, restore() would
@@ -169,9 +198,17 @@ public final class SessionCapsMappingLease {
                 throw error
             }
             try verifyJournal(persisted, directoryFD: fd)
-            try mutate(record: record, mappings: record.applied, directoryFD: fd, initialApply: true)
+            var targets: [UInt64: [Policy.Mapping]] = [:]
+            for service in record.originals {
+                targets[service.registryEntryID] = record.applied(over: service.original)
+            }
+            try mutate(record: record, targets: targets, directoryFD: fd, initialApply: true)
             let applied = try backend.read(device)
             guard applied.device == device, applied.mappings == record.applied else { throw Refusal.unverifiedWrite }
+            if !record.companions.isEmpty {
+                let now = try backend.readGroup(device)
+                guard targets.allSatisfy({ now[$0.key] == $0.value }) else { throw Refusal.unverifiedWrite }
+            }
             try requireNoMutation(directoryFD: fd)
             try verifyJournal(persisted, directoryFD: fd)
             return record
@@ -201,15 +238,39 @@ public final class SessionCapsMappingLease {
             try verifyInstance(record)
             let snapshot = try backend.read(record.device)
             guard snapshot.device == record.device else { throw Policy.Refusal.differentDevice }
+            // Every recorded interface must hold its original or exactly what we
+            // applied there; a write that failed part-way leaves some of each.
+            // A recorded companion that still exists but cannot be read refuses:
+            // the covered set never shrinks, so no interface keeps our mapping
+            // after the intent is gone. Anything else is foreign.
+            var current = [record.device.registryEntryID: snapshot.mappings]
+            if !record.companions.isEmpty {
+                let group = try backend.readGroup(record.device)
+                for companion in record.companions {
+                    if let mappings = group[companion.registryEntryID] {
+                        current[companion.registryEntryID] = mappings
+                    } else if try backend.registryEntryExists(companion.registryEntryID) {
+                        throw Policy.Refusal.differentDevice
+                    }
+                }
+            }
+            var targets: [UInt64: [Policy.Mapping]] = [:]
+            for (id, mappings) in current {
+                targets[id] = id == record.device.registryEntryID && mappings != record.original
+                    ? try Policy.restore(record: record, current: mappings, device: snapshot.device, bootSessionUUID: bootSessionUUID)
+                    : try Policy.restoreService(record: record, registryEntryID: id, current: mappings, bootSessionUUID: bootSessionUUID)
+            }
             // Explicit verification also resolves intent after a write that
             // failed before changing anything, or a crash after restoration.
-            if snapshot.mappings != record.original {
-                let original = try Policy.restore(record: record, current: snapshot.mappings,
-                                                  device: snapshot.device, bootSessionUUID: bootSessionUUID)
+            if targets.contains(where: { current[$0.key] != $0.value }) {
                 try verifyJournal(loaded, directoryFD: fd)
-                try mutate(record: record, mappings: original, directoryFD: fd, initialApply: false)
+                try mutate(record: record, targets: targets, directoryFD: fd, initialApply: false)
                 let restored = try backend.read(record.device)
-                guard restored.device == record.device, restored.mappings == original else { throw Refusal.unverifiedWrite }
+                guard restored.device == record.device, restored.mappings == record.original else { throw Refusal.unverifiedWrite }
+                if targets.count > 1 {
+                    let group = try backend.readGroup(record.device)
+                    guard targets.allSatisfy({ group[$0.key] == $0.value }) else { throw Refusal.unverifiedWrite }
+                }
             }
             try requireNoMutation(directoryFD: fd)
             try verifyJournal(loaded, directoryFD: fd)
@@ -228,7 +289,9 @@ public final class SessionCapsMappingLease {
         guard errno == ENOENT else { throw Refusal.mutationUncertain }
     }
 
-    private func mutate(record: Policy.Record, mappings: [Policy.Mapping], directoryFD: Int32, initialApply: Bool) throws {
+    private func mutate(record: Policy.Record, targets: [UInt64: [Policy.Mapping]], directoryFD: Int32, initialApply: Bool) throws {
+        // The chosen service's target; the DEBUG checkpoints are defined on it.
+        let mappings = targets[record.device.registryEntryID] ?? []
         let data = try JSONEncoder().encode(record.owner)
         let fd = openat(directoryFD, mutationMarker, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw Refusal.mutationUncertain }
@@ -278,7 +341,7 @@ public final class SessionCapsMappingLease {
             }
         #endif
         do {
-            try backend.write(record.device, mappings)
+            try backend.writeEach(record.device, targets)
         } catch {
             try clearMarker(metadata, directoryFD: directoryFD)
             throw error
@@ -333,6 +396,20 @@ public final class SessionCapsMappingLease {
     private func clearMarker(_ expected: stat, directoryFD: Int32) throws {
         try verifyMarker(expected, directoryFD: directoryFD)
         guard unlinkat(directoryFD, mutationMarker, 0) == 0, fsync(directoryFD) == 0 else { throw Refusal.mutationUncertain }
+    }
+
+    /// Current mappings of the chosen keyboard's other covered interfaces.
+    private func companionMappings(_ device: Policy.DeviceIdentity) throws -> [UInt64: [Policy.Mapping]] {
+        let members = try backend.members(device)
+        guard members.contains(device.registryEntryID) else { throw Policy.Refusal.differentDevice }
+        guard members.count > 1 else { return [:] }
+        let group = try backend.readGroup(device)
+        var result: [UInt64: [Policy.Mapping]] = [:]
+        for id in members where id != device.registryEntryID {
+            guard let mappings = group[id] else { throw Policy.Refusal.differentDevice }
+            result[id] = mappings
+        }
+        return result
     }
 
     private func verifyInstance(_ record: Policy.Record) throws {

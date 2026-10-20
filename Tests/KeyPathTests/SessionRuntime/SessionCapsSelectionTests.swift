@@ -110,19 +110,21 @@ final class SessionCapsSelectionTests: XCTestCase {
         XCTAssertNoThrow(try SessionCapsRuntimeSupport.automaticSelection(devices: inventory.devices, withheld: inventory.withheld, boot: boot))
     }
 
-    func testSharedLocatorWithholdsEverySharerButKeepsOtherKeyboards() throws {
+    func testInterfacesOfOneBoardAreOneKeyboardBesideOthers() throws {
         // One board exposing a second keyboard interface: same VID/PID/LocationID,
-        // distinct event-service IDs. hidutil would select both, so neither is offered.
+        // distinct event-service IDs. A LocationID names one USB device, so this
+        // is one keyboard (listed by its lowest registry ID), not twins; the
+        // lease maps every interface (SessionCapsServiceGroupTests).
         let second = cl80.replacingOccurrences(of: "4294972703", with: "4294972704")
         let inventory = try SessionCapsHIDUtilTransport.parseInventory([cl80, second, x2a].joined(separator: "\n"))
-        XCTAssertEqual(inventory.devices.map(\.registryEntryID), [4_294_972_747])
-        XCTAssertEqual(inventory.withheld, 1, "two interfaces of one board are one keyboard")
+        XCTAssertEqual(inventory.devices.map(\.registryEntryID), [4_294_972_703, 4_294_972_747])
+        XCTAssertEqual(inventory.withheld, 0)
 
-        // A consented cl80 instance now refuses instead of leasing an ambiguous selector.
+        // The consented cl80 instance is still the one offered and accepted.
         let chosen = try XCTUnwrap(SessionCapsHIDUtilTransport.parseServices(cl80).first)
         let selection = SessionCapsSelection(device: chosen, bootSessionUUID: boot)
-        XCTAssertThrowsError(try selection.verifyConnected(devices: inventory.devices, currentBoot: boot))
-        // X2A is eligible but is not picked on the user's behalf beside an untargetable keyboard.
+        XCTAssertNoThrow(try selection.verifyConnected(devices: inventory.devices, currentBoot: boot))
+        // Two keyboards still need an explicit choice.
         XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: inventory.devices, withheld: inventory.withheld, boot: boot))
 
         // An unsupported service sharing a target's locator withholds that target too.
