@@ -128,10 +128,13 @@ public struct WizardSystemStatusOverview: View {
             }
         }
         .onAppear {
-            if backend != .session {
-                duplicateCopies = WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
-            }
             updateNavSequence()
+        }
+        .task {
+            // .task, not a Task in .onAppear: dismissing the page cancels the scan
+            // (and SubprocessRunner kills its mdfind) instead of leaving it running.
+            guard backend != .session else { return }
+            duplicateCopies = await WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
         }
         .onChange(of: showAllItems) { _, _ in updateNavSequence() }
         .onChange(of: issues.count) { _, _ in updateNavSequence() }

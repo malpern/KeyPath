@@ -24,6 +24,7 @@ struct StatusSettingsTabView: View {
     @State var tcpConfigured: Bool?
     @State var duplicateAppCopies: [String] = []
     @State private var capsManaged = false
+    @State private var lastDuplicateScan: Date?
     @State private var launchAtLogin = LaunchAtLoginController.shared
     @State private var settingsToastManager = WizardToastManager()
     @State var showingPermissionAlert = false
@@ -441,7 +442,7 @@ struct StatusSettingsTabView: View {
         let controller = MainAppStateController.shared
 
         let context = controller.lastValidatedSystemContext ?? .empty
-        let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
+        let duplicates = duplicateAppCopies
 
         permissionSnapshot = context.permissions
         systemContext = context
@@ -453,6 +454,22 @@ struct StatusSettingsTabView: View {
         duplicateAppCopies = duplicates
         capsManaged = kanataManager.underlyingManager.serviceLifecycleCoordinator.sessionManagedCapsActive
         Task { await launchAtLogin.refresh() }
+        refreshDuplicateAppCopies()
+    }
+
+    /// Spotlight can stall, so the duplicate-app scan never runs inline on the main
+    /// actor: publish status immediately, then fold the scan result in when it lands.
+    /// Until the first scan lands (at most `duplicateScanTimeout`), a genuine duplicate
+    /// install is not yet reflected; that brief warm-up is intended. Validation
+    /// publishes roughly every minute, so rescans are throttled to match.
+    private func refreshDuplicateAppCopies() {
+        if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 { return }
+        lastDuplicateScan = Date()
+        Task { @MainActor in
+            let duplicates = await HelperMaintenance.shared.detectDuplicateAppCopies()
+            guard duplicates != duplicateAppCopies else { return }
+            duplicateAppCopies = duplicates
+        }
     }
 
     private func startViaInstallerEngine() async {
