@@ -6,8 +6,11 @@ import SwiftUI
 
 extension RulesTabView {
     func handleCollectionToggle(collection: RuleCollection, isOn: Bool) {
-        if isOn, let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: collection.id) {
-            settingsToastManager.showError(reason)
+        // The engine's answer for turning this on: a backend limit or a foreign
+        // Caps owner refuses here; a reserved Caps key is moved and mentioned.
+        let review = isOn ? kanataManager.underlyingManager.reviewAdmission(forEnabling: collection) : .clear
+        if let refusal = review.refusal {
+            settingsToastManager.showError(refusal)
             return
         }
 
@@ -83,6 +86,9 @@ extension RulesTabView {
             }
             pendingToggles.removeValue(forKey: collection.id)
             refreshUnmetDependencies()
+            if let note = review.notes.first, kanataManager.ruleCollections.first(where: { $0.id == collection.id })?.isEnabled == true {
+                settingsToastManager.showSuccess(note)
+            }
         }
     }
 

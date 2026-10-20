@@ -394,6 +394,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         serviceLifecycleCoordinator.onStateChanged = { [weak self] in
             self?.notifyStateChanged()
         }
+        serviceLifecycleCoordinator.onAdmissionEnvironment = { [weak self] environment in
+            self?.ruleCollectionsManager.admissionEnvironment = environment
+        }
         StuckKeyRecoveryService.shared.sessionReportProvider = { [weak self] in
             self?.serviceLifecycleCoordinator.lastSessionReportForDiagnostics()
         }

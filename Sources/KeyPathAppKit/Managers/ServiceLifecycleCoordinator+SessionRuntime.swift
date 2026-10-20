@@ -769,9 +769,15 @@ extension ServiceLifecycleCoordinator {
             )
             return nil
         }
-        guard needed.managedCaps, let current = try SessionCapsRuntimeSupport.selected() else { return nil }
+        guard needed.managedCaps, let current = try SessionCapsRuntimeSupport.selected() else {
+            onAdmissionEnvironment?(.init(intermediateUsage: nil, occupied: [], foreignCapsOwner: nil))
+            return nil
+        }
         let device = current.device
         let occupied: Set<UInt32>
+        // Who else maps Caps on this keyboard, read in the same pass; the
+        // engine turns it into a verdict on every rule that needs Caps Lock.
+        let foreignOwner = await Task.detached { try? SessionCapsRuntimeSupport.capsConflict(on: device) }.value?.ownerName
         do {
             occupied = try await Task.detached { try SessionCapsRuntimeSupport.occupiedIntermediates(own: device) }.value
         } catch {
@@ -782,6 +788,8 @@ extension ServiceLifecycleCoordinator {
             occupied = []
         }
         let admission = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current(), occupied: occupied)
+        onAdmissionEnvironment?(.init(intermediateUsage: admission.intermediateUsage, occupied: occupied,
+                                      foreignCapsOwner: foreignOwner))
         guard admission.managedCaps else {
             // The worker then runs paused. Keep the reason past the start,
             // which clears errors, so Status and the warning still say it.

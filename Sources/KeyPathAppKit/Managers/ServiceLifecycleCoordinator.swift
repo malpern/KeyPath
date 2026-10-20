@@ -172,6 +172,10 @@ final class ServiceLifecycleCoordinator {
     /// Called to notify the UI of a state change.
     var onStateChanged: (() -> Void)?
 
+    /// Called at each session start with what admission learned about Caps
+    /// Lock (phase 4d); `RuntimeCoordinator` hands it to the rules manager.
+    var onAdmissionEnvironment: ((AdmissionEngine.Environment) -> Void)?
+
     // MARK: - Init
 
     init(

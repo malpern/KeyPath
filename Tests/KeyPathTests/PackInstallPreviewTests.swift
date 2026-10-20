@@ -49,6 +49,17 @@ final class PackInstallPreviewTests: KeyPathTestCase {
         XCTAssertTrue(preview.summaryLines.isEmpty)
     }
 
+    /// Phase 4d: the live environment reaches the preview. A pack on the
+    /// reserved Caps key installs in one click and the move is summarised.
+    func testPackOnTheReservedCapsKeyInstallsWithANote() async {
+        manager.admissionEnvironment = .init(capsIntermediate: "f18")
+        let preview = await PackInstaller.shared.admissionPreview(for: bindingPack(inputs: ["f18"]), manager: manager,
+                                                                  installedPackTracker: tracker, profile: allowAll)
+        XCTAssertFalse(preview.requiresConfirmation)
+        XCTAssertEqual(preview.summaryLines.count, 1)
+        XCTAssertTrue(preview.summaryLines[0].contains("Caps Lock will use F19 instead"), preview.summaryLines[0])
+    }
+
     func testConflictWithAnExistingRuleNeedsAChoiceAndOffersThatRule() async throws {
         let mine = CustomRule(title: "Mine", input: "f13", action: .keystroke(key: "f15"))
         manager.customRules = [mine]

@@ -124,6 +124,16 @@ extension RuntimeCoordinator {
         }
     }
 
+    /// What admission says about saving `rule`, before anything is written.
+    func reviewAdmission(forProposed rule: CustomRule) -> AdmissionReview {
+        ruleCollectionsManager.reviewAdmission(forProposed: rule)
+    }
+
+    /// What admission says about turning `collection` on.
+    func reviewAdmission(forEnabling collection: RuleCollection) -> AdmissionReview {
+        ruleCollectionsManager.reviewAdmission(forEnabling: collection)
+    }
+
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
         await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)

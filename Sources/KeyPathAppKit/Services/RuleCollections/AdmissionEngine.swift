@@ -27,6 +27,39 @@ enum AdmissionEngine {
         var foreignCapsOwner: String?
     }
 
+    /// The live Caps Lock environment (phase 4d): what the session runtime
+    /// learned at its last start, published through
+    /// `RuleCollectionsManager.admissionEnvironment` so every evaluation —
+    /// toggle, editor save, pack preview — sees the same reserved key, the
+    /// same occupied candidates and the same foreign Caps owner.
+    struct Environment: Equatable, Sendable {
+        /// The intermediate the runtime reserved (Kanata name, `f18`), or
+        /// nil when the profile does not use managed Caps.
+        var capsIntermediate: String?
+        /// Pool keys other apps' mappings or macOS shortcuts already use.
+        var occupiedIntermediates: Set<String> = []
+        /// Another app remapping Caps Lock on the chosen keyboard.
+        var foreignCapsOwner: String?
+
+        /// Before the first session start nothing is known: the engine then
+        /// behaves as in phases 1–3 and the runtime's own re-pick at reload
+        /// (`SessionCapsRuntimeSupport.admit`) remains the backstop.
+        static let unknown = Environment()
+
+        init(capsIntermediate: String? = nil, occupiedIntermediates: Set<String> = [], foreignCapsOwner: String? = nil) {
+            self.capsIntermediate = capsIntermediate
+            self.occupiedIntermediates = occupiedIntermediates
+            self.foreignCapsOwner = foreignCapsOwner
+        }
+
+        /// From the runtime's usage numbers.
+        init(intermediateUsage: UInt32?, occupied: Set<UInt32>, foreignCapsOwner: String?) {
+            capsIntermediate = intermediateUsage.map { SessionCapsIntermediate.kanataName($0).lowercased() }
+            occupiedIntermediates = Set(occupied.map { SessionCapsIntermediate.kanataName($0).lowercased() })
+            self.foreignCapsOwner = foreignCapsOwner
+        }
+    }
+
     static func evaluate(_ state: State,
                          profile: BackendCapabilityProfile = .shared,
                          fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) })
@@ -102,6 +135,8 @@ enum AdmissionEngine {
         -> [AdmissionVerdict]
     {
         guard let reserved = state.capsIntermediate?.lowercased() else { return [] }
+        // Same order as `SessionCapsIntermediate.choose`, so the key this names
+        // is the key the runtime's re-pick takes at the next session start.
         let pool = SessionCapsIntermediate.pool.map { SessionCapsIntermediate.kanataName($0).lowercased() }
         let usedByRules = Set(owners.flatMap { usedKeys(in: $0.collection) })
         let candidates = pool.filter {
@@ -154,5 +189,18 @@ enum AdmissionEngine {
             }
         }
         return verdicts
+    }
+}
+
+extension AdmissionEngine.State {
+    /// Rules plus the live environment the manager holds.
+    init(collections: [RuleCollection], customRules: [CustomRule] = [], leaderKey: LeaderKeyPreference? = nil,
+         installedPackIDs: Set<String> = [], environment: AdmissionEngine.Environment)
+    {
+        self.init(collections: collections, customRules: customRules, leaderKey: leaderKey,
+                  installedPackIDs: installedPackIDs,
+                  capsIntermediate: environment.capsIntermediate,
+                  occupiedIntermediates: environment.occupiedIntermediates,
+                  foreignCapsOwner: environment.foreignCapsOwner)
     }
 }

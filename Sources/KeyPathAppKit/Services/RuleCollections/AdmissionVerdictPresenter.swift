@@ -55,7 +55,7 @@ enum AdmissionVerdictPresenter {
         case let .capsLockHeldByOtherApp(app):
             return AdmissionPresentation(
                 title: "\(app) already remaps Caps Lock",
-                explanation: "\(subject) needs Caps Lock, but \(app) is remapping it. Turn that off in \(app) first.",
+                explanation: "\(subject) needs Caps Lock, but \(app) is remapping it. Turn that off first.",
                 options: []
             )
         case let .packConflict(otherPackID, description):

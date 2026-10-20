@@ -12,10 +12,20 @@ struct RuleCollectionCatalog {
     /// not the raw catalog entry: macOS Function Keys is stored as its media
     /// definition but always installed in function mode, and media mode's own
     /// availability is `FunctionKeyMode.isSupportedInDriverlessSession`.
-    static func driverlessUnavailableReason(for id: UUID) -> String? {
+    ///
+    /// The sentence is the admission engine's (phase 4d), so the gallery, the
+    /// rules list and the toggle all say the same thing. Only the backend's
+    /// own limits count here: whether a companion app is installed is a
+    /// question for install or toggle time, with the user's real files.
+    @MainActor static func driverlessUnavailableReason(for id: UUID, profile: BackendCapabilityProfile = .shared) -> String? {
         guard let collection = installedDefinitions.first(where: { $0.id == id }) else { return nil }
-        let unmet = RuleCollectionNeedsExtractor.unmet(RuleCollectionNeedsExtractor.needs(for: collection))
-        return unmet.isEmpty ? nil : SystemActionInfo.driverlessMediaUnavailableReason
+        var enabled = collection
+        enabled.isEnabled = true
+        let state = AdmissionEngine.State(collections: [enabled])
+        let verdicts = AdmissionEngine.evaluate(state, profile: profile, fileExists: { _ in true })
+        guard let verdict = verdicts.first(where: { if case .unmetNeed = $0.reason { return true }; return false })
+        else { return nil }
+        return AdmissionVerdictPresenter.present(verdict) { _ in collection.name }.explanation
     }
 
     private static let installedDefinitions = RuleCollectionCatalog().defaultCollections()

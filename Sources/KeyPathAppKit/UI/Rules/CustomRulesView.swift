@@ -138,6 +138,10 @@ struct CustomRulesView: View {
             inlineError = first.errorDescription
             return
         }
+        if let refusal = kanataManager.underlyingManager.reviewAdmission(forProposed: rule).refusal {
+            inlineError = refusal
+            return
+        }
 
         Task {
             let saved = await kanataManager.underlyingManager.saveCustomRule(rule)
