@@ -72,6 +72,9 @@ final class KeyPathTests: KeyPathTestCase {
 
         // Test sequences
         XCTAssertEqual(manager.convertToKanataSequence("hello"), "(macro h e l l o)")
+        // A captured sequence (space-separated tokens) is a macro, never a bare list.
+        XCTAssertEqual(manager.convertToKanataSequence("mute M-S-C-4"), "(macro mute M-S-C-4)")
+        XCTAssertEqual(manager.convertToKanataSequence("escape a"), "(macro esc a)")
         XCTAssertEqual(manager.convertToKanataSequence("abc"), "(macro a b c)")
     }
 
