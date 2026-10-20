@@ -69,4 +69,35 @@ final class MediaKeyCaptureToSaveTests: KeyPathTestCase {
             XCTAssertFalse(config.contains("(macro"), "a media key must never be typed as letters")
         }
     }
+
+    /// A media key followed by a chord (the 2026-10-20 edge case: Mute then
+    /// ⌃⇧⌘4) is a sequence, rendered as a macro Kanata accepts.
+    func testMediaKeyThenChordSavesAsAMacro() async throws {
+        let mute = try XCTUnwrap(KeyboardCapture.mediaKeyPress(from: mediaEvent(nxKeyType: 7, down: true)))
+        let chord = KeyPress(baseKey: "4", modifiers: [.control, .shift, .command], keyCode: 21)
+        let vm = MapperViewModel()
+        vm.configure(kanataManager: coordinator)
+        vm.inputSequence = KeySequence(keys: [KeyPress(baseKey: "grave", modifiers: [], keyCode: 50)], captureMode: .single)
+        vm.outputSequence = KeySequence(keys: [mute, chord], captureMode: .sequence)
+        await vm.save(kanataManager: coordinator)
+        XCTAssertFalse(vm.statusIsError, vm.statusMessage ?? "")
+        let config = try String(contentsOfFile: service.configurationPath, encoding: .utf8)
+        XCTAssertTrue(config.contains("(macro mute M-S-C-4)"), config)
+    }
+
+    /// A lone captured media key becomes the system action it names, so the
+    /// Mapper shows one symbol throughout and saves through the action path.
+    func testLoneMediaKeyCaptureBecomesTheSystemAction() throws {
+        let vm = MapperViewModel()
+        vm.configure(kanataManager: coordinator)
+        let mute = try XCTUnwrap(KeyboardCapture.mediaKeyPress(from: mediaEvent(nxKeyType: 7, down: true)))
+        vm.applyCapturedOutput(KeySequence(keys: [mute], captureMode: .single))
+        XCTAssertEqual(vm.selectedSystemAction?.id, "mute")
+        XCTAssertNil(vm.outputSequence)
+        XCTAssertEqual(vm.outputLabel, "Mute")
+        // A sequence stays a sequence.
+        let chord = KeyPress(baseKey: "4", modifiers: [.control, .shift, .command], keyCode: 21)
+        vm.applyCapturedOutput(KeySequence(keys: [mute, chord], captureMode: .sequence))
+        XCTAssertNotNil(vm.outputSequence)
+    }
 }

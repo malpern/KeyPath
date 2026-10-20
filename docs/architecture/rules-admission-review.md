@@ -539,6 +539,11 @@ So the session emits media keys as Kanata's ordinary outputs:
   of macOS Function Keys and the eight media system actions became available with no
   Swift change; the former hard-coded refusals survive only as the no-bridge fallback
   (`fallbackConsumerKeys`), and the tests now pin both answers.
+- **Found on hardware the same day:** a captured sequence (Mute then ⌃⇧⌘4) was rendered
+  by the generator as a bare list `(mute M-S-C-4)`, which Kanata cannot parse; multi-token
+  outputs are now always a `(macro …)`. And a lone captured media key is treated as the
+  system action it names (`MapperViewModel.applyCapturedOutput`), so the Mapper shows
+  one symbol throughout and saves through the action path.
 - **Known limits** (from the spike): a posted brightness event drives the built-in
   panel only (Studio Display unchanged); per-device media rules are impossible
   (system-defined events carry no source device); keyboard backlight (21–23) is in

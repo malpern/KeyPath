@@ -316,8 +316,7 @@ extension MapperViewModel {
                     viewModel.shiftedOutputSequence = sequence
                     viewModel.shiftedOutputLabel = sequence.displayString
                 } else {
-                    viewModel.outputSequence = sequence
-                    viewModel.outputLabel = sequence.displayString
+                    viewModel.applyCapturedOutput(sequence)
                 }
 
                 // Reset finalize timer - wait for more keys
@@ -421,6 +420,22 @@ extension MapperViewModel {
             originalOutputKey = inputKey
             originalShiftedOutputKey = nil
         }
+    }
+
+    /// A captured output. A lone media key (volume, brightness, play/pause…)
+    /// is the system action it names, so the tile shows that action's symbol
+    /// from the first moment and the save goes the system-action way; any
+    /// other capture is a key sequence.
+    func applyCapturedOutput(_ sequence: KeySequence) {
+        if sequence.keys.count == 1, let press = sequence.keys.first, press.keyCode >= 1000,
+           let action = SystemActionInfo.find(byOutput: KeyMappingFormatter.toKanataFormat(sequence)),
+           action.isSupportedInDriverlessSession
+        {
+            selectSystemAction(action)
+            return
+        }
+        outputSequence = sequence
+        outputLabel = sequence.displayString
     }
 
     func finalizeCapture() {

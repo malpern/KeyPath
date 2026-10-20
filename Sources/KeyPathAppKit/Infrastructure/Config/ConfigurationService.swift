@@ -1784,11 +1784,13 @@ public enum KanataKeyConverter {
             return ""
         }
 
-        // Multiple whitespace-separated tokens (e.g., "cmd space") → chord/sequence
+        // Multiple whitespace-separated tokens are a sequence to type in order
+        // (a chord arrives as one token with modifier prefixes, "M-S-C-4"). A
+        // bare list "(mute M-S-C-4)" is not Kanata; a macro is.
         if tokens.count > 1 {
             // Use convertToKanataKeyForMacro to preserve uppercase modifier prefixes
             let kanataKeys = tokens.map { convertToKanataKeyForMacro($0) }
-            return "(\(kanataKeys.joined(separator: " ")))"
+            return "(macro \(kanataKeys.joined(separator: " ")))"
         }
 
         // Single token - check if it's a text sequence to type (e.g., "123", "hello")
