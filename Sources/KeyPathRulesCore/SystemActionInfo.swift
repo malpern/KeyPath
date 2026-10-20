@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// How a `SystemActionInfo` produces its kanata output string.
 ///
@@ -40,11 +41,12 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         }
     }
 
-    /// Consumer-page outputs are not emitted by the driverless session. Keyboard-page
-    /// HID outputs such as Home, End and Forward Delete remain supported.
+    /// Whether the active backend can emit this action. Push-message and modifier
+    /// actions always can; a HID keycode asks the backend's capability profile
+    /// (the driverless session refuses consumer-page keys such as media keys).
     public var isSupportedInDriverlessSession: Bool {
         guard let keycode = kanataKeycode else { return true }
-        return !["pp", "next", "prev", "mute", "volu", "voldwn", "brup", "brdown"].contains(keycode)
+        return BackendCapabilityProfile.shared.canEmit(kanataKey: keycode)
     }
 
     public static let driverlessMediaUnavailableReason =

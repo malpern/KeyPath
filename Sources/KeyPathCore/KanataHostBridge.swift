@@ -384,6 +384,28 @@ public enum KanataHostBridge {
         return .invalid(reason: reason)
     }
 
+    /// Whether the driverless session can emit the Kanata key `keyName`, answered
+    /// by the bridge with the same rule session validation uses. `nil` when the
+    /// bridge (or this entry point) is unavailable or the name is not a Kanata key.
+    public static func sessionOutputKeySupported(
+        runtimeHost: KanataRuntimeHost, keyName: String, supportedUsages: [UInt32],
+        fileManager: FileManager = .default
+    ) -> Bool? {
+        typealias QueryFunction = @convention(c) (UnsafePointer<CChar>?, UnsafePointer<UInt32>?, Int) -> Int32
+        guard let handle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else { return nil }
+        defer { dlclose(handle) }
+        guard let symbol = dlsym(handle, "keypath_kanata_bridge_session_output_key_supported") else { return nil }
+        let query = unsafeBitCast(symbol, to: QueryFunction.self)
+        let answer = supportedUsages.withUnsafeBufferPointer { usages in
+            keyName.withCString { query($0, usages.baseAddress, usages.count) }
+        }
+        switch answer {
+        case 1: return true
+        case 0: return false
+        default: return nil
+        }
+    }
+
     public static func validateSessionConfig(
         runtimeHost: KanataRuntimeHost, configPath: String,
         supportedUsages: [UInt32], managedCaps: Bool = false,

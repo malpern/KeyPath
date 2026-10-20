@@ -144,7 +144,7 @@ enum SessionCapsRuntimeSupport {
                       selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey),
                       requireSelection: Bool = true, occupied: Set<UInt32> = [], rechoose: Bool = true) -> Admission
     {
-        let usages = SessionKeyMap.keyCodeToUsage.values.filter { $0 != 57 }.sorted()
+        let usages = SessionKeyMap.sessionOutputUsages
         let preferred = preferredIntermediate(environment: environment, selectionData: selectionData)
         let legacy = KanataHostBridge.validateSessionConfig(runtimeHost: runtimeHost, configPath: configPath, supportedUsages: usages)
         if case .valid = legacy { return Admission(result: legacy, managedCaps: false, intermediateUsage: preferred) }

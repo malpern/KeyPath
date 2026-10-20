@@ -5,8 +5,30 @@ use kanata_parser::custom_action::CustomAction;
 use kanata_parser::keys::{OsCode, PageCode};
 
 fn key_supported(key: KeyCode, usages: &[u32]) -> bool {
-    let code: OsCode = key.into();
+    oscode_supported(key.into(), usages)
+}
+
+/// The one output rule: keyboard page (7) and in the host's key map. Consumer
+/// keys (media, brightness) and Fn are on other pages, so they are refused here.
+fn oscode_supported(code: OsCode, usages: &[u32]) -> bool {
     PageCode::try_from(code).is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
+}
+
+/// Outputs the session can emit: the host's key map plus native Caps Lock,
+/// which SessionCapsLockOutput posts independently of physical Caps capture.
+fn session_output_usages(usages: &[u32]) -> Vec<u32> {
+    let mut output_usages = usages.to_vec();
+    if !output_usages.contains(&57) {
+        output_usages.push(57);
+    }
+    output_usages
+}
+
+/// Whether the session can emit the Kanata key `name` as an output, under the
+/// same rule `supported` applies. `None` when Kanata does not know the name.
+pub(crate) fn output_key_name_supported(name: &str, usages: &[u32]) -> Option<bool> {
+    let code = kanata_parser::keys::str_to_oscode(name)?;
+    Some(oscode_supported(code, &session_output_usages(usages)))
 }
 
 fn custom_supported(action: &CustomAction) -> bool {
@@ -59,9 +81,7 @@ fn action_supported(
         Action::HoldTap(ht) => [&ht.hold, &ht.tap, &ht.timeout_action]
             .iter()
             .all(|a| action_supported(a, input, usages, virtual_inputs, reserved)),
-        Action::OneShot(os) => {
-            action_supported(os.action, input, usages, virtual_inputs, reserved)
-        }
+        Action::OneShot(os) => action_supported(os.action, input, usages, virtual_inputs, reserved),
         Action::TapDance(td) => td
             .actions
             .iter()
@@ -125,10 +145,7 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
 
     // Native Caps output is handled by SessionCapsLockOutput independently
     // of physical Caps capture. Never add it to the input eligibility set.
-    let mut output_usages = usages.to_vec();
-    if !output_usages.contains(&57) {
-        output_usages.push(57);
-    }
+    let output_usages = session_output_usages(usages);
     let virtual_inputs: Vec<u16> = cfg.fake_keys.values().map(|index| *index as u16).collect();
     // Chords v2 store actions outside the layer tree. Check captured inputs
     // and recursively validate their separately stored output actions.
@@ -141,7 +158,13 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
                             && PageCode::try_from(key)
                                 .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
                     })
-                }) || !action_supported(chord.action, OsCode::KEY_RESERVED, &output_usages, &virtual_inputs, None) {
+                }) || !action_supported(
+                    chord.action,
+                    OsCode::KEY_RESERVED,
+                    &output_usages,
+                    &virtual_inputs,
+                    None,
+                ) {
                     return false;
                 }
             }
@@ -292,14 +315,54 @@ pub(crate) fn supported_with_managed_caps_reserving(
 mod tests {
     use super::*;
 
+    /// Keyboard-page usages the Swift host passes (SessionKeyMap minus Caps):
+    /// letters, F1, F12, Home, Delete Forward. Enough to pin the rule.
+    const HOST: &[u32] = &[4, 58, 69, 74, 76];
+
+    #[test]
+    fn output_key_names_follow_the_session_output_rule() {
+        // Keyboard page and in the host map.
+        assert_eq!(output_key_name_supported("a", HOST), Some(true));
+        assert_eq!(output_key_name_supported("f1", HOST), Some(true));
+        assert_eq!(output_key_name_supported("home", HOST), Some(true));
+        // Native Caps is always an output, even though the host omits it.
+        assert_eq!(output_key_name_supported("caps", HOST), Some(true));
+        // Consumer page: media and brightness are refused.
+        for name in [
+            "volu", "voldwn", "mute", "pp", "next", "prev", "brup", "brdown",
+        ] {
+            assert_eq!(output_key_name_supported(name, HOST), Some(false), "{name}");
+        }
+        // Keyboard page but outside the host map.
+        assert_eq!(output_key_name_supported("f13", HOST), Some(false));
+        // Not a Kanata key at all.
+        assert_eq!(output_key_name_supported("not-a-key", HOST), None);
+    }
+
     #[test]
     fn native_caps_output_does_not_require_capturing_physical_caps() {
-        for action in ["caps", "(tap-hold 200 200 esc caps)", "(macro caps)", "(tap-dance 200 (esc caps))"] {
-            let cfg = kanata_parser::cfg::new_from_str(&format!("(defsrc a)(deflayer base {action})"), Default::default()).unwrap();
+        for action in [
+            "caps",
+            "(tap-hold 200 200 esc caps)",
+            "(macro caps)",
+            "(tap-dance 200 (esc caps))",
+        ] {
+            let cfg = kanata_parser::cfg::new_from_str(
+                &format!("(defsrc a)(deflayer base {action})"),
+                Default::default(),
+            )
+            .unwrap();
             assert!(supported(&cfg, &[4, 41]), "{action}");
         }
-        let input = kanata_parser::cfg::new_from_str("(defsrc caps)(deflayer base esc)", Default::default()).unwrap();
-        assert!(!supported(&input, &[4, 41]), "Output support must not authorize physical Caps capture");
+        let input = kanata_parser::cfg::new_from_str(
+            "(defsrc caps)(deflayer base esc)",
+            Default::default(),
+        )
+        .unwrap();
+        assert!(
+            !supported(&input, &[4, 41]),
+            "Output support must not authorize physical Caps capture"
+        );
     }
 
     fn managed(text: &str) -> bool {
@@ -373,8 +436,12 @@ mod tests {
         assert!(managed(
             "(defcfg process-unmapped-keys yes)(defsrc caps)(deflayer base esc)"
         ));
-        assert!(!managed("(defcfg process-unmapped-keys yes)(defsrc caps f18)(deflayer base esc f18)"));
-        assert!(!managed("(defcfg process-unmapped-keys yes)(defsrc a)(deflayer base a)"));
+        assert!(!managed(
+            "(defcfg process-unmapped-keys yes)(defsrc caps f18)(deflayer base esc f18)"
+        ));
+        assert!(!managed(
+            "(defcfg process-unmapped-keys yes)(defsrc a)(deflayer base a)"
+        ));
         assert!(!managed("(defsrc caps f18)(deflayer base esc a)"));
         assert!(!managed("(defsrc caps f18)(deflayer base esc f18)"));
         assert!(!managed("(defsrc caps)(deflayer base esc)(deflayer nav _)"));
@@ -420,25 +487,52 @@ mod tests {
 
     #[test]
     fn chosen_intermediate_reserves_that_key_and_frees_f18() {
-        let parse = |text: &str| kanata_parser::cfg::new_from_str(text, Default::default()).unwrap();
+        let parse =
+            |text: &str| kanata_parser::cfg::new_from_str(text, Default::default()).unwrap();
         let usages = [4, 5, 41, 57, 109, 110, 111, 224];
         // A profile using F18 cannot run with F18 as the intermediate, but can with F19.
         let f18_rule = parse("(defsrc caps f18)(deflayer base esc a)");
-        assert!(!supported_with_managed_caps_reserving(&f18_rule, &usages, 109));
-        assert!(supported_with_managed_caps_reserving(&f18_rule, &usages, 110));
+        assert!(!supported_with_managed_caps_reserving(
+            &f18_rule, &usages, 109
+        ));
+        assert!(supported_with_managed_caps_reserving(
+            &f18_rule, &usages, 110
+        ));
         let f18_output = parse("(defsrc caps a)(deflayer base esc f18)");
-        assert!(supported_with_managed_caps_reserving(&f18_output, &usages, 110));
+        assert!(supported_with_managed_caps_reserving(
+            &f18_output,
+            &usages,
+            110
+        ));
         // The chosen key is reserved exactly as F18 was.
-        assert!(!supported_with_managed_caps_reserving(&parse("(defsrc caps f19)(deflayer base esc a)"), &usages, 110));
-        assert!(!supported_with_managed_caps_reserving(&parse("(defsrc caps a)(deflayer base esc f19)"), &usages, 110));
-        assert!(!supported_with_managed_caps_reserving(&parse("(defsrc caps a)(deflayer base (tap-hold 200 200 esc f19) a)"), &usages, 110));
+        assert!(!supported_with_managed_caps_reserving(
+            &parse("(defsrc caps f19)(deflayer base esc a)"),
+            &usages,
+            110
+        ));
+        assert!(!supported_with_managed_caps_reserving(
+            &parse("(defsrc caps a)(deflayer base esc f19)"),
+            &usages,
+            110
+        ));
+        assert!(!supported_with_managed_caps_reserving(
+            &parse("(defsrc caps a)(deflayer base (tap-hold 200 200 esc f19) a)"),
+            &usages,
+            110
+        ));
         // Only F13-F20 can be an intermediate.
         let plain = parse("(defsrc caps)(deflayer base esc)");
         for usage in [0, 57, 103, 112, 115] {
-            assert!(!supported_with_managed_caps_reserving(&plain, &usages, usage), "{usage}");
+            assert!(
+                !supported_with_managed_caps_reserving(&plain, &usages, usage),
+                "{usage}"
+            );
         }
         for usage in 104..=111 {
-            assert!(supported_with_managed_caps_reserving(&plain, &usages, usage), "{usage}");
+            assert!(
+                supported_with_managed_caps_reserving(&plain, &usages, usage),
+                "{usage}"
+            );
         }
     }
 
@@ -524,31 +618,49 @@ mod tests {
 
     #[test]
     fn legacy_session_simple_mapping() {
-        let cfg = kanata_parser::cfg::new_from_str("(defsrc a)(deflayer base b)", Default::default()).unwrap();
+        let cfg =
+            kanata_parser::cfg::new_from_str("(defsrc a)(deflayer base b)", Default::default())
+                .unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), true);
     }
 
     #[test]
     fn legacy_session_startup_unsupported() {
-        let cfg = kanata_parser::cfg::new_from_str("(defcfg alias-to-trigger-on-load boot)(defalias boot volu)(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str(
+            "(defcfg alias-to-trigger-on-load boot)(defalias boot volu)(defsrc a)(deflayer base a)",
+            Default::default(),
+        )
+        .unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
 
     #[test]
     fn legacy_session_startup_opaque() {
-        let cfg = kanata_parser::cfg::new_from_str("(defcfg alias-to-trigger-on-load boot)(defalias boot b)(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str(
+            "(defcfg alias-to-trigger-on-load boot)(defalias boot b)(defsrc a)(deflayer base a)",
+            Default::default(),
+        )
+        .unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
 
     #[test]
     fn legacy_session_override_unsupported() {
-        let cfg = kanata_parser::cfg::new_from_str("(defoverrides (a) (volu))(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str(
+            "(defoverrides (a) (volu))(defsrc a)(deflayer base a)",
+            Default::default(),
+        )
+        .unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
 
     #[test]
     fn legacy_session_override_opaque() {
-        let cfg = kanata_parser::cfg::new_from_str("(defoverrides (a) (b))(defsrc a)(deflayer base a)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str(
+            "(defoverrides (a) (b))(defsrc a)(deflayer base a)",
+            Default::default(),
+        )
+        .unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
 
@@ -575,5 +687,4 @@ mod tests {
         let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (caps a) esc 100 all-released ())(defsrc caps a)(deflayer base caps a)", Default::default()).unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
-
 }
