@@ -41,6 +41,9 @@ public final class PackInstaller {
         /// the dependency display name and a website URL the UI can
         /// surface as a "Get it →" CTA.
         case dependencyMissing(name: String, websiteURL: URL)
+        /// Admission found something the user must decide (or that blocks).
+        /// The UI shows the preview and calls `install` again with `.confirmed`.
+        case needsReview(PackInstallPreview)
 
         public var errorDescription: String? {
             switch self {
@@ -53,6 +56,8 @@ public final class PackInstaller {
                 return "Conflicts with \(names). Turn that pack off first to enable this one."
             case let .dependencyMissing(name, _):
                 return "\(name) isn't installed."
+            case let .needsReview(preview):
+                return preview.items.map(\.presentation.title).joined(separator: "; ")
             }
         }
     }
@@ -176,11 +181,33 @@ public final class PackInstaller {
         skipFinalReload: Bool = false,
         reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
         installedPackTracker: InstalledPackTracker = .shared,
-        mutationPermit: ConfigurationOperationGate.Permit? = nil
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        admission: PackInstallAdmission = .unchecked
     ) async throws -> InstalledPackRecord {
-        if let id = pack.associatedCollectionID, let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: id) {
-            throw InstallError.saveFailed(reason)
+        var additionalCollectionIDsToDisable = additionalCollectionIDsToDisable
+        var rulesToDisable: Set<UUID> = []
+        switch admission {
+        case .checked:
+            let preview = await admissionPreview(for: pack, manager: manager, installedPackTracker: installedPackTracker)
+            if preview.requiresConfirmation { throw InstallError.needsReview(preview) }
+        case let .confirmed(collections, rules, packs):
+            for other in packs.sorted() {
+                try await uninstall(packID: other, manager: manager, installedPackTracker: installedPackTracker,
+                                    mutationPermit: mutationPermit)
+            }
+            additionalCollectionIDsToDisable.formUnion(collections)
+            rulesToDisable = rules
+            // The user may have chosen to proceed with a block they can't fix here
+            // (e.g. a missing app); refuse anything still blocking after their choices.
+            let preview = await admissionPreview(for: pack, manager: manager, installedPackTracker: installedPackTracker,
+                                                 ignoringCollections: collections, ignoringRules: rules)
+            if preview.isBlocked { throw InstallError.needsReview(preview) }
+        case .unchecked:
+            if let id = pack.associatedCollectionID, let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: id) {
+                throw InstallError.saveFailed(reason)
+            }
         }
+        let autoResolveCollectionConflicts = autoResolveCollectionConflicts
         return try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             AppLogger.shared.log(
@@ -192,6 +219,11 @@ public final class PackInstaller {
                 manager: manager,
                 installedPackTracker: installedPackTracker
             )
+            for id in rulesToDisable {
+                if let index = manager.customRules.firstIndex(where: { $0.id == id }) {
+                    manager.customRules[index].isEnabled = false
+                }
+            }
 
             // Resolve effective quick-setting values (user-provided ∪ defaults).
             let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
@@ -623,50 +655,112 @@ public final class PackInstaller {
 
     // MARK: - Pre-install gates
 
-    /// Pack-specific install gates. Right now only the KindaVim Mode
-    /// Display pack has any: it conflicts with Vim Navigation (both want
-    /// to own the h/j/k/l story) and requires kindaVim.app to be present.
+    /// Install gates the admission engine cannot express. Pack-vs-pack mutual
+    /// exclusion is now declared in the registry (`conflictsWith`) and the
+    /// KindaVim app requirement in `Pack.requires`; both reach the user through
+    /// `admissionPreview`. What remains: the retired KindaVim rule collection,
+    /// preserved on disk for upgraders, must not be enabled alongside the pack.
     private func enforcePreInstallGates(
         for pack: Pack,
         manager: RuleCollectionsManager,
         installedPackTracker: InstalledPackTracker
     ) async throws {
-        if pack.id == PackRegistry.kindaVim.id {
-            // Mutex: refuse if any conflicting pack is installed.
-            var conflicts: [(id: String, name: String)] = []
-            if await installedPackTracker.isInstalled(packID: "com.keypath.pack.vim-navigation"),
-               let conflict = PackRegistry.pack(id: "com.keypath.pack.vim-navigation")
-            {
-                conflicts.append((id: conflict.id, name: conflict.name))
-            }
-            // Also block on the legacy KindaVim rule collection (retired
-            // in this release but preserved on disk for upgraders until the
-            // migration runs). If it's still enabled, kindaVim.app would be
-            // fighting our old h/j/k/l remaps — refuse and surface it as
-            // a conflict the user can resolve from Rules.
-            if manager.ruleCollections.contains(where: {
-                $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled
-            }) {
-                conflicts.append((id: RuleCollectionIdentifier.kindaVim.uuidString, name: "Legacy KindaVim rules"))
-            }
-            if !conflicts.isEmpty {
-                throw InstallError.mutuallyExclusive(conflicts: conflicts)
-            }
-
-            // Dependency: kindaVim.app must be installed.
-            if !FileManager.default.fileExists(atPath: "/Applications/kindaVim.app") {
-                throw InstallError.dependencyMissing(
-                    name: "KindaVim",
-                    websiteURL: URL(string: "https://kindavim.app")!
-                )
-            }
-        }
-
-        if pack.id == "com.keypath.pack.vim-navigation",
-           await installedPackTracker.isInstalled(packID: PackRegistry.kindaVim.id)
+        if pack.id == PackRegistry.kindaVim.id,
+           manager.ruleCollections.contains(where: { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled })
         {
-            throw InstallError.mutuallyExclusive(conflicts: [(id: PackRegistry.kindaVim.id, name: PackRegistry.kindaVim.name)])
+            throw InstallError.mutuallyExclusive(conflicts: [(id: RuleCollectionIdentifier.kindaVim.uuidString, name: "Legacy KindaVim rules")])
         }
+        // Unchecked installs keep the old behaviour: conflicts first, then the app.
+        let conflicts = await Self.installedPackConflicts(for: pack, tracker: installedPackTracker)
+        if !conflicts.isEmpty {
+            throw InstallError.mutuallyExclusive(conflicts: conflicts.map {
+                (id: $0.packID, name: PackRegistry.pack(id: $0.packID)?.name ?? $0.packID)
+            })
+        }
+        for case let .externalApp(name, path) in pack.requires where !FileManager.default.fileExists(atPath: path) {
+            throw InstallError.dependencyMissing(name: name, websiteURL: URL(string: "https://kindavim.app")!)
+        }
+    }
+
+    private static func installedPackConflicts(for pack: Pack, tracker: InstalledPackTracker) async -> [PackDependency] {
+        let installed = await Set(tracker.allInstalled().map(\.packID))
+        return PackDependencyChecker.conflicts(for: pack.id, installedPackIDs: installed)
+    }
+
+    // MARK: - Admission preview (phase 4c)
+
+    /// What installing `pack` would change, from the admission engine, before any
+    /// write. `ignoringCollections`/`ignoringRules` are parties the user already
+    /// chose to turn off in a confirmed install.
+    func admissionPreview(
+        for pack: Pack, manager: RuleCollectionsManager, installedPackTracker: InstalledPackTracker = .shared,
+        ignoringCollections: Set<UUID> = [], ignoringRules: Set<UUID> = [],
+        profile: BackendCapabilityProfile = .shared,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) async -> PackInstallPreview {
+        var collections = manager.ruleCollections.filter { !manager.isNeovimAppScopedReference($0) }
+        var ownCollectionIDs = Set<UUID>()
+        for id in pack.managedCollectionIDs + (pack.associatedCollectionID.map { [$0] } ?? []) {
+            ownCollectionIDs.insert(id)
+            if let index = collections.firstIndex(where: { $0.id == id }) {
+                collections[index].isEnabled = true
+            } else if let fresh = RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id }) {
+                var enabled = fresh
+                enabled.isEnabled = true
+                collections.append(enabled)
+            }
+        }
+        for id in ignoringCollections {
+            if let index = collections.firstIndex(where: { $0.id == id }) { collections[index].isEnabled = false }
+        }
+        var rules = manager.customRules.map { rule -> CustomRule in
+            var r = rule
+            if ignoringRules.contains(rule.id) { r.isEnabled = false }
+            return r
+        }
+        var ownRuleIDs = Set<UUID>()
+        if !pack.visualOnly, pack.associatedCollectionID == nil, !pack.isSystemPack {
+            let rendered = renderBindings(for: pack, quickSettings: resolveQuickSettings(pack: pack, overrides: [:]))
+            ownRuleIDs = Set(rendered.map(\.id))
+            rules += rendered
+        }
+        let installed = await Set(installedPackTracker.allInstalled().map(\.packID))
+        let state = AdmissionEngine.State(
+            collections: collections, customRules: rules,
+            leaderKey: manager.preferencesService.leaderKeyPreference,
+            installedPackIDs: installed.union([pack.id])
+        )
+        let involvesPack: (AdmissionSubject) -> Bool = { subject in
+            switch subject {
+            case let .collection(id): ownCollectionIDs.contains(id)
+            case let .customRule(id): ownRuleIDs.contains(id)
+            case let .pack(id): id == pack.id
+            case .named: false
+            }
+        }
+        let name = RuleCollectionsManager.nameLookup(state)
+        let verdicts = AdmissionEngine.evaluate(state, profile: profile, fileExists: fileExists).filter { verdict in
+            if involvesPack(verdict.subject) { return true }
+            if case let .conflict(_, _, parties) = verdict.reason { return parties.contains(where: involvesPack) }
+            if case let .packConflict(other, _) = verdict.reason { return other == pack.id }
+            return false
+        }
+        var disable: [(subject: AdmissionSubject, id: UUID, label: String)] = []
+        var remove: [(packID: String, label: String)] = []
+        var seen = Set<String>()
+        let items = verdicts.map { verdict -> PackInstallPreview.Item in
+            let presentation = AdmissionVerdictPresenter.present(verdict, name: name)
+            for option in presentation.options where seen.insert(option.id).inserted {
+                switch option.subject {
+                case let .collection(id) where !ownCollectionIDs.contains(id): disable.append((option.subject, id, option.label))
+                case let .customRule(id) where !ownRuleIDs.contains(id): disable.append((option.subject, id, option.label))
+                case let .pack(id) where id != pack.id: remove.append((id, option.label))
+                default: break
+                }
+            }
+            return PackInstallPreview.Item(severity: verdict.severity, presentation: presentation)
+        }
+        return PackInstallPreview(packID: pack.id, items: items, disableOptions: disable, removeOptions: remove)
     }
 
     // MARK: - Helpers

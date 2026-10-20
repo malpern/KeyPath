@@ -796,6 +796,10 @@ public enum PackRegistry {
             "i", "esc",
             "w", "b", "d", "y", "p", "u", "v",
         ],
+        dependencies: [
+            PackDependency(packID: "com.keypath.pack.vim-navigation", kind: .conflictsWith,
+                           description: "Both want to own h/j/k/l: KindaVim shows the app's own modes, Vim Navigation remaps the keys."),
+        ],
         // Not inferable from rules: the pack shows another app's mode.
         requires: [.externalApp(name: "KindaVim", path: "/Applications/kindaVim.app")]
     )

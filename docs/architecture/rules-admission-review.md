@@ -368,6 +368,29 @@ Callers, all through this one function:
   and `MappingConflictResolutionDialog` keep their distinct choices (keep/switch vs
   pick-one-to-disable) but share the presenter's wording.
 
+### 4.4d Phase 4c (2026-10-19)
+
+- `PackInstaller.admissionPreview(for:manager:)` evaluates the engine on the state
+  an install would produce (the pack's collection or managed collections enabled,
+  its rendered rules added, its id among the installed packs) and keeps the
+  verdicts that involve the pack. `PackInstallPreview` classifies them and lists
+  what could be turned off (rules, custom rules by id) or removed (packs).
+- `install(..., admission:)`: `.checked` proceeds only when the preview needs no
+  confirmation and otherwise throws `needsReview(preview)`; `.confirmed(...)`
+  applies the user's choices (removing packs first, disabling collections through
+  the existing `additionalCollectionIDsToDisable`, custom rules in memory) and
+  refuses anything still blocking; `.unchecked` keeps the old pack-wins behaviour
+  for guided onboarding and programmatic callers (default, so existing callers
+  and tests are unchanged). Both UI paths (Pack Detail, the Rules tab) use `.checked`.
+- `PackInstallPreviewSheet` is the preview (ADR-039 §5): every offered resolution
+  on by default so one click still installs; a block with no local fix (missing
+  app) shows a link and disables Install. Automatic resolutions become a one-line
+  note after a one-click install.
+- The KindaVim ↔ Vim Navigation mutex moved from code into the registry
+  (`conflictsWith`), and the KindaVim app requirement comes from `Pack.requires`;
+  `enforcePreInstallGates` keeps only the retired-collection check and the
+  old-order gates for unchecked installs.
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
@@ -437,7 +460,7 @@ until phase 4.
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
-| **4. Callers** — *in progress: 4a and 4b done; 4c packs, 4d editor/catalog/reserved key, 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
+| **4. Callers** — *in progress: 4a, 4b and 4c done; 4d editor/catalog/reserved key, 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
 

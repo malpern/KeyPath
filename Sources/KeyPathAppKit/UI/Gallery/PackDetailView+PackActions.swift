@@ -16,17 +16,23 @@ extension PackDetailView {
         toggleTask = Task { newValue ? await install() : await uninstall() }
     }
 
-    func install(skipFinalReload: Bool = false) async {
+    /// Install through admission (decision 4): one click when nothing the user
+    /// has would change; the preview sheet only when a verdict needs a choice or
+    /// blocks; automatic resolutions become a one-line note afterwards.
+    func install(skipFinalReload: Bool = false, admission: PackInstallAdmission = .checked) async {
         isWorking = true
         errorMessage = nil
         do {
             let manager = kanataManager.underlyingManager.ruleCollectionsManager
+            let summary = await PackInstaller.shared.admissionPreview(for: pack, manager: manager).summaryLines
             _ = try await PackInstaller.shared.install(
                 pack,
                 quickSettingValues: quickSettingValues,
                 manager: manager,
-                skipFinalReload: skipFinalReload
+                skipFinalReload: skipFinalReload,
+                admission: admission
             )
+            if let line = summary.first { showTemporaryNote(line) }
             kanataManager.underlyingManager.notifyStateChanged()
             lastUndoSnapshot = .init(quickSettingValues: quickSettingValues)
             await refreshInstallState()
@@ -41,7 +47,9 @@ extension PackDetailView {
             }
         } catch let error as PackInstaller.InstallError {
             await refreshInstallState()
-            if case let .mutuallyExclusive(conflicts) = error {
+            if case let .needsReview(preview) = error {
+                installPreview = PackInstallPreviewState(pack: pack, preview: preview)
+            } else if case let .mutuallyExclusive(conflicts) = error {
                 packConflict = PackConflictState(
                     packToInstall: pack,
                     conflictingPacks: conflicts

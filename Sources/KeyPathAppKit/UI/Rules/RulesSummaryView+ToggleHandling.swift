@@ -90,7 +90,7 @@ extension RulesTabView {
         let manager = kanataManager.underlyingManager.ruleCollectionsManager
         do {
             if isOn {
-                _ = try await PackInstaller.shared.install(pack, manager: manager)
+                _ = try await PackInstaller.shared.install(pack, manager: manager, admission: .checked)
             } else {
                 try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
             }
