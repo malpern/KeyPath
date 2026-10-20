@@ -316,6 +316,28 @@ Callers, all through this one function:
 | Startup / reload | Rust refusal re-wrapped three times | engine runs on the persisted state first; Rust refusal only if the engine passed, and then attributed (§4.6) |
 | CLI `keypath doctor` (#1306) | permissions and runtime only | lists every blocking verdict with its subject and fixes |
 
+### 4.4a What phase 3 actually built (2026-10-19)
+
+- **No public `Claim` type yet.** Conflicts come straight from
+  `RuleCollectionDeduplicator.detectConflicts` (today's authoritative detector), so
+  phase 3 matches current behaviour by construction; golden tests pin that. A
+  separate claims model would only pay off once phase 4 replaces the toggle-time
+  `conflictInfo` and the silent `dedupe`, so it is deferred to then.
+- **Attribution:** the detector reports display names, which are not unique; the
+  engine maps each back to every enabled owner with that name (collection or custom
+  rule id) and keeps the name only for synthetic parties (leader key, chord group).
+- **`AdmissionVerdict`** carries severity (`automatic` < `advisory` < `needsChoice`
+  < `blocking`), a subject, a reason and fixes. Reasons: `conflict`, `unmetNeed`,
+  `reservedKey`, `capsLockHeldByOtherApp`, `packConflict`.
+- **Reserved key (decision 1):** a rule using the live Caps intermediate as input or
+  output is `automatic` with `moveCapsIntermediate(candidates:)`, the F13–F20 keys
+  no rule uses and no other app holds; `blocking` only when none is free.
+- **Inputs the caller supplies:** the live intermediate, intermediates other apps
+  occupy, and a foreign Caps owner (all known to the Caps lease code at runtime).
+- **Not called by anything.** Phase 4 switches callers; until then nothing a user
+  sees changes. Phase 4 is where to decide how to surface conflicts the silent
+  `dedupe` has been hiding on existing profiles (§ risks: one-time advisory).
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
@@ -384,7 +406,7 @@ until phase 4.
 |---|---|---|
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
-| **3. Claims + engine** | `Claim`, `Verdict`, `AdmissionEngine` in `KeyPathRulesCore`; implemented over the existing `detectConflicts` data so results are identical; reserved claims from the profile. | golden tests: every case `conflictInfo` and `detectConflicts` find today, the same verdicts; new cases for F18, media keys, foreign Caps mapping, app keymap vs global. |
+| **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
 | **4. Callers** | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |

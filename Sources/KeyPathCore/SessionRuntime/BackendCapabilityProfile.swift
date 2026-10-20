@@ -60,7 +60,7 @@ public final class BackendCapabilityProfile: @unchecked Sendable {
     }
 
     /// Strip Kanata modifier prefixes: `C-S-n` → `n`, `RA-x` → `x`, `C-down` → `down`.
-    static func baseKey(of output: String) -> String {
+    public static func baseKey(of output: String) -> String {
         var key = Substring(output.trimmingCharacters(in: .whitespaces))
         let prefixes = ["RA-", "RC-", "RS-", "RM-", "AG-", "A-", "C-", "S-", "M-"]
         while let prefix = prefixes.first(where: { key.hasPrefix($0) && key.count > $0.count }) {
