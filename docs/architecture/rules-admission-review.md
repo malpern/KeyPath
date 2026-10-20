@@ -227,6 +227,33 @@ merged. There is deliberately no hand-written copy of the inferable
 requirements and no sync test: 22 in-house entries do not justify two sources
 of truth. `Pack.conflictsWith` is finally read, through the same engine.
 
+### 4.2a What phase 2 actually built (2026-10-19)
+
+- **A separate type, not new `RuleCapability` cases.** `RuleCapability` is the
+  rule-to-rule graph (one rule provides a layer or Hyper, another consumes it).
+  Adding backend needs there would have made the prerequisite flow look for a
+  *collection* that "provides media keys". So `RuleEnvironmentNeed`
+  (KeyPathRulesCore) holds `emits(key:)`, `capsLockInput`, `deviceTargeting` and
+  `externalApp(name:path:)`, and `RuleCollectionNeedsExtractor` (AppKit, beside
+  `RuleCollectionDependencyExtractor`) infers them from
+  `KanataConfiguration.effectiveMappings` — so configuration-driven families count —
+  including system actions and dual-role tap/hold outputs.
+- **`unmet(_:profile:)`** evaluates needs against `BackendCapabilityProfile`: keys
+  via `canEmit`, device targeting via `supportsDeviceTargeting`, Caps input is met
+  by managed Caps on the session backend, external apps by file presence.
+  `RuleCollectionCatalog.driverlessUnavailableReason` now uses this, so there is
+  one inference path.
+- **Declarations, per decision 3:** no catalog collection has a non-inferable need
+  today, so no `requires` field was added to `RuleCollection`. `Pack.requires`
+  exists and holds exactly one entry, KindaVim's app. A test forbids declaring an
+  inferable need on any pack.
+- **Accessibility was dropped** from the list in §4.2: the driverless runtime needs
+  Accessibility for every rule, so a per-rule need would never tell anyone anything.
+- **`conflictsWith`** is read (`PackDependencyChecker.conflicts(for:installedPackIDs:)`,
+  both directions). No caller uses it yet; phase 3's engine turns it into verdicts.
+  `PackInstaller.enforcePreInstallGates` still performs the KindaVim app check until
+  phase 4 switches it to the engine.
+
 ### 4.3 Claims: one model for every "I want this key"
 
 ```swift
@@ -356,7 +383,7 @@ until phase 4.
 | Phase | Scope | Tests |
 |---|---|---|
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
-| **2. Requirements** | `RuleCapability` extended; the extractor infers the new cases; optional `requires` in catalog JSON and `Pack` for non-derivable needs only; `conflictsWith` read. | extractor test per capability over the whole catalog; one `requires` case; `conflictsWith` case. |
+| **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** | `Claim`, `Verdict`, `AdmissionEngine` in `KeyPathRulesCore`; implemented over the existing `detectConflicts` data so results are identical; reserved claims from the profile. | golden tests: every case `conflictInfo` and `detectConflicts` find today, the same verdicts; new cases for F18, media keys, foreign Caps mapping, app keymap vs global. |
 | **4. Callers** | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |

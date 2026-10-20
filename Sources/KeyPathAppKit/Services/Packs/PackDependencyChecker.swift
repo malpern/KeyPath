@@ -23,6 +23,23 @@ enum PackDependencyChecker {
         }
     }
 
+    /// Installed packs this pack declares `conflictsWith`, in either direction.
+    /// Declared in the registry since M1; read here for the first time so the
+    /// admission engine (phase 3) can turn them into verdicts.
+    static func conflicts(for packID: String, installedPackIDs: Set<String>) -> [PackDependency] {
+        guard let pack = PackRegistry.pack(id: packID) else { return [] }
+        let declared = pack.dependencies.filter { $0.kind == .conflictsWith && installedPackIDs.contains($0.packID) }
+        let reverse = PackRegistry.starterKit
+            .filter { $0.id != packID && installedPackIDs.contains($0.id) }
+            .flatMap { other in
+                other.dependencies
+                    .filter { $0.kind == .conflictsWith && $0.packID == packID }
+                    .map { PackDependency(packID: other.id, kind: .conflictsWith, description: $0.description) }
+            }
+        var seen = Set<String>()
+        return (declared + reverse).filter { seen.insert($0.packID).inserted }
+    }
+
     /// Returns all unmet requirements across all enabled packs.
     /// Used to show warning badges in the rules list.
     static func allUnmetRequirements(

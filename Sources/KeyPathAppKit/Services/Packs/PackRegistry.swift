@@ -795,7 +795,9 @@ public enum PackRegistry {
             "h", "j", "k", "l",
             "i", "esc",
             "w", "b", "d", "y", "p", "u", "v",
-        ]
+        ],
+        // Not inferable from rules: the pack shows another app's mode.
+        requires: [.externalApp(name: "KindaVim", path: "/Applications/kindaVim.app")]
     )
 
     // MARK: - Pack: Keystroke History
