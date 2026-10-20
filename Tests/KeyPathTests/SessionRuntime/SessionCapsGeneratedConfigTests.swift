@@ -23,7 +23,6 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
         if case .valid = admission.result { XCTFail("Unsupported media output must remain rejected") }
     }
 
-    @MainActor
     func testEveryBuiltInDefaultWithLeaderIsAdmitted() throws {
         try SessionBridgeTestFixture.requireAvailable()
         let catalog = RuleCollectionCatalog().defaultCollections()
