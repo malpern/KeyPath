@@ -725,11 +725,8 @@ public final class PackInstaller {
             rules += rendered
         }
         let installed = await Set(installedPackTracker.allInstalled().map(\.packID))
-        let state = AdmissionEngine.State(
-            collections: collections, customRules: rules,
-            leaderKey: manager.preferencesService.leaderKeyPreference,
-            installedPackIDs: installed.union([pack.id])
-        )
+        let state = manager.admissionState(collections: collections, customRules: rules,
+                                           installedPackIDs: installed.union([pack.id]))
         let involvesPack: (AdmissionSubject) -> Bool = { subject in
             switch subject {
             case let .collection(id): ownCollectionIDs.contains(id)

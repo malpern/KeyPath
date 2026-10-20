@@ -138,12 +138,28 @@ extension MapperViewModel {
             customRule.behavior = nil
         }
 
+        // Ask admission before writing: a key this backend cannot send, or
+        // Caps Lock held by another app, is refused with the reason; a rule
+        // on the reserved Caps key is saved and the move is mentioned.
+        let review = kanataManager.reviewAdmission(forProposed: customRule)
+        if let refusal = review.refusal {
+            statusMessage = refusal
+            statusIsError = true
+            AppLogger.shared.log("🚫 [MapperViewModel] Admission refused '\(inputKanata)' → '\(outputKanata)': \(refusal)")
+            isSaving = false
+            return
+        }
+
         let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false, autoResolveConflicts: true)
         AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 
         if customRuleSaved {
             lastSavedRuleID = customRule.id
-            showTransientStatus("✓ Saved")
+            if let note = review.notes.first {
+                showTransientStatus("✓ Saved. \(note)", duration: .seconds(6))
+            } else {
+                showTransientStatus("✓ Saved")
+            }
             AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
         } else {
             statusMessage = "Rule save failed — config could not be applied"

@@ -23,6 +23,7 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
         if case .valid = admission.result { XCTFail("Unsupported media output must remain rejected") }
     }
 
+    @MainActor
     func testEveryBuiltInDefaultWithLeaderIsAdmitted() throws {
         try SessionBridgeTestFixture.requireAvailable()
         let catalog = RuleCollectionCatalog().defaultCollections()
@@ -43,7 +44,7 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
             )
             if let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: candidate.id) {
                 XCTAssertEqual(candidate.id, RuleCollectionIdentifier.funLayer)
-                XCTAssertEqual(reason, SystemActionInfo.driverlessMediaUnavailableReason)
+                XCTAssertTrue(reason.contains("which the current backend can't send"), reason)
                 if case .valid = admission.result { XCTFail("Review support policy: previously unsupported collection now validates") }
             } else if case .valid = admission.result {
                 // Every offered default must be admitted by the real bridge.

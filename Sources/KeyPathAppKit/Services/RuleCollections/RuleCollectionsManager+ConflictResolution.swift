@@ -73,9 +73,9 @@ extension RuleCollectionsManager {
 
             // Ask the engine about the state that just failed, so the dialog is
             // built from verdicts attributed by id, not by matching display names.
-            let state = AdmissionEngine.State(
+            let state = admissionState(
                 collections: ruleCollections.filter { !isNeovimAppScopedReference($0) },
-                customRules: customRules, leaderKey: preferencesService.leaderKeyPreference
+                customRules: customRules
             )
             guard let context = Self.mappingConflictContext(for: state) else { return false }
 

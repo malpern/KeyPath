@@ -33,6 +33,7 @@ final class BackendCapabilityProfileTests: XCTestCase {
         XCTAssertFalse(profile.supportsDeviceTargeting)
     }
 
+    @MainActor
     func testFormerHardCodedListsGiveTheSameAnswersThroughTheBridge() throws {
         BackendCapabilityProfile.testOverride = try bridgeProfile()
 
@@ -47,8 +48,9 @@ final class BackendCapabilityProfileTests: XCTestCase {
         let unavailable = RuleCollectionCatalog().originalCollections()
             .filter { RuleCollectionCatalog.driverlessUnavailableReason(for: $0.id) != nil }.map(\.id)
         XCTAssertEqual(unavailable, [RuleCollectionIdentifier.funLayer])
-        XCTAssertEqual(RuleCollectionCatalog.driverlessUnavailableReason(for: RuleCollectionIdentifier.funLayer),
-                       SystemActionInfo.driverlessMediaUnavailableReason)
+        // The sentence is the admission engine's (phase 4d): it names the key.
+        let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: RuleCollectionIdentifier.funLayer) ?? ""
+        XCTAssertTrue(reason.contains("which the current backend can't send"), reason)
     }
 
     func testModifierPrefixesAreStrippedBeforeAsking() {

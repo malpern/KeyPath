@@ -103,6 +103,14 @@ public enum SessionCapsConflict: Equatable, Sendable {
         }
     }
 
+    /// Who to name as the owner in a sentence ("Raycast already remaps Caps Lock").
+    public var ownerName: String {
+        switch self {
+        case .raycastHyperKey: "Raycast"
+        case .unknown: "Another app"
+        }
+    }
+
     public var message: String {
         switch self {
         case .raycastHyperKey:

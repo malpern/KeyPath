@@ -160,6 +160,11 @@ final class RuleCollectionsManager {
     /// Returns the id of the collection to disable, or nil if cancelled.
     var onMappingConflictResolution: ((MappingConflictContext) async -> UUID?)?
 
+    /// What the session runtime learned about Caps Lock at its last start
+    /// (phase 4d). Set by `RuntimeCoordinator` from the lifecycle coordinator;
+    /// `.unknown` until the first start. See `AdmissionEngine.Environment`.
+    var admissionEnvironment: AdmissionEngine.Environment = .unknown
+
     /// Callback for resolving newly introduced rule prerequisites.
     /// Returns the user's confirmed apply choice, or nil if cancelled.
     var onPrerequisiteResolution:

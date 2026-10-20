@@ -391,6 +391,45 @@ Callers, all through this one function:
   `enforcePreInstallGates` keeps only the retired-collection check and the
   old-order gates for unchecked installs.
 
+### 4.4e Phase 4d (2026-10-19)
+
+- **The live Caps environment reaches every evaluation.** `AdmissionEngine.Environment`
+  (reserved intermediate, occupied candidates, foreign Caps owner) is published by the
+  lifecycle coordinator at each session start — the same pass that reads other apps'
+  `UserKeyMapping`s and, now, `capsConflict(on:)` — through `onAdmissionEnvironment`
+  into `RuleCollectionsManager.admissionEnvironment`. Every `State` the manager, the
+  resolver and `PackInstaller.admissionPreview` build goes through
+  `admissionState(collections:customRules:installedPackIDs:)`, so toggle, editor save,
+  conflict dialog and pack preview see one answer. Before the first start it is
+  `.unknown` and the engine behaves as in phases 1–3; the runtime's own re-pick at
+  reload (`SessionCapsRuntimeSupport.admit(rechoose:)`) remains the backstop.
+- **The editors ask before writing.** `RuleCollectionsManager.reviewAdmission(forProposed:)`
+  / `(forEnabling:)` return an `AdmissionReview`: the first blocking verdict as a
+  sentence (`refusal`) and the automatic ones as notes. Conflicts are excluded — they
+  keep the dialog from 4b. The Mapper refuses with the reason and writes nothing; after
+  a save on the reserved key it says "✓ Saved. … Caps Lock will use F19 instead."; the
+  inline custom-rule editor shows the refusal as its error; the Rules tab toggle refuses
+  with a toast and, after an enable, toasts the note. The presenter's foreign-owner
+  sentence no longer repeats the owner ("Turn that off first"), since the runtime names
+  an unknown one "Another app".
+- **Reserved key → #1307's re-pick (decision 1).** The engine's `.moveCapsIntermediate`
+  candidates are in `SessionCapsIntermediate.pool` order, the order `choose` walks, so
+  the key the note names is the key the next session start reserves; a test pins the two
+  together. Nothing moves at save time: the save reloads, the reload restarts admission,
+  and `chooseCapsSelection` saves the moved selection — the move already existed, 4d
+  only predicts it to the user. All of F13–F20 taken is the one blocking case.
+- **The catalog reason is the engine's sentence.** `RuleCollectionCatalog.driverlessUnavailableReason`
+  evaluates the collection alone (`fileExists` answered true: companion apps are an
+  install/toggle-time question with the user's real files) and renders the first
+  `unmetNeed` through the presenter, so the gallery row, the rules list and the toggle
+  say "… sends volu, which the current backend can't send" rather than a fixed media
+  string. The system-action picker keeps `driverlessMediaUnavailableReason` for its
+  own greyed buttons.
+- Tests: `AdmissionEnvironmentTests` (environment plumbing, reserved-key note, re-pick
+  parity, exhausted pool, foreign owner, unsupported output naming the key, conflicts
+  left to the dialog, catalog sentence, Mapper refusal writes nothing) and a preview
+  case for a pack on the reserved key.
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
@@ -460,7 +499,7 @@ until phase 4.
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
-| **4. Callers** — *in progress: 4a, 4b and 4c done; 4d editor/catalog/reserved key, 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
+| **4. Callers** — *in progress: 4a–4d done; 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
 

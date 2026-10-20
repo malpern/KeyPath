@@ -46,8 +46,7 @@ extension RuleCollectionsManager {
         }
         return firstConflict(
             involving: .collection(candidate.id),
-            in: AdmissionEngine.State(collections: others + [proposed], customRules: customRules,
-                                      leaderKey: preferencesService.leaderKeyPreference)
+            in: admissionState(collections: others + [proposed], customRules: customRules)
         )
     }
 
@@ -58,8 +57,7 @@ extension RuleCollectionsManager {
         let otherRules = customRules.filter { $0.id != rule.id }
         return firstConflict(
             involving: .customRule(rule.id),
-            in: AdmissionEngine.State(collections: collections, customRules: otherRules + [proposed],
-                                      leaderKey: preferencesService.leaderKeyPreference)
+            in: admissionState(collections: collections, customRules: otherRules + [proposed])
         )
     }
 
@@ -73,8 +71,7 @@ extension RuleCollectionsManager {
             isEnabled: true, icon: "", tags: [], targetLayer: layer, momentaryActivator: nil, configuration: .list
         )
         let collections = ruleCollections.filter { !isNeovimAppScopedReference($0) }
-        let state = AdmissionEngine.State(collections: collections + [probe], customRules: customRules,
-                                          leaderKey: preferencesService.leaderKeyPreference)
+        let state = admissionState(collections: collections + [probe], customRules: customRules)
         guard let info = firstConflict(involving: .collection(probe.id), in: state),
               case .customRule = info.source else { return nil }
         return info
