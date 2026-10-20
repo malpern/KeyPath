@@ -12,6 +12,7 @@ extension MapperViewModel {
               !inputSeq.isEmpty,
               !outputSeq.isEmpty
         else {
+            AppLogger.shared.log("🚫 [MapperViewModel] Save declined: input or output not captured")
             statusMessage = "Capture both input and output first"
             statusIsError = true
             return
@@ -33,6 +34,7 @@ extension MapperViewModel {
            !hasShiftedOutput,
            !hasDeviceCondition
         {
+            AppLogger.shared.log("🚫 [MapperViewModel] Save declined: '\(inputKey)' maps to itself")
             statusMessage = "Nothing to save - input and output are the same"
             statusIsError = true
             return
@@ -150,6 +152,7 @@ extension MapperViewModel {
             return
         }
 
+        AppLogger.shared.log("💾 [MapperViewModel] Saving '\(inputKanata)' → '\(outputKanata)' [layer: \(currentLayer)]")
         let customRuleSaved = await kanataManager.saveCustomRule(customRule, skipReload: false, autoResolveConflicts: true)
         AppLogger.shared.log("💾 [MapperViewModel] saveCustomRule returned: \(customRuleSaved)")
 

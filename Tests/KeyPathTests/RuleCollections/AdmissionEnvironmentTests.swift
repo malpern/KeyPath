@@ -13,7 +13,7 @@ final class AdmissionEnvironmentTests: KeyPathTestCase {
     private var directory: URL!
     private var manager: RuleCollectionsManager!
     private let allowAll = BackendCapabilityProfile(backend: .session) { _ in true }
-    private let noVolume = BackendCapabilityProfile(backend: .session) { $0 != "volumeup" }
+    private let noVolume = BackendCapabilityProfile(backend: .session) { $0 != "volu" }
     /// The driverless backend's actual limit: no consumer-page (media) keys.
     private let noMedia = BackendCapabilityProfile(backend: .session) { !BackendCapabilityProfile.fallbackConsumerKeys.contains($0) }
 
@@ -109,9 +109,9 @@ final class AdmissionEnvironmentTests: KeyPathTestCase {
     }
 
     func testOutputTheBackendCannotSendIsRefusedNamingTheKey() {
-        let rule = CustomRule(title: "Louder", input: "f12", action: .keystroke(key: "volumeup"))
+        let rule = CustomRule(title: "Louder", input: "f12", action: .keystroke(key: "volu"))
         let review = manager.reviewAdmission(forProposed: rule, profile: noVolume)
-        XCTAssertEqual(review.refusal, "Louder sends volumeup, which the current backend can't send.")
+        XCTAssertEqual(review.refusal, "Louder sends Volume Up, which the current backend can't send.")
         XCTAssertNil(manager.reviewAdmission(forProposed: rule, profile: allowAll).refusal)
     }
 
@@ -142,7 +142,7 @@ final class AdmissionEnvironmentTests: KeyPathTestCase {
         let before = coordinator.ruleCollectionsManager.customRules.count
         await vm.save(kanataManager: coordinator)
         XCTAssertTrue(vm.statusIsError)
-        XCTAssertEqual(vm.statusMessage?.hasSuffix("sends volumeup, which the current backend can't send."), true, vm.statusMessage ?? "nil")
+        XCTAssertEqual(vm.statusMessage?.hasSuffix("sends Volume Up, which the current backend can't send."), true, vm.statusMessage ?? "nil")
         XCTAssertEqual(coordinator.ruleCollectionsManager.customRules.count, before, "nothing was written")
     }
 }

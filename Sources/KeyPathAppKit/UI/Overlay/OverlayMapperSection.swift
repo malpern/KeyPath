@@ -234,6 +234,21 @@ struct OverlayMapperSection: View {
                     }
                     .frame(height: 132)
 
+                    // The overlay saves on capture, so a refusal or a declined save
+                    // must be said here; otherwise the mapping just seems to vanish.
+                    if let status = viewModel.statusMessage {
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(viewModel.statusIsError ? Color.red : Color.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 2)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityIdentifier("overlay-mapper-status")
+                            .transition(.opacity)
+                    }
+
                     appMappingIndicators
                         .saturation(Double(1 - fadeAmount))
                         .opacity(Double(1 - fadeAmount * 0.5))
