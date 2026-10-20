@@ -518,7 +518,8 @@ struct StatusSettingsTabView: View {
             wizardIssues: wizardIssues,
             systemContext: systemContext,
             tcpConfigured: tcpConfigured,
-            driverless: isDriverless
+            driverless: isDriverless,
+            intentionallyOff: isIntentionallyDisabled
         )
     }
 
