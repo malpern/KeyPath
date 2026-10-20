@@ -12,11 +12,12 @@ final class SaveCoordinatorTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         tempDir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent("SaveCoordinatorTests_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
-        configService = ConfigurationService(
+        configService = ConfigurationService.sessionTestService(
             configDirectory: tempDir.path,
             ruleCollectionStore: .testStore(at: tempDir.appendingPathComponent("RuleCollections.json")),
             customRulesStore: .testStore(at: tempDir.appendingPathComponent("CustomRules.json"))
@@ -137,6 +138,90 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         }
         XCTAssertEqual(reloadCount, 0)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
+    }
+
+    /// AI/import/editor text must pass driverless admission, not just Kanata syntax validation.
+    func testGeneratedConsumerOutputRejectsBeforePersistingOrReloading() async throws {
+        try await assertDriverlessGeneratedConfigRejected(
+            "(defcfg)\n(defsrc a)\n(deflayer base volu)"
+        )
+    }
+
+    func testGeneratedDeviceFilterRejectsBeforePersistingOrReloading() async throws {
+        try await assertDriverlessGeneratedConfigRejected(
+            "(defcfg macos-dev-names-exclude (\"QA excluded keyboard\"))\n(defsrc a)\n(deflayer base b)"
+        )
+    }
+
+    private func assertDriverlessGeneratedConfigRejected(
+        _ candidate: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws {
+        let original = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        let originalData = Data(original.utf8)
+        try originalData.write(to: url)
+        // Preserve unrelated persisted source state too: admission is before the transaction.
+        let sidecar = tempDir.appendingPathComponent("review-source-state.json")
+        let sidecarData = Data("{\"revision\":7}".utf8)
+        try sidecarData.write(to: sidecar)
+        let filenamesBefore = try FileManager.default.contentsOfDirectory(atPath: tempDir.path).filter { $0 != ".keypath-rule-write.lock" }.sorted()
+
+        // Prove this is a backend eligibility failure, rather than malformed test input.
+        let candidateURL = FileManager.default.temporaryDirectory.appendingPathComponent("generated-admission-\(UUID().uuidString).kbd")
+        defer { try? FileManager.default.removeItem(at: candidateURL) }
+        try candidate.write(to: candidateURL, atomically: true, encoding: .utf8)
+        XCTAssertEqual(KanataHostBridge.validateConfig(runtimeHost: SessionBridgeTestFixture.runtimeHost, configPath: candidateURL.path), .valid, file: file, line: line)
+
+        var reloadCount = 0
+        var runtimeApplyCount = 0
+        let result = await coordinator.saveGeneratedConfig(
+            content: candidate,
+            runtimeDidApply: { runtimeApplyCount += 1 }
+        ) {
+            reloadCount += 1
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
+        XCTAssertFalse(result.success, file: file, line: line)
+        XCTAssertTrue(result.error?.localizedDescription.contains("driverless session") == true, file: file, line: line)
+        XCTAssertNil(result.reloadResult, file: file, line: line)
+        guard case .notAttempted = result.recoveryResult else {
+            return XCTFail("Eligibility rejection must happen before staging or recovery", file: file, line: line)
+        }
+        XCTAssertEqual(reloadCount, 0, file: file, line: line)
+        XCTAssertEqual(runtimeApplyCount, 0, file: file, line: line)
+        XCTAssertEqual(try Data(contentsOf: url), originalData, file: file, line: line)
+        XCTAssertEqual(try Data(contentsOf: sidecar), sidecarData, file: file, line: line)
+        XCTAssertEqual(
+            try FileManager.default.contentsOfDirectory(atPath: tempDir.path).filter { $0 != ".keypath-rule-write.lock" }.sorted(),
+            filenamesBefore,
+            "Rejected text must not leave transaction journals or backups",
+            file: file,
+            line: line
+        )
+    }
+
+    func testGeneratedSupportedFixtureCommitsBeforeReloadAndPublishesApplication() async throws {
+        let original = "(defcfg)\n(defsrc a)\n(deflayer base b)"
+        let candidate = "(defcfg)\n(defsrc a)\n(deflayer base (tap-hold 200 200 esc lctl))"
+        let url = URL(fileURLWithPath: configService.configurationPath)
+        try original.write(to: url, atomically: true, encoding: .utf8)
+        var reloadCount = 0
+        var runtimeApplyCount = 0
+        let result = await coordinator.saveGeneratedConfig(
+            content: candidate,
+            runtimeDidApply: { runtimeApplyCount += 1 }
+        ) {
+            reloadCount += 1
+            XCTAssertEqual(try? String(contentsOf: url, encoding: .utf8), candidate)
+            return ReloadResult(success: true, response: "ok", errorMessage: nil, protocol: nil)
+        }
+        XCTAssertTrue(result.success, result.error?.localizedDescription ?? "")
+        XCTAssertEqual(result.reloadResult?.disposition, .applied)
+        XCTAssertEqual(reloadCount, 1)
+        XCTAssertEqual(runtimeApplyCount, 1)
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), candidate)
     }
 
     private func assertGeneratedSave(
@@ -598,7 +683,7 @@ final class SaveCoordinatorTests: KeyPathTestCase {
     }
 
     func testRestoreLastGoodConfig_RestoresBackup_WhenBackupExists() async throws {
-        let backupContent = "(defcfg)\n(defsrc caps)\n(deflayer base esc)"
+        let backupContent = "(defcfg)\n(defsrc tab)\n(deflayer base esc)"
         coordinator.backupCurrentConfig(backupContent)
 
         XCTAssertTrue(coordinator.hasBackup(), "Should have backup after setting one")

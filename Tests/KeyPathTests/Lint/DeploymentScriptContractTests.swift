@@ -2,26 +2,15 @@ import Foundation
 import XCTest
 
 final class DeploymentScriptContractTests: XCTestCase {
-    func testUninstallerPathsTrackAppResources() throws {
+    func testDriverlessExperimentOmitsBundledUninstaller() throws {
         let root = repositoryRoot()
         let entryPoint = root.appendingPathComponent("Scripts/uninstall.sh")
-        let expectedDestination = "../Sources/KeyPathApp/Resources/uninstall.sh"
-        let coordinator = try contents(
-            of: root.appendingPathComponent("Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift")
-        )
+        let uninstallResource = root.appendingPathComponent("Sources/KeyPathApp/Resources/uninstall.sh")
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
 
-        XCTAssertEqual(
-            try FileManager.default.destinationOfSymbolicLink(atPath: entryPoint.path),
-            expectedDestination,
-            "Scripts/uninstall.sh must remain a relative link to the current app resource."
-        )
-        XCTAssertTrue(
-            FileManager.default.isExecutableFile(atPath: entryPoint.path),
-            "Scripts/uninstall.sh must resolve to an executable file."
-        )
-        XCTAssertTrue(coordinator.contains("Sources/KeyPathApp/Resources/uninstall.sh"))
-        XCTAssertFalse(coordinator.contains("Sources/KeyPath/Resources/uninstall.sh"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: uninstallResource.path))
+        XCTAssertThrowsError(try FileManager.default.destinationOfSymbolicLink(atPath: entryPoint.path))
+        XCTAssertTrue(buildAndSign.contains("--payload-only \"$APP_BUNDLE\""))
         XCTAssertTrue(buildAndSign.contains("Sources/KeyPathApp/Resources directory not found"))
         XCTAssertFalse(buildAndSign.contains("Sources/KeyPath/Resources directory not found"))
     }

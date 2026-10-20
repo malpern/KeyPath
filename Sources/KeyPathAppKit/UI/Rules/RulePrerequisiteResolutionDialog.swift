@@ -395,7 +395,7 @@ private struct RulePrerequisiteRequirementRow: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(NSColor.controlBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)

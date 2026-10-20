@@ -40,7 +40,7 @@ struct AppRuleRow: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("app-rule-row-\(override.id)")

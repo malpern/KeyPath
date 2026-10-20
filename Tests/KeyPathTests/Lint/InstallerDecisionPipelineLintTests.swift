@@ -197,68 +197,39 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         )
     }
 
-    func testEveryPublicPrivilegedRouteUsesSharedTransactionWrapper() throws {
-        let file = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
-        let source = try String(contentsOf: file, encoding: .utf8)
-        let routeNames = [
-            "uninstallVirtualHIDDrivers",
-            "disableKarabinerGrabber",
-            "restartKarabinerDaemon",
-        ]
-
-        for routeName in routeNames {
-            guard let start = source.range(of: "public func \(routeName)("),
-                  let end = source.range(of: "\n    }", range: start.lowerBound ..< source.endIndex)
-            else {
-                XCTFail("Could not locate public privileged route \(routeName)")
-                continue
-            }
-            let body = source[start.lowerBound ..< end.upperBound]
-            XCTAssertTrue(
-                body.contains("withInstallerTransaction"),
-                "\(routeName) must participate in the shared installer transaction"
-            )
+    func testDriverlessEngineHasNoPrivilegedExecution() throws {
+        let source = try String(contentsOf: repositoryRoot().appendingPathComponent(
+            "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"
+        ), encoding: .utf8)
+        for forbidden in ["try await broker.", "helperMaintenance.installOrRefresh"] {
+            XCTAssertFalse(source.contains(forbidden), "Privileged execution must be deleted: \(forbidden)")
         }
+        XCTAssertTrue(source.contains("guard isSupportedSessionRecipe(recipe)"))
+        let wiring = try String(contentsOf: repositoryRoot().appendingPathComponent(
+            "Sources/KeyPathAppKit/WizardProtocolConformances.swift"
+        ), encoding: .utf8)
+        XCTAssertFalse(wiring.contains("UninstallCoordinator()"), "Never register the legacy privileged uninstaller")
     }
 
-    func testInstantUninstallRoutesThroughInstallerEngine() throws {
+    func testDriverlessMenusDoNotOfferSystemUninstall() throws {
         let file = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Core/AppMenuCommands.swift")
         let source = try String(contentsOf: file, encoding: .utf8)
 
-        XCTAssertTrue(source.contains("InstallerEngine().uninstall("))
-        XCTAssertFalse(
-            source.contains("UninstallCoordinator()"),
-            "The hidden uninstall shortcut must not bypass the shared transaction gate"
-        )
+        for forbidden in ["InstallerEngine().uninstall(", "UninstallCoordinator()", ".showUninstall"] {
+            XCTAssertFalse(
+                source.contains(forbidden),
+                "Driverless menus must not offer unsupported system uninstall: \(forbidden)"
+            )
+        }
     }
 
-    func testExecutorDoesNotMakeUndeclaredVHIDActivationDecisions() throws {
-        let file = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift")
-        let source = try String(contentsOf: file, encoding: .utf8)
-        guard let executionStart = source.range(of: "private func executeRecipeWithDetails("),
-              let explicitActivation = source.range(
-                  of: "case InstallerRecipeID.activateVHIDManager:",
-                  range: executionStart.lowerBound ..< source.endIndex
-              )
-        else {
-            return XCTFail("Could not locate installer execution boundaries")
-        }
-
-        let genericExecution = source[executionStart.lowerBound ..< explicitActivation.lowerBound]
-        let forbiddenDecisions = [
-            "VHIDDeviceManager(",
-            "detectActivation(",
-            "activateVirtualHIDManager()"
-        ]
-        let violations = forbiddenDecisions.filter { genericExecution.contains($0) }
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            "Generic recipe execution may only run declared plan steps; found: \(violations)"
-        )
+    func testExecutorDoesNotContainVHIDMutationBranches() throws {
+        let source = try String(contentsOf: repositoryRoot().appendingPathComponent(
+            "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"
+        ), encoding: .utf8)
+        XCTAssertFalse(source.contains("case InstallerRecipeID.activateVHIDManager:"))
+        XCTAssertFalse(source.contains("activateVirtualHIDManager()"))
     }
 
     func testWizardActionsConsumeOwnedRunFinalEvidence() throws {

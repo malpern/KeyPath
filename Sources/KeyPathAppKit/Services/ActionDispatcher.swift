@@ -15,6 +15,11 @@ public enum ActionDispatchResult: Sendable {
     case failed(String, Error)
 }
 
+/// What a key binding can ask the keyboard overlay to do.
+public enum OverlayCommand: String, Sendable {
+    case toggle, show, hide
+}
+
 // MARK: - ActionDispatcher
 
 /// Dispatches `keypath://` action URIs to their handlers.
@@ -31,20 +36,9 @@ public enum ActionDispatchResult: Sendable {
 /// - `keypath://settings/{tab}` - Open Settings to a tab (status, rules, general, advanced, repair, logs)
 /// - `keypath://folder/{path}` - Open a folder in Finder
 /// - `keypath://script/{path}` - Execute a script (requires security approval)
+/// - `keypath://overlay/{toggle|show|hide}` - Show or hide the keyboard overlay (`overlay:toggle` from push-msg)
 @MainActor
 public final class ActionDispatcher {
-    private static let helperRepairOutputPath = "/var/tmp/keypath-helper-repair.txt"
-    private static let diagnosticSystemActions: Set<String> = [
-        "repair-helper"
-    ]
-
-    private static var diagnosticActionsEnabled: Bool {
-        if TestEnvironment.isRunningTests {
-            return true
-        }
-        return ProcessInfo.processInfo.environment["KEYPATH_ENABLE_DIAGNOSTIC_ACTIONS"] == "1"
-    }
-
     // MARK: - Singleton
 
     public static let shared = ActionDispatcher()
@@ -59,6 +53,9 @@ public final class ActionDispatcher {
 
     /// Called when a rule-related action is received
     public var onRuleAction: ((String, [String]) -> Void)?
+
+    /// Called when an overlay action is received (toggle, show, hide).
+    public var onOverlayAction: ((OverlayCommand) -> Void)?
 
     /// Called when a settings tab action is received.
     public var onSettingsAction: ((Notification.Name) -> Void)?
@@ -78,12 +75,19 @@ public final class ActionDispatcher {
 
     private var fakeKeyTask: Task<Void, Never>?
     private var notifyTask: Task<Void, Never>?
-    private var scriptTask: Task<Void, Never>?
-    private var repairHelperTask: Task<Void, Never>?
+    private(set) var scriptTask: Task<Void, Never>?
+    private let scriptSecurityService: ScriptSecurityService
+    private let scriptExecutor: (@MainActor (String) async throws -> Void)?
 
     // MARK: - Initialization
 
-    private init() {}
+    init(
+        scriptSecurityService: ScriptSecurityService = .shared,
+        scriptExecutor: (@MainActor (String) async throws -> Void)? = nil
+    ) {
+        self.scriptSecurityService = scriptSecurityService
+        self.scriptExecutor = scriptExecutor
+    }
 
     // MARK: - Dispatch
 
@@ -122,6 +126,8 @@ public final class ActionDispatcher {
             return handleFolder(uri)
         case "script":
             return handleScript(uri)
+        case "overlay":
+            return handleOverlay(uri)
         default:
             let message = "Unknown action type: \(uri.action)"
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
@@ -445,57 +451,13 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("⚙️ [ActionDispatcher] System action: \(action)")
 
-        if Self.diagnosticSystemActions.contains(action.lowercased()), !Self.diagnosticActionsEnabled {
-            let message = "Diagnostic system action '\(action)' is disabled in this build context."
-            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+        switch action.lowercased() {
+        case "repair-helper":
+            let message = "Helper repair is unavailable in the driverless build."
             onError?(message)
             return .failed("system", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message
             ]))
-        }
-
-        switch action.lowercased() {
-        case "repair-helper":
-            if TestEnvironment.isRunningTests {
-                return .success
-            }
-
-            let useAppleScriptFallbackRaw = uri.queryItems["applescript"]?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            let useAppleScriptFallback = useAppleScriptFallbackRaw == nil
-                || useAppleScriptFallbackRaw == "1"
-                || useAppleScriptFallbackRaw == "true"
-                || useAppleScriptFallbackRaw == "yes"
-
-            repairHelperTask?.cancel()
-            repairHelperTask = Task { @MainActor in
-                let repaired = await HelperMaintenance.shared.runCleanupAndRepair(
-                    useAppleScriptFallback: useAppleScriptFallback
-                )
-                let details = HelperMaintenance.shared.logLines.joined(separator: " | ")
-                let payload = """
-                success=\(repaired)
-                use_apple_script_fallback=\(useAppleScriptFallback)
-                details=\(details)
-                """
-                do {
-                    try payload.write(
-                        toFile: Self.helperRepairOutputPath,
-                        atomically: true,
-                        encoding: .utf8
-                    )
-                    AppLogger.shared.info(
-                        "🧪 [ActionDispatcher] Helper repair completed success=\(repaired) output=\(Self.helperRepairOutputPath)"
-                    )
-                } catch {
-                    AppLogger.shared.error(
-                        "❌ [ActionDispatcher] Failed to write helper repair output: \(error.localizedDescription)"
-                    )
-                    self.onError?("Failed to write helper repair output: \(error.localizedDescription)")
-                }
-            }
-            return .success
 
         case "mission-control", "missioncontrol", "expose":
             // Mission Control - open the expose launcher app
@@ -643,7 +605,7 @@ public final class ActionDispatcher {
 
         // Check permission first for better error message
         guard WindowManager.shared.hasAccessibilityPermission else {
-            let message = "Window Management requires Accessibility permission. Enable in System Settings > Privacy & Security > Accessibility."
+            let message = "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath)."
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
@@ -664,11 +626,27 @@ public final class ActionDispatcher {
         }
     }
 
+    /// Show or hide the keyboard overlay from a key binding.
+    /// Format: keypath://overlay/toggle (or show, hide); push-msg shorthand `overlay:toggle`.
+    private func handleOverlay(_ uri: KeyPathActionURI) -> ActionDispatchResult {
+        guard let raw = uri.target?.lowercased() else {
+            return .missingTarget("overlay")
+        }
+        guard let command = OverlayCommand(rawValue: raw) else {
+            let message = "Unknown overlay action: \(raw). Use toggle, show or hide."
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .unknownAction("overlay/\(raw)")
+        }
+        onOverlayAction?(command)
+        return .success
+    }
+
     /// Open a folder in Finder
     /// Format: keypath://folder/{path}
     private func handleFolder(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         // Reconstruct path from path components (handles paths with slashes)
-        let pathString = uri.pathComponents.joined(separator: "/")
+        let pathString = uri.fileActionPath
 
         guard !pathString.isEmpty else {
             let message = "folder action requires path: keypath://folder/{path}"
@@ -678,8 +656,7 @@ public final class ActionDispatcher {
         }
 
         // Expand tilde and decode URL encoding
-        let decodedPath = pathString.removingPercentEncoding ?? pathString
-        let expandedPath = (decodedPath as NSString).expandingTildeInPath
+        let expandedPath = (pathString as NSString).expandingTildeInPath
 
         AppLogger.shared.log("📁 [ActionDispatcher] Opening folder: \(expandedPath)")
 
@@ -719,7 +696,7 @@ public final class ActionDispatcher {
     /// Format: keypath://script/{path}
     private func handleScript(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         // Reconstruct path from path components
-        let pathString = uri.pathComponents.joined(separator: "/")
+        let pathString = uri.fileActionPath
 
         guard !pathString.isEmpty else {
             let message = "script action requires path: keypath://script/{path}"
@@ -729,13 +706,12 @@ public final class ActionDispatcher {
         }
 
         // Expand tilde and decode URL encoding
-        let decodedPath = pathString.removingPercentEncoding ?? pathString
-        let expandedPath = (decodedPath as NSString).expandingTildeInPath
+        let expandedPath = (pathString as NSString).expandingTildeInPath
 
         AppLogger.shared.log("📜 [ActionDispatcher] Script execution requested: \(expandedPath)")
 
         // Check security
-        let securityService = ScriptSecurityService.shared
+        let securityService = scriptSecurityService
         let checkResult = securityService.checkExecution(at: expandedPath)
 
         switch checkResult {
@@ -773,7 +749,7 @@ public final class ActionDispatcher {
             AppLogger.shared.log("🔐 [ActionDispatcher] Script needs user confirmation")
             if let handler = onScriptConfirmationNeeded {
                 handler(path, { [weak self] in
-                    LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
+                    // Approval waives another prompt, not current security/file checks.
                     // User confirmed - execute the script
                     self?.executeScript(at: path)
                 }, {
@@ -782,34 +758,57 @@ public final class ActionDispatcher {
                 })
             } else {
                 // No UI handler registered, cannot show dialog
-                onError?("Script execution requires confirmation but no UI is available")
+                let message = "Script execution requires confirmation but no UI is available"
+                onError?(message)
+                return .failed("script", NSError(domain: "ActionDispatcher", code: 11, userInfo: [
+                    NSLocalizedDescriptionKey: message
+                ]))
             }
-            return .success // Return success as we're showing the dialog
+            return .success // Approval UI is handling this request.
 
         case .allowed:
             // Execute directly
-            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             executeScript(at: expandedPath)
             return .success
         }
     }
 
-    /// Execute a script at the given path
+    /// Confirmation does not authorize execution after scripts are disabled or removed.
+    private func scriptRemainsExecutable(at path: String) -> Bool {
+        switch scriptSecurityService.checkExecution(at: path) {
+        case .allowed, .needsConfirmation:
+            return true
+        case .disabled:
+            onError?("Script execution is disabled. Enable it in Settings to run scripts.")
+        case let .fileNotFound(path):
+            onError?("Script not found: \(path)")
+        case let .notExecutable(path):
+            onError?("Script is not executable: \(path)")
+        }
+        return false
+    }
+
+    /// Execute an already-approved script, subject to current security settings.
     private func executeScript(at path: String) {
-        let securityService = ScriptSecurityService.shared
+        guard scriptRemainsExecutable(at: path) else { return }
+        let securityService = scriptSecurityService
         // Check script type on main actor before entering task
         let isAppleScriptFile = securityService.isAppleScript(path)
         let isInterpretedScript = securityService.isInterpretedScript(path)
 
         scriptTask?.cancel()
         scriptTask = Task { [weak self] in
+            guard let self, !Task.isCancelled, scriptRemainsExecutable(at: path) else { return }
+            LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             do {
-                if isAppleScriptFile {
-                    try await self?.executeAppleScript(at: path)
+                if let executor = scriptExecutor {
+                    try await executor(path)
+                } else if isAppleScriptFile {
+                    try await executeAppleScript(at: path)
                 } else if isInterpretedScript {
-                    try await self?.executeInterpretedScript(at: path)
+                    try await executeInterpretedScript(at: path)
                 } else {
-                    try await self?.executeShellScript(at: path)
+                    try await executeShellScript(at: path)
                 }
 
                 securityService.logExecution(path: path, success: true, error: nil)
@@ -817,7 +816,7 @@ public final class ActionDispatcher {
             } catch {
                 securityService.logExecution(path: path, success: false, error: error.localizedDescription)
                 AppLogger.shared.log("❌ [ActionDispatcher] Script failed: \(path) - \(error)")
-                self?.onError?("Script execution failed: \(error.localizedDescription)")
+                onError?("Script execution failed: \(error.localizedDescription)")
             }
         }
     }

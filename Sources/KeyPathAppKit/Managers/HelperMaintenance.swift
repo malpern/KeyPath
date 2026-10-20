@@ -213,40 +213,39 @@ public final class HelperMaintenance {
     #endif
     public nonisolated func detectDuplicateAppCopies() -> [String] {
         var paths: [String] = []
-        let process = Process()
-        process.launchPath = "/usr/bin/mdfind"
-        process.arguments = ["kMDItemFSName == 'KeyPath.app'c"]
-        let out = Pipe()
-        process.standardOutput = out
-        process.standardError = Pipe()
-        do { try process.run() } catch {
-            return canonicalAppCandidates()
-        }
+        var needsScan = true
         #if DEBUG
             if let override = Self.testDuplicateAppPathsOverride?() {
                 paths = override
-            } else {
-                process.waitUntilExit()
-                let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                paths = s.split(separator: "\n").map(String.init)
-                if paths.isEmpty {
-                    paths = canonicalAppCandidates()
-                }
+                needsScan = false
             }
-        #else
+        #endif
+        if needsScan {
+            let process = Process()
+            process.launchPath = "/usr/bin/mdfind"
+            process.arguments = ["kMDItemFSName == 'KeyPath.app'c"]
+            let out = Pipe()
+            process.standardOutput = out
+            process.standardError = Pipe()
+            do { try process.run() } catch {
+                return canonicalAppCandidates()
+            }
             process.waitUntilExit()
             let s = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             paths = s.split(separator: "\n").map(String.init)
             if paths.isEmpty {
                 paths = canonicalAppCandidates()
             }
-        #endif
+        }
 
         // Filter out build directories to avoid flagging build artifacts as duplicates
         let buildDirPatterns = ["/dist/", "/.build/", "/build/", "/DerivedData/"]
         paths = paths.filter { path in
             !buildDirPatterns.contains { pattern in path.contains(pattern) }
         }
+
+        // A mounted installer image is not an installation and cannot be trashed.
+        paths = paths.filter { !Self.isOnReadOnlyVolume($0) }
 
         paths = Array(Set(paths)) // unique
         paths.sort { lhs, rhs in
@@ -259,6 +258,31 @@ public final class HelperMaintenance {
             return lhs < rhs
         }
         return paths
+    }
+
+    nonisolated static func isOnReadOnlyVolume(_ path: String) -> Bool {
+        #if DEBUG
+            if let override = testReadOnlyVolumeOverride { return override(path) }
+        #endif
+        let values = try? URL(fileURLWithPath: path).resourceValues(forKeys: [.volumeIsReadOnlyKey])
+        return values?.volumeIsReadOnly ?? false
+    }
+
+    #if DEBUG
+        nonisolated(unsafe) static var testReadOnlyVolumeOverride: ((String) -> Bool)?
+    #endif
+
+    /// A short, readable location for a copy of the app: the folder that holds it,
+    /// with the home folder and iCloud Drive named the way Finder names them.
+    nonisolated static func displayLocation(forAppAt path: String, home: String = NSHomeDirectory()) -> String {
+        var folder = (path as NSString).deletingLastPathComponent
+        let iCloud = home + "/Library/Mobile Documents/com~apple~CloudDocs"
+        if folder == iCloud || folder.hasPrefix(iCloud + "/") {
+            folder = "iCloud Drive" + folder.dropFirst(iCloud.count)
+        } else if folder == home || folder.hasPrefix(home + "/") {
+            folder = "Home" + folder.dropFirst(home.count)
+        }
+        return folder.split(separator: "/").joined(separator: " \u{203A} ")
     }
 
     // MARK: - Private steps

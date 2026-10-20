@@ -16,9 +16,10 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 
 ## The short version
 
-- **No telemetry.** KeyPath collects no analytics, usage metrics, or crash reports. Zero.
-- **No phoning home.** The only network request KeyPath makes is checking for updates. You can disable that too.
-- **No logging.** KeyPath does not record, store, or transmit your keystrokes.
+- **No transmitted telemetry.** KeyPath does not upload analytics, usage metrics, or crash reports. Optional Activity Insights keeps keyboard usage statistics locally.
+- **Manual app updates.** Download Update opens the official releases page in your browser. This build does not automatically check for or install app updates.
+- **Offline Help.** Guides, styles and images are included in the app. Opening a guide can quietly check GitHub Pages for compatible Help content updates; no keyboard data or logs are sent.
+- **Local keyboard data.** Rule and macro recording captures keys you choose to record, and the recent-keypress view keeps a limited history in memory. Diagnostic logs can include key names, including in release builds. KeyPath does not upload this keyboard data or these logs.
 - **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
 - **Everything stays on your Mac.** Configuration and logs are local files you own and control.
 
@@ -30,7 +31,7 @@ To understand the permissions, it helps to see how keystrokes flow through the s
 
 ```
   ┌──────────┐      ┌──────────────────────┐      ┌─────────┐
-  │ Keyboard │ ───→ │   Kanata (root)       │ ───→ │  Your   │
+  │ Keyboard │ ───→ │   KeyPath session       │ ───→ │  Your   │
   │          │      │                       │      │  Apps    │
   │  You     │      │  1. Intercept key     │      │         │
   │  press   │      │  2. Apply your rules  │      │  App    │
@@ -38,121 +39,45 @@ To understand the permissions, it helps to see how keystrokes flow through the s
   │          │      │                       │      │  result │
   └──────────┘      └──────────────────────┘      └─────────┘
                             │
-                    Nothing is recorded,
-                    stored, or sent anywhere.
-                    Keys pass through and
-                    continue to your apps.
+                    Keys are processed locally
+                    and continue to your apps.
+                    Diagnostic details may
+                    appear in local logs.
 ```
 
-The remapping engine sits between your keyboard and your apps. It has to — that's how remapping works. The important thing is what happens to your keystrokes: they get transformed and passed along. Nothing else.
+The remapping engine sits between your keyboard and your apps, transforming keys according to your rules. Recording and recent-keypress views also use key events locally, and diagnostic logs can contain key names. Review logs before sharing them.
 
 ---
 
-## Why so many permissions?
+## Permissions in the driverless version
 
-We get it. The first time you install KeyPath, macOS asks you to grant several permissions and enter your admin password. That feels like a lot for a keyboard app.
-
-The honest answer: **keyboard remapping is a system-level operation.** Remapping happens *before* keystrokes reach your apps, which means intercepting them at a low level. Every keyboard remapping tool — Karabiner-Elements, QMK, kmonad, Kanata standalone — requires the same kind of access. If a tool claims to remap keys without these permissions, it's either not doing system-wide remapping or it's not telling you the full story.
-
-```
-  ┌─────────────────────────────────────────────────┐
-  │              Permissions Overview                │
-  │                                                  │
-  │  Input Monitoring ·········· Read keystrokes     │
-  │  Accessibility ············· Send remapped keys  │
-  │  Full Disk Access (opt) ···· Check permissions   │
-  │  Admin password (once) ····· Install service     │
-  │                                                  │
-  │  ◆ Required    ◇ Optional                        │
-  │  ◆ Input Monitoring                              │
-  │  ◆ Accessibility                                 │
-  │  ◇ Full Disk Access                              │
-  └─────────────────────────────────────────────────┘
-```
-
-Here's what each one does.
-
-### Input Monitoring
-
-**What it does:** Lets Kanata (the remapping engine) see your keystrokes before they reach applications.
-
-**Why it's needed:** This is the core of keyboard remapping. To turn a tap on `F` into the letter "f" and a hold on `F` into the Command key, something has to intercept that keystroke before macOS processes it.
-
-**What this means in practice:** Yes, the remapping engine can technically see everything you type — passwords, messages, everything. This is true of *every* keyboard remapping tool. It's also true of your keyboard's own firmware. KeyPath doesn't record, transmit, or store your keystrokes. They flow through the remapping engine, get transformed, and continue to your apps. That's it.
+The driverless version asks for **Accessibility**. The remapping runtime runs in your signed-in user session, without installing a virtual keyboard driver or a privileged remapping service.
 
 ### Accessibility
 
-**What it does:** Lets KeyPath send the remapped keystrokes back to your apps, and detect which app is currently active (for app-specific keymaps).
+Allows KeyPath to intercept and send remapped keyboard events and support app-specific behavior. Setup guides you to the normal macOS consent screen.
 
-**Why it's needed:** Input Monitoring lets KeyPath *read* keystrokes. Accessibility lets it *write* the remapped ones back. Without this, intercepted keys would just disappear.
+### Effective keyboard access
 
-```
-  Input Monitoring          Accessibility
-  ┌───────────┐             ┌───────────┐
-  │  READ     │             │  WRITE    │
-  │           │             │           │
-  │ Intercept │             │ Send the  │
-  │ what you  │     ───→    │ remapped  │
-  │ pressed   │             │ key to    │
-  │           │             │ your apps │
-  └───────────┘             └───────────┘
+KeyPath verifies that its running process can receive and post keyboard events. In the tested driverless flow, Accessibility supplies this access without a separate Input Monitoring grant. Setup checks actual runtime access rather than treating a Settings toggle as proof of readiness.
 
-  Both needed. One without the other is useless.
-```
+macOS may ask you to authenticate when changing these permissions. Removing a privileged installer does not remove macOS's own authentication requirements.
 
-KeyPath also uses Accessibility to detect app switches for features like app-specific keyboard layouts.
+### No Full Disk Access or browser-history import
 
-### Full Disk Access (optional)
+KeyPath no longer requests Full Disk Access or reads the protected macOS permission databases. It also no longer scans browser history or generates website suggestions from it. You can still enter website URLs manually and use existing saved launcher shortcuts.
 
-**What it does:** Lets KeyPath read macOS's permission database to check whether Kanata has been granted the permissions it needs.
+Previously granted Full Disk Access is not automatically revoked by this change. You can remove KeyPath's old grant in System Settings if present.
 
-**Why it's needed:** There's a chicken-and-egg problem: KeyPath needs to verify Kanata's permissions *before* starting it, but the only way to check another process's permissions is to read Apple's TCC database, which requires Full Disk Access.
+### Secure Input boundary
 
-```
-  Without Full Disk Access:       With Full Disk Access:
-
-  KeyPath: "Does Kanata have      KeyPath reads TCC database:
-  Input Monitoring?"              "Kanata has Input Monitoring ✓
-                                   Kanata needs Accessibility ✗"
-  macOS:  "¯\_(ツ)_/¯"                    │
-          (can't check other              ↓
-           apps' permissions)     Guides you step by step
-```
-
-**If you skip this:** KeyPath still works. You'll just need to grant permissions to Kanata manually in System Settings, and KeyPath won't be able to show you accurate permission status in its setup wizard. It's a convenience feature, not a requirement.
-
-**What KeyPath reads:** Only permission grant records (which apps have which permissions). It's read-only — KeyPath cannot modify permissions.
-
-### Administrator password (one-time)
-
-**What it does:** Installs a privileged helper and a LaunchDaemon that runs Kanata as a system service.
-
-**Why it's needed:** Keyboard remapping requires root-level access to intercept hardware input events. The helper installs the Kanata binary, manages the system service, and handles the virtual keyboard driver. All operations are pre-defined in code — the helper cannot run arbitrary commands.
-
-```
-  ┌─────────────────────────────────────────────────┐
-  │                What runs where                   │
-  │                                                  │
-  │  Your account (normal user):                     │
-  │  ┌────────────────────────┐                      │
-  │  │  KeyPath.app           │  The UI you interact │
-  │  │  (SwiftUI interface)   │  with. No root.      │
-  │  └────────────────────────┘                      │
-  │            │ TCP localhost                        │
-  │            ↓                                     │
-  │  Root (system service):                          │
-  │  ┌────────────────────────┐                      │
-  │  │  Kanata                │  The remapping       │
-  │  │  (LaunchDaemon)        │  engine. Root        │
-  │  └────────────────────────┘  required for HID.   │
-  └─────────────────────────────────────────────────┘
-```
-
-**What runs as root:** Only the Kanata remapping engine and the installer helper. The KeyPath app itself runs as your normal user account.
+Driverless remapping is unavailable in protected password-entry and Secure Input contexts. Normal password entry remains available through macOS; this version does not promise remapping in those contexts.
 
 ---
 
-## What KeyPath stores on your Mac
+## Legacy installation locations
+
+The following locations describe older system-service installations, not the driverless session runtime. They may remain on machines upgraded from an older release.
 
 | What | Where | Contents |
 |---|---|---|
@@ -167,46 +92,41 @@ All files are local. Nothing is synced, uploaded, or shared.
 
 ## Network access
 
-```
-  ┌─────────────────────────────────────────────────┐
-  │          KeyPath network connections             │
-  │                                                  │
-  │  ┌──────────┐                                    │
-  │  │ KeyPath  │──→ GitHub (update check)  Optional │
-  │  │          │                                    │
-  │  │          │ ✗  No analytics servers            │
-  │  │          │ ✗  No crash reporting              │
-  │  │          │ ✗  No telemetry of any kind        │
-  │  │          │ ✗  No cloud services               │
-  │  └──────────┘                                    │
-  │                                                  │
-  │  Everything else is localhost or offline.         │
-  └─────────────────────────────────────────────────┘
-```
+### Offline Help updates
 
-KeyPath makes **one** kind of network request:
+Help opens a saved local copy immediately, including on a first launch without
+internet. When you open an article, KeyPath can check the public Help feed at
+`malpern.github.io/KeyPath/offline-help/` and download changed guides, images and
+styles in the background. These are ordinary HTTPS downloads; they do not upload
+your rules, keystrokes, recordings or logs. The server receives standard web
+request information, such as your IP address.
 
-### Update checks (Sparkle)
+Only a complete compatible content update replaces the local copy. If the network
+or download fails, the previous copy remains available. External website links
+still need internet access. Help content updates do not install a new app or run
+scripts.
 
-KeyPath uses the standard [Sparkle](https://sparkle-project.org/) framework to check for updates. This sends your app version and macOS version to GitHub to see if a newer version is available. Updates are cryptographically signed (EdDSA) so they can't be tampered with. You can disable update checks in Settings.
+### Manual downloads
 
-**That's it.** No analytics. No crash reporting. No telemetry. No tracking pixels. No cloud APIs. No Sentry, Firebase, Mixpanel, or any other third-party service.
+Download Update opens the official GitHub releases page in your browser. Visiting that page and downloading an update require internet access. This build does not run automatic Sparkle update checks or installations.
+
+Keyboard diagnostics and optional Activity Insights stay local; KeyPath does not upload analytics, usage metrics, crash reports or keyboard logs.
 
 ---
 
 ## What about the Kanata TCP connection?
 
-KeyPath communicates with the Kanata engine over a local TCP connection on `localhost:37001`. This is how it sends configuration reloads, layer switches, and receives status updates.
+KeyPath communicates with the Kanata engine over a local TCP connection on `localhost:37001`. This is how it sends configuration reloads and layer switches, and receives key and layer events.
 
 ```
   ┌──────────────┐  localhost:37001  ┌──────────────┐
   │  KeyPath.app │ ←──────────────→  │    Kanata    │
-  │  (your user) │    TCP (JSON)     │    (root)    │
+  │  (your user) │    TCP (JSON)     │ (your user)  │
   └──────────────┘                   └──────────────┘
         │
         ├── "Reload config"
         ├── "Switch to layer X"
-        └── "What's your status?"
+        └── Receive key and layer events
 
   This connection NEVER leaves your Mac.
   It's 127.0.0.1 (localhost) only.
@@ -222,11 +142,11 @@ The connection does not use authentication, which is how Kanata's TCP server wor
 
 ### Can KeyPath see my passwords?
 
-The remapping engine sees all keystrokes, including passwords, but only to transform them. KeyPath doesn't record, store, or transmit what you type. This is the same access model as Karabiner-Elements, QMK firmware, and every other keyboard remapping tool.
+The driverless runtime does not provide remapping in protected password-entry or Secure Input contexts. Do not rely on a remapped key for entering passwords.
 
 ### Does KeyPath work offline?
 
-Yes, completely. The only optional network feature is update checks, which you can disable. Everything else works without a network connection.
+Keyboard remapping, recording, local diagnostics and the bundled Help guides work offline. Help can quietly download compatible content updates when connected. App updates remain manual; opening the releases page or external links requires internet access.
 
 ### Is KeyPath open source?
 
@@ -234,15 +154,15 @@ Yes. [The full source code is on GitHub](https://github.com/malpern/KeyPath) und
 
 ### Can I use KeyPath without Full Disk Access?
 
-Yes. Full Disk Access is optional — it just makes the setup wizard smoother. Without it, you grant permissions directly to Kanata in System Settings and KeyPath works normally.
+Yes. KeyPath no longer requests or uses Full Disk Access. Browser-history import and direct permission-database inspection have been removed.
 
-### How do I remove all KeyPath data?
+### How do I remove the driverless app and saved rules?
 
-Open KeyPath, choose **File > Uninstall KeyPath**, and confirm. This removes all system components, services, binaries, and configuration files.
+Use **Settings → Repair/Remove → Uninstall KeyPath**. KeyPath saves a backup in Downloads, removes your rules and preferences, disables launch at login, and moves the app to the Trash. Local diagnostic logs remain in `~/Library/Logs/KeyPath/`. Moving only the app to the Trash leaves settings behind. Uninstall does not revoke macOS permission grants or remove drivers installed by other apps.
 
 ### What about the VirtualHID driver?
 
-KeyPath installs the [Karabiner VirtualHIDDevice driver](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice) to create a virtual keyboard for sending remapped keystrokes. This is a well-established open-source driver also used by Karabiner-Elements. It requires system approval on first install and can be removed via KeyPath's uninstaller.
+The driverless version does not install or use the Karabiner VirtualHIDDevice driver. Existing driver installations belonging to other apps are separate.
 
 ### What about keyboard analytics or AI features?
 
@@ -254,12 +174,12 @@ Keyboard usage analytics are available in **Activity Insights**, a built-in plug
 
 | | KeyPath | Karabiner-Elements | QMK Firmware |
 |---|---|---|---|
-| Sees all keystrokes | Yes (required) | Yes | Yes (on-keyboard) |
-| Runs as root | Yes (Kanata engine) | Yes (event tap daemon) | N/A (firmware) |
-| Telemetry | None | None | None |
+| Sees all keystrokes | No — Secure Input boundary | Yes | Yes (on-keyboard) |
+| Runs as root | No (driverless session) | Yes (event tap daemon) | N/A (firmware) |
+| Telemetry | No uploads; optional local Insights | None | None |
 | Open source | Yes (MIT) | Yes (Public Domain) | Yes (GPL) |
-| Network access | Optional updates only | Optional updates | None |
-| Keystroke logging | No | No | No |
+| Network access | Help content refresh; browser for manual app downloads | Optional updates | None |
+| Keystroke logging | Key names can appear in local diagnostics | No | No |
 
 ---
 
@@ -277,6 +197,6 @@ We take this seriously. If you have questions about KeyPath's privacy practices 
 - **[Karabiner-Elements](https://karabiner-elements.pqrs.org/)** — Alternative macOS keyboard remapper (for comparison) ↗
 - **[Kanata](https://github.com/jtroo/kanata)** — The open-source remapping engine that powers KeyPath ↗
 - **[kmonad](https://github.com/kmonad/kmonad)** — Another cross-platform keyboard remapper ↗
-- **[Karabiner VirtualHIDDevice](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice)** — The virtual keyboard driver used by both KeyPath and Karabiner ↗
-- **[Sparkle](https://sparkle-project.org/)** — The open-source update framework KeyPath uses ↗
+- **[Karabiner VirtualHIDDevice](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice)** — The virtual keyboard driver used by legacy KeyPath installations and Karabiner ↗
+- **[Sparkle](https://sparkle-project.org/)** — The update framework used by older KeyPath update flows ↗
 - **[Apple TCC documentation](https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web)** — How macOS manages app permissions ↗

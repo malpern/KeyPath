@@ -85,7 +85,7 @@ kp_sign() {
 kp_verify_signature() {
     local target=$1
     shift
-    kp_run "$KP_VERIFY_CMD" -dvvv "$target" "$@"
+    kp_run "$KP_VERIFY_CMD" --verify --deep --strict --verbose=2 "$target" "$@"
 }
 
 kp_write_notary_state() {

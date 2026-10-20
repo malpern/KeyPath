@@ -40,7 +40,9 @@ extension RuleCollectionsManager {
                 onKeyInput: { observation in
                     // Feed investigation tracker for duplicate key analysis
                     let transition = await DuplicateKeyInvestigationTracker.shared.record(observation)
-                    AppLogger.shared.info(DuplicateInvestigationSupport.makeKeyTransitionLog(transition))
+                    if DuplicateInvestigationSupport.isEnabled() {
+                        AppLogger.shared.info(DuplicateInvestigationSupport.makeKeyTransitionLog(transition))
+                    }
 
                     // Post notification for TCP-based physical key input events
                     // Used by KeyboardVisualizationViewModel for overlay highlighting

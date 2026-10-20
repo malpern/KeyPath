@@ -89,13 +89,6 @@ public protocol WizardUninstalling: Sendable {
     ) async -> WizardUninstallResult
 }
 
-// MARK: - FullDiskAccessChecker Protocol
-
-public protocol WizardFullDiskAccessChecking: AnyObject, Sendable {
-    func hasFullDiskAccess() -> Bool
-    func updateCachedValue(_ value: Bool)
-}
-
 // MARK: - PermissionRequestService Protocol
 
 @MainActor

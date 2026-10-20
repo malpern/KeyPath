@@ -1,3 +1,6 @@
+> Current driverless candidate status: [release sign-off](driverless-release-signoff.md).
+> This document retains historical results or the general test matrix.
+
 # KeyPath UI Release QA
 
 This checklist is the product-wide UI pass for 1.0 release candidates. It

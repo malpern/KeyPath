@@ -14,7 +14,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var window: NSWindow?
     let viewModel = KeyboardVisualizationViewModel()
     let uiState = LiveKeyboardOverlayUIState()
-    private var hasAutoHiddenForCurrentSettingsSession = false
+    private(set) var hasAutoHiddenForCurrentSettingsSession = false
     private var wasVisibleBeforeAutoHide = false
     var collapsedFrameBeforeInspector: NSRect?
     var lastWindowFrame: NSRect?
@@ -108,6 +108,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var shouldRestoreOverlayHidden = false
     var wasVisibleBeforeAppSuppression: Bool = false
     var isAppSuppressed: Bool = false
+    private var visibilityAnimationToken = UUID()
+
+    /// Shows the overlay on its own while a layer is active (see OverlayLayerRevealPolicy).
+    var layerReveal = OverlayLayerRevealPolicy(configuration: .disabled)
+    var layerRevealWorkItem: DispatchWorkItem?
+    var layerConcealWorkItem: DispatchWorkItem?
 
     override private init() {
         super.init()
@@ -156,6 +162,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     @discardableResult
     func canShowOverlay(reason: String) -> Bool {
+        guard !isAppSuppressed else { return false }
         if onboardingCompleted { return true }
         blockOverlayBeforeOnboarding(reason: reason)
         return false
@@ -252,6 +259,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
 
     /// Bring the overlay window to the front without changing visibility state
     func bringToFront() {
+        guard canShowOverlay(reason: "bring to front") else { return }
         window?.orderFrontRegardless()
     }
 
@@ -294,6 +302,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var isVisible: Bool {
         get { window?.isVisible ?? false }
         set {
+            // Any explicit show or hide makes the overlay the user's again.
+            applyLayerRevealEffects(layerReveal.userTookControl())
             if newValue {
                 guard canShowOverlay(reason: "visibility setter") else { return }
                 showWindow()
@@ -302,6 +312,12 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             }
             UserDefaults.standard.set(newValue, forKey: DefaultsKey.isVisible)
         }
+    }
+
+    /// Preserve a user dismissal across app activation and foreground changes.
+    func hideExplicitly() {
+        userExplicitlyHidden = true
+        isVisible = false
     }
 
     /// Toggle overlay visibility
@@ -351,7 +367,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Check if auto-showing overlay is allowed
     /// Returns false if user explicitly hidden OR if wizard/settings is currently hiding it
     var canAutoShow: Bool {
-        !userExplicitlyHidden && !hasAutoHiddenForCurrentSettingsSession
+        !userExplicitlyHidden && !hasAutoHiddenForCurrentSettingsSession && !isAppSuppressed
     }
 
     /// Clear the explicit hide flag (e.g., on fresh app launch)
@@ -385,14 +401,15 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         viewModel.startCapturing()
         viewModel.noteInteraction()
 
-        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 || uiState.isInspectorAnimating {
             closeInspector(animated: false)
         }
 
         guard let window else { return }
 
-        let frame = defaultCenteredFrame(on: window.screen ?? NSScreen.main)
-        let constrained = window.constrainFrameRect(frame, to: window.screen)
+        let screen = Self.screenUnderPointer ?? window.screen
+        let frame = defaultCenteredFrame(on: screen)
+        let constrained = window.constrainFrameRect(frame, to: screen)
         window.setFrame(constrained, display: true, animate: false)
         collapsedFrameBeforeInspector = constrained
         persistWindowFrame(constrained)
@@ -456,7 +473,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func autoHideOnceForSettings() {
         guard !hasAutoHiddenForCurrentSettingsSession else { return }
         hasAutoHiddenForCurrentSettingsSession = true
-        wasVisibleBeforeAutoHide = isVisible
+        wasVisibleBeforeAutoHide = isVisibleByChoice
         if isVisible {
             isVisible = false
         }
@@ -469,16 +486,30 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         hasAutoHiddenForCurrentSettingsSession = false
         wasVisibleBeforeAutoHide = false
 
+        // Preserve a pending restore until System Settings/authentication yields.
+        if shouldRestore, isAppSuppressed {
+            wasVisibleBeforeAppSuppression = true
+            return
+        }
+
         // Restore overlay if it was visible before wizard/settings opened
         if shouldRestore, !isVisible {
             isVisible = true
         }
     }
 
+    /// Visible because the user opened it, not only because a layer is held.
+    /// A held-layer reveal is temporary: restoring it later would leave the
+    /// overlay open (and persisted open) after the layer is long released.
+    var isVisibleByChoice: Bool {
+        isVisible && layerReveal.state != .revealed
+    }
+
     // MARK: - Window Management
 
-    private func showWindow() {
+    func showWindow(showingHints: Bool = true) {
         guard canShowOverlay(reason: "show window") else { return }
+        visibilityAnimationToken = UUID()
 
         if window == nil {
             createWindow()
@@ -526,7 +557,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         }
 
         // Show hint bubble if user hasn't learned the shortcut yet
-        if FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
+        if showingHints, FeatureTipManager.shared.shouldShow(.hideOverlayShortcut) {
             showHintBubbleAfterHealthIndicator()
         }
 
@@ -536,14 +567,25 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         healthObserver?.refresh()
     }
 
-    private func hideWindow() {
+    func hideWindow() {
+        let token = UUID()
+        visibilityAnimationToken = token
         // Save frame BEFORE closing inspector (which modifies the frame)
         saveWindowFrame()
         viewModel.stopCapturing()
         dismissHintBubble()
 
-        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 {
+        if uiState.isInspectorOpen || uiState.inspectorReveal > 0 || uiState.isInspectorAnimating {
             closeInspector(animated: false)
+        }
+
+        // Permission windows must be unobstructed immediately. Also makes a
+        // rapid return observe a hidden window instead of an unfinished fade.
+        if isAppSuppressed {
+            window?.orderOut(nil)
+            window?.contentView?.alphaValue = 1.0
+            window?.contentView?.layer?.transform = CATransform3DIdentity
+            return
         }
 
         // Animate out: scale down and fade, then hide
@@ -561,7 +603,8 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
                 contentView.layer?.transform = CATransform3DMakeScale(0.95, 0.95, 1.0)
             } completionHandler: { [weak self] in
                 MainActor.assumeIsolated {
-                    self?.window?.orderOut(nil)
+                    guard let self, self.visibilityAnimationToken == token else { return }
+                    self.window?.orderOut(nil)
                     // Reset for next show
                     contentView.alphaValue = 1.0
                     contentView.layer?.transform = CATransform3DIdentity
@@ -588,7 +631,23 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     }
 
     private func persistWindowFrame(_ frame: NSRect) {
-        frameStore.save(frame: frame)
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(center) }) ?? window?.screen {
+            frameStore.save(frame: frame, displayKey: Self.displayKey(for: screen), visibleFrame: screen.visibleFrame)
+        } else {
+            frameStore.save(frame: frame)
+        }
+    }
+
+    /// Stable name for a display across reconnects (display IDs are not).
+    static func displayKey(for screen: NSScreen) -> String {
+        "\(screen.localizedName)-\(Int(screen.frame.width))x\(Int(screen.frame.height))"
+    }
+
+    /// The display the pointer is on: where the user is working right now.
+    static var screenUnderPointer: NSScreen? {
+        let mouse = NSEvent.mouseLocation
+        return NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
     }
 
     private func defaultCenteredFrame(on screen: NSScreen?) -> NSRect {
@@ -607,8 +666,17 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         return frame
     }
 
+    /// The saved frame, placed on the display under the pointer: that display's own
+    /// remembered frame if it has one, otherwise the last frame at the same relative spot.
     private func restoreWindowFrame() -> NSRect? {
-        frameStore.restore()
+        let lastFrame = frameStore.restore()
+        guard let target = Self.screenUnderPointer else { return lastFrame }
+        return OverlayDisplayPlacement.frame(
+            savedOnTarget: frameStore.frame(forDisplay: Self.displayKey(for: target)),
+            lastFrame: lastFrame,
+            lastVisibleFrame: frameStore.lastVisibleFrame(),
+            targetVisibleFrame: target.visibleFrame
+        )
     }
 
     // MARK: - NSWindowDelegate
@@ -755,8 +823,14 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
             onKeyDoubleClick: { [weak self] key, layerInfo in
                 self?.handleKeyDoubleClick(key: key, layerInfo: layerInfo)
             },
+            onKeyRemap: { [weak self] key, layerInfo in
+                self?.openMapper(for: key, layerInfo: layerInfo)
+            },
+            onKeyReset: { [weak self] key in
+                self?.resetKeyToDefault(key)
+            },
             onClose: { [weak self] in
-                self?.isVisible = false
+                self?.hideExplicitly()
                 self?.showOverlayHiddenHint()
             },
             onToggleInspector: { [weak self] in

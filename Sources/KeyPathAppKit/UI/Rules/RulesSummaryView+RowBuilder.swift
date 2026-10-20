@@ -41,6 +41,7 @@ extension RulesTabView {
                 { PackDetailWindowController.shared.showWindow(pack: pack, kanataManager: kanataManager) }
             },
             description: dynamicCollectionDescription(for: collection),
+            unavailableReason: RuleCollectionCatalog.driverlessUnavailableReason(for: collection.id),
             layerActivator: collection.momentaryActivator,
             leaderKeyDisplay: currentLeaderKeyDisplay,
             activationHint: dynamicActivationHint(for: collection),

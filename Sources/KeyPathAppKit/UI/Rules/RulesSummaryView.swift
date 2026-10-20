@@ -15,6 +15,7 @@ struct RulesTabView: View {
     @State var recommendationFocusCollectionId: UUID?
     @State private var showingResetConfirmation = false
     @State private var showingCatalogUpdateReview = false
+    @State private var showingKarabinerImport = false
     @State private var showingNewRuleSheet = false
     @State var settingsToastManager = WizardToastManager()
     @State private var createButtonHovered = false
@@ -240,7 +241,7 @@ struct RulesTabView: View {
                     } label: {
                         Label("Catalog updates", systemImage: "arrow.triangle.2.circlepath")
                     }
-                    .buttonStyle(.bordered)
+                    .settingsAction()
                     .controlSize(.large)
                     .accessibilityIdentifier("rules-catalog-updates-button")
                     .accessibilityLabel("Review catalog updates")
@@ -251,18 +252,30 @@ struct RulesTabView: View {
                 } label: {
                     Label("Reset", systemImage: "arrow.counterclockwise")
                 }
-                .buttonStyle(.bordered)
+                .settingsAction()
                 .controlSize(.large)
                 .tint(.red)
                 .accessibilityIdentifier("rules-reset-button")
                 .accessibilityLabel("Reset Rules")
 
                 Button {
+                    showingKarabinerImport = true
+                } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                }
+                .settingsAction()
+                .controlSize(.large)
+                .help("Import rules from Karabiner-Elements")
+                .accessibilityIdentifier("rules-import-karabiner-button")
+                .accessibilityLabel("Import from Karabiner")
+                .sheet(isPresented: $showingKarabinerImport) { KarabinerImportSheet() }
+
+                Button {
                     openConfigInEditor()
                 } label: {
                     Label("Edit config", systemImage: "square.and.pencil")
                 }
-                .buttonStyle(.bordered)
+                .settingsAction()
                 .controlSize(.large)
                 .accessibilityIdentifier("rules-edit-config-button")
                 .accessibilityLabel("Edit Config")
@@ -272,14 +285,13 @@ struct RulesTabView: View {
                 } label: {
                     Label("Create Rule", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .settingsPrimaryAction()
                 .controlSize(.large)
                 .accessibilityIdentifier("rules-create-button")
                 .accessibilityLabel("Create Rule")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
 
             Divider()
 
@@ -432,8 +444,7 @@ struct RulesTabView: View {
                                 Button("Clear Search") {
                                     searchQuery = ""
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                                .settingsPrimaryAction()
                                 .accessibilityIdentifier("rules-search-empty-clear-button")
                                 .accessibilityLabel("Clear rules search from empty state")
                             }
@@ -458,7 +469,7 @@ struct RulesTabView: View {
             if let toastMessage = kanataManager.toastMessage {
                 ToastView(message: toastMessage, type: kanataManager.toastType)
                     .padding(.top, 16)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(1000)
             }

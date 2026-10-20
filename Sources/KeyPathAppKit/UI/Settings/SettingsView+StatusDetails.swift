@@ -46,9 +46,7 @@ extension StatusSettingsTabView {
             return .critical
         }
 
-        if duplicateAppCopies.count > 1 {
-            return .warning
-        }
+        // Extra app copies are housekeeping advice, not runtime health evidence.
 
         if !context.services.isHealthy || !(permissionSnapshot?.isSystemReady ?? false) {
             return .warning
@@ -161,7 +159,7 @@ extension StatusSettingsTabView {
     var serviceStatusDetail: StatusDetail {
         guard let context = systemContext else {
             return StatusDetail(
-                title: "KeyPath Runtime",
+                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
                 message: "Checking current status…",
                 icon: "ellipsis.circle",
                 level: .info
@@ -170,7 +168,7 @@ extension StatusSettingsTabView {
 
         if isIntentionallyDisabled {
             return StatusDetail(
-                title: "KeyPath Runtime",
+                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
                 message: "Turned off. Flip the switch above to resume remapping.",
                 icon: "power",
                 level: .info
@@ -185,7 +183,7 @@ extension StatusSettingsTabView {
                     "Running normally."
                 }
             return StatusDetail(
-                title: "KeyPath Runtime",
+                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
                 message: "\(runtimeMessage) Powered by Kanata.",
                 icon: "bolt.fill",
                 level: .success
@@ -194,7 +192,7 @@ extension StatusSettingsTabView {
 
         if context.services.karabinerDaemonRunning {
             return StatusDetail(
-                title: "KeyPath Runtime",
+                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
                 message: "Starting…",
                 icon: "hourglass.circle",
                 level: .info
@@ -202,13 +200,13 @@ extension StatusSettingsTabView {
         }
 
         return StatusDetail(
-            title: "KeyPath Runtime",
+            title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
             message: "Runtime is stopped. Use the switch above to turn it on.",
             icon: "pause.circle",
             level: .warning,
             actions: [
-                StatusDetailAction(title: "Open Login Items", icon: "list.bullet") {
-                    SystemDiagnostics.open(.loginItems)
+                StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
+                    SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
                 },
                 StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
                     wizardInitialPage = .summary
@@ -246,24 +244,15 @@ extension StatusSettingsTabView {
             lines.append("Missing: \(evaluation.missingOrDenied.joined(separator: ", "))")
         }
         if !evaluation.unknown.isEmpty {
-            if hasFullDiskAccess {
-                lines.append("Cannot verify: \(evaluation.unknown.joined(separator: ", "))")
-            } else {
-                lines.append(
-                    "Cannot verify \(evaluation.unknown.joined(separator: ", ")) without Enhanced Diagnostics"
-                )
-            }
+            lines.append("Not yet verified: \(evaluation.unknown.joined(separator: ", ")). Retry setup to check current access.")
         }
 
         var actions: [StatusDetailAction] = []
 
-        // When kanata permissions are unknown due to missing FDA, lead with the FDA action
-        let hasUnverifiedKanata = !hasFullDiskAccess
-            && (snapshot.kanata.accessibility == .unknown || snapshot.kanata.inputMonitoring == .unknown)
-        if hasUnverifiedKanata {
+        if !evaluation.unknown.isEmpty {
             actions.append(
-                StatusDetailAction(title: "Enable Enhanced Diagnostics", icon: "checkmark.shield") {
-                    SystemDiagnostics.open(.fullDiskAccess)
+                StatusDetailAction(title: "Retry Setup", icon: "wand.and.stars") {
+                    wizardInitialPage = .summary
                 }
             )
         }
@@ -286,9 +275,13 @@ extension StatusSettingsTabView {
 
         if !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady {
             actions.append(
-                StatusDetailAction(title: "Open Accessibility", icon: "figure.walk") {
-                    SystemDiagnostics.open(.accessibility)
-                }
+                StatusDetailAction(
+                    title: AccessibilityPermissionPresentation.current.openButtonTitle,
+                    icon: "figure.walk",
+                    handler: { SystemDiagnostics.open(.accessibility) },
+                    identifier: "status-action-open-accessibility",
+                    accessibilityTitle: AccessibilityPermissionPresentation.current.openTitle
+                )
             )
         }
 
@@ -302,6 +295,7 @@ extension StatusSettingsTabView {
     }
 
     var tcpDetail: StatusDetail? {
+        guard !isDriverless else { return nil }
         guard systemContext?.services.kanataRunning == true else { return nil }
         guard let tcpConfigured else {
             return StatusDetail(
@@ -338,6 +332,7 @@ extension StatusSettingsTabView {
     }
 
     var karabinerDetail: StatusDetail? {
+        guard !isDriverless else { return nil }
         let status = KarabinerComponentsStatusEvaluator.evaluate(
             systemState: wizardSystemState,
             issues: wizardIssues
@@ -383,13 +378,17 @@ extension StatusSettingsTabView {
         guard !isIntentionallyDisabled else { return nil }
         guard serviceStatusDetail.level != .success else { return nil }
         return StatusDetail(
-            title: "Kanata Logs",
-            message: "Open the daemon stderr log for startup errors and permission failures.",
+            title: isDriverless ? "KeyPath Logs" : "Kanata Logs",
+            message: isDriverless ? "Open KeyPath’s log for remapping startup errors and permission failures." : "Open the daemon stderr log for startup errors and permission failures.",
             icon: "doc.text.magnifyingglass",
             level: .info,
             actions: [
                 StatusDetailAction(title: "Open", icon: "doc.text") {
-                    SystemDiagnostics.openKanataLogsInEditor()
+                    if isDriverless {
+                        openFileInPreferredEditor(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/KeyPath/keypath-debug.log"))
+                    } else {
+                        SystemDiagnostics.openKanataLogsInEditor()
+                    }
                 }
             ]
         )
@@ -414,10 +413,10 @@ extension StatusSettingsTabView {
         guard duplicateAppCopies.count > 1 else { return nil }
         let count = duplicateAppCopies.count
         return StatusDetail(
-            title: "Duplicate Installations",
-            message: "Found \(count) copies of KeyPath. Extra copies can confuse macOS permissions.",
-            icon: "exclamationmark.triangle",
-            level: .warning,
+            title: "Other App Copies",
+            message: "Found \(count) copies of KeyPath. If permissions stop working, review the extra copies in Repair/Remove.",
+            icon: "info.circle",
+            level: .info,
             actions: [
                 StatusDetailAction(title: "Review", icon: "arrow.right") {
                     NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
@@ -451,11 +450,11 @@ extension StatusSettingsTabView {
         }
 
         append(status: snapshot.keyPath.accessibility, label: "KeyPath Accessibility")
-        // KeyPath IM is always .unknown — there's no Apple API to query it.
-        // Kanata's IM grant is what matters for key capture. Skip to avoid
-        // permanent "Cannot verify" in Settings.
-        append(status: snapshot.kanata.accessibility, label: "Kanata Accessibility")
-        append(status: snapshot.kanata.inputMonitoring, label: "Kanata Input Monitoring")
+        // Use the runtime's independent capture evidence for this gap summary.
+        // The session worker uses KeyPath's consent; it is not another app to grant.
+        let runtimeName = snapshot.backend == .session ? "KeyPath Runtime" : "Kanata"
+        append(status: snapshot.kanata.accessibility, label: "\(runtimeName) Accessibility")
+        append(status: snapshot.kanata.inputMonitoring, label: "\(runtimeName) Input Monitoring")
 
         return (missingOrDenied, unknown, hasErrors)
     }

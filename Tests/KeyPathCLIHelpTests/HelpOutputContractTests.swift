@@ -4,6 +4,30 @@ import Darwin
 import XCTest
 
 final class HelpOutputContractTests: XCTestCase {
+    func testServiceAndSystemExamplesDoNotAdvertiseUnavailableCommands() async throws {
+        let unavailable = ["service status", "service start", "service stop", "service restart",
+                           "system install", "system repair", "system uninstall"]
+        for noun in ["service", "system"] {
+            let jsonOutput = await captureStandardOutput {
+                var parsed = try! HelpExamples.parse([noun, "--json"])
+                try! await parsed.run()
+            }
+            let data = try XCTUnwrap(jsonOutput.data(using: .utf8))
+            XCTAssertNoThrow(try JSONSerialization.jsonObject(with: data))
+            for command in unavailable {
+                XCTAssertFalse(jsonOutput.contains(command), "Examples must not advertise \(command)")
+            }
+            if noun == "service" {
+                XCTAssertTrue(jsonOutput.contains("service reload"))
+                XCTAssertTrue(jsonOutput.contains("service logs"))
+                XCTAssertTrue(jsonOutput.contains("open -a KeyPath"))
+            } else {
+                XCTAssertTrue(jsonOutput.contains("system inspect"))
+                XCTAssertTrue(jsonOutput.contains("not live app-session health"))
+            }
+        }
+    }
+
     func testUnknownSchemaPreservesJSONAndHumanErrorContracts() async throws {
         try await assertUnknownHelpOutput(
             command: HelpSchemas.self,
@@ -62,6 +86,19 @@ final class HelpOutputContractTests: XCTestCase {
         close(original)
         pipe.fileHandleForWriting.closeFile()
 
+        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    }
+
+    private func captureStandardOutput(_ operation: () async -> Void) async -> String {
+        let pipe = Pipe()
+        let original = dup(STDOUT_FILENO)
+        XCTAssertNotEqual(original, -1)
+        XCTAssertNotEqual(dup2(pipe.fileHandleForWriting.fileDescriptor, STDOUT_FILENO), -1)
+        await operation()
+        fflush(stdout)
+        XCTAssertNotEqual(dup2(original, STDOUT_FILENO), -1)
+        close(original)
+        pipe.fileHandleForWriting.closeFile()
         return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     }
 }

@@ -729,6 +729,7 @@ name = "keypath-kanata-host-bridge"
 version = "0.1.0"
 dependencies = [
  "kanata",
+ "kanata-keyberon",
  "kanata-parser",
  "karabiner-driverkit",
  "parking_lot",

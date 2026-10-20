@@ -1,6 +1,8 @@
 # ADR-016: TCC Database Reading for Sequential Permission Flow
 
-**Status:** Accepted
+**Status:** Superseded (2026-10-06)
+
+KeyPath has removed direct TCC database reads and Full Disk Access prompts. The session runtime reports its effective capabilities; missing evidence remains unknown. Browser-history suggestions have also been removed to simplify onboarding. The rationale below is historical.
 **Date:** 2024
 
 ## Context

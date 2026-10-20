@@ -1,0 +1,11 @@
+# Show a completed driverless start refusal immediately
+
+On October 5, signed `01df87bc9` refused recovery of a Caps mapping journal from an earlier guest boot. Explicit **Start** returned failure, but the service wizard continued displaying “Starting KeyPath runtime…” while refreshing stopped runtime status inside the startup grace period. An observation about 29 seconds after Start still showed the spinner; a later observation about 101 seconds after Start showed the specific restoration refusal. These snapshots bound the delay, not the exact moment the error appeared.
+
+Raw evidence: `/private/tmp/keypath-caps-identity-live-01/rebootservicestart01-result.json`, `rebootserviceresult01-result.json`, and `rebootserviceresult02-result.json`. The current device mapping remained empty and the stale intent remained byte-identical. No modifying worker started. Permission probes are separate from an attempted runtime start; the explicit wizard Start is the acceptance trigger.
+
+`completeServiceAction` previously refreshed transient status before copying `lastError`. The refresh could classify a stopped runtime as starting during the grace window and continue polling. A known failed start/restart now publishes its existing coordinator error immediately, sets failed service state, cancels the initial refresh task and returns before transient polling. A cancellation check inside the queued status update prevents that canceled task from replacing the failure. Successful actions and failures without a useful error retain the existing refresh behavior.
+
+Validation: safe focused build and all eight `ServiceStatusEvaluatorActionTests` passed; syntax, whitespace and accessibility checks passed. Those tests cover existing status policy, not the SwiftUI completion path. The changed UI still needs a newly signed live refusal check. The observed identity acceptance belongs to the unchanged signed `01df87bc9` artifact; it must not be attributed to this source change.
+
+Keep the change narrow: do not shorten the global startup timeout, add a new polling framework, alter mapping recovery, or clear retained journals to make Start succeed. Normal Quit did not retire the inactive post-reboot guest parent; exact scoped SIGTERM and canonical disposable guest destruction completed cleanup. The cause of that Quit behavior remains unverified.

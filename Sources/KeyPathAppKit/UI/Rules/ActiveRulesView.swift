@@ -129,7 +129,7 @@ private struct RuleCollectionRow: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: NSColor.windowBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
     }
 }
@@ -202,7 +202,7 @@ private extension RuleCollectionRow {
                         .foregroundColor(.primary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(NSColor.controlBackgroundColor))
+                        .background(SettingsDesign.chipFill)
                         .clipShape(.rect(cornerRadius: 6))
 
                     Image(systemName: "arrow.right")
@@ -214,7 +214,7 @@ private extension RuleCollectionRow {
                         .foregroundColor(.primary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color(NSColor.controlBackgroundColor))
+                        .background(SettingsDesign.chipFill)
                         .clipShape(.rect(cornerRadius: 6))
                 }
                 .padding(.vertical, 2)
@@ -274,7 +274,7 @@ private struct MappingTableView: View {
                 Spacer()
             }
             .padding(.vertical, 6)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            .background(SettingsDesign.hoverFill)
 
             Divider()
 
@@ -298,7 +298,7 @@ private struct MappingTableView: View {
                 }
             }
         }
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+        .background(SettingsDesign.groupFill)
         .clipShape(.rect(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)

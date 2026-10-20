@@ -56,7 +56,7 @@ struct SequencesModalView: View {
             // Left sidebar
             sidebar
                 .frame(width: 240)
-                .background(Color(nsColor: .controlBackgroundColor))
+                .background(SettingsDesign.groupFill)
 
             Divider()
 

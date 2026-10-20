@@ -17,12 +17,12 @@ For DMG installs, open KeyPath and choose **File > Install Command Line Tool**. 
 keypath-cli
 ```
 
-The installed command points at the signed CLI inside `/Applications/KeyPath.app`, which is required for system install and repair commands that use bundled helper assets.
+The installed command points at the signed CLI inside `/Applications/KeyPath.app`, so configuration validation and simulation use the same bundled engine as the app. Installing this command-line tool is separate from installing system services.
 
 You can also run the bundled CLI directly:
 
 ```bash
-/Applications/KeyPath.app/Contents/MacOS/keypath-cli system inspect
+/Applications/KeyPath.app/Contents/MacOS/keypath-cli config check
 ```
 
 All commands support `--json` for machine-readable output, making them easy to use in scripts, Shortcuts, and automation tools.
@@ -31,14 +31,12 @@ All commands support `--json` for machine-readable output, making them easy to u
 
 ## Quick reference
 
-### Service control
+### Configuration reload and logs
+
+Open KeyPath.app to start or stop remapping and check the live session. The driverless CLI does not provide `start`, `stop`, `restart` or `status` commands.
 
 ```bash
-keypath status                    # System health check
-keypath start                     # Start the remapping service
-keypath stop                      # Stop the remapping service
-keypath restart                   # Restart the service
-keypath logs                      # Show recent service logs
+keypath logs                      # Show recent app logs
 keypath service reload            # Hot-reload config without restart
 ```
 
@@ -115,18 +113,13 @@ keypath export collection "My Rules"        # Export one collection
 ### System
 
 ```bash
-keypath system inspect                    # Inspect system state and repair plan
-keypath system install --dry-run          # Preview installation work and blockers
-keypath system repair --dry-run           # Preview repair work and manual permission actions
-keypath system repair --open-permissions  # Open System Settings for permission blockers
-keypath system repair                     # Fix auto-repairable services and components
-keypath system uninstall                  # Remove everything
+keypath system inspect                    # Read local permission/configuration diagnostics
 ```
 
-`system repair` can repair service/helper/component problems that KeyPath can
-control. macOS permissions such as Accessibility and Input Monitoring still
-require user approval; the CLI reports those as manual issues and can open the
-appropriate System Settings pane with `--open-permissions`.
+`system inspect` reads diagnostics available to the CLI process. It does not
+verify the separate app's owned runtime; use KeyPath.app for live session status.
+The driverless CLI does not provide system install, repair or uninstall commands.
+For setup and removal guidance, open KeyPath.app.
 
 ### Simulation
 
@@ -141,7 +134,7 @@ keypath simulate "caps h"         # Simulate a key sequence
 Every command supports `--json` for machine-readable output:
 
 ```bash
-keypath status --json
+keypath config check --json
 keypath layer current --json
 keypath rule list --json
 keypath layer list --json
@@ -150,14 +143,6 @@ keypath layer list --json
 This makes the CLI a first-class integration point for scripts, Shortcuts, Hammerspoon, and any other automation tool.
 
 ### Scripting examples
-
-Check if service is running:
-
-```bash
-if keypath status --json | jq -e '.kanataRunning' > /dev/null 2>&1; then
-    echo "KeyPath is running"
-fi
-```
 
 Get the current layer in a script:
 
@@ -190,13 +175,6 @@ if currentLayer is "nav" then
     display notification "Navigation layer active" with title "KeyPath"
 end if
 
--- Check if service is running
-try
-    do shell script "/usr/local/bin/keypath status --json"
-    -- service is reachable
-on error
-    -- service is down
-end try
 ```
 
 Send actions to KeyPath from AppleScript:

@@ -33,6 +33,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
+    let sessionValidationRuntimeHost: KanataRuntimeHost
     private let deviceSelectionStore: DeviceSelectionStore
     private let synchronizePreferences: @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool
 
@@ -46,6 +47,38 @@ public final class ConfigurationService: FileConfigurationProviding {
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
     /// Protect shared state when accessed from multiple threads
     private let stateLock = NSLock()
+
+    #if DEBUG
+        private static let sessionValidationTestLock = NSLock()
+        /// Lock protects this test-only fixture. Validation still runs the real
+        /// parser and eligibility checks; no result can be forced to succeed.
+        private nonisolated(unsafe) static var sessionValidationTestHost: KanataRuntimeHost?
+
+        static func setSessionValidationRuntimeHostForTesting(_ host: KanataRuntimeHost?) {
+            sessionValidationTestLock.withLock { sessionValidationTestHost = host }
+        }
+    #endif
+
+    private static func defaultSessionValidationRuntimeHost() -> KanataRuntimeHost {
+        #if DEBUG
+            if let fixture = sessionValidationTestLock.withLock({ sessionValidationTestHost }) {
+                return fixture
+            }
+            // Plain XCTestCase suites can construct services before the shared
+            // reset hook. Honor only an explicit bridge in an actual test host.
+            if TestEnvironment.isTestHostProcess,
+               let bridgePath = ProcessInfo.processInfo.environment["KEYPATH_SESSION_TEST_BRIDGE_PATH"]
+            {
+                let current = KanataRuntimeHost.current()
+                return KanataRuntimeHost(
+                    launcherPath: current.launcherPath, bridgeLibraryPath: bridgePath,
+                    bundledCorePath: current.bundledCorePath,
+                    kanataEngineBundlePath: current.kanataEngineBundlePath
+                )
+            }
+        #endif
+        return .current()
+    }
 
     // MARK: - Initialization
 
@@ -65,11 +98,13 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollectionStore: RuleCollectionStore,
         customRulesStore: CustomRulesStore,
         deviceSelectionStore: DeviceSelectionStore = .shared,
+        sessionValidationRuntimeHost: KanataRuntimeHost? = nil,
         synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.deviceSelectionStore = deviceSelectionStore
+        self.sessionValidationRuntimeHost = sessionValidationRuntimeHost ?? Self.defaultSessionValidationRuntimeHost()
         self.synchronizePreferences = synchronizePreferences
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
@@ -408,7 +443,9 @@ public final class ConfigurationService: FileConfigurationProviding {
         preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
         leaderKeyPreference: LeaderKeyPreference? = nil,
         shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
-        deviceSelections: [DeviceSelection]? = nil
+        deviceSelections: [DeviceSelection]? = nil,
+        restoringBackupContent: String? = nil,
+        restoringManagedBackup: Bool = false
     ) async throws -> RuleWrite {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
             guard packRecord == nil || deviceSelections == nil else {
@@ -450,6 +487,21 @@ public final class ConfigurationService: FileConfigurationProviding {
                 shortcutListGenerationInput: shortcutListGenerationInput ?? persistedInputs.shortcut,
                 deviceGenerationInput: deviceGenerationInput
             )
+            // A backup of KeyPath's own write is restored from its rules even if
+            // the generator has changed since; anything else must match exactly.
+            if let restoringBackupContent, !restoringManagedBackup,
+               !AppConfigGenerator.matchesManagedContent(restoringBackupContent, expected: newConfig.content)
+            {
+                throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+            }
+            // Capture a coherent source/config revision while holding the operation lease.
+            // A requested restore must have a safety backup before replacing current rules.
+            let backedUp = ConfigBackupManager(configPath: configurationPath).createPreEditBackup(
+                generationPreferences: RuleBackupPreferences(defaults: preferenceDefaults ?? PreferencesService.canonicalDefaults)
+            )
+            if restoringBackupContent != nil, !backedUp {
+                throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+            }
             var payload = try await [
                 "config": Data(newConfig.content.utf8),
                 "collections": collectionStore.encodedCollections(ruleCollections),
@@ -566,6 +618,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                                mutationPermit: ConfigurationOperationGate.Permit) async throws -> RawConfigurationWrite
     {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await requireSessionEligibleConfiguration(content)
             let files = ["config": URL(fileURLWithPath: configurationPath)]
             let directory = URL(fileURLWithPath: configDirectory)
             try Task.checkCancellation()
@@ -815,12 +868,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         let configURL = URL(fileURLWithPath: configurationPath)
         guard FileManager.default.fileExists(atPath: configURL.path) else { return }
         let existing = try String(contentsOf: configURL, encoding: .utf8)
-        if let current = withLockedCurrentConfig(),
-           matchesGlobalManagedContent(existing, expected: current.content)
-        {
-            return
-        }
-
+        // A cached read can contain handwritten content. Only committed
+        // generation inputs can establish managed ownership of an existing file.
         // A missing collection store is the first-write/bootstrap migration
         // case: there is no committed global input set to reproduce yet.
         // Once collections exist, every global writer must preserve a main file
@@ -851,6 +900,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// managed transaction; arbitrary handwritten directives are never erased.
     private func matchesGlobalManagedContent(_ existing: String, expected: String) -> Bool {
         if AppConfigGenerator.matchesManagedContent(existing, expected: expected) { return true }
+        if isUnchangedSinceManagedWrite(existing) { return true }
         guard let manifest = try? String(contentsOf: deviceTargetingManifestURL, encoding: .utf8),
               manifest == deviceTargetingRegion(from: existing)
         else { return false }
@@ -858,6 +908,56 @@ public final class ConfigurationService: FileConfigurationProviding {
             removingDynamicDeviceTargeting(from: existing),
             expected: removingDynamicDeviceTargeting(from: expected)
         )
+    }
+
+    // MARK: - Managed write fingerprint
+
+    /// A file KeyPath wrote itself stays reproducible across generator changes:
+    /// each committed managed write records a fingerprint of its content, and a
+    /// file that still matches it has not been edited by hand since. Without this,
+    /// any change to the generator's output made every upgrader's next global save
+    /// fail the byte-for-byte comparison against the new generator.
+    ///
+    /// Files written before fingerprints existed have none. Those that still open
+    /// with the generator's preamble are accepted once, as they were before this check
+    /// existed; the pre-edit backup taken before every rule write keeps a copy, and
+    /// the write records a fingerprint so later hand edits are protected. A file
+    /// without the preamble is never treated as managed.
+    private func isUnchangedSinceManagedWrite(_ existing: String) -> Bool {
+        if let recorded = try? String(contentsOf: managedConfigFingerprintURL, encoding: .utf8) {
+            return recorded == Self.managedFingerprint(existing)
+        }
+        return Self.hasGeneratedPreamble(existing)
+    }
+
+    /// The generator's opening lines: its header, then the enabled-rules summary
+    /// (written since May 2026). The header line alone is not enough: people
+    /// edit generated files and keep it.
+    static func hasGeneratedPreamble(_ content: String) -> Bool {
+        let lines = content.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: false)
+        return lines.count >= 2
+            && lines[0] + "\n" == KanataConfiguration.managedHeader
+            && lines[1].hasPrefix(";; Enabled: ")
+    }
+
+    nonisolated static func managedFingerprint(_ content: String) -> String {
+        let normalized = content.components(separatedBy: "\n")
+            .filter { !$0.hasPrefix(";; Generated: ") }
+            .joined(separator: "\n")
+        return SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func recordManagedConfigFingerprint(_ content: String) {
+        do {
+            try Data(Self.managedFingerprint(content).utf8).write(to: managedConfigFingerprintURL, options: .atomic)
+        } catch {
+            // Best effort: without it the next save falls back to regenerating and comparing.
+            AppLogger.shared.log("⚠️ [ConfigService] Could not record config fingerprint: \(error.localizedDescription)")
+        }
+    }
+
+    var managedConfigFingerprintURL: URL {
+        URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-config.fingerprint")
     }
 
     private var deviceTargetingManifestURL: URL {
@@ -952,6 +1052,7 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     private func publishSavedConfiguration(_ newConfig: KanataConfiguration) async {
         setCurrentConfiguration(newConfig)
+        recordManagedConfigFingerprint(newConfig.content)
         let snapshot = observersSnapshot()
         let tasks = snapshot.map { observer in
             Task { @MainActor in await observer(newConfig) }
@@ -1373,6 +1474,9 @@ extension ConfigurationService {
             }
         }
 
+        if URL(fileURLWithPath: path).standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
@@ -1398,6 +1502,9 @@ extension ConfigurationService {
     }
 
     func writeFileURLAsync(string: String, to url: URL) async throws {
+        if url.standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {

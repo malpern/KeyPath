@@ -77,17 +77,19 @@ enum CommunicationProtocol: String, CaseIterable {
     }
 }
 
-/// Display mode for the Context HUD
+/// What appears while a layer is active: the keyboard overlay, the shortcut list, both, or nothing.
 enum ContextHUDDisplayMode: String, CaseIterable {
     case overlayOnly
     case hudOnly
     case both
+    case none
 
     var displayName: String {
         switch self {
         case .overlayOnly: "Overlay Only"
         case .hudOnly: "HUD Only"
         case .both: "Both"
+        case .none: "Nothing"
         }
     }
 }
@@ -211,20 +213,10 @@ final class PreferencesService: @unchecked Sendable {
 
     // MARK: - TCP Server Configuration
 
-    /// TCP server port for Kanata communication
+    /// The driverless worker and every app/CLI client share one fixed endpoint.
+    /// Historical stored port values remain untouched and cannot redirect clients.
     var tcpServerPort: Int {
-        didSet {
-            // Validate port range and revert if invalid
-            if !Self.isValidPort(tcpServerPort) {
-                AppLogger.shared.log(
-                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)"
-                )
-                tcpServerPort = oldValue
-            } else {
-                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
-                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
-            }
-        }
+        KeyPathConstants.Networking.defaultTCPPort
     }
 
     /// Whether user notifications are enabled
@@ -296,6 +288,31 @@ final class PreferencesService: @unchecked Sendable {
             UserDefaults.standard.set(unmappedLayerKeyStyle.rawValue, forKey: Keys.unmappedLayerKeyStyle)
             AppLogger.shared.log("🎨 [Preferences] unmappedLayerKeyStyle = \(unmappedLayerKeyStyle.rawValue)")
         }
+    }
+
+    /// How opaque the keyboard overlay is at rest (0.3–1.0), so it can sit over work.
+    var overlayOpacity: Double {
+        didSet {
+            let clamped = Self.clampedOverlayOpacity(overlayOpacity)
+            if clamped != overlayOpacity {
+                overlayOpacity = clamped
+            } else {
+                UserDefaults.standard.set(overlayOpacity, forKey: Keys.overlayOpacity)
+            }
+        }
+    }
+
+    /// Whether the overlay fades out after a while without typing.
+    var overlayFadesWhenIdle: Bool {
+        didSet {
+            UserDefaults.standard.set(overlayFadesWhenIdle, forKey: Keys.overlayFadesWhenIdle)
+            AppLogger.shared.log("🎨 [Preferences] overlayFadesWhenIdle = \(overlayFadesWhenIdle)")
+        }
+    }
+
+    static func clampedOverlayOpacity(_ value: Double) -> Double {
+        guard value.isFinite else { return 1.0 }
+        return min(max(value, 0.3), 1.0)
     }
 
     // MARK: - Leader Key Configuration
@@ -372,19 +389,6 @@ final class PreferencesService: @unchecked Sendable {
             guard !suppressShortcutListPersistence else { return }
             leaderDefaults.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
             AppLogger.shared.log("🎯 [Preferences] contextHUDTriggerMode = \(contextHUDTriggerMode.rawValue)")
-        }
-    }
-
-    /// Auto-dismiss timeout for the Context HUD (seconds, 1-10)
-    var contextHUDTimeout: TimeInterval {
-        didSet {
-            let clamped = Self.clampedContextHUDTimeout(contextHUDTimeout)
-            if clamped != contextHUDTimeout {
-                contextHUDTimeout = clamped
-            } else {
-                UserDefaults.standard.set(contextHUDTimeout, forKey: Keys.contextHUDTimeout)
-                AppLogger.shared.log("🎯 [Preferences] contextHUDTimeout = \(contextHUDTimeout)s")
-            }
         }
     }
 
@@ -475,7 +479,6 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Keys {
         static let communicationProtocol = "KeyPath.Communication.Protocol"
-        static let tcpServerPort = "KeyPath.TCP.ServerPort"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
@@ -484,7 +487,6 @@ final class PreferencesService: @unchecked Sendable {
         static let leaderKeyPreference = PreferencesService.leaderKeyPreferenceKey
         static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
         static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
-        static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
         static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
         static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
         static let kindaVimLeaderHUDMode = "KeyPath.KindaVim.LeaderHUDMode"
@@ -492,6 +494,8 @@ final class PreferencesService: @unchecked Sendable {
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
         static let unmappedLayerKeyStyle = "KeyPath.Overlay.UnmappedLayerKeyStyle"
+        static let overlayOpacity = "KeyPath.Overlay.Opacity"
+        static let overlayFadesWhenIdle = "KeyPath.Overlay.FadesWhenIdle"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
         static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
@@ -500,7 +504,6 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Defaults {
         static let communicationProtocol = CommunicationProtocol.tcp // TCP is only protocol
-        static let tcpServerPort = KeyPathConstants.Networking.defaultTCPPort
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true
@@ -511,10 +514,13 @@ final class PreferencesService: @unchecked Sendable {
         #endif
         static let keyLabelStyle = KeyLabelStyle.symbols
         static let unmappedLayerKeyStyle = UnmappedLayerKeyStyle.baseLayer
+        static let overlayOpacity = 1.0
+        static let overlayFadesWhenIdle = true
         static let accessibilityTestMode = false
-        static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
+        // Nothing pops up on a layer hold unless the user picks it: holding Space to
+        // type must not flash a window for people who never asked for one.
+        static let contextHUDDisplayMode = ContextHUDDisplayMode.none
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
-        static let contextHUDTimeout: TimeInterval = 3.0
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200
         static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.off
@@ -544,29 +550,6 @@ final class PreferencesService: @unchecked Sendable {
         communicationProtocol =
             CommunicationProtocol(rawValue: protocolString) ?? Defaults.communicationProtocol
 
-        // TCP server port. Migrate the legacy UDP-era port (54141) to the
-        // current default. PR #500 changed the default to 37001, but existing
-        // installs kept 54141 in UserDefaults while the kanata daemon was
-        // (re)launched on the new default — so the app dialed a port nothing was
-        // listening on and reported "no TCP". Clear the stale key so it tracks
-        // the current default; preserve any deliberately-set non-legacy port.
-        let storedTCPPort = UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int
-        if let storedTCPPort, storedTCPPort == KeyPathConstants.Networking.legacyUDPEraPort {
-            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
-            tcpServerPort = Defaults.tcpServerPort
-            AppLogger.shared.log(
-                "🔧 [PreferencesService] Migrated legacy TCP port \(storedTCPPort) → \(Defaults.tcpServerPort)"
-            )
-        } else if let storedTCPPort, !Self.isValidPort(storedTCPPort) {
-            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
-            tcpServerPort = Defaults.tcpServerPort
-            AppLogger.shared.log(
-                "🔧 [PreferencesService] Removed invalid TCP port \(storedTCPPort); using \(Defaults.tcpServerPort)"
-            )
-        } else {
-            tcpServerPort = storedTCPPort ?? Defaults.tcpServerPort
-        }
-
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
                 ?? Defaults.notificationsEnabled
@@ -593,6 +576,11 @@ final class PreferencesService: @unchecked Sendable {
         let unmappedLayerKeyStyleString = UserDefaults.standard.string(forKey: Keys.unmappedLayerKeyStyle)
             ?? Defaults.unmappedLayerKeyStyle.rawValue
         unmappedLayerKeyStyle = UnmappedLayerKeyStyle(rawValue: unmappedLayerKeyStyleString) ?? Defaults.unmappedLayerKeyStyle
+        overlayOpacity = Self.clampedOverlayOpacity(
+            UserDefaults.standard.object(forKey: Keys.overlayOpacity) as? Double ?? Defaults.overlayOpacity
+        )
+        overlayFadesWhenIdle = UserDefaults.standard.object(forKey: Keys.overlayFadesWhenIdle) as? Bool
+            ?? Defaults.overlayFadesWhenIdle
 
         // Testing preferences
         accessibilityTestMode =
@@ -630,14 +618,6 @@ final class PreferencesService: @unchecked Sendable {
             ?? Defaults.contextHUDTriggerMode.rawValue
         contextHUDTriggerMode = ContextHUDTriggerMode(rawValue: triggerModeString)
             ?? Defaults.contextHUDTriggerMode
-
-        let storedTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
-        let rawTimeout = storedTimeout ?? Defaults.contextHUDTimeout
-        let sanitizedTimeout = Self.clampedContextHUDTimeout(rawTimeout)
-        contextHUDTimeout = sanitizedTimeout
-        if storedTimeout != nil, sanitizedTimeout != rawTimeout {
-            UserDefaults.standard.set(sanitizedTimeout, forKey: Keys.contextHUDTimeout)
-        }
 
         let holdDelayPresetString = leaderDefaults.string(forKey: Keys.contextHUDHoldDelayPreset)
             ?? Defaults.contextHUDHoldDelayPreset.rawValue
@@ -682,7 +662,6 @@ final class PreferencesService: @unchecked Sendable {
     /// Reset all communication settings to defaults
     func resetCommunicationSettings() {
         communicationProtocol = Defaults.communicationProtocol
-        tcpServerPort = Defaults.tcpServerPort
         AppLogger.shared.log("🔧 [PreferencesService] All communication settings reset to defaults")
     }
 
@@ -700,10 +679,6 @@ final class PreferencesService: @unchecked Sendable {
 private extension PreferencesService {
     static func isValidPort(_ port: Int) -> Bool {
         port >= 1024 && port <= 65535
-    }
-
-    static func clampedContextHUDTimeout(_ timeout: TimeInterval) -> TimeInterval {
-        min(max(timeout, 1), 10)
     }
 
     static func clampedContextHUDHoldDelayCustomMs(_ delay: Int) -> Int {

@@ -140,7 +140,7 @@ struct ChordGroupsModalView: View {
             .accessibilityIdentifier("chord-groups-add-group-button")
             .accessibilityLabel("Add new chord group")
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(SettingsDesign.groupFill)
     }
 
     // MARK: - Chord Editor Panel
@@ -303,7 +303,7 @@ struct ChordGroupsModalView: View {
                             .foregroundColor(.secondary)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color(nsColor: .controlBackgroundColor))
+                            .background(SettingsDesign.groupFill)
                             .clipShape(.rect(cornerRadius: 8))
                     }
 
@@ -532,7 +532,7 @@ private struct ChordRowView: View {
             .accessibilityLabel("Delete chord")
         }
         .padding(8)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(SettingsDesign.groupFill)
         .clipShape(.rect(cornerRadius: 6))
     }
 

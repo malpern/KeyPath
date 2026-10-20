@@ -105,7 +105,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].role = .recommended
                 keys[capsIndex].glow = 0.28
                 keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock", alignment: .leading)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .capsMotivation:
@@ -116,7 +116,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].legend = KeyboardStageLegend(primary: "caps lock", alignment: .leading)
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 revealTarget = .capsToEscape(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .capsApplying:
@@ -141,7 +141,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 decorations.append(contentsOf: capsEchoes(frame: keys[capsIndex].frame))
                 revealTarget = .capsToEscape(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .capsInstalled:
@@ -152,7 +152,7 @@ enum KeyboardStageSceneBuilder {
                 keys[capsIndex].legend = KeyboardStageLegend(primary: "esc")
                 keys[capsIndex].accessibilityRole = .capsToEscape
                 revealTarget = .capsToEscape(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1.18)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .hyperMotivation:
@@ -170,7 +170,7 @@ enum KeyboardStageSceneBuilder {
                     opacity: 0.7
                 ))
                 revealTarget = .capsToHyper(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 0.98)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .hyperApplying:
@@ -196,7 +196,7 @@ enum KeyboardStageSceneBuilder {
                     opacity: 0
                 ))
                 revealTarget = .capsToHyper(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 0.98)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .hyperInstalled:
@@ -210,7 +210,7 @@ enum KeyboardStageSceneBuilder {
                 )
                 keys[capsIndex].accessibilityRole = .capsToHyper
                 revealTarget = .capsToHyper(keyID: capsKeyID)
-                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds, zoom: 1)
+                viewport = capsViewport(capsFrame: keys[capsIndex].frame, bounds: layoutBounds)
             }
 
         case .launcher:
@@ -246,11 +246,22 @@ enum KeyboardStageSceneBuilder {
                     ))
                 }
 
-                let target = journeyTarget(
+                let selectedFrame = keys[selectedIndex].frame
+                let target = KeyboardStageDecoration(
+                    id: "keyboard-journey-target",
                     kind: .applicationTarget(application),
-                    keys: keys,
-                    bounds: layoutBounds,
-                    role: .installed
+                    frame: KeyboardStageRect(
+                        x: selectedFrame.maxX - 0.38,
+                        y: selectedFrame.minY + 0.08,
+                        width: 0.30,
+                        height: 0.30
+                    ),
+                    rotationRadians: 0,
+                    role: .installed,
+                    opacity: 1,
+                    pressure: 0,
+                    glow: 0,
+                    scale: 1
                 )
                 decorations.append(target)
                 stageBounds = stageBounds.union(target.frame.insetBy(dx: -0.12, dy: -0.12))
@@ -308,8 +319,7 @@ enum KeyboardStageSceneBuilder {
             if let capsIndex {
                 viewport = capsViewport(
                     capsFrame: keys[capsIndex].frame,
-                    bounds: layoutBounds,
-                    zoom: 0.94
+                    bounds: layoutBounds
                 )
             }
 
@@ -343,8 +353,7 @@ enum KeyboardStageSceneBuilder {
             if let capsIndex {
                 viewport = capsViewport(
                     capsFrame: keys[capsIndex].frame,
-                    bounds: layoutBounds,
-                    zoom: 1
+                    bounds: layoutBounds
                 )
             }
         }
@@ -714,15 +723,16 @@ enum KeyboardStageSceneBuilder {
 
     private static func capsViewport(
         capsFrame: KeyboardStageRect,
-        bounds: KeyboardStageRect,
-        zoom: Float
+        bounds: KeyboardStageRect
     ) -> KeyboardStageViewport {
         KeyboardStageViewport(
             focus: KeyboardStagePoint(
                 x: min(bounds.maxX, capsFrame.midX + bounds.size.width * 0.12),
                 y: min(bounds.maxY, capsFrame.midY + bounds.size.height * 0.04)
             ),
-            zoom: zoom,
+            // Keep ordinary keys the same size across every tour page.
+            // Only the featured key animates; changing pages must not zoom the board.
+            zoom: 1.0,
             // A mild downward bias keeps the aluminum apron below the bottom
             // row visible, matching the reference's grounded composition.
             verticalBias: 0.005

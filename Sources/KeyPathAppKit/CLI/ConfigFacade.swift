@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import KeyPathCore
 import KeyPathRulesCore
@@ -74,14 +75,20 @@ public struct ConfigFacade: Sendable {
     private func applyConfiguration(
         dryRun: Bool, service: ConfigurationService, permit: ConfigurationOperationGate.Permit
     ) async throws -> CLIApplyResult {
-        try await service.recoverPendingRuleWrite(
-            mutationPermit: permit,
-            preferenceDefaults: PreferencesService.canonicalDefaults
-        )
-        _ = try await service.applyRecoveredRuntimeIfNeeded(
-            mutationPermit: permit,
-            reloadHandler: { await reloadResult() }
-        )
+        if dryRun {
+            // Recovery can restore files and defaults and reload the running engine.
+            // Refuse an ambiguous preview instead of doing those writes under --dry-run.
+            try requireNoPendingRecoveryForPreview()
+        } else {
+            try await service.recoverPendingRuleWrite(
+                mutationPermit: permit,
+                preferenceDefaults: PreferencesService.canonicalDefaults
+            )
+            _ = try await service.applyRecoveredRuntimeIfNeeded(
+                mutationPermit: permit,
+                reloadHandler: { await reloadResult() }
+            )
+        }
         await MainActor.run {
             PreferencesService.shared.reloadLeaderKeyPreference()
         }
@@ -479,6 +486,20 @@ public struct ConfigFacade: Sendable {
 
     private func copiedItemNames(in directory: URL) throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+    }
+
+    private func requireNoPendingRecoveryForPreview() throws {
+        let directory = URL(fileURLWithPath: configDirectory, isDirectory: true)
+        let scopes: [RecoverableRuleWrite.Scope] = [.rules, .appKeymaps, .packRules, .rawConfig, .deviceRules]
+        for scope in scopes {
+            let journal = RecoverableRuleWrite.journalURL(directory, scope: scope)
+            var metadata = stat()
+            // lstat also catches dangling journal symlinks. An unreadable path must
+            // not be interpreted as proof that no recovery is pending.
+            if lstat(journal.path, &metadata) == 0 || errno != ENOENT {
+                throw Self.error("Configuration recovery is pending. Run a normal apply before previewing; dry run left existing files and settings unchanged.")
+            }
+        }
     }
 
     private static func error(_ message: String) -> NSError {

@@ -3,12 +3,8 @@ import ArgumentParser
 struct Service: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "service",
-        abstract: "Check status and control the Kanata service",
+        abstract: "Reload configuration or read logs; manage the runtime in KeyPath.app",
         subcommands: [
-            ServiceStatus.self,
-            ServiceStart.self,
-            ServiceStop.self,
-            ServiceRestart.self,
             ServiceReload.self,
             ServiceLogs.self,
         ]

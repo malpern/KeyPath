@@ -22,7 +22,7 @@ struct ServiceReload: AsyncParsableCommand {
                 "Configuration reloaded successfully."
             }
         } else {
-            let error = CLIError.serviceUnreachable(hint: "Check that Kanata is running with 'keypath service status'")
+            let error = CLIError.serviceUnreachable()
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
         }

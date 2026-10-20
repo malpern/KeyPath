@@ -167,6 +167,8 @@ spc → spc (tap) / lsft (hold)
 
 ### Escape / Caps Lock / Control
 
+Caps Lock output toggles the native macOS lock state. This recipe uses physical Caps Lock as its input, so it also needs [compatible keyboard setup]({{ '/guides/driverless-caps-lock/' | relative_url }}).
+
 ```
 caps → esc (single tap) / caps (double tap) / lctl (triple tap)
 ```
@@ -215,6 +217,8 @@ Tap-hold gives you two actions per key (tap and hold). Tap-dance goes further �
   2 taps → Caps Lock (when you actually need it)
   3 taps → Toggle a layer
 ```
+
+The second tap toggles the native macOS Caps Lock state. Physical Caps Lock input requires [compatible keyboard setup]({{ '/guides/driverless-caps-lock/' | relative_url }}).
 
 This is great for keys you rarely use in their original form. Pack multiple functions into one key without adding complexity to everyday typing — you only get the multi-tap action when you deliberately tap quickly.
 

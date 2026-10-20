@@ -23,11 +23,8 @@ public class InsightsPlugin: NSObject, KeyPathPlugin {
     }
 
     public func activate() {
-        Task { @MainActor in
-            if InsightsPreferences.activityLoggingEnabled {
-                await ActivityLogger.shared.enable()
-            }
-        }
+        // Startup must not unlock history or buffer events while its key is unavailable.
+        // Explicit activity settings/enable actions resume the opted-in logger.
     }
 
     public func deactivate() {

@@ -3,8 +3,8 @@ name: keypath-cli
 description: >
   Configure KeyPath keyboard remapping via the keypath CLI. Use when the user
   wants to remap keys, add shortcuts, configure tap-hold or home row mods,
-  install/uninstall packs, manage layers, import from Karabiner, or control
-  the KeyPath service. Triggers on: remap key, keyboard shortcut, tap-hold,
+  install/uninstall packs, manage layers, import from Karabiner, or reload
+  the KeyPath configuration. Triggers on: remap key, keyboard shortcut, tap-hold,
   home row mods, caps lock remap, key mapping, layer, pack install, Kanata,
   keypath CLI, keyboard configuration.
 metadata:
@@ -21,19 +21,20 @@ editing config files directly.
 - When piped (non-TTY), output is JSON automatically
 - Use `--quiet` to suppress stderr decoration (spinners, progress)
 - Use `--dry-run` to preview any mutation before committing
-- For system install/repair, use the app-bundled CLI or the app-installed
-  `/usr/local/bin/keypath-cli` shim. Standalone debug/Homebrew formula binaries
-  are not authoritative for bundle-relative helper assets.
+- Use the app-bundled CLI or the app-installed `/usr/local/bin/keypath-cli` shim
+  so config validation/simulation resolve the installed app's runtime payload.
 
 ## Command Reference
 
-### Status & Health
+### Configuration Reload & Logs
+
+Open KeyPath.app to manage remapping and inspect live session readiness.
+The driverless CLI does not expose service start/stop/restart/status or their
+root shortcuts; parsing those commands fails before any service operation.
+
 ```bash
-keypath service status --json       # Full system health check
-keypath service start               # Start Kanata service and verify runtime health
-keypath service stop                # Stop Kanata service and verify it stopped
-keypath service restart             # Restart Kanata service; may fail if macOS requires authorization
 keypath service reload              # Reload config without restart
+keypath service logs --lines 50      # Read current app logs
 ```
 
 ### Rules (Custom Key Remaps)
@@ -69,8 +70,11 @@ After any rule change, apply and verify:
 ```bash
 keypath rule add caps --action key=esc --on-conflict replace
 keypath config apply --json         # Returns changeset with all active rules/collections
-keypath service status --json       # Verify system is operational
+keypath config check --json         # Verify the generated config is valid
 ```
+
+Config validity and reload success do not prove live session readiness; inspect
+that in KeyPath.app.
 
 ### Collections (Built-in Rule Sets)
 ```bash
@@ -110,17 +114,13 @@ keypath config apply --json         # Regenerate + reload (returns changeset wit
 
 ### System Management
 ```bash
-keypath system inspect --json             # Check system state, repair plan, and issues
-keypath system install --dry-run --json   # Preview installation work and blockers
-keypath system repair --dry-run --json    # Preview repair work and manual permission actions
-keypath system repair --open-permissions  # Open System Settings for permission blockers
-keypath system repair                     # Fix auto-repairable services and components
-keypath system uninstall                  # Remove all services
+keypath system inspect --json             # Read CLI-local permission/configuration diagnostics
 ```
 
-Permission repair boundary: the CLI can diagnose missing Accessibility/Input
-Monitoring grants and open the matching System Settings pane, but macOS still
-requires the user to approve those permissions manually.
+Inspection does not observe the running app's retained worker/report and cannot
+qualify its runtime health. System install/repair/uninstall commands are absent;
+open KeyPath.app for setup/removal guidance. File > Install Command Line Tool
+still installs the CLI shim and is a separate operation.
 
 ### Import/Export
 ```bash
@@ -168,7 +168,7 @@ When an error includes a `hint` field, it contains a runnable command to fix the
 
 ## Important Rules
 
-- After any mutation, run `keypath config apply --json` then verify with `keypath service status --json`
+- After any mutation, run `keypath config apply --json` and `keypath config check --json`; use KeyPath.app for live session readiness
 - Use `--dry-run` before destructive operations
 - Use `--on-conflict replace` for idempotent updates
 - Never use `keypath service logs --follow` — it blocks indefinitely

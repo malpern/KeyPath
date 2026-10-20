@@ -12,40 +12,15 @@ struct ScriptExecutionSettingsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "terminal")
-                    .foregroundColor(.green)
-                    .font(.body)
-                Text("Script Execution")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-            }
-
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Allow script execution in Quick Launcher")
-                        .font(.body)
-                        .fontWeight(.medium)
-                    Text("Scripts can run commands on your system. Only enable for trusted scripts.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Toggle("", isOn: Binding(
-                    get: { securityService.isScriptExecutionEnabled },
-                    set: { newValue in
-                        if newValue {
-                            showingEnableConfirmation = true
-                        } else {
-                            securityService.isScriptExecutionEnabled = false
-                        }
-                    }
-                ))
-                .toggleStyle(.switch)
-                .labelsHidden()
-            }
-            .accessibilityIdentifier("settings-script-execution-toggle")
-            .accessibilityLabel("Allow script execution")
+            SettingsSectionHeader(title: "Script Execution", icon: "terminal", color: .green)
+            SettingsToggleRow(
+                title: "Allow script execution in Quick Launcher",
+                subtitle: "Scripts can run commands on your system. Only enable for trusted scripts.",
+                isOn: Binding(get: { securityService.isScriptExecutionEnabled }, set: { newValue in
+                    if newValue { showingEnableConfirmation = true }
+                    else { securityService.isScriptExecutionEnabled = false }
+                }), identifier: "settings-script-execution-toggle"
+            )
             .sheet(isPresented: $showingEnableConfirmation) {
                 ScriptEnableConfirmationView(
                     onAllow: {
@@ -58,33 +33,15 @@ struct ScriptExecutionSettingsSection: View {
             }
 
             if securityService.isScriptExecutionEnabled {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Skip confirmation dialog")
-                            .font(.body)
-                            .fontWeight(.medium)
-                        Text("⚠️ Scripts will run immediately without warning")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { securityService.bypassFirstRunDialog },
-                        set: { newValue in
-                            if newValue {
-                                // Enabling the bypass is the risky direction — confirm it.
-                                showingBypassConfirmation = true
-                            } else {
-                                securityService.bypassFirstRunDialog = false
-                            }
-                        }
-                    ))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                }
-                .padding(.leading, 24)
-                .accessibilityIdentifier("settings-script-bypass-dialog-toggle")
-                .accessibilityLabel("Skip script confirmation dialog")
+                SettingsToggleRow(
+                    title: "Skip confirmation dialog",
+                    subtitle: "⚠️ Scripts will run immediately without warning", subtitleColor: .orange,
+                    isOn: Binding(get: { securityService.bypassFirstRunDialog }, set: { newValue in
+                        if newValue { showingBypassConfirmation = true }
+                        else { securityService.bypassFirstRunDialog = false }
+                    }), identifier: "settings-script-bypass-dialog-toggle"
+                )
+                .padding(.leading, SettingsDesign.sectionGap)
                 .sheet(isPresented: $showingBypassConfirmation) {
                     ScriptBypassConfirmationView(
                         onAllow: { showingBypassConfirmation = false },
@@ -207,7 +164,7 @@ private struct ScriptExecutionLogView: View {
                 Button("Clear Log") {
                     showingClearConfirmation = true
                 }
-                .buttonStyle(.bordered)
+                .settingsAction()
                 .disabled(logEntries.isEmpty)
                 .accessibilityIdentifier("settings-script-clear-log-button")
             }

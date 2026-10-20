@@ -78,10 +78,16 @@ public extension KeyAction {
         case let .systemAction(id):
             return "(push-msg \"system:\(id)\")"
         case let .notify(title, body, sound):
-            var params = "title=\(title)"
-            if let body { params += "&body=\(body)" }
+            // Encode each value independently so quotes cannot break Kanata's
+            // string and ampersands cannot become extra notification fields.
+            let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+            func encode(_ value: String) -> String {
+                value.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+            }
+            var params = "title=\(encode(title))"
+            if let body { params += "&body=\(encode(body))" }
             if sound { params += "&sound=1" }
-            return "(push-msg \"notify?\(params)\")"
+            return "(push-msg \"notify:?\(params)\")"
         case let .windowAction(position):
             return "(push-msg \"window:\(position)\")"
         case let .fakeKey(name, action):

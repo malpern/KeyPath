@@ -14,19 +14,9 @@ struct LauncherCollectionView: View {
     var windowSnappingActive: Bool = false
 
     @State private var selectedKey: String?
-    @State private var showBrowserHistory = false
 
     /// Local state for immediate UI response
     @State private var localHyperTriggerMode: HyperTriggerMode = .hold
-
-    private var existingDomains: Set<String> {
-        Set(config.mappings.compactMap { mapping in
-            if case let .openURL(domain) = mapping.action {
-                return normalizeDomain(domain)
-            }
-            return nil
-        })
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,7 +43,7 @@ struct LauncherCollectionView: View {
                     .padding(.bottom, 12)
             }
             .frame(maxWidth: .infinity)
-            .background(Color(NSColor.windowBackgroundColor).opacity(0.5))
+            .background(SettingsDesign.groupFill)
 
             Divider()
 
@@ -64,11 +54,6 @@ struct LauncherCollectionView: View {
                 onConfigChanged: onConfigChanged,
                 windowSnappingActive: windowSnappingActive
             )
-        }
-        .sheet(isPresented: $showBrowserHistory) {
-            BrowserHistorySuggestionsView(existingDomains: existingDomains) { selectedSites in
-                addSuggestedSites(selectedSites)
-            }
         }
         // Note: .launcherSelectKey is handled by LauncherDrawerView directly
     }
@@ -82,14 +67,6 @@ struct LauncherCollectionView: View {
                     .font(.headline)
 
                 Spacer()
-
-                Button(action: { showBrowserHistory = true }) {
-                    Label("Suggest from History", systemImage: "clock.arrow.circlepath")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .accessibilityIdentifier("launcher-suggest-button")
             }
 
             Picker("Activation Mode", selection: Binding(
@@ -102,14 +79,14 @@ struct LauncherCollectionView: View {
                 Text(LauncherActivationMode.holdHyper.displayName).tag(LauncherActivationMode.holdHyper)
                 Text(LauncherActivationMode.leaderSequence.displayName).tag(LauncherActivationMode.leaderSequence)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            .pickerStyle(.menu)
+            .frame(width: 320, alignment: .leading)
             .accessibilityIdentifier("launcher-activation-mode-picker")
             .accessibilityLabel("Launcher activation mode")
 
-            // Hyper trigger mode segmented picker (only shown when Hyper mode is selected)
+            // Trigger is relevant only when Hyper is selected.
             if config.activationMode == .holdHyper {
-                Picker("Trigger Mode", selection: Binding(
+                Picker("Trigger", selection: Binding(
                     get: { localHyperTriggerMode },
                     set: { newMode in
                         localHyperTriggerMode = newMode
@@ -121,8 +98,8 @@ struct LauncherCollectionView: View {
                     Text(HyperTriggerMode.hold.displayName).tag(HyperTriggerMode.hold)
                     Text(HyperTriggerMode.tap.displayName).tag(HyperTriggerMode.tap)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 320, alignment: .leading)
                 .accessibilityIdentifier("launcher-hyper-trigger-picker")
                 .accessibilityLabel("Hyper trigger mode")
                 .onAppear {
@@ -153,33 +130,6 @@ struct LauncherCollectionView: View {
             object: nil,
             userInfo: ["key": key]
         )
-    }
-
-    private func addSuggestedSites(_ sites: [BrowserHistoryScanner.VisitedSite]) {
-        let usedKeys = Set(config.mappings.map { LauncherGridConfig.normalizeKey($0.key) })
-        let availableKeys = LauncherGridConfig.suggestionKeyOrder.filter { !usedKeys.contains($0) }
-        let existing = existingDomains
-
-        for (site, key) in zip(sites, availableKeys) {
-            if existing.contains(normalizeDomain(site.domain)) {
-                continue
-            }
-            let mapping = LauncherMapping(
-                key: key,
-                action: .openURL(site.domain),
-                isEnabled: true
-            )
-            config.mappings.append(mapping)
-        }
-        onConfigChanged(config)
-    }
-
-    private func normalizeDomain(_ domain: String) -> String {
-        let lower = domain.lowercased()
-        if lower.hasPrefix("www.") {
-            return String(lower.dropFirst(4))
-        }
-        return lower
     }
 }
 

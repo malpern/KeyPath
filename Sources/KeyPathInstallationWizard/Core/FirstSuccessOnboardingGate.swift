@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 import KeyPathWizardCore
 
 /// Owns the one-shot eligibility for the post-setup learning path.
@@ -9,6 +10,18 @@ import KeyPathWizardCore
 public enum FirstSuccessOnboardingGate {
     public static let hasShownKey = "onboarding_first_success_shown"
 
+    /// Both backends support the tour; session startup prepares the Caps Lock mapping.
+    public static func supportsTour(backend _: KanataRuntimeBackend = .selected) -> Bool {
+        true
+    }
+
+    /// Survives quitting during permission setup. Runtime readiness must not
+    /// skip the wizard's verified handoff while this learning path is pending.
+    public static func isPending(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: WizardWelcomeGate.hasSeenWelcomeKey)
+            && !defaults.bool(forKey: hasShownKey)
+    }
+
     /// Decides whether the panel may be shown without consuming the one-shot
     /// opportunity. The presenter records success with `markPresented` only
     /// after the panel is actually visible.
@@ -17,11 +30,13 @@ public enum FirstSuccessOnboardingGate {
         didShowWelcomePage: Bool,
         wizardState: WizardSystemState,
         issues: [WizardIssue],
+        backend: KanataRuntimeBackend = .selected,
         defaults: UserDefaults = .standard
     ) -> Bool {
-        guard wizardState == .active,
+        guard supportsTour(backend: backend),
+              wizardState == .active,
               issues.isEmpty,
-              didShowWelcomePage,
+              didShowWelcomePage || defaults.bool(forKey: WizardWelcomeGate.hasSeenWelcomeKey),
               !defaults.bool(forKey: hasShownKey)
         else {
             return false

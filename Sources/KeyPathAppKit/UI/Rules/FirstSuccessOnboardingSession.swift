@@ -129,6 +129,7 @@ final class FirstSuccessOnboardingSession {
         case applied
         case alreadyConfigured
         case savedButNotActive
+        case savedButNotActiveWithReason(String)
         case needsRules
         case failed
     }
@@ -141,6 +142,7 @@ final class FirstSuccessOnboardingSession {
     var isCapsPracticeMenuPresented = false
     var failure: ActionKind?
     var savedButNotActive: ActionKind?
+    private(set) var inactiveReason: String?
 
     var isApplying: Bool {
         capsLockPhase == .applying || hyperPhase == .applying || launcherPhase == .applying
@@ -170,6 +172,7 @@ final class FirstSuccessOnboardingSession {
         guard let next = Step(rawValue: step.rawValue + 1) else { return false }
         failure = nil
         savedButNotActive = nil
+        inactiveReason = nil
         step = next
         return true
     }
@@ -180,6 +183,7 @@ final class FirstSuccessOnboardingSession {
         guard let previous = Step(rawValue: step.rawValue - 1) else { return false }
         failure = nil
         savedButNotActive = nil
+        inactiveReason = nil
         step = previous
         return true
     }
@@ -189,6 +193,7 @@ final class FirstSuccessOnboardingSession {
         guard !isApplying else { return false }
         failure = nil
         savedButNotActive = nil
+        inactiveReason = nil
         switch action {
         case .capsLockEscape: capsLockPhase = .applying
         case .hyper: hyperPhase = .applying
@@ -198,6 +203,7 @@ final class FirstSuccessOnboardingSession {
     }
 
     func finish(_ action: ActionKind, result: ActionResult) {
+        inactiveReason = nil
         switch result {
         case .applied, .alreadyConfigured:
             failure = nil
@@ -207,7 +213,10 @@ final class FirstSuccessOnboardingSession {
             case .hyper: hyperPhase = .installed
             case .launcherShortcut: launcherPhase = .installed
             }
-        case .savedButNotActive:
+        case .savedButNotActive, .savedButNotActiveWithReason:
+            if case let .savedButNotActiveWithReason(reason) = result {
+                inactiveReason = reason
+            }
             failure = action
             savedButNotActive = action
             switch action {

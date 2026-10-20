@@ -1,7 +1,8 @@
 import KeyPathCore
 import SwiftUI
 
-/// Visual settings section for the Shortcut List
+/// "While a Layer Is Active": everything KeyPath shows when you switch layers —
+/// the keyboard overlay, the shortcut list, the trigger, and the layer banner — in one place.
 struct ContextHUDSettingsSection: View {
     @Environment(\.services) private var services
     @Environment(KanataViewModel.self) private var kanataManager
@@ -12,130 +13,155 @@ struct ContextHUDSettingsSection: View {
     @State private var advancedExpanded = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Shortcut List")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            // Display Mode (only when Context HUD List is enabled)
-            if FeatureFlags.contextHUDListEnabled {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Display")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    HStack(spacing: 10) {
-                        displayModeCard(
-                            mode: .overlayOnly,
-                            icon: "keyboard",
-                            title: "Overlay",
-                            subtitle: "Full keyboard"
-                        )
-                        displayModeCard(
-                            mode: .hudOnly,
-                            icon: "list.bullet.rectangle",
-                            title: "List",
-                            subtitle: "Compact view"
-                        )
-                        displayModeCard(
-                            mode: .both,
-                            icon: "rectangle.on.rectangle",
-                            title: "Both",
-                            subtitle: "Overlay + List"
-                        )
-                    }
-                }
-            }
-
-            // Trigger Mode
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Trigger")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                HStack(spacing: 10) {
-                    SettingsOptionCard(
-                        icon: "hand.tap",
-                        title: "Hold",
-                        subtitle: "Show while held",
-                        isSelected: triggerMode == .holdToShow,
-                        cardWidth: SettingsOptionCard.settingsRowWidth
-                    ) {
-                        applyShortcutListInput(triggerMode: .holdToShow)
-                    }
-                    .accessibilityIdentifier("settings-context-hud-trigger-holdToShow")
-                    .accessibilityLabel("Hold trigger mode")
-
-                    SettingsOptionCard(
-                        icon: "hand.point.up",
-                        title: "Tap",
-                        subtitle: "Toggle on/off",
-                        isSelected: triggerMode == .tapToToggle,
-                        cardWidth: SettingsOptionCard.settingsRowWidth
-                    ) {
-                        applyShortcutListInput(triggerMode: .tapToToggle)
-                    }
-                    .accessibilityIdentifier("settings-context-hud-trigger-tapToToggle")
-                    .accessibilityLabel("Tap trigger mode")
-                }
-            }
-
-            DisclosureGroup("Advanced", isExpanded: $advancedExpanded) {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        HStack(spacing: 4) {
-                            Text(TimingCopy.leaderHoldDelay)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            InfoTip(String(localized: TimingCopy.leaderHoldDelayExplanation))
-                        }
-
-                        Spacer()
-
-                        Picker(selection: $holdDelayPreset) {
-                            ForEach(ContextHUDHoldDelayPreset.allCases, id: \.self) { preset in
-                                Text(preset.displayName).tag(preset)
-                            }
-                        } label: {
-                            Text(TimingCopy.leaderHoldDelay)
-                        }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .frame(width: 140)
-                        .onChange(of: holdDelayPreset) { _, newValue in
-                            applyShortcutListInput(holdDelayPreset: newValue)
-                        }
-                        .accessibilityIdentifier("settings-context-hud-hold-delay-preset")
-                        .accessibilityLabel(Text(TimingCopy.leaderHoldDelay))
-                    }
-
-                    if holdDelayPreset == .custom {
-                        HStack {
-                            Text("Custom (ms)")
+        SettingsSection(title: "While a Layer Is Active") {
+            SettingsCard {
+                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                    // Display Mode (only when Context HUD List is enabled)
+                    if FeatureFlags.contextHUDListEnabled {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Show")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
 
-                            Spacer()
-
-                            TextField(
-                                "Milliseconds",
-                                value: $customHoldDelayMs,
-                                format: .number
-                            )
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 100)
-                            .onChange(of: customHoldDelayMs) { _, newValue in
-                                applyShortcutListInput(customHoldDelayMs: newValue)
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: SettingsDesign.compactOptionWidth), spacing: SettingsDesign.optionGap)],
+                                alignment: .leading,
+                                spacing: SettingsDesign.optionGap
+                            ) {
+                                displayModeCard(
+                                    mode: .overlayOnly,
+                                    icon: "keyboard",
+                                    title: "Overlay",
+                                    subtitle: "Full keyboard"
+                                )
+                                displayModeCard(
+                                    mode: .hudOnly,
+                                    icon: "list.bullet.rectangle",
+                                    title: "List",
+                                    subtitle: "Compact view"
+                                )
+                                displayModeCard(
+                                    mode: .both,
+                                    icon: "rectangle.on.rectangle",
+                                    title: "Both",
+                                    subtitle: "Overlay + List"
+                                )
+                                displayModeCard(
+                                    mode: .none,
+                                    icon: "eye.slash",
+                                    title: "Nothing",
+                                    subtitle: "Stay out of the way"
+                                )
                             }
-                            .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
-                            .accessibilityLabel(Text(TimingCopy.customLeaderHoldDelayAccessibilityLabel))
                         }
                     }
+
+                    // Trigger Mode
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Trigger")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        HStack(spacing: 10) {
+                            SettingsOptionCard(
+                                icon: "hand.tap",
+                                title: "Hold",
+                                subtitle: "Show while held",
+                                isSelected: triggerMode == .holdToShow,
+                                cardWidth: SettingsOptionCard.settingsRowWidth
+                            ) {
+                                applyShortcutListInput(triggerMode: .holdToShow)
+                            }
+                            .accessibilityIdentifier("settings-context-hud-trigger-holdToShow")
+                            .accessibilityLabel("Hold trigger mode")
+
+                            SettingsOptionCard(
+                                icon: "hand.point.up",
+                                title: "Tap",
+                                subtitle: "Toggle on/off",
+                                isSelected: triggerMode == .tapToToggle,
+                                cardWidth: SettingsOptionCard.settingsRowWidth
+                            ) {
+                                applyShortcutListInput(triggerMode: .tapToToggle)
+                            }
+                            .accessibilityIdentifier("settings-context-hud-trigger-tapToToggle")
+                            .accessibilityLabel("Tap trigger mode")
+                        }
+                    }
+
+                    DisclosureGroup("Advanced", isExpanded: $advancedExpanded) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                HStack(spacing: 4) {
+                                    Text(TimingCopy.leaderHoldDelay)
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    InfoTip(String(localized: TimingCopy.leaderHoldDelayExplanation))
+                                }
+
+                                Spacer()
+
+                                Picker(selection: $holdDelayPreset) {
+                                    ForEach(ContextHUDHoldDelayPreset.allCases, id: \.self) { preset in
+                                        Text(preset.displayName).tag(preset)
+                                    }
+                                } label: {
+                                    Text(TimingCopy.leaderHoldDelay)
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+                                .frame(width: 140)
+                                .onChange(of: holdDelayPreset) { _, newValue in
+                                    applyShortcutListInput(holdDelayPreset: newValue)
+                                }
+                                .accessibilityIdentifier("settings-context-hud-hold-delay-preset")
+                                .accessibilityLabel(Text(TimingCopy.leaderHoldDelay))
+                            }
+
+                            if holdDelayPreset == .custom {
+                                HStack {
+                                    Text("Custom (ms)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+
+                                    Spacer()
+
+                                    TextField(
+                                        "Milliseconds",
+                                        value: $customHoldDelayMs,
+                                        format: .number
+                                    )
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 100)
+                                    .onChange(of: customHoldDelayMs) { _, newValue in
+                                        applyShortcutListInput(customHoldDelayMs: newValue)
+                                    }
+                                    .accessibilityIdentifier("settings-context-hud-hold-delay-custom")
+                                    .accessibilityLabel(Text(TimingCopy.customLeaderHoldDelayAccessibilityLabel))
+                                }
+                            }
+                        }
+                        .padding(.top, 2)
+                    }
+                    .accessibilityIdentifier("settings-context-hud-advanced")
+
+                    Divider()
+                    LayerIndicatorToggle()
                 }
-                .padding(.top, 2)
             }
-            .accessibilityIdentifier("settings-context-hud-advanced")
         }
+        .onAppear { refreshPreferences() }
+        .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
+            refreshPreferences()
+        }
+    }
+
+    private func refreshPreferences() {
+        let input = services.preferences.shortcutListGenerationInput
+        triggerMode = input.triggerMode
+        holdDelayPreset = input.holdDelayPreset
+        customHoldDelayMs = input.customHoldDelayMs
+        displayMode = services.preferences.contextHUDDisplayMode
     }
 
     // MARK: - Display Mode Card
@@ -150,6 +176,7 @@ struct ContextHUDSettingsSection: View {
             holdDelayPreset: holdDelayPreset ?? self.holdDelayPreset,
             customHoldDelayMs: customHoldDelayMs ?? self.customHoldDelayMs
         )
+        guard candidate != services.preferences.shortcutListGenerationInput else { return }
         Task {
             guard await kanataManager.applyShortcutListGenerationInput(candidate) else {
                 let restored = services.preferences.shortcutListGenerationInput
@@ -170,50 +197,14 @@ struct ContextHUDSettingsSection: View {
         title: String,
         subtitle: String
     ) -> some View {
-        let isSelected = displayMode == mode
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                displayMode = mode
-                services.preferences.contextHUDDisplayMode = mode
-            }
-        } label: {
-            VStack(spacing: 8) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.04))
-                        .frame(height: 40)
-
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                }
-
-                Text(title)
-                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(width: 84)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 6)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor.opacity(0.06) : .clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(
-                        isSelected ? Color.accentColor.opacity(0.3) : Color.primary.opacity(0.08),
-                        lineWidth: isSelected ? 1.5 : 0.5
-                    )
-            )
+        SettingsOptionCard(
+            icon: icon, title: title, subtitle: subtitle,
+            isSelected: services.preferences.contextHUDDisplayMode == mode,
+            cardWidth: nil
+        ) {
+            displayMode = mode
+            services.preferences.contextHUDDisplayMode = mode
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("settings-context-hud-display-\(mode.rawValue)")
         .accessibilityLabel("\(title) display mode")
     }

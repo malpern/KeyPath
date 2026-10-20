@@ -10,12 +10,16 @@ final class CollectionSettingsRecoveryTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
+        manager.preferencesService.stageShortcutListGenerationInput(
+            ShortcutListGenerationInput(triggerMode: .holdToShow, holdDelayPreset: .long, customHoldDelayMs: 200)
+        )
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections().map { collection in
             var disabled = collection
             disabled.isEnabled = false
@@ -26,7 +30,7 @@ final class CollectionSettingsRecoveryTests: KeyPathTestCase {
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: directory)
+        if let directory { try? FileManager.default.removeItem(at: directory) }
         manager = nil
         directory = nil
         try await super.tearDown()
@@ -93,11 +97,17 @@ final class CollectionSettingsRecoveryTests: KeyPathTestCase {
     }
 
     func testRejectedHomeRowSettingsRestorePrerequisitesAndCandidate() async throws {
+        manager.ruleCollections.append(RuleCollection(
+            id: UUID(), name: "Supported Function", summary: "", category: .custom,
+            mappings: [KeyMapping(input: "q", action: .keystroke(key: "f1"))],
+            isEnabled: false, targetLayer: .custom("test_fun")
+        ))
+        try await persistFixture()
         manager.onPrerequisiteResolution = { _ in .enableRequiredProvidersAndApply }
         try await assertRejectedMutationRestores {
             let enabled = await self.manager.updateHomeRowLayerTogglesConfig(
                 id: RuleCollectionIdentifier.homeRowLayerToggles,
-                config: HomeRowLayerTogglesConfig(layerAssignments: ["a": "fun"])
+                config: HomeRowLayerTogglesConfig(layerAssignments: ["a": "test_fun"])
             )
             XCTAssertFalse(enabled)
         }

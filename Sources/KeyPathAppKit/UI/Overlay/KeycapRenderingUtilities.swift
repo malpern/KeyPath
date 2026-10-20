@@ -178,7 +178,9 @@ enum KeycapSymbols {
         ["o", "0", "O"]
     }
 
-    static func dynamicTextLabel(_ text: String, scale: CGFloat) -> some View {
+    /// - Parameter capitalize: false for labels a rule wrote itself (Vim's "gg", "db"),
+    ///   where case carries meaning and capitalizing would turn gg into "Gg".
+    static func dynamicTextLabel(_ text: String, scale: CGFloat, capitalize: Bool = true) -> some View {
         GeometryReader { geometry in
             let availableWidth = geometry.size.width - 4 * scale
             let availableHeight = geometry.size.height - 4 * scale
@@ -189,7 +191,7 @@ enum KeycapSymbols {
             let fontSize = estimatedWidth <= availableWidth ? preferredSize : (estimatedWidth <= availableWidth * 1.5 ? mediumSize : smallSize)
             let useMono = monoDisambiguationChars.contains(text)
 
-            Text(text.capitalized)
+            Text(capitalize ? text.capitalized : text)
                 .font(.system(size: fontSize, weight: .medium, design: useMono ? .monospaced : .default))
                 .foregroundStyle(Color.white.opacity(0.9))
                 .lineLimit(2)

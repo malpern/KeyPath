@@ -1,0 +1,3 @@
+# Driverless Status reported irrelevant components
+
+The Status row builder unconditionally rendered privileged helper and Karabiner driver checks, even for session backend. Filter those rows for driverless snapshots while preserving them for legacy backends. Keyboard discovery is guarded by main-process Input Monitoring; an empty result while access is missing is unavailable discovery, not evidence that no physical keyboard is connected. Deployment app copies under the working folder also triggered duplicate warnings; archive staging bundles after copying so only the installed app remains discoverable.

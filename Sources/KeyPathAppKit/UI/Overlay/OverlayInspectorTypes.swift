@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Slide-over panels that can appear in the drawer
 enum DrawerPanel {
-    case launcherSettings // Launcher activation mode & history suggestions
+    case launcherSettings // Launcher activation mode and setup
 
     var title: String {
         switch self {

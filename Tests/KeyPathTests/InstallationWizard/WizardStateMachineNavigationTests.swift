@@ -222,7 +222,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
             autoFixActions: [],
             detectionTimestamp: Date(),
             helperInstalled: false,
-            helperNeedsApproval: true
+            helperNeedsApproval: true, backend: .driverKit
         )
         stateMachine.updateWizardState(from: result)
 
@@ -230,6 +230,17 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
         XCTAssertEqual(next, .helper)
         XCTAssertEqual(stateMachine.lastWizardSnapshot?.helperNeedsApproval, true)
+    }
+
+    func testSessionNextPageIgnoresCapturedHistoricalHelperApproval() async {
+        let result = SystemStateResult(
+            state: .serviceNotRunning, issues: [], autoFixActions: [], detectionTimestamp: Date(),
+            helperInstalled: false, helperNeedsApproval: true, backend: .session
+        )
+        stateMachine.updateWizardState(from: result)
+        let next = await stateMachine.getNextPage(for: result.state, issues: result.issues)
+        XCTAssertEqual(next, .service)
+        XCTAssertEqual(stateMachine.lastWizardSnapshot?.backend, .session)
     }
 
     // MARK: - resetNavigation Tests
@@ -290,5 +301,14 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
         // Then - should NOT auto-navigate because we're in grace period
         XCTAssertEqual(stateMachine.currentPage, .inputMonitoring)
+    }
+
+    func testAutomaticNavigationDoesNotPretendUserInteracted() {
+        let machine = WizardStateMachine()
+        machine.navigateToPage(.accessibility, userInitiated: false)
+        XCTAssertFalse(machine.userInteractionMode)
+        machine.navigateToPage(.service)
+        machine.navigateToPage(.summary, userInitiated: false)
+        XCTAssertTrue(machine.userInteractionMode)
     }
 }

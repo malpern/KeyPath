@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import Observation
 import SwiftUI
@@ -10,6 +11,8 @@ public struct WizardSnapshotRecord {
     public let captureStatus: SystemSnapshotCaptureStatus
     public let helperInstalled: Bool
     public let helperNeedsApproval: Bool
+    public let backend: KanataRuntimeBackend
+    public let permissions: PermissionOracle.Snapshot?
 }
 
 /// Observable state container for the installation wizard.
@@ -30,12 +33,13 @@ public class WizardStateMachine {
     public var isRefreshing = false
     public var lastRefreshTime: Date?
     public private(set) var stateVersion: Int = 0
+    // Covers delayed retries and follow-ups, including intervals with no running operation.
+    @ObservationIgnored var inspectionRequestID = UUID()
     public var lastWizardSnapshot: WizardSnapshotRecord?
     public var customSequence: [WizardPage]?
 
     // MARK: - One-Time Page Tracking
 
-    public var hasShownFDAPage = false
     public var hasShownMigrationPage = false
     public var hasShownKarabinerImportPage = false
 
@@ -45,6 +49,9 @@ public class WizardStateMachine {
 
     public init() {}
 
+    /// Inspection seam: tests can delay a snapshot without querying host permissions.
+    @ObservationIgnored var stateDetector: (@MainActor () async -> SystemStateResult)?
+
     // MARK: - State Updates
 
     /// Update wizard state and issues. Called by the view after SystemInspector.inspect().
@@ -53,7 +60,9 @@ public class WizardStateMachine {
         issues: [WizardIssue],
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
-        helperNeedsApproval: Bool = false
+        helperNeedsApproval: Bool = false,
+        backend: KanataRuntimeBackend = .selected,
+        permissions: PermissionOracle.Snapshot? = nil
     ) {
         wizardState = state
         wizardIssues = issues
@@ -62,7 +71,9 @@ public class WizardStateMachine {
             issues: issues,
             captureStatus: captureStatus,
             helperInstalled: helperInstalled,
-            helperNeedsApproval: helperNeedsApproval
+            helperNeedsApproval: helperNeedsApproval,
+            backend: backend,
+            permissions: permissions
         )
         stateVersion += 1
     }
@@ -73,18 +84,20 @@ public class WizardStateMachine {
             issues: issues ?? result.issues,
             captureStatus: result.captureStatus,
             helperInstalled: result.helperInstalled,
-            helperNeedsApproval: result.helperNeedsApproval
+            helperNeedsApproval: result.helperNeedsApproval,
+            backend: result.backend,
+            permissions: result.permissions
         )
     }
 
     // MARK: - Navigation
 
     /// Navigate to a specific page with animation.
-    public func navigateToPage(_ page: WizardPage) {
+    public func navigateToPage(_ page: WizardPage, userInitiated: Bool = true) {
         withAnimation(navigationAnimation) {
             lastVisitedPage = currentPage
             currentPage = page
-            userInteractionMode = true
+            if userInitiated { userInteractionMode = true }
         }
     }
 
@@ -94,7 +107,8 @@ public class WizardStateMachine {
         let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
         let next = WizardRouter.nextPage(
             after: currentPage, state: state, issues: issues,
-            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval,
+            backend: lastWizardSnapshot?.backend ?? .driverKit
         )
         return next != currentPage ? next : nil
     }
@@ -106,7 +120,8 @@ public class WizardStateMachine {
             let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
             let next = WizardRouter.nextPage(
                 after: currentPage, state: wizardState, issues: wizardIssues,
-                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval
+                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval,
+                backend: lastWizardSnapshot?.backend ?? .driverKit
             )
             if next != currentPage {
                 navigateToPage(next)
@@ -118,7 +133,6 @@ public class WizardStateMachine {
     public func resetNavigation() {
         currentPage = .summary
         userInteractionMode = false
-        hasShownFDAPage = false
         hasShownMigrationPage = false
         hasShownKarabinerImportPage = false
         // Clear any custom navigation sequence from a prior wizard run so
@@ -130,10 +144,14 @@ public class WizardStateMachine {
     }
 
     /// Detect current state via InstallerEngine (used by existing refresh paths).
-    public func detectCurrentState(progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }) async
+    public func detectCurrentState(
+        freshness: WizardSystemSnapshotFreshness = .fresh,
+        progressCallback _: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async
         -> SystemStateResult
     {
-        let context = await InstallerEngine().inspectSystem()
+        if let stateDetector { return await stateDetector() }
+        let context = await InstallerEngine().inspectSystem(freshness: freshness)
         return SystemStateResult.projecting(context)
     }
 
@@ -145,7 +163,8 @@ public class WizardStateMachine {
             state: state,
             issues: issues,
             helperInstalled: lastWizardSnapshot?.helperInstalled ?? false,
-            helperNeedsApproval: lastWizardSnapshot?.helperNeedsApproval ?? false
+            helperNeedsApproval: lastWizardSnapshot?.helperNeedsApproval ?? false,
+            backend: lastWizardSnapshot?.backend ?? .driverKit
         )
 
         guard recommended != currentPage else { return }
@@ -216,7 +235,6 @@ public class WizardStateMachine {
         case .karabinerImport:
             hasShownKarabinerImportPage ? .karabinerImport : .stopExternalKanata
         case .helper: .summary
-        case .fullDiskAccess: .helper
         case .conflicts: .helper
         case .inputMonitoring: .conflicts
         case .accessibility: .inputMonitoring

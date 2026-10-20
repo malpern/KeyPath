@@ -9,6 +9,7 @@ public struct WizardKanataServicePage: View {
     @State private var isPerformingAction = false
     @State private var serviceStatus: ServiceStatus = .unknown
     @State private var actionStatus: WizardDesign.ActionStatus = .idle
+    @State private var attemptedAutomaticStart = false
     @State private var refreshTask: Task<Void, Never>?
 
     /// Integration with RuntimeCoordinator for better error context
@@ -66,6 +67,11 @@ public struct WizardKanataServicePage: View {
         }
     }
 
+    private var startFailed: Bool {
+        if case .error = actionStatus { return true }
+        return false
+    }
+
     public var body: some View {
         VStack(spacing: 0) {
             WizardHeroSection(
@@ -86,7 +92,12 @@ public struct WizardKanataServicePage: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
-            if let cta = primaryCTAConfiguration {
+            // Hidden only while the one automatic start is pending. Once it has been
+            // tried, a stopped runtime always offers the button: the status clears
+            // after a success, so "failed" alone could leave the page stuck.
+            if let cta = primaryCTAConfiguration,
+               serviceStatus != .stopped || startFailed || (attemptedAutomaticStart && !isPerformingAction)
+            {
                 Button(cta.label, action: cta.action)
                     .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isPerformingAction))
                     .keyboardShortcut(.defaultAction)
@@ -111,6 +122,19 @@ public struct WizardKanataServicePage: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
+        .task(id: serviceStatus) {
+            switch serviceStatus {
+            case .stopped where !attemptedAutomaticStart && !isPerformingAction:
+                attemptedAutomaticStart = true
+                startService()
+            case .running:
+                _ = await WizardSleep.ms(1000)
+                guard !Task.isCancelled, serviceStatus == .running else { return }
+                navigateToNextStep()
+            default:
+                break
+            }
+        }
         .onAppear {
             refreshStatus()
         }
@@ -118,6 +142,8 @@ public struct WizardKanataServicePage: View {
             refreshTask?.cancel()
             refreshTask = nil
         }
+        .onChange(of: systemState) { _, _ in refreshStatus() }
+        .onChange(of: issues) { _, _ in refreshStatus() }
     }
 
     // MARK: - Helper Methods
@@ -134,8 +160,8 @@ public struct WizardKanataServicePage: View {
             case .running:
                 actionStatus = .success(message: "\(actionName) succeeded")
                 scheduleStatusClear()
-            case .failed:
-                actionStatus = .error(message: "\(actionName) failed. Try again.")
+            case let .failed(error):
+                actionStatus = .error(message: error)
             default:
                 actionStatus = .error(message: "\(actionName) did not complete. Try again.")
             }
@@ -159,8 +185,24 @@ public struct WizardKanataServicePage: View {
         actionName: String
     ) async {
         isPerformingAction = false
+        if !succeeded, case .running = target,
+           let error = kanataManager?.lastError,
+           !error.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            // A completed refusal is not transient startup. Cancel the initial
+            // status poll so it cannot replace this known failure with a spinner.
+            refreshTask?.cancel()
+            refreshTask = nil
+            serviceStatus = .failed(error: error)
+            actionStatus = .error(message: error)
+            onRefresh()
+            return
+        }
         await refreshStatusAsync(actionSucceeded: succeeded)
         evaluateServiceCompletion(target: target, actionName: actionName)
+        if !succeeded, case .running = target, let error = kanataManager?.lastError {
+            actionStatus = .error(message: error)
+        }
         onRefresh()
     }
 
@@ -201,9 +243,9 @@ public struct WizardKanataServicePage: View {
         case .running:
             "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events."
         case .stopped:
-            "KeyPath runtime is not running. Click Start to start it."
-        case .failed:
-            "KeyPath Runtime, powered by Kanata Engine, failed to start. Click Restart to retry."
+            "Preparing your keyboard shortcuts…"
+        case let .failed(error):
+            error
         case .starting:
             "Starting KeyPath runtime…"
         case .stopping:
@@ -233,7 +275,7 @@ public struct WizardKanataServicePage: View {
         actionStatus = .inProgress(message: "Starting KeyPath runtime…")
 
         Task { @MainActor in
-            let succeeded = await kanataManager.startKanata(reason: "Wizard service start button")
+            let succeeded = await kanataManager.startKanata(reason: "Wizard automatic startup")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .running,
@@ -306,8 +348,8 @@ public struct WizardKanataServicePage: View {
                     issues: issues
                 )
             } else {
-                ServiceStatusEvaluator.evaluate(
-                    kanataIsRunning: runtimeStatus.isRunning,
+                ServiceStatusEvaluator.evaluateObservedRuntime(
+                    runtimeStatus: runtimeStatus,
                     systemState: systemState,
                     issues: issues
                 )
@@ -316,6 +358,7 @@ public struct WizardKanataServicePage: View {
             guard !Task.isCancelled else { return }
 
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     applyStatusUpdate(
                         runtimeStatus: runtimeStatus,
@@ -369,7 +412,9 @@ public struct WizardKanataServicePage: View {
         case let .failed(reason):
             // Try to get more detailed config error from stderr log
             let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-            if let configError = Self.extractConfigError(from: stderrPath) {
+            if KanataRuntimeBackend.selected.requiresPrivilegedServices,
+               let configError = Self.extractConfigError(from: stderrPath)
+            {
                 derivedStatus = .failed(error: configError)
             } else {
                 derivedStatus = .failed(error: reason)
@@ -412,6 +457,9 @@ public struct WizardKanataServicePage: View {
     }
 
     private func checkForCrashAsync() async {
+        // Session runtime failures come from the current worker report. Daemon
+        // logs can belong to an entirely different installation or launch.
+        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return }
         // First check stderr log for config parsing errors (more detailed)
         let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
         let logPath = WizardSystemPaths.kanataLogFile

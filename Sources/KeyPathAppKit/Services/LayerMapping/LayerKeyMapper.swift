@@ -217,6 +217,9 @@ actor LayerKeyMapper {
 
     let simulatorService: SimulatorService
     var cache: [String: [UInt16: LayerKeyInfo]] = [:]
+    /// Bumped by every invalidation. A build that started before one must not
+    /// store its now-stale result (labels from the old rules or key-name style).
+    private var cacheGeneration = 0
     var configHash: String = ""
     /// Injectable feature-flag check. Defaults to the persisted flag; tests inject a
     /// constant so simulator integration tests never depend on process-global
@@ -250,7 +253,8 @@ actor LayerKeyMapper {
     ) async throws -> (mapping: [UInt16: LayerKeyInfo], report: SimulationReport?) {
         // Normalize layer name to lowercase for consistent cache keys
         let normalizedLayer = layer.lowercased()
-        let cacheKey = "\(normalizedLayer)|\(cacheKeySuffix)"
+        let cacheKey = Self.cacheKey(layer: normalizedLayer, suffix: cacheKeySuffix)
+        let generation = cacheGeneration
         AppLogger.shared
             .info("🗺️ [LayerKeyMapper] getMapping called for layer '\(layer)' (normalized: '\(normalizedLayer)', cacheKeySuffix: '\(cacheKeySuffix)')")
 
@@ -274,6 +278,20 @@ actor LayerKeyMapper {
             return (cached, nil)
         }
 
+        // A layer the config does not define (its pack is off, or a caller asked for the
+        // default leader layer) cannot be simulated: kanata-simulator exits with
+        // "unknown layer" for every key. Skip the 77 simulator runs and the failure report.
+        if normalizedLayer != "base",
+           let configText = try? String(contentsOfFile: configPath, encoding: .utf8),
+           !Self.definedLayerNames(inConfig: configText, configDirectory: (configPath as NSString).deletingLastPathComponent)
+           .contains(normalizedLayer)
+        {
+            AppLogger.shared.info("🗺️ [LayerKeyMapper] Layer '\(normalizedLayer)' is not in the config; using fallback mapping without simulating")
+            let mapping = buildFallbackMapping(layout: layout)
+            cache[cacheKey] = mapping
+            return (mapping, nil)
+        }
+
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Building new mapping for '\(normalizedLayer)'...")
 
         // Build key→collection reverse index for collection ownership tracking
@@ -291,18 +309,59 @@ actor LayerKeyMapper {
             keyToVimLabel: keyToVimLabel
         )
 
-        cache[cacheKey] = mapping
+        if generation == cacheGeneration { cache[cacheKey] = mapping }
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Built mapping: \(mapping.count) keys")
         return (mapping, report)
     }
 
+    /// Layer names a kanata config defines, lowercased: `(deflayer name ...)` and
+    /// `(deflayermap (name) ...)`, including files pulled in with `(include file)`.
+    nonisolated static func definedLayerNames(inConfig text: String, configDirectory: String?) -> Set<String> {
+        var names = Set<String>()
+        let layerPattern = #"\((?:deflayer|deflayermap)\s+\(?\s*([^\s()]+)"#
+        let includePattern = #"\(include\s+\"?([^\s()\"]+)\"?\s*\)"#
+        let stripped = text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> Substring in
+                // Drop line comments so a commented-out layer is not counted.
+                if let range = line.range(of: ";;") { return line[..<range.lowerBound] }
+                return line
+            }
+            .joined(separator: "\n")
+        func matches(_ pattern: String, in source: String) -> [String] {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+            let range = NSRange(source.startIndex..., in: source)
+            return regex.matches(in: source, range: range).compactMap { match in
+                Range(match.range(at: 1), in: source).map { String(source[$0]) }
+            }
+        }
+        names.formUnion(matches(layerPattern, in: stripped).map { $0.lowercased() })
+        if let configDirectory {
+            for file in matches(includePattern, in: stripped) {
+                let path = file.hasPrefix("/") ? file : (configDirectory as NSString).appendingPathComponent(file)
+                if let included = try? String(contentsOfFile: path, encoding: .utf8) {
+                    names.formUnion(definedLayerNames(inConfig: included, configDirectory: nil))
+                }
+            }
+        }
+        return names
+    }
+
     /// Return a cached mapping if available, nil otherwise.
     func getCachedMapping(for layer: String, cacheKeySuffix: String = "neovim-scope-fallback") -> [UInt16: LayerKeyInfo]? {
-        cache["\(layer.lowercased())|\(cacheKeySuffix)"]
+        cache[Self.cacheKey(layer: layer.lowercased(), suffix: cacheKeySuffix)]
+    }
+
+    /// Every cache key goes through here. Key names depend on each Vim pack's
+    /// plain/Vim-terms choice, so the choice is part of the key.
+    nonisolated static func cacheKey(layer: String, suffix: String,
+                                     signature: String = VimKeyNameStyle.cacheSignature()) -> String
+    {
+        "\(layer)|\(suffix)|\(signature)"
     }
 
     /// Invalidate all cached mappings (call when config changes)
     func invalidateCache() {
+        cacheGeneration += 1
         cache.removeAll()
         configHash = ""
     }
@@ -321,14 +380,17 @@ actor LayerKeyMapper {
         allEnabledCollections: [RuleCollection] = []
     ) async {
         let normalizedLayers = layerNames.map { $0.lowercased() }
+        // Key the results by the style the labels are built with, captured now.
+        let signature = VimKeyNameStyle.cacheSignature()
+        let generation = cacheGeneration
         AppLogger.shared.info("🗺️ [LayerKeyMapper] Pre-building mappings for \(normalizedLayers.count) layers: \(normalizedLayers.joined(separator: ", "))")
 
         if !simulatorEnabled() {
             let mapping = buildFallbackMapping(layout: layout)
             for layer in normalizedLayers {
-                cache["\(layer)|default"] = mapping
-                cache["\(layer)|neovim-scope-approved"] = mapping
-                cache["\(layer)|neovim-scope-fallback"] = mapping
+                cache[Self.cacheKey(layer: layer, suffix: "default")] = mapping
+                cache[Self.cacheKey(layer: layer, suffix: "neovim-scope-approved")] = mapping
+                cache[Self.cacheKey(layer: layer, suffix: "neovim-scope-fallback")] = mapping
             }
             AppLogger.shared.info("🗺️ [LayerKeyMapper] Simulator disabled; cached fallback mapping for \(normalizedLayers.count) layers")
             return
@@ -395,8 +457,8 @@ actor LayerKeyMapper {
             }
 
             for await (layer, suffix, mapping) in group {
-                if let mapping {
-                    cache["\(layer)|\(suffix)"] = mapping
+                if let mapping, generation == cacheGeneration {
+                    cache[Self.cacheKey(layer: layer, suffix: suffix, signature: signature)] = mapping
                     AppLogger.shared.debug("🗺️ [LayerKeyMapper] Cached mapping for '\(layer)|\(suffix)' (\(mapping.count) keys)")
                 }
             }

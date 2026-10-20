@@ -31,6 +31,11 @@ A good starting point for most people: install **Caps Lock Remap** and **Vim Nav
 
 ### Caps Lock Remap
 
+> Driverless KeyPath automatically prepares Caps Lock when exactly one
+> compatible keyboard is available. This reserves F18.
+> See [behavior and limitations]({{ '/guides/driverless-caps-lock/' | relative_url }})
+> before relying on these recipes.
+
 Make Caps Lock actually useful. Tap it for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). Pick your preferred combo in the pack settings.
 
 Pairs well with everything — most users install this first.
@@ -133,7 +138,7 @@ Programming symbols under your home row — brackets, operators, and the shifted
 
 ### Function
 
-Right hand becomes F-keys (F1–F12 in a numpad layout), left hand becomes media and brightness controls — play/pause, volume, screen brightness. Hold Space + F to activate. Requires Vim Navigation.
+The Function pack is unavailable in driverless mode because it includes media and brightness outputs. Ordinary F1–F12 mappings remain supported. See [Function pack availability]({{ '/guides/fun-layer/' | relative_url }}).
 
 [Full guide &rarr;]({{ '/guides/fun-layer/' | relative_url }})
 

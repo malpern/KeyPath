@@ -13,6 +13,25 @@ import Network
 final class TCPClientRobustnessTests: XCTestCase {
     private let port: Int = 37099
 
+    private final class AcceptedConnections: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [NWConnection] = []
+
+        func append(_ connection: NWConnection) {
+            lock.lock()
+            values.append(connection)
+            lock.unlock()
+        }
+
+        func cancelAll() {
+            lock.lock()
+            let current = values
+            values.removeAll()
+            lock.unlock()
+            current.forEach { $0.cancel() }
+        }
+    }
+
     // MARK: - Read Buffer Edge Cases
 
     func testExtractFirstLine_NewlineOnly() {
@@ -510,6 +529,111 @@ final class TCPClientRobustnessTests: XCTestCase {
         default:
             XCTFail("Expected reload failure or networkError for silent server, got \(result)")
         }
+    }
+
+    func testReloadWaitIgnoresKeyRepeatFloodUntilReloadResultArrives() async throws {
+        let (listener, assignedPort, connections) = try makeReloadListener(
+            repeatCount: 30, resultDelay: 0.5, includeResult: true
+        )
+        defer { listener.cancel(); connections.cancelAll() }
+
+        let client = KanataTCPClient(port: assignedPort, timeout: 2.0)
+        let start = Date()
+        let result = await client.reloadConfig(timeoutMs: 1500)
+        let elapsed = Date().timeIntervalSince(start)
+
+        XCTAssertTrue(result.isSuccess, "A late ReloadResult must be consumed after interleaved broadcasts")
+        XCTAssertGreaterThanOrEqual(elapsed, 0.45, "Wait mode must not return status-only success before completion")
+    }
+
+    func testReloadWaitWithoutReloadResultFailsInsteadOfStatusOnlySuccess() async throws {
+        let (listener, assignedPort, connections) = try makeReloadListener(
+            repeatCount: 30, resultDelay: nil, includeResult: false
+        )
+        defer { listener.cancel(); connections.cancelAll() }
+
+        let client = KanataTCPClient(port: assignedPort, timeout: 2.0)
+        let result = await client.reloadConfig(timeoutMs: 150)
+
+        XCTAssertFalse(result.isSuccess, "A status Ok line alone does not prove a wait request completed")
+    }
+
+    func testReloadWaitFailsClosedWhenBroadcastBudgetIsExceeded() async throws {
+        let (listener, assignedPort, connections) = try makeReloadListener(
+            repeatCount: 513, resultDelay: 0.5, includeResult: true
+        )
+        defer { listener.cancel(); connections.cancelAll() }
+
+        let client = KanataTCPClient(port: assignedPort, timeout: 2.0)
+        let result = await client.reloadConfig(timeoutMs: 1500)
+
+        XCTAssertFalse(result.isSuccess, "The bounded broadcast budget must fail closed")
+    }
+
+    func testReloadWaitSkipsUnsolicitedCurrentLayerNotifications() async throws {
+        let (listener, assignedPort, connections) = try makeReloadListener(
+            repeatCount: 30, resultDelay: 0.5, includeResult: true, currentLayerNotifications: true
+        )
+        defer { listener.cancel(); connections.cancelAll() }
+
+        let client = KanataTCPClient(port: assignedPort, timeout: 2.0)
+        let start = Date()
+        let result = await client.reloadConfig(timeoutMs: 1500)
+
+        XCTAssertTrue(result.isSuccess, "Unsolicited CurrentLayerName notifications must not exhaust command responses")
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(start), 0.45)
+    }
+
+    private func makeReloadListener(
+        repeatCount: Int, resultDelay: TimeInterval?, includeResult: Bool,
+        currentLayerNotifications: Bool = false
+    ) throws -> (listener: NWListener, port: Int, connections: AcceptedConnections) {
+        var lastError: Error?
+        let connections = AcceptedConnections()
+
+        for _ in 0 ..< 20 {
+            let candidate = UInt16.random(in: 38000 ... 49000)
+            guard let port = NWEndpoint.Port(rawValue: candidate) else { continue }
+
+            do {
+                let listener = try NWListener(using: .tcp, on: port)
+                let ready = DispatchSemaphore(value: 0)
+                listener.stateUpdateHandler = { state in
+                    if case .ready = state { ready.signal() }
+                }
+                listener.newConnectionHandler = { connection in
+                    connections.append(connection)
+                    connection.start(queue: .global())
+                    connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { _, _, _, _ in
+                        var first = "{\"status\":\"Ok\"}\n"
+                        for index in 0 ..< repeatCount {
+                            if currentLayerNotifications {
+                                first += "{\"CurrentLayerName\":{\"name\":\"base\"}}\n"
+                            } else {
+                                first += "{\"KeyInput\":{\"key\":\"capslock\",\"action\":\"Repeat\",\"t\":\(index)}}\n"
+                            }
+                        }
+                        connection.send(content: Data(first.utf8), completion: .contentProcessed { _ in
+                            guard includeResult, let resultDelay else { return }
+                            DispatchQueue.global().asyncAfter(deadline: .now() + resultDelay) {
+                                let result = Data("{\"ReloadResult\":{\"ok\":true}}\n".utf8)
+                                connection.send(content: result, completion: .contentProcessed { _ in })
+                            }
+                        })
+                    }
+                }
+                listener.start(queue: .global())
+                guard ready.wait(timeout: .now() + 2.0) == .success else {
+                    listener.cancel()
+                    continue
+                }
+                return (listener, Int(candidate), connections)
+            } catch {
+                lastError = error
+            }
+        }
+
+        throw lastError ?? KeyPathError.communication(.connectionFailed(reason: "Could not create reload test listener"))
     }
 
     private func makeSilentListener() throws -> (listener: NWListener, port: Int) {

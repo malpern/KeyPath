@@ -25,9 +25,15 @@ extension LayerKeyMapper {
 
             // Map regular keys from this collection's mappings
             if collection.targetLayer == targetLayer {
-                for mapping in collection.mappings {
+                // Preset-based rules (Home Row Arrows) keep their keys in the selected
+                // preset, not in `mappings`; without them the keys draw unowned and pale.
+                let presetMappings = collection.configuration.layerPresetPickerConfig?.selectedMappings ?? []
+                for mapping in collection.mappings + presetMappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
                     map[kanataKey] = collection.id
+                    // Lookups use simulator names ("comm" for ","), which differ from
+                    // config names for punctuation; record both so "," is owned too.
+                    map[toSimulatorKeyName(kanataKey)] = collection.id
                 }
             }
 
@@ -43,50 +49,14 @@ extension LayerKeyMapper {
         return map
     }
 
-    /// Short vim-language labels for overlay keycaps, keyed by input key
-    private static let vimOverlayLabels: [String: String] = [
-        "h": "←",
-        "j": "↓",
-        "k": "↑",
-        "l": "→",
-        "0": "0",
-        "4": "$",
-        "a": "a",
-        "g": "gg",
-        "/": "find",
-        "n": "next",
-        "y": "yank",
-        "p": "put",
-        "x": "del",
-        "r": "redo",
-        "d": "d",
-        "u": "undo",
-        "o": "o",
-    ]
-
-    /// Neovim Terminal overlay labels — vim vocabulary with word motions.
-    /// (Used to be shared with the retired KindaVim rule collection.)
-    private static let neovimOverlayLabels: [String: String] = [
-        "h": "←",
-        "j": "↓",
-        "k": "↑",
-        "l": "→",
-        "0": "0",
-        "4": "$",
-        "a": "a",
-        "g": "gg",
-        "/": "find",
-        "n": "next",
-        "y": "yank",
-        "p": "put",
-        "x": "del",
-        "r": "redo",
-        "d": "d",
-        "u": "undo",
-        "o": "o",
-        "w": "w",
-        "b": "b",
-        "e": "e",
+    /// Mission Control keycap labels: what each key opens, short enough for one unit.
+    static let missionControlKeycapLabels: [String: String] = [
+        "m": "Mission",
+        "q": "Exposé",
+        "t": "Desktop",
+        "c": "Alerts",
+        ",": "◀ Space",
+        ".": "Space ▶"
     ]
 
     /// Build mapping from key names to short vim overlay labels for VIM collections
@@ -109,16 +79,31 @@ extension LayerKeyMapper {
                 AppLogger.shared.info("🗺️ [VimLabel] Found VIM collection for layer '\(layerName)', \(collection.mappings.count) mappings")
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
-                    if let vimLabel = Self.vimOverlayLabels[mapping.input.lowercased()] {
-                        map[kanataKey] = vimLabel
+                    // Same names as the Shortcut List and Settings (VimLayerReference).
+                    if let label = VimLayerReference.presentation(
+                        forInput: mapping.input, style: VimKeyNameStyle.current(for: collection.id)
+                    )?.keycapLabel {
+                        map[kanataKey] = label
+                    }
+                }
+            } else if collection.id == RuleCollectionIdentifier.missionControl {
+                // Short names instead of the raw shortcuts (↓⌃, N⇧⌃, F11) the keys send.
+                for mapping in collection.mappings {
+                    let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
+                    if let label = Self.missionControlKeycapLabels[mapping.input.lowercased()] {
+                        map[kanataKey] = label
+                        map[toSimulatorKeyName(kanataKey)] = label
                     }
                 }
             } else if collection.id == RuleCollectionIdentifier.neovimTerminal {
                 AppLogger.shared.info("🗺️ [VimLabel] Found Neovim Terminal collection for layer '\(layerName)', \(collection.mappings.count) mappings")
                 for mapping in collection.mappings {
                     let kanataKey = KanataKeyConverter.convertToKanataKey(mapping.input)
-                    if let vimLabel = Self.neovimOverlayLabels[mapping.input.lowercased()] {
-                        map[kanataKey] = vimLabel
+                    // Same names as Vim Navigation, plus the word motions.
+                    if let label = VimLayerReference.presentation(
+                        forInput: mapping.input, style: VimKeyNameStyle.current(for: collection.id)
+                    )?.keycapLabel {
+                        map[kanataKey] = label
                     }
                 }
             }

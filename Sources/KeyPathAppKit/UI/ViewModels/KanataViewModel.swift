@@ -62,6 +62,7 @@ class KanataViewModel {
     var pendingMappingConflict: MappingConflictContext?
 
     // Enable/save prerequisite resolution (#869)
+    var pendingRuleSetup: RuleSetupSession?
     var showPrerequisiteResolutionDialog = false
     var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
 
@@ -154,6 +155,7 @@ class KanataViewModel {
         pendingMappingConflict = state.pendingMappingConflict
         showMappingConflictDialog = state.pendingMappingConflict != nil
 
+        pendingRuleSetup = manager.pendingRuleSetup
         pendingPrerequisiteResolution = state.pendingPrerequisiteResolution
         showPrerequisiteResolutionDialog = state.pendingPrerequisiteResolution != nil
 
@@ -577,6 +579,10 @@ class KanataViewModel {
 
     func restartKanata(reason: String = "User action") async -> Bool {
         await manager.restartKanata(reason: reason)
+    }
+
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil) async -> Bool {
+        await manager.setCapsSelection(selection, automaticSetupDisabled: automaticSetupDisabled)
     }
 
     func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {

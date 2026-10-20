@@ -15,6 +15,10 @@ Only disposable leases created by this interface can be destroyed or swept.
 Logs, manifests, commands, results, screenshots, and collected test artifacts
 remain beneath `KeyPathInstallerLab` on the external volume after cleanup.
 
+## Pre-run iteration policy
+
+Read the maintained lab checkout’s `docs/iteration-workflow.md` before creating a VM (currently `/Users/malpern/local-code/vm-lab-automation-robustness`). Plan scenarios and pass conditions, verify action support, and batch tests of the same admitted artifact. Clean consent testing is a distinct gate from ordinary UI iteration. The current lab cannot replace the pinned installer in an existing lease; do not bypass admission. A cancelled permission prompt does not prove revoke/regrant. Keep the owned lease through useful same-artifact retests, then collect evidence and destroy it.
+
 ## Prerequisites
 
 - SSH access to `clawd@keypath-lab-mini` without an interactive password.
@@ -35,9 +39,11 @@ new lease would be unsafe. It is an infrastructure wait, not a product failure.
 `preflight` reports the current reserve evidence. Set
 `KEYPATH_MIN_FREE_DISK_GIB` only for a deliberately different host policy.
 
-The primary self-hosted CI and cache-warm workflows run
-`Scripts/lab/host-disk-reserve` before expensive compilation. It exits 75 when
-the same 90 GiB threshold is not met.
+The self-hosted CI, cache-warm and coverage workflows run
+`Scripts/lab/host-disk-reserve` before expensive compilation with a lower
+40 GiB threshold (`KEYPATH_MIN_FREE_DISK_GIB: "40"` in each workflow), and exit
+75 below it. A build needs far less than a VM clone, and the 90 GiB bar stopped
+CI on 2026-10-19 with 78 GiB free. VM admission keeps the 90 GiB default.
 
 Check the non-mutating host/provider contract:
 

@@ -30,7 +30,13 @@ extension KeyboardVisualizationViewModel {
         rebuildLayerMapping() // Build initial layer mapping
         loadFeatureCollectionStates() // Load optional feature collection states
         preloadAllIcons() // Pre-cache launcher and layer icons
-        prebuildLayerMappingsInBackground() // Warm cache for all layers
+        // Warm the all-layers cache once. Hiding the overlay keeps it, and config or
+        // key-name changes rebuild it (invalidateLayerMappings). Re-running it on every
+        // show meant every Space hold that revealed the overlay re-simulated every key on
+        // every layer, and the release waited ~1.2s behind it before the overlay hid.
+        if prebuiltLayerMappings.isEmpty {
+            prebuildLayerMappingsInBackground()
+        }
         prewarmLauncherMappings() // Pre-cache launcher mappings + icons for instant layer switch
 
         AppLogger.shared.info("✅ [KeyboardViz] TCP-based key capture started")

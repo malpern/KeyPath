@@ -3,6 +3,50 @@ import XCTest
 
 final class FirstSuccessOnboardingSessionTests: XCTestCase {
     @MainActor
+    func testInactiveReasonExplainsRefusalAndClearsOnRetryAndSuccess() {
+        let session = FirstSuccessOnboardingSession()
+        let reason = "Connect one compatible keyboard, then try again. Your rules were kept."
+        session.begin(.capsLockEscape)
+        session.finish(.capsLockEscape, result: .savedButNotActiveWithReason(reason))
+        XCTAssertEqual(session.inactiveReason, reason)
+        XCTAssertEqual(session.savedButNotActive, .capsLockEscape)
+        XCTAssertEqual(session.capsLockPhase, .explaining)
+        XCTAssertEqual(session.step, .capsLock)
+
+        session.begin(.capsLockEscape)
+        XCTAssertNil(session.inactiveReason)
+        session.finish(.capsLockEscape, result: .applied)
+        XCTAssertNil(session.inactiveReason)
+        XCTAssertNil(session.savedButNotActive)
+        XCTAssertEqual(session.capsLockPhase, .installed)
+    }
+
+    @MainActor
+    func testApplyResultPreservesSpecificRefusalWithoutMislabelingSuccess() {
+        let reason = "Connect one compatible keyboard."
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.onboardingActionResult(
+                for: .rejected, failureReason: reason
+            ), .savedButNotActiveWithReason(reason)
+        )
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.onboardingActionResult(
+                for: .applied, failureReason: reason
+            ), .applied
+        )
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.onboardingActionResult(
+                for: .pending, failureReason: "Runtime is starting"
+            ), .savedButNotActive
+        )
+        XCTAssertEqual(
+            FirstSuccessOnboardingWindowController.onboardingActionResult(
+                for: .failed, failureReason: "  "
+            ), .savedButNotActive
+        )
+    }
+
+    @MainActor
     func testVisualPreviewActionsRequireTheExplicitDebugEnvironmentFlag() {
         XCTAssertFalse(
             FirstSuccessOnboardingWindowController.usesNonMutatingVisualPreviewActions(

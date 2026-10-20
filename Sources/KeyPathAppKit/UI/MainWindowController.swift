@@ -7,13 +7,21 @@ import SwiftUI
 @MainActor
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
+    let splashPresentation = SplashPresentation()
     private let splashContentSize = NSSize(width: 640, height: 440)
+
+    /// Stop splash activity when handing off to the wizard or keyboard overlay.
+    func hideSplash() {
+        splashPresentation.isPreparing = false
+        window?.orderOut(nil)
+    }
 
     init(viewModel: KanataViewModel, serviceContainer: ServiceContainer? = nil) {
         // Phase 4: MVVM - Use shared ViewModel (don't create a new one!)
 
         // Create SwiftUI hosting controller with full environment
         let rootView = RootView()
+            .environment(splashPresentation)
             .environment(viewModel) // Phase 4: Inject ViewModel
             .environment(\.services, serviceContainer ?? ServiceContainer())
             .environment(\.preferencesService, PreferencesService.shared)

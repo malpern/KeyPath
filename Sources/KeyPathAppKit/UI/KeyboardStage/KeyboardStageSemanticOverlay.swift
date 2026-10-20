@@ -376,13 +376,15 @@ private struct KeyboardStageApplicationTargetLabel: View {
                 fallbackSystemImage: application.fallbackSystemImage,
                 size: max(18, min(30, availableWidth * 0.12))
             )
-            Text(verbatim: application.name)
-                .font(.system(size: max(10, min(15, availableWidth * 0.055)), weight: .semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            if availableWidth > 60 {
+                Text(verbatim: application.name)
+                    .font(.system(size: max(10, min(15, availableWidth * 0.055)), weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
         .foregroundStyle(foregroundColor)
-        .padding(.horizontal, max(8, availableWidth * 0.06))
+        .padding(.horizontal, availableWidth > 60 ? max(8, availableWidth * 0.06) : 0)
         .task(id: application.bundleIdentifier) {
             icon = loadIcon(bundleIdentifier: application.bundleIdentifier)
         }

@@ -1,3 +1,4 @@
+import KeyPathCore
 import SwiftUI
 
 // MARK: - Permission Status Banner
@@ -14,11 +15,11 @@ struct PermissionStatusBanner: View {
                     .font(.body)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Accessibility Permission Required")
+                    Text("\(AccessibilityPermissionPresentation.current.name) Permission Required")
                         .font(.footnote.weight(.semibold))
                         .foregroundColor(.primary)
 
-                    Text("Enable in System Settings > Privacy & Security > Accessibility, then restart KeyPath.")
+                    Text("Enable in \(AccessibilityPermissionPresentation.current.settingsPath), then restart KeyPath.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -33,7 +34,7 @@ struct PermissionStatusBanner: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .accessibilityIdentifier("window-snapping-open-settings-button")
-                .accessibilityLabel("Open accessibility settings")
+                .accessibilityLabel(AccessibilityPermissionPresentation.current.openTitle)
             }
             .padding(12)
             .background(

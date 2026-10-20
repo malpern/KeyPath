@@ -25,12 +25,12 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
 
         let cacheKeys = await mapper.cache.keys.sorted()
 
-        XCTAssertTrue(cacheKeys.contains("nav|default"), "Should store nav|default")
-        XCTAssertTrue(cacheKeys.contains("nav|neovim-scope-approved"), "Should store nav|neovim-scope-approved")
-        XCTAssertTrue(cacheKeys.contains("nav|neovim-scope-fallback"), "Should store nav|neovim-scope-fallback")
-        XCTAssertTrue(cacheKeys.contains("launcher|default"), "Should store launcher|default")
-        XCTAssertTrue(cacheKeys.contains("launcher|neovim-scope-approved"), "Should store launcher|neovim-scope-approved")
-        XCTAssertTrue(cacheKeys.contains("launcher|neovim-scope-fallback"), "Should store launcher|neovim-scope-fallback")
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "nav", suffix: "default")), "Should store nav|default")
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "nav", suffix: "neovim-scope-approved")), "Should store nav|neovim-scope-approved")
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "nav", suffix: "neovim-scope-fallback")), "Should store nav|neovim-scope-fallback")
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "launcher", suffix: "default")), "Should store launcher|default")
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "launcher", suffix: "neovim-scope-approved")), "Should store launcher|neovim-scope-approved")
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "launcher", suffix: "neovim-scope-fallback")), "Should store launcher|neovim-scope-fallback")
 
         for key in cacheKeys {
             XCTAssertTrue(key.contains("|"), "Cache key '\(key)' must use composite format (layer|suffix)")
@@ -72,8 +72,8 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
         )
 
         let cacheKeys = await mapper.cache.keys.sorted()
-        XCTAssertTrue(cacheKeys.contains("nav|neovim-scope-fallback"))
-        XCTAssertTrue(cacheKeys.contains("launcher|neovim-scope-fallback"))
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "nav", suffix: "neovim-scope-fallback")))
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "launcher", suffix: "neovim-scope-fallback")))
         XCTAssertFalse(cacheKeys.contains { $0.hasPrefix("Nav|") || $0.hasPrefix("LAUNCHER|") },
                        "Keys should be lowercased")
     }
@@ -92,9 +92,9 @@ final class LayerKeyMapperPrebuildTests: XCTestCase {
         )
 
         let cacheKeys = await mapper.cache.keys.sorted()
-        XCTAssertTrue(cacheKeys.contains("nav|neovim-scope-fallback"),
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "nav", suffix: "neovim-scope-fallback")),
                       "Fallback variant should always be built")
-        XCTAssertTrue(cacheKeys.contains("nav|default"),
+        XCTAssertTrue(cacheKeys.contains(LayerKeyMapper.cacheKey(layer: "nav", suffix: "default")),
                       "Default variant should always be built")
         // Without neovim collection, approved variant is still built in fallback mode
         // (simulator disabled uses same fallback mapping for all variants)

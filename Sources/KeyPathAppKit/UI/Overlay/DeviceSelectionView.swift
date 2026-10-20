@@ -1,299 +1,78 @@
 import KeyPathCore
 import SwiftUI
 
-/// Displays connected keyboards with toggles to enable/disable remapping per device.
-/// VirtualHID devices are filtered out (never shown to users).
+/// Connected keyboard information. Driverless remapping applies to all keyboards;
+/// per-device exclusions require device identity that the session event stream lacks.
 struct DeviceSelectionView: View {
-    @Environment(KanataViewModel.self) private var kanataManager
-    @State private var connectedDevices: [ConnectedDevice] = []
-    @State private var selections: [String: DeviceSelection] = [:]
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var needsRestart = false
-    @State private var isRestarting = false
+    @State private var connectedDevices: [ConnectedDevice]
+    @State private var isLoading: Bool
+    private let providedDevices: [ConnectedDevice]?
 
-    /// Physical keyboard devices currently connected (excludes VirtualHID, trackpads, mice).
+    init(devices: [ConnectedDevice]? = nil) {
+        providedDevices = devices
+        _connectedDevices = State(initialValue: devices ?? [])
+        _isLoading = State(initialValue: devices == nil)
+    }
+
     private var physicalConnected: [ConnectedDevice] {
         connectedDevices.filter { !$0.isNonKeyboard }
     }
 
-    /// Previously-seen devices that are no longer connected.
-    private var disconnectedSelections: [DeviceSelection] {
-        let connectedHashes = Set(connectedDevices.map(\.hash))
-        return selections.values
-            .filter { !connectedHashes.contains($0.hash) }
-            .sorted { $0.productKey < $1.productKey }
-    }
-
-    /// True if every physical device would be disabled.
-    private var allDisabled: Bool {
-        let connected = physicalConnected
-        guard !connected.isEmpty else { return false }
-        return connected.allSatisfy { !isEnabled(hash: $0.hash) }
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 16) {
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                errorView(errorMessage)
             } else {
+                Text("Connected Keyboards")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        connectedSection
-                        disconnectedSection
+                    VStack(alignment: .leading, spacing: 8) {
+                        if physicalConnected.isEmpty {
+                            Text("No keyboards detected. Check your keyboard connection.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        ForEach(physicalConnected) { device in
+                            HStack(spacing: 10) {
+                                Image(systemName: device.sfSymbolName)
+                                    .font(.body)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(device.displayName)
+                                        .font(.caption.weight(.semibold))
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                    Text(device.vendorProductHex)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(8)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                            .accessibilityElement(children: .combine)
+                            .accessibilityIdentifier("connected-keyboard-\(device.hash)")
+                        }
                     }
-                    .padding(.top, 4)
                 }
-                .disabled(isRestarting)
-
-                Spacer(minLength: 0)
-                footerView
+                Text("Remapping applies to all connected keyboards. Choosing which keyboards to remap is not supported in driverless mode.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("devices-driverless-info")
             }
         }
+        .padding(.top, 4)
         .task {
-            await loadDevices()
-        }
-    }
-
-    // MARK: - Connected Section
-
-    @ViewBuilder
-    private var connectedSection: some View {
-        if !physicalConnected.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Connected")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                ForEach(physicalConnected) { device in
-                    DeviceRow(
-                        displayName: device.displayName,
-                        detail: device.vendorProductHex,
-                        isEnabled: isEnabled(hash: device.hash),
-                        isConnected: true,
-                        onToggle: { toggleDevice(hash: device.hash, productKey: device.productKey) }
-                    )
-                }
-            }
-        }
-    }
-
-    // MARK: - Disconnected Section
-
-    @ViewBuilder
-    private var disconnectedSection: some View {
-        if !disconnectedSelections.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Previously Seen")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                ForEach(disconnectedSelections, id: \.hash) { selection in
-                    DeviceRow(
-                        displayName: selection.displayName,
-                        detail: "disconnected",
-                        isEnabled: selection.isEnabled,
-                        isConnected: false,
-                        onToggle: { toggleDevice(hash: selection.hash, productKey: selection.productKey) }
-                    )
-                }
-            }
-        }
-    }
-
-    // MARK: - Footer
-
-    private var footerView: some View {
-        VStack(spacing: 8) {
-            if allDisabled {
-                Label("No keyboards will be remapped.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            } else {
-                Label("Unchecked keyboards pass through without remapping.", systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if needsRestart {
-                Button(action: applyChanges) {
-                    if isRestarting {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Restart to Apply")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(isRestarting)
-                .accessibilityIdentifier("devices-restart-apply-button")
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-    }
-
-    // MARK: - Error View
-
-    private func errorView(_ message: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-            Text("Could not list devices")
-                .font(.subheadline.weight(.semibold))
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-
-    // MARK: - Data Loading
-
-    private func loadDevices() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-
-        #if os(macOS)
-            // Dispatch device enumeration off the main thread to avoid blocking UI
-            let devices = await Task.detached(priority: .userInitiated) {
+            guard providedDevices == nil else { return }
+            connectedDevices = await Task.detached(priority: .userInitiated) {
                 DeviceEnumerationService.enumerateConnectedDevices()
             }.value
-            if devices.isEmpty {
-                errorMessage = "No keyboards detected. Please check your connections or reinstall KeyPath."
-                return
-            }
-            connectedDevices = devices
-        #else
-            errorMessage = "Device enumeration is only available on macOS."
-            return
-        #endif
-
-        // Load persisted selections
-        let stored = await DeviceSelectionStore.shared.loadSelections()
-        selections = Dictionary(stored.map { ($0.hash, $0) }, uniquingKeysWith: { _, new in new })
-
-        // Update lastSeen for connected devices
-        let now = Date()
-        for device in connectedDevices where !device.isNonKeyboard {
-            if selections[device.hash] == nil {
-                // New device — default to enabled, don't mark dirty
-                selections[device.hash] = DeviceSelection(
-                    hash: device.hash,
-                    productKey: device.productKey,
-                    isEnabled: true,
-                    lastSeen: now
-                )
-            } else {
-                selections[device.hash]?.lastSeen = now
-            }
+            isLoading = false
         }
-
-        // Device discovery updates the draft only. It joins the durable
-        // selection/configuration transaction when the user explicitly applies.
-    }
-
-    // MARK: - Actions
-
-    private func isEnabled(hash: String) -> Bool {
-        selections[hash]?.isEnabled ?? true
-    }
-
-    private func toggleDevice(hash: String, productKey: String) {
-        if var existing = selections[hash] {
-            existing.isEnabled.toggle()
-            selections[hash] = existing
-        } else {
-            selections[hash] = DeviceSelection(
-                hash: hash,
-                productKey: productKey,
-                isEnabled: false,
-                lastSeen: Date()
-            )
-        }
-        needsRestart = true
-    }
-
-    private func applyChanges() {
-        isRestarting = true
-        Task {
-            let applied = await kanataManager.applyDeviceSelections(Array(selections.values))
-            isRestarting = false
-            if applied {
-                needsRestart = false
-            } else {
-                errorMessage = "KeyPath could not apply the selected keyboards. Your previous selection was restored."
-                await loadDevices()
-            }
-        }
-    }
-}
-
-// MARK: - Device Row
-
-private struct DeviceRow: View {
-    let displayName: String
-    let detail: String
-    let isEnabled: Bool
-    let isConnected: Bool
-    let onToggle: () -> Void
-
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovering = false
-
-    private var isDark: Bool {
-        colorScheme == .dark
-    }
-
-    private var accessibilityIdentifier: String {
-        let normalizedName = displayName
-            .lowercased()
-            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-        return "device-row-\(normalizedName)-toggle"
-    }
-
-    var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 10) {
-                Image(systemName: isEnabled ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
-                    .font(.body)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(displayName)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(isConnected ? .primary : .secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Text(detail)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .layoutPriority(1)
-
-                Spacer()
-            }
-            .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isHovering
-                        ? (isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.04))
-                        : (isDark ? Color.white.opacity(0.04) : Color.black.opacity(0.02)))
-            )
-            .opacity(isConnected ? 1.0 : 0.6)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(accessibilityIdentifier)
-        .onHover { isHovering = $0 }
     }
 }

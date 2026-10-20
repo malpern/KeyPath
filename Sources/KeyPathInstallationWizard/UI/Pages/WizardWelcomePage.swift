@@ -33,6 +33,7 @@ struct WizardWelcomePage: View {
         .padding(.vertical, WizardDesign.Spacing.pageVertical)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WizardDesign.Colors.wizardBackground)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("wizard-welcome-page")
         .onAppear { animateKeycapsIn() }
     }
@@ -45,12 +46,12 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.36, green: 0.40, blue: 0.47),
                 rotation: -6,
                 yOffset: 8,
-                caption: "Supercharge\nCaps Lock",
+                caption: "Caps Lock\ntap + hold",
                 visible: keycapsVisible,
                 delay: 0.0
             ) {
                 VStack(spacing: 3) {
-                    Text("esc")
+                    Text("Caps Lock")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                     Image(systemName: "sparkle")
                         .font(.system(size: 12, weight: .bold))
@@ -93,7 +94,7 @@ struct WizardWelcomePage: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "KeyPath superpowers: supercharge Caps Lock, arrows on the home row, tile windows without the mouse, launch anything from a key"
+            "KeyPath superpowers: remap Caps Lock with different actions for taps and holds, arrows on the home row, tile windows without the mouse, launch anything from a key"
         )
         .accessibilityIdentifier("wizard-welcome-hero")
     }
@@ -117,17 +118,15 @@ struct WizardWelcomePage: View {
         .accessibilityAddTraits(.isHeader)
     }
 
-    // MARK: - Footer: expectation + CTA
+    // MARK: - Footer: CTA + privacy
 
     private var footer: some View {
         VStack(spacing: WizardDesign.Spacing.elementGap) {
-            Text("Setup takes about two minutes. We'll guide you through each step.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("wizard-welcome-expectation")
+            WizardButton("Get Started", style: .primary, isDefaultAction: true) {
+                onGetStarted()
+            }
+            .accessibilityIdentifier("wizard-welcome-get-started")
+            .padding(.bottom, WizardDesign.Spacing.elementGap)
 
             HStack(spacing: WizardDesign.Spacing.labelGap) {
                 Image(systemName: "lock.fill")
@@ -140,11 +139,6 @@ struct WizardWelcomePage: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("wizard-welcome-privacy")
-            .padding(.bottom, WizardDesign.Spacing.elementGap)
-
-            WizardButton("Get Started", style: .primary, isDefaultAction: true) {
-                onGetStarted()
-            }
         }
     }
 

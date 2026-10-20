@@ -65,7 +65,7 @@ struct MappingTableContent: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+            .background(SettingsDesign.hoverFill)
 
             // Data rows
             ForEach(mappings, id: \.id) { mapping in
@@ -110,7 +110,7 @@ struct MappingTableContent: View {
             }
             .padding(.vertical, 4)
         }
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
+        .background(SettingsDesign.groupFill)
         .clipShape(.rect(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)

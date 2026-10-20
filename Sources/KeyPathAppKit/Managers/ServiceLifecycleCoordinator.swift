@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
@@ -7,10 +8,80 @@ import KeyPathWizardCore
 
 /// Manages the lifecycle of the Kanata runtime service (start, stop, restart, status).
 ///
-/// Uses Mode A: kanata-launcher registers as a LaunchDaemon via SMAppService,
-/// then exec's into the bundled kanata binary. Single root process.
+/// Owns the unprivileged session application and its readiness evidence.
 @MainActor
 final class ServiceLifecycleCoordinator {
+    var sessionApplication: NSRunningApplication?
+    var sessionReportURL: URL?
+    var sessionNonce: String?
+    var sessionOutputsRecovered = false
+    private(set) var sessionConfigurationAdmission: KanataHostBridgeValidationResult?
+    var sessionSupervisionTask: Task<Void, Never>?
+    var sessionCleanupTask: Task<Void, Never>?
+    var sessionTerminationGuard: SessionCapsMappingLease.TerminationGuard?
+    var sessionWakeRecoveryRevision: UInt64 = 0
+    var sessionWakeRecovery: (generation: UInt64, id: UUID)?
+    var isRecoveringFromSystemWake: Bool {
+        guard let recovery = sessionWakeRecovery else { return false }
+        return recovery.generation == sessionIntentGeneration && sessionWantsRunning
+            && recoveryRefusalForStartup == nil && sessionConfigurationRefusal == nil
+    }
+
+    var sessionWakeEpoch: UInt64 = 0
+    var sessionLaunchWakeEpoch: UInt64 = 0
+    /// Set only after an owned held-key startup refusal has been fully cleaned up.
+    var sessionWakeRetryGeneration: UInt64?
+    var sessionLastWakeSignalAt: Date?
+    private var sessionWakeObservationTasks: [Task<Void, Never>] = []
+    // Process ownership is serialized across suspension points, independently of
+    // configuration persistence. Intent changes immediately, before admission.
+    let sessionOperationGate = ConfigurationOperationGate()
+    private(set) var sessionIntentGeneration: UInt64 = 0
+    private(set) var sessionWantsRunning = false
+    private var sessionPreparationFailure: (generation: UInt64, reason: String)?
+
+    func preparationFailureReason(for generation: UInt64) -> String? {
+        guard generation == sessionIntentGeneration,
+              sessionPreparationFailure?.generation == generation else { return nil }
+        return sessionPreparationFailure?.reason
+    }
+
+    private var updatePreparationActive = false
+    private var terminationPreparationActive = false
+    var startsSuppressed: Bool {
+        updatePreparationActive || terminationPreparationActive
+    }
+
+    /// Updates hold the runtime stopped until installation ends or is aborted.
+    /// Invalidate requests already waiting for lifecycle admission as well.
+    func setUpdatePreparationActive(_ active: Bool) {
+        guard updatePreparationActive != active else { return }
+        updatePreparationActive = active
+        if active {
+            sessionIntentGeneration &+= 1
+            sessionWantsRunning = false
+        }
+    }
+
+    /// Termination and update holds are independent: an updater abort must not
+    /// release starts while graceful Quit is still waiting for its cleanup.
+    func setTerminationPreparationActive(_ active: Bool) {
+        guard terminationPreparationActive != active else { return }
+        terminationPreparationActive = active
+        if active {
+            sessionIntentGeneration &+= 1
+            sessionWantsRunning = false
+        }
+    }
+
+    enum SessionLifecycleOperation: Sendable {
+        case start(String), stop(String), restart(String)
+    }
+
+    func sessionStartIsCurrent(_ generation: UInt64) -> Bool {
+        !startsSuppressed && generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
+    }
+
     // MARK: - Runtime Status
 
     enum RuntimeStatus: Equatable, Sendable {
@@ -28,105 +99,33 @@ final class ServiceLifecycleCoordinator {
 
     // MARK: - Dependencies
 
-    private let kanataDaemonService: KanataDaemonService
-    private let recoveryCoordinator: RecoveryCoordinator
+    let kanataDaemonService: KanataDaemonService
 
-    // MARK: - Wait-for-exit test seams (#625 part-1)
-
-    // Test seams for the deterministic wait-for-exit routine. Without these, the
-    // polling loops would spawn real `pgrep` (which deadlocks under parallel test
-    // runs — see CLAUDE.md), probe a real TCP port, and sleep real time. Tests
-    // inject deterministic closures; production always uses the real subprocess /
-    // syscall / TCP probe. DEBUG-only and nil in production.
     #if DEBUG
-        /// Replaces provider-backed process discovery. Returns matching PIDs for a name.
-        nonisolated(unsafe) static var testPgrepProvider: ((String) -> [pid_t])?
-        /// Replaces `kill(pid, 0)`. Returns `true` when the process is still alive.
-        nonisolated(unsafe) static var testLivenessProbe: ((pid_t) -> Bool)?
-        /// Replaces `kill(pid, signal)` for SIGTERM/SIGKILL so tests with synthetic PIDs
-        /// never signal a real, unrelated process on the machine.
-        nonisolated(unsafe) static var testSignal: ((pid_t, Int32) -> Void)?
-        /// Replaces `SystemStateProvider.isTCPPortResponding`. Returns `true` when something is listening.
-        nonisolated(unsafe) static var testTCPProbe: ((Int, Int) -> Bool)?
-        /// Replaces `Task.sleep` in the polling loops so tests never wait real time.
-        nonisolated(unsafe) static var testSleep: ((Duration) async -> Void)?
-        /// Replaces the running-kanata identity check so tests can simulate stale binaries.
-        nonisolated(unsafe) static var testRunningKanataIdentityProvider: (() async -> RunningKanataIdentity)?
+        /// Lifecycle tests inject session operations without launching an application.
+        nonisolated(unsafe) static var testSessionStart: (@MainActor (String) async -> Bool)?
+        nonisolated(unsafe) static var testSessionStop: (@MainActor () async -> Bool)?
+        var testSessionCurrentReport: (() -> SessionRuntimeReport?)?
+        var testSessionCapabilityProbe: (() async -> PermissionOracle.PermissionSet?)?
+        var testSessionConfigurationValidation: (() -> KanataHostBridgeValidationResult)?
+        var testSessionRequestObserved: ((UInt64) -> Void)?
+        var testSessionRunningReadiness: (@MainActor () async -> Bool)?
+        var testSessionSupervisionStarted: ((UInt64) -> Void)?
+        var testSessionCapsRecovery: (() async throws -> Void)?
+        var testSessionCapsPreparation: (() async throws -> Void)?
+        var testSessionWakeReady: (() -> Bool)?
+        var testSessionWakeWait: (() async -> Void)?
     #endif
-
-    /// Timing for the stop→start wait-for-exit (#625 part-1). Bounds are expressed in
-    /// milliseconds so poll counts derive trivially and stay deterministic when the
-    /// sleep seam is a no-op (a wall-clock deadline would never advance under that seam).
-    enum WaitForExitTiming {
-        static let pollIntervalMs = 100
-        static let processExitGraceMs = 2000 // SIGTERM → SIGKILL window
-        static let portReleaseTimeoutMs = 2000 // after processes confirmed dead
-        static let postKillConfirmMs = 500 // brief confirm-gone poll after SIGKILL
-        static let tcpProbeTimeoutMs = 150
-
-        static var pollInterval: Duration {
-            .milliseconds(pollIntervalMs)
-        }
-
-        static func pollCount(forMs ms: Int) -> Int {
-            max(1, ms / pollIntervalMs)
-        }
-    }
-
-    enum RuntimeReadinessTiming {
-        static let pollIntervalMs = 250
-        static let timeoutMs = 5000
-        static let tcpProbeTimeoutMs = 300
-
-        static var pollInterval: Duration {
-            .milliseconds(pollIntervalMs)
-        }
-
-        static var pollCount: Int {
-            max(1, timeoutMs / pollIntervalMs)
-        }
-    }
-
-    private enum RuntimeReadinessVerification {
-        case ready
-        case pendingApproval(String)
-        case failed(String)
-    }
-
-    struct RunningKanataIdentity: Equatable {
-        let pid: pid_t
-        let executablePath: String
-        let startedAt: Date?
-
-        func matchesBundledKanata(_ bundledPath: String) -> Bool {
-            let samePath = Self.canonicalPath(executablePath) == Self.canonicalPath(bundledPath)
-            guard samePath else { return false }
-
-            guard
-                let startedAt,
-                let bundledModifiedAt = Self.fileModificationDate(at: bundledPath)
-            else {
-                return true
-            }
-
-            // `ps -o lstart` reports whole seconds, while file modification dates
-            // include subsecond precision. Allow one second of slack so a freshly
-            // restarted same-path process does not look stale because of truncation.
-            return startedAt.addingTimeInterval(1) >= bundledModifiedAt
-        }
-
-        private static func canonicalPath(_ path: String) -> String {
-            URL(fileURLWithPath: path).standardizedFileURL.path
-        }
-
-        private static func fileModificationDate(at path: String) -> Date? {
-            (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate]) as? Date
-        }
-    }
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
     var isStartingKanata = false
-    private var lastStartAttemptAt: Date?
+    /// A completed recovery refusal survives absence of a worker report.
+    var sessionRecoveryRefusal: String?
+
+    var recoveryRefusalForStartup: String? {
+        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
+        return sessionRecoveryRefusal
+    }
 
     /// Intentional-transition gate (#625). While we are deliberately stopping kanata,
     /// the dying process may emit one last `InputGrab active=false` on its still-open
@@ -158,11 +157,6 @@ final class ServiceLifecycleCoordinator {
         isStartingKanata || isIntentionalTransitionInProgress
     }
 
-    private let windowEvaluator = TransientStartupWindowEvaluator(
-        gracePeriod: RuntimeStartupTiming.uiGracePeriod,
-        createdAt: Date()
-    )
-
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
     /// Called when an error should be surfaced to the UI.
@@ -174,134 +168,294 @@ final class ServiceLifecycleCoordinator {
     /// Called to notify the UI of a state change.
     var onStateChanged: (() -> Void)?
 
-    /// Called to check whether the VirtualHID daemon is healthy.
-    var isVirtualHIDDaemonHealthy: (() async -> Bool)?
-
     // MARK: - Init
 
     init(
         kanataDaemonService: KanataDaemonService,
-        recoveryCoordinator: RecoveryCoordinator
+        recoveryCoordinator _: RecoveryCoordinator
     ) {
         self.kanataDaemonService = kanataDaemonService
-        self.recoveryCoordinator = recoveryCoordinator
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
+                     NSWorkspace.sessionDidBecomeActiveNotification]
+        {
+            let notifications = NSWorkspace.shared.notificationCenter.notifications(named: name)
+            sessionWakeObservationTasks.append(Task { [weak self] in
+                for await _ in notifications {
+                    guard !Task.isCancelled else { return }
+                    self?.observeSessionWake(name)
+                }
+            })
+        }
+        ServiceHealthChecker.shared.configureSessionReadinessProvider { [weak self] in
+            guard let report = await self?.currentSessionReport() else {
+                return KanataRuntimeReadiness(isRunning: false, isResponding: false, inputCaptureReady: false)
+            }
+            let running = report.state == .running && report.tapActive
+            let responding = running ? await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300) : false
+            return KanataRuntimeReadiness(isRunning: running, isResponding: responding, inputCaptureReady: running)
+        }
+        Task { [weak self] in
+            await SystemStateProvider.shared.configureSessionPermissionCapabilityProvider { [weak self] in
+                await self?.sessionCapabilities()
+            }
+        }
+    }
+
+    func observeSessionWake(_ name: Notification.Name, at date: Date = Date()) {
+        guard [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
+               NSWorkspace.sessionDidBecomeActiveNotification].contains(name) else { return }
+        sessionWakeEpoch &+= 1
+        sessionLastWakeSignalAt = date
+        AppLogger.shared.info("[SessionRuntime] Recovery wake signal: \(name.rawValue)")
+    }
+
+    deinit {
+        sessionWakeObservationTasks.forEach { $0.cancel() }
     }
 
     // MARK: - Start / Stop / Restart
 
     @discardableResult
     func startKanata(reason: String = "Manual start") async -> Bool {
-        AppLogger.shared.log("🚀 [Service] Starting Kanata (\(reason))")
-        // End any lingering post-stop grace (#625): we are deliberately starting a new
-        // kanata now, so its authoritative grab status is exactly what we want to act
-        // on. Without this, the 2s grace armed by the preceding stop in a restart would
-        // suppress a genuine `InputGrab active=false` from the freshly started daemon —
-        // the very degraded state this feature recovers from. The grace only needs to
-        // cover the OLD process's last gasp, which is already past once a start begins.
-        stopGraceUntil = nil
-        onWarning?(nil)
-        isStartingKanata = true
-        defer {
-            isStartingKanata = false
-        }
-
-        let vhidHealthy = await isVirtualHIDDaemonHealthy?() ?? false
-        if !VHIDSafetyCheck.canStartKanata(vhidDaemonHealthy: vhidHealthy) {
-            AppLogger.shared.errorUnlessQuietTest("❌ [Service] Cannot start Kanata - VirtualHID daemon is not running")
-            onError?("Cannot start: Karabiner VirtualHID daemon is not running. Please complete the setup wizard.")
-            onStateChanged?()
-            return false
-        }
-
-        await waitForKanataExitBeforeStart()
-        let mismatchedRuntimeRecovered = await recoverIfRunningKanataDoesNotMatchBundledBinary(reason: reason)
-
-        do {
-            lastStartAttemptAt = Date()
-            try await KanataDaemonManager.shared.register()
-            AppLogger.shared.log("✅ [Service] Kanata LaunchDaemon registered (\(reason))")
-
-            // If the daemon registered but isn't running (e.g., it exited cleanly
-            // after max retries), kickstart it to force a restart.
-            try? await Task.sleep(for: .milliseconds(500))
-            let daemonRunning = await kanataDaemonService.isDaemonRunning()
-            if mismatchedRuntimeRecovered || !daemonRunning {
-                AppLogger.shared.log("🔄 [Service] Daemon registered but not running — kickstarting")
-                _ = try? await SubprocessRunner.shared.launchctl("kickstart", ["system/com.keypath.kanata"])
-            }
-
-            switch await verifyRuntimeReadinessAfterStart(reason: reason) {
-            case .ready:
-                break
-            case let .pendingApproval(message):
-                AppLogger.shared.warn("⚠️ [Service] \(message)")
-                onError?(nil)
-                onWarning?(message)
-                onStateChanged?()
-                DistributedNotificationBridge.postServiceState("pending-approval")
-                return true
-            case let .failed(message):
-                AppLogger.shared.error("❌ [Service] \(message)")
-                onError?(message)
-                onStateChanged?()
-                return false
-            }
-
-            await AppContextService.shared.start()
-            onError?(nil)
-            onWarning?(nil)
-            onStateChanged?()
-            DistributedNotificationBridge.postServiceState("running")
-            return true
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            AppLogger.shared.errorUnlessQuietTest("❌ [Service] LaunchDaemon registration failed: \(message)")
-            onError?("Failed to start Kanata: \(message)")
-            onStateChanged?()
-            return false
-        }
-    }
-
-    @discardableResult
-    private func recoverIfRunningKanataDoesNotMatchBundledBinary(reason: String) async -> Bool {
-        guard let runningIdentity = await detectRunningKanataIdentity() else {
-            AppLogger.shared.debug("🔍 [Service] Running Kanata identity unavailable before start (\(reason))")
-            return false
-        }
-
-        let bundledPath = WizardSystemPaths.bundledKanataPath
-        guard !runningIdentity.matchesBundledKanata(bundledPath) else {
-            AppLogger.shared.debug(
-                "✅ [Service] Running Kanata binary matches bundled binary: pid=\(runningIdentity.pid), path=\(runningIdentity.executablePath)"
-            )
-            return false
-        }
-
-        AppLogger.shared.warnUnlessQuietTest(
-            "⚠️ [Service] Running Kanata binary does not match bundled binary; " +
-                "forcing privileged runtime recovery. running(pid=\(runningIdentity.pid), " +
-                "path=\(runningIdentity.executablePath)) bundled=\(bundledPath)"
-        )
-
-        let report = await InstallerEngine()
-            .runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
-        if !report.success {
-            AppLogger.shared.warn(
-                "⚠️ [Service] Privileged stale Kanata termination failed: \(report.failureReason ?? "unknown error")"
-            )
-            return false
-        }
-
-        ServiceHealthChecker.shared.invalidateHealthCache()
-        AppLogger.shared.log("✅ [Service] Stale Kanata runtime terminated before start (\(reason))")
-        return true
+        await requestSessionOperation(.start(reason))
     }
 
     @discardableResult
     func stopKanata(reason: String = "Manual stop") async -> Bool {
-        AppLogger.shared.log("🛑 [Service] Stopping Kanata (\(reason))")
-        // Mark this as an intentional transition so a benign `InputGrab active=false`
-        // emitted by the dying kanata doesn't trip auto-recovery (#625).
+        await requestSessionOperation(.stop(reason))
+    }
+
+    @discardableResult
+    func restartKanata(reason: String = "Manual restart") async -> Bool {
+        await requestSessionOperation(.restart(reason))
+    }
+
+    /// A preference change cannot race an owned Caps lease or a queued launch.
+    /// Restore first, then verify the proposed selection, then commit consent.
+    func changeCapsSelection(verify: @escaping @Sendable () async throws -> Void,
+                             commit: @escaping @MainActor @Sendable () throws -> Void) async -> Bool
+    {
+        guard !startsSuppressed, !Task.isCancelled else { return false }
+        sessionIntentGeneration &+= 1
+        let generation = sessionIntentGeneration
+        sessionWantsRunning = false
+        do {
+            return try await sessionOperationGate.withOperation { [self] _ in
+                guard await generation == sessionIntentGeneration else { return false }
+                guard await stopSessionAdmitted(reason: "Caps Lock setup changed") else { return false }
+                try await verify()
+                return try await commitCapsSelection(generation: generation, commit: commit)
+            }
+        } catch {
+            onError?("Caps Lock setup could not be changed safely. Existing selection and recovery records were preserved.")
+            return false
+        }
+    }
+
+    /// `changeCapsSelection` stops the runtime to release the Caps lease. Start it
+    /// again if it was running before, whether the change committed or was refused,
+    /// so remapping is never left off by a settings change.
+    func resumeAfterCapsSelectionChange(wasRunning: Bool) async {
+        guard wasRunning, !sessionWantsRunning else { return }
+        await startKanata(reason: "Caps Lock setup changed")
+    }
+
+    private func commitCapsSelection(generation: UInt64, commit: @MainActor () throws -> Void) throws -> Bool {
+        guard generation == sessionIntentGeneration, !startsSuppressed, !Task.isCancelled else { return false }
+        try commit()
+        refreshSessionConfigurationAdmission()
+        onStateChanged?()
+        return true
+    }
+
+    private func requestSessionOperation(_ operation: SessionLifecycleOperation) async -> Bool {
+        if case .stop = operation {} else if startsSuppressed { return false }
+        // A request already cancelled before entry changes no intent. An accepted
+        // stop must still release held outputs even if its caller later cancels.
+        if case .stop = operation {} else if Task.isCancelled { return false }
+        sessionIntentGeneration &+= 1
+        let generation = sessionIntentGeneration
+        sessionPreparationFailure = nil
+        if case .stop = operation { sessionWantsRunning = false } else { sessionWantsRunning = true }
+        #if DEBUG
+            testSessionRequestObserved?(generation)
+        #endif
+        if case .stop = operation {
+            return await Task.detached { [self] in
+                await admitSessionOperation(operation, generation: generation)
+            }.value
+        }
+        let result = await admitSessionOperation(operation, generation: generation)
+        if Task.isCancelled, generation == sessionIntentGeneration {
+            // A cancelled queued start has already invalidated supervision of
+            // the previous worker. Finish with an admitted stop, never abandon it.
+            _ = await requestSessionOperation(.stop("Cancelled lifecycle request"))
+            return false
+        }
+        return generation == sessionIntentGeneration && sessionWantsRunning && result
+    }
+
+    private func admitSessionOperation(_ operation: SessionLifecycleOperation, generation: UInt64) async -> Bool {
+        do {
+            return try await sessionOperationGate.withOperation { [self] _ in
+                await performSessionOperation(operation, generation: generation)
+            }
+        } catch {
+            return false
+        }
+    }
+
+    /// Automatic recovery carries the old intent; it cannot replace a newer
+    /// manual stop/start request while waiting for admission.
+    func resumeSessionRuntime(expectedGeneration: UInt64, reason: String = "Secure typing ended") async -> Bool {
+        guard sessionStartIsCurrent(expectedGeneration) else { return false }
+        #if DEBUG
+            testSessionRequestObserved?(expectedGeneration)
+        #endif
+        let resumed = await Task.detached { [self] in
+            await admitSessionOperation(.start(reason), generation: expectedGeneration)
+        }.value
+        return sessionStartIsCurrent(expectedGeneration) && resumed
+    }
+
+    private func performSessionOperation(_ operation: SessionLifecycleOperation, generation: UInt64) async -> Bool {
+        guard generation == sessionIntentGeneration else { return false }
+        switch operation {
+        case let .start(reason):
+            return await startSessionAdmitted(reason: reason, generation: generation)
+        case let .stop(reason):
+            return await stopSessionAdmitted(reason: reason)
+        case let .restart(reason):
+            guard await prepareSessionStart(generation: generation) else { return false }
+            guard await stopSessionAdmitted(reason: "\(reason) (stop for restart)"),
+                  sessionStartIsCurrent(generation) else { return false }
+            return await launchPreparedSession(reason: "\(reason) (restart)", generation: generation)
+        }
+    }
+
+    /// Read the unchanged current file once per admission, before any owned stop
+    /// or launch. Worker validation remains the final check at execution time.
+    @discardableResult
+    func refreshSessionConfigurationAdmission() -> KanataHostBridgeValidationResult {
+        let result: KanataHostBridgeValidationResult
+        #if DEBUG
+            if let validate = testSessionConfigurationValidation {
+                result = validate()
+            } else if TestEnvironment.isTestHostProcess {
+                result = .valid
+            } else {
+                result = readSessionConfigurationAdmission()
+            }
+        #else
+            result = readSessionConfigurationAdmission()
+        #endif
+        sessionConfigurationAdmission = result
+        return result
+    }
+
+    private func readSessionConfigurationAdmission() -> KanataHostBridgeValidationResult {
+        let path = KeyPathConstants.Config.mainConfigPath
+        guard FileManager.default.fileExists(atPath: path) else {
+            return .unavailable(reason: "User configuration is not available yet")
+        }
+        return SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current(), requireSelection: false).result
+    }
+
+    var sessionConfigurationRefusal: String? {
+        guard case .invalid = sessionConfigurationAdmission else { return nil }
+        return sessionConfigurationAdmission.flatMap(SessionCapsRuntimeSupport.startupFailureMessage)
+    }
+
+    /// A rejected edited file does not invalidate an already owned running tap.
+    /// No-start and skipped-start paths still get current admission before UI polling.
+    func configurationRefusalForStartup() -> String? {
+        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
+        refreshSessionConfigurationAdmission()
+        return sessionConfigurationRefusal
+    }
+
+    private func admitSessionConfiguration(generation: UInt64) -> Bool {
+        let admission = refreshSessionConfigurationAdmission()
+        guard case .valid = admission else {
+            retainOwnedSessionSupervision(generation: generation)
+            onError?(SessionCapsRuntimeSupport.startupFailureMessage(admission))
+            onStateChanged?()
+            return false
+        }
+        return true
+    }
+
+    /// Complete keyboard selection and parsed admission while the existing worker
+    /// is still owned. A rejected setup must not interrupt its working mapping.
+    private func prepareSessionStart(generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
+        do {
+            try await prepareAutomaticCapsSelection(generation: generation)
+        } catch {
+            guard sessionStartIsCurrent(generation) else { return false }
+            retainOwnedSessionSupervision(generation: generation)
+            let reason = "Caps Lock could not be set up automatically. Connect one compatible keyboard, then try again. Your rules were kept."
+            sessionPreparationFailure = (generation, reason)
+            AppLogger.shared.warn("[Session] Caps preparation refused: \(error). \(reason)")
+            onError?(reason)
+            onStateChanged?()
+            return false
+        }
+        guard sessionStartIsCurrent(generation), admitSessionConfiguration(generation: generation),
+              sessionStartIsCurrent(generation) else { return false }
+        return true
+    }
+
+    private func prepareAutomaticCapsSelection(generation: UInt64) async throws {
+        #if DEBUG
+            if let prepare = testSessionCapsPreparation {
+                try await prepare()
+                return
+            }
+        #endif
+        guard !TestEnvironment.isTestHostProcess,
+              SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath,
+                                                 runtimeHost: .current(), requireSelection: false).managedCaps,
+              (try? SessionCapsRuntimeSupport.selectedDevice()) == nil,
+              !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey) else { return }
+        let selection = try await Task.detached {
+            try SessionCapsRuntimeSupport.automaticSelection(
+                devices: SessionCapsHIDUtilTransport.backend().enumerate(),
+                boot: SessionCapsRuntimeSupport.bootSessionUUID()
+            )
+        }.value
+        guard sessionStartIsCurrent(generation) else { throw CancellationError() }
+        try SessionCapsSelectionStore.save(selection)
+    }
+
+    private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {
+        guard await prepareSessionStart(generation: generation) else { return false }
+        return await launchPreparedSession(reason: reason, generation: generation)
+    }
+
+    private func launchPreparedSession(reason: String, generation: UInt64) async -> Bool {
+        guard sessionStartIsCurrent(generation) else { return false }
+        stopGraceUntil = nil
+        isStartingKanata = true
+        defer { isStartingKanata = false }
+        #if DEBUG
+            if let start = Self.testSessionStart {
+                let result = await start(reason)
+                guard sessionStartIsCurrent(generation) else {
+                    // The seam represents a launch that can complete after
+                    // cancellation, just like NSWorkspace. Cleanup stays admitted.
+                    _ = await stopSessionAdmitted(reason: "Superseded start")
+                    return false
+                }
+                if result { await invalidatePermissionsForNewSessionRuntime() }
+                return result
+            }
+        #endif
+        return await startSessionRuntime(reason: reason, generation: generation)
+    }
+
+    func stopSessionAdmitted(reason: String) async -> Bool {
+        AppLogger.shared.log("Stopping session runtime (\(reason))")
         intentionalStopDepth += 1
         defer {
             intentionalStopDepth = max(0, intentionalStopDepth - 1)
@@ -309,76 +463,20 @@ final class ServiceLifecycleCoordinator {
                 stopGraceUntil = Date().addingTimeInterval(intentionalStopGrace)
             }
         }
-        await AppContextService.shared.stop()
-
-        do {
-            _ = try await kanataDaemonService.stopIfRunning()
-            onWarning?(nil)
-            onStateChanged?()
-            DistributedNotificationBridge.postServiceState("stopped")
-            return true
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            AppLogger.shared.error("❌ [Service] Stop failed: \(message)")
-            onError?("Stop failed: \(message)")
-            onStateChanged?()
-            return false
-        }
-    }
-
-    @discardableResult
-    func restartKanata(reason: String = "Manual restart") async -> Bool {
-        let stopped = await stopKanata(reason: "\(reason) (stop for restart)")
-        guard stopped else { return false }
-        return await startKanata(reason: "\(reason) (restart)")
+        #if DEBUG
+            if let stop = Self.testSessionStop { return await stop() }
+        #endif
+        return await stopSessionRuntime()
     }
 
     func isInTransientRuntimeStartupWindow() async -> Bool {
-        if windowEvaluator.isInWindow(
-            now: Date(),
-            isStarting: isStartingKanata,
-            lastStartAttemptAt: lastStartAttemptAt,
-            isSMAppServicePending: false
-        ) {
-            return true
-        }
-        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        return managementState == .smappservicePending
-    }
-
-    private func verifyRuntimeReadinessAfterStart(reason: String) async -> RuntimeReadinessVerification {
-        var lastSummary = "no runtime snapshot collected"
-
-        for attempt in 0 ..< RuntimeReadinessTiming.pollCount {
-            let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-            if managementState == .smappservicePending {
-                return .pendingApproval("Kanata is registered but pending approval in System Settings → Login Items.")
-            }
-
-            let staleRegistration = managementState == .smappserviceActive
-                ? await KanataDaemonManager.shared.isRegisteredButNotLoaded()
-                : false
-            let snapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
-                managementState: WizardServiceManagementState(managementState),
-                staleEnabledRegistration: staleRegistration,
-                tcpPort: PreferencesService.shared.tcpServerPort,
-                timeoutMs: RuntimeReadinessTiming.tcpProbeTimeoutMs
-            )
-            let decision = ServiceHealthChecker.decideKanataHealth(for: snapshot)
-            lastSummary =
-                "state=\(managementState.description), running=\(snapshot.isRunning), tcp=\(snapshot.isResponding), inputCapture=\(snapshot.inputCaptureReady), decision=\(decision)"
-
-            if Self.shouldAcceptPostStartRuntime(snapshot) {
-                AppLogger.shared.log("✅ [Service] Runtime readiness verified after start (\(reason)): \(lastSummary)")
-                return .ready
-            }
-
-            if attempt < RuntimeReadinessTiming.pollCount - 1 {
-                await sleepForReadinessPoll()
-            }
-        }
-
-        return .failed("Kanata start did not reach runtime readiness after \(RuntimeReadinessTiming.timeoutMs)ms (\(lastSummary))")
+        if recoveryRefusalForStartup != nil { return false }
+        if sessionConfigurationRefusal != nil,
+           currentSessionReport()?.state != .running { return false }
+        // Session starts are owned and awaited here. Once the attempt returns,
+        // no service is starting in the background. A creation/attempt-age grace
+        // would hide Start after a completed permission refusal.
+        return isStartingKanata || isRecoveringFromSystemWake
     }
 
     static func shouldAcceptPostStartRuntime(
@@ -387,52 +485,27 @@ final class ServiceLifecycleCoordinator {
         snapshot.readiness.isReady
     }
 
-    private func sleepForReadinessPoll() async {
-        #if DEBUG
-            if let testSleep = Self.testSleep {
-                await testSleep(RuntimeReadinessTiming.pollInterval)
-                return
-            }
-        #endif
-        try? await Task.sleep(for: RuntimeReadinessTiming.pollInterval)
-    }
-
     // MARK: - Runtime Status
 
     func currentRuntimeStatus() async -> RuntimeStatus {
-        if isStartingKanata {
-            return .starting
-        }
-
-        let daemonStatus = await kanataDaemonService.refreshStatus()
-        switch daemonStatus {
-        case let .running(pid):
-            return .running(pid: pid)
-        case .stopped:
+        if isStartingKanata { return .starting }
+        guard let report = currentSessionReport() else {
+            if let refusal = sessionRecoveryRefusal { return .failed(reason: refusal) }
+            if let admission = sessionConfigurationAdmission,
+               let reason = SessionCapsRuntimeSupport.startupFailureMessage(admission)
+            {
+                return .failed(reason: reason)
+            }
             return .stopped
-        case let .failed(reason):
-            return .failed(reason: reason)
-        case .unknown:
-            return .unknown
         }
+        return report.state == .running && report.tapActive
+            ? .running(pid: Int(report.pid)) : .failed(reason: report.failure ?? report.state.rawValue)
     }
 
     // MARK: - Validation Start
 
     func startKanataWithValidation() async {
-        await recoveryCoordinator.startKanataWithValidation(
-            isKarabinerDaemonRunning: { [weak self] in
-                guard let self, let checker = isVirtualHIDDaemonHealthy else { return false }
-                return await checker()
-            },
-            startKanata: { [weak self] in
-                await self?.startKanata(reason: "VirtualHID validation start") ?? false
-            },
-            onError: { [weak self] error in
-                self?.onError?(error)
-                self?.onStateChanged?()
-            }
-        )
+        _ = await startKanata(reason: "Session validation start")
     }
 
     // MARK: - Permission Checks
@@ -444,201 +517,5 @@ final class ServiceLifecycleCoordinator {
 
     func isFirstTimeInstall() -> Bool {
         InstallationCoordinator().isFirstTimeInstall(configPath: KeyPathConstants.Config.mainConfigPath)
-    }
-
-    // MARK: - Private
-
-    /// Terminate any orphaned `kanata-launcher` / `kanata` processes and wait until
-    /// they are fully gone AND the TCP port is released, BEFORE the new LaunchDaemon
-    /// registers (#625 part-1 — "wait-for-exit before start").
-    ///
-    /// The old kanata holds the exclusive keyboard grab and TCP port until it actually
-    /// exits, and `SMAppService.unregister()` returns before the OS finishes tearing the
-    /// process down. Registering a new kanata while the old one lingers is the stop→start
-    /// race that produces the silent "degraded" state (process up, but never grabbed the
-    /// keyboard). Waiting here makes the transition deterministic.
-    ///
-    /// Bounded: on timeout we log a warning and proceed anyway rather than failing the
-    /// start — leaving the user with no remapping would be worse, and the #625 grab
-    /// auto-recovery is the backstop for any residual degraded case.
-    ///
-    /// `internal` (not `private`) so tests can drive it directly: `startKanata`'s VHID
-    /// gates short-circuit in the test environment, so the seam-injected polling logic
-    /// is exercised by calling this method rather than through `startKanata`.
-    func waitForKanataExitBeforeStart() async {
-        let processNames = ["kanata-launcher", "kanata"]
-        var killedAny = false
-
-        for name in processNames {
-            let pids = await pgrepMatches(name)
-            guard !pids.isEmpty else { continue }
-            killedAny = true
-
-            for pid in pids {
-                AppLogger.shared.log("🧹 [Service] Terminating orphaned \(name) (PID \(pid)) before LaunchDaemon start")
-                sendSignal(pid, SIGTERM)
-            }
-
-            // Poll until the processes exit; escalate to SIGKILL past the grace window.
-            let survivors = await waitForProcessesGone(pids, withinMs: WaitForExitTiming.processExitGraceMs)
-            for pid in survivors {
-                AppLogger.shared.warnUnlessQuietTest("⚠️ [Service] \(name) (PID \(pid)) did not exit within grace — SIGKILL")
-                sendSignal(pid, SIGKILL)
-            }
-            if !survivors.isEmpty {
-                let stillAlive = await waitForProcessesGone(survivors, withinMs: WaitForExitTiming.postKillConfirmMs)
-                if !stillAlive.isEmpty {
-                    AppLogger.shared.warnUnlessQuietTest(
-                        "⚠️ [Service] \(name) PIDs \(stillAlive) still alive after SIGKILL — proceeding anyway"
-                    )
-                }
-            }
-        }
-
-        // Only wait on the TCP port if we actually killed something. A clean machine has
-        // nothing of ours holding the port, so the common first-start path adds no latency.
-        guard killedAny else { return }
-        if await waitForPortReleased() {
-            AppLogger.shared.log("✅ [Service] wait-for-exit complete — port released, proceeding with start")
-        }
-        // The timeout path already warned inside waitForPortReleased; no ✅ there so a
-        // `grep "✅"` of the log can't be fooled into thinking a stuck port was clean.
-    }
-
-    /// Poll the given PIDs until none are alive or the budget elapses.
-    /// - Returns: PIDs still alive when the budget is exhausted (empty on success).
-    private func waitForProcessesGone(_ pids: [pid_t], withinMs budgetMs: Int) async -> [pid_t] {
-        var remaining = pids
-        let maxPolls = WaitForExitTiming.pollCount(forMs: budgetMs)
-        for poll in 0 ..< maxPolls {
-            remaining = remaining.filter { isProcessAlive($0) }
-            if remaining.isEmpty { return [] }
-            // Skip the sleep after the final poll so the budget stays ~budgetMs, not
-            // budgetMs + one extra interval.
-            if poll < maxPolls - 1 { await waitSleep(WaitForExitTiming.pollInterval) }
-        }
-        return remaining
-    }
-
-    /// Poll the kanata TCP port until nothing is listening (the old process released it)
-    /// or the budget elapses.
-    /// - Returns: `true` if the port was confirmed free, `false` on timeout (caller
-    ///   proceeds anyway; a warning is logged here).
-    private func waitForPortReleased() async -> Bool {
-        let port = PreferencesService.shared.tcpServerPort
-        let maxPolls = WaitForExitTiming.pollCount(forMs: WaitForExitTiming.portReleaseTimeoutMs)
-        for poll in 0 ..< maxPolls {
-            let listening = await probePort(port, timeoutMs: WaitForExitTiming.tcpProbeTimeoutMs)
-            if !listening { return true }
-            if poll < maxPolls - 1 { await waitSleep(WaitForExitTiming.pollInterval) }
-        }
-        AppLogger.shared.warnUnlessQuietTest(
-            "⚠️ [Service] TCP port \(port) still in use after wait-for-exit — proceeding anyway (grab auto-recovery is the backstop)"
-        )
-        return false
-    }
-
-    // MARK: - Wait-for-exit primitives (test-seam aware)
-
-    private func pgrepMatches(_ name: String) async -> [pid_t] {
-        #if DEBUG
-            if let provider = Self.testPgrepProvider { return provider(name) }
-        #endif
-        // Never spawn a real `pgrep` under tests: it can deadlock under parallel runs
-        // (see CLAUDE.md) and would let synthetic PIDs reach a real `kill`. Tests that
-        // need orphan PIDs inject `testPgrepProvider`; everything else gets a clean slate.
-        if TestEnvironment.isRunningTests { return [] }
-        return await SystemStateProvider.shared.processIDs(matching: name)
-    }
-
-    private func detectRunningKanataIdentity() async -> RunningKanataIdentity? {
-        #if DEBUG
-            if let provider = Self.testRunningKanataIdentityProvider {
-                return await provider()
-            }
-        #endif
-
-        if TestEnvironment.isRunningTests { return nil }
-
-        let pids = await pgrepMatches("kanata.*--cfg")
-        for pid in pids {
-            if let path = executablePath(for: pid) {
-                return await RunningKanataIdentity(
-                    pid: pid,
-                    executablePath: path,
-                    startedAt: processStartDate(for: pid)
-                )
-            }
-        }
-        return nil
-    }
-
-    private func processStartDate(for pid: pid_t) async -> Date? {
-        do {
-            let result = try await SubprocessRunner.shared.run(
-                "/bin/ps",
-                args: ["-p", "\(pid)", "-o", "lstart="],
-                timeout: 2
-            )
-            guard result.exitCode == 0 else { return nil }
-            let raw = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            return Self.parseProcessStartDate(raw)
-        } catch {
-            return nil
-        }
-    }
-
-    private static func parseProcessStartDate(_ raw: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE MMM d HH:mm:ss yyyy"
-        formatter.isLenient = true
-        return formatter.date(from: raw)
-    }
-
-    private nonisolated func executablePath(for pid: pid_t) -> String? {
-        let procPIDPathInfoMaxSize = 4096
-        var buffer = [CChar](repeating: 0, count: procPIDPathInfoMaxSize)
-        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
-        guard length > 0 else { return nil }
-        let bytes = buffer
-            .prefix(Int(length))
-            .prefix { $0 != 0 }
-            .map { UInt8(bitPattern: $0) }
-        return String(bytes: bytes, encoding: .utf8)
-    }
-
-    private nonisolated func isProcessAlive(_ pid: pid_t) -> Bool {
-        #if DEBUG
-            if let probe = Self.testLivenessProbe { return probe(pid) }
-        #endif
-        return SystemStateProvider.isProcessAlive(pid: pid)
-    }
-
-    private nonisolated func sendSignal(_ pid: pid_t, _ signal: Int32) {
-        #if DEBUG
-            if let send = Self.testSignal {
-                send(pid, signal)
-                return
-            }
-        #endif
-        kill(pid, signal)
-    }
-
-    private func probePort(_ port: Int, timeoutMs: Int) async -> Bool {
-        #if DEBUG
-            if let probe = Self.testTCPProbe { return probe(port, timeoutMs) }
-        #endif
-        return await SystemStateProvider.shared.isTCPPortResponding(port: port, timeoutMs: timeoutMs)
-    }
-
-    private func waitSleep(_ duration: Duration) async {
-        #if DEBUG
-            if let sleep = Self.testSleep {
-                await sleep(duration)
-                return
-            }
-        #endif
-        try? await Task.sleep(for: duration)
     }
 }

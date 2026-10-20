@@ -59,18 +59,11 @@ enum NeovimTerminalCategory: String, CaseIterable, Identifiable {
         }
     }
 
+    /// One color for the pack: the overlay's editor blue (KeycapSymbols.LayerColors.editor),
+    /// so Settings, the terminal cheat sheet and the overlay agree. Topics differ by
+    /// title and icon, not by hue.
     var accentColor: Color {
-        switch self {
-        case .basicMotions: .blue
-        case .operators: .orange
-        case .textObjects: .pink
-        case .windowNavigation: .indigo
-        case .buffersTabs: .teal
-        case .lsp: .mint
-        case .telescope: .cyan
-        case .terminalMode: .gray
-        case .search: .purple
-        }
+        KeyPathColors.layerBlue
     }
 
     var isNeovimSpecific: Bool {

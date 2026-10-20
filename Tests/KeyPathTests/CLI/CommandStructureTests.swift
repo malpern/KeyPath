@@ -16,11 +16,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testRootHasPorcelainShortcuts() {
         let names = subcommandNames(of: KeyPathCLI.self)
-        XCTAssertTrue(names.contains("status"), "Missing porcelain shortcut: status")
         XCTAssertTrue(names.contains("remap"), "Missing porcelain shortcut: remap")
-        XCTAssertTrue(names.contains("start"), "Missing porcelain shortcut: start")
-        XCTAssertTrue(names.contains("stop"), "Missing porcelain shortcut: stop")
-        XCTAssertTrue(names.contains("restart"), "Missing porcelain shortcut: restart")
         XCTAssertTrue(names.contains("logs"), "Missing porcelain shortcut: logs")
         XCTAssertTrue(names.contains("unmap"), "Missing porcelain shortcut: unmap")
     }
@@ -47,7 +43,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testServiceHasExpectedVerbs() {
         let names = subcommandNames(of: Service.self)
-        XCTAssertEqual(Set(names), ["status", "start", "stop", "restart", "reload", "logs"])
+        XCTAssertEqual(Set(names), ["reload", "logs"])
     }
 
     func testConfigHasExpectedVerbs() {
@@ -57,7 +53,42 @@ final class CommandStructureTests: XCTestCase {
 
     func testSystemHasExpectedVerbs() {
         let names = subcommandNames(of: System.self)
-        XCTAssertEqual(Set(names), ["install", "repair", "uninstall", "inspect"])
+        XCTAssertEqual(Set(names), ["inspect"])
+    }
+
+    func testUnsupportedDriverlessCommandsRejectBeforeExecution() {
+        let commands = [
+            ["service", "status"], ["service", "start"], ["service", "stop"], ["service", "restart"],
+            ["status"], ["start"], ["stop"], ["restart"],
+            ["system", "install"], ["system", "repair"], ["system", "uninstall"],
+        ]
+        for arguments in commands {
+            for flags in [[], ["--json"], ["--dry-run"]] {
+                XCTAssertThrowsError(try KeyPathCLI.parseAsRoot(arguments + flags), arguments.joined(separator: " ")) { error in
+                    XCTAssertNotEqual(KeyPathCLI.exitCode(for: error), .success)
+                }
+            }
+        }
+    }
+
+    func testSupportedConfigSimulatorAndDiagnosticsRemainRegistered() throws {
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["config", "check", "--json"]) is ConfigCheck)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["simulate", "a", "--dry-run"]) is Simulate)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "reload"]) is ServiceReload)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "logs"]) is ServiceLogs)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["system", "inspect"]) is SystemInspect)
+        XCTAssertTrue(KeyPathCLI.helpMessage().contains("Open KeyPath.app"))
+    }
+
+    func testCompletionsOmitUnavailableCommandsAndKeepReload() {
+        let completions = KeyPathCLI.completionScript(for: .zsh)
+        for command in ["service_status", "service_start", "service_stop", "service_restart",
+                        "system_install", "system_repair", "system_uninstall"]
+        {
+            XCTAssertFalse(completions.contains("_keypath_\(command)"))
+        }
+        XCTAssertTrue(completions.contains("_keypath_service_reload"))
+        XCTAssertTrue(completions.contains("_keypath_config_check"))
     }
 
     func testHelpTopicsHasExpectedVerbs() {

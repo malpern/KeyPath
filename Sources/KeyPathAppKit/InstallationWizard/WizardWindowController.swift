@@ -58,6 +58,18 @@ final class WizardWindowController {
             initialPage: initialPage,
             onFirstSuccess: { [weak self] in
                 self?.scheduleFirstSuccessOnboarding()
+            },
+            onOpenKeyboard: { [weak self] in
+                self?.closeCompletion.schedule {
+                    let overlay = LiveKeyboardOverlayController.shared
+                    // The wizard only schedules this after verifying a healthy runtime.
+                    // Complete the overlay gate before presenting the successful handoff.
+                    overlay.setOnboardingCompleted(true)
+                    overlay.showForStartup(bypassHiddenCheck: true)
+                    if !overlay.uiState.isInspectorOpen {
+                        overlay.toggleInspectorPanel()
+                    }
+                }
             }
         )
 

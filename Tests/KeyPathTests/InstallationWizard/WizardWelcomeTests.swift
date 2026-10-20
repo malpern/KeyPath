@@ -40,6 +40,22 @@ final class WizardWelcomeTests: XCTestCase {
         )
     }
 
+    @MainActor
+    func testWizardWithoutHelperHonorsPersistedWelcomeAcrossRelaunch() {
+        let suite = "KeyPath.welcome-resume.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: defaults))
+
+        defaults.set(true, forKey: WizardWelcomeGate.hasSeenWelcomeKey)
+        let relaunchedDefaults = UserDefaults(suiteName: suite)!
+        XCTAssertFalse(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: relaunchedDefaults))
+
+        relaunchedDefaults.set(true, forKey: WizardWelcomeGate.forceWelcomeKey)
+        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: relaunchedDefaults))
+    }
+
     // MARK: - Welcome stays out of the step sequence
 
     func testWelcomeIsNotAnOrderedPage() {
@@ -67,15 +83,33 @@ final class WizardWelcomeTests: XCTestCase {
         )
     }
 
-    func testNextPageFromWelcomeOnFreshInstallGoesToHelper() {
+    func testNextPageFromWelcomeHistoricalDriverKitInstallGoesToHelper() {
         let next = WizardRouter.nextPage(
             after: .welcome,
             state: .initializing,
             issues: [],
             helperInstalled: false,
-            helperNeedsApproval: false
+            helperNeedsApproval: false, backend: .driverKit
         )
         XCTAssertEqual(next, .helper, "Get Started on a fresh install should route to the helper page")
+    }
+
+    func testWelcomeSessionDoesNotUseLegacyHelperPrerequisite() {
+        let runtimeIssue = WizardIssue(
+            identifier: .daemon, severity: .error, category: .daemon,
+            title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
+            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+        )
+        let next = WizardRouter.nextPage(
+            after: .welcome, state: .serviceNotRunning, issues: [runtimeIssue],
+            helperInstalled: false, helperNeedsApproval: true, backend: .session
+        )
+        // Welcome is outside the ordered steps, so Get Started reaches the summary.
+        XCTAssertEqual(next, .summary)
+        XCTAssertEqual(WizardRouter.route(
+            state: .serviceNotRunning, issues: [runtimeIssue],
+            helperInstalled: false, helperNeedsApproval: true, backend: .session
+        ), .service)
     }
 
     func testNextPageFromWelcomeOnHealthySystemFallsBackToSummary() {

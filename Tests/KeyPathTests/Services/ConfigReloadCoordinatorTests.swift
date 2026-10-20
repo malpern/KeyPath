@@ -3,6 +3,7 @@ import Foundation
 import KeyPathCore
 import KeyPathDaemonLifecycle
 import Testing
+@preconcurrency import XCTest
 
 // MARK: - Mocks
 
@@ -44,6 +45,10 @@ private final class MutableRuntimeTransition {
     var waitCount = 0
     var reloadCount = 0
     var tcpReloadCount = 0
+    var managedCaps = false
+    var restartCount = 0
+    var wantsRunning = true
+    var intentGeneration: UInt64 = 0
 
     init(isTransitioning: Bool) {
         self.isTransitioning = isTransitioning
@@ -89,6 +94,7 @@ struct ConfigReloadCoordinatorTests {
     /// The coordinator is wired to the shared mocks so callers can adjust
     /// behaviour before invoking `triggerConfigReload()` etc.
     private static func makeSUT(
+        healthStatusOverride: (@MainActor @Sendable () async -> ServiceHealthStatus)? = nil,
         engineResult: EngineReloadResult = .success(response: "ok"),
         healthy: Bool = true,
         runtimeTransitioning: Bool = false,
@@ -99,7 +105,11 @@ struct ConfigReloadCoordinatorTests {
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             await Task.yield()
         },
-        automaticDeferredRetriesEnabled: Bool = true
+        automaticDeferredRetriesEnabled: Bool = true,
+        startRuntimeForExplicitApply: (@MainActor @Sendable () async -> Bool)? = nil,
+        currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
+        restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -127,16 +137,169 @@ struct ConfigReloadCoordinatorTests {
         let coordinator = ConfigReloadCoordinator(
             engineClient: engine,
             reloadSafetyMonitor: safetyMonitor,
-            healthStatusProvider: { _ in healthStatus.value },
+            healthStatusProvider: { _ in
+                if let healthStatusOverride { return await healthStatusOverride() }
+                return healthStatus.value
+            },
             processLifecycleManager: processLifecycle,
             isRuntimeTransitioning: { transitionState.isTransitioning },
             tcpReloadOverride: tcpReloadOverride,
             transitionRetryMaximumPolls: transitionRetryMaximumPolls,
             transitionRetryWait: transitionRetryWait,
-            automaticDeferredRetriesEnabled: automaticDeferredRetriesEnabled
+            automaticDeferredRetriesEnabled: automaticDeferredRetriesEnabled,
+            startRuntimeForExplicitApply: startRuntimeForExplicitApply,
+            runtimeWantsRunning: { transitionState.wantsRunning },
+            runtimeIntentGeneration: { transitionState.intentGeneration },
+            currentManagedCaps: currentManagedCaps,
+            restartForManagedCapsChange: restartForManagedCapsChange,
+            sessionValidationOverride: sessionValidationOverride
         )
 
         return (coordinator, engine, healthStatus)
+    }
+
+    @Test("Explicit retry starts a stopped session and reloads only after fresh readiness")
+    func explicitRetryRecoversStoppedRuntime() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let health = MutableHealthStatus(.unhealthy(reason: "Keyboard disconnected"))
+        let sut = ConfigReloadCoordinator(
+            engineClient: MockEngineClient(), reloadSafetyMonitor: ReloadSafetyMonitor(),
+            healthStatusProvider: { _ in health.value }, processLifecycleManager: ProcessLifecycleManager(),
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "applied") },
+            startRuntimeForExplicitApply: { state.restartCount += 1; health.value = .healthy(); return true }
+        )
+        let result = await sut.triggerConfigReload(recoverStoppedRuntime: true)
+        #expect(result.disposition == .applied)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 1)
+    }
+
+    @Test("Ordinary reload never starts a stopped runtime")
+    func backgroundReloadPreservesManualStop() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (sut, _, _) = Self.makeSUT(healthy: false,
+                                       startRuntimeForExplicitApply: { state.restartCount += 1; return true })
+        let result = await sut.triggerConfigReload()
+        #expect(result.disposition == .pending)
+        #expect(state.restartCount == 0)
+    }
+
+    @Test("Failed or unverified startup cannot report applied", arguments: [false, true])
+    func explicitRetryRequiresReadiness(startResult: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (sut, engine, _) = Self.makeSUT(healthy: false,
+                                            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "wrong") },
+                                            startRuntimeForExplicitApply: { state.restartCount += 1; return startResult })
+        let result = await sut.triggerConfigReload(recoverStoppedRuntime: true)
+        #expect(result.disposition == .pending)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 0)
+        #expect(engine.reloadCallCount == 0)
+    }
+
+    @Test("Explicit retry does not race an in-progress transition")
+    func explicitRetryWaitsForTransition() async {
+        let state = MutableRuntimeTransition(isTransitioning: true)
+        let (sut, _, _) = Self.makeSUT(healthy: false, runtimeTransitionState: state,
+                                       startRuntimeForExplicitApply: { state.restartCount += 1; return true })
+        #expect(await sut.triggerConfigReload(recoverStoppedRuntime: true).disposition == .pending)
+        #expect(state.restartCount == 0)
+    }
+
+    @Test("Crossing Caps runtime modes restarts and never sends a TCP reload", arguments: [false, true])
+    func capsModeChangeRestarts(current: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        state.managedCaps = current
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { state.managedCaps },
+            restartForManagedCapsChange: {
+                state.restartCount += 1
+                state.managedCaps = !current
+                return true
+            },
+            sessionValidationOverride: { (.valid, !current) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(result.isSuccess)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 0)
+        #expect(engine.reloadCallCount == 0)
+        #expect(state.managedCaps == !current)
+    }
+
+    @Test("A successful Caps mode restart may advance lifecycle intent")
+    func successfulCapsRestartAdvancesIntent() async {
+        let transition = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            runtimeTransitionState: transition,
+            currentManagedCaps: { transition.managedCaps },
+            restartForManagedCapsChange: {
+                transition.intentGeneration += 1
+                transition.managedCaps = true
+                return true
+            },
+            sessionValidationOverride: { (.valid, true) }
+        )
+        #expect(await coordinator.triggerConfigReload().disposition == .applied)
+        #expect(transition.intentGeneration == 1)
+    }
+
+    @Test("A Caps mode change without a restart owner is refused")
+    func capsModeChangeRequiresRestartOwner() async {
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadResult: .success(response: "tcp"),
+            sessionValidationOverride: { (.valid, true) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(!result.isSuccess)
+        #expect(result.errorMessage?.contains("requires a session restart") == true)
+        #expect(engine.reloadCallCount == 0)
+    }
+
+    @Test("A failed restart or an unconfirmed Caps report blocks the reload", arguments: [false, true])
+    func capsRestartMustConfirmMode(restartResult: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            restartForManagedCapsChange: { state.restartCount += 1; return restartResult },
+            sessionValidationOverride: { (.valid, true) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(!result.isSuccess)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 0)
+        #expect(engine.reloadCallCount == 0)
+    }
+
+    @Test("Same Caps mode uses TCP without restarting", arguments: [false, true])
+    func unchangedCapsModeReloads(current: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { current },
+            restartForManagedCapsChange: { state.restartCount += 1; return false },
+            sessionValidationOverride: { (.valid, current) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(result.isSuccess)
+        #expect(state.tcpReloadCount == 1)
+        #expect(state.restartCount == 0)
+    }
+
+    @Test("Invalid admission cannot restart or TCP reload")
+    func invalidCapsProfileCannotApply() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            restartForManagedCapsChange: { state.restartCount += 1; return true },
+            sessionValidationOverride: { (.invalid(reason: "Caps is not eligible"), true) }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(!result.isSuccess)
+        #expect(state.tcpReloadCount == 0)
+        #expect(state.restartCount == 0)
+        #expect(engine.reloadCallCount == 0)
     }
 
     // MARK: - triggerConfigReload: unhealthy service
@@ -290,6 +453,85 @@ struct ConfigReloadCoordinatorTests {
         let result = await coordinator.performDeferredReload()
         #expect(result.disposition == .applied)
         #expect(state.reloadCount == 1)
+    }
+
+    @Test("An edit during unhealthy startup is delivered after readiness")
+    func unhealthyStartupSchedulesDeferredReload() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let applied = XCTestExpectation(description: "Deferred edit reached runtime")
+        let (coordinator, _, health) = Self.makeSUT(
+            healthy: false,
+            runtimeTransitionState: transition,
+            tcpReloadOverride: {
+                transition.tcpReloadCount += 1
+                return .success(response: "ok")
+            },
+            transitionRetryMaximumPolls: 1,
+            transitionRetryWait: {
+                while transition.isTransitioning {
+                    await Task.yield()
+                }
+            }
+        )
+        coordinator.onDeferredReloadSuccess = { applied.fulfill() }
+        let result = await coordinator.triggerConfigReload()
+        #expect(result.disposition == .pending)
+        #expect(transition.tcpReloadCount == 0)
+        health.value = .healthy()
+        transition.isTransitioning = false
+        let settled = await XCTWaiter.fulfillment(of: [applied], timeout: 2)
+        #expect(settled == .completed)
+        #expect(transition.tcpReloadCount == 1)
+    }
+
+    @Test("A manual stop during deferred startup cancels retry quietly")
+    func stopDuringTransitionRetryCancelsQuietly() async {
+        let transition = MutableRuntimeTransition(isTransitioning: true)
+        let (coordinator, _, _) = Self.makeSUT(
+            runtimeTransitionState: transition,
+            tcpReloadOverride: { transition.tcpReloadCount += 1; return .success(response: "ok") },
+            transitionRetryMaximumPolls: 1,
+            transitionRetryWait: {
+                transition.wantsRunning = false
+                transition.intentGeneration += 1
+                transition.isTransitioning = false
+            }
+        )
+        let failure = NotificationFlag()
+        let observer = NotificationCenter.default.addObserver(forName: .configReloadFailed, object: coordinator, queue: nil) { _ in failure.set() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        #expect(await coordinator.retryAfterRuntimeTransition() == false)
+        #expect(transition.tcpReloadCount == 0)
+        #expect(!failure.value)
+    }
+
+    @Test("A reload waiting for health cannot undo a newer manual stop")
+    func newerStopPreventsManagedCapsRestart() async {
+        let transition = MutableRuntimeTransition(isTransitioning: false)
+        transition.managedCaps = true
+        let (coordinator, _, _) = Self.makeSUT(
+            healthStatusOverride: {
+                // Simulate Stop completing while the fresh TCP health request
+                // is suspended. Its older reply must not override that intent.
+                transition.managedCaps = false
+                transition.wantsRunning = false
+                transition.intentGeneration += 1
+                return .healthy()
+            },
+            runtimeTransitionState: transition,
+            tcpReloadOverride: { transition.tcpReloadCount += 1; return .success(response: "ok") },
+            currentManagedCaps: { transition.managedCaps },
+            restartForManagedCapsChange: {
+                transition.restartCount += 1
+                transition.managedCaps = true
+                return true
+            },
+            sessionValidationOverride: { (.valid, true) }
+        )
+        let result = await coordinator.triggerConfigReload()
+        #expect(result.disposition == .pending)
+        #expect(transition.restartCount == 0)
+        #expect(transition.tcpReloadCount == 0)
     }
 
     @Test("transition retry waits for readiness and reloads once")

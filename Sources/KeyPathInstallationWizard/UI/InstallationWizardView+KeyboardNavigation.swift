@@ -10,7 +10,7 @@ public extension InstallationWizardView {
     func navigateToPreviousPage() {
         guard stateMachine.currentPage != .summary, stateMachine.currentPage != .welcome else { return }
         let defaultSequence: [WizardPage] = [
-            .fullDiskAccess, .conflicts, .inputMonitoring, .accessibility,
+            .conflicts, .inputMonitoring, .accessibility,
             .karabinerComponents, .service, .communication
         ]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence

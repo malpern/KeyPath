@@ -435,6 +435,14 @@ fi
 # This ensures new images/scripts added under Sources/KeyPathApp/Resources show up
 # immediately without requiring a full ./build.sh.
 mkdir -p "$RESOURCES_DIR"
+# Offline help needs pandoc. A UI deploy without it keeps the installed help
+# rather than aborting; a fresh build replaces the folder so no stale article stays.
+if command -v pandoc >/dev/null 2>&1; then
+    rm -rf "$RESOURCES_DIR/OfflineHelp"
+    python3 "$PROJECT_DIR/Scripts/build-offline-help.py" --output "$RESOURCES_DIR/OfflineHelp"
+else
+    echo "⚠️  pandoc not found; keeping the installed offline help (brew install pandoc to rebuild it)"
+fi
 if command -v rsync >/dev/null 2>&1; then
     rsync -a "$PROJECT_DIR/Sources/KeyPathApp/Resources/" "$RESOURCES_DIR/"
 else
@@ -503,20 +511,23 @@ LOCAL_CODESIGN_FLAGS=(--timestamp=none)
 # nested signatures are preserved. $1 = signing identity ("-" for ad-hoc).
 resign_nested_identifiers() {
     local sign_id="$1"
+    # Ad-hoc test binaries have no team identity for hardened library validation.
+    local runtime_flags=(--options=0)
+    if [[ "$sign_id" != "-" ]]; then runtime_flags=(--options=runtime); fi
     if [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]]; then
-        codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" \
+        codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" \
             --identifier "com.keypath.helper" \
             --entitlements "$HELPER_ENTITLEMENTS" \
             --sign "$sign_id" \
             "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
     fi
     if [[ -f "$CLI_EXEC" ]]; then
-        codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" \
+        codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" \
             --identifier "com.keypath.KeyPath.CLI" \
             --sign "$sign_id" \
             "$CLI_EXEC" || echo "⚠️  Failed to re-sign keypath-cli with com.keypath.KeyPath.CLI identifier"
     fi
-    codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
+    codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 }
 
 if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then

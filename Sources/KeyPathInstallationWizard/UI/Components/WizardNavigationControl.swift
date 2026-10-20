@@ -112,6 +112,7 @@ public struct WizardDetailPageModifier: ViewModifier {
 
     public func body(content: Content) -> some View {
         content
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("wizard-page-\(stateMachine.currentPage.rawValue)")
     }
 }

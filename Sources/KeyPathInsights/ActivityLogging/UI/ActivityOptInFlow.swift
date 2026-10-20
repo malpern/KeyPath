@@ -100,6 +100,7 @@ struct ActivityOptInFlow: View {
         isEnabling = true
 
         Task { @MainActor in
+            await ActivityLogEncryption.shared.authorizeActivityHistoryAccess()
             // Record consent
             InsightsPreferences.activityLoggingConsentDate = Date()
             InsightsPreferences.activityLoggingEnabled = true

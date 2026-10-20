@@ -119,10 +119,10 @@ final class ContextHUDViewModelTests: XCTestCase {
     func testUpdatePopulatesGroups() {
         let vm = ContextHUDViewModel()
         let keyMap: [UInt16: LayerKeyInfo] = [
-            0: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"),
-            1: .mapped(displayLabel: "Down", outputKey: "down", outputKeyCode: nil,
-                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"),
+            4: .mapped(displayLabel: "Left", outputKey: "left", outputKeyCode: nil,
+                       collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "←"), // h
+            38: .mapped(displayLabel: "Down", outputKey: "down", outputKeyCode: nil,
+                        collectionId: RuleCollectionIdentifier.vimNavigation, vimLabel: "↓"), // j
         ]
 
         let collection = RuleCollection(
@@ -138,9 +138,9 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.layerName, "nav")
         XCTAssertEqual(vm.style, .defaultList)
-        // Vim entries are split into sub-groups; both are Movement
+        // Vim entries are split into sub-groups; h and j are both Move
         XCTAssertEqual(vm.groups.count, 1)
-        XCTAssertEqual(vm.groups.first?.name, "Movement")
+        XCTAssertEqual(vm.groups.first?.name, "Move")
         XCTAssertEqual(vm.groups.first?.entries.count, 2)
     }
 
@@ -213,7 +213,7 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         XCTAssertEqual(vm.groups.count, 2)
         let names = vm.groups.map(\.name).sorted()
-        XCTAssertEqual(names, ["Movement", "Window Snapping"])
+        XCTAssertEqual(names, ["Move", "Window Snapping"])
     }
 
     func testEntriesSortedByKeyCode() {
@@ -326,13 +326,14 @@ final class ContextHUDViewModelTests: XCTestCase {
 
         vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
 
-        XCTAssertEqual(vm.groups.count, 3, "Should have Movement, Editing, Search sub-groups")
+        // Same groups, order and names as Settings (VimLayerReference / VimCategory).
         let names = vm.groups.map(\.name)
-        XCTAssertEqual(names, ["Movement", "Editing", "Search"],
-                       "Sub-groups should be ordered: Movement → Editing → Search")
-        XCTAssertEqual(vm.groups[0].entries.count, 2) // Movement: ← ↓
-        XCTAssertEqual(vm.groups[1].entries.count, 2) // Editing: a, yank
-        XCTAssertEqual(vm.groups[2].entries.count, 1) // Search: find
+        XCTAssertEqual(names, ["Move", "Search", "Clipboard"],
+                       "Sub-groups follow Settings: Move → Edit → Search → Clipboard")
+        XCTAssertEqual(vm.groups[0].entries.map(\.keycap), ["h", "j", "a"], "Move lists h j k l before Append")
+        XCTAssertEqual(vm.groups[0].entries.map(\.action), ["Left", "Down", "Append"])
+        XCTAssertEqual(vm.groups[1].entries.map(\.action), ["Find"])
+        XCTAssertEqual(vm.groups[2].entries.map(\.action), ["Copy"], "y reads Copy, not Yank")
     }
 
     func testVimSubGroupsPreserveColor() {
@@ -378,7 +379,7 @@ final class ContextHUDViewModelTests: XCTestCase {
         vm.update(layerName: "nav", keyMap: keyMap, collections: [collection], style: .defaultList)
 
         let names = vm.groups.map(\.name)
-        XCTAssertTrue(names.contains("Movement"))
+        XCTAssertTrue(names.contains("Move"))
         XCTAssertTrue(names.contains("Other"))
     }
 
@@ -548,14 +549,12 @@ final class ContextHUDControllerTests: XCTestCase {
     private var controller: ContextHUDController!
     private var savedDisplayMode: ContextHUDDisplayMode!
     private var savedTriggerMode: ContextHUDTriggerMode!
-    private var savedTimeout: TimeInterval!
 
     override func setUp() async throws {
         try await super.setUp()
         // Save original preferences
         savedDisplayMode = PreferencesService.shared.contextHUDDisplayMode
         savedTriggerMode = PreferencesService.shared.contextHUDTriggerMode
-        savedTimeout = PreferencesService.shared.contextHUDTimeout
         // Create test controller (no notification observers)
         controller = ContextHUDController(testMode: true)
     }
@@ -566,7 +565,6 @@ final class ContextHUDControllerTests: XCTestCase {
         // Restore original preferences
         PreferencesService.shared.contextHUDDisplayMode = savedDisplayMode
         PreferencesService.shared.contextHUDTriggerMode = savedTriggerMode
-        PreferencesService.shared.contextHUDTimeout = savedTimeout
         try await super.tearDown()
     }
 
@@ -760,19 +758,16 @@ final class ContextHUDControllerTests: XCTestCase {
 final class ContextHUDPreferencesTests: XCTestCase {
     private var savedDisplayMode: ContextHUDDisplayMode!
     private var savedTriggerMode: ContextHUDTriggerMode!
-    private var savedTimeout: TimeInterval!
 
     override func setUp() async throws {
         try await super.setUp()
         savedDisplayMode = PreferencesService.shared.contextHUDDisplayMode
         savedTriggerMode = PreferencesService.shared.contextHUDTriggerMode
-        savedTimeout = PreferencesService.shared.contextHUDTimeout
     }
 
     override func tearDown() async throws {
         PreferencesService.shared.contextHUDDisplayMode = savedDisplayMode
         PreferencesService.shared.contextHUDTriggerMode = savedTriggerMode
-        PreferencesService.shared.contextHUDTimeout = savedTimeout
         try await super.tearDown()
     }
 
@@ -796,28 +791,8 @@ final class ContextHUDPreferencesTests: XCTestCase {
         XCTFail("Trigger mode did not persist as tapToToggle after retries")
     }
 
-    func testTimeoutPersistence() async {
-        for _ in 0 ..< 20 {
-            PreferencesService.shared.contextHUDTimeout = 7.5
-            let stored = UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout")
-            if abs(stored - 7.5) < 0.01 { return }
-            await Task.yield()
-        }
-        XCTFail("Timeout did not persist as 7.5 after retries")
-    }
-
-    func testTimeoutClampedToMin() {
-        PreferencesService.shared.contextHUDTimeout = 0.5
-        XCTAssertEqual(PreferencesService.shared.contextHUDTimeout, 1.0, accuracy: 0.01)
-    }
-
-    func testTimeoutClampedToMax() {
-        PreferencesService.shared.contextHUDTimeout = 15.0
-        XCTAssertEqual(PreferencesService.shared.contextHUDTimeout, 10.0, accuracy: 0.01)
-    }
-
     func testDisplayModeAllCasesExist() {
-        XCTAssertEqual(ContextHUDDisplayMode.allCases.count, 3)
+        XCTAssertEqual(ContextHUDDisplayMode.allCases, [.overlayOnly, .hudOnly, .both, .none])
     }
 
     func testTriggerModeAllCasesExist() {

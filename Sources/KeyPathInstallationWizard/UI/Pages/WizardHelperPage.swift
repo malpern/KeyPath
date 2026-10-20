@@ -586,7 +586,6 @@ public struct WizardHelperPage: View {
                 stopApprovalPolling()
                 needsLoginItemsApproval = false
                 // Bounce dock icon to get user's attention back to KeyPath
-                WizardWindowManager.shared.bounceDocIcon()
                 actionStatus = .success(message: "Helper approved and ready!")
                 helperVersion = await WizardDependencies.helperManager?.getHelperVersion()
                 scheduleStatusClear()

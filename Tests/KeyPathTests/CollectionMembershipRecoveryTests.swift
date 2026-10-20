@@ -10,19 +10,23 @@ final class CollectionMembershipRecoveryTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
+        manager.preferencesService.stageShortcutListGenerationInput(
+            ShortcutListGenerationInput(triggerMode: .holdToShow, holdDelayPreset: .long, customHoldDelayMs: 200)
+        )
         manager.ruleCollections = [collection("Existing", layer: .custom("work"))]
         manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42), targetLayer: .custom("work"))]
         try await persistFixture()
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: directory)
+        if let directory { try? FileManager.default.removeItem(at: directory) }
         manager = nil
         directory = nil
         try await super.tearDown()
@@ -66,7 +70,7 @@ final class CollectionMembershipRecoveryTests: KeyPathTestCase {
             return Self.reload(reloads == 1 ? .rejected : .applied)
         }
         await mutate()
-        XCTAssertEqual(reloads, 2)
+        XCTAssertEqual(reloads, 2, "Mutation errors: \(errors)")
         XCTAssertEqual(try files(), before)
         XCTAssertEqual(manager.ruleCollections, snapshot.collections)
         XCTAssertEqual(manager.customRules, snapshot.customRules)

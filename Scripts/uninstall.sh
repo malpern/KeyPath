@@ -1,1 +1,0 @@
-../Sources/KeyPathApp/Resources/uninstall.sh

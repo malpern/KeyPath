@@ -72,10 +72,10 @@ struct KeyActionTests {
         @Test("notify produces push-msg with parameters")
         func notify() {
             let withBody = KeyAction.notify(title: "Done", body: "Build complete", sound: true)
-            #expect(withBody.kanataOutput == "(push-msg \"notify?title=Done&body=Build complete&sound=1\")")
+            #expect(withBody.kanataOutput == "(push-msg \"notify:?title=Done&body=Build%20complete&sound=1\")")
 
             let noBody = KeyAction.notify(title: "Done", body: nil, sound: false)
-            #expect(noBody.kanataOutput == "(push-msg \"notify?title=Done\")")
+            #expect(noBody.kanataOutput == "(push-msg \"notify:?title=Done\")")
         }
 
         @Test("windowAction produces push-msg with position")

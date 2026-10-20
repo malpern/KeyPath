@@ -72,7 +72,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
                 accessibility: .granted, inputMonitoring: .granted,
                 source: "test", confidence: .high, timestamp: now
             ),
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
 
         // Key scenario: vhidServicesHealthy=true while the full runtime still is not installed
@@ -86,11 +86,10 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
             vhidVersionMismatch: false
         )
 
-        let services = HealthStatus(
-            kanataRunning: false, // Kanata not running
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
-        )
+        let services = HealthStatus(backend: .driverKit,
+                                    kanataRunning: false, // Kanata not running
+                                    karabinerDaemonRunning: true,
+                                    vhidHealthy: true)
 
         let context = SystemContext(
             permissions: perms,
@@ -144,7 +143,7 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
                 accessibility: .granted, inputMonitoring: .granted,
                 source: "test", confidence: .high, timestamp: now
             ),
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
 
         // VHID services unhealthy
@@ -158,11 +157,10 @@ final class KarabinerComponentsStatusEvaluatorTests: XCTestCase {
             vhidVersionMismatch: false
         )
 
-        let services = HealthStatus(
-            kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
-        )
+        let services = HealthStatus(backend: .driverKit,
+                                    kanataRunning: false,
+                                    karabinerDaemonRunning: true,
+                                    vhidHealthy: true)
 
         let context = SystemContext(
             permissions: perms,
