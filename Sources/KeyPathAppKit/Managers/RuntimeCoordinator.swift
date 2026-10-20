@@ -397,6 +397,13 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         serviceLifecycleCoordinator.onAdmissionEnvironment = { [weak self] environment in
             self?.ruleCollectionsManager.admissionEnvironment = environment
         }
+        // A refused start or save names the rule the engine blames (phase 4e).
+        serviceLifecycleCoordinator.admissionAttribution = { [weak self] in
+            self?.ruleCollectionsManager.blockingAdmissionSentences() ?? []
+        }
+        configurationService.sessionRefusalAttribution = { [weak self] in
+            self?.ruleCollectionsManager.blockingAdmissionSentences() ?? []
+        }
         StuckKeyRecoveryService.shared.sessionReportProvider = { [weak self] in
             self?.serviceLifecycleCoordinator.lastSessionReportForDiagnostics()
         }

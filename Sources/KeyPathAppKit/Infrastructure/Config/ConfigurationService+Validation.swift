@@ -18,14 +18,11 @@ extension ConfigurationService {
         let result = SessionCapsRuntimeSupport.validate(
             configPath: path.path, runtimeHost: sessionValidationRuntimeHost, requireSelection: false
         ).result
-        switch result {
-        case .valid:
-            return
-        case let .invalid(reason), let .unavailable(reason):
-            let errors = ["This configuration cannot run in the driverless session: \(reason). Existing rules were preserved."]
-            notifyValidationFailure(errors, context: "session")
-            throw KeyPathError.configuration(.validationFailed(errors: errors))
-        }
+        if case .valid = result { return }
+        let attribution = await MainActor.run { sessionRefusalAttribution?() ?? [] }
+        let errors = [SessionConfigurationRefusal.message(result, attribution: attribution) ?? result.logSummary]
+        notifyValidationFailure(errors, context: "session")
+        throw KeyPathError.configuration(.validationFailed(errors: errors))
     }
 
     /// Validate configuration via file-based check

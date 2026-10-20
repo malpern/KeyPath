@@ -290,14 +290,9 @@ enum SessionCapsRuntimeSupport {
         return selection
     }
 
+    /// Without attribution; the lifecycle coordinator adds the engine's.
     static func startupFailureMessage(_ result: KanataHostBridgeValidationResult) -> String? {
-        switch result {
-        case .valid: nil
-        case let .invalid(reason):
-            "This configuration cannot run in driverless mode: \(reason). Edit the configuration and retry; existing rules were preserved."
-        case let .unavailable(reason):
-            "Driverless configuration validation is unavailable: \(reason). Retry once validation is available; existing rules were preserved."
-        }
+        SessionConfigurationRefusal.message(result)
     }
 
     static func journalDirectory(configPath: String = KeyPathConstants.Config.mainConfigPath) -> URL {

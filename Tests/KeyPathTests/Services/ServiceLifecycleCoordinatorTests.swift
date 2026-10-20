@@ -257,6 +257,24 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertTrue(reason.contains("existing rules were preserved"))
     }
 
+    /// Phase 4e: the refusal names the rule the engine blames, in front of
+    /// the validator's reason, everywhere the coordinator renders it.
+    func testRefusalIsAttributedToTheRuleTheEngineBlames() async {
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported output key volu") }
+        coordinator.admissionAttribution = { ["Louder sends volu, which the current backend can't send."] }
+        var surfaced: String?
+        coordinator.onError = { surfaced = $0 }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in XCTFail("must not launch"); return true }
+        let started = await coordinator.startKanata(reason: "unsupported config")
+        XCTAssertFalse(started)
+        let expected = "This configuration cannot run in the driverless session. Louder sends volu, which the current backend can't send. "
+            + "Turn that rule off or change it, then retry; existing rules were preserved. (Validator: unsupported output key volu.)"
+        XCTAssertEqual(surfaced, expected)
+        XCTAssertEqual(coordinator.sessionConfigurationRefusal, expected)
+        guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else { return XCTFail("expected failed") }
+        XCTAssertEqual(reason, expected)
+    }
+
     func testValidRetryClearsConfigurationRefusal() async {
         coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported action") }
         let admissionResult3 = await coordinator.startKanata()

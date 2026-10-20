@@ -46,7 +46,8 @@ open keypath://runtime/restart      # same operation from Shortcuts/Raycast/Hamm
 ### Setup, health and uninstall
 
 ```bash
-keypath doctor --json               # {ready, issues:[{title, category, fix, needsUser, settingsURL}], state, ...}
+keypath doctor --json               # {ready, issues:[{title, category, fix, needsUser, settingsURL}],
+                                    #  admission:[{severity, subject, title, explanation, fixes}], state, ...}
 keypath setup --json --no-open      # repair + start; report what needs the user without opening Settings
 keypath setup --wait 300            # opens each needed Settings pane once and polls until granted
 keypath uninstall --json            # plan only, exit 2, nothing changed

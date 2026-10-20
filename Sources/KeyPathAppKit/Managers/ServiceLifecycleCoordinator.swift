@@ -176,6 +176,15 @@ final class ServiceLifecycleCoordinator {
     /// Lock (phase 4d); `RuntimeCoordinator` hands it to the rules manager.
     var onAdmissionEnvironment: ((AdmissionEngine.Environment) -> Void)?
 
+    /// The admission engine's blocking sentences for the rules on disk (phase
+    /// 4e), so a refused start names the rule. Wired by `RuntimeCoordinator`.
+    var admissionAttribution: (() -> [String])?
+
+    /// The bridge's result as one sentence, attributed when the engine can.
+    func refusalMessage(_ result: KanataHostBridgeValidationResult) -> String? {
+        SessionConfigurationRefusal.message(result, attribution: admissionAttribution?() ?? [])
+    }
+
     // MARK: - Init
 
     init(
@@ -373,7 +382,7 @@ final class ServiceLifecycleCoordinator {
 
     var sessionConfigurationRefusal: String? {
         guard case .invalid = sessionConfigurationAdmission else { return nil }
-        return sessionConfigurationAdmission.flatMap(SessionCapsRuntimeSupport.startupFailureMessage)
+        return sessionConfigurationAdmission.flatMap(refusalMessage)
     }
 
     /// A rejected edited file does not invalidate an already owned running tap.
@@ -388,7 +397,7 @@ final class ServiceLifecycleCoordinator {
         let admission = refreshSessionConfigurationAdmission()
         guard case .valid = admission else {
             retainOwnedSessionSupervision(generation: generation)
-            onError?(SessionCapsRuntimeSupport.startupFailureMessage(admission))
+            onError?(refusalMessage(admission))
             onStateChanged?()
             return false
         }
@@ -528,7 +537,7 @@ final class ServiceLifecycleCoordinator {
         guard let report = currentSessionReport() else {
             if let refusal = sessionRecoveryRefusal { return .failed(reason: refusal) }
             if let admission = sessionConfigurationAdmission,
-               let reason = SessionCapsRuntimeSupport.startupFailureMessage(admission)
+               let reason = refusalMessage(admission)
             {
                 return .failed(reason: reason)
             }
