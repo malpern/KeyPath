@@ -566,6 +566,13 @@ predates the tap passes through, and hardware repeats of a held mapped key are
 swallowed because Kanata repeats on its own. Per-device media rules stay impossible:
 system-defined events carry no source device.
 
+**Verified on physical USB (2026-10-20).** The lab's ESP32 HID fixture gained a
+consumer-control report (#1333) and pressed Mute, Volume Up, Mute into a standalone
+session worker running `(defsrc mute)(deflayer base f20)` on the mini. Each Mute reached
+Kanata as an input (worker input 0→2→4, output 0→2→4 as F20 down/up) and the Mac was not
+muted; the unmapped Volume Up passed through (volume 50→56, no worker input). A control
+press with no worker muted the Mac, so the consumption is KeyPath's, not a lost press.
+
 Lowering of *other* intents (computed fall-through under managed Caps, §4.7's
 registry) remains as designed below.
 
@@ -623,7 +630,7 @@ until phase 4.
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
 | **4. Callers** — *done 2026-10-19 (4a–4e)* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** — *done 2026-10-19 as phase 4e* | one refusal renderer with the engine's blocking sentences in front of the validator's reason; CLI `doctor` lists verdicts. Line-level attribution from Rust was not needed. | `SessionConfigurationRefusalTests`; lifecycle and CLI tests. |
-| **6. Media keys** — *done 2026-10-20 (§4.5)* | the ten consumer keys the worker can post are session outputs (part 1) and, read from macOS system-defined events, session inputs (part 2). | Rust rule tests; `SessionOutputStateTests` media output and input cases; `MediaKeyCaptureToSaveTests`; hardware on the Air. |
+| **6. Media keys** — *done 2026-10-20 (§4.5)* | the ten consumer keys the worker can post are session outputs (part 1) and, read from macOS system-defined events, session inputs (part 2). | Rust rule tests; `SessionOutputStateTests` media output and input cases; `MediaKeyCaptureToSaveTests`; outputs verified by hand on the Air, inputs by the ESP32 fixture on the mini (§4.5). |
 
 Phases 1–3 are additive and can land before #1304–#1309 merge; 4–6 should
 follow them.
