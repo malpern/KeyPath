@@ -36,6 +36,8 @@ struct PackDetailView: View {
     @State var justUninstalled = false
     @State var errorMessage: String?
     @State var packConflict: PackConflictState?
+    @State var installPreview: PackInstallPreviewState?
+    @State var noteMessage: String?
     @State var quickSettingValues: [String: Int] = [:]
     @State var lastUndoSnapshot: UndoSnapshot?
     @State var showKeystrokeHistoryConsent = false
@@ -133,6 +135,19 @@ struct PackDetailView: View {
                 onCancel: {
                     showKeystrokeHistoryConsent = false
                     isInstalled = false
+                }
+            )
+        }
+        .sheet(item: $installPreview) { state in
+            PackInstallPreviewSheet(
+                state: state,
+                onInstall: { collections, rules, packs in
+                    installPreview = nil
+                    Task { await install(admission: .confirmed(disablingCollections: collections, disablingRules: rules, removingPacks: packs)) }
+                },
+                onCancel: {
+                    installPreview = nil
+                    Task { await refreshInstallState() }
                 }
             )
         }
