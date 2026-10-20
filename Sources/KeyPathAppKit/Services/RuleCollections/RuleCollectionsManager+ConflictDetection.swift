@@ -6,7 +6,7 @@ import KeyPathRulesCore
 extension RuleCollectionsManager {
     // MARK: - Conflict Detection
 
-    private func isNeovimAppScopedReference(_ collection: RuleCollection) -> Bool {
+    func isNeovimAppScopedReference(_ collection: RuleCollection) -> Bool {
         collection.id == RuleCollectionIdentifier.neovimTerminal
     }
 
@@ -81,9 +81,8 @@ extension RuleCollectionsManager {
     }
 
     /// The first conflict verdict naming `subject`, folded to one other party and
-    /// all the keys they collide on. Synthetic parties (the leader key, a chord
-    /// group) have nothing to disable, so they are not offered here; the save
-    /// path still refuses them and phase 4b renders them from the verdict.
+    /// all the keys they collide on. A synthetic party (the leader key, a chord
+    /// group) is reported too; the dialog shows it without offering to disable it.
     private func firstConflict(involving subject: AdmissionSubject, in state: AdmissionEngine.State) -> RuleConflictInfo? {
         var keysByParty: [AdmissionSubject: Set<String>] = [:]
         var order: [AdmissionSubject] = []
@@ -105,7 +104,9 @@ extension RuleCollectionsManager {
                 if let rule = state.customRules.first(where: { $0.id == id }) {
                     return RuleConflictInfo(source: .customRule(rule), keys: keys)
                 }
-            case .pack, .named:
+            case let .named(text):
+                return RuleConflictInfo(source: .named(text), keys: keys)
+            case .pack:
                 continue
             }
         }

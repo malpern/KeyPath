@@ -11,12 +11,21 @@ struct RuleConflictInfo {
     enum Source {
         case collection(RuleCollection)
         case customRule(CustomRule)
+        /// A party the admission engine names but no stored rule owns (the leader
+        /// key, a chord group). It can be shown, not disabled from here.
+        case named(String)
 
         var name: String {
             switch self {
             case let .collection(collection): collection.name
             case let .customRule(rule): rule.displayTitle
+            case let .named(name): name
             }
+        }
+
+        var canBeDisabled: Bool {
+            if case .named = self { return false }
+            return true
         }
     }
 
