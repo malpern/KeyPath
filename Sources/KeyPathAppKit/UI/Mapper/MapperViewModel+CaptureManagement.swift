@@ -439,28 +439,39 @@ extension MapperViewModel {
         autosaveCapturedMapping()
     }
 
-    /// Auto-save when input is captured and we have either output or app/system action/URL/folder/script
+    /// Auto-save when input is captured and we have either output or app/system action/URL/folder/script.
+    /// Every way this can decline to save says so: the overlay has no Save button,
+    /// so a silent return here looks to the user like a mapping that vanished.
     private func autosaveCapturedMapping() {
-        if canSave, let manager = kanataManager {
-            Task {
-                if selectedURL != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
-                    await saveURLMapping(kanataManager: manager)
-                } else if selectedApp != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
-                    await saveAppLaunchMapping(kanataManager: manager)
-                } else if selectedSystemAction != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
-                    await saveSystemActionMapping(kanataManager: manager)
-                } else if selectedFolder != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveFolderMapping")
-                    await saveFolderMapping(kanataManager: manager)
-                } else if selectedScript != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveScriptMapping")
-                    await saveScriptMapping(kanataManager: manager)
-                } else {
-                    await save(kanataManager: manager)
-                }
+        guard canSave else {
+            AppLogger.shared.log("🎯 [MapperViewModel] Autosave skipped: nothing saveable yet (canSave=false)")
+            return
+        }
+        guard let manager = kanataManager else {
+            AppLogger.shared.errorUnlessQuietTest("❌ [MapperViewModel] Autosave skipped: no runtime coordinator configured")
+            statusMessage = "Couldn't save: the Mapper isn't connected to the runtime. Reopen the overlay."
+            statusIsError = true
+            return
+        }
+        Task {
+            if selectedURL != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
+                await saveURLMapping(kanataManager: manager)
+            } else if selectedApp != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
+                await saveAppLaunchMapping(kanataManager: manager)
+            } else if selectedSystemAction != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
+                await saveSystemActionMapping(kanataManager: manager)
+            } else if selectedFolder != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveFolderMapping")
+                await saveFolderMapping(kanataManager: manager)
+            } else if selectedScript != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveScriptMapping")
+                await saveScriptMapping(kanataManager: manager)
+            } else {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling save (keystroke mapping)")
+                await save(kanataManager: manager)
             }
         }
     }

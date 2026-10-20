@@ -167,4 +167,16 @@ final class MapperKanataFormatTests: XCTestCase {
     private func makeSequence(keys: [KeyPress], mode: CaptureMode = .single) -> KeySequence {
         KeySequence(keys: keys, captureMode: mode)
     }
+
+    // MARK: - Media keys (captured from system-defined events)
+
+    func testCapturedMediaKeysBecomeKanataMediaNames() {
+        for (captured, kanata) in [("volumeup", "volu"), ("volumedown", "vold"), ("mute", "mute"),
+                                   ("brightnessup", "brup"), ("brightnessdown", "brdn"), ("playpause", "pp"),
+                                   ("next", "next"), ("previous", "prev")]
+        {
+            let seq = makeSequence(keys: [KeyPress(baseKey: captured, modifiers: [], keyCode: 1007)])
+            XCTAssertEqual(KeyMappingFormatter.toKanataFormat(seq), kanata, captured)
+        }
+    }
 }
