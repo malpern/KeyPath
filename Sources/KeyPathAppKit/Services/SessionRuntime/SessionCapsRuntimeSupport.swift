@@ -343,22 +343,26 @@ enum SessionCapsRuntimeSupport {
         return beforeValidation
     }
 
-    static func verifyActive(directory: URL, owner: Policy.Owner) throws {
-        let backend = SessionCapsHIDUtilTransport.backend()
+    static func verifyActive(directory: URL, owner: Policy.Owner,
+                             backend: SessionCapsMappingLease.Backend = SessionCapsHIDUtilTransport.backend(),
+                             bootSessionUUID boot: () throws -> String = bootSessionUUID) throws
+    {
         let lease = SessionCapsMappingLease(directory: directory, backend: backend)
         guard let record = try lease.pendingRecord(), record.owner == owner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
         // Other keyboards may be connected; the leased instance must be present
         // exactly once. The intermediate stays reserved: merged events carry no attribution.
         do { try Policy.requireUnique(record.device, among: backend.enumerate()) } catch { throw Refusal.selection }
         let snapshot = try backend.read(record.device)
-        _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: bootSessionUUID())
-        // Every recorded companion interface must still carry exactly our mapping.
+        _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: boot())
+        // Every recorded companion interface must still carry exactly our
+        // mapping. One that could not be read this tick is not a foreign
+        // write: it is checked again next tick (the chosen interface was just
+        // verified). A different mapping is foreign; restore decides the rest.
         if !record.companions.isEmpty {
             let group = try backend.readGroup(record.device)
             for companion in record.companions {
-                guard group[companion.registryEntryID] == record.applied(over: companion.original) else {
-                    throw Policy.Refusal.foreignMapping
-                }
+                guard let mappings = group[companion.registryEntryID] else { continue }
+                guard mappings == record.applied(over: companion.original) else { throw Policy.Refusal.foreignMapping }
             }
         }
     }

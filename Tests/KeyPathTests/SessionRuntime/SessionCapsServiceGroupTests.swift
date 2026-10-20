@@ -117,6 +117,43 @@ final class SessionCapsServiceGroupTests: XCTestCase {
         XCTAssertEqual(conflict, .raycastHyperKey)
     }
 
+    func testATransientCompanionReadIsRetried() throws {
+        let hid = FakeHID()
+        hid.state[FakeHID.nkro] = raycast
+        hid.failGetOnPair = [1, 2]
+        hid.failGetTimes = 1
+        XCTAssertEqual(try hid.backend.readGroup(hid.cl80)[FakeHID.nkro], raycast)
+    }
+
+    func testAnUnreadableCompanionIsNotAForeignWrite() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let hid = FakeHID()
+        let owner = Policy.Owner(uid: getuid(), parentPID: 100, workerPID: 101, nonce: "nonce",
+                                 generation: "one", bootSessionUUID: UUID().uuidString)
+        let lease = SessionCapsMappingLease(directory: root, backend: hid.backend)
+        _ = try lease.acquire(owner: owner, configSHA256: digest, device: hid.cl80)
+        func verify() throws {
+            try SessionCapsRuntimeSupport.verifyActive(directory: root, owner: owner, backend: hid.backend,
+                                                       bootSessionUUID: { owner.bootSessionUUID })
+        }
+        XCTAssertNoThrow(try verify())
+        // The NKRO interface will not answer at all: skipped this tick, lease kept.
+        hid.failGetOnPair = [1, 2]
+        XCTAssertNoThrow(try verify())
+        // Restore still refuses rather than shrink the covered set.
+        XCTAssertThrowsError(try lease.restore(expectedOwner: owner, bootSessionUUID: owner.bootSessionUUID))
+        XCTAssertNotNil(try lease.pendingRecord())
+        // Readable again but rewritten by another tool: that is foreign.
+        hid.failGetOnPair = nil
+        hid.state[FakeHID.nkro] = raycast
+        XCTAssertThrowsError(try verify()) { error in
+            XCTAssertEqual(error as? Policy.Refusal, .foreignMapping)
+        }
+    }
+
     func testBlankSerialCountsAsNone() throws {
         let row = #"{"type":"service","SerialNumber":"  ","IORegistryEntryID":5,"VendorID":1,"ProductID":2,"LocationID":3,"PrimaryUsagePage":1,"PrimaryUsage":2}"#
         XCTAssertNil(try Transport.parseServiceRows(row).first?.serialNumber)
@@ -265,6 +302,8 @@ final class FakeHID {
     var state: [UInt64: [SessionCapsMappingPolicy.Mapping]] = [FakeHID.nkro: [], FakeHID.boot: [], FakeHID.consumer: [], FakeHID.otherBoard: []]
     var failSetOnPair: [Int]?
     var failGetOnPair: [Int]?
+    /// How many matching reads fail before they succeed; nil = all of them.
+    var failGetTimes: Int?
     var unreadable: Set<UInt64> = []
     var extra: [Service] = []
     var hidden: Set<UInt64> = []
@@ -332,7 +371,10 @@ final class FakeHID {
         selectors.append(arguments[2])
         let ids = live.filter { matches($0, match) }.map(\.id)
         let pair = [(match["PrimaryUsagePage"] as? NSNumber)?.intValue ?? -1, (match["PrimaryUsage"] as? NSNumber)?.intValue ?? -1]
-        if arguments[3] == "--get", pair == failGetOnPair { throw SessionCapsHIDUtilTransport.Refusal.commandFailed }
+        if arguments[3] == "--get", pair == failGetOnPair, failGetTimes.map({ $0 > 0 }) ?? true {
+            failGetTimes = failGetTimes.map { $0 - 1 }
+            throw SessionCapsHIDUtilTransport.Refusal.commandFailed
+        }
         if arguments[3] == "--set" {
             if pair == failSetOnPair { throw SessionCapsHIDUtilTransport.Refusal.commandFailed }
             let body = try JSONSerialization.jsonObject(with: Data(arguments[4].utf8)) as! [String: Any]

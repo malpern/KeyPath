@@ -618,7 +618,13 @@ public enum SessionCapsHIDUtilTransport {
                              pairs.append([row.primaryUsagePage, row.primaryUsage])
                          }
                          for pair in pairs {
-                             guard let mappings = try? pairMappings(device, pairs: [pair], rows: rows, run: run) else { continue }
+                             // One retry: a single hidutil hiccup must not read as absence.
+                             guard let mappings = (try? pairMappings(device, pairs: [pair], rows: rows, run: run))
+                                 ?? (try? pairMappings(device, pairs: [pair], rows: rows, run: run))
+                             else {
+                                 warn("[SessionCaps] Could not read UserKeyMapping for interface pair \(pair) of the chosen keyboard; left out of this read")
+                                 continue
+                             }
                              result.merge(mappings) { current, _ in current }
                          }
                          return result

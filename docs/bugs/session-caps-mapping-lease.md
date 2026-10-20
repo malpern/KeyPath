@@ -133,9 +133,15 @@ Vial "cl80" in NKRO mode sends every key on its shared, mouse-primary interface
 Caps stayed native there and Caps Lock rules silently never ran. The free-key
 choice (`occupiedIntermediates`) treats our Caps row on a covered interface as
 our own, and a Caps row on any other service, even of the same board, as taken.
+A companion read is retried once; one that still cannot be read is logged and
+left out of that read. Verification then skips it for that tick (the chosen
+interface was verified), while restore still refuses rather than shrink.
+
 Known limits: an interface that appears without a reconnect is not covered until
 the next lease; the DEBUG queued-writer experiment still uses the single-service
-`writeArguments`. Useful execution has a two-second deadline and
+`writeArguments`. A version-3 journal is unreadable to builds that predate it:
+downgrading with a lease pending leaves the companion mapped until the board
+reconnects or the Mac restarts, because the older build cannot restore it. Useful execution has a two-second deadline and
 64 KiB combined output limit. Failure kills the child and confirms exit before
 releasing the lease lock; OS termination latency is not claimed to be bounded. This helper is not yet connected to the app lifecycle;
 Caps profiles remain unavailable by default. Do not substitute USB device IDs or
