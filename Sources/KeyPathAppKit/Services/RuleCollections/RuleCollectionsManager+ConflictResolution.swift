@@ -67,30 +67,69 @@ extension RuleCollectionsManager {
             guard depth < 5,
                   let keyPathError = error as? KeyPathError,
                   case let .configuration(configError) = keyPathError,
-                  case let .mappingConflicts(conflicts) = configError,
-                  let callback = onMappingConflictResolution,
-                  let resolvable = Self.resolvableCollectionConflict(
-                      conflicts: conflicts, collections: ruleCollections
-                  )
+                  case .mappingConflicts = configError,
+                  let callback = onMappingConflictResolution
             else { return false }
 
-            let context = MappingConflictContext(
-                explanation: conflicts.map(\.userExplanation).joined(separator: "\n\n"),
-                options: resolvable.map {
-                    MappingConflictOption(id: $0.id, name: $0.name, icon: $0.icon ?? "square.stack.3d.up")
-                }
+            // Ask the engine about the state that just failed, so the dialog is
+            // built from verdicts attributed by id, not by matching display names.
+            let state = AdmissionEngine.State(
+                collections: ruleCollections.filter { !isNeovimAppScopedReference($0) },
+                customRules: customRules, leaderKey: preferencesService.leaderKeyPreference
             )
+            guard let context = Self.mappingConflictContext(for: state) else { return false }
 
-            guard let chosenID = await callback(context),
-                  let index = ruleCollections.firstIndex(where: { $0.id == chosenID })
-            else { return false } // cancelled → fall back to explanation
-
-            AppLogger.shared.log(
-                "🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)"
-            )
-            ruleCollections[index].isEnabled = false
+            guard let chosenID = await callback(context) else { return false } // cancelled → explanation
+            if let index = ruleCollections.firstIndex(where: { $0.id == chosenID }) {
+                AppLogger.shared.log("🔧 [RuleCollections] Resolving mapping conflict by disabling '\(ruleCollections[index].name)' (#460)")
+                ruleCollections[index].isEnabled = false
+            } else if let index = customRules.firstIndex(where: { $0.id == chosenID }) {
+                AppLogger.shared.log("🔧 [RuleCollections] Resolving mapping conflict by disabling rule '\(customRules[index].displayTitle)'")
+                customRules[index].isEnabled = false
+            } else {
+                return false
+            }
             refreshLayerIndicatorState()
             return true
+        }
+    }
+
+    /// The save-time dialog's content for `state`, from the engine's conflict
+    /// verdicts: one explanation per conflict, and one option per rule or custom
+    /// rule that could be turned off. Nil when there is no conflict or nothing
+    /// to turn off (leader key vs chord group), which falls back to the plain
+    /// explanation the caller already shows.
+    static func mappingConflictContext(for state: AdmissionEngine.State) -> MappingConflictContext? {
+        let verdicts = AdmissionEngine.evaluate(state).filter { if case .conflict = $0.reason { return true }; return false }
+        guard !verdicts.isEmpty else { return nil }
+        let name = nameLookup(state)
+        let presentations = verdicts.map { AdmissionVerdictPresenter.present($0, name: name) }
+        var seen = Set<UUID>()
+        let options: [MappingConflictOption] = presentations.flatMap(\.options).compactMap { option in
+            switch option.subject {
+            case let .collection(id):
+                guard seen.insert(id).inserted, let c = state.collections.first(where: { $0.id == id }) else { return nil }
+                return MappingConflictOption(id: id, name: c.name, icon: c.icon ?? "square.stack.3d.up")
+            case let .customRule(id):
+                guard seen.insert(id).inserted, let r = state.customRules.first(where: { $0.id == id }) else { return nil }
+                return MappingConflictOption(id: id, name: r.displayTitle, icon: "pencil.circle")
+            case .pack, .named:
+                return nil
+            }
+        }
+        guard !options.isEmpty else { return nil }
+        return MappingConflictContext(explanation: presentations.map(\.explanation).joined(separator: "\n\n"), options: options)
+    }
+
+    /// What the user calls each party of a verdict.
+    nonisolated static func nameLookup(_ state: AdmissionEngine.State) -> (AdmissionSubject) -> String {
+        { subject in
+            switch subject {
+            case let .collection(id): state.collections.first { $0.id == id }?.name ?? "a rule collection"
+            case let .customRule(id): state.customRules.first { $0.id == id }?.displayTitle ?? "a custom rule"
+            case let .pack(id): PackRegistry.pack(id: id)?.name ?? id
+            case let .named(name): name
+            }
         }
     }
 
@@ -133,6 +172,8 @@ extension RuleCollectionsManager {
                 await toggleCollection(id: collection.id, isEnabled: false)
             case let .customRule(rule):
                 await toggleCustomRule(id: rule.id, isEnabled: false)
+            case let .named(name):
+                AppLogger.shared.log("ℹ️ [RuleCollections] \(name) is not a rule and cannot be disabled from a conflict")
             }
             return
         }
@@ -144,6 +185,8 @@ extension RuleCollectionsManager {
         case let .customRule(rule):
             guard let index = customRules.firstIndex(where: { $0.id == rule.id }) else { return }
             customRules[index].isEnabled = false
+        case .named:
+            break
         }
     }
 }

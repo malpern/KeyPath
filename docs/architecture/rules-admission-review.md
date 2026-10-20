@@ -351,6 +351,23 @@ Callers, all through this one function:
   rely on uniqueness) but now logs it as an admission gap, not at debug (ADR-039 §1).
 - No migration or one-time advisory: there are no real users yet.
 
+### 4.4c Phase 4b (2026-10-19)
+
+- `AdmissionVerdictPresenter` words every verdict once (title, explanation, options
+  from its fixes; `oneLine` for automatic verdicts). Dialogs, toasts and the CLI
+  render from it.
+- The save-time dialog (`MappingConflictContext`) is now built by
+  `RuleCollectionsManager.mappingConflictContext(for:)` from the engine's conflict
+  verdicts of the failing state, attributed by id. Custom rules are offered as
+  options too (previously collections only, matched by non-unique name). It falls
+  back to the plain explanation only when nothing can be turned off.
+- `RuleConflictInfo.Source.named` lets the toggle-time dialog show a synthetic party
+  (leader key, chord group): it explains, and hides "Switch to", since nothing can be
+  disabled from there.
+- The unused `ConflictResolutionDialog` is deleted. `RuleConflictResolutionDialog`
+  and `MappingConflictResolutionDialog` keep their distinct choices (keep/switch vs
+  pick-one-to-disable) but share the presenter's wording.
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
@@ -420,7 +437,7 @@ until phase 4.
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
-| **4. Callers** — *in progress: 4a done (toggle/save through the engine; dedupe drop is a logged admission gap); 4b dialogs, 4c packs, 4d editor/catalog/reserved key, 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
+| **4. Callers** — *in progress: 4a and 4b done; 4c packs, 4d editor/catalog/reserved key, 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
 
