@@ -174,10 +174,10 @@ source. The three Swift deny-lists and `driverlessUnavailableReason` are
 deleted. A driver backend ships a profile with `consumerOutput: .native`,
 `deviceTargeting: .native`, `capsLock: .native`; nothing else changes.
 
-### 4.2 Declared requirements on catalog entries and packs
+### 4.2 Requirements: inferred where derivable, declared only otherwise
 
 Extend `RuleCapability` (`RuleDependencyGraph.swift:37`) from three cases to a
-closed set, and let the catalog and packs *declare* it:
+closed set:
 
 ```swift
 public enum RuleCapability: Codable, Hashable {
@@ -187,13 +187,18 @@ public enum RuleCapability: Codable, Hashable {
     case deviceTargeting
     case accessibilityPermission     // push-msg window:* / system:*
     case reservedKey(HIDUsage)       // e.g. a mapping on F18
+    case externalApp(bundleID)       // e.g. kindaVim.app present
 }
 ```
 
-Catalog JSON gains an optional `requires: ["consumerOutput"]`. For existing
-entries the extractor keeps inferring from mappings, and a **build-time test
-asserts that inferred == declared** for every catalog entry, so declarations
-cannot rot. `Pack.conflictsWith` is finally read, through the same engine.
+Every case above except `externalApp` is mechanically derivable from a
+collection's mappings and actions, exactly as the extractor already derives
+layers and Hyper. So the extractor infers them, and the catalog gets **one
+optional `requires` field for needs that cannot be read from the rules**
+(an external app; a permission the actions do not imply). The two sets are
+merged. There is deliberately no hand-written copy of the inferable
+requirements and no sync test: 22 in-house entries do not justify two sources
+of truth. `Pack.conflictsWith` is finally read, through the same engine.
 
 ### 4.3 Claims: one model for every "I want this key"
 
@@ -289,7 +294,10 @@ intermediate (every interface of the chosen keyboard, per #1309), other apps'
 hidutil `UserKeyMapping`s (named, as #1307's banner does for Raycast), and any
 future stand-ins. The editor, toggle and doctor all see them as `.reserved`
 claims, so "F18 is in use by Caps Lock" is said before a save, not after a
-session fails to start.
+session fails to start. **Policy (decided 2026-10-19): a user rule that takes
+the current intermediate moves the intermediate**, as #1307 does at runtime:
+the verdict is `automatic` with fix `.chooseKey(candidates:)` and an advisory
+naming the new key. It blocks only when all of F13–F20 are taken.
 
 ## 5. What this gives each current need
 
@@ -297,7 +305,10 @@ session fails to start.
   `consumerOutput: .viaAdapter`. Either way the catalog's media Function Keys
   entry stops being special-cased: it declares `consumerOutput`, the engine
   admits it or explains why not, and the function/media mode toggle becomes a
-  normal admissibility question instead of a hard-coded flag.
+  normal admissibility question instead of a hard-coded flag. **Policy
+  (2026-10-19):** with `consumerOutput: .none` the media entry is shown
+  disabled with the reason; with `.viaAdapter` it is available and the mode
+  toggle is the opt-in.
 - **Caps Lock on multi-interface keyboards.** #1309's lease is unchanged; the
   intermediate key becomes a reserved claim visible everywhere, and
   `capsAlreadyMapped` becomes a verdict naming the other app.
@@ -318,27 +329,27 @@ until phase 4.
 | Phase | Scope | Tests |
 |---|---|---|
 | **1. Profile** | Rust exports `BackendCapabilityProfile`; Swift decodes it; `SessionKeyMap`, `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession`, `driverlessUnavailableReason` and `validKanataPassthrough` read from it. Delete the deny-lists. | profile round-trip; every deleted list's former behaviour as an assertion against the profile; Rust test that `supported` ≡ "within profile". |
-| **2. Declared requirements** | `RuleCapability` extended; `requires` in catalog JSON and `Pack`; extractor infers the new cases; **inferred == declared** test over the whole catalog. | catalog contract test; one failing case for a mis-declared entry. |
+| **2. Requirements** | `RuleCapability` extended; the extractor infers the new cases; optional `requires` in catalog JSON and `Pack` for non-derivable needs only; `conflictsWith` read. | extractor test per capability over the whole catalog; one `requires` case; `conflictsWith` case. |
 | **3. Claims + engine** | `Claim`, `Verdict`, `AdmissionEngine` in `KeyPathRulesCore`; implemented over the existing `detectConflicts` data so results are identical; reserved claims from the profile. | golden tests: every case `conflictInfo` and `detectConflicts` find today, the same verdicts; new cases for F18, media keys, foreign Caps mapping, app keymap vs global. |
-| **4. Callers** | toggle, rule editor, pack install preview, catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
+| **4. Callers** | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
 
 Phases 1–3 are additive and can land before #1304–#1309 merge; 4–6 should
 follow them.
 
-## 7. Open questions for Micah
+## 7. Decisions (Micah, 2026-10-19)
 
-1. **Scope of "reserved".** Should a rule be *blocked* from using the Caps
-   intermediate key, or should choosing that key move the intermediate (as
-   #1307 does at runtime)? The engine can do either; the second is friendlier
-   but hides the reservation.
-2. **Media adapter policy.** If the spike shows posting system-defined media
-   events works, do we want `.viaAdapter` on by default, or opt-in per
-   collection?
-3. **Catalog declarations: required or inferred?** The proposal keeps both
-   with a test that they agree. The alternative is inference only, which is
-   less work and less explicit.
-4. **Pack installs.** ADR-039 §5 asks for a preview; today installs
-   auto-resolve silently. Is a mandatory preview acceptable for one-click
-   installs, or should it be a summary afterwards?
+1. **Reserved key.** A rule that takes the Caps intermediate key **moves the
+   intermediate** (automatic verdict plus advisory); it blocks only when no
+   candidate is free.
+2. **Media keys.** In the catalog, opt-in through the mode toggle when the
+   profile supports consumer output (natively or via adapter); shown disabled
+   with the reason when it does not.
+3. **Requirements.** Infer everything derivable from mappings and actions;
+   declare only non-derivable needs in an optional `requires`; no duplicate
+   declarations and no sync test.
+4. **Pack installs.** One click when the engine finds nothing that changes
+   what the user already has. A preview with choices **only** when a verdict
+   is `needsChoice` or `blocking`. Automatic structural resolutions produce a
+   one-line post-install summary, never a dialog.
