@@ -134,7 +134,9 @@ public enum SessionCapsHIDUtilTransport {
     public struct Keyboard: Sendable, Equatable, Identifiable {
         public let device: Policy.DeviceIdentity
         public let name: String
-        public var id: UInt64 { device.registryEntryID }
+        public var id: UInt64 {
+            device.registryEntryID
+        }
     }
 
     /// Eligibility comes from `parseServices`; names are a best-effort overlay
