@@ -67,7 +67,8 @@ enum SettingsSystemStatusRowsBuilder {
         wizardIssues: [WizardIssue],
         systemContext: SystemContext?,
         tcpConfigured: Bool?,
-        driverless: Bool = false
+        driverless: Bool = false,
+        intentionallyOff: Bool = false
     ) -> [SettingsSystemStatusRowModel] {
         // Mirror wizard summary ordering and semantics.
         var rows: [SettingsSystemStatusRowModel] = []
@@ -138,6 +139,8 @@ enum SettingsSystemStatusRowsBuilder {
         let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues)
         let serviceStatus: InstallationStatus = {
             if wizardSystemState == .initializing { return .inProgress }
+            // The user turned remapping off with the switch: not a fault to fix.
+            if intentionallyOff { return .notStarted }
             if !daemonIssues.isEmpty {
                 return issueStatus(for: daemonIssues)
             }
@@ -150,6 +153,7 @@ enum SettingsSystemStatusRowsBuilder {
             return .notStarted
         }()
         let serviceMessage: String? = {
+            if intentionallyOff, wizardSystemState != .initializing { return "Turned off" }
             if serviceStatus != .completed {
                 return blockingPermissionIssue ?? daemonIssues.first?.title
             }

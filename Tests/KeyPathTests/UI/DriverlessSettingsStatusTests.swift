@@ -24,4 +24,17 @@ final class DriverlessSettingsStatusTests: XCTestCase {
         let rows = SettingsSystemStatusRowsBuilder.rows(wizardSystemState: .initializing, wizardIssues: [], systemContext: nil, tcpConfigured: nil, driverless: false)
         XCTAssertEqual(rows.map(\.id), ["privileged-helper", "conflicts", "karabiner-components", "kanata-service", "tcp-communication"])
     }
+
+    /// Turning remapping off with the Status switch is a choice, not a fault: the
+    /// row must not go red or tell the user to start what they just stopped.
+    func testIntentionallyOffShowsNeutralRowNotAFailure() {
+        let rows = SettingsSystemStatusRowsBuilder.rows(
+            wizardSystemState: .daemonNotRunning, wizardIssues: [], systemContext: nil, tcpConfigured: nil,
+            driverless: true, intentionallyOff: true
+        )
+        let service = rows.first { $0.id == "kanata-service" }
+        XCTAssertEqual(service?.status, .notStarted)
+        XCTAssertEqual(service?.message, "Turned off")
+        XCTAssertNotEqual(service?.status, .failed)
+    }
 }
