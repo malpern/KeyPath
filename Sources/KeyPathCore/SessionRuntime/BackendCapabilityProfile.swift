@@ -30,6 +30,7 @@ public final class BackendCapabilityProfile: @unchecked Sendable {
     private let query: @Sendable (String) -> Bool?
     private let lock = NSLock()
     private var cache: [String: Bool] = [:]
+    private var knownCache: [String: Bool] = [:]
 
     /// `query` answers for one base key name: true/false, or nil for "no answer".
     public init(backend: KanataRuntimeBackend, query: @escaping @Sendable (String) -> Bool?) {
@@ -51,6 +52,28 @@ public final class BackendCapabilityProfile: @unchecked Sendable {
         // validation remains the backstop for anything else.
         let answer = query(base) ?? !Self.fallbackConsumerKeys.contains(base)
         lock.lock(); cache[base] = answer; lock.unlock()
+        return answer
+    }
+
+    /// Whether Kanata knows `name` as a key at all (whatever the backend can
+    /// emit): true/false from the bridge, nil when there is no bridge to ask.
+    /// The generator uses this to tell a key name (`f21`, `calc`) from a word
+    /// to type (`hello`), instead of a hand-kept list that drifts from Kanata.
+    public func knowsKey(_ name: String) -> Bool? {
+        let key = name.lowercased()
+        guard !key.isEmpty else { return nil }
+        lock.lock()
+        if let known = knownCache[key] { lock.unlock(); return known }
+        lock.unlock()
+        let answer: Bool
+        if query(key) != nil {
+            answer = true
+        } else if query("a") != nil {
+            answer = false // the bridge answers, so nil meant "not a Kanata key"
+        } else {
+            return nil // no bridge: the caller keeps its own fallback
+        }
+        lock.lock(); knownCache[key] = answer; lock.unlock()
         return answer
     }
 

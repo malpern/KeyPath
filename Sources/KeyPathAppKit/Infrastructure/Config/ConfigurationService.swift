@@ -1823,6 +1823,15 @@ public enum KanataKeyConverter {
             }
         }
 
+        // Kanata decides what is a key. A name it knows (`f21`, `calc`) is
+        // emitted as a key, so admission can refuse it with a reason if the
+        // backend cannot send it, rather than typing its letters. Only a word
+        // Kanata does not know is text to type. The list below is the fallback
+        // when no bridge is available to ask.
+        if let known = BackendCapabilityProfile.shared.knowsKey(token) {
+            return !known
+        }
+
         // Known key names that shouldn't be split into macros
         let keyNames: Set = [
             "escape", "esc", "return", "ret", "enter",
