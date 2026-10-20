@@ -7,6 +7,7 @@ tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/keypath-caps-lease.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 swiftc -module-cache-path "$tmp_dir/module-cache" -emit-library -emit-module -module-name KeyPathCore \
     "$repo_root/Sources/KeyPathCore/SessionRuntime/SessionCapsMappingPolicy.swift" \
+    "$repo_root/Sources/KeyPathCore/SessionRuntime/SessionCapsIntermediate.swift" \
     -emit-module-path "$tmp_dir/KeyPathCore.swiftmodule" -o "$tmp_dir/libKeyPathCore.dylib"
 swiftc -D DEBUG -module-cache-path "$tmp_dir/module-cache" -I "$tmp_dir" -L "$tmp_dir" -lKeyPathCore -Xlinker -rpath -Xlinker "$tmp_dir" \
     "$repo_root/Sources/KeyPathAppKit/Services/SessionRuntime/SessionCapsMappingLease.swift" \

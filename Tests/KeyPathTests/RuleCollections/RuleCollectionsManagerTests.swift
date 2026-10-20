@@ -301,7 +301,7 @@ final class RuleCollectionsManagerTests: XCTestCase {
     }
 
     @MainActor
-    func testReservedF18AndMediaRulesRefuseWithoutChangingSavedState() async throws {
+    func testUnsupportedMediaRulesRefuseWithoutChangingSavedState() async throws {
         let (manager, tempDir) = try await createTestManager()
         defer {
             TestEnvironment.forceTestMode = false
@@ -320,7 +320,8 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onError = { refusalMessages.append($0) }
 
         for unsupported in [
-            CustomRule(input: "caps", action: .keystroke(key: "f18"), isEnabled: true),
+            // Caps to F18 is no longer refused: the reserved key moves instead.
+            CustomRule(input: "caps", action: .keystroke(key: "pp"), isEnabled: true),
             CustomRule(input: "f8", action: .keystroke(key: "pp"), isEnabled: true),
         ] {
             let accepted = await manager.saveCustomRule(unsupported)

@@ -5,7 +5,7 @@ import XCTest
 /// Exercise the additive C ABI through the Swift loader, never an installed app
 /// fallback, capture runtime, or HID property mutation.
 final class ManagedCapsBridgeValidationTests: XCTestCase {
-    private func validate(_ text: String, managed: Bool,
+    private func validate(_ text: String, managed: Bool, reserving: UInt32 = 109,
                           host: KanataRuntimeHost = SessionBridgeTestFixture.runtimeHost) throws -> KanataHostBridgeValidationResult
     {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -14,7 +14,8 @@ final class ManagedCapsBridgeValidationTests: XCTestCase {
         let path = directory.appendingPathComponent("caps.kbd")
         try text.write(to: path, atomically: true, encoding: .utf8)
         return KanataHostBridge.validateSessionConfig(
-            runtimeHost: host, configPath: path.path, supportedUsages: [4, 5, 41, 224], managedCaps: managed
+            runtimeHost: host, configPath: path.path, supportedUsages: [4, 5, 41, 109, 110, 224], managedCaps: managed,
+            reservedUsage: reserving
         )
     }
 
@@ -38,6 +39,19 @@ final class ManagedCapsBridgeValidationTests: XCTestCase {
         }
         guard case .invalid = try validate("(defsrc caps f18)(deflayer base esc a)", managed: true) else {
             return XCTFail("Native F18 input must stay reserved")
+        }
+    }
+
+    func testChosenIntermediateIsReservedThroughTheCABI() throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        guard case .valid = try validate("(defsrc caps f18)(deflayer base esc f18)", managed: true, reserving: 110) else {
+            return XCTFail("F18 is ordinary when F19 is the intermediate")
+        }
+        for text in ["(defsrc caps f19)(deflayer base esc a)", "(defsrc caps a)(deflayer base esc f19)"] {
+            guard case .invalid = try validate(text, managed: true, reserving: 110) else { return XCTFail("F19 must be reserved: \(text)") }
+        }
+        guard case .invalid = try validate("(defsrc caps)(deflayer base esc)", managed: true, reserving: 112) else {
+            return XCTFail("F21 cannot be an intermediate")
         }
     }
 

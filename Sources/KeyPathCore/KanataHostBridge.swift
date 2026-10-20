@@ -387,6 +387,7 @@ public enum KanataHostBridge {
     public static func validateSessionConfig(
         runtimeHost: KanataRuntimeHost, configPath: String,
         supportedUsages: [UInt32], managedCaps: Bool = false,
+        reservedUsage: UInt32 = SessionCapsIntermediate.defaultUsage,
         fileManager: FileManager = .default
     ) -> KanataHostBridgeValidationResult {
         typealias ValidateSessionFunction = @convention(c) (
@@ -397,13 +398,31 @@ public enum KanataHostBridge {
             UnsafePointer<CChar>?, UnsafePointer<UInt32>?, Int, Bool,
             UnsafeMutablePointer<CChar>?, Int
         ) -> Bool
+        typealias ValidateReservingFunction = @convention(c) (
+            UnsafePointer<CChar>?, UnsafePointer<UInt32>?, Int, Bool, UInt32,
+            UnsafeMutablePointer<CChar>?, Int
+        ) -> Bool
         guard let handle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else {
             return .unavailable(reason: unavailableReason(runtimeHost: runtimeHost, fileManager: fileManager))
         }
         defer { dlclose(handle) }
         // Older bridges must fail closed for managed Caps; the legacy validator
         // does not distinguish a supported input from an unsafe Caps output.
+        if managedCaps, let symbol = dlsym(handle, "keypath_kanata_bridge_validate_session_config_with_managed_caps_reserving") {
+            let validate = unsafeBitCast(symbol, to: ValidateReservingFunction.self)
+            var buffer = [CChar](repeating: 0, count: 2048)
+            let valid = supportedUsages.withUnsafeBufferPointer { usages in
+                configPath.withCString { path in
+                    validate(path, usages.baseAddress, usages.count, true, reservedUsage, &buffer, buffer.count)
+                }
+            }
+            return valid ? .valid : .invalid(reason: decodeCStringBuffer(buffer) ?? "managed Caps config rejected")
+        }
         if managedCaps {
+            // A bridge without the reserving entry point only knows F18.
+            guard reservedUsage == SessionCapsIntermediate.defaultUsage else {
+                return .unavailable(reason: "managed Caps intermediate validator missing")
+            }
             guard let symbol = dlsym(handle, "keypath_kanata_bridge_validate_session_config_with_managed_caps") else {
                 return .unavailable(reason: "managed Caps profile validator missing")
             }

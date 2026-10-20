@@ -32,6 +32,9 @@ public final class SessionRuntimeWorker {
     private var capsInput = SessionCapsInputState()
     private let capsOutput = SessionCapsLockOutput()
     private var capsCheckInFlight = false
+    /// The profile and its digest as last admitted under the leased key.
+    private var capsConfigPath: String?
+    private var capsAdmittedDigest: String?
     private var lastCapsCheck = Date.distantPast
     private var inputCount: UInt64 = 0
     private var outputCount: UInt64 = 0
@@ -158,7 +161,8 @@ public final class SessionRuntimeWorker {
         // Capture before engine validation; stale consent must not block ordinary
         // profiles, but managed admission must validate these exact bytes.
         let capsDigest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
-        let admission = SessionCapsRuntimeSupport.validate(configPath: configPath, runtimeHost: .current())
+        // The parent chose the intermediate; run exactly that one.
+        let admission = SessionCapsRuntimeSupport.admit(configPath: configPath, runtimeHost: .current(), rechoose: false)
         guard case .valid = admission.result else {
             finish(.failed, reason: "config-requires-advanced-driver-backend-or-is-invalid")
         }
@@ -211,7 +215,8 @@ public final class SessionRuntimeWorker {
             CGEvent.tapEnable(tap: startupTap, enable: false)
             do {
                 guard runtime?.isInputMapped(usagePage: 7, usage: 57) == true,
-                      let device = try SessionCapsRuntimeSupport.selectedDevice(), let capsDigest,
+                      let selection = try SessionCapsRuntimeSupport.selected(), let capsDigest,
+                      selection.intermediateUsage == admission.intermediateUsage,
                       try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest
                 else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity
@@ -226,16 +231,21 @@ public final class SessionRuntimeWorker {
                 // The tap is disabled. Keep the main run loop out of startup
                 // acquisition; environment shutdown cannot race this writer.
                 // Ownership is retained even when write/readback throws.
+                let device = selection.device
+                let intermediate = SessionCapsMappingPolicy.packed(selection.intermediateUsage)
                 capsRecord = try Self.performHIDWork {
                     let backend = SessionCapsHIDUtilTransport.backend()
                     do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {
                         throw SessionCapsRuntimeSupport.Refusal.selection
                     }
                     let lease = SessionCapsMappingLease(directory: directory, backend: backend)
-                    return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device)
+                    return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device,
+                                             intermediate: intermediate)
                 }
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
-                capsInput.activate(generation: owner.generation)
+                capsInput.activate(generation: owner.generation, intermediateUsage: selection.intermediateUsage)
+                capsConfigPath = configPath
+                capsAdmittedDigest = capsDigest
             } catch {
                 AppLogger.shared.warn("Managed Caps activation refused: \(error)")
                 finish(.failed, reason: "managed-caps-activation-refused: \(error)")
@@ -302,6 +312,24 @@ public final class SessionRuntimeWorker {
     /// An async dispatch guarantees background execution; the semaphore joins
     /// without servicing main-loop callbacks. Do not bound this join: the HID
     /// transport must finish joining its child before lease exclusion can end.
+    /// A reloaded profile keeps this session only if it is still managed Caps
+    /// under the key the lease reserved.
+    nonisolated static func profileFitsLease(_ admission: SessionCapsRuntimeSupport.Admission,
+                                             record: SessionCapsMappingPolicy.Record) -> Bool
+    {
+        guard case .valid = admission.result, admission.managedCaps else { return false }
+        return SessionCapsMappingPolicy.packed(admission.intermediateUsage) == record.intermediate
+    }
+
+    /// Backstop to admission: the runtime must never emit the key this
+    /// lease reserved. Any other key, F18 included, is ordinary output.
+    nonisolated static func emitsReservedKey(usagePage: UInt32, usage: UInt32,
+                                             record: SessionCapsMappingPolicy.Record?) -> Bool
+    {
+        guard let record else { return false }
+        return SessionCapsMappingPolicy.packed(usage) == record.intermediate && usagePage == 7
+    }
+
     nonisolated static func performHIDWork<Value: Sendable>(
         _ operation: @escaping @Sendable () throws -> Value
     ) throws -> Value {
@@ -448,7 +476,7 @@ public final class SessionRuntimeWorker {
                 if Date().timeIntervalSince(lastReport) >= 0.5 { writeReport(.running) }
                 return
             case let .success(event?):
-                if capsRecord != nil, event.usagePage == 7, event.usage == 109 {
+                if Self.emitsReservedKey(usagePage: event.usagePage, usage: event.usage, record: capsRecord) {
                     finish(.failed, reason: "managed-caps-reserved-output")
                 }
                 do {
@@ -501,15 +529,28 @@ public final class SessionRuntimeWorker {
         capsCheckInFlight = true
         lastCapsCheck = Date()
         guard let directory = capsDirectory else { finish(.failed, reason: "managed-caps-directory-unavailable") }
+        let configPath = capsConfigPath, admittedDigest = capsAdmittedDigest
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let valid: Bool
             do { try SessionCapsRuntimeSupport.verifyActive(directory: directory, owner: record.owner); valid = true }
             catch { valid = false }
+            // Any reload path (the app, the CLI, a raw TCP client) can load a
+            // profile that now uses the leased key. Re-admit a changed profile
+            // under that key; the app restarts the session to choose another.
+            var digest = admittedDigest
+            var fits = true
+            if let configPath, let current = try? SessionCapsRuntimeSupport.configSHA256(configPath), current != admittedDigest {
+                let admission = SessionCapsRuntimeSupport.admit(configPath: configPath, runtimeHost: .current(), rechoose: false)
+                fits = Self.profileFitsLease(admission, record: record)
+                digest = current
+            }
             CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
                 MainActor.assumeIsolated {
                     guard let self, !self.finished, self.capsRecord?.owner == record.owner else { return }
                     self.capsCheckInFlight = false
                     if !valid { self.finish(.failed, reason: "managed-caps-ownership-lost") }
+                    if !fits { self.finish(.failed, reason: SessionCapsRuntimeSupport.profileChangedReason) }
+                    self.capsAdmittedDigest = digest
                 }
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())

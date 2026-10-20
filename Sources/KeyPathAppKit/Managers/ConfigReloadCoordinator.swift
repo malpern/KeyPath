@@ -25,9 +25,11 @@ final class ConfigReloadCoordinator {
     private let runtimeWantsRunning: @MainActor @Sendable () -> Bool
     private let runtimeIntentGeneration: @MainActor @Sendable () -> UInt64
     private let currentManagedCaps: @MainActor @Sendable () -> Bool
+    private let currentCapsIntermediate: @MainActor @Sendable () -> UInt32?
     private let restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)?
     private let managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)?
     private let sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))?
+    private let admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)?
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
@@ -56,9 +58,11 @@ final class ConfigReloadCoordinator {
         runtimeWantsRunning: @escaping @MainActor @Sendable () -> Bool = { true },
         runtimeIntentGeneration: @escaping @MainActor @Sendable () -> UInt64 = { 0 },
         currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
+        currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
         restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
         managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)? = nil,
-        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
+        admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil
     ) {
         self.startRuntimeForExplicitApply = startRuntimeForExplicitApply
         self.engineClient = engineClient
@@ -73,9 +77,11 @@ final class ConfigReloadCoordinator {
         self.runtimeWantsRunning = runtimeWantsRunning
         self.runtimeIntentGeneration = runtimeIntentGeneration
         self.currentManagedCaps = currentManagedCaps
+        self.currentCapsIntermediate = currentCapsIntermediate
         self.restartForManagedCapsChange = restartForManagedCapsChange
         self.managedCapsRestartFailureReason = managedCapsRestartFailureReason
         self.sessionValidationOverride = sessionValidationOverride
+        self.admittedIntermediateOverride = admittedIntermediateOverride
     }
 
     // MARK: - Reload Operations
@@ -398,17 +404,24 @@ final class ConfigReloadCoordinator {
             return .networkError("Test environment - TCP disabled")
         }
 
-        let validation = sessionValidationOverride?() ?? SessionCapsRuntimeSupport.validate(
-            // Admission must allow the first Caps rule before a selection exists.
-            // The lifecycle restart owns discovery and verifies the keyboard before
-            // launching; rejecting here would prevent that setup from ever running.
-            configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current(), requireSelection: false
-        )
+        let admission: SessionCapsRuntimeSupport.Admission? = sessionValidationOverride == nil
+            ? SessionCapsRuntimeSupport.admit(
+                // Admission must allow the first Caps rule before a selection exists.
+                // The lifecycle restart owns discovery and verifies the keyboard before
+                // launching; rejecting here would prevent that setup from ever running.
+                configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current(), requireSelection: false
+            ) : nil
+        let validation = sessionValidationOverride?() ?? (result: admission!.result, managedCaps: admission!.managedCaps)
         guard case .valid = validation.result else {
             return .failure(error: "This configuration is unsupported by the session runtime or contains an error", response: "")
         }
+        // A rule that now uses the running intermediate key needs the session
+        // to restart on another one; a reload would hand that key to Caps.
+        let admitted = admission?.intermediateUsage ?? admittedIntermediateOverride?()
+        let intermediateMoved = validation.managedCaps
+            && admitted.map { admitted in currentCapsIntermediate().map { $0 != admitted } ?? false } == true
 
-        if validation.managedCaps != currentManagedCaps() {
+        if validation.managedCaps != currentManagedCaps() || intermediateMoved {
             guard runtimeWantsRunning(), expectedIntent == runtimeIntentGeneration() else {
                 return .networkError(Self.runtimeIntentChangedMessage)
             }

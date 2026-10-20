@@ -57,6 +57,7 @@ pub extern "C" fn keypath_kanata_bridge_validate_session_config(
 
 /// Additive admission API. supported_usages is the OUTPUT key map; managed Caps
 /// supplies logical HID 57 input without authorizing Caps Lock or F18 output.
+/// F18 is the intermediate; see the `_reserving` variant for a chosen one.
 #[cfg(target_os = "macos")]
 #[unsafe(no_mangle)]
 pub extern "C" fn keypath_kanata_bridge_validate_session_config_with_managed_caps(
@@ -67,6 +68,31 @@ pub extern "C" fn keypath_kanata_bridge_validate_session_config_with_managed_cap
     error_buffer: *mut c_char,
     error_buffer_len: usize,
 ) -> bool {
+    keypath_kanata_bridge_validate_session_config_with_managed_caps_reserving(
+        config_path,
+        supported_usages,
+        supported_count,
+        managed_caps,
+        109,
+        error_buffer,
+        error_buffer_len,
+    )
+}
+
+/// Managed-Caps admission with an explicit intermediate: `reserved_usage` is
+/// the keyboard-page usage (F13-F20) Caps travels as, which the profile may
+/// neither read nor emit. Ignored when `managed_caps` is false.
+#[cfg(target_os = "macos")]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_validate_session_config_with_managed_caps_reserving(
+    config_path: *const c_char,
+    supported_usages: *const u32,
+    supported_count: usize,
+    managed_caps: bool,
+    reserved_usage: u32,
+    error_buffer: *mut c_char,
+    error_buffer_len: usize,
+) -> bool {
     let Some(path) = parse_config_path(config_path, error_buffer, error_buffer_len) else {
         return false;
     };
@@ -74,11 +100,19 @@ pub extern "C" fn keypath_kanata_bridge_validate_session_config_with_managed_cap
         write_error(error_buffer, error_buffer_len, "invalid session key map");
         return false;
     }
+    if managed_caps && session_config::intermediate_key(reserved_usage).is_none() {
+        write_error(
+            error_buffer,
+            error_buffer_len,
+            "invalid managed Caps intermediate key",
+        );
+        return false;
+    }
     let usages = unsafe { std::slice::from_raw_parts(supported_usages, supported_count) };
     match kanata_parser::cfg::new_from_file(Path::new(&path)) {
         Ok(cfg)
             if if managed_caps {
-                session_config::supported_with_managed_caps(&cfg, usages)
+                session_config::supported_with_managed_caps_reserving(&cfg, usages, reserved_usage)
             } else {
                 session_config::supported(&cfg, usages)
             } =>
@@ -91,7 +125,7 @@ pub extern "C" fn keypath_kanata_bridge_validate_session_config_with_managed_cap
                 error_buffer,
                 error_buffer_len,
                 if managed_caps {
-                    "configuration is unsafe for managed Caps Lock (Caps/F18 output, reserved input, unresolved source/repeat, overrides/chords, or unsupported keys/actions)"
+                    "configuration is unsafe for managed Caps Lock (Caps/reserved-key output, reserved input, unresolved source/repeat, overrides/chords, or unsupported keys/actions)"
                 } else {
                     "configuration requires the advanced driver backend (device filters, Caps Lock remapping, unsupported keys or actions)"
                 },

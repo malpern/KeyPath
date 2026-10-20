@@ -3,12 +3,18 @@ import Foundation
 /// Pure decisions for one device-scoped Caps substitution. Transport and durable
 /// intent/readback belong to the session lifecycle; this does not authorize writes.
 public enum SessionCapsMappingPolicy {
-    // Packed keyboard-page usages, also exercised by caps-path-trial.py.
+    /// Packed keyboard-page usages, also exercised by caps-path-trial.py.
     public static let caps: UInt64 = 0x7_0000_0039
+    /// The intermediate used before it became a choice; version-1 records imply it.
     public static let f18: UInt64 = 0x7_0000_006D
 
+    /// Packed keyboard-page usage for an intermediate usage ID.
+    public static func packed(_ usage: UInt32) -> UInt64 {
+        0x7_0000_0000 | UInt64(usage)
+    }
+
     public enum Refusal: Error, Equatable {
-        case malformedMapping, duplicateSource, capsAlreadyMapped, f18Collision
+        case malformedMapping, duplicateSource, capsAlreadyMapped, intermediateCollision, invalidIntermediate
         case invalidDevice, ambiguousDevice, invalidOwner, invalidConfigDigest
         case invalidRecord, differentBoot, differentDevice, foreignMapping
     }
@@ -112,46 +118,68 @@ public enum SessionCapsMappingPolicy {
 
     /// Persist before mutation, then independently verify `applied` before running.
     /// A record is intent, not proof that the mapping was written or that a PID lives.
+    /// Version 2 names its intermediate; a version-1 record (written before
+    /// the intermediate was a choice) has no such field and means F18.
     public struct Record: Codable, Sendable, Equatable {
         public let version: Int
         public let device: DeviceIdentity
         public let owner: Owner
         public let effectiveConfigSHA256: String
+        public let intermediate: UInt64
         public let original: [Mapping]
         public let applied: [Mapping]
 
-        fileprivate init(device: DeviceIdentity, owner: Owner, effectiveConfigSHA256: String, original: [Mapping]) {
-            version = 1
+        fileprivate init(device: DeviceIdentity, owner: Owner, effectiveConfigSHA256: String,
+                         intermediate: UInt64, original: [Mapping])
+        {
+            version = 2
             self.device = device
             self.owner = owner
             self.effectiveConfigSHA256 = effectiveConfigSHA256
+            self.intermediate = intermediate
             self.original = original
-            applied = original + [Mapping(source: caps, destination: f18)]
+            applied = original + [Mapping(source: caps, destination: intermediate)]
         }
 
         private enum CodingKeys: String, CodingKey, CaseIterable {
-            case version, device, owner, effectiveConfigSHA256, original, applied
+            case version, device, owner, effectiveConfigSHA256, intermediate, original, applied
         }
 
         public init(from decoder: Decoder) throws {
             let fields = try decoder.container(keyedBy: Field.self)
-            guard Set(fields.allKeys.map(\.stringValue)) == Set(CodingKeys.allCases.map(\.rawValue)) else {
-                throw Refusal.invalidRecord
-            }
             let values = try decoder.container(keyedBy: CodingKeys.self)
             version = try values.decode(Int.self, forKey: .version)
+            let expected = Set(CodingKeys.allCases.map(\.rawValue))
+            let present = Set(fields.allKeys.map(\.stringValue))
+            switch version {
+            case 1: guard present == expected.subtracting([CodingKeys.intermediate.rawValue]) else { throw Refusal.invalidRecord }
+            case 2: guard present == expected else { throw Refusal.invalidRecord }
+            default: throw Refusal.invalidRecord
+            }
             device = try values.decode(DeviceIdentity.self, forKey: .device)
             owner = try values.decode(Owner.self, forKey: .owner)
             effectiveConfigSHA256 = try values.decode(String.self, forKey: .effectiveConfigSHA256)
+            intermediate = version == 1 ? f18 : try values.decode(UInt64.self, forKey: .intermediate)
             original = try values.decode([Mapping].self, forKey: .original)
             applied = try values.decode([Mapping].self, forKey: .applied)
             try validateRecord(self)
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var values = encoder.container(keyedBy: CodingKeys.self)
+            try values.encode(version, forKey: .version)
+            try values.encode(device, forKey: .device)
+            try values.encode(owner, forKey: .owner)
+            try values.encode(effectiveConfigSHA256, forKey: .effectiveConfigSHA256)
+            if version != 1 { try values.encode(intermediate, forKey: .intermediate) }
+            try values.encode(original, forKey: .original)
+            try values.encode(applied, forKey: .applied)
         }
     }
 
     /// The chosen keyboard must be connected exactly once, by registry ID and by
     /// the locator hidutil matches on. Other keyboards may be connected: the
-    /// mapping is written only to this instance, and F18 is reserved for all.
+    /// mapping is written only to this instance, and the intermediate is reserved for all.
     public static func requireUnique(_ device: DeviceIdentity, among devices: [DeviceIdentity]) throws {
         guard device.isValid else { throw Refusal.invalidDevice }
         // A merged monitor event cannot establish that there is exactly one instance.
@@ -168,13 +196,16 @@ public enum SessionCapsMappingPolicy {
     }
 
     public static func acquire(original: [Mapping], device: DeviceIdentity, devices: [DeviceIdentity],
-                               owner: Owner, effectiveConfigSHA256: String) throws -> Record
+                               owner: Owner, effectiveConfigSHA256: String,
+                               intermediate: UInt64 = f18) throws -> Record
     {
         try requireUnique(device, among: devices)
         guard owner.isValid else { throw Refusal.invalidOwner }
         guard validDigest(effectiveConfigSHA256) else { throw Refusal.invalidConfigDigest }
-        try validateOriginal(original)
-        return Record(device: device, owner: owner, effectiveConfigSHA256: effectiveConfigSHA256, original: original)
+        guard SessionCapsIntermediate.isCandidate(packed: intermediate) else { throw Refusal.invalidIntermediate }
+        try validateOriginal(original, intermediate: intermediate)
+        return Record(device: device, owner: owner, effectiveConfigSHA256: effectiveConfigSHA256,
+                      intermediate: intermediate, original: original)
     }
 
     /// Returns the exact original array only when the same boot, device instance,
@@ -191,7 +222,7 @@ public enum SessionCapsMappingPolicy {
         return record.original
     }
 
-    private static func validateOriginal(_ mappings: [Mapping]) throws {
+    private static func validateOriginal(_ mappings: [Mapping], intermediate: UInt64) throws {
         var sources = Set<UInt64>()
         for mapping in mappings {
             guard Mapping.validUsage(mapping.source), Mapping.validUsage(mapping.destination) else {
@@ -199,18 +230,19 @@ public enum SessionCapsMappingPolicy {
             }
             guard sources.insert(mapping.source).inserted else { throw Refusal.duplicateSource }
             guard mapping.source != caps else { throw Refusal.capsAlreadyMapped }
-            guard mapping.source != f18, mapping.destination != f18 else { throw Refusal.f18Collision }
+            guard mapping.source != intermediate, mapping.destination != intermediate else { throw Refusal.intermediateCollision }
         }
     }
 
     private static func validateRecord(_ record: Record) throws {
-        guard record.version == 1, record.device.isValid, record.owner.isValid,
+        guard [1, 2].contains(record.version), record.device.isValid, record.owner.isValid,
               validDigest(record.effectiveConfigSHA256),
-              record.applied == record.original + [Mapping(source: caps, destination: f18)]
+              SessionCapsIntermediate.isCandidate(packed: record.intermediate),
+              record.applied == record.original + [Mapping(source: caps, destination: record.intermediate)]
         else {
             throw Refusal.invalidRecord
         }
-        try validateOriginal(record.original)
+        try validateOriginal(record.original, intermediate: record.intermediate)
     }
 
     private static func validDigest(_ value: String) -> Bool {

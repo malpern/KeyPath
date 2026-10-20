@@ -11,7 +11,7 @@ final class SessionCapsSelectionTests: XCTestCase {
     func testAutomaticSelectionReservesInternalKeyForOneKeyboard() throws {
         let selection = try SessionCapsRuntimeSupport.automaticSelection(devices: [device], withheld: 0, boot: boot)
         XCTAssertEqual(try selection.approvedDevice(currentBoot: boot), device)
-        XCTAssertTrue(selection.reservesF18)
+        XCTAssertEqual(selection.intermediateUsage, SessionCapsIntermediate.defaultUsage)
     }
 
     func testAutomaticSelectionRefusesMultipleKeyboards() {
@@ -36,16 +36,19 @@ final class SessionCapsSelectionTests: XCTestCase {
     private let device = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 42, vendorID: 1234,
                                                                  productID: 5678, serialNumber: nil, locationID: 123)
 
-    func testConsentRequiresCurrentBootAndF18Reservation() throws {
-        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
+    func testConsentRequiresCurrentBootAndAPoolIntermediate() throws {
+        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot)
         XCTAssertEqual(try selected.approvedDevice(currentBoot: boot.lowercased()), device)
         XCTAssertThrowsError(try selected.approvedDevice(currentBoot: UUID().uuidString))
         XCTAssertThrowsError(try selected.approvedDevice(currentBoot: "invalid"))
-        XCTAssertThrowsError(try SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: false).approvedDevice(currentBoot: boot))
+        for bad: UInt32 in [57, 103, 112, 0] {
+            XCTAssertThrowsError(try SessionCapsSelection(device: device, bootSessionUUID: boot, intermediateUsage: bad).approvedDevice(currentBoot: boot))
+        }
+        XCTAssertNoThrow(try SessionCapsSelection(device: device, bootSessionUUID: boot, intermediateUsage: 104).approvedDevice(currentBoot: boot))
     }
 
     func testSelectionNeverRebindsChangedOrAmbiguousRegistryInstance() throws {
-        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
+        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot)
         let replacement = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 43, vendorID: device.vendorID,
                                                                   productID: device.productID, serialNumber: nil, locationID: device.locationID)
         XCTAssertNoThrow(try selected.verifyConnected(devices: [device], currentBoot: boot))
@@ -55,7 +58,7 @@ final class SessionCapsSelectionTests: XCTestCase {
     }
 
     func testChosenKeyboardIsAcceptedBesideOtherKeyboards() throws {
-        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
+        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot)
         let other = SessionCapsMappingPolicy.DeviceIdentity(registryEntryID: 99, vendorID: 4321,
                                                             productID: 8765, serialNumber: nil, locationID: 456)
         XCTAssertNoThrow(try selected.verifyConnected(devices: [other, device], currentBoot: boot))
@@ -117,7 +120,7 @@ final class SessionCapsSelectionTests: XCTestCase {
 
         // A consented cl80 instance now refuses instead of leasing an ambiguous selector.
         let chosen = try XCTUnwrap(SessionCapsHIDUtilTransport.parseServices(cl80).first)
-        let selection = SessionCapsSelection(device: chosen, bootSessionUUID: boot, reservesF18: true)
+        let selection = SessionCapsSelection(device: chosen, bootSessionUUID: boot)
         XCTAssertThrowsError(try selection.verifyConnected(devices: inventory.devices, currentBoot: boot))
         // X2A is eligible but is not picked on the user's behalf beside an untargetable keyboard.
         XCTAssertThrowsError(try SessionCapsRuntimeSupport.automaticSelection(devices: inventory.devices, withheld: inventory.withheld, boot: boot))
@@ -165,21 +168,23 @@ final class SessionCapsSelectionTests: XCTestCase {
     }
 
     func testDecodeRejectsCorruptVersionAndUnknownConsentFields() throws {
-        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
+        let selected = SessionCapsSelection(device: device, bootSessionUUID: boot)
         let data = try JSONEncoder().encode(selected)
         XCTAssertEqual(try SessionCapsSelection.decode(data, currentBoot: boot), selected)
         XCTAssertThrowsError(try SessionCapsSelection.decode(Data("{}".utf8), currentBoot: boot))
         var fields = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        fields["version"] = 2
+        fields["version"] = 3
         XCTAssertThrowsError(try SessionCapsSelection.decode(JSONSerialization.data(withJSONObject: fields), currentBoot: boot))
-        fields["version"] = 1
+        fields["version"] = 1 // version 1 has reservesF18, not intermediateUsage
+        XCTAssertThrowsError(try SessionCapsSelection.decode(JSONSerialization.data(withJSONObject: fields), currentBoot: boot))
+        fields["version"] = 2
         fields["automaticallyRebind"] = true
         XCTAssertThrowsError(try SessionCapsSelection.decode(JSONSerialization.data(withJSONObject: fields), currentBoot: boot))
     }
 
     func testSharedSelectionRejectsDisconnectedInstanceInSameBoot() throws {
         let currentBoot = try SessionCapsRuntimeSupport.bootSessionUUID()
-        let selected = SessionCapsSelection(device: device, bootSessionUUID: currentBoot, reservesF18: true)
+        let selected = SessionCapsSelection(device: device, bootSessionUUID: currentBoot)
         let data = try JSONEncoder().encode(selected)
         var lookedUp: [UInt64] = []
         XCTAssertThrowsError(try SessionCapsRuntimeSupport.selectedDevice(
@@ -200,7 +205,35 @@ final class SessionCapsSelectionTests: XCTestCase {
 
     func testSharedSelectionAbsentOrStaleDoesNotInventConsent() throws {
         XCTAssertNil(try SessionCapsRuntimeSupport.selectedDevice(environment: [:], selectionData: nil))
-        let stale = SessionCapsSelection(device: device, bootSessionUUID: UUID().uuidString, reservesF18: true)
+        let stale = SessionCapsSelection(device: device, bootSessionUUID: UUID().uuidString)
         XCTAssertThrowsError(try SessionCapsRuntimeSupport.selectedDevice(environment: [:], selectionData: JSONEncoder().encode(stale)))
+    }
+
+    /// Saved before the intermediate was a choice: still honoured, as F18,
+    /// and re-saved in the current shape.
+    func testVersionOneSelectionDecodesAsF18() throws {
+        let legacy = try JSONSerialization.data(withJSONObject: [
+            "version": 1, "bootSessionUUID": boot, "reservesF18": true,
+            "device": ["registryEntryID": 42, "vendorID": 1234, "productID": 5678, "locationID": 123]
+        ])
+        let selection = try SessionCapsSelection.decode(legacy, currentBoot: boot)
+        XCTAssertEqual(selection.device, device)
+        XCTAssertEqual(selection.intermediateUsage, 109)
+        let resaved = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(selection)) as? [String: Any])
+        XCTAssertEqual(resaved["version"] as? Int, 2)
+        XCTAssertEqual(resaved["intermediateUsage"] as? Int, 109)
+        XCTAssertNil(resaved["reservesF18"])
+        let declined = try JSONSerialization.data(withJSONObject: [
+            "version": 1, "bootSessionUUID": boot, "reservesF18": false,
+            "device": ["registryEntryID": 42, "vendorID": 1234, "productID": 5678, "locationID": 123]
+        ])
+        XCTAssertThrowsError(try SessionCapsSelection.decode(declined, currentBoot: boot))
+    }
+
+    func testChosenIntermediateRoundTrips() throws {
+        let selection = SessionCapsSelection(device: device, bootSessionUUID: boot, intermediateUsage: 110)
+        XCTAssertEqual(try SessionCapsSelection.decode(JSONEncoder().encode(selection), currentBoot: boot), selection)
+        XCTAssertEqual(selection.with(intermediateUsage: 104).intermediateUsage, 104)
+        XCTAssertEqual(selection.with(intermediateUsage: 104).device, device)
     }
 }

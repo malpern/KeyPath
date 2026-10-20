@@ -109,7 +109,9 @@ struct ConfigReloadCoordinatorTests {
         startRuntimeForExplicitApply: (@MainActor @Sendable () async -> Bool)? = nil,
         currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
         restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
-        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
+        currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
+        admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -151,8 +153,10 @@ struct ConfigReloadCoordinatorTests {
             runtimeWantsRunning: { transitionState.wantsRunning },
             runtimeIntentGeneration: { transitionState.intentGeneration },
             currentManagedCaps: currentManagedCaps,
+            currentCapsIntermediate: currentCapsIntermediate,
             restartForManagedCapsChange: restartForManagedCapsChange,
-            sessionValidationOverride: sessionValidationOverride
+            sessionValidationOverride: sessionValidationOverride,
+            admittedIntermediateOverride: admittedIntermediateOverride
         )
 
         return (coordinator, engine, healthStatus)
@@ -226,6 +230,29 @@ struct ConfigReloadCoordinatorTests {
         #expect(state.tcpReloadCount == 0)
         #expect(engine.reloadCallCount == 0)
         #expect(state.managedCaps == !current)
+    }
+
+    @Test("A rule that takes the running Caps intermediate restarts instead of reloading", arguments: [UInt32(109), 110])
+    func movedCapsIntermediateRestarts(admitted: UInt32) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        state.managedCaps = true
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { state.managedCaps },
+            restartForManagedCapsChange: {
+                state.restartCount += 1
+                return true
+            },
+            sessionValidationOverride: { (.valid, true) },
+            currentCapsIntermediate: { 109 },
+            admittedIntermediateOverride: { admitted }
+        )
+        let result = await coordinator.triggerTCPReload()
+        #expect(result.isSuccess)
+        let moved = admitted != 109
+        #expect(state.restartCount == (moved ? 1 : 0))
+        #expect(state.tcpReloadCount == (moved ? 0 : 1))
+        #expect(engine.reloadCallCount == 0)
     }
 
     @Test("A successful Caps mode restart may advance lifecycle intent")

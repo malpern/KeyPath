@@ -11,7 +11,10 @@ struct SessionCapsSettingsSection: View {
     @State private var withheld = 0
     @State private var device: SessionCapsMappingPolicy.DeviceIdentity?
     @State private var boot = ""
-    @State private var reservesF18 = false
+    /// The saved selection's consent for `device`; nil until one is saved.
+    @State private var saved: SessionCapsSelection?
+    /// Another app's Caps mapping on the chosen keyboard, if any.
+    @State private var conflict: SessionCapsConflict?
     @State private var automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
     @State private var busy = false
     @State private var message: String?
@@ -23,13 +26,13 @@ struct SessionCapsSettingsSection: View {
                 VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
                     HStack(spacing: 4) {
                         Text("Caps Lock remapping").font(.body.weight(.medium))
-                        InfoTip("KeyPath uses F18 behind the scenes, so avoid using F18 for anything else.")
+                        InfoTip(reservedKeyTip)
                     }
                     Text(statusText).font(.caption).foregroundStyle(statusIsWarning ? Color.orange : .secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                if !automaticDisabled, device == nil || showsPicker, !busy {
+                if !automaticDisabled, device == nil || showsPicker || conflict != nil, !busy {
                     Button("Check Again") { Task { await reviewKeyboard() } }
                         .settingsAction()
                         .accessibilityIdentifier("settings-caps-check-again")
@@ -70,6 +73,12 @@ struct SessionCapsSettingsSection: View {
                     .padding(.leading, 20 + SettingsDesign.rowGap)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if !automaticDisabled, let conflict {
+                Text(conflict.message).font(.caption).foregroundStyle(.orange)
+                    .padding(.leading, 20 + SettingsDesign.rowGap)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings-caps-conflict")
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.orange)
                     .padding(.leading, 20 + SettingsDesign.rowGap)
@@ -93,6 +102,15 @@ struct SessionCapsSettingsSection: View {
         keyboards > 1 || (withheld > 0 && keyboards > 0)
     }
 
+    private var reservedKey: String {
+        SessionCapsIntermediate.label(saved?.intermediateUsage ?? SessionCapsIntermediate.defaultUsage)
+    }
+
+    private var reservedKeyTip: String {
+        "KeyPath uses \(reservedKey) behind the scenes, so avoid using \(reservedKey) for anything else. "
+            + "If one of your rules, another app, or a keyboard shortcut uses \(reservedKey), KeyPath switches to another key from F13 to F20."
+    }
+
     private var rulesUseCaps: Bool {
         Self.rulesUseCapsLock(collections: runtime.ruleCollections, customRules: runtime.customRules)
     }
@@ -107,11 +125,11 @@ struct SessionCapsSettingsSection: View {
         }
         let name = keyboards.first(where: { $0.device == device })?.name
             ?? (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")
-        return "On \u{00B7} " + name
+        return "On \u{00B7} " + name + (saved == nil ? "" : " \u{00B7} Uses \(reservedKey) behind the scenes")
     }
 
     private var statusIsWarning: Bool {
-        (automaticDisabled && rulesUseCaps) || (!automaticDisabled && device == nil && !busy)
+        (automaticDisabled && rulesUseCaps) || (!automaticDisabled && (device == nil || conflict != nil) && !busy)
     }
 
     static func rulesUseCapsLock(collections: [RuleCollection], customRules: [CustomRule]) -> Bool {
@@ -136,7 +154,6 @@ struct SessionCapsSettingsSection: View {
             automaticDisabled = false
             return
         }
-        reservesF18 = enabled
         await applySelection(enabled: enabled)
         automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
     }
@@ -153,15 +170,17 @@ struct SessionCapsSettingsSection: View {
             boot = found.1
             keyboards = found.0.keyboards
             withheld = found.0.withheld
-            let saved = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
+            let stored = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
                 .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
-            device = Self.effectiveDevice(saved: saved?.device, connected: keyboards.map(\.device), withheld: withheld)
-            reservesF18 = saved?.device == device
+            device = Self.effectiveDevice(saved: stored?.device, connected: keyboards.map(\.device), withheld: withheld)
+            saved = stored?.device == device ? stored : nil
+            conflict = await Self.conflict(on: device, intermediate: saved?.intermediateUsage)
             if !keepMessage { message = nil }
         } catch {
             keyboards = []
             withheld = 0
             device = nil
+            conflict = nil
             message = "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run."
         }
     }
@@ -176,16 +195,28 @@ struct SessionCapsSettingsSection: View {
         return connected.count == 1 && withheld == 0 ? connected.first : nil
     }
 
+    /// A Caps row KeyPath did not write. KeyPath's own row (Caps to its
+    /// intermediate while the session runs) is not a conflict.
+    static func conflict(on device: SessionCapsMappingPolicy.DeviceIdentity?, intermediate: UInt32?) async -> SessionCapsConflict? {
+        guard let device else { return nil }
+        let found = await Task.detached { try? SessionCapsRuntimeSupport.capsConflict(on: device) }.value
+        return ownRow(found ?? nil, intermediate: intermediate) ? nil : found ?? nil
+    }
+
+    static func ownRow(_ conflict: SessionCapsConflict?, intermediate: UInt32?) -> Bool {
+        guard let conflict, let intermediate else { return false }
+        return conflict.destination == SessionCapsMappingPolicy.packed(intermediate)
+    }
+
     @MainActor
     private func choose(_ chosen: SessionCapsMappingPolicy.DeviceIdentity) async {
-        guard !busy, chosen != device || !reservesF18 else { return }
-        let previous = (device, reservesF18)
+        guard !busy, chosen != device || saved?.device != chosen else { return }
+        let previous = (device, saved)
         device = chosen
-        reservesF18 = true
         message = nil
         await applySelection(enabled: true)
         if message != nil {
-            (device, reservesF18) = previous
+            (device, saved) = previous
             message = "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept."
             await reviewKeyboard(keepMessage: true)
         }
@@ -196,8 +227,14 @@ struct SessionCapsSettingsSection: View {
         guard !busy else { return }
         let selection: SessionCapsSelection?
         if enabled {
-            guard let device, reservesF18 else { return }
-            selection = SessionCapsSelection(device: device, bootSessionUUID: boot, reservesF18: true)
+            guard let device else { return }
+            // Keep the reserved key across a keyboard change; the next session
+            // start re-checks it and moves it if it is no longer free. Read it
+            // fresh: a session start may have moved it since Settings opened.
+            let stored = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
+                .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
+            selection = SessionCapsSelection(device: device, bootSessionUUID: boot,
+                                             intermediateUsage: stored?.intermediateUsage ?? SessionCapsIntermediate.defaultUsage)
         } else { selection = nil }
         busy = true
         defer { busy = false }
@@ -206,5 +243,7 @@ struct SessionCapsSettingsSection: View {
             return
         }
         message = nil
+        saved = selection
+        conflict = await Self.conflict(on: selection?.device, intermediate: selection?.intermediateUsage)
     }
 }

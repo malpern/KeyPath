@@ -337,6 +337,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             currentManagedCaps: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.sessionManagedCapsActive
             },
+            currentCapsIntermediate: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionManagedCapsActive ? serviceLifecycleCoordinator.sessionCapsIntermediate : nil
+            },
             restartForManagedCapsChange: { [serviceLifecycleCoordinator] in
                 await serviceLifecycleCoordinator.restartKanata(reason: "Caps runtime mode changed during config reload")
             },

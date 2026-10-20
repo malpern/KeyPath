@@ -14,6 +14,8 @@ final class ServiceLifecycleCoordinator {
     var sessionApplication: NSRunningApplication?
     var sessionReportURL: URL?
     var sessionNonce: String?
+    /// The managed-Caps intermediate the current session was launched with.
+    var sessionCapsIntermediate: UInt32?
     var sessionOutputsRecovered = false
     private(set) var sessionConfigurationAdmission: KanataHostBridgeValidationResult?
     var sessionSupervisionTask: Task<Void, Never>?
