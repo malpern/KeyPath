@@ -174,6 +174,33 @@ source. The three Swift deny-lists and `driverlessUnavailableReason` are
 deleted. A driver backend ships a profile with `consumerOutput: .native`,
 `deviceTargeting: .native`, `capsLock: .native`; nothing else changes.
 
+### 4.1a What phase 1 actually built (2026-10-19)
+
+The design above describes a full profile object exported as JSON. Reading the
+code showed the duplication was narrower than that: the Rust session check
+already takes its allowed output keys from Swift's `SessionKeyMap`, so the key
+list itself was never copied. What was copied was the *rule* (keyboard page only;
+media and brightness refused) in three hand-written Swift deny-lists and a
+hard-coded collection id. Phase 1 therefore exports the rule, not a list:
+
+- **Rust:** `session_config::output_key_name_supported(name, usages)` applies the
+  same `oscode_supported` + `session_output_usages` helpers `supported` uses, so
+  the query and validation cannot disagree. FFI:
+  `keypath_kanata_bridge_session_output_key_supported` (1 / 0 / -1 unknown).
+- **Swift:** `BackendCapabilityProfile` (KeyPathCore) answers `canEmit(kanataKey:)`
+  per base key (modifier prefixes stripped), cached, and `supportsDeviceTargeting`.
+  Only the session backend has limits. With no bridge answer it keeps the previous
+  behaviour (refuse only consumer keys); session validation stays the backstop.
+- **Callers:** `SystemActionInfo.isSupportedInDriverlessSession`,
+  `FunctionKeyMode.isSupportedInDriverlessSession` (now derived from the mode's
+  mappings) and `RuleCollectionCatalog.driverlessUnavailableReason` (derived from
+  the collection *as installed*: macOS Function Keys is stored as its media
+  definition but installed in function mode). Public names unchanged.
+- **Not done here:** `validKanataPassthrough` still checks name validity only; the
+  generator's lowering stage (phase 6) is where backend output belongs.
+  Fields of §4.1 with no consumer yet (`inputUsages`, `layerTransparency`,
+  `customActions`) are deliberately not exported until a phase needs them.
+
 ### 4.2 Requirements: inferred where derivable, declared only otherwise
 
 Extend `RuleCapability` (`RuleDependencyGraph.swift:37`) from three cases to a
@@ -328,7 +355,7 @@ until phase 4.
 
 | Phase | Scope | Tests |
 |---|---|---|
-| **1. Profile** | Rust exports `BackendCapabilityProfile`; Swift decodes it; `SessionKeyMap`, `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession`, `driverlessUnavailableReason` and `validKanataPassthrough` read from it. Delete the deny-lists. | profile round-trip; every deleted list's former behaviour as an assertion against the profile; Rust test that `supported` ≡ "within profile". |
+| **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** | `RuleCapability` extended; the extractor infers the new cases; optional `requires` in catalog JSON and `Pack` for non-derivable needs only; `conflictsWith` read. | extractor test per capability over the whole catalog; one `requires` case; `conflictsWith` case. |
 | **3. Claims + engine** | `Claim`, `Verdict`, `AdmissionEngine` in `KeyPathRulesCore`; implemented over the existing `detectConflicts` data so results are identical; reserved claims from the profile. | golden tests: every case `conflictInfo` and `detectConflicts` find today, the same verdicts; new cases for F18, media keys, foreign Caps mapping, app keymap vs global. |
 | **4. Callers** | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |

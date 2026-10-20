@@ -16,6 +16,34 @@ const BRIDGE_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes(
 #[cfg(target_os = "macos")]
 mod session_config;
 
+/// Whether the driverless session can emit the Kanata key `key_name` as an
+/// output: 1 yes, 0 no, -1 unknown key name or bad arguments. Uses exactly the
+/// rule session validation applies, so Swift never keeps its own copy of it.
+#[cfg(target_os = "macos")]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_session_output_key_supported(
+    key_name: *const c_char,
+    supported_usages: *const u32,
+    supported_count: usize,
+) -> i32 {
+    if key_name.is_null()
+        || supported_usages.is_null()
+        || supported_count == 0
+        || supported_count > 512
+    {
+        return -1;
+    }
+    let Ok(name) = unsafe { CStr::from_ptr(key_name) }.to_str() else {
+        return -1;
+    };
+    let usages = unsafe { std::slice::from_raw_parts(supported_usages, supported_count) };
+    match session_config::output_key_name_supported(name, usages) {
+        Some(true) => 1,
+        Some(false) => 0,
+        None => -1,
+    }
+}
+
 /// Validate the supported session profile using Kanata's actual parsed action
 /// tree. The host supplies its key map, so this cannot drift from CG translation.
 #[cfg(target_os = "macos")]

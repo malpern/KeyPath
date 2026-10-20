@@ -1,10 +1,32 @@
 import Foundation
+import KeyPathCore
 import KeyPathRulesCore
 
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {
+    /// Why a built-in collection cannot run on the active backend, or nil. Derived
+    /// from the keys the collection's catalog definition emits, so a collection
+    /// becomes unavailable (or available) with the backend, not a hard-coded id.
+    ///
+    /// Uses the collection as a profile receives it (the fresh-profile default),
+    /// not the raw catalog entry: macOS Function Keys is stored as its media
+    /// definition but always installed in function mode, and media mode's own
+    /// availability is `FunctionKeyMode.isSupportedInDriverlessSession`.
     static func driverlessUnavailableReason(for id: UUID) -> String? {
-        id == RuleCollectionIdentifier.funLayer ? SystemActionInfo.driverlessMediaUnavailableReason : nil
+        guard let collection = installedDefinitions.first(where: { $0.id == id }) else { return nil }
+        return emitsUnsupportedOutput(collection.mappings) ? SystemActionInfo.driverlessMediaUnavailableReason : nil
+    }
+
+    private static let installedDefinitions = RuleCollectionCatalog().defaultCollections()
+
+    /// True when any keystroke these mappings emit is outside the backend's profile.
+    static func emitsUnsupportedOutput(_ mappings: [KeyMapping],
+                                       profile: BackendCapabilityProfile = .shared) -> Bool
+    {
+        mappings.contains { mapping in
+            guard case let .keystroke(key) = mapping.action else { return false }
+            return !profile.canEmit(kanataKey: key)
+        }
     }
 
     func defaultCollections() -> [RuleCollection] {
@@ -203,5 +225,13 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "f12", action: .keystroke(key: "f12"), description: "F12")
             ]
         }
+    }
+}
+
+public extension FunctionKeyMode {
+    /// Whether the active backend can emit every key this mode maps F1–F12 to.
+    /// Media mode needs consumer-page output, which the driverless session lacks.
+    var isSupportedInDriverlessSession: Bool {
+        !RuleCollectionCatalog.emitsUnsupportedOutput(RuleCollectionCatalog.functionKeyMappings(for: self))
     }
 }
