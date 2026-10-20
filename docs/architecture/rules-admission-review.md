@@ -338,6 +338,19 @@ Callers, all through this one function:
   sees changes. Phase 4 is where to decide how to surface conflicts the silent
   `dedupe` has been hiding on existing profiles (§ risks: one-time advisory).
 
+### 4.4b Phase 4a (2026-10-19)
+
+- `RuleCollectionsManager.conflictInfo(for:)` (collection and custom-rule forms) now
+  asks `AdmissionEngine` on the proposed state instead of its own first-hit scan.
+  Toggle time and save time therefore share one detector, one identity (ids) and
+  one layer rule; the custom-rule-vs-custom-rule cross-layer false positive is gone.
+  Neovim Terminal stays exempt, as the save path already drops it from the config.
+- Synthetic parties (leader key, chord group) are not offered at toggle time (there
+  is nothing to disable); the save path still refuses them. 4b renders them.
+- `RuleCollectionDeduplicator.dedupe` still drops a second claimant (block builders
+  rely on uniqueness) but now logs it as an admission gap, not at debug (ADR-039 §1).
+- No migration or one-time advisory: there are no real users yet.
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
@@ -407,7 +420,7 @@ until phase 4.
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
-| **4. Callers** | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
+| **4. Callers** — *in progress: 4a done (toggle/save through the engine; dedupe drop is a logged admission gap); 4b dialogs, 4c packs, 4d editor/catalog/reserved key, 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
 
