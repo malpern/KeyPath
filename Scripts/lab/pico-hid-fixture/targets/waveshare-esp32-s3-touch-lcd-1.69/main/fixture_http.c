@@ -514,10 +514,12 @@ static esp_err_t trace_handler(httpd_req_t *request) {
         snprintf(line, sizeof(line),
                  "{\"sequence\":%" PRIu64 ",\"scheduledUs\":%" PRIu64 ","
                  "\"submittedUs\":%" PRIu64 ",\"latenessUs\":%" PRId64 ","
-                 "\"modifiers\":%u,\"keys\":[%u,%u,%u,%u,%u,%u]}\n",
+                 "\"modifiers\":%u,\"keys\":[%u,%u,%u,%u,%u,%u],"
+                 "\"consumer\":%u,\"consumerReport\":%s}\n",
                  trace.sequence, trace.scheduled_us, trace.submitted_us, trace.lateness_us,
                  trace.modifiers, trace.keys[0], trace.keys[1], trace.keys[2],
-                 trace.keys[3], trace.keys[4], trace.keys[5]);
+                 trace.keys[3], trace.keys[4], trace.keys[5],
+                 trace.consumer, trace.consumer_report ? "true" : "false");
         httpd_resp_send_chunk(request, line, HTTPD_RESP_USE_STRLEN);
     }
     return httpd_resp_send_chunk(request, NULL, 0u);

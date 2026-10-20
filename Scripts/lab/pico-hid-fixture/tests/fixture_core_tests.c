@@ -16,13 +16,18 @@ typedef struct {
     uint32_t count;
     uint8_t modifiers[32];
     uint8_t keys[32][6];
+    uint16_t consumer[32];
+    bool consumer_report[32];
 } reports_t;
 
-static bool capture_report(uint8_t modifiers, const uint8_t keys[6], void *context) {
+static bool capture_report(uint8_t modifiers, const uint8_t keys[6], uint16_t consumer,
+                           bool consumer_report, void *context) {
     reports_t *reports = context;
     assert(reports->count < 32u);
     reports->modifiers[reports->count] = modifiers;
     memcpy(reports->keys[reports->count], keys, 6u);
+    reports->consumer[reports->count] = consumer;
+    reports->consumer_report[reports->count] = consumer_report;
     reports->count++;
     return true;
 }
@@ -505,6 +510,89 @@ static void test_sound_mode_defaults_silent_and_toggles(void) {
     assert(sound.silent);
 }
 
+/* Media keys: an optional ninth field holds a consumer-page usage. */
+static void test_consumer_report_press_release_and_trace(void) {
+    fixture_t fixture;
+    reports_t reports = {0};
+    fixture_init(&fixture);
+    drain_initial_release(&fixture, &reports);
+    const char *events = "0 0 0 0 0 0 0 0 226\n50000 0 0 0 0 0 0 0 0\n"; /* Mute down, up */
+    char script[512], error[128];
+    make_script(script, sizeof(script), "media", 1u, events, 2u, 100000u);
+    assert(fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(fixture.events[0].consumer == 226u);
+    assert(fixture_arm(&fixture, "media", error, sizeof(error)));
+    fixture_poll(&fixture, 1u, true, true, capture_report, &reports);
+    assert(fixture_start(&fixture, "media", 100u, 1000u, error, sizeof(error)));
+    fixture_poll(&fixture, 101000u, true, true, capture_report, &reports);
+    fixture_poll(&fixture, 151000u, true, true, capture_report, &reports);
+    assert(fixture.state == FIXTURE_COMPLETE);
+    uint32_t press = reports.count - 2u, release = reports.count - 1u;
+    assert(reports.consumer_report[press] && reports.consumer[press] == 226u);
+    assert(reports.consumer_report[release] && reports.consumer[release] == 0u);
+    assert(fixture.last_consumer == 0u);
+    assert(fixture_trace_at(&fixture, 0u)->consumer_report);
+    assert(fixture_trace_at(&fixture, 0u)->consumer == 226u);
+}
+
+static void test_eight_field_scripts_never_send_consumer_reports(void) {
+    fixture_t fixture;
+    reports_t reports = {0};
+    fixture_init(&fixture);
+    drain_initial_release(&fixture, &reports);
+    const char *events = "0 0 4 0 0 0 0 0\n50000 0 0 0 0 0 0 0\n";
+    char script[512], error[128];
+    make_script(script, sizeof(script), "plain", 1u, events, 2u, 100000u);
+    assert(fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(fixture_arm(&fixture, "plain", error, sizeof(error)));
+    fixture_poll(&fixture, 1u, true, true, capture_report, &reports);
+    assert(fixture_start(&fixture, "plain", 100u, 1000u, error, sizeof(error)));
+    fixture_poll(&fixture, 101000u, true, true, capture_report, &reports);
+    fixture_poll(&fixture, 151000u, true, true, capture_report, &reports);
+    for (uint32_t index = 0u; index < reports.count; ++index) assert(!reports.consumer_report[index]);
+}
+
+static void test_rejects_unsafe_consumer_scripts(void) {
+    fixture_t fixture;
+    fixture_init(&fixture);
+    char script[512], error[128];
+    const char *both = "0 0 4 0 0 0 0 0 226\n50000 0 0 0 0 0 0 0 0\n";
+    make_script(script, sizeof(script), "both", 1u, both, 2u, 100000u);
+    assert(!fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(strstr(error, "not both"));
+    const char *held = "0 0 0 0 0 0 0 0 226\n";
+    make_script(script, sizeof(script), "held", 1u, held, 1u, 100000u);
+    assert(!fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(strstr(error, "all-keys-released"));
+    const char *range = "0 0 0 0 0 0 0 0 1024\n50000 0 0 0 0 0 0 0 0\n";
+    make_script(script, sizeof(script), "range", 1u, range, 2u, 100000u);
+    assert(!fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(strstr(error, "consumer page"));
+}
+
+static void test_abort_releases_a_held_media_key_before_the_keyboard(void) {
+    fixture_t fixture;
+    reports_t reports = {0};
+    fixture_init(&fixture);
+    drain_initial_release(&fixture, &reports);
+    const char *events = "0 0 0 0 0 0 0 0 233\n50000 0 0 0 0 0 0 0 0\n"; /* Volume Up held */
+    char script[512], error[128];
+    make_script(script, sizeof(script), "held", 1u, events, 2u, 100000u);
+    assert(fixture_load_script(&fixture, script, strlen(script), error, sizeof(error)));
+    assert(fixture_arm(&fixture, "held", error, sizeof(error)));
+    fixture_poll(&fixture, 1u, true, true, capture_report, &reports);
+    assert(fixture_start(&fixture, "held", 100u, 1000u, error, sizeof(error)));
+    fixture_poll(&fixture, 101000u, true, true, capture_report, &reports);
+    assert(fixture.last_consumer == 233u);
+    fixture_abort(&fixture, "operator abort");
+    fixture_poll(&fixture, 101001u, true, true, capture_report, &reports);
+    assert(reports.consumer_report[reports.count - 1u] && reports.consumer[reports.count - 1u] == 0u);
+    assert(fixture.pending_release);
+    fixture_poll(&fixture, 101002u, true, true, capture_report, &reports);
+    assert(!reports.consumer_report[reports.count - 1u]);
+    assert(!fixture.pending_release && fixture.last_consumer == 0u);
+}
+
 int main(void) {
     test_load_arm_run_and_repeat();
     test_rejects_corrupt_and_unsafe_scripts();
@@ -523,6 +611,10 @@ int main(void) {
     test_splash_reveals_holds_and_fades_without_blocking_boot();
     test_button_feedback_identifies_physical_positions_and_expires();
     test_sound_mode_defaults_silent_and_toggles();
+    test_consumer_report_press_release_and_trace();
+    test_eight_field_scripts_never_send_consumer_reports();
+    test_rejects_unsafe_consumer_scripts();
+    test_abort_releases_a_held_media_key_before_the_keyboard();
     puts("physical HID fixture core tests passed");
     return 0;
 }

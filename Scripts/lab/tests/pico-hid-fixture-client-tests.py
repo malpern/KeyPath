@@ -185,5 +185,24 @@ class ClientTests(unittest.TestCase):
             self.client.update_firmware(b"image", "not-a-build")
 
 
+
+class MediaScriptTests(unittest.TestCase):
+    def test_media_keys_compile_to_consumer_events_with_a_valid_crc(self):
+        script = CLIENT.compile_media("media-1", ["mute", "volume-up"], 300, 60, 1, 500)
+        header, *lines = script.rstrip("\n").split("\n")
+        fields = header.split()
+        self.assertEqual(fields[:5], ["KPHID1", "media-1", "4", "1", str(600_000 + 500_000)])
+        payload = "\n".join(lines) + "\n"
+        self.assertEqual(int(fields[5], 16), CLIENT.zlib.crc32(payload.encode()) & 0xFFFFFFFF)
+        self.assertEqual(lines, ["0 0 0 0 0 0 0 0 226", "60000 0 0 0 0 0 0 0 0",
+                                 "300000 0 0 0 0 0 0 0 233", "360000 0 0 0 0 0 0 0 0"])
+
+    def test_unknown_media_key_and_bad_timing_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "unknown media key"):
+            CLIENT.compile_media("m", ["calculator"], 300, 60, 1, 0)
+        with self.assertRaises(ValueError):
+            CLIENT.compile_media("m", ["mute"], 60, 60, 1, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

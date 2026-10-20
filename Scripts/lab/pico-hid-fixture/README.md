@@ -352,13 +352,22 @@ The first line is:
 KPHID1 RUN_ID EVENT_COUNT REPEAT_COUNT CYCLE_US CRC32
 ```
 
-Each remaining line is one complete boot-keyboard report:
+Each remaining line is one complete keyboard state, with an optional media-key state:
 
 ```text
-AT_US MODIFIERS KEY1 KEY2 KEY3 KEY4 KEY5 KEY6
+AT_US MODIFIERS KEY1 KEY2 KEY3 KEY4 KEY5 KEY6 [CONSUMER]
 ```
 
-Times are absolute within one cycle and must increase. The last report must contain seven zeros.
+`CONSUMER` is the consumer-page usage held (0 = none; `226` Mute, `233` Volume Up, `234` Volume
+Down, `205` Play/Pause, `111`/`112` Brightness Up/Down, `181`/`182` Next/Previous). It is sent as a
+separate consumer-control report (report ID 2), which macOS turns into the same system-defined media
+events a real keyboard's media keys produce. Omitting it means 0, so every eight-field script is
+unchanged. An event may change the keyboard state or the consumer state, not both, so each event is
+exactly one USB report. `pico-hid-fixture-client compile-media --keys mute,volume-up` writes one.
+
+Times are absolute within one cycle and must increase. The last event must release everything
+(seven zeros, and a zero or absent consumer field). An abort or unmount releases a held media key
+before the keyboard.
 The event payload, including final newlines, is protected by the header CRC32. A short cycle can be
 repeated many times without storing tens of thousands of reports in Pico RAM.
 

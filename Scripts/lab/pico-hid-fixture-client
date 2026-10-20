@@ -79,6 +79,48 @@ def compile_text(run_id: str, text: str, interval_ms: int, hold_ms: int,
     return f"KPHID1 {run_id} {len(events)} {repeat_count} {cycle_us} {crc:08x}\n{event_payload}"
 
 
+
+# Consumer-page usages the fixture can press as media keys (the same ten keys
+# KeyPath's driverless session posts and reads; see driverless-media-keys.md).
+MEDIA_USAGE = {
+    "volume-up": 0xE9, "volume-down": 0xEA, "mute": 0xE2,
+    "brightness-up": 0x6F, "brightness-down": 0x70,
+    "play-pause": 0xCD, "next": 0xB5, "previous": 0xB6,
+    "fast-forward": 0xB3, "rewind": 0xB4,
+}
+
+
+def compile_media(run_id: str, keys: list[str], interval_ms: int, hold_ms: int,
+                  repeat_count: int, cycle_gap_ms: int) -> str:
+    """Press and release each media key in order, as consumer-control reports.
+
+    Each event line carries the optional ninth field (the consumer usage held),
+    with the keyboard fields all released, so each event is one USB report.
+    """
+    if not run_id or len(run_id) > 48 or any(not (ch.isalnum() or ch in "-_.") for ch in run_id):
+        raise ValueError("run id must contain 1-48 letters, digits, dots, underscores, or hyphens")
+    if not keys:
+        raise ValueError("no media keys given")
+    if not 1 <= repeat_count <= 10_000:
+        raise ValueError("repeat count must be between 1 and 10000")
+    if interval_ms < 4 or not 2 <= hold_ms < interval_ms:
+        raise ValueError("interval must be at least 4 ms and hold shorter than the interval")
+    events: list[str] = []
+    at_us = 0
+    for name in keys:
+        try:
+            usage = MEDIA_USAGE[name]
+        except KeyError as error:
+            raise ValueError(f"unknown media key {name!r}; known: {', '.join(sorted(MEDIA_USAGE))}") from error
+        events.append(f"{at_us} 0 0 0 0 0 0 0 {usage}")
+        events.append(f"{at_us + hold_ms * 1000} 0 0 0 0 0 0 0 0")
+        at_us += interval_ms * 1000
+    cycle_us = at_us + cycle_gap_ms * 1000
+    event_payload = "\n".join(events) + "\n"
+    crc = zlib.crc32(event_payload.encode("ascii")) & 0xFFFFFFFF
+    return f"KPHID1 {run_id} {len(events)} {repeat_count} {cycle_us} {crc:08x}\n{event_payload}"
+
+
 class FixtureClient:
     def __init__(self, host: str, token: str, port: int = 8080, timeout: float = 10.0):
         if not token:
@@ -267,6 +309,14 @@ def parser() -> argparse.ArgumentParser:
     compile_command.add_argument("--shift-lead-ms", type=int, default=0)
     compile_command.add_argument("--shift-release-lag-ms", type=int, default=0)
     compile_command.add_argument("--output", type=pathlib.Path)
+    media_command = commands.add_parser("compile-media")
+    media_command.add_argument("--run-id", required=True)
+    media_command.add_argument("--keys", required=True, help="comma-separated, e.g. mute,volume-up")
+    media_command.add_argument("--interval-ms", type=int, default=300)
+    media_command.add_argument("--hold-ms", type=int, default=60)
+    media_command.add_argument("--repeat", type=int, default=1)
+    media_command.add_argument("--cycle-gap-ms", type=int, default=500)
+    media_command.add_argument("--output", type=pathlib.Path)
     load_command = commands.add_parser("load-script")
     load_command.add_argument("script", type=pathlib.Path)
     arm_command = commands.add_parser("arm")
@@ -325,6 +375,15 @@ def main() -> int:
         script = compile_text(arguments.run_id, arguments.text.read_text(), arguments.interval_ms,
                               arguments.hold_ms, arguments.repeat, arguments.cycle_gap_ms,
                               arguments.shift_lead_ms, arguments.shift_release_lag_ms)
+        if arguments.output:
+            arguments.output.write_text(script)
+            print(arguments.output)
+        else:
+            sys.stdout.write(script)
+        return 0
+    if arguments.command == "compile-media":
+        script = compile_media(arguments.run_id, [key.strip() for key in arguments.keys.split(",") if key.strip()],
+                               arguments.interval_ms, arguments.hold_ms, arguments.repeat, arguments.cycle_gap_ms)
         if arguments.output:
             arguments.output.write_text(script)
             print(arguments.output)
