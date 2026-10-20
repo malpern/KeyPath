@@ -11,7 +11,7 @@ import XCTest
 /// `beh_base_f` binding never took effect.
 ///
 /// Two separate facts, both verified here:
-///  1. `RuleCollectionDeduplicator.detectConflicts` *does* see this collision
+///  1. `AdmissionEngine.conflicts` *does* see this collision
 ///     (activator-vs-mapping, #667), so config generation refuses to build.
 ///  2. `RulesFacade.addRule` used to persist the rule anyway, because it only
 ///     ever compared against other custom rules — so the rule was reported as
@@ -61,7 +61,7 @@ final class CLIRuleCollectionConflictTests: XCTestCase {
             input: "f", action: tapHoldF().action, behavior: tapHoldF().behavior
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
+        let conflicts = AdmissionEngine.mappingConflicts(
             in: [rule].asRuleCollections() + [arrows]
         )
 
@@ -217,7 +217,7 @@ final class CLIRuleCollectionConflictTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         XCTAssertFalse(
-            RuleCollectionDeduplicator.detectConflicts(in: [arrows, conflicting]).isEmpty,
+            AdmissionEngine.mappingConflicts(in: [arrows, conflicting]).isEmpty,
             "Precondition: the collections conflict with each other"
         )
 

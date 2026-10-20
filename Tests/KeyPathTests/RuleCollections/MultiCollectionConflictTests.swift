@@ -42,7 +42,7 @@ final class MultiCollectionConflictTests: XCTestCase {
         let b = collection(name: "B", mappings: [("a", "2")])
         let c = collection(name: "C", mappings: [("a", "3")])
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [a, b, c])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [a, b, c])
         XCTAssertEqual(conflicts.count, 1)
         XCTAssertEqual(conflicts.first?.inputKey, "a")
         XCTAssertEqual(conflicts.first?.conflictingCollections.count, 3)
@@ -56,7 +56,7 @@ final class MultiCollectionConflictTests: XCTestCase {
         let b = collection(name: "B", mappings: [("a", "3"), ("b", "4")])
         let c = collection(name: "C", mappings: [("a", "5")])
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [a, b, c])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [a, b, c])
         let conflictKeys = Set(conflicts.map(\.inputKey))
         XCTAssertTrue(conflictKeys.contains("a"))
         XCTAssertTrue(conflictKeys.contains("b"))
@@ -73,7 +73,7 @@ final class MultiCollectionConflictTests: XCTestCase {
         let b = collection(name: "B", mappings: [("a", "2")], enabled: false)
         let c = collection(name: "C", mappings: [("a", "3")])
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [a, b, c])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [a, b, c])
         XCTAssertEqual(conflicts.count, 1)
         XCTAssertEqual(conflicts.first?.conflictingCollections.count, 2)
         XCTAssertFalse(

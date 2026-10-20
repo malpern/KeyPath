@@ -518,7 +518,7 @@ extension KanataConfiguration {
     /// Safety net: detect duplicate alias names and keep only the last definition
     /// so kanata doesn't reject the config outright.
     ///
-    /// The primary defense is `RuleCollectionDeduplicator.detectConflicts()` which
+    /// The primary defense is `AdmissionEngine.conflicts(in:leaderKey:)()` which
     /// blocks config writes when collections overlap. This function catches edge
     /// cases that slip past (e.g., aliases generated from non-mapping paths).
     /// It logs warnings so the root cause is visible in diagnostics.

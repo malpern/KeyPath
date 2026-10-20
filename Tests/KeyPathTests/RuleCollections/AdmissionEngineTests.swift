@@ -33,11 +33,12 @@ final class AdmissionEngineTests: XCTestCase {
     private func assertConflictsMatchDetector(_ state: AdmissionEngine.State, file: StaticString = #filePath,
                                               line: UInt = #line) -> Int
     {
-        let detector = RuleCollectionDeduplicator.detectConflicts(
+        // The save gate's view of the same state must agree with evaluate's.
+        let detector = AdmissionEngine.mappingConflicts(
             in: state.collections + state.customRules.map { $0.asRuleCollection() }, leaderKey: state.leaderKey
         )
         let conflicts = evaluate(state).compactMap { verdict -> (String, String)? in
-            guard case let .conflict(key, layer, _) = verdict.reason else { return nil }
+            guard case let .conflict(key, layer, _, _) = verdict.reason else { return nil }
             XCTAssertEqual(verdict.severity, .needsChoice, file: file, line: line)
             return (key, layer)
         }
@@ -73,10 +74,42 @@ final class AdmissionEngineTests: XCTestCase {
         let a = collection("A", [("a", "1")]), b = collection("B", [("a", "2")])
         let rule = CustomRule(title: "Mine", input: "a", action: .keystroke(key: "3"))
         let verdict = try XCTUnwrap(evaluate(.init(collections: [a, b], customRules: [rule])).first)
-        guard case let .conflict(key, _, parties) = verdict.reason else { return XCTFail("not a conflict") }
+        guard case let .conflict(key, _, parties, _) = verdict.reason else { return XCTFail("not a conflict") }
         XCTAssertEqual(key, "a")
         XCTAssertEqual(Set(parties), [.collection(a.id), .collection(b.id), .customRule(rule.id)])
         XCTAssertEqual(Set(verdict.fixes), Set(parties.map { AdmissionVerdict.Fix.disable($0) }))
+    }
+
+    /// Names are not identities: two rules titled alike, one colliding, must
+    /// blame only the one that collides (the old detector reported names).
+    func testSameTitledRulesAreToldApart() {
+        let colliding = CustomRule(title: "Mine", input: "a", action: .keystroke(key: "2"))
+        let innocent = CustomRule(title: "Mine", input: "b", action: .keystroke(key: "3"))
+        let a = collection("A", [("a", "1")])
+        let verdicts = evaluate(.init(collections: [a], customRules: [colliding, innocent]))
+        XCTAssertEqual(verdicts.count, 1)
+        guard case let .conflict(_, _, parties, _)? = verdicts.first?.reason else { return XCTFail("not a conflict") }
+        XCTAssertEqual(Set(parties), [.collection(a.id), .customRule(colliding.id)])
+        XCTAssertFalse(parties.contains(.customRule(innocent.id)))
+        // The save gate's error names them too, from the same verdicts.
+        let gate = AdmissionEngine.mappingConflicts(in: [a] + [colliding, innocent].map { $0.asRuleCollection() })
+        XCTAssertEqual(gate.map(\.conflictingCollections), [["A", "Mine"]])
+    }
+
+    /// What each party does with the key travels with the verdict.
+    func testConflictDetailsNameTheHoldAndTheActivator() throws {
+        let mods = collection("Mods", [("f", "f")])
+        var withHold = mods
+        withHold.mappings = [KeyMapping(input: "f", action: .keystroke(key: "f"),
+                                        behavior: .dualRole(DualRoleBehavior(tapAction: .keystroke(key: "f"), holdAction: .keystroke(key: "lsft"))))]
+        let arrows = collection("Arrows", [], activator: MomentaryActivator(input: "f", targetLayer: .navigation))
+        let verdict = try XCTUnwrap(evaluate(.init(collections: [withHold, arrows])).first)
+        guard case let .conflict(key, layer, parties, details) = verdict.reason else { return XCTFail("not a conflict") }
+        XCTAssertEqual(key, "f"); XCTAssertEqual(layer, "Base")
+        XCTAssertEqual(parties, [.collection(arrows.id), .collection(withHold.id)])
+        XCTAssertEqual(details, ["Arrows: activates Navigation", "Mods: maps f"])
+        let text = AdmissionVerdictPresenter.present(verdict) { $0 == .collection(arrows.id) ? "Arrows" : "Mods" }
+        XCTAssertEqual(text.explanation, "Arrows and Mods both map f on the Base layer (Arrows: activates Navigation; Mods: maps f). Only one can win.")
     }
 
     // MARK: - New: environment needs

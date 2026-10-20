@@ -605,7 +605,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             isSystemDefault: false
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collA, collB])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collA, collB])
         XCTAssertEqual(conflicts.count, 1)
         XCTAssertEqual(conflicts.first?.inputKey, "caps")
     }
@@ -628,7 +628,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             isSystemDefault: false
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [enabled, disabled])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [enabled, disabled])
         XCTAssertTrue(conflicts.isEmpty, "Disabled collections should not cause conflicts")
     }
 
@@ -656,7 +656,7 @@ final class ConfigurationServiceSavePipelineTests: KeyPathTestCase {
             isSystemDefault: false
         )
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collA, collB])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collA, collB])
         XCTAssertEqual(conflicts.count, 2)
         XCTAssertEqual(conflicts[0].inputKey, "a")
         XCTAssertEqual(conflicts[1].inputKey, "z")

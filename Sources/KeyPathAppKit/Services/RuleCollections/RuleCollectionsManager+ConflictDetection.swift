@@ -84,7 +84,7 @@ extension RuleCollectionsManager {
         var keysByParty: [AdmissionSubject: Set<String>] = [:]
         var order: [AdmissionSubject] = []
         for verdict in AdmissionEngine.evaluate(state) {
-            guard case let .conflict(key, _, parties) = verdict.reason, parties.contains(subject) else { continue }
+            guard case let .conflict(key, _, parties, _) = verdict.reason, parties.contains(subject) else { continue }
             for party in parties where party != subject {
                 if keysByParty[party] == nil { order.append(party) }
                 keysByParty[party, default: []].insert(key)
