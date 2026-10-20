@@ -26,6 +26,9 @@ public final class SessionRuntimeWorker {
     private var signals: [DispatchSourceSignal] = []
     private var outputs = SessionOutputState()
     private var inputs: Set<UInt32> = []
+    /// Consumer-page media keys held into Kanata. Kept apart from `inputs`:
+    /// usage numbers overlap across pages (0xE2 is Mute here, Left Alt on page 7).
+    private var mediaInputs: Set<UInt32> = []
     private var capsRecord: SessionCapsMappingPolicy.Record?
     private var capsOwner: SessionCapsMappingPolicy.Owner?
     private var capsDirectory: URL?
@@ -207,8 +210,11 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "runtime-start-failed")
         }
 
+        // 14 = NX_SYSDEFINED: the media keys (volume, brightness, playback) on
+        // Apple keyboards arrive as system-defined events, not key events.
         let mask = (1 << CGEventType.keyDown.rawValue)
             | (1 << CGEventType.keyUp.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
+            | (1 << Self.systemDefinedEventType)
         tap = createModifyingTap(eventsOfInterest: CGEventMask(mask))
         guard let startupTap = tap else { finish(.failed, reason: "modifying-tap-unavailable") }
         if admission.managedCaps {
@@ -393,6 +399,7 @@ public final class SessionRuntimeWorker {
             finish(.failed, reason: "environment-observer-unavailable")
         }
         if IsSecureEventInputEnabled() { finish(.secureInput) }
+        if type.rawValue == Self.systemDefinedEventType { return receiveMedia(event) }
         physicalPassthroughFlags = physicalModifiers.passthroughFlags(
             keyCode: UInt16(event.getIntegerValueField(.keyboardEventKeycode)),
             isFlagsChanged: type == .flagsChanged, flags: event.flags.rawValue
@@ -450,8 +457,30 @@ public final class SessionRuntimeWorker {
         return nil
     }
 
-    private func send(value: UInt64, usage: UInt32) -> Bool {
-        guard let runtime, case .success = runtime.sendInput(value: value, usagePage: 7, usage: usage) else {
+    static let systemDefinedEventType: UInt32 = 14
+
+    /// A media key from the built-in or an Apple keyboard. Mapped ones go to
+    /// Kanata and are consumed; everything else passes through untouched.
+    /// Hardware repeats of a held mapped key are swallowed, since Kanata (and,
+    /// for posted media outputs, macOS) repeat on their own.
+    private func receiveMedia(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        let original = Unmanaged.passUnretained(event)
+        guard let nsEvent = NSEvent(cgEvent: event), nsEvent.type == .systemDefined,
+              let input = SessionKeyMap.mediaInput(subtype: nsEvent.subtype.rawValue, data1: nsEvent.data1),
+              runtime?.isInputMapped(usagePage: SessionKeyMap.consumerPage, usage: input.usage) == true
+        else { return original }
+        switch input.value {
+        case 2: return mediaInputs.contains(input.usage) ? nil : original
+        case 0: guard mediaInputs.contains(input.usage) else { return original } // press predates this tap
+        default: break
+        }
+        guard send(value: input.value, usage: input.usage, usagePage: SessionKeyMap.consumerPage) else { return original }
+        if input.value == 0 { mediaInputs.remove(input.usage) } else { mediaInputs.insert(input.usage) }
+        return nil
+    }
+
+    private func send(value: UInt64, usage: UInt32, usagePage: UInt32 = SessionKeyMap.keyboardPage) -> Bool {
+        guard let runtime, case .success = runtime.sendInput(value: value, usagePage: usagePage, usage: usage) else {
             finish(.failed, reason: "input-queue-unavailable")
         }
         inputCount += 1

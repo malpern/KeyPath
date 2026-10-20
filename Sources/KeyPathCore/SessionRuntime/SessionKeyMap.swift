@@ -30,6 +30,24 @@ public enum SessionKeyMap {
         consumerUsageToMediaKeyType[usage]
     }
 
+    private static let mediaKeyTypeToConsumerUsage = Dictionary(
+        uniqueKeysWithValues: consumerUsageToMediaKeyType.map { ($0.value, $0.key) }
+    )
+
+    /// The consumer-page input a macOS system-defined media event carries, as
+    /// Kanata's (usage, value): 1 down, 0 up, 2 a hardware repeat. nil for any
+    /// other subtype or a key outside the table. data1 holds the NX key type in
+    /// bits 16–23, 0xA (down) or 0xB (up) in bits 8–15, and the repeat flag in
+    /// bit 0 (docs/architecture/driverless-media-keys.md §1).
+    public static func mediaInput(subtype: Int16, data1: Int) -> (usage: UInt32, value: UInt64)? {
+        guard subtype == 8, let usage = mediaKeyTypeToConsumerUsage[(data1 >> 16) & 0xFF] else { return nil }
+        switch (data1 >> 8) & 0xFF {
+        case 0xA: return (usage, data1 & 1 == 1 ? 2 : 1)
+        case 0xB: return (usage, 0)
+        default: return nil
+        }
+    }
+
     public static let keyCodeToUsage: [UInt16: UInt32] = [
         0: 4, 1: 22, 2: 7, 3: 9, 4: 11, 5: 10,
         6: 29, 7: 27, 8: 6, 9: 25, 10: 100, 11: 5,

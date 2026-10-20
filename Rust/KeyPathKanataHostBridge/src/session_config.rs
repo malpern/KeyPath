@@ -26,6 +26,14 @@ fn oscode_supported(code: OsCode, usages: &[u32]) -> bool {
     })
 }
 
+/// The physical inputs the session can capture: keyboard-page keys in the
+/// host's map, and the consumer-page media keys the worker reads from macOS
+/// system-defined events (phase 6, part 2) — the same table as outputs.
+fn physical_input_supported(pc: PageCode, usages: &[u32]) -> bool {
+    (pc.page == 7 && usages.contains(&pc.code))
+        || (pc.page == 0x0C && CONSUMER_OUTPUT_CODES.contains(&pc.code))
+}
+
 /// Outputs the session can emit: the host's key map plus native Caps Lock,
 /// which SessionCapsLockOutput posts independently of physical Caps capture.
 fn session_output_usages(usages: &[u32]) -> Vec<u32> {
@@ -168,7 +176,7 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
                     OsCode::try_from(usize::from(*raw)).ok().is_some_and(|key| {
                         cfg.mapped_keys.contains(&key)
                             && PageCode::try_from(key)
-                                .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
+                                .is_ok_and(|pc| physical_input_supported(pc, usages))
                     })
                 }) || !action_supported(
                     chord.action,
@@ -193,7 +201,7 @@ pub(crate) fn supported(cfg: &Cfg, usages: &[u32]) -> bool {
             };
             if row == 0 && cfg.mapped_keys.contains(&input) {
                 let physical_supported = PageCode::try_from(input)
-                    .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code));
+                    .is_ok_and(|pc| physical_input_supported(pc, usages));
                 if !physical_supported {
                     // Unknown physical inputs and Caps Lock can only pass
                     // through unchanged; session capture cannot remap them.
@@ -275,7 +283,7 @@ pub(crate) fn supported_with_managed_caps_reserving(
                         cfg.mapped_keys.contains(&key)
                             && (key == OsCode::KEY_CAPSLOCK
                                 || PageCode::try_from(key)
-                                    .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code)))
+                                    .is_ok_and(|pc| physical_input_supported(pc, &usages)))
                     })
                 }) || !action_supported(
                     chord.action,
@@ -311,7 +319,7 @@ pub(crate) fn supported_with_managed_caps_reserving(
                     && cfg.mapped_keys.contains(&input)
                     && input != OsCode::KEY_CAPSLOCK
                     && !PageCode::try_from(input)
-                        .is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
+                        .is_ok_and(|pc| physical_input_supported(pc, &usages))
                 {
                     return matches!(action, Action::KeyCode(key) if OsCode::from(*key) == input)
                         || matches!(action, Action::KeyCode(KeyCode::ErrorUndefined))
@@ -354,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn consumer_output_table_matches_kanata_names_and_inputs_stay_keyboard_only() {
+    fn consumer_table_matches_kanata_names_for_outputs_and_inputs() {
         for (name, code) in [
             ("volu", 0xE9), ("vold", 0xEA), ("mute", 0xE2), ("brup", 0x6F), ("brdn", 0x70),
             ("pp", 0xCD), ("next", 0xB5), ("prev", 0xB6),
@@ -364,9 +372,15 @@ mod tests {
             assert_eq!((pc.page, pc.code), (0x0C, code), "{name}");
             assert!(CONSUMER_OUTPUT_CODES.contains(&pc.code), "{name}");
         }
-        // Until the tap reads media events, a media key is not an input.
+        // The tap reads media events, so a media key is an input too...
         let cfg = kanata_parser::cfg::new_from_str("(defsrc volu)(deflayer base a)", Default::default()).unwrap();
+        assert!(supported(&cfg, HOST));
+        // ...but a consumer key the worker cannot read is not.
+        let cfg = kanata_parser::cfg::new_from_str("(defsrc calc)(deflayer base a)", Default::default()).unwrap();
         assert!(!supported(&cfg, HOST));
+        // And under managed Caps the same holds.
+        let cfg = kanata_parser::cfg::new_from_str("(defsrc mute caps)(deflayer base pp a)", Default::default()).unwrap();
+        assert!(supported_with_managed_caps(&cfg, HOST));
         // ...but it is an output anywhere a keyboard key would be.
         let cfg = kanata_parser::cfg::new_from_str("(defsrc a)(deflayer base volu)", Default::default()).unwrap();
         assert!(supported(&cfg, HOST));

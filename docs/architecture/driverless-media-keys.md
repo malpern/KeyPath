@@ -264,8 +264,8 @@ does not fit "one intermediate per media key".
 
 ## Recommendation
 
-**Status 2026-10-20:** the output half shipped (rules-admission-review.md §4.5); the
-input half (tap path) is next.
+**Status 2026-10-20:** both halves shipped as recommended here — outputs posted by the
+worker, inputs read by the tap (rules-admission-review.md §4.5).
 
 ### Output: post from the worker, not the app
 
