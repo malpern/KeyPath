@@ -544,6 +544,12 @@ So the session emits media keys as Kanata's ordinary outputs:
   outputs are now always a `(macro …)`. And a lone captured media key is treated as the
   system action it names (`MapperViewModel.applyCapturedOutput`), so the Mapper shows
   one symbol throughout and saves through the action path.
+- **Key or word is Kanata's call (2026-10-20).** The generator used a hand-kept list to
+  decide whether a keystroke token was a key or a word to type, and the list missed real
+  Kanata keys, so `f21` became `(macro f 2 1)`. It now asks the bridge
+  (`BackendCapabilityProfile.knowsKey`): a name Kanata knows is emitted as that key and
+  admission refuses it with a reason if the session cannot send it; only a word Kanata
+  does not know is typed. The list remains the fallback when there is no bridge.
 - **Known limits** (from the spike): a posted brightness event drives the built-in
   panel only (Studio Display unchanged); per-device media rules are impossible
   (system-defined events carry no source device); keyboard backlight (21–23) is in
