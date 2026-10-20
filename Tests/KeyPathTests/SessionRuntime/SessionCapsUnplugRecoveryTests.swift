@@ -64,6 +64,69 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         XCTAssertEqual(SessionCapsRuntimeSupport.reboundSelection(selectionData: data, devices: [cl80(200)], boot: boot)?.device, cl80(200))
     }
 
+    // MARK: Reconnect watcher, one tick at a time
+
+    func testReconnectWatcherRestartsOnlyWhenTheKeyboardIsBack() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let displaced = try JSONEncoder().encode(chosen(cl80(100), boot: boot))
+        let other = Device(registryEntryID: 900, vendorID: 0x1234, productID: 0x0001, serialNumber: nil, locationID: 0x0220_0000)
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: displaced, boot: boot, devices: { [other, cl80(200)] }), .back)
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: displaced, boot: boot, devices: { [other] }), .waiting)
+        // Another port is a different keyboard: keep waiting, never re-bind.
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: displaced, boot: boot,
+                                                                devices: { [cl80(200, location: 0x0330_0000)] }), .waiting)
+    }
+
+    func testReconnectWatcherWaitsThroughUnreadableStateAndStopsOnANewBoot() throws {
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let displaced = try JSONEncoder().encode(chosen(cl80(100), boot: boot))
+        enum Unreadable: Error { case hidutil }
+        var asked = false
+        // No boot identity this tick: wait, and do not even list keyboards.
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: displaced, boot: nil, devices: { asked = true; return [self.cl80(200)] }), .waiting)
+        XCTAssertFalse(asked)
+        // hidutil failed this tick: wait rather than give up.
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: displaced, boot: boot, devices: { throw Unreadable.hidutil }), .waiting)
+        // A choice from an earlier boot is forgotten and the watch ends.
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: displaced, boot: UUID().uuidString, devices: { [self.cl80(200)] }), .stale)
+        XCTAssertEqual(SessionCapsRuntimeSupport.reconnectState(displaced: Data("{}".utf8), boot: boot, devices: { [self.cl80(200)] }), .stale)
+    }
+
+    // MARK: Worker profile check
+
+    func testWorkerReadmitsOnlyAChangedProfileAndKeepsTheDigestWhenUnreadable() throws {
+        let device = cl80(100)
+        let owner = SessionCapsMappingPolicy.Owner(uid: 502, parentPID: 100, workerPID: 101, nonce: "n", generation: "g",
+                                                   bootSessionUUID: "A7B944DF-471A-4C22-B9F3-A4EE5522F775")
+        let lease = try SessionCapsMappingPolicy.acquire(original: [], device: device, devices: [device], owner: owner,
+                                                         effectiveConfigSHA256: String(repeating: "a", count: 64))
+        typealias Admission = SessionCapsRuntimeSupport.Admission
+        enum Unreadable: Error { case file }
+        var admissions = 0
+        func check(_ digest: () throws -> String, admission: Admission = Admission(result: .valid, managedCaps: true, intermediateUsage: 109))
+            -> (digest: String?, fits: Bool)
+        {
+            SessionRuntimeWorker.profileCheck(configPath: "/tmp/keypath.kbd", admittedDigest: "old", record: lease,
+                                              digestOf: { _ in try digest() }, admit: { _ in admissions += 1; return admission })
+        }
+        // Unchanged file: nothing is parsed.
+        XCTAssertTrue(check { "old" } == ("old", true))
+        XCTAssertEqual(admissions, 0)
+        // Changed and still fits the leased key: the new digest is adopted.
+        XCTAssertTrue(check { "new" } == ("new", true))
+        XCTAssertEqual(admissions, 1)
+        // Changed and now uses the leased key: the session must restart.
+        XCTAssertTrue(check({ "new" }, admission: Admission(result: .invalid(reason: "uses f18"), managedCaps: false, intermediateUsage: 109))
+            == ("new", false))
+        // Unreadable file: keep the admitted digest so the next tick looks again.
+        XCTAssertTrue(check { throw Unreadable.file } == ("old", true))
+        XCTAssertEqual(admissions, 2)
+        // No config path (Caps not managed): nothing to check.
+        XCTAssertTrue(SessionRuntimeWorker.profileCheck(configPath: nil, admittedDigest: "old", record: lease,
+                                                        digestOf: { _ in "new" }, admit: { _ in XCTFail(); return Admission(result: .valid, managedCaps: true, intermediateUsage: 109) })
+                == ("old", true))
+    }
+
     func testSerialMustMatchWhenTheChosenKeyboardHadOne() throws {
         let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
         let withSerial = chosen(cl80(100, serial: "ABC123"), boot: boot)

@@ -27,6 +27,28 @@ enum SessionCapsRuntimeSupport {
     /// Worker failure meaning "the reloaded profile needs a restart": it
     /// uses the reserved key, or no longer runs as managed Caps.
     static let profileChangedReason = "managed-caps-profile-changed"
+
+    /// One tick of the reconnect watcher for a kept (displaced) choice.
+    enum ReconnectState: Equatable {
+        /// Its keyboard is back at the same port: restart onto it.
+        case back
+        /// The choice belongs to an earlier boot: forget it and stop watching.
+        case stale
+        /// Not back yet, or nothing could be read this tick: look again.
+        case waiting
+    }
+
+    /// Unreadable boot identity or inventory waits rather than giving up:
+    /// one failed read must not end the watch, and never re-binds.
+    static func reconnectState(displaced: Data, boot: String?,
+                               devices: () throws -> [Policy.DeviceIdentity]) -> ReconnectState
+    {
+        guard let boot else { return .waiting }
+        guard (try? SessionCapsSelection.decode(displaced, currentBoot: boot)) != nil else { return .stale }
+        guard let devices = try? devices() else { return .waiting }
+        return reboundSelection(selectionData: displaced, devices: devices, boot: boot) != nil ? .back : .waiting
+    }
+
     /// Worker failure meaning the leased keyboard instance is gone. Its
     /// mapping went with it; the app restarts without managed Caps.
     static let keyboardDisconnectedReason = "managed-caps-keyboard-disconnected"

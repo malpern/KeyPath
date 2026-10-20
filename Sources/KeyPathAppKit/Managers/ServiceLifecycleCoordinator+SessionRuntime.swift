@@ -841,17 +841,16 @@ extension ServiceLifecycleCoordinator {
                 try? await Task.sleep(for: .seconds(2))
                 guard let self, !Task.isCancelled, sessionStartIsCurrent(generation),
                       let displaced = SessionCapsSelectionStore.displaced?.data else { return }
-                let state = await Task.detached { () -> (back: Bool, stale: Bool) in
-                    guard let boot = try? SessionCapsRuntimeSupport.bootSessionUUID() else { return (false, false) }
-                    guard (try? SessionCapsSelection.decode(displaced, currentBoot: boot)) != nil else { return (false, true) }
-                    guard let list = try? SessionCapsHIDUtilTransport.inventory() else { return (false, false) }
-                    return (SessionCapsRuntimeSupport.reboundSelection(selectionData: displaced, devices: list.devices, boot: boot) != nil, false)
+                let state = await Task.detached {
+                    SessionCapsRuntimeSupport.reconnectState(displaced: displaced,
+                                                             boot: try? SessionCapsRuntimeSupport.bootSessionUUID(),
+                                                             devices: { try SessionCapsHIDUtilTransport.inventory().devices })
                 }.value
-                if state.stale {
+                if state == .stale {
                     SessionCapsSelectionStore.setDisplaced(nil, name: nil)
                     return
                 }
-                guard state.back, !Task.isCancelled, sessionStartIsCurrent(generation) else { continue }
+                guard state == .back, !Task.isCancelled, sessionStartIsCurrent(generation) else { continue }
                 sessionCapsReconnectTask = nil
                 AppLogger.shared.info("[SessionRuntime] Caps keyboard is back at the same port; restarting onto it")
                 _ = await restartKanata(reason: "Caps Lock keyboard reconnected")

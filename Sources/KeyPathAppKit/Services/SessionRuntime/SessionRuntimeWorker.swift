@@ -314,6 +314,19 @@ public final class SessionRuntimeWorker {
     /// transport must finish joining its child before lease exclusion can end.
     /// A reloaded profile keeps this session only if it is still managed Caps
     /// under the key the lease reserved.
+    /// The periodic profile check: only a profile whose digest changed since
+    /// admission is re-admitted (parsing is not free), and an unreadable file
+    /// keeps the admitted digest, so the next tick looks again.
+    nonisolated static func profileCheck(configPath: String?, admittedDigest: String?, record: SessionCapsMappingPolicy.Record,
+                                         digestOf: (String) throws -> String,
+                                         admit: (String) -> SessionCapsRuntimeSupport.Admission) -> (digest: String?, fits: Bool)
+    {
+        guard let configPath, let current = try? digestOf(configPath), current != admittedDigest else {
+            return (admittedDigest, true)
+        }
+        return (current, profileFitsLease(admit(configPath), record: record))
+    }
+
     nonisolated static func profileFitsLease(_ admission: SessionCapsRuntimeSupport.Admission,
                                              record: SessionCapsMappingPolicy.Record) -> Bool
     {
@@ -539,13 +552,9 @@ public final class SessionRuntimeWorker {
             // Any reload path (the app, the CLI, a raw TCP client) can load a
             // profile that now uses the leased key. Re-admit a changed profile
             // under that key; the app restarts the session to choose another.
-            var digest = admittedDigest
-            var fits = true
-            if let configPath, let current = try? SessionCapsRuntimeSupport.configSHA256(configPath), current != admittedDigest {
-                let admission = SessionCapsRuntimeSupport.admit(configPath: configPath, runtimeHost: .current(), rechoose: false)
-                fits = Self.profileFitsLease(admission, record: record)
-                digest = current
-            }
+            let (digest, fits) = Self.profileCheck(configPath: configPath, admittedDigest: admittedDigest, record: record,
+                                                   digestOf: SessionCapsRuntimeSupport.configSHA256,
+                                                   admit: { SessionCapsRuntimeSupport.admit(configPath: $0, runtimeHost: .current(), rechoose: false) })
             CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
                 MainActor.assumeIsolated {
                     guard let self, !self.finished, self.capsRecord?.owner == record.owner else { return }
