@@ -28,7 +28,8 @@ struct Doctor: AsyncParsableCommand {
         }
         CLIOutput.write(response, context: ctx) {
             [RuntimeControlClient.humanStatus(response, noColor: ctx.noColor),
-             RuntimeControlClient.humanIssues(response, noColor: ctx.noColor)]
+             RuntimeControlClient.humanIssues(response, noColor: ctx.noColor),
+             RuntimeControlClient.humanAdmission(response, noColor: ctx.noColor)]
                 .filter { !$0.isEmpty }.joined(separator: "\n\n")
         }
         if let exit = RuntimeControlClient.readinessExit(response) { throw exit }

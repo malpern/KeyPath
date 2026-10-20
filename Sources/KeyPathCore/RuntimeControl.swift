@@ -50,6 +50,25 @@ public enum RuntimeControl {
         }
     }
 
+    /// One admission verdict on the rules now on (doctor): what the engine
+    /// would refuse, ask about or resolve by itself, in the words the app uses.
+    public struct AdmissionFinding: Codable, Sendable, Equatable {
+        /// blocking, needsChoice, advisory or automatic.
+        public let severity: String
+        public let subject: String
+        public let title: String
+        public let explanation: String
+        public let fixes: [String]
+
+        public init(severity: String, subject: String, title: String, explanation: String, fixes: [String]) {
+            self.severity = severity
+            self.subject = subject
+            self.title = title
+            self.explanation = explanation
+            self.fixes = fixes
+        }
+    }
+
     /// The runtime as the app sees it, after the requested operation finished.
     public enum State: String, Codable, Sendable {
         case running, starting, stopped, failed, unknown
@@ -73,14 +92,18 @@ public enum RuntimeControl {
         public var issues: [Issue]?
         /// repair/uninstall: what happened, e.g. where the uninstall backup went.
         public var message: String?
+        /// doctor: the admission engine's verdicts on the rules now on.
+        public var admission: [AdmissionFinding]?
 
         public init(ok: Bool, operation: Operation, state: State, workerPID: Int?, failure: String?,
                     lastError: String?, layer: String?, appPID: Int32, appVersion: String,
-                    ready: Bool? = nil, issues: [Issue]? = nil, message: String? = nil)
+                    ready: Bool? = nil, issues: [Issue]? = nil, message: String? = nil,
+                    admission: [AdmissionFinding]? = nil)
         {
             self.ready = ready
             self.issues = issues
             self.message = message
+            self.admission = admission
             self.ok = ok
             self.operation = operation
             self.state = state

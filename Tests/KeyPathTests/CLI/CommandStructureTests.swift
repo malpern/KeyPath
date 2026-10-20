@@ -1,5 +1,6 @@
 import ArgumentParser
 @testable import KeyPathCLI
+import KeyPathCore
 import XCTest
 
 final class CommandStructureTests: XCTestCase {
@@ -139,5 +140,31 @@ final class CommandStructureTests: XCTestCase {
         T.configuration.subcommands.map {
             $0.configuration.commandName ?? String(describing: $0).lowercased()
         }
+    }
+
+    /// Phase 4e: `keypath doctor` prints the admission engine's verdicts.
+    func testDoctorRendersAdmissionFindings() {
+        var response = RuntimeControl.Response(ok: true, operation: .doctor, state: .stopped, workerPID: nil, failure: nil,
+                                               lastError: nil, layer: nil, appPID: 1, appVersion: "1")
+        XCTAssertEqual(RuntimeControlClient.humanAdmission(response, noColor: true), "")
+        response.admission = [
+            .init(severity: "blocking", subject: "Louder", title: "Louder can't run here",
+                  explanation: "Louder sends volu, which the current backend can't send.", fixes: ["Turn off Louder"]),
+            .init(severity: "needsChoice", subject: "A", title: "Key conflict on f13",
+                  explanation: "A and B both map f13 on the base layer. Only one can win.", fixes: ["Turn off A", "Turn off B"]),
+            .init(severity: "automatic", subject: "Mine", title: "Caps Lock will use F19",
+                  explanation: "Mine uses F18, which KeyPath had reserved for Caps Lock. Caps Lock will use F19 instead.", fixes: [])
+        ]
+        XCTAssertEqual(RuntimeControlClient.humanAdmission(response, noColor: true), """
+        Rules:
+        ✗ Louder can't run here
+            Louder sends volu, which the current backend can't send.
+            Fix: Turn off Louder
+        ! Key conflict on f13
+            A and B both map f13 on the base layer. Only one can win.
+            Fix: Turn off A / Turn off B
+        • Caps Lock will use F19
+            Mine uses F18, which KeyPath had reserved for Caps Lock. Caps Lock will use F19 instead.
+        """)
     }
 }

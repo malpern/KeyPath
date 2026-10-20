@@ -54,6 +54,7 @@ enum RuntimeControlHandler {
         result.ready = SystemFacade.isOperational(context) && status.isRunning
         result.issues = issues
         result.message = message
+        result.admission = manager.ruleCollectionsManager.admissionFindings()
         return result
     }
 

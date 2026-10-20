@@ -430,6 +430,34 @@ Callers, all through this one function:
   left to the dialog, catalog sentence, Mapper refusal writes nothing) and a preview
   case for a pack on the reserved key.
 
+### 4.4f Phase 4e (2026-10-19)
+
+- **One renderer.** `SessionConfigurationRefusal.message(result, attribution:)` is the
+  only place "this configuration cannot run" is worded. `startupFailureMessage` delegates
+  to it; the lifecycle coordinator (`admitSessionConfiguration`'s error,
+  `sessionConfigurationRefusal`, `currentRuntimeStatus`) and the save gate
+  (`requireSessionEligibleConfiguration`) call it, so the setup screen, Status, the
+  reload error and a refused save all say the same sentence.
+- **Attribution naming the rule.** Both the lifecycle coordinator and
+  `ConfigurationService` take a closure, wired by `RuntimeCoordinator` to
+  `RuleCollectionsManager.blockingAdmissionSentences()`: the engine's blocking verdicts
+  for the rules now on, as presenter sentences. When the bridge refuses, the message
+  leads with "Louder sends volu, which the current backend can't send." and keeps the
+  validator's reason in parentheses; with nothing to blame (an edit made outside
+  KeyPath, or a limit only the validator knows) it reads as before. The save gate sees
+  the proposed in-memory state, so a refused save names the rule being saved. §4.6's
+  line-level attribution from the bridge is not needed for this and stays future work.
+- **`keypath doctor` lists verdicts.** `RuntimeControl.Response.admission`
+  (`AdmissionFinding`: severity, subject, title, explanation, fixes) is filled by
+  `RuntimeControlHandler.doctor` from `admissionFindings()`, every verdict in the
+  app's words; the CLI prints a `Rules:` section (`✗` block, `!` choice, `•` automatic)
+  and `--json` carries the array. Older apps answer without the field.
+- Tests: `SessionConfigurationRefusalTests` (renderer forms, attribution from the
+  engine, disabled rules not blamed, findings for every severity with fixes, control
+  channel round trip and legacy decode), a lifecycle test that the attributed sentence
+  is what `onError`, `sessionConfigurationRefusal` and `currentRuntimeStatus` all carry,
+  and a CLI rendering test.
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
@@ -499,7 +527,7 @@ until phase 4.
 | **1. Profile** — *done (see §4.1a)* | Bridge answers "can this backend emit key K" with the session output rule; Swift `BackendCapabilityProfile` asks it; `SystemActionInfo.isSupportedInDriverlessSession`, `FunctionKeyMode.isSupportedInDriverlessSession` and `RuleCollectionCatalog.driverlessUnavailableReason` derive from it. | Rust rule test; bridge-backed test that every former list gives the same answer; prefix, fallback, backend and cache tests. |
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
-| **4. Callers** — *in progress: 4a–4d done; 4e startup/CLI to follow* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
+| **4. Callers** — *done 2026-10-19 (4a–4e)* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
 | **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
 | **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
 

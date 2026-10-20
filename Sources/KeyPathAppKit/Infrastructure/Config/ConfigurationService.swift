@@ -31,6 +31,10 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
     @MainActor var onWillStageConfigurationWrite: ((String) -> Void)?
 
+    /// The admission engine's blocking sentences for the rules being written
+    /// (phase 4e), so a refused save names the rule. Wired by `RuntimeCoordinator`.
+    @MainActor var sessionRefusalAttribution: (() -> [String])?
+
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
     let sessionValidationRuntimeHost: KanataRuntimeHost

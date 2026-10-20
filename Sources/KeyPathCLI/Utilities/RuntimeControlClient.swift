@@ -43,6 +43,25 @@ enum RuntimeControlClient {
         return lines.joined(separator: "\n")
     }
 
+    /// The admission engine's verdicts on the rules now on (doctor): a block
+    /// is marked like a problem, a choice like something needing a person,
+    /// and what the app resolves by itself is just said.
+    static func humanAdmission(_ response: RuntimeControl.Response, noColor: Bool) -> String {
+        guard let findings = response.admission, !findings.isEmpty else { return "" }
+        var lines = ["Rules:"]
+        for finding in findings {
+            let mark = switch finding.severity {
+            case "blocking": ANSIColor.red("✗", noColor: noColor)
+            case "needsChoice": ANSIColor.yellow("!", noColor: noColor)
+            default: "•"
+            }
+            lines.append("\(mark) \(finding.title)")
+            lines.append("    \(finding.explanation)")
+            if !finding.fixes.isEmpty { lines.append("    Fix: \(finding.fixes.joined(separator: " / "))") }
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// 0 ready, 7 a person must grant a permission, 1 anything else.
     static func readinessExit(_ response: RuntimeControl.Response) -> ExitCode? {
         if response.ready == true { return nil }

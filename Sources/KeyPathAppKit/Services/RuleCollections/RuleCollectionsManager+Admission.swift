@@ -61,4 +61,31 @@ extension RuleCollectionsManager {
             .map { AdmissionVerdictPresenter.present($0, name: name).explanation }
         return AdmissionReview(verdicts: verdicts, refusal: refusal, notes: notes)
     }
+
+    // MARK: - Phase 4e: attribution and doctor
+
+    /// Every blocking verdict for what is on now, as sentences naming the
+    /// rule. Startup, reload and the save gate put these in front of the
+    /// validator's reason.
+    func blockingAdmissionSentences(profile: BackendCapabilityProfile = .shared) -> [String] {
+        let state = admissionState(collections: ruleCollections, customRules: customRules)
+        let name = Self.nameLookup(state)
+        return AdmissionEngine.evaluate(state, profile: profile)
+            .filter { $0.severity == .blocking }
+            .map { AdmissionVerdictPresenter.present($0, name: name).explanation }
+    }
+
+    /// Every verdict for what is on now, for `keypath doctor`.
+    func admissionFindings(profile: BackendCapabilityProfile = .shared) -> [RuntimeControl.AdmissionFinding] {
+        let state = admissionState(collections: ruleCollections, customRules: customRules)
+        let name = Self.nameLookup(state)
+        return AdmissionEngine.evaluate(state, profile: profile).map { verdict in
+            let presentation = AdmissionVerdictPresenter.present(verdict, name: name)
+            return RuntimeControl.AdmissionFinding(
+                severity: String(describing: verdict.severity), subject: name(verdict.subject),
+                title: presentation.title, explanation: presentation.explanation,
+                fixes: presentation.options.map(\.label)
+            )
+        }
+    }
 }
