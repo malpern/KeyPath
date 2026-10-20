@@ -3,7 +3,7 @@ import Foundation
 /// Pure decisions for one device-scoped Caps substitution. Transport and durable
 /// intent/readback belong to the session lifecycle; this does not authorize writes.
 public enum SessionCapsMappingPolicy {
-    // Packed keyboard-page usages, also exercised by caps-path-trial.py.
+    /// Packed keyboard-page usages, also exercised by caps-path-trial.py.
     public static let caps: UInt64 = 0x7_0000_0039
     /// The intermediate used before it became a choice; version-1 records imply it.
     public static let f18: UInt64 = 0x7_0000_006D
