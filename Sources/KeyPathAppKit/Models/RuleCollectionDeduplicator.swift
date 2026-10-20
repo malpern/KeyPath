@@ -309,7 +309,12 @@ enum RuleCollectionDeduplicator {
             let inputKey = InputKey(input: normalizedInput, layer: collection.targetLayer)
 
             if seenInputKeys.contains(inputKey) {
-                AppLogger.shared.debug("🔀 [Dedup] Dropped mapping '\(mapping.input)' from '\(collection.name)' — key already claimed on \(collection.targetLayer.displayName) layer")
+                // Admission (detectConflicts / AdmissionEngine) runs before this and
+                // refuses any two intentional claims on one slot, so reaching here is
+                // a gap in detection, not a resolution: never silently (ADR-039 §1).
+                AppLogger.shared.warnUnlessQuietTest(
+                    "⚠️ [Dedup] Dropped mapping '\(mapping.input)' from '\(collection.name)' — key already claimed on \(collection.targetLayer.displayName) layer. Admission should have refused this."
+                )
                 continue
             }
 
