@@ -122,9 +122,13 @@ already owns. Its mask would only need `1 << 14` added.
 - **Fixture (real USB HID, scripted).** Keyboard-page `Mute`/`VolumeUp`/`VolumeDown`
   (0x7F/0x80/0x81) arrive as `NX_SYSDEFINED` subtype 8 codes 7/0/1, source pid 0.
   They are indistinguishable from the built-in keyboard's media keys.
-- **cl80.** **Not measured.** This needs a person at the mini. A guided run is
-  staged: it presses the cl80's media keys, then repeats them with consumer→F13–F20
-  mappings on its page-12 service, preserving its existing entry.
+- **cl80 (listen-only, mini, #1309 runtime running with a Caps→F19 lease on both
+  cl80 interfaces).** The board has no Fn key and no media layer. Its F10, F11 and
+  F12 arrived as plain keyDowns 109, 103 and 111 (each re-posted once by the worker)
+  and sent no media events. Its page-12 collection (below) was never exercised.
+  Both cl80 `UserKeyMapping` arrays were identical before and after the run. An
+  external board's *consumer-page* media keys therefore remain unmeasured; the
+  fixture covered keyboard-page Mute/VolumeUp/VolumeDown only.
 
 **Where an external keyboard's consumer keys live:** on the cl80 the consumer
 collection (page 12, usage 1) is on its **second** event service (0x1005bb72b,
@@ -198,8 +202,8 @@ reaches the tap as an ordinary F-key keyDown.
 
 Consumer-page sources (`0xC000000E9`, `0xC000000CD`, …) and an Apple
 vendor-page source (`0xFF00000003`) were **accepted and read back**. On the Air's
-built-in keyboard, consumer volume-up → F17 **took effect** (3b). The cl80 run that
-would show other consumer usages on an external board has not been run (1c).
+built-in keyboard, consumer volume-up → F17 **took effect** (3b). No external board
+with consumer-page media keys was available: the cl80 has no media keys (1c).
 
 ### 3b. `fnState` and mapping order on the built-in keyboard
 
