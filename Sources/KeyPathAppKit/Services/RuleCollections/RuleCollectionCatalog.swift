@@ -14,19 +14,17 @@ struct RuleCollectionCatalog {
     /// availability is `FunctionKeyMode.isSupportedInDriverlessSession`.
     static func driverlessUnavailableReason(for id: UUID) -> String? {
         guard let collection = installedDefinitions.first(where: { $0.id == id }) else { return nil }
-        return emitsUnsupportedOutput(collection.mappings) ? SystemActionInfo.driverlessMediaUnavailableReason : nil
+        let unmet = RuleCollectionNeedsExtractor.unmet(RuleCollectionNeedsExtractor.needs(for: collection))
+        return unmet.isEmpty ? nil : SystemActionInfo.driverlessMediaUnavailableReason
     }
 
     private static let installedDefinitions = RuleCollectionCatalog().defaultCollections()
 
-    /// True when any keystroke these mappings emit is outside the backend's profile.
+    /// True when any key these mappings emit is outside the backend's profile.
     static func emitsUnsupportedOutput(_ mappings: [KeyMapping],
                                        profile: BackendCapabilityProfile = .shared) -> Bool
     {
-        mappings.contains { mapping in
-            guard case let .keystroke(key) = mapping.action else { return false }
-            return !profile.canEmit(kanataKey: key)
-        }
+        !RuleCollectionNeedsExtractor.unmet(RuleCollectionNeedsExtractor.needs(for: mappings), profile: profile).isEmpty
     }
 
     func defaultCollections() -> [RuleCollection] {
