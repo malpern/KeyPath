@@ -60,6 +60,7 @@ extension MapperViewModel {
                 SoundPlayer.shared.playSuccessSound()
                 AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [only in \(appCondition.displayName)]")
             } else {
+                AppLogger.shared.log("🚫 [MapperViewModel] App-specific save failed: \(inputKanata) → \(outputKanata) for \(appCondition.bundleIdentifier)")
                 statusMessage = "Failed to save app-specific rule"
                 statusIsError = true
             }
