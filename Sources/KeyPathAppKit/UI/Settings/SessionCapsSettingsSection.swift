@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathRulesCore
@@ -5,6 +6,7 @@ import SwiftUI
 
 struct SessionCapsSettingsSection: View {
     @Environment(KanataViewModel.self) private var runtime
+    @State private var keyboards: [SessionCapsHIDUtilTransport.Keyboard] = []
     @State private var device: SessionCapsMappingPolicy.DeviceIdentity?
     @State private var boot = ""
     @State private var reservesF18 = false
@@ -25,7 +27,7 @@ struct SessionCapsSettingsSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                if !automaticDisabled, device == nil, !busy {
+                if !automaticDisabled, device == nil || keyboards.count > 1, !busy {
                     Button("Check Again") { Task { await reviewKeyboard() } }
                         .settingsAction()
                         .accessibilityIdentifier("settings-caps-check-again")
@@ -39,6 +41,26 @@ struct SessionCapsSettingsSection: View {
                 .disabled(busy)
                 .accessibilityIdentifier("settings-caps-toggle")
             }
+            if !automaticDisabled, keyboards.count > 1 {
+                Picker("Keyboard", selection: Binding(
+                    get: { device?.registryEntryID },
+                    set: { id in
+                        guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
+                        Task { await choose(chosen.device) }
+                    }
+                )) {
+                    if device == nil { Text("Choose a keyboard").tag(UInt64?.none) }
+                    ForEach(keyboards) { keyboard in
+                        Text(keyboard.name).tag(UInt64?.some(keyboard.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+                .disabled(busy)
+                .padding(.leading, 20 + SettingsDesign.rowGap)
+                .accessibilityIdentifier("settings-caps-keyboard-picker")
+                .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.orange)
                     .padding(.leading, 20 + SettingsDesign.rowGap)
@@ -46,6 +68,10 @@ struct SessionCapsSettingsSection: View {
             }
         }
         .task { await reviewKeyboard() }
+        // Keyboards come and go while Settings is open; refresh on return.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await reviewKeyboard() }
+        }
     }
 
     private var rulesUseCaps: Bool {
@@ -56,8 +82,12 @@ struct SessionCapsSettingsSection: View {
         if automaticDisabled {
             return rulesUseCaps ? "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run" : "Off"
         }
-        guard let device else { return "Connect one compatible keyboard" }
-        return "On \u{00B7} " + (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")
+        guard let device else {
+            return keyboards.count > 1 ? "Choose which keyboard Caps Lock rules apply to" : "Connect a compatible keyboard"
+        }
+        let name = keyboards.first(where: { $0.device == device })?.name
+            ?? (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")
+        return "On \u{00B7} " + name
     }
 
     private var statusIsWarning: Bool {
@@ -92,23 +122,49 @@ struct SessionCapsSettingsSection: View {
     }
 
     @MainActor
-    private func reviewKeyboard() async {
+    private func reviewKeyboard(keepMessage: Bool = false) async {
         guard !busy else { return }
         busy = true
         defer { busy = false }
         do {
             let found = try await Task.detached {
-                try (SessionCapsHIDUtilTransport.backend().enumerate(), SessionCapsRuntimeSupport.bootSessionUUID())
+                try (SessionCapsHIDUtilTransport.keyboards(), SessionCapsRuntimeSupport.bootSessionUUID())
             }.value
             boot = found.1
-            device = found.0.count == 1 ? found.0.first : nil
+            keyboards = found.0
             let saved = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
                 .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
+            device = Self.effectiveDevice(saved: saved?.device, connected: keyboards.map(\.device))
             reservesF18 = saved?.device == device
-            message = nil
+            if !keepMessage { message = nil }
         } catch {
+            keyboards = []
             device = nil
             message = "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run."
+        }
+    }
+
+    /// A saved choice wins while that instance is connected; otherwise one
+    /// keyboard is used automatically and several need an explicit choice.
+    static func effectiveDevice(saved: SessionCapsMappingPolicy.DeviceIdentity?,
+                                connected: [SessionCapsMappingPolicy.DeviceIdentity]) -> SessionCapsMappingPolicy.DeviceIdentity?
+    {
+        if let saved, (try? SessionCapsMappingPolicy.requireUnique(saved, among: connected)) != nil { return saved }
+        return connected.count == 1 ? connected.first : nil
+    }
+
+    @MainActor
+    private func choose(_ chosen: SessionCapsMappingPolicy.DeviceIdentity) async {
+        guard !busy, chosen != device || !reservesF18 else { return }
+        let previous = (device, reservesF18)
+        device = chosen
+        reservesF18 = true
+        message = nil
+        await applySelection(enabled: true)
+        if message != nil {
+            (device, reservesF18) = previous
+            message = "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept."
+            await reviewKeyboard(keepMessage: true)
         }
     }
 

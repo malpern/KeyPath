@@ -8,14 +8,32 @@ permalink: /guides/driverless-caps-lock/
 # Caps Lock in driverless KeyPath
 
 Choose a Caps Lock rule in **Rules**, such as Escape on tap and Hyper on hold.
-KeyPath prepares Caps Lock automatically when it can identify exactly one
-compatible keyboard and automatic setup is enabled. You do not normally need
-to select a keyboard before using the tour.
+KeyPath prepares Caps Lock automatically when exactly one compatible keyboard
+is connected and automatic setup is enabled. You do not normally need to
+select a keyboard before using the tour.
 
-If setup cannot identify one compatible keyboard, open **Settings → General**
-to review Caps Lock setup. A virtual keyboard in a VM is not a compatible
-physical keyboard. KeyPath refuses ambiguous setup rather than choosing a
-device arbitrarily.
+## More than one keyboard
+
+A MacBook with an external keyboard has two keyboards. KeyPath does not guess
+which one you mean, so a Caps Lock rule stays inactive until you choose:
+
+```text
+Settings → General
+
+  ⇪  Caps Lock remapping                              [ On ]
+     Choose which keyboard Caps Lock rules apply to
+       Keyboard: [ Choose a keyboard ▾ ]
+                   Built-in keyboard
+                   cl80
+```
+
+Pick the keyboard whose Caps Lock key you want to remap. The status line then
+reads **On · cl80** (or whichever you chose). Caps Lock on your other keyboards
+keeps working as a normal Caps Lock key. You can change the choice at any time
+from the same menu.
+
+A virtual keyboard in a VM is not a compatible physical keyboard and is not
+listed.
 
 ## Why F18 is involved
 
@@ -51,8 +69,12 @@ Caps Lock input, which needs compatible keyboard setup.
 
 The saved selection identifies one keyboard instance for the current boot.
 When it becomes stale, automatic setup can discover an eligible keyboard again;
-it does not trust an old device identifier after reconnect or reboot. Exactly
-one compatible keyboard is required for automatic selection.
+it does not trust an old device identifier after reconnect or reboot. Automatic
+selection only happens when exactly one compatible keyboard is connected. With
+several, KeyPath asks you to choose again after a restart. If you unplug the
+chosen keyboard and KeyPath restarts while only one keyboard remains, it uses
+that one; when you plug yours back in, pick it again from the menu in
+**Settings → General**.
 
 KeyPath checks existing mappings and ownership before changing or restoring
 them. Conflicting mappings are refused. If safe restoration cannot be verified,
@@ -64,7 +86,8 @@ Caps Lock needs setup enabled again, or a different trigger.
 
 ## Other limitations
 
-- Managed Caps setup does not promise arbitrary multi-keyboard behavior.
+- Caps Lock rules apply to one chosen keyboard at a time. F18 stays reserved
+  on every keyboard, because KeyPath cannot tell which keyboard sent it.
 - Protected password fields and Secure Input do not gain dynamic remapping.
   Do not rely on a Caps remap for password entry.
 - Media and brightness remapping remain unavailable in driverless mode.
