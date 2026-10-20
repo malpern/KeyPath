@@ -502,6 +502,15 @@ carries names and details rather than ids, and lives in KeyPathCore where the ve
 types cannot be seen. It is produced from verdicts in exactly one place
 (`AdmissionEngine.mappingConflicts`).
 
+**Overlay presentation is covered too (2026-10-20).** The hardware check found that the
+overlay Mapper — which saves on capture and has no Save button — never rendered the view
+model's status, so a declined save looked like a mapping that vanished. The engine's
+tests could not see that: they assert on the model. Now `MapperStatusLine` is rendered
+for real (`MapperStatusLineTests`), a lint keeps the overlay reading it and `save` from
+returning without a status and a log line (`OverlayMapperStatusLintTests`), and
+`MediaKeyCaptureToSaveTests` drives a synthesized system-defined event through
+`KeyboardCapture` → Mapper → save → generated config against the real bridge.
+
 The engine and `PackDependencyChecker` are plain enums with no actor: both only read
 value types and the immutable registry. `driverlessUnavailableReason` lost the
 main-actor annotation that had followed from the engine's.
