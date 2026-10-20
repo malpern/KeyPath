@@ -540,17 +540,23 @@ struct SessionCapsMappingLeaseRunner {
         let liveNull = "RegistryID  Key                   Value\n1000005f9   UserKeyMapping   (null)\n"
         try check(SessionCapsHIDUtilTransport.parseServices(service + "\n" + deviceRow + "\n") == [liveDevice])
         try check(SessionCapsHIDUtilTransport.parseProperty(liveNull, device: liveDevice).mappings == [])
-        for malformed in ["{", "[]", service + "\n{}", service + "\n" + service,
-                          service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service,
+        for malformed in ["{", "[]", service + "\n{}",
                           service.replacingOccurrences(of: "51966", with: "true"),
                           service.replacingOccurrences(of: "51966", with: "51966.0"),
                           service.replacingOccurrences(of: "51966", with: "65536"),
                           service.replacingOccurrences(of: "261095424", with: "4294967296"),
-                          service.replacingOccurrences(of: "261095424", with: "0"),
-                          service.replacingOccurrences(of: "4294968825", with: "18446744073709551616"),
-                          service.replacingOccurrences(of: "AppleUserHIDEventService", with: "AppleUserHIDDevice")]
+                          service.replacingOccurrences(of: "4294968825", with: "18446744073709551616")]
         {
             refused { _ = try SessionCapsHIDUtilTransport.parseServices(malformed) }
+        }
+        // Well-formed services that cannot be targeted are skipped, not admitted,
+        // and an ambiguous locator withholds every sharer rather than picking one.
+        for (untargetable, withheld) in [(service + "\n" + service, 1),
+                                         (service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service, 1),
+                                         (service.replacingOccurrences(of: "261095424", with: "0"), 0),
+                                         (service.replacingOccurrences(of: "AppleUserHIDEventService", with: "AppleUserHIDDevice"), 1)]
+        {
+            try check(SessionCapsHIDUtilTransport.parseInventory(untargetable) == .init(devices: [], withheld: withheld))
         }
         let mouse = service.replacingOccurrences(of: "\"PrimaryUsage\":6", with: "\"PrimaryUsage\":2")
         try check(SessionCapsHIDUtilTransport.parseServices(mouse) == [])

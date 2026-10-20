@@ -7,6 +7,8 @@ import SwiftUI
 struct SessionCapsSettingsSection: View {
     @Environment(KanataViewModel.self) private var runtime
     @State private var keyboards: [SessionCapsHIDUtilTransport.Keyboard] = []
+    /// Connected keyboards that cannot be a Caps target; never offered.
+    @State private var withheld = 0
     @State private var device: SessionCapsMappingPolicy.DeviceIdentity?
     @State private var boot = ""
     @State private var reservesF18 = false
@@ -27,7 +29,7 @@ struct SessionCapsSettingsSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                if !automaticDisabled, device == nil || keyboards.count > 1, !busy {
+                if !automaticDisabled, device == nil || showsPicker, !busy {
                     Button("Check Again") { Task { await reviewKeyboard() } }
                         .settingsAction()
                         .accessibilityIdentifier("settings-caps-check-again")
@@ -41,7 +43,7 @@ struct SessionCapsSettingsSection: View {
                 .disabled(busy)
                 .accessibilityIdentifier("settings-caps-toggle")
             }
-            if !automaticDisabled, keyboards.count > 1 {
+            if !automaticDisabled, showsPicker {
                 Picker("Keyboard", selection: Binding(
                     get: { device?.registryEntryID },
                     set: { id in
@@ -61,6 +63,13 @@ struct SessionCapsSettingsSection: View {
                 .accessibilityIdentifier("settings-caps-keyboard-picker")
                 .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
             }
+            if !automaticDisabled, withheld > 0 {
+                Text(withheld == 1 ? "One connected keyboard can\u{2019}t be used for Caps Lock rules."
+                    : "\(withheld) connected keyboards can\u{2019}t be used for Caps Lock rules.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.leading, 20 + SettingsDesign.rowGap)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.orange)
                     .padding(.leading, 20 + SettingsDesign.rowGap)
@@ -74,6 +83,16 @@ struct SessionCapsSettingsSection: View {
         }
     }
 
+    /// With a withheld keyboard present, even one eligible keyboard is an
+    /// explicit choice, matching automatic setup.
+    private var showsPicker: Bool {
+        Self.showsPicker(keyboards: keyboards.count, withheld: withheld)
+    }
+
+    static func showsPicker(keyboards: Int, withheld: Int) -> Bool {
+        keyboards > 1 || (withheld > 0 && keyboards > 0)
+    }
+
     private var rulesUseCaps: Bool {
         Self.rulesUseCapsLock(collections: runtime.ruleCollections, customRules: runtime.customRules)
     }
@@ -83,7 +102,8 @@ struct SessionCapsSettingsSection: View {
             return rulesUseCaps ? "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run" : "Off"
         }
         guard let device else {
-            return keyboards.count > 1 ? "Choose which keyboard Caps Lock rules apply to" : "Connect a compatible keyboard"
+            if showsPicker { return "Choose which keyboard Caps Lock rules apply to" }
+            return withheld > 0 ? "No connected keyboard can be used" : "Connect a compatible keyboard"
         }
         let name = keyboards.first(where: { $0.device == device })?.name
             ?? (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")
@@ -131,14 +151,16 @@ struct SessionCapsSettingsSection: View {
                 try (SessionCapsHIDUtilTransport.keyboards(), SessionCapsRuntimeSupport.bootSessionUUID())
             }.value
             boot = found.1
-            keyboards = found.0
+            keyboards = found.0.keyboards
+            withheld = found.0.withheld
             let saved = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
                 .flatMap { try? SessionCapsSelection.decode($0, currentBoot: boot) }
-            device = Self.effectiveDevice(saved: saved?.device, connected: keyboards.map(\.device))
+            device = Self.effectiveDevice(saved: saved?.device, connected: keyboards.map(\.device), withheld: withheld)
             reservesF18 = saved?.device == device
             if !keepMessage { message = nil }
         } catch {
             keyboards = []
+            withheld = 0
             device = nil
             message = "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run."
         }
@@ -147,10 +169,11 @@ struct SessionCapsSettingsSection: View {
     /// A saved choice wins while that instance is connected; otherwise one
     /// keyboard is used automatically and several need an explicit choice.
     static func effectiveDevice(saved: SessionCapsMappingPolicy.DeviceIdentity?,
-                                connected: [SessionCapsMappingPolicy.DeviceIdentity]) -> SessionCapsMappingPolicy.DeviceIdentity?
+                                connected: [SessionCapsMappingPolicy.DeviceIdentity],
+                                withheld: Int = 0) -> SessionCapsMappingPolicy.DeviceIdentity?
     {
         if let saved, (try? SessionCapsMappingPolicy.requireUnique(saved, among: connected)) != nil { return saved }
-        return connected.count == 1 ? connected.first : nil
+        return connected.count == 1 && withheld == 0 ? connected.first : nil
     }
 
     @MainActor

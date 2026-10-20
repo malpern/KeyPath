@@ -94,9 +94,18 @@ never a shell.
 
 `SessionCapsHIDUtilTransport.backend()` now provides bounded `/usr/bin/hidutil`
 execution and strict NDJSON service enumeration. It accepts the witnessed physical
-`AppleUserHIDEventService` identity, ignores device rows and the witnessed Parallels
-`AppleVirtualPlatformHIDBridge` virtual keyboard, and refuses ambiguous selectors
-or unsupported physical-service shapes. Useful execution has a two-second deadline and
+`AppleUserHIDEventService` identity and ignores device rows. Output that breaks the
+witnessed grammar (non-JSON rows, unknown row types, missing usage keys, booleans,
+floats or out-of-range numbers) still refuses the whole list. A well-formed service
+is judged alone (`parseInventory`): services with no LocationID, or LocationID 0,
+are ignored because every target selector carries a nonzero LocationID (witnessed:
+Parallels `AppleVirtualPlatformHIDBridge` and the Karabiner DriverKit
+VirtualHIDKeyboard, which until 2026-10-19 made enumeration throw on any Mac with
+the Karabiner driver). Located services of an unsupported shape (including a blank or non-string SerialNumber), and every service
+whose registry ID or VID/PID/LocationID(/serial) locator is shared, are withheld:
+never a target, but counted, so automatic selection and the Settings default refuse
+to assume a single keyboard. A chosen instance that becomes withheld is absent from
+the list, so `requireUnique` still refuses its lease. Useful execution has a two-second deadline and
 64 KiB combined output limit. Failure kills the child and confirms exit before
 releasing the lease lock; OS termination latency is not claimed to be bounded. This helper is not yet connected to the app lifecycle;
 Caps profiles remain unavailable by default. Do not substitute USB device IDs or
