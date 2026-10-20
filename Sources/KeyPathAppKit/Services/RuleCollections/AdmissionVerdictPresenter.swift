@@ -30,8 +30,8 @@ enum AdmissionVerdictPresenter {
             let who = names.count == 2 ? "\(names[0]) and \(names[1])" : names.joined(separator: ", ")
             let what = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
             return AdmissionPresentation(
-                title: "Key conflict on \(key)",
-                explanation: "\(who) both map \(key) on the \(layer) layer\(what). Only one can win.",
+                title: "Key conflict on \(keyLabel(key))",
+                explanation: "\(who) both map \(keyLabel(key)) on the \(layer) layer\(what). Only one can win.",
                 options: verdict.fixes.map { option($0, name) }
             )
         case let .unmetNeed(need):
@@ -69,19 +69,19 @@ enum AdmissionVerdictPresenter {
         }
     }
 
-    /// For `automatic` verdicts: the one line worth showing afterwards.
-    static func oneLine(_ verdict: AdmissionVerdict, name: (AdmissionSubject) -> String) -> String {
-        let presentation = present(verdict, name: name)
-        return verdict.severity == .automatic ? presentation.explanation : presentation.title
-    }
-
     static func describe(_ need: RuleEnvironmentNeed) -> String {
         switch need {
-        case let .emits(key): "sends \(key), which the current backend can't send"
+        case let .emits(key): "sends \(keyLabel(key)), which the current backend can't send"
         case .capsLockInput: "needs Caps Lock as an input"
         case .deviceTargeting: "targets specific keyboards, which isn't supported in driverless mode"
         case let .externalApp(app, _): "needs \(app) installed"
         }
+    }
+
+    /// Media keys and Caps Lock by their names; everything else as Kanata says it.
+    static func keyLabel(_ kanataKey: String) -> String {
+        if kanataKey.lowercased() == "caps" { return "Caps Lock" }
+        return LayerMappingBuilder.mediaKeyDisplayLabel(kanataKey) ?? kanataKey
     }
 
     private static func displayName(_ subject: AdmissionSubject, _ name: (AdmissionSubject) -> String) -> String {

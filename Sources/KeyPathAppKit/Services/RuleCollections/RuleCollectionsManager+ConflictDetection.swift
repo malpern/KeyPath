@@ -61,22 +61,6 @@ extension RuleCollectionsManager {
         )
     }
 
-    /// Would mappings on `keys` (Kanata names) on `layer` collide with an enabled
-    /// custom rule? Kept for callers that have keys rather than a collection;
-    /// answered through the same engine via a synthetic candidate.
-    func conflictWithCustomRules(_ keys: Set<String>, layer: RuleCollectionLayer) -> RuleConflictInfo? {
-        let probe = RuleCollection(
-            id: UUID(), name: "probe", summary: "", category: .custom,
-            mappings: keys.sorted().map { KeyMapping(input: $0, action: .keystroke(key: $0)) },
-            isEnabled: true, icon: "", tags: [], targetLayer: layer, momentaryActivator: nil, configuration: .list
-        )
-        let collections = ruleCollections.filter { !isNeovimAppScopedReference($0) }
-        let state = admissionState(collections: collections + [probe], customRules: customRules)
-        guard let info = firstConflict(involving: .collection(probe.id), in: state),
-              case .customRule = info.source else { return nil }
-        return info
-    }
-
     /// The first conflict verdict naming `subject`, folded to one other party and
     /// all the keys they collide on. A synthetic party (the leader key, a chord
     /// group) is reported too; the dialog shows it without offering to disable it.

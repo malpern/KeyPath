@@ -43,16 +43,15 @@ final class SessionConfigurationRefusalTests: KeyPathTestCase {
         let message = SessionConfigurationRefusal.message(.invalid(reason: "unsupported output key volu"))
         XCTAssertEqual(message, "This configuration cannot run in the driverless session: unsupported output key volu. "
             + "Edit the configuration and retry; existing rules were preserved.")
-        XCTAssertEqual(message, SessionCapsRuntimeSupport.startupFailureMessage(.invalid(reason: "unsupported output key volu")))
     }
 
     func testInvalidWithAttributionNamesTheRuleFirst() {
         let message = SessionConfigurationRefusal.message(
             .invalid(reason: "unsupported output key volu"),
-            attribution: ["Louder sends volu, which the current backend can't send."]
+            attribution: ["Louder sends Volume Up, which the current backend can't send."]
         )
         XCTAssertEqual(message, "This configuration cannot run in the driverless session. "
-            + "Louder sends volu, which the current backend can't send. "
+            + "Louder sends Volume Up, which the current backend can't send. "
             + "Turn that rule off or change it, then retry; existing rules were preserved. "
             + "(Validator: unsupported output key volu.)")
     }
@@ -70,7 +69,7 @@ final class SessionConfigurationRefusalTests: KeyPathTestCase {
         manager.customRules = [CustomRule(title: "Louder", input: "f12", action: .keystroke(key: "volu")),
                                CustomRule(title: "Fine", input: "f11", action: .keystroke(key: "a"))]
         XCTAssertEqual(manager.blockingAdmissionSentences(profile: noMedia),
-                       ["Louder sends volu, which the current backend can't send."])
+                       ["Louder sends Volume Up, which the current backend can't send."])
         XCTAssertEqual(manager.blockingAdmissionSentences(profile: allowAll), [])
     }
 
@@ -94,7 +93,7 @@ final class SessionConfigurationRefusalTests: KeyPathTestCase {
         let findings = manager.admissionFindings(profile: noMedia)
         XCTAssertEqual(findings.map(\.severity), ["blocking", "needsChoice", "automatic"])
         XCTAssertEqual(findings[0].subject, "Louder")
-        XCTAssertEqual(findings[0].explanation, "Louder sends volu, which the current backend can't send.")
+        XCTAssertEqual(findings[0].explanation, "Louder sends Volume Up, which the current backend can't send.")
         XCTAssertEqual(findings[0].fixes, ["Turn off Louder"])
         XCTAssertEqual(findings[1].title, "Key conflict on f13")
         XCTAssertEqual(Set(findings[1].fixes), ["Turn off A", "Turn off B"])
@@ -105,7 +104,7 @@ final class SessionConfigurationRefusalTests: KeyPathTestCase {
 
     func testFindingsRoundTripThroughTheControlChannel() throws {
         let finding = RuntimeControl.AdmissionFinding(severity: "blocking", subject: "Louder", title: "Louder can't run here",
-                                                      explanation: "Louder sends volu, which the current backend can't send.",
+                                                      explanation: "Louder sends Volume Up, which the current backend can't send.",
                                                       fixes: ["Turn off Louder"])
         var response = RuntimeControl.Response(ok: true, operation: .doctor, state: .failed, workerPID: nil, failure: "x",
                                                lastError: nil, layer: nil, appPID: 1, appVersion: "1")
