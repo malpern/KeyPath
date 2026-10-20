@@ -1,10 +1,34 @@
 import Foundation
 
 /// Physical macOS virtual key codes to USB keyboard usages, independent of the
-/// active character layout. Fn and consumer keys deliberately remain unmapped:
-/// session events cannot represent every HID key or identify its source device.
+/// active character layout. Fn and most consumer keys remain unmapped: session
+/// events cannot represent every HID key or identify its source device. The
+/// media keys macOS carries as system-defined events are the exception, as
+/// outputs (`mediaKeyType(forUsage:)`).
 public enum SessionKeyMap {
     public static let keyboardPage: UInt32 = 7
+    public static let consumerPage: UInt32 = 0x0C
+
+    /// Consumer-page usages the worker posts as `NSEvent` system-defined
+    /// (subtype 8) media events, by their `NX_KEYTYPE_*` code. The bridge's
+    /// output rule accepts exactly these (`CONSUMER_OUTPUT_CODES` in
+    /// session_config.rs); see docs/architecture/driverless-media-keys.md §2.
+    public static let consumerUsageToMediaKeyType: [UInt32: Int] = [
+        0xE9: 0, // volume up      NX_KEYTYPE_SOUND_UP
+        0xEA: 1, // volume down    NX_KEYTYPE_SOUND_DOWN
+        0x6F: 2, // brightness up  NX_KEYTYPE_BRIGHTNESS_UP
+        0x70: 3, // brightness down
+        0xE2: 7, // mute           NX_KEYTYPE_MUTE
+        0xCD: 16, // play/pause    NX_KEYTYPE_PLAY
+        0xB5: 17, // next          NX_KEYTYPE_NEXT
+        0xB6: 18, // previous      NX_KEYTYPE_PREVIOUS
+        0xB3: 19, // fast-forward  NX_KEYTYPE_FAST
+        0xB4: 20 // rewind         NX_KEYTYPE_REWIND
+    ]
+
+    public static func mediaKeyType(forUsage usage: UInt32) -> Int? {
+        consumerUsageToMediaKeyType[usage]
+    }
 
     public static let keyCodeToUsage: [UInt16: UInt32] = [
         0: 4, 1: 22, 2: 7, 3: 9, 4: 11, 5: 10,

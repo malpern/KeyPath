@@ -73,14 +73,14 @@ struct WindowSnappingActivationModeTests {
         return manager
     }
 
-    @Test("Unsupported media output preserves activation state and sources")
-    func unsupportedMediaOutputRefusesBeforeJournalOrReload() async throws {
+    @Test("Unsupported output preserves activation state and sources")
+    func unsupportedOutputRefusesBeforeJournalOrReload() async throws {
         let manager = try await createManagerWithWindowSnapping(supportedEntrance: false)
         // Caps plus generated layers is supported. Retain rollback coverage with
         // an actually unsupported output, not the old transparent-layer defect.
         manager.ruleCollections.append(RuleCollection(
-            name: "Unsupported media", summary: "", category: .custom,
-            mappings: [KeyMapping(input: "f20", action: .keystroke(key: "volu"))], isEnabled: true
+            name: "Unsupported output", summary: "", category: .custom, // Fn: a key the session cannot emit
+            mappings: [KeyMapping(input: "f20", action: .keystroke(key: "fn"))], isEnabled: true
         ))
         try await manager.ruleCollectionStore.saveCollections(manager.ruleCollections)
         let beforeCollections = manager.ruleCollections

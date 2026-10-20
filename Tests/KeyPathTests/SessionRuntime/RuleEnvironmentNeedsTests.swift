@@ -33,9 +33,8 @@ final class RuleEnvironmentNeedsTests: XCTestCase {
             let unmet = RuleCollectionNeedsExtractor.unmet(needs, profile: profile)
             if !unmet.isEmpty { unmetByCollection[collection.id] = unmet }
         }
-        XCTAssertEqual(Set(unmetByCollection.keys), [RuleCollectionIdentifier.funLayer])
-        let funUnmet = Set(unmetByCollection[RuleCollectionIdentifier.funLayer] ?? [])
-        XCTAssertEqual(funUnmet, Set(["brdn", "brup", "mute", "next", "pp", "prev", "vold", "volu"].map { .emits(key: $0) }))
+        // Phase 6: the Function layer's media keys are outputs the worker posts.
+        XCTAssertEqual(Set(unmetByCollection.keys), [])
     }
 
     func testCapsLockInputIsInferredAndMetByManagedCaps() throws {

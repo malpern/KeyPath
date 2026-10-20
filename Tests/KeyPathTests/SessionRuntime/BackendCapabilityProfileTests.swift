@@ -24,32 +24,30 @@ final class BackendCapabilityProfileTests: XCTestCase {
 
     func testBridgeAnswersTheSessionOutputRule() throws {
         let profile = try bridgeProfile()
-        for key in ["a", "f1", "f12", "home", "del", "kp5", "caps", "C-S-n", "M-spc"] {
+        for key in ["a", "f1", "f12", "home", "del", "kp5", "caps", "C-S-n", "M-spc",
+                    // Phase 6: the media keys the worker posts as system-defined events.
+                    "volu", "vold", "voldwn", "mute", "pp", "next", "prev", "brup", "brdn", "brdown"]
+        {
             XCTAssertTrue(profile.canEmit(kanataKey: key), key)
         }
-        for key in ["volu", "vold", "voldwn", "mute", "pp", "next", "prev", "brup", "brdn", "brdown"] {
-            XCTAssertFalse(profile.canEmit(kanataKey: key), key)
-        }
+        // Consumer page, but not a key the worker posts.
+        XCTAssertFalse(profile.canEmit(kanataKey: "calc"))
         XCTAssertFalse(profile.supportsDeviceTargeting)
     }
 
     func testFormerHardCodedListsGiveTheSameAnswersThroughTheBridge() throws {
         BackendCapabilityProfile.testOverride = try bridgeProfile()
 
-        // SystemActionInfo: only the eight consumer actions, as before.
+        // SystemActionInfo: every offered action, media included (phase 6).
         let unsupported = Set(SystemActionInfo.allActions.filter { !$0.isSupportedInDriverlessSession }.map(\.id))
-        XCTAssertEqual(unsupported, ["play-pause", "next-track", "prev-track", "mute",
-                                     "volume-up", "volume-down", "brightness-up", "brightness-down"])
-        // FunctionKeyMode: media needs consumer output, function does not.
-        XCTAssertFalse(FunctionKeyMode.media.isSupportedInDriverlessSession)
+        XCTAssertEqual(unsupported, [])
+        // FunctionKeyMode: both modes emit what the worker can post.
+        XCTAssertTrue(FunctionKeyMode.media.isSupportedInDriverlessSession)
         XCTAssertTrue(FunctionKeyMode.function.isSupportedInDriverlessSession)
-        // Catalog: the Function layer was the only unavailable collection.
+        // Catalog: nothing built in is unavailable any more.
         let unavailable = RuleCollectionCatalog().originalCollections()
             .filter { RuleCollectionCatalog.driverlessUnavailableReason(for: $0.id) != nil }.map(\.id)
-        XCTAssertEqual(unavailable, [RuleCollectionIdentifier.funLayer])
-        // The sentence is the admission engine's (phase 4d): it names the key.
-        let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: RuleCollectionIdentifier.funLayer) ?? ""
-        XCTAssertTrue(reason.contains("which the current backend can't send"), reason)
+        XCTAssertEqual(unavailable, [])
     }
 
     func testModifierPrefixesAreStrippedBeforeAsking() {

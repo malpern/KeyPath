@@ -209,8 +209,8 @@ enum QMKKeycodeMapping {
         // NX_KEYTYPE_PREVIOUS      = 18
         // NX_KEYTYPE_FAST          = 19
         // NX_KEYTYPE_REWIND        = 20
-        // NX_KEYTYPE_BRIGHTNESS_UP   = 21  (also 0xBD in QMK)
-        // NX_KEYTYPE_BRIGHTNESS_DOWN = 22  (also 0xBE in QMK)
+        // NX_KEYTYPE_ILLUMINATION_UP   = 21  (keyboard backlight; also 0xBD in QMK)
+        // NX_KEYTYPE_ILLUMINATION_DOWN = 22  (display brightness is 2/3; see driverless-media-keys.md)
         // NX_KEYTYPE_EJECT         = 14
         //
         // These cannot be represented as standard CGKeyCode values.

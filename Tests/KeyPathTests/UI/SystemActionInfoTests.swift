@@ -1,23 +1,39 @@
 @testable import KeyPathAppKit
+@testable import KeyPathCore
 import KeyPathRulesCore
 import XCTest
 
 final class SystemActionInfoTests: XCTestCase {
-    func testDriverlessSupportExcludesOnlyConsumerMediaOutputs() {
+    /// Phase 6: with the real bridge every offered action, media included, can
+    /// be emitted; without a bridge answer the old consumer-key refusal stands.
+    func testDriverlessSupportCoversEveryActionWithTheBridge() throws {
+        try SessionBridgeTestFixture.requireAvailable()
+        BackendCapabilityProfile.testOverride = BackendCapabilityProfile(backend: .session) { key in
+            KanataHostBridge.sessionOutputKeySupported(
+                runtimeHost: SessionBridgeTestFixture.runtimeHost, keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
+            )
+        }
+        defer { BackendCapabilityProfile.testOverride = nil }
+        XCTAssertEqual(SystemActionInfo.allActions.filter { !$0.isSupportedInDriverlessSession }.map(\.id), [])
+        XCTAssertTrue(FunctionKeyMode.media.isSupportedInDriverlessSession)
+        XCTAssertTrue(FunctionKeyMode.function.isSupportedInDriverlessSession)
+    }
+
+    func testWithoutABridgeAnswerOnlyConsumerMediaOutputsAreRefused() {
+        BackendCapabilityProfile.testOverride = BackendCapabilityProfile(backend: .session) { _ in nil }
+        defer { BackendCapabilityProfile.testOverride = nil }
         let unsupported = Set(SystemActionInfo.allActions.filter { !$0.isSupportedInDriverlessSession }.map(\.id))
         XCTAssertEqual(unsupported, ["play-pause", "next-track", "prev-track", "mute", "volume-up", "volume-down", "brightness-up", "brightness-down"])
         for output in ["home", "end", "del", "spotlight", "C-c"] {
             XCTAssertEqual(SystemActionInfo.find(byOutput: output)?.isSupportedInDriverlessSession, true, output)
         }
-    }
-
-    func testDriverlessFunctionModePolicy() {
         XCTAssertFalse(FunctionKeyMode.media.isSupportedInDriverlessSession)
-        XCTAssertTrue(FunctionKeyMode.function.isSupportedInDriverlessSession)
     }
 
     @MainActor
     func testUnsupportedActionCannotReplaceMapperSelection() throws {
+        BackendCapabilityProfile.testOverride = BackendCapabilityProfile(backend: .session) { _ in nil }
+        defer { BackendCapabilityProfile.testOverride = nil }
         let model = MapperViewModel()
         let supported = try XCTUnwrap(SystemActionInfo.find(byOutput: "home"))
         model.selectSystemAction(supported)

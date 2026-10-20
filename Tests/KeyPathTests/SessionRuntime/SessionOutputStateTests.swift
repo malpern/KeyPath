@@ -1,3 +1,4 @@
+@testable import KeyPathAppKit
 import KeyPathCore
 import XCTest
 
@@ -131,5 +132,60 @@ final class SessionOutputStateTests: XCTestCase {
         XCTAssertEqual(releases.map(\.keyCode), [0, 59])
         XCTAssertTrue(releases.allSatisfy { !$0.isDown })
         XCTAssertTrue(outputs.heldUsages.isEmpty)
+    }
+
+    // MARK: - Media keys (phase 6)
+
+    private func media(_ usage: UInt32, _ value: UInt64) -> KanataHostBridgePassthruOutputEvent {
+        .init(value: value, usagePage: SessionKeyMap.consumerPage, usage: usage)
+    }
+
+    func testMediaKeysTranslateToSystemDefinedKeyTypesAndDropRepeats() throws {
+        var state = SessionOutputState()
+        let down = try XCTUnwrap(try state.translateMedia(media(0xE9, 1)))
+        XCTAssertEqual(down, SessionMediaOutput(usage: 0xE9, keyType: 0, isDown: true))
+        XCTAssertEqual(state.heldMediaUsages, [0xE9])
+        // macOS repeats a held media key itself; Kanata's repeat is dropped, not posted.
+        XCTAssertNil(try state.translateMedia(media(0xE9, 2)))
+        XCTAssertThrowsError(try state.translateMedia(media(0xEA, 2)))
+        let up = try XCTUnwrap(try state.translateMedia(media(0xE9, 0)))
+        XCTAssertFalse(up.isDown)
+        XCTAssertTrue(state.heldMediaUsages.isEmpty)
+        XCTAssertEqual(try state.translateMedia(media(0xCD, 1))?.keyType, 16) // play/pause
+        XCTAssertEqual(try state.translateMedia(media(0x6F, 1))?.keyType, 2) // brightness up
+    }
+
+    func testUnknownConsumerUsageAndKeyboardPageAreRefusedByTheMediaLedger() {
+        var state = SessionOutputState()
+        XCTAssertThrowsError(try state.translateMedia(media(0xB7, 1))) // stop: not posted
+        XCTAssertThrowsError(try state.translateMedia(.init(value: 1, usagePage: 7, usage: 4)))
+        XCTAssertThrowsError(try state.translate(media(0xE9, 1)), "the key ledger never takes a media key")
+        XCTAssertTrue(state.heldMediaUsages.isEmpty)
+    }
+
+    @MainActor
+    func testCleanupReleasesHeldMediaKeysAndKeysIndependently() throws {
+        var state = SessionOutputState()
+        _ = try state.translate(.init(value: 1, usagePage: 7, usage: 4))
+        _ = try state.translateMedia(media(0xE9, 1))
+        _ = try state.translateMedia(media(0xCD, 1))
+        var keys: [UInt16] = [], mediaUp: [UInt32] = []
+        SessionRuntimeWorker.releaseOwnedOutputs(&state, post: { keys.append($0.keyCode); return true },
+                                                 postMedia: { mediaUp.append($0.usage); return !$0.isDown && $0.usage != 0xCD })
+        XCTAssertEqual(keys, [0])
+        XCTAssertEqual(mediaUp, [0xCD, 0xE9])
+        // A release that could not be posted stays in the ledger for the next attempt.
+        XCTAssertEqual(state.heldMediaUsages, [0xCD])
+        XCTAssertTrue(state.heldUsages.isEmpty)
+    }
+
+    func testSystemDefinedEventCarriesKeyTypeAndDirection() throws {
+        let down = try XCTUnwrap(SessionRuntimeWorker.mediaEvent(keyType: 0, isDown: true))
+        XCTAssertEqual(down.subtype.rawValue, 8)
+        XCTAssertEqual((down.data1 >> 16) & 0xFFFF, 0)
+        XCTAssertEqual((down.data1 >> 8) & 0xFF, 0xA)
+        let up = try XCTUnwrap(SessionRuntimeWorker.mediaEvent(keyType: 17, isDown: false))
+        XCTAssertEqual((up.data1 >> 16) & 0xFFFF, 17)
+        XCTAssertEqual((up.data1 >> 8) & 0xFF, 0xB)
     }
 }

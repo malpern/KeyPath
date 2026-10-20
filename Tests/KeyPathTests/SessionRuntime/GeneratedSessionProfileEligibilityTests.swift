@@ -113,9 +113,9 @@ final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
         try collectionBytes.write(to: collectionsURL)
         try ruleBytes.write(to: rulesURL)
         do {
-            // Caps to F18 is admitted now (the reservation moves); a media
-            // output still has no driverless equivalent.
-            try await service.writeConfigurationContent("(defsrc caps)(deflayer base pp)")
+            // Caps to F18 is admitted now (the reservation moves) and media keys
+            // are posted (phase 6); Fn is a key the session cannot emit.
+            try await service.writeConfigurationContent("(defsrc caps)(deflayer base fn)")
             XCTFail("Unsupported Caps output must fail before writing")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
@@ -125,11 +125,11 @@ final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
         do {
             try await service.operationGate.withOperation { @MainActor permit in
                 _ = try await service.stageRawConfiguration(
-                    content: "(defsrc q)(deflayer base volu)", expectedContent: existing,
+                    content: "(defsrc q)(deflayer base fn)", expectedContent: existing,
                     mutationPermit: permit
                 )
             }
-            XCTFail("Unsupported media output must fail before staging")
+            XCTFail("Unsupported output must fail before staging")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)
         }
@@ -159,7 +159,7 @@ final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
         try await service.requireSessionEligibleConfiguration(candidate)
         XCTAssertFalse(FileManager.default.fileExists(atPath: service.configurationPath))
         XCTAssertEqual(try String(contentsOf: includeURL, encoding: .utf8), validInclude)
-        try "(deflayer base volu)".write(to: includeURL, atomically: true, encoding: .utf8)
+        try "(deflayer base fn)".write(to: includeURL, atomically: true, encoding: .utf8)
         do {
             try await service.requireSessionEligibleConfiguration(candidate)
             XCTFail("Unsupported included actions must be rejected")

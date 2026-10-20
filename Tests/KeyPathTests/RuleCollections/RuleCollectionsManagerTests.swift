@@ -320,9 +320,10 @@ final class RuleCollectionsManagerTests: XCTestCase {
         manager.onError = { refusalMessages.append($0) }
 
         for unsupported in [
-            // Caps to F18 is no longer refused: the reserved key moves instead.
-            CustomRule(input: "caps", action: .keystroke(key: "pp"), isEnabled: true),
-            CustomRule(input: "f8", action: .keystroke(key: "pp"), isEnabled: true),
+            // Caps to F18 is no longer refused: the reserved key moves instead, and
+            // media keys are posted (phase 6); Fn is a key the session cannot emit.
+            CustomRule(input: "caps", action: .keystroke(key: "fn"), isEnabled: true),
+            CustomRule(input: "f8", action: .keystroke(key: "fn"), isEnabled: true),
         ] {
             let accepted = await manager.saveCustomRule(unsupported)
             XCTAssertFalse(accepted, "Unsupported session behavior must be refused")

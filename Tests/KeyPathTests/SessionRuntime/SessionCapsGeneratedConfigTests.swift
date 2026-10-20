@@ -5,8 +5,19 @@ import KeyPathRulesCore
 import XCTest
 
 final class SessionCapsGeneratedConfigTests: XCTestCase {
-    func testUnsupportedMediaFunctionKeyModeIsRejected() throws {
+    override func setUpWithError() throws {
+        try super.setUpWithError()
         try SessionBridgeTestFixture.requireAvailable()
+        BackendCapabilityProfile.testOverride = SessionBridgeTestFixture.profile
+    }
+
+    override func tearDown() {
+        BackendCapabilityProfile.testOverride = nil
+        super.tearDown()
+    }
+
+    /// Phase 6: media mode emits the keys the worker posts, so it is admitted.
+    func testMediaFunctionKeyModeIsAdmitted() throws {
         var collection = try XCTUnwrap(RuleCollectionCatalog().defaultCollections().first {
             $0.id == RuleCollectionIdentifier.macFunctionKeys
         })
@@ -19,12 +30,11 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
         let admission = SessionCapsRuntimeSupport.validate(
             configPath: path.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, requireSelection: false
         )
-        XCTAssertFalse(FunctionKeyMode.media.isSupportedInDriverlessSession)
-        if case .valid = admission.result { XCTFail("Unsupported media output must remain rejected") }
+        XCTAssertTrue(FunctionKeyMode.media.isSupportedInDriverlessSession)
+        guard case .valid = admission.result else { return XCTFail("media mode refused: \(admission.result)") }
     }
 
     func testEveryBuiltInDefaultWithLeaderIsAdmitted() throws {
-        try SessionBridgeTestFixture.requireAvailable()
         let catalog = RuleCollectionCatalog().defaultCollections()
         XCTAssertEqual(catalog.count, 22, "Review new catalog entries for driverless support")
         for candidate in catalog {
@@ -41,20 +51,13 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
             let admission = SessionCapsRuntimeSupport.validate(
                 configPath: path.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, requireSelection: false
             )
-            if let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: candidate.id) {
-                XCTAssertEqual(candidate.id, RuleCollectionIdentifier.funLayer)
-                XCTAssertTrue(reason.contains("which the current backend can't send"), reason)
-                if case .valid = admission.result { XCTFail("Review support policy: previously unsupported collection now validates") }
-            } else if case .valid = admission.result {
-                // Every offered default must be admitted by the real bridge.
-            } else {
-                XCTFail("\(candidate.name) default refused: \(admission.result)")
-            }
+            // Phase 6: every offered default, the Function layer included, is admitted.
+            XCTAssertNil(RuleCollectionCatalog.driverlessUnavailableReason(for: candidate.id), candidate.name)
+            guard case .valid = admission.result else { return XCTFail("\(candidate.name) default refused: \(admission.result)") }
         }
     }
 
     func testEveryOfferedSystemActionIsAdmitted() throws {
-        try SessionBridgeTestFixture.requireAvailable()
         for action in SystemActionInfo.allActions {
             let config = "(defsrc a)(deflayer base \(action.kanataOutput))"
             let path = FileManager.default.temporaryDirectory.appendingPathComponent("action-\(UUID().uuidString).kbd")

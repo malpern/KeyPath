@@ -506,22 +506,40 @@ The engine and `PackDependencyChecker` are plain enums with no actor: both only 
 value types and the immutable registry. `driverlessUnavailableReason` lost the
 main-actor annotation that had followed from the engine's.
 
-### 4.5 Lowering: intent in rules, backend output in the generator
+### 4.5 Media keys: the worker posts them (phase 6, part 1, 2026-10-20)
 
-Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
-A new generator stage, `Lowering`, maps each intent to what the active profile
-supports:
+The spike (`docs/architecture/driverless-media-keys.md`) overturned the lowering idea
+below: no adapter table, no `push-msg`. Measured, a background process posting
+`NSEvent` system-defined events moves volume and built-in brightness, reaches the
+now-playing app through the media router, and macOS repeats a held key on its own.
+So the session emits media keys as Kanata's ordinary outputs:
 
-| Intent | `session` profile | `driverKit` profile |
-|---|---|---|
-| consumer key output | `.viaAdapter`: `push-msg "media:volume-up"`, posted by the app as an `NSSystemDefined` event (pending the media-keys spike's measurements of repeat and external-display brightness) | native key |
-| Caps Lock input | HID lease to a free intermediate key (#1307/#1309), `caps` rewritten to that key in `defsrc` | native `caps` |
-| device targeting | unsupported → blocking verdict, never emitted | `macos-dev-names-*` |
-| layer transparency under managed Caps | computed real fall-through value per key, with an advisory verdict naming keys whose behaviour changed | `_` |
+- **Bridge.** `session_config.rs` `oscode_supported` accepts page 7 keys in the
+  host's map *or* the ten consumer-page codes in `CONSUMER_OUTPUT_CODES` (volume
+  up/down/mute, brightness up/down, play/pause, next/previous, fast-forward/rewind).
+  The table is a constant, not a host parameter: what can be posted is fixed by the
+  worker's code, not by the keyboard. Inputs stay keyboard-page until part 2.
+- **Worker.** `SessionOutputState` keeps a media ledger beside the key ledger
+  (`translateMedia`, `heldMediaUsages`, `releaseAllMedia`); value 2 (repeat) is
+  dropped because the system repeats. `SessionRuntimeWorker.postMedia` builds
+  `NSEvent.otherEvent(.systemDefined, subtype 8, data1: keyType << 16 | 0xA/0xB << 8)`
+  from `SessionKeyMap.consumerUsageToMediaKeyType`, tags it with the worker's output
+  tag, and posts it at the session tap; cleanup releases held media keys like keys.
+- **Everything above the bridge changed by itself.** Because phase 1 made
+  `BackendCapabilityProfile` ask the bridge, the catalog's Function layer, media mode
+  of macOS Function Keys and the eight media system actions became available with no
+  Swift change; the former hard-coded refusals survive only as the no-bridge fallback
+  (`fallbackConsumerKeys`), and the tests now pin both answers.
+- **Known limits** (from the spike): a posted brightness event drives the built-in
+  panel only (Studio Display unchanged); per-device media rules are impossible
+  (system-defined events carry no source device); keyboard backlight (21–23) is in
+  the NX table but unmeasured.
 
-The generator's `validKanataPassthrough` becomes a check against
-`profile.outputUsages` plus the adapter table, so it cannot pass a key the
-profile lacks.
+Part 2 adds `1 << 14` to the tap mask so system-defined events become consumer
+inputs to Kanata (consumed only when mapped, hardware repeats swallowed).
+
+Lowering of *other* intents (computed fall-through under managed Caps, §4.7's
+registry) remains as designed below.
 
 ### 4.6 Bridge validation stays, with attribution
 
@@ -576,8 +594,8 @@ until phase 4.
 | **2. Requirements** — *done (see §4.2a)* | `RuleEnvironmentNeed` (emits key, Caps input, device targeting, external app) inferred from effective mappings; `unmet(_:profile:)` checks them; `Pack.requires` for KindaVim; `conflictsWith` read in both directions; the catalog check now uses the same inference. | Whole-catalog test against the real bridge; system-action and tap/hold inference; device targeting per backend; packs declare only non-inferable needs; conflictsWith both ways. |
 | **3. Claims + engine** — *done (see §4.4a)* | `AdmissionVerdict` (KeyPathRulesCore) and `AdmissionEngine` (AppKit): conflicts from `detectConflicts` attributed to ids, unmet needs, reserved Caps intermediate (moves automatically), another app holding Caps, pack conflicts and requirements. Not called yet. | Golden scenarios match today's detector; attribution to ids; media blocking per backend; intermediate move/block; foreign Caps owner; packs; a fresh profile admits with zero findings against the real bridge. |
 | **4. Callers** — *done 2026-10-19 (4a–4e)* | toggle, rule editor, pack install (conditional preview, see §7), catalog update, save and startup call the engine; `conflictInfo`/`dedupe` divergence removed; the dead `ConflictResolutionDialog` deleted; the dialogs render `Verdict`. | UI tests per caller; pack install preview snapshot; "save reaches a new blocking verdict" logs an error (and the existing test guardrail catches it). |
-| **5. Attribution** | config-line → owner side table; Rust returns the offending element; one message renderer. CLI `doctor` lists verdicts. | end-to-end: a rule with `volu` names itself in the refusal; CLI output contract test. |
-| **6. Lowering** | adapter table in the generator; media via push-msg if the spike approves; computed fall-through under managed Caps. | generator goldens per profile; fall-through advisory test. |
+| **5. Attribution** — *done 2026-10-19 as phase 4e* | one refusal renderer with the engine's blocking sentences in front of the validator's reason; CLI `doctor` lists verdicts. Line-level attribution from Rust was not needed. | `SessionConfigurationRefusalTests`; lifecycle and CLI tests. |
+| **6. Media keys** — *part 1 done 2026-10-20 (§4.5)* | the bridge's output rule accepts the ten consumer keys the worker posts as system-defined events; the worker posts and releases them. Part 2: the tap reads system-defined events as consumer inputs. | Rust rule tests; `SessionOutputStateTests` media cases; catalog/profile goldens flipped; hardware on the Air. |
 
 Phases 1–3 are additive and can land before #1304–#1309 merge; 4–6 should
 follow them.
