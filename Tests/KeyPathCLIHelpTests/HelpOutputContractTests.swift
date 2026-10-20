@@ -5,8 +5,7 @@ import XCTest
 
 final class HelpOutputContractTests: XCTestCase {
     func testServiceAndSystemExamplesDoNotAdvertiseUnavailableCommands() async throws {
-        let unavailable = ["service status", "service start", "service stop", "service restart",
-                           "system install", "system repair", "system uninstall"]
+        let unavailable = ["system install", "system repair", "system uninstall"]
         for noun in ["service", "system"] {
             let jsonOutput = await captureStandardOutput {
                 var parsed = try! HelpExamples.parse([noun, "--json"])
@@ -20,7 +19,8 @@ final class HelpOutputContractTests: XCTestCase {
             if noun == "service" {
                 XCTAssertTrue(jsonOutput.contains("service reload"))
                 XCTAssertTrue(jsonOutput.contains("service logs"))
-                XCTAssertTrue(jsonOutput.contains("open -a KeyPath"))
+                XCTAssertTrue(jsonOutput.contains("keypath status --json"))
+                XCTAssertTrue(jsonOutput.contains("keypath stop"))
             } else {
                 XCTAssertTrue(jsonOutput.contains("system inspect"))
                 XCTAssertTrue(jsonOutput.contains("not live app-session health"))

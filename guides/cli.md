@@ -31,9 +31,49 @@ All commands support `--json` for machine-readable output, making them easy to u
 
 ## Quick reference
 
-### Configuration reload and logs
+### Remapping on and off
 
-Open KeyPath.app to start or stop remapping and check the live session. The driverless CLI does not provide `start`, `stop`, `restart` or `status` commands.
+These ask the running KeyPath app, which owns remapping, so the answer is the app's own view.
+
+```bash
+keypath status                    # Is remapping running? Also shows the current layer
+keypath start                     # Start remapping (opens KeyPath in the background if needed)
+keypath stop                      # Stop remapping; KeyPath keeps running
+keypath restart                   # Stop and start again
+keypath status --json             # The same, for scripts
+```
+
+`start`, `stop` and `restart` wait until KeyPath has finished before they return. The same commands also live under `keypath service` (`keypath service status`, and so on).
+
+| Exit code | Meaning |
+|-----------|---------|
+| `0` | Done, or remapping is running |
+| `1` | Remapping is not running, or KeyPath could not do what you asked (the output says why) |
+| `6` | KeyPath isn't running, or didn't answer in time (try a longer `--timeout`) |
+
+`keypath stop` succeeds when KeyPath isn't running, since remapping is already off.
+
+### Setup and health
+
+```bash
+keypath doctor                    # Check permissions, remapping and config, with the fix for each problem
+keypath setup                     # Repair, ask for missing permissions, then start remapping
+keypath setup --no-open           # Just report what's needed; don't open System Settings
+keypath uninstall                 # Show what uninstalling would do (add --yes to do it)
+```
+
+macOS only lets a person turn on Accessibility and Input Monitoring. When one is off, `keypath setup` opens that pane in System Settings and waits up to five minutes (`--wait`) for you to switch KeyPath on, then finishes. `keypath repair` is the same command.
+
+| Exit code | `doctor` and `setup` |
+|-----------|----------------------|
+| `0` | Ready and remapping |
+| `7` | A macOS permission still needs you |
+| `1` | Another problem (the output says what) |
+| `6` | KeyPath couldn't be reached (`doctor` doesn't open the app; `setup` does) |
+
+`keypath uninstall` exits `2` without `--yes`, with nothing changed. See [Uninstall KeyPath]({{ '/guides/uninstall/' | relative_url }}).
+
+### Configuration reload and logs
 
 ```bash
 keypath logs                      # Show recent app logs
@@ -116,10 +156,9 @@ keypath export collection "My Rules"        # Export one collection
 keypath system inspect                    # Read local permission/configuration diagnostics
 ```
 
-`system inspect` reads diagnostics available to the CLI process. It does not
-verify the separate app's owned runtime; use KeyPath.app for live session status.
-The driverless CLI does not provide system install, repair or uninstall commands.
-For setup and removal guidance, open KeyPath.app.
+`system inspect` reads diagnostics available to the CLI process. `keypath doctor`
+asks the running app instead, so it sees the permissions and remapping the app
+actually has; prefer it.
 
 ### Simulation
 

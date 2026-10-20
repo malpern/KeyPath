@@ -93,6 +93,12 @@ enum CompositionRoot {
         // Prime the synchronous cache before any startup config regeneration can run.
         DeviceSelectionStore.primeSharedCacheFromDisk()
 
+        // Let `keypath status|start|stop|restart` reach this runtime (one-shot
+        // probes and session workers never serve it).
+        if !isOneShotProbeMode {
+            RuntimeControlServer.shared.start(handler: RuntimeControlHandler.make(for: manager))
+        }
+
         // Schedule deferred startup services
         if !isOneShotProbeMode {
             scheduleDeferredStartupServices()

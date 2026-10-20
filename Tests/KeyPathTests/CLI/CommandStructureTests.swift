@@ -43,7 +43,7 @@ final class CommandStructureTests: XCTestCase {
 
     func testServiceHasExpectedVerbs() {
         let names = subcommandNames(of: Service.self)
-        XCTAssertEqual(Set(names), ["reload", "logs"])
+        XCTAssertEqual(Set(names), ["status", "start", "stop", "restart", "reload", "logs"])
     }
 
     func testConfigHasExpectedVerbs() {
@@ -56,17 +56,48 @@ final class CommandStructureTests: XCTestCase {
         XCTAssertEqual(Set(names), ["inspect"])
     }
 
-    func testUnsupportedDriverlessCommandsRejectBeforeExecution() {
-        let commands = [
-            ["service", "status"], ["service", "start"], ["service", "stop"], ["service", "restart"],
-            ["status"], ["start"], ["stop"], ["restart"],
-            ["system", "install"], ["system", "repair"], ["system", "uninstall"],
-        ]
+    /// Runtime control goes through the running app (RuntimeControl); install,
+    /// repair and uninstall stay in KeyPath.app.
+    func testRuntimeCommandsParseAndSystemLifecycleStaysUnavailable() throws {
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "status", "--json"]) is ServiceStatus)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "start"]) is ServiceStart)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "stop"]) is ServiceStop)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "restart", "--timeout", "60"]) is ServiceRestart)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["status"]) is StatusShortcut)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["start"]) is StartShortcut)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["stop"]) is StopShortcut)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["restart"]) is RestartShortcut)
+
+        let commands = [["system", "install"], ["system", "repair"], ["system", "uninstall"]]
         for arguments in commands {
             for flags in [[], ["--json"], ["--dry-run"]] {
                 XCTAssertThrowsError(try KeyPathCLI.parseAsRoot(arguments + flags), arguments.joined(separator: " ")) { error in
                     XCTAssertNotEqual(KeyPathCLI.exitCode(for: error), .success)
                 }
+            }
+        }
+    }
+
+    func testLifecycleCommandsParse() throws {
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["doctor", "--json"]) is Doctor)
+        let setup = try XCTUnwrap(KeyPathCLI.parseAsRoot(["setup", "--wait", "60", "--no-open"]) as? Setup)
+        XCTAssertEqual(setup.wait, 60)
+        XCTAssertTrue(setup.noOpen)
+        XCTAssertTrue(try KeyPathCLI.parseAsRoot(["repair"]) is Setup, "repair is an alias for setup")
+        let uninstall = try XCTUnwrap(KeyPathCLI.parseAsRoot(["uninstall", "--yes", "--reset-permissions"]) as? Uninstall)
+        XCTAssertTrue(uninstall.yes)
+        XCTAssertTrue(uninstall.resetPermissions)
+    }
+
+    /// Without --yes nothing is sent to the app: the plan prints and the exit is 2.
+    func testUninstallWithoutYesChangesNothing() async throws {
+        for arguments in [["uninstall"], ["uninstall", "--json"], ["uninstall", "--yes", "--dry-run"]] {
+            var command = try XCTUnwrap(KeyPathCLI.parseAsRoot(arguments) as? Uninstall)
+            do {
+                try await command.run()
+                XCTFail("\(arguments) must refuse")
+            } catch let exit as ExitCode {
+                XCTAssertEqual(exit.rawValue, 2, arguments.joined(separator: " "))
             }
         }
     }
@@ -77,15 +108,16 @@ final class CommandStructureTests: XCTestCase {
         XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "reload"]) is ServiceReload)
         XCTAssertTrue(try KeyPathCLI.parseAsRoot(["service", "logs"]) is ServiceLogs)
         XCTAssertTrue(try KeyPathCLI.parseAsRoot(["system", "inspect"]) is SystemInspect)
-        XCTAssertTrue(KeyPathCLI.helpMessage().contains("Open KeyPath.app"))
+        XCTAssertTrue(KeyPathCLI.helpMessage().contains("keypath status|start|stop|restart"))
     }
 
     func testCompletionsOmitUnavailableCommandsAndKeepReload() {
         let completions = KeyPathCLI.completionScript(for: .zsh)
-        for command in ["service_status", "service_start", "service_stop", "service_restart",
-                        "system_install", "system_repair", "system_uninstall"]
-        {
+        for command in ["system_install", "system_repair", "system_uninstall"] {
             XCTAssertFalse(completions.contains("_keypath_\(command)"))
+        }
+        for command in ["service_status", "service_start", "service_stop", "service_restart"] {
+            XCTAssertTrue(completions.contains("_keypath_\(command)"))
         }
         XCTAssertTrue(completions.contains("_keypath_service_reload"))
         XCTAssertTrue(completions.contains("_keypath_config_check"))

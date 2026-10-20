@@ -5,27 +5,13 @@ import KeyPathAppKit
 struct ServiceStop: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "stop",
-        abstract: "Stop the Kanata service"
+        abstract: "Stop remapping; KeyPath.app keeps running",
+        discussion: "Waits until KeyPath.app has finished. Exit codes: 0 done, 1 the runtime refused or failed, 6 KeyPath.app is not running or did not answer."
     )
 
     @OptionGroup var globals: GlobalOptions
 
     mutating func run() async throws {
-        let ctx = globals.outputContext
-        let facade = SystemFacade()
-
-        let success = await facade.stopService()
-        if success {
-            CLIOutput.write(["stopped": true], context: ctx) {
-                "Kanata service stopped."
-            }
-        } else {
-            let error = CLIError.serviceControlFailed(
-                action: "stop",
-                hint: "macOS may require administrator authorization for system services. Check 'keypath service status --json' or use KeyPath's repair UI."
-            )
-            CLIOutput.writeError(error, context: ctx)
-            throw error.code.exitCode
-        }
+        try RuntimeControlClient.run(.stop, globals: globals, launch: false)
     }
 }

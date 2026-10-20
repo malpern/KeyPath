@@ -28,3 +28,15 @@ before retrying.
 
 Dragging the app to Trash in Finder keeps your settings. Use the Settings action
 when you want a fresh reinstall.
+
+## From the command line
+
+`keypath uninstall` does the same thing. On its own it only shows what it would do;
+add `--yes` to uninstall. Add `--reset-permissions` to also clear KeyPath's
+Accessibility and Input Monitoring entries, so a reinstall asks for them again.
+
+```bash
+keypath uninstall                        # show the plan; changes nothing
+keypath uninstall --yes                  # back up and uninstall
+keypath uninstall --yes --reset-permissions
+```

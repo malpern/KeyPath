@@ -236,8 +236,9 @@ It verifies:
 
 Runtime inspection requires Python 3 (override `KEYPATH_VERIFY_PYTHON` with its
 executable path) and macOS `lsof`. It is read-only and never starts or repairs a
-runtime. The bundled CLI's legacy service/status commands are not driverless
-session readiness evidence.
+runtime. `keypath status` reports the app's own view of the runtime over its
+control socket (handy for scripts), but release verification still uses this
+script, which checks process ownership and the listener independently.
 
 For non-notarized local debug builds, skip distribution trust checks:
 ```bash

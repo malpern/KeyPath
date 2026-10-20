@@ -15,7 +15,7 @@ enum AppNotificationWiring {
         registerValidationNotifications()
         registerFeedbackNotifications()
         registerServiceNotifications(on: delegate)
-        registerActionDispatcherCallbacks()
+        registerActionDispatcherCallbacks(on: delegate)
         DistributedNotificationBridge.start()
     }
 
@@ -140,7 +140,7 @@ enum AppNotificationWiring {
 
     // MARK: - Action Dispatcher Callbacks
 
-    private static func registerActionDispatcherCallbacks() {
+    private static func registerActionDispatcherCallbacks(on delegate: AppDelegate) {
         // Wire ActionDispatcher errors to user notifications (for deep link failures)
         ActionDispatcher.shared.onError = { message in
             UserNotificationService.shared.notifyActionError(message)
@@ -156,6 +156,16 @@ enum AppNotificationWiring {
                 if !overlay.isVisible { overlay.toggle() }
             case .hide:
                 if overlay.isVisible { overlay.hideExplicitly() }
+            }
+        }
+
+        // keypath://runtime/{start|stop|restart} -> the same lifecycle path as the CLI
+        ActionDispatcher.shared.onRuntimeAction = { [weak delegate] command in
+            Task { @MainActor in
+                guard let manager = delegate?.kanataManager else { return }
+                let request = RuntimeControl.Request(operation: RuntimeControl.Operation(rawValue: command.rawValue) ?? .status,
+                                                     reason: "URL action")
+                _ = await RuntimeControlHandler.handle(request, manager: manager)
             }
         }
 
