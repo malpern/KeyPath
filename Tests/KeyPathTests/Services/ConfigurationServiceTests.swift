@@ -427,7 +427,7 @@ class ConfigurationServiceTests: KeyPathTestCase {
         }
         defer { observer.cancel() }
         do {
-            try await configService.saveConfiguration(input: "caps", output: "pp")
+            try await configService.saveConfiguration(input: "caps", output: "fn")
             XCTFail("Unsupported Caps output must be rejected before writing")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("driverless session"), error.localizedDescription)

@@ -21,6 +21,18 @@ enum SessionBridgeTestFixture {
         )
     }
 
+    /// The capability profile the fixture's bridge gives. Tests that compare
+    /// `isSupportedInDriverlessSession` with a fixture admission install this as
+    /// `BackendCapabilityProfile.testOverride`, since `.shared` asks whatever
+    /// bridge the host process finds (an installed app's, possibly older).
+    static var profile: BackendCapabilityProfile {
+        BackendCapabilityProfile(backend: .session) { key in
+            KanataHostBridge.sessionOutputKeySupported(
+                runtimeHost: runtimeHost, keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
+            )
+        }
+    }
+
     static func requireAvailable() throws {
         guard FileManager.default.fileExists(atPath: libraryPath) else {
             if ProcessInfo.processInfo.environment["KEYPATH_SESSION_TEST_BRIDGE_PATH"] != nil {

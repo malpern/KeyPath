@@ -392,21 +392,20 @@ final class AppKeymapSaveTests: KeyPathTestCase {
             }
         }
 
-        // Stored media profiles remain intact when an app edit cannot run them.
-        // Generate them for inspection, but require the real validator to reject
-        // before any app source, include, main config, or journal is written.
-        for selected in [RuleCollectionIdentifier.macFunctionKeys] {
+        // A stored rule the session cannot run (Fn as an output: the generator
+        // passes the name through and the bridge refuses it; media keys are
+        // posted since phase 6) stays intact when an app edit cannot run
+        // alongside it. Generate for inspection, but require the real validator
+        // to reject before any app source, include, main config, or journal is
+        // written.
+        let unsupportedRule = CustomRule(input: "f9", action: .keystroke(key: "fn"))
+        for selected in ["custom rule f9 → fn"] {
             let collections = RuleCollectionCatalog().defaultCollections().map { original in
                 var collection = original
-                collection.isEnabled = collection.id == selected
-                if collection.id == RuleCollectionIdentifier.macFunctionKeys {
-                    collection.functionKeyMode = .media
-                    collection.mappings = RuleCollectionCatalog.functionKeyMappings(for: .media)
-                }
+                collection.isEnabled = false
                 return collection
             }
-            XCTAssertTrue(collections.contains { $0.id == selected && $0.isEnabled })
-            try await withFixture(collections: collections, customRules: [custom]) { fixture in
+            try await withFixture(collections: collections, customRules: [custom, unsupportedRule]) { fixture in
                 var reloads = 0
                 var sourceBefore: [String: Data] = [:]
                 for name in ["RuleCollections.json", "CustomRules.json"] {
@@ -418,7 +417,7 @@ final class AppKeymapSaveTests: KeyPathTestCase {
                         reloads += 1
                         return Self.reload(.applied)
                     }
-                    XCTAssertFalse(result.success, "\(selected) must reject unsupported media output")
+                    XCTAssertFalse(result.success, "\(selected) must reject an unsupported output")
                     XCTAssertTrue(result.error?.localizedDescription.contains("driverless session") == true)
                     try self.assertOriginalFiles(fixture)
                     for (name, bytes) in sourceBefore {

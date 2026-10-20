@@ -510,6 +510,20 @@ public final class SessionRuntimeWorker {
                         }
                         continue
                     }
+                    if event.usagePage == SessionKeyMap.consumerPage {
+                        // Media keys: posted as system-defined events, held in
+                        // their own ledger so a stop releases them too.
+                        var nextOutputs = outputs
+                        guard let media = try nextOutputs.translateMedia(event) else { continue }
+                        if media.isDown { outputs = nextOutputs; writeReport(.running) }
+                        guard environmentObserver?.check() == true else {
+                            finish(.failed, reason: "environment-observer-unavailable")
+                        }
+                        guard postMedia(media) else { finish(.failed, reason: "output-event-unavailable") }
+                        outputCount += 1
+                        if !media.isDown { outputs = nextOutputs; writeReport(.running) }
+                        continue
+                    }
                     var nextOutputs = outputs
                     let output = try nextOutputs.translate(event)
                     // Publish a press before posting it, but retain a release in
@@ -568,6 +582,24 @@ public final class SessionRuntimeWorker {
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())
         }
+    }
+
+    /// `NSEvent.otherEvent(.systemDefined, subtype 8)`: data1 carries the
+    /// NX key type in the high word and 0xA (down) / 0xB (up) in the next
+    /// byte. Tagged like a key event so this worker's own tap ignores it.
+    private func postMedia(_ output: SessionMediaOutput) -> Bool {
+        guard let event = Self.mediaEvent(keyType: output.keyType, isDown: output.isDown)?.cgEvent else { return false }
+        event.setIntegerValueField(.eventSourceUserData, value: Self.outputTag)
+        event.post(tap: .cgSessionEventTap)
+        return true
+    }
+
+    nonisolated static func mediaEvent(keyType: Int, isDown: Bool) -> NSEvent? {
+        NSEvent.otherEvent(
+            with: .systemDefined, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: 0, context: nil,
+            subtype: 8, data1: (keyType << 16) | ((isDown ? 0xA : 0xB) << 8), data2: -1
+        )
     }
 
     private func post(_ output: SessionKeyOutput) -> Bool {
@@ -736,13 +768,17 @@ public final class SessionRuntimeWorker {
     /// The injected posting closure lets tests exercise this production loop
     /// without creating a CGEvent or terminating a host process.
     static func releaseOwnedOutputs(
-        _ outputs: inout SessionOutputState, post: (SessionKeyOutput) -> Bool
+        _ outputs: inout SessionOutputState, post: (SessionKeyOutput) -> Bool,
+        postMedia: (SessionMediaOutput) -> Bool = { _ in true }
     ) {
         var pending = outputs
         for output in pending.releaseAll() {
             if post(output), let usage = SessionKeyMap.keyCodeToUsage[output.keyCode] {
                 _ = try? outputs.translate(.init(value: 0, usagePage: 7, usage: usage))
             }
+        }
+        for media in pending.releaseAllMedia() where postMedia(media) {
+            _ = try? outputs.translateMedia(.init(value: 0, usagePage: SessionKeyMap.consumerPage, usage: media.usage))
         }
     }
 
@@ -763,7 +799,7 @@ public final class SessionRuntimeWorker {
             // Allocation failure during shutdown cannot recursively exit before
             // the power ACK. Preserve unposted releases in the crash ledger.
             var remaining = outputs
-            Self.releaseOwnedOutputs(&remaining, post: post)
+            Self.releaseOwnedOutputs(&remaining, post: post, postMedia: postMedia)
             outputs = remaining
             if let owner = capsOwner, let directory = capsDirectory {
                 do {

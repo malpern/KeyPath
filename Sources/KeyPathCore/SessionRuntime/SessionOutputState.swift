@@ -20,6 +20,21 @@ public struct SessionKeyOutput: Equatable, Sendable {
     public let flags: UInt64
 }
 
+/// A media key the worker posts as a system-defined event. No repeat: macOS
+/// repeats a held media key itself (driverless-media-keys.md §2c).
+public struct SessionMediaOutput: Equatable, Sendable {
+    public let usage: UInt32
+    /// `NX_KEYTYPE_*`, from `SessionKeyMap.mediaKeyType(forUsage:)`.
+    public let keyType: Int
+    public let isDown: Bool
+
+    public init(usage: UInt32, keyType: Int, isDown: Bool) {
+        self.usage = usage
+        self.keyType = keyType
+        self.isDown = isDown
+    }
+}
+
 /// Tracks only keys actually emitted by this runtime. Failure cleanup releases
 /// that set, never a guessed list of every key on the user's keyboard.
 public struct SessionOutputState: Sendable {
@@ -29,8 +44,36 @@ public struct SessionOutputState: Sendable {
     }
 
     public private(set) var heldUsages: Set<UInt32> = []
+    /// Consumer-page media keys currently down, released like keys on cleanup.
+    public private(set) var heldMediaUsages: Set<UInt32> = []
 
     public init() {}
+
+    /// A consumer-page event as the media output to post, or nil for a repeat
+    /// (dropped: the system repeats a held media key on its own).
+    public mutating func translateMedia(_ event: KanataHostBridgePassthruOutputEvent) throws -> SessionMediaOutput? {
+        guard event.usagePage == SessionKeyMap.consumerPage,
+              let keyType = SessionKeyMap.mediaKeyType(forUsage: event.usage), event.value <= 2
+        else {
+            throw Failure.unsupportedEvent(page: event.usagePage, usage: event.usage, value: event.value)
+        }
+        if event.value == 2 {
+            guard heldMediaUsages.contains(event.usage) else { throw Failure.repeatWithoutPress(usage: event.usage) }
+            return nil
+        }
+        if event.value == 0 {
+            heldMediaUsages.remove(event.usage)
+        } else {
+            heldMediaUsages.insert(event.usage)
+        }
+        return SessionMediaOutput(usage: event.usage, keyType: keyType, isDown: event.value != 0)
+    }
+
+    public mutating func releaseAllMedia() -> [SessionMediaOutput] {
+        heldMediaUsages.sorted().compactMap { usage in
+            try? translateMedia(.init(value: 0, usagePage: SessionKeyMap.consumerPage, usage: usage)) ?? nil
+        }
+    }
 
     public var modifierFlags: UInt64 {
         heldUsages.reduce(0) { $0 | SessionKeyMap.modifierFlags(for: $1) }

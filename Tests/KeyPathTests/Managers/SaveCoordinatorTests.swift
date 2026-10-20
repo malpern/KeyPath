@@ -140,10 +140,11 @@ final class SaveCoordinatorTests: KeyPathTestCase {
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), original)
     }
 
-    /// AI/import/editor text must pass driverless admission, not just Kanata syntax validation.
+    /// AI/import/editor text must pass driverless admission, not just Kanata syntax
+    /// validation. Fn is a key the session cannot emit (media keys are posted since phase 6).
     func testGeneratedConsumerOutputRejectsBeforePersistingOrReloading() async throws {
         try await assertDriverlessGeneratedConfigRejected(
-            "(defcfg)\n(defsrc a)\n(deflayer base volu)"
+            "(defcfg)\n(defsrc a)\n(deflayer base fn)"
         )
     }
 

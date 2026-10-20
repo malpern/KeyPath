@@ -264,6 +264,9 @@ does not fit "one intermediate per media key".
 
 ## Recommendation
 
+**Status 2026-10-20:** the output half shipped (rules-admission-review.md §4.5); the
+input half (tap path) is next.
+
 ### Output: post from the worker, not the app
 
 Allow consumer-page output in admission, and have the worker post

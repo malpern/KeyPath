@@ -8,10 +8,22 @@ fn key_supported(key: KeyCode, usages: &[u32]) -> bool {
     oscode_supported(key.into(), usages)
 }
 
-/// The one output rule: keyboard page (7) and in the host's key map. Consumer
-/// keys (media, brightness) and Fn are on other pages, so they are refused here.
+/// Consumer-page (0x0C) usages the session worker posts as macOS
+/// system-defined media events (docs/architecture/driverless-media-keys.md
+/// §Recommendation): volume up/down/mute, brightness up/down, play/pause,
+/// next/previous, fast-forward/rewind. Fixed by the worker's code, not by the
+/// host's keyboard map, so it is a constant here rather than a parameter.
+pub(crate) const CONSUMER_OUTPUT_CODES: [u32; 10] =
+    [0xE9, 0xEA, 0xE2, 0x6F, 0x70, 0xCD, 0xB5, 0xB6, 0xB3, 0xB4];
+
+/// The one output rule: keyboard page (7) and in the host's key map, or one
+/// of the consumer-page media keys the worker can post. Everything else (Fn,
+/// other consumer usages) is refused.
 fn oscode_supported(code: OsCode, usages: &[u32]) -> bool {
-    PageCode::try_from(code).is_ok_and(|pc| pc.page == 7 && usages.contains(&pc.code))
+    PageCode::try_from(code).is_ok_and(|pc| {
+        (pc.page == 7 && usages.contains(&pc.code))
+            || (pc.page == 0x0C && CONSUMER_OUTPUT_CODES.contains(&pc.code))
+    })
 }
 
 /// Outputs the session can emit: the host's key map plus native Caps Lock,
@@ -327,16 +339,37 @@ mod tests {
         assert_eq!(output_key_name_supported("home", HOST), Some(true));
         // Native Caps is always an output, even though the host omits it.
         assert_eq!(output_key_name_supported("caps", HOST), Some(true));
-        // Consumer page: media and brightness are refused.
+        // Consumer page: the media and brightness keys the worker posts.
         for name in [
             "volu", "voldwn", "mute", "pp", "next", "prev", "brup", "brdown",
         ] {
-            assert_eq!(output_key_name_supported(name, HOST), Some(false), "{name}");
+            assert_eq!(output_key_name_supported(name, HOST), Some(true), "{name}");
         }
+        // Consumer page, but not one the worker posts.
+        assert_eq!(output_key_name_supported("calc", HOST), Some(false));
         // Keyboard page but outside the host map.
         assert_eq!(output_key_name_supported("f13", HOST), Some(false));
         // Not a Kanata key at all.
         assert_eq!(output_key_name_supported("not-a-key", HOST), None);
+    }
+
+    #[test]
+    fn consumer_output_table_matches_kanata_names_and_inputs_stay_keyboard_only() {
+        for (name, code) in [
+            ("volu", 0xE9), ("vold", 0xEA), ("mute", 0xE2), ("brup", 0x6F), ("brdn", 0x70),
+            ("pp", 0xCD), ("next", 0xB5), ("prev", 0xB6),
+        ] {
+            let os = kanata_parser::keys::str_to_oscode(name).unwrap();
+            let pc = PageCode::try_from(os).unwrap();
+            assert_eq!((pc.page, pc.code), (0x0C, code), "{name}");
+            assert!(CONSUMER_OUTPUT_CODES.contains(&pc.code), "{name}");
+        }
+        // Until the tap reads media events, a media key is not an input.
+        let cfg = kanata_parser::cfg::new_from_str("(defsrc volu)(deflayer base a)", Default::default()).unwrap();
+        assert!(!supported(&cfg, HOST));
+        // ...but it is an output anywhere a keyboard key would be.
+        let cfg = kanata_parser::cfg::new_from_str("(defsrc a)(deflayer base volu)", Default::default()).unwrap();
+        assert!(supported(&cfg, HOST));
     }
 
     #[test]
@@ -566,7 +599,7 @@ mod tests {
             "((input virtual vk_test))"
         ));
         assert!(!eligible(
-            "(switch ((input virtual vk_test)) volu break () b break)",
+            "(switch ((input virtual vk_test)) calc break () b break)",
             "((input virtual vk_test))"
         ));
         assert!(!eligible("(unicode λ)", "((input virtual vk_test))"));
@@ -582,10 +615,10 @@ mod tests {
                 "(multi (release-layer nav) XX (push-msg \"layer:base\"))",
                 true,
             ),
-            ("(multi (release-layer nav) volu)", false),
+            ("(multi (release-layer nav) calc)", false),
             ("(multi (release-layer nav) (unicode λ))", false),
             ("(release-key lctl)", false),
-            ("(release-key volu)", false),
+            ("(release-key calc)", false),
         ] {
             let cfg = kanata_parser::cfg::new_from_str(
                 &format!(
@@ -605,14 +638,14 @@ mod tests {
         for n in 0..index {
             definitions.push_str(&format!("vk_{n} XX "));
         }
-        definitions.push_str("vk_media volu)(defsrc a)(deflayer base a)");
+        definitions.push_str("vk_media calc)(defsrc a)(deflayer base a)");
         let cfg = kanata_parser::cfg::new_from_str(&definitions, Default::default()).unwrap();
         assert!(!supported(&cfg, &[4, 5]));
     }
 
     #[test]
     fn session_virtual_switch_rejects_unsupported_virtual_key_action() {
-        let cfg = kanata_parser::cfg::new_from_str("(defvirtualkeys vk_test volu)(defalias kp-a (switch ((input virtual vk_test)) b break () a break))(defsrc a)(deflayer base @kp-a)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str("(defvirtualkeys vk_test calc)(defalias kp-a (switch ((input virtual vk_test)) b break () a break))(defsrc a)(deflayer base @kp-a)", Default::default()).unwrap();
         assert!(!supported(&cfg, &[4, 5]));
     }
 
@@ -627,7 +660,7 @@ mod tests {
     #[test]
     fn legacy_session_startup_unsupported() {
         let cfg = kanata_parser::cfg::new_from_str(
-            "(defcfg alias-to-trigger-on-load boot)(defalias boot volu)(defsrc a)(deflayer base a)",
+            "(defcfg alias-to-trigger-on-load boot)(defalias boot calc)(defsrc a)(deflayer base a)",
             Default::default(),
         )
         .unwrap();
@@ -647,7 +680,7 @@ mod tests {
     #[test]
     fn legacy_session_override_unsupported() {
         let cfg = kanata_parser::cfg::new_from_str(
-            "(defoverrides (a) (volu))(defsrc a)(deflayer base a)",
+            "(defoverrides (a) (calc))(defsrc a)(deflayer base a)",
             Default::default(),
         )
         .unwrap();
@@ -666,13 +699,13 @@ mod tests {
 
     #[test]
     fn legacy_session_chord_unsupported() {
-        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) volu 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) calc 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
 
     #[test]
     fn legacy_session_chord_nested_unsupported() {
-        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) (macro volu) 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
+        let cfg = kanata_parser::cfg::new_from_str("(defcfg concurrent-tap-hold yes)(defchordsv2 (a b) (macro calc) 100 all-released ())(defsrc a b)(deflayer base a b)", Default::default()).unwrap();
         assert_eq!(supported(&cfg, &[4, 5, 41, 224]), false);
     }
 

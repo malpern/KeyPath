@@ -34,7 +34,8 @@ final class AppSpecificSourceRoutingTests: XCTestCase {
         for (output, expectedValid) in [
             ("d", true),
             ("(switch ((input virtual vk_test_app)) (unicode ä) break () d break)", false),
-            ("volu", false)
+            ("volu", true), // phase 6: media keys are session outputs
+            ("fn", false)
         ] {
             let keymap = AppKeymap(bundleIdentifier: "test.app", displayName: "Test App", overrides: [
                 AppKeyOverride(inputKey: "c", action: .rawKanata(output))
