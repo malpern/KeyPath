@@ -197,25 +197,37 @@ would have to linger.
 reaches the tap as an ordinary F-key keyDown.
 
 Consumer-page sources (`0xC000000E9`, `0xC000000CD`, …) and an Apple
-vendor-page source (`0xFF00000003`) were **accepted and read back**. Whether they
-take effect is **not yet measured**: the fixture cannot emit page 12, and the cl80
-and Air runs that would show it are staged but have not been run (1c, 3b).
+vendor-page source (`0xFF00000003`) were **accepted and read back**. On the Air's
+built-in keyboard, consumer volume-up → F17 **took effect** (3b). The cl80 run that
+would show other consumer usages on an external board has not been run (1c).
 
 ### 3b. `fnState` and mapping order on the built-in keyboard
 
-**Not measured.** The guided test was cancelled at its first prompt and
-changed nothing; `fnState` stayed 0 and the Caps lease stayed intact. The
-staged test maps keyboard F1/F11 (`0x70000003A`/`0x700000044`) and consumer
-brightness-down/volume-up (`0xC00000070`/`0xC000000E9`) to distinct F-keys on
-the built-in keyboard service. It then presses F1/F2/F11/F12 in all four
-`fnState`×fn states. Whichever mapping fires in each state shows whether
-hidutil sees the raw F-key usage or the translated media usage.
+Measured on the Air with KeyPath remapping **off** (an empty mapping is required;
+see the lease note under Recommendation). Mappings applied to the built-in keyboard
+service: keyboard F1 `0x70000003A`→F15, keyboard F11 `0x700000044`→F19, consumer
+brightness-down `0xC00000070`→F16, consumer volume-up `0xC000000E9`→F17. Micah
+pressed F1–F12 in each state.
 
-What the measurements already constrain: in every state the keys arrived as
-either F-key keyDowns or media events (1a), never both. A mapping on the raw
-F-key usage could therefore still *change which one* reaches the tap. This
-matters only for the hidutil fallback, not for the recommended tap path,
-which reads whatever `fnState` produced.
+| State | F1 | F11 | F12 | Which mapping fired |
+|---|---|---|---|---|
+| `fnState=0` (media) | sysdef brightness-down | sysdef volume-down | **keyDown 64 (F17)** | consumer volume-up |
+| `fnState=0` + fn | **keyDown 113 (F15)** | **keyDown 80 (F19)** | keyDown 111 (F12) | keyboard F1 and F11 |
+| `fnState=1` | **F15** | **F19** | F12 | keyboard F1 and F11 |
+| `fnState=1` + fn | sysdef brightness-down | sysdef volume-down | **F17** | consumer volume-up |
+
+**`fnState` and fn are applied *before* `UserKeyMapping`.** The mapping sees the
+usage that Apple's keyboard driver has already chosen. In F-key mode that is the
+keyboard-page F-key; in media mode it is the consumer usage (`0x0C/0xE9` for
+volume up). A mapping on the F-key usage does nothing in media mode, and a
+mapping on the media usage does nothing in F-key mode. So a hidutil indirection
+for the top row must map *both* usages to cover both settings.
+
+**The built-in brightness keys are not consumer `0x6F/0x70`.** The consumer
+brightness-down mapping never fired, and F1 stayed a system brightness event.
+Apple's driver reports brightness under another usage (most likely its vendor
+top-case page), and it was not identified here. Volume is the standard consumer
+usage. The other keys (mute, play, F3–F6) were not mapped in this test.
 
 ### 3c. How many spare intermediates exist
 
