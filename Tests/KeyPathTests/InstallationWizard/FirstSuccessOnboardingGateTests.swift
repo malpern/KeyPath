@@ -5,6 +5,22 @@ import Foundation
 
 final class FirstSuccessOnboardingGateTests: XCTestCase {
     @MainActor
+    func testInterruptedSetupRemainsPendingAcrossDefaultsReloadUntilTourPresentation() {
+        let suite = "KeyPath.tour-resume.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(FirstSuccessOnboardingGate.isPending(defaults: defaults))
+        defaults.set(true, forKey: WizardWelcomeGate.hasSeenWelcomeKey)
+        let resumed = UserDefaults(suiteName: suite)!
+        XCTAssertTrue(FirstSuccessOnboardingGate.isPending(defaults: resumed))
+        XCTAssertTrue(FirstSuccessOnboardingGate.isEligible(
+            didShowWelcomePage: false, wizardState: .active, issues: [], defaults: resumed
+        ))
+        FirstSuccessOnboardingGate.markPresented(defaults: resumed)
+        XCTAssertFalse(FirstSuccessOnboardingGate.isPending(defaults: defaults))
+    }
+
+    @MainActor
     func testHealthyWelcomeLedSetupIsEligibleWithoutConsumingTheLearningPath() {
         withIsolatedDefaults { defaults in
             XCTAssertTrue(
@@ -12,6 +28,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -27,6 +44,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: false,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -41,6 +59,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -49,6 +68,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -61,6 +81,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
                     didShowWelcomePage: true,
                     wizardState: .active,
                     issues: [],
+                    backend: .driverKit,
                     defaults: defaults
                 )
             )
@@ -68,7 +89,7 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
     }
 
     @MainActor
-    func testPostStartRefreshRequestsOnboardingOnlyAfterHealthyVerification() async {
+    func testSessionPostStartRefreshPresentsTourAfterHealthyVerification() async {
         let defaults = UserDefaults.standard
         let previousShownValue = defaults.object(
             forKey: FirstSuccessOnboardingGate.hasShownKey
@@ -143,6 +164,36 @@ final class FirstSuccessOnboardingGateTests: XCTestCase {
 
         XCTAssertEqual(view.stateMachine.wizardState, .serviceNotRunning)
         XCTAssertEqual(presentationCount, 0)
+    }
+
+    @MainActor
+    func testSessionTourIsAvailableWithoutConsumingFirstRunOpportunity() {
+        XCTAssertTrue(FirstSuccessOnboardingGate.supportsTour())
+        XCTAssertTrue(FirstSuccessOnboardingGate.supportsTour(backend: .session))
+        XCTAssertTrue(FirstSuccessOnboardingGate.supportsTour(backend: .driverKit))
+        withIsolatedDefaults { defaults in
+            XCTAssertTrue(FirstSuccessOnboardingGate.isEligible(
+                didShowWelcomePage: true, wizardState: .active, issues: [],
+                backend: .session, defaults: defaults
+            ))
+            XCTAssertFalse(defaults.bool(forKey: FirstSuccessOnboardingGate.hasShownKey))
+        }
+    }
+
+    @MainActor
+    func testResumedWelcomeLedSetupStillOffersUnseenTour() {
+        withIsolatedDefaults { defaults in
+            defaults.set(true, forKey: WizardWelcomeGate.hasSeenWelcomeKey)
+            XCTAssertTrue(FirstSuccessOnboardingGate.isEligible(
+                didShowWelcomePage: false, wizardState: .active, issues: [],
+                backend: .session, defaults: defaults
+            ))
+            FirstSuccessOnboardingGate.markPresented(defaults: defaults)
+            XCTAssertFalse(FirstSuccessOnboardingGate.isEligible(
+                didShowWelcomePage: false, wizardState: .active, issues: [],
+                backend: .session, defaults: defaults
+            ))
+        }
     }
 
     @MainActor

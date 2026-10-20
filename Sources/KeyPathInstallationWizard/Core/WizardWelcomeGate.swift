@@ -25,9 +25,8 @@ public enum WizardWelcomeGate {
     }
 
     /// Convenience wrapper reading the persisted flags from UserDefaults.
-    public static func shouldShowWelcome(helperInstalled: Bool) -> Bool {
-        let defaults = UserDefaults.standard
-        return shouldShowWelcome(
+    public static func shouldShowWelcome(helperInstalled: Bool, defaults: UserDefaults = .standard) -> Bool {
+        shouldShowWelcome(
             helperInstalled: helperInstalled,
             hasSeenWelcome: defaults.bool(forKey: hasSeenWelcomeKey),
             forced: defaults.bool(forKey: forceWelcomeKey)

@@ -11,6 +11,8 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/build-cache.sh"
 keypath_use_stable_xcode
+source "$SCRIPT_DIR/lib/test-bridge.sh"
+keypath_prepare_test_bridge "$PROJECT_DIR"
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}
 ALLOW_RUNNER_CRASH_SUCCESS=${KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS:-0}
 ALLOW_NONZERO_TEST_SUCCESS=${KEYPATH_ALLOW_NONZERO_TEST_SUCCESS:-0}

@@ -173,9 +173,6 @@ KeyPath can automatically convert most of your Karabiner rules. Two ways to impo
 
 **During setup (recommended):** KeyPath's installation wizard detects `~/.config/karabiner/karabiner.json` and offers one-click import. You can review which rules will convert, see warnings for unsupported features, and choose which to import.
 
-<!-- Screenshot: Installation wizard Karabiner import page -->
-![Screenshot — Karabiner import in the installation wizard]({{ '/images/help/placeholder-wizard-karabiner-import.png' | relative_url }})
-
 **From the command line:**
 
 ```bash

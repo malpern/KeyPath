@@ -206,6 +206,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         overlayItem.target = self
         overlayItem.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
         menu.addItem(overlayItem)
+        menu.addItem(layerDisplayMenuItem())
 
         menu.addItem(.separator())
 
@@ -228,6 +229,38 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addAppSpecificSection()
 
         addFooterItems()
+    }
+
+    /// "While a Layer Is Active" submenu: the same choice as Settings → General.
+    private func layerDisplayMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "While a Layer Is Active", action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "square.3.layers.3d", accessibilityDescription: nil)
+        let submenu = NSMenu(title: "While a Layer Is Active")
+        let current = PreferencesService.shared.contextHUDDisplayMode
+        let choices: [(ContextHUDDisplayMode, String)] = [
+            (.overlayOnly, "Show Keyboard Overlay"),
+            (.hudOnly, "Show Shortcut List"),
+            (.both, "Show Both"),
+            (.none, "Show Nothing")
+        ]
+        for (mode, title) in choices {
+            let choice = NSMenuItem(title: title, action: #selector(handleLayerDisplayChoice), keyEquivalent: "")
+            choice.target = self
+            choice.state = mode == current ? .on : .off
+            choice.representedObject = mode.rawValue
+            choice.setAccessibilityIdentifier("menubar-layer-display-\(mode.rawValue)")
+            submenu.addItem(choice)
+        }
+        item.submenu = submenu
+        item.setAccessibilityIdentifier("menubar-layer-display")
+        return item
+    }
+
+    @objc private func handleLayerDisplayChoice(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let mode = ContextHUDDisplayMode(rawValue: raw)
+        else { return }
+        PreferencesService.shared.contextHUDDisplayMode = mode
     }
 
     private func buildUnhealthyMenu(issues: [WizardIssue]) {

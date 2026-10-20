@@ -1,0 +1,3 @@
+# Activity history must not access Keychain during setup
+
+ActivityLogger initialization read/decrypted all historical events to count them, even before logging was enabled. Plugin activation could repeat that read. Noninteractive SecItemCopyMatching alone did not provide a reliable UX boundary for legacy ACL prompts. Gate uncached encryption-key access before Security.framework with a session flag set only by explicit activity settings/report/enable UI. Background reads fail without changing the existing key or encrypted history. Remove eager initializer reads. Restarted logging can resume encryption after opening its settings; until then background work cannot access Keychain. Tests retain their isolated test keychain.

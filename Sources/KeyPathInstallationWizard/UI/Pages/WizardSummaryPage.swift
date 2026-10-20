@@ -7,6 +7,8 @@ import SwiftUI
 public struct WizardSummaryPage: View {
     public let onStartService: () -> Void
     public let onDismiss: () -> Void
+    public let opensKeyboardOnCompletion: Bool
+    public let startsTourOnCompletion: Bool
     public let onNavigateToPage: ((WizardPage) -> Void)?
     public let isValidating: Bool // Show validating activity state during summary refresh
     @Binding public var showAllItems: Bool // Lifted to parent to drive navigation sequence
@@ -43,10 +45,14 @@ public struct WizardSummaryPage: View {
         onNavigateToPage: ((WizardPage) -> Void)?,
         isValidating: Bool,
         showAllItems: Binding<Bool>,
-        navSequence: Binding<[WizardPage]>
+        navSequence: Binding<[WizardPage]>,
+        opensKeyboardOnCompletion: Bool = false,
+        startsTourOnCompletion: Bool = false
     ) {
         self.onStartService = onStartService
         self.onDismiss = onDismiss
+        self.opensKeyboardOnCompletion = opensKeyboardOnCompletion
+        self.startsTourOnCompletion = startsTourOnCompletion
         self.onNavigateToPage = onNavigateToPage
         self.isValidating = isValidating
         _showAllItems = showAllItems
@@ -142,11 +148,13 @@ public struct WizardSummaryPage: View {
                 .font(.title2.weight(.semibold))
                 .foregroundColor(.primary)
 
-            Button("Close Setup") {
+            Button(startsTourOnCompletion ? "Start Tour" : (opensKeyboardOnCompletion ? "Show Keyboard" : "Close Setup")) {
                 onDismiss()
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton())
             .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier("wizard-summary-complete-button")
+            .accessibilityLabel(startsTourOnCompletion ? "Start Tour" : (opensKeyboardOnCompletion ? "Show Keyboard" : "Close Setup"))
             .padding(.top, WizardDesign.Spacing.elementGap)
 
             Spacer()
@@ -154,7 +162,12 @@ public struct WizardSummaryPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .transition(.opacity)
         .accessibilityIdentifier("wizard-summary-status-success")
-        .accessibilityLabel("KeyPath Ready")
+        .task {
+            guard startsTourOnCompletion else { return }
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            onDismiss()
+        }
     }
 
     // MARK: - Issues and Validating Content
@@ -175,6 +188,8 @@ public struct WizardSummaryPage: View {
                         WizardSystemStatusOverview(
                             systemState: systemState,
                             issues: issues,
+                            backend: stateMachine.lastWizardSnapshot?.backend ?? .selected,
+                            permissions: stateMachine.lastWizardSnapshot?.permissions,
                             onNavigateToPage: onNavigateToPage,
                             kanataIsRunning: systemState == .active,
                             showAllItems: showAllItems,
@@ -362,10 +377,16 @@ public struct WizardSummaryPage: View {
     // MARK: - Issue Counting (summary indicator)
 
     private var failedIssueCount: Int {
-        var count = 0
+        if (stateMachine.lastWizardSnapshot?.backend ?? .selected) == .session {
+            let items = WizardSystemStatusOverview.sessionStatusItems(
+                systemState: systemState,
+                issues: issues,
+                permissions: stateMachine.lastWizardSnapshot?.permissions
+            )
+            return WizardSystemStatusOverview.incompleteItemCount(items)
+        }
 
-        // Check FDA status - without it, we can't verify Kanata permissions
-        let hasFDA = WizardDependencies.fullDiskAccessChecker?.hasFullDiskAccess() ?? false
+        var count = 0
 
         // 1. Privileged Helper issues (installed? unhealthy?) => count as issue
         let hasHelperProblems = issues.contains { issue in
@@ -380,7 +401,7 @@ public struct WizardSummaryPage: View {
         let hasConflicts = issues.contains { $0.category == .conflicts }
         if hasConflicts { count += 1 }
 
-        // 3. Input Monitoring - only count if we can verify (FDA available) or it's KeyPath's own permission
+        // 3. Input Monitoring - only count confirmed blocking issues
         let hasKeyPathInputMonitoringIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
                 return p == .keyPathInputMonitoring
@@ -389,12 +410,11 @@ public struct WizardSummaryPage: View {
         }
         let hasKanataInputMonitoringIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .kanataInputMonitoring
+                return p == .kanataInputMonitoring && (issue.severity == .error || issue.severity == .critical)
             }
             return false
         }
-        // Count KeyPath issues always, Kanata issues only if we can verify (have FDA)
-        if hasKeyPathInputMonitoringIssues || (hasFDA && hasKanataInputMonitoringIssues) {
+        if hasKeyPathInputMonitoringIssues || hasKanataInputMonitoringIssues {
             count += 1
         }
 
@@ -407,11 +427,11 @@ public struct WizardSummaryPage: View {
         }
         let hasKanataAccessibilityIssues = issues.contains { issue in
             if case let .permission(p) = issue.identifier {
-                return p == .kanataAccessibility
+                return p == .kanataAccessibility && (issue.severity == .error || issue.severity == .critical)
             }
             return false
         }
-        if hasKeyPathAccessibilityIssues || (hasFDA && hasKanataAccessibilityIssues) {
+        if hasKeyPathAccessibilityIssues || hasKanataAccessibilityIssues {
             count += 1
         }
 

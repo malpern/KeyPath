@@ -37,6 +37,8 @@ Environment checked:
                        the AuthKey under ~/.appstoreconnect when present).
   SKIP_SPARKLE         If 1, skip Sparkle checks.
   SKIP_WEBSITE         If 1, skip gh-pages website checks.
+  APP_PATH             Installed app to inspect (default /Applications/KeyPath.app).
+  KEYPATH_VERIFY_PYTHON Python 3 executable for owned-session inspection.
 EOF
 }
 
@@ -138,7 +140,8 @@ if [[ "$MODE" == "ship" ]]; then
 else
     check_optional_command gh
 fi
-check_command nc
+check_command "${KEYPATH_VERIFY_PYTHON:-python3}"
+check_command lsof
 
 print_section "Disk Space"
 available_kb=$(df -Pk "$PROJECT_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
@@ -301,22 +304,11 @@ else
 fi
 
 print_section "Installed Runtime"
-if pgrep -x KeyPath >/dev/null; then
-    pass "KeyPath is currently running"
+if "${KEYPATH_VERIFY_PYTHON:-python3}" "$SCRIPT_DIR/verify-session-runtime.py" \
+    --app "${APP_PATH:-/Applications/KeyPath.app}" --port "${KEYPATH_TCP_PORT:-37001}" --timeout 0; then
+    pass "Installed KeyPath has an exact owned driverless session and TCP readiness"
 else
-    warn "KeyPath is not currently running"
-fi
-
-if launchctl print system/com.keypath.kanata >/dev/null 2>&1; then
-    pass "Kanata launchd job is registered"
-else
-    warn "Kanata launchd job is not registered"
-fi
-
-if nc -z -w 1 127.0.0.1 37001 >/dev/null 2>&1; then
-    pass "Kanata TCP endpoint is responding on 127.0.0.1:37001"
-else
-    warn "Kanata TCP endpoint is not responding on 127.0.0.1:37001"
+    warn "Installed driverless session is not verified; signed deployment must pass verify-installed-app.sh with runtime checks enabled"
 fi
 
 print_section "Background Watchers"

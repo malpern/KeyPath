@@ -30,6 +30,9 @@ extension RulesTabView {
 
     /// Generate a dynamic description for collections
     func dynamicCollectionDescription(for collection: RuleCollection) -> String {
+        if let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: collection.id) { return reason }
+        if collection.id == RuleCollectionIdentifier.macFunctionKeys { return "F1–F12 for app shortcuts. Media and brightness remapping is unavailable." }
+
         if case .launcherGrid = collection.configuration {
             return dynamicLauncherDescription(for: collection)
         }

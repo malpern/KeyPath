@@ -19,9 +19,12 @@ struct HUDKeyEntry: Identifiable, Equatable {
     let color: Color
     /// Physical key code for sorting by position
     let keyCode: UInt16
+    /// What the key does with Shift or Control held (e.g. "⇧G Bottom of document")
+    var variant: String?
 
     static func == (lhs: HUDKeyEntry, rhs: HUDKeyEntry) -> Bool {
-        lhs.keycap == rhs.keycap && lhs.action == rhs.action && lhs.holdAction == rhs.holdAction && lhs.keyCode == rhs.keyCode
+        lhs.keycap == rhs.keycap && lhs.action == rhs.action && lhs.holdAction == rhs.holdAction
+            && lhs.keyCode == rhs.keyCode && lhs.variant == rhs.variant
     }
 }
 

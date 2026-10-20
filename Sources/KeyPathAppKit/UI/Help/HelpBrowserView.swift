@@ -29,7 +29,7 @@ enum HelpTopicGroup: String, CaseIterable {
 extension HelpTopic {
     static let allTopics: [HelpTopic] = [
         // Getting Started
-        HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation", group: .gettingStarted),
+        HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation-wizard", group: .gettingStarted),
         HelpTopic(id: "concepts", title: "Keyboard Concepts", icon: "keyboard", resource: "concepts", group: .gettingStarted),
         HelpTopic(id: "use-cases", title: "What You Can Build", icon: "hammer", resource: "use-cases", group: .gettingStarted),
         // Core Features
@@ -61,7 +61,11 @@ extension HelpTopic {
     ]
 
     static func topic(forResource resource: String) -> HelpTopic? {
-        allTopics.first { $0.resource == resource }
+        let resource = resource == "installation" ? "installation-wizard" : resource
+        if let topic = allTopics.first(where: { $0.resource == resource }) { return topic }
+        guard !resource.isEmpty, resource.utf8.allSatisfy({ (97 ... 122).contains($0) || (48 ... 57).contains($0) || $0 == 45 }) else { return nil }
+        return HelpTopic(id: resource, title: resource.replacingOccurrences(of: "-", with: " ").capitalized,
+                         icon: "doc.text", resource: resource, group: .reference)
     }
 }
 
@@ -185,7 +189,29 @@ struct HelpBrowserView: View {
             }
         }
         .listStyle(.sidebar)
-        .searchable(text: $searchText, prompt: "Search help articles")
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search help articles", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .accessibilityIdentifier("help-search-field")
+                    .accessibilityLabel("Search help articles")
+                if !searchText.isEmpty {
+                    Button { searchText = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                    .accessibilityIdentifier("help-clear-search")
+                }
+            }
+            .padding(8)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 7))
+            .padding(10)
+            .background(.bar)
+        }
         .tint(Color(nsColor: .init(red: 0.55, green: 0.42, blue: 0.30, alpha: 1.0)))
         .safeAreaInset(edge: .bottom) {
             footerLinks

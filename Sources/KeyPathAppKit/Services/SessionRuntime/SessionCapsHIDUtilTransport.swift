@@ -1,0 +1,294 @@
+import Darwin
+import Foundation
+import IOKit
+import KeyPathCore
+
+/// Only the property output grammar witnessed in the owned physical-fixture
+/// guest is accepted. IOHIDDevice registry IDs never stand in for event-service IDs.
+public enum SessionCapsHIDUtilTransport {
+    public enum Refusal: Error { case unsupportedOutput, commandFailed, timedOut, excessiveOutput }
+    public typealias Policy = SessionCapsMappingPolicy
+
+    public static func selector(_ device: Policy.DeviceIdentity) throws -> String {
+        guard device.registryEntryID != 0, device.vendorID != 0 || (device.appleBuiltIn == true && device.productID == 0 && (device.locationID ?? 0) != 0), device.vendorID <= 0xFFFF,
+              device.productID <= 0xFFFF, (device.locationID ?? 0) != 0 || device.serialNumber != nil else { throw Policy.Refusal.invalidDevice }
+        if let serial = device.serialNumber {
+            guard !serial.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, serial.utf8.count <= 1024 else { throw Policy.Refusal.invalidDevice }
+        }
+        var match: [String: Any] = ["VendorID": device.vendorID, "ProductID": device.productID,
+                                    "PrimaryUsagePage": 1, "PrimaryUsage": 6]
+        if let location = device.locationID { match["LocationID"] = location }
+        // SerialNumber is not a supported top-level matching key in hidutil help.
+        if let serial = device.serialNumber { match["IOPropertyMatch"] = ["SerialNumber": serial] }
+        return try String(decoding: JSONSerialization.data(withJSONObject: match, options: [.sortedKeys]), as: UTF8.self)
+    }
+
+    /// These arguments are for Process(executableURL: /usr/bin/hidutil), never a shell.
+    public static func readArguments(_ device: Policy.DeviceIdentity) throws -> [String] {
+        try ["property", "--matching", selector(device), "--get", "UserKeyMapping"]
+    }
+
+    public static func writeArguments(_ device: Policy.DeviceIdentity, mappings: [Policy.Mapping]) throws -> [String] {
+        let rows = try JSONEncoder().encode(mappings)
+        let json = "{\"UserKeyMapping\":" + String(decoding: rows, as: UTF8.self) + "}"
+        return try ["property", "--matching", selector(device), "--set", json]
+    }
+
+    public static func parseProperty(_ output: String, device: Policy.DeviceIdentity) throws -> SessionCapsMappingLease.Snapshot {
+        guard output.utf8.count <= 65536 else { throw Refusal.unsupportedOutput }
+        let scanner = Scanner(string: output)
+        scanner.charactersToBeSkipped = .whitespacesAndNewlines
+        func token(_ value: String) throws {
+            guard scanner.scanString(value) != nil else { throw Refusal.unsupportedOutput }
+        }
+        try token("RegistryID"); try token("Key"); try token("Value")
+        guard let rawID = scanner.scanCharacters(from: CharacterSet(charactersIn: "0123456789abcdefABCDEF")),
+              let id = UInt64(rawID, radix: 16), id == device.registryEntryID else { throw Refusal.unsupportedOutput }
+        try token("UserKeyMapping"); try token("(")
+        // A witnessed (null) is the effective empty mapping. Restoring [] has
+        // the same mapping semantics; we do not claim literal nil restoration.
+        if scanner.scanString("null") != nil {
+            try token(")")
+            guard scanner.isAtEnd else { throw Refusal.unsupportedOutput }
+            return .init(device: device, mappings: [])
+        }
+        var mappings: [Policy.Mapping] = []
+        if scanner.scanString(")") == nil {
+            while true {
+                try token("{")
+                var row: [String: UInt64] = [:]
+                for _ in 0 ..< 2 {
+                    guard let key = scanner.scanCharacters(from: .letters),
+                          ["HIDKeyboardModifierMappingSrc", "HIDKeyboardModifierMappingDst"].contains(key),
+                          row[key] == nil else { throw Refusal.unsupportedOutput }
+                    try token("=")
+                    guard let decimal = scanner.scanCharacters(from: CharacterSet(charactersIn: "0123456789")),
+                          let number = UInt64(decimal) else { throw Refusal.unsupportedOutput }
+                    row[key] = number
+                    try token(";")
+                }
+                try token("}")
+                // The policy's decoder rejects invalid usage values and unknown
+                // fields. No row is silently discarded or normalized.
+                let data = try JSONSerialization.data(withJSONObject: row)
+                try mappings.append(JSONDecoder().decode(Policy.Mapping.self, from: data))
+                if scanner.scanString(")") != nil { break }
+                try token(",")
+            }
+        }
+        guard scanner.isAtEnd else { throw Refusal.unsupportedOutput }
+        return .init(device: device, mappings: mappings)
+    }
+
+    public static func parseServices(_ ndjson: String) throws -> [Policy.DeviceIdentity] {
+        guard ndjson.utf8.count <= 65536 else { throw Refusal.excessiveOutput }
+        var devices: [Policy.DeviceIdentity] = []
+        for line in ndjson.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
+            guard let row = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let type = row["type"] as? String, ["service", "device"].contains(type) else { throw Refusal.unsupportedOutput }
+            if type == "device" { continue }
+            func number(_ key: String, maximum: UInt64 = UInt64.max) throws -> UInt64 {
+                // JSON booleans and floats bridge through NSNumber too. Check
+                // their concrete representation before accepting an integer.
+                guard let value = row[key] as? NSNumber,
+                      String(cString: value.objCType) != "c",
+                      !["f", "d"].contains(String(cString: value.objCType)),
+                      let integer = UInt64(value.stringValue), integer <= maximum else { throw Refusal.unsupportedOutput }
+                return integer
+            }
+            let page = try number("PrimaryUsagePage", maximum: 0xFFFF)
+            let usage = try number("PrimaryUsage", maximum: 0xFFFF)
+            if page != 1 || usage != 6 { continue }
+            // Witnessed Parallels platform keyboard is not a physical device
+            // eligible for a managed mapping lease. Do not infer USB identity.
+            if row["Transport"] as? String == "AppleVirtualPlatformHIDBridge",
+               try number("LocationID", maximum: UInt64(UInt32.max)) == 0 { continue }
+            guard let ioClass = row["IOClass"] as? String, !ioClass.isEmpty else { throw Refusal.unsupportedOutput }
+            let appleBuiltIn = ioClass == "AppleHIDKeyboardEventDriverV2" && row["Built-In"] as? Bool == true && row["Transport"] as? String == "FIFO"
+            guard ioClass == "AppleUserHIDEventService" || appleBuiltIn else { throw Refusal.unsupportedOutput }
+            let registry = try number("IORegistryEntryID")
+            let vendor = try number("VendorID", maximum: 0xFFFF)
+            let product = try number("ProductID", maximum: 0xFFFF)
+            let location = try number("LocationID", maximum: UInt64(UInt32.max))
+            guard registry != 0, vendor != 0 || (appleBuiltIn && product == 0), location != 0 else { throw Refusal.unsupportedOutput }
+            var serial: String?
+            if let value = row["SerialNumber"] {
+                guard let string = value as? String, !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      string.utf8.count <= 1024 else { throw Refusal.unsupportedOutput }
+                serial = string
+            }
+            let device = Policy.DeviceIdentity(registryEntryID: registry, vendorID: UInt32(vendor),
+                                               productID: UInt32(product), serialNumber: serial, locationID: UInt32(location), appleBuiltIn: appleBuiltIn ? true : nil)
+            guard !devices.contains(where: { $0.registryEntryID == registry ||
+                    ($0.vendorID == device.vendorID && $0.productID == device.productID && $0.locationID == device.locationID &&
+                        ($0.serialNumber == nil || device.serialNumber == nil || $0.serialNumber == device.serialNumber))
+            }) else { throw Policy.Refusal.ambiguousDevice }
+            devices.append(device)
+        }
+        return devices
+    }
+
+    /// Query the exact ID without keyboard eligibility filters. The fast match
+    /// finds registered services; before claiming absence, inspect the registry
+    /// plane too because an unregistered service can still be present there.
+    public static func registryEntryExists(_ registryEntryID: UInt64) throws -> Bool {
+        guard registryEntryID != 0,
+              let matching = IORegistryEntryIDMatching(registryEntryID) else { throw Refusal.commandFailed }
+        var matches: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, matching, &matches) == KERN_SUCCESS else {
+            throw Refusal.commandFailed
+        }
+        if matches != 0 {
+            defer { IOObjectRelease(matches) }
+            let service = IOIteratorNext(matches)
+            if service != 0 {
+                IOObjectRelease(service)
+                return true
+            }
+            guard IOIteratorIsValid(matches) != 0 else { throw Refusal.commandFailed }
+        }
+        // A successful match may return a null iterator for no registered match.
+        var entries: io_iterator_t = 0
+        guard IORegistryCreateIterator(kIOMainPortDefault, kIOServicePlane,
+                                       IOOptionBits(kIORegistryIterateRecursively), &entries) == KERN_SUCCESS,
+            entries != 0 else { throw Refusal.commandFailed }
+        defer { IOObjectRelease(entries) }
+        while true {
+            let entry = IOIteratorNext(entries)
+            guard entry != 0 else { break }
+            var currentID: UInt64 = 0
+            let result = IORegistryEntryGetRegistryEntryID(entry, &currentID)
+            IOObjectRelease(entry)
+            guard result == KERN_SUCCESS else { throw Refusal.commandFailed }
+            if currentID == registryEntryID { return true }
+        }
+        guard IOIteratorIsValid(entries) != 0 else { throw Refusal.commandFailed }
+        return false
+    }
+
+    /// Injected execution keeps focused tests entirely off host HID state.
+    /// The real runner is synchronous and must be called off the main actor.
+    public static func backend(run: @escaping ([String]) throws -> String = runHIDUtil) -> SessionCapsMappingLease.Backend {
+        .init(enumerate: { try parseServices(run(["list", "--ndjson", "--matching", "keyboard"])) },
+              read: { try parseProperty(run(readArguments($0)), device: $0) },
+              write: { device, mappings in
+                  let result = try parseProperty(run(writeArguments(device, mappings: mappings)), device: device)
+                  guard result.mappings == mappings else { throw SessionCapsMappingLease.Refusal.unverifiedWrite }
+              }, registryEntryExists: registryEntryExists)
+    }
+
+    #if DEBUG
+        /// Real hidutil is queued but has executed no user code. Root may resume the orphan later.
+        /// Does not claim death inside an opaque HID mutation call; never used for restore/read.
+        static func terminateOwnerWithSuspendedWriter(record: Policy.Record, mappings: [Policy.Mapping],
+                                                      publishCheckpoint: (Int32) throws -> Void) throws -> Never
+        {
+            guard SessionCapsMappingLease.terminateWithQueuedWriter(record: record, mappings: mappings) else {
+                throw SessionCapsMappingLease.Refusal.mutationUncertain
+            }
+            var actions: posix_spawn_file_actions_t?
+            guard posix_spawn_file_actions_init(&actions) == 0 else { throw Refusal.commandFailed }
+            defer { posix_spawn_file_actions_destroy(&actions) }
+            for descriptor in 0 ... 2 {
+                guard posix_spawn_file_actions_addopen(&actions, Int32(descriptor), "/dev/null", O_RDWR, 0) == 0 else {
+                    throw Refusal.commandFailed
+                }
+            }
+            var attributes: posix_spawnattr_t?
+            guard posix_spawnattr_init(&attributes) == 0 else { throw Refusal.commandFailed }
+            defer { posix_spawnattr_destroy(&attributes) }
+            // A stopped child in the worker's group receives HUP/CONT when that
+            // group becomes orphaned. SETSID isolates this DEBUG checkpoint from
+            // that group; actual HID child survival still needs live verification.
+            // macOS27 SDK: START_SUSPENDED=0x0080, SETSID=0x0400, CLOEXEC_DEFAULT=0x4000.
+            guard posix_spawnattr_setflags(&attributes, Int16(POSIX_SPAWN_START_SUSPENDED | POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT)) == 0 else {
+                throw Refusal.commandFailed
+            }
+            let arguments = try ["/usr/bin/hidutil"] + writeArguments(record.device, mappings: mappings)
+            let strings = arguments.map { strdup($0) }
+            defer { strings.forEach { free($0) } }
+            guard strings.allSatisfy({ $0 != nil }) else { throw Refusal.commandFailed }
+            var argv = strings + [nil]
+            var childPID: pid_t = 0
+            var emptyEnvironment: [UnsafeMutablePointer<CChar>?] = [nil]
+            let spawned = argv.withUnsafeMutableBufferPointer { buffer in
+                emptyEnvironment.withUnsafeMutableBufferPointer { environment in
+                    posix_spawn(&childPID, "/usr/bin/hidutil", &actions, &attributes, buffer.baseAddress!, environment.baseAddress!)
+                }
+            }
+            guard spawned == 0, childPID > 0 else { throw Refusal.commandFailed }
+            // An unreaped child PID cannot be reused. Never signal after observing it reaped.
+            var unreaped = true
+            defer {
+                if unreaped {
+                    _ = Darwin.kill(childPID, SIGKILL)
+                    var status: Int32 = 0
+                    while waitpid(childPID, &status, 0) < 0, errno == EINTR {}
+                }
+            }
+            var status: Int32 = 0
+            var observed: pid_t
+            repeat {
+                observed = waitpid(childPID, &status, WNOHANG)
+            } while observed < 0 && errno == EINTR
+            guard observed == 0 else {
+                if observed == childPID || (observed < 0 && errno == ECHILD) { unreaped = false }
+                throw Refusal.commandFailed
+            }
+            try publishCheckpoint(childPID)
+            Darwin.kill(getpid(), SIGKILL)
+            // Signal delivery may race another thread. Never unwind the child-cleanup
+            // defer after publishing its handoff; publication failures still clean up.
+            Darwin._exit(128 + SIGKILL)
+        }
+    #endif
+
+    public static func runHIDUtil(_ arguments: [String]) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/hidutil")
+        process.arguments = arguments
+        process.standardInput = FileHandle.nullDevice
+        let output = Pipe(), error = Pipe()
+        process.standardOutput = output
+        process.standardError = error
+        let handles = [output.fileHandleForReading, error.fileHandleForReading]
+        defer { for handle in handles {
+            try? handle.close()
+        } }
+        for handle in handles {
+            guard fcntl(handle.fileDescriptor, F_SETFL, O_NONBLOCK) == 0 else { throw Refusal.commandFailed }
+        }
+        let deadline = DispatchTime.now().uptimeNanoseconds + 2_000_000_000
+        try process.run()
+        try? output.fileHandleForWriting.close()
+        try? error.fileHandleForWriting.close()
+        defer {
+            if process.isRunning { kill(process.processIdentifier, SIGKILL) }
+            // Confirm exit before the caller releases its mapping lock. A
+            // deadline bounds useful work, not kernel termination latency.
+            process.waitUntilExit()
+        }
+        var data = [Data(), Data()]
+        var ended = [false, false]
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while process.isRunning || !ended.allSatisfy({ $0 }) {
+            guard DispatchTime.now().uptimeNanoseconds < deadline else { throw Refusal.timedOut }
+            for index in 0 ..< handles.count where !ended[index] {
+                let count = Darwin.read(handles[index].fileDescriptor, &buffer, buffer.count)
+                if count > 0 {
+                    data[index].append(contentsOf: buffer.prefix(count))
+                    guard data[0].count + data[1].count <= 65536 else { throw Refusal.excessiveOutput }
+                } else if count == 0 { ended[index] = true }
+                else if errno != EAGAIN, errno != EINTR { throw Refusal.commandFailed }
+            }
+            var descriptors = handles.enumerated().map { index, handle in
+                pollfd(fd: ended[index] ? -1 : handle.fileDescriptor, events: Int16(POLLIN | POLLHUP), revents: 0)
+            }
+            _ = poll(&descriptors, nfds_t(descriptors.count), 10)
+        }
+        guard process.terminationStatus == 0, data[1].isEmpty,
+              let text = String(data: data[0], encoding: .utf8) else { throw Refusal.commandFailed }
+        return text
+    }
+}

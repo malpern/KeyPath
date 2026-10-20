@@ -3,7 +3,26 @@ import KeyPathRulesCore
 
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {
+    static func driverlessUnavailableReason(for id: UUID) -> String? {
+        id == RuleCollectionIdentifier.funLayer ? SystemActionInfo.driverlessMediaUnavailableReason : nil
+    }
+
     func defaultCollections() -> [RuleCollection] {
+        // Fresh profiles use conservative keyboard behavior. Keep every built-in
+        // definition available without silently changing persisted enable states.
+        Self.builtInList.map { collection in
+            var fresh = collection
+            fresh.isEnabled = collection.id == RuleCollectionIdentifier.macFunctionKeys
+            if fresh.id == RuleCollectionIdentifier.macFunctionKeys {
+                fresh.functionKeyMode = .function
+                fresh.mappings = Self.functionKeyMappings(for: .function)
+            }
+            return fresh
+        }
+    }
+
+    /// The catalog's own definitions, before fresh-profile adjustments.
+    func originalCollections() -> [RuleCollection] {
         Self.builtInList
     }
 
@@ -55,7 +74,8 @@ struct RuleCollectionCatalog {
         if existing.id == RuleCollectionIdentifier.windowSnapping {
             if let convention = existing.windowKeyConvention {
                 merged.windowKeyConvention = convention
-                merged.mappings = Self.windowMappings(for: convention)
+                merged.mappings = Self.preservingIdentity(of: existing.mappings,
+                                                          in: Self.windowMappings(for: convention))
             }
 
             if let activationMode = existing.windowSnappingActivationMode {
@@ -65,11 +85,9 @@ struct RuleCollectionCatalog {
             }
         }
 
-        if existing.id == RuleCollectionIdentifier.macFunctionKeys,
-           let mode = existing.functionKeyMode
-        {
-            merged.functionKeyMode = mode
-            merged.mappings = Self.functionKeyMappings(for: mode)
+        if existing.id == RuleCollectionIdentifier.macFunctionKeys {
+            merged.functionKeyMode = existing.functionKeyMode
+            merged.mappings = existing.mappings
         }
 
         return merged
@@ -97,6 +115,23 @@ struct RuleCollectionCatalog {
     // MARK: - Dynamic Mapping Generators
 
     /// Generate window snapping key mappings for a given convention
+    /// Regenerated mappings take the ids of the saved mappings they replace.
+    /// Fresh ids made an unchanged collection compare unequal, so it was offered
+    /// as a catalog update again after every apply.
+    static func preservingIdentity(of existing: [KeyMapping], in regenerated: [KeyMapping]) -> [KeyMapping] {
+        let ids = Dictionary(existing.map { ($0.input, $0.id) }, uniquingKeysWith: { first, _ in first })
+        return regenerated.map { mapping in
+            guard let id = ids[mapping.input] else { return mapping }
+            return KeyMapping(
+                id: id, input: mapping.input, action: mapping.action,
+                shiftedOutput: mapping.shiftedOutput, ctrlOutput: mapping.ctrlOutput,
+                description: mapping.description, sectionBreak: mapping.sectionBreak,
+                sectionLabel: mapping.sectionLabel, behavior: mapping.behavior,
+                deviceOverrides: mapping.deviceOverrides
+            )
+        }
+    }
+
     static func windowMappings(for convention: WindowKeyConvention) -> [KeyMapping] {
         switch convention {
         case .standard:

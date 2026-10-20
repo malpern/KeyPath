@@ -1,0 +1,26 @@
+# Driverless tour handoff
+
+The tour gate still rejected the session backend after automatic Caps Lock setup was implemented. Healthy setup therefore opened Rules and hid the replay menu. Both backends now allow the tour; runtime readiness remains required for the first-run handoff. Regression coverage checks session eligibility and verified startup dismissal.
+
+The first tour step emits Escape on tap and Caps Lock on hold. The managed runtime now supports Caps Lock output; runtime startup owns the internal F18 lease.
+
+The user clarified on 2026-10-09 that clean installation should skip only the healthy Summary, then automatically present the tour. Verified active setup queues the unseen first-run tour before dismissal; users who have already seen it go directly to the keyboard. Completing or closing the tour opens the keyboard visualizer with the inspector sidebar open. Unresolved issues and explicit permission pages remain in the wizard; the tour also remains available for replay. The keyboard handoff is queued before dismissal and runs after the wizard closes, when overlay suppression has been cleared.
+
+On 2026-10-09, fresh macOS 26 lease `cbx_8926584c31dc` verified the welcome and orange splash, explicit Accessibility settings action, normal protected macOS consent, automatic permission recognition/runtime start, and the keyboard visualizer with the settings drawer open. The healthy handoff must call `setOnboardingCompleted(true)` before showing the overlay: clearing wizard suppression alone leaves the overlay's separate onboarding gate closed. Unresolved runtime startup still keeps the repair wizard reachable. Focused handoff tests passed (5 tests).
+
+The correction reconnects the wizard controller’s first-success callback and gives eligible first-run presentation priority over the direct keyboard callback. The tour’s final action is Open Keyboard. Focused gate, tour session, and synchronous dismissal tests pass (25 tests), including fresh tour presentation, previously presented tour bypass, and keeping unresolved setup in repair. Accessibility validation passes across 380 files.
+
+The restored tour exposed first-rule activation being rejected before automatic keyboard selection could run. Reload admission now checks configuration eligibility without requiring an existing selection, matching startup admission. A mode change still restarts through the lifecycle coordinator, which discovers and validates the keyboard before launching; worker validation and the automatic-setup opt-out remain strict. The actual tour tap-hold profile is covered with no prior selection, strict worker admission, and explicit opt-out. Focused checks pass: 34 XCTest cases and 25 Swift Testing cases (snapshot tests were disabled).
+
+The full tour also exposed Quick Launcher’s generated transparent Caps fallback being rejected by strict managed-Caps admission. The generated launcher layer now spells out base actions for unmapped source keys when Caps is present, including app-specific base aliases. Other layers and user-authored transparent actions remain unchanged and subject to admission. A fresh-preference regression exercises the actual Caps preset, empty Hyper launcher, and first Safari shortcut; it also proves the old transparent Caps fallback remains rejected. Final focused checks pass: 33 XCTest cases and 25 Swift Testing cases.
+
+On 2026-10-11, signing over SSH failed with `CSSMERR_CSP_NO_USER_INTERACTION` even after the user unlocked the login keychain in the desktop session. The same pinned Developer ID signing probe succeeded as a temporary LaunchAgent in `gui/501`, and the canonical build/sign script then completed in that context with identity-contract and deep signature verification passing. Do not treat an SSH `errSecInternalComponent` as proof the desktop keychain is still locked; inspect Security logs and verify the signing context. No keychain permissions or signing identity were changed.
+
+
+## 2026-10-11 final live acceptance
+
+Developer ID build 10 (ZIP SHA-256 `720f2dcd7462d46a6bfb3189388cc0a228e13b4298dcd64578d0c44676c05764`) completed the automatic first-run tour on clean macOS 26 lease `cbx_77e4721a3128`: only healthy Summary skipped, all four tour steps completed, ending in keyboard/sidebar. Physical fixture verified two Caps tap Escape cycles and Caps hold + S launching Safari. Normal Quit stopped worker and restored HID mapping to null. Fixture detached; vm-lab destroyed lease, independently confirmed absent. Air normal uninstall/reinstall passed, settings backup retained, fresh Welcome observed.
+
+58 focused tests passed on final product sources. Full safe-runner rerun with `KEYPATH_SESSION_TEST_BRIDGE_PATH` pointing to the signed bundle bridge passed 718 Swift Testing tests but still fails XCTest contracts (legacy Caps rejection, golden config, permission UI/facade lint, mapper integration); not a fully green release. Polling navigation lint now allows only freshly refreshed, cancellation-guarded, one-time permission-success auto-advance.
+
+Open recovery issue: an unexplained guest reboot detached the fixture. Reattaching then Try Again did not start the absent runtime; normal Quit/Open recovered. Do not report this recovery path as fixed. Air permission/runtime acceptance remains pending.

@@ -3,6 +3,17 @@ import KeyPathCore
 import SwiftUI
 
 struct LayerModeKeycap: View {
+    /// The arrow to draw for a key, or nil. A key's own label wins: `a` (After) sends →
+    /// but reads "After", like h/j/k/l read as arrows because their label is an arrow.
+    static func arrowGlyph(for info: LayerKeyInfo?) -> String? {
+        guard let info else { return nil }
+        let arrows: Set = ["←", "→", "↑", "↓"]
+        if let label = info.vimLabel, !label.isEmpty {
+            return arrows.contains(label) ? label : nil
+        }
+        return arrows.contains(info.displayLabel) ? info.displayLabel : nil
+    }
+
     let key: PhysicalKey
     let baseLabel: String
     let holdLabel: String?
@@ -59,9 +70,7 @@ struct LayerModeKeycap: View {
                         }
                     }
                 } else {
-                    let arrowLabels: Set = ["←", "→", "↑", "↓"]
-                    let isArrowAction = arrowLabels.contains(layerKeyInfo?.vimLabel ?? "")
-                        || arrowLabels.contains(layerKeyInfo?.displayLabel ?? "")
+                    let isArrowAction = Self.arrowGlyph(for: layerKeyInfo) != nil
                     let hasActionSymbol = KeycapSymbols.sfSymbolForAction(layerKeyInfo?.displayLabel ?? "") != nil
                         || LabelMetadata.sfSymbol(forOutputLabel: layerKeyInfo?.displayLabel ?? "") != nil
 
@@ -119,14 +128,12 @@ struct LayerModeKeycap: View {
                 .font(.system(size: 14 * scale, weight: .medium))
                 .foregroundStyle(Color.white.opacity(0.9))
         } else if let info = layerKeyInfo {
-            let arrowLabels: Set = ["←", "→", "↑", "↓"]
-            if arrowLabels.contains(info.displayLabel) || arrowLabels.contains(info.vimLabel ?? "") {
-                let arrow = arrowLabels.contains(info.displayLabel) ? info.displayLabel : info.vimLabel!
+            if let arrow = Self.arrowGlyph(for: info) {
                 Text(arrow)
                     .font(.system(size: 16 * scale, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.9))
             } else if let vimLabel = info.vimLabel, !vimLabel.isEmpty {
-                KeycapSymbols.dynamicTextLabel(vimLabel, scale: scale)
+                KeycapSymbols.dynamicTextLabel(vimLabel, scale: scale, capitalize: false)
                     .help(info.displayLabel)
             } else if !info.displayLabel.isEmpty {
                 let skipSymbolConversion = KeycapSymbols.isModifierOrSpecialKey(info.displayLabel)

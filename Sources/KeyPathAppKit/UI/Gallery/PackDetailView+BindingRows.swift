@@ -169,7 +169,7 @@ extension PackDetailView {
             // picker + monitor canvas + floating action cards. Pack Detail
             // embeds the same view so the experience is identical.
             // Rules uses horizontal padding of 12 for this particular editor.
-            embeddedEditor(horizontalPadding: 12) {
+            Group {
                 WindowSnappingView(
                     mappings: collection.mappings,
                     convention: collection.windowKeyConvention ?? .standard,
@@ -193,11 +193,18 @@ extension PackDetailView {
                     isInstalled: isInstalled
                 )
             }
+        } else if pack.id == PackRegistry.vimNavigation.id, let collection = liveAssociatedCollection,
+                  !collection.mappings.isEmpty
+        {
+            // Vim draws its layer on the keyboard instead of the generic table.
+            embeddedEditor {
+                VimLayerReferenceView(mappings: collection.mappings)
+            }
         } else if pack.bindings.isEmpty, let collection = liveAssociatedCollection,
                   !collection.mappings.isEmpty
         {
             // Collection-backed pack with no explicit bindings and a plain
-            // `.table` config (Vim Navigation, Mission Control, Numpad).
+            // `.table` config (Mission Control, Numpad).
             // Uses the same MappingTableContent view Rules uses so the
             // table styling matches exactly.
             embeddedEditor {

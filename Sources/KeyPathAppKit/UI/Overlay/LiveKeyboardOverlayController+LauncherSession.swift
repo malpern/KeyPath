@@ -25,6 +25,7 @@ extension LiveKeyboardOverlayController {
     }
 
     func handleLauncherLayerActivated() {
+        guard !isAppSuppressed else { return }
         guard !isLauncherSessionActive else { return }
         isLauncherSessionActive = true
 

@@ -26,6 +26,8 @@ final class InvestigationEventTapService {
     func startIfNeeded() {
         guard !TestEnvironment.isRunningTests else { return }
         guard !isStarted else { return }
+        // Opening a tap without access can trigger TCC at launch. Only buttons request it.
+        guard CGPreflightListenEventAccess() else { return }
 
         let eventMask =
             (1 << CGEventType.keyDown.rawValue) |
@@ -98,7 +100,9 @@ final class InvestigationEventTapService {
         Task.detached(priority: .utility) {
             let correlation = await DuplicateKeyInvestigationTracker.shared.recordSystemEvent(observed)
             if correlation.suggestsUnmatchedAutorepeat {
-                AppLogger.shared.info(DuplicateInvestigationSupport.makeAutorepeatMismatchLog(correlation))
+                if DuplicateInvestigationSupport.isEnabled() {
+                    AppLogger.shared.info(DuplicateInvestigationSupport.makeAutorepeatMismatchLog(correlation))
+                }
                 await StuckKeyRecoveryService.shared.handleAutorepeatMismatch(correlation)
             }
         }

@@ -105,6 +105,7 @@ extension View {
         outerHorizontalPadding: CGFloat,
         trailingOuterPadding: CGFloat,
         deepFadeAmount: CGFloat,
+        restingOpacity: Double,
         reduceMotion: Bool,
         onMouseMove: @escaping () -> Void
     ) -> some View {
@@ -112,7 +113,7 @@ extension View {
             .padding(.leading, outerHorizontalPadding)
             .padding(.trailing, trailingOuterPadding)
             .background(MouseMoveMonitor(onMove: onMouseMove))
-            .opacity(0.11 + 0.89 * (1 - deepFadeAmount))
+            .opacity(restingOpacity * (0.11 + 0.89 * (1 - deepFadeAmount)))
             .animation(
                 reduceMotion ? nil : (deepFadeAmount > 0 ? .easeOut(duration: 0.3) : nil),
                 value: deepFadeAmount

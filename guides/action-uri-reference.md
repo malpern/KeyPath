@@ -90,6 +90,19 @@ open "keypath://notify?title=Saved&sound=false"
 
 ---
 
+### `keypath://overlay/{toggle|show|hide}`
+
+Show or hide the keyboard overlay. Bind it to a key to get a "show me my layout" key.
+
+```bash
+open "keypath://overlay/toggle"
+open "keypath://overlay/show"
+```
+
+From a Kanata config, use the short form: `(push-msg "overlay:toggle")`.
+
+---
+
 ### `keypath://fakekey/{name}`
 
 Trigger a virtual key press.

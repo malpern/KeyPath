@@ -2,19 +2,13 @@ import Foundation
 @preconcurrency import XCTest
 
 final class W3BackgroundMutationExceptionLintTests: XCTestCase {
-    func testServiceHealthPollingOnlyAllowsVHIDEmergencyStopException() throws {
+    func testServiceHealthPollingCannotMutateDriverlessRuntime() throws {
         let mainAppStateController = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Services/MainAppStateController.swift")
         let contents = try String(contentsOf: mainAppStateController, encoding: .utf8)
 
-        XCTAssertTrue(
-            contents.contains("W3 safety exception: this background mutation only stops remapping"),
-            "The background service-health mutation must be documented as a W3 safety exception."
-        )
-        XCTAssertTrue(
-            contents.contains(#"stopKanata(reason: "Emergency: VirtualHID not running")"#),
-            "The service-health polling exception should remain a stop-only safety action."
-        )
+        XCTAssertFalse(contents.contains(#"stopKanata(reason: "Emergency: VirtualHID not running")"#),
+                       "The driverless health loop must not stop a session for an absent VirtualHID")
 
         let forbidden = try matchingLines(
             in: mainAppStateController,
@@ -28,9 +22,8 @@ final class W3BackgroundMutationExceptionLintTests: XCTestCase {
         XCTAssertTrue(
             forbidden.isEmpty,
             """
-            W3 allows the service-health polling loop to stop Kanata for the \
-            VirtualHID safety invariant, but it must not repair or restart \
-            services in the background:
+            Service-health polling must not repair or restart driverless \
+            sessions in the background:
             \(forbidden.sorted().joined(separator: "\n"))
             """
         )

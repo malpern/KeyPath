@@ -29,7 +29,7 @@ extension KeyboardVisualizationViewModel {
 
                 // Don't fade while holding a momentary layer key (non-base layer active)
                 let isOnMomentaryLayer = currentLayerName.lowercased() != "base"
-                if isOnMomentaryLayer {
+                if isOnMomentaryLayer || !PreferencesService.shared.overlayFadesWhenIdle {
                     // Keep overlay fully visible while on a non-base layer
                     if fadeAmount != 0 { fadeAmount = 0 }
                     if deepFadeAmount != 0 { deepFadeAmount = 0 }

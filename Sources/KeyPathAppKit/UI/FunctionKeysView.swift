@@ -5,7 +5,7 @@ import SwiftUI
 // MARK: - Function Keys View
 
 /// A visual view for the macOS Function Keys rule collection.
-/// Shows F1-F12 as flip cards that reveal either function keys or media icons.
+/// Shows F1-F12 and explains unavailable media remapping.
 struct FunctionKeysView: View {
     let mappings: [KeyMapping]
     /// The current function key mode from the collection
@@ -13,93 +13,36 @@ struct FunctionKeysView: View {
     /// Callback when display mode changes
     var onModeChange: ((FunctionKeyMode) -> Void)?
 
-    /// User's preferred display mode: true = show media keys (default Mac behavior)
-    @State private var preferMediaKeys: Bool = true
+    /// The saved mode, including unsupported media configurations that need changing.
+    @State private var preferMediaKeys: Bool = false
 
     init(mappings: [KeyMapping], currentMode: FunctionKeyMode? = nil, onModeChange: ((FunctionKeyMode) -> Void)? = nil) {
         self.mappings = mappings
         self.currentMode = currentMode
         self.onModeChange = onModeChange
         // Initialize preferMediaKeys based on currentMode
-        _preferMediaKeys = State(initialValue: currentMode?.preferMediaKeys ?? true)
-    }
-
-    /// Whether fn key is currently held (temporarily flips display)
-    @State private var isFnHeld: Bool = false
-
-    /// Event monitor for fn key
-    @State private var flagsMonitor: Any?
-
-    /// Effective display state (combines preference with fn key override)
-    private var showMediaKeys: Bool {
-        // If user prefers media keys and fn is held, show F-keys (flip)
-        // If user prefers F-keys and fn is held, show media keys (flip)
-        preferMediaKeys != isFnHeld
+        _preferMediaKeys = State(initialValue: currentMode?.preferMediaKeys ?? false)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Function key row
-            FunctionKeyRow(showMediaKeys: showMediaKeys)
+            FunctionKeyRow(showMediaKeys: preferMediaKeys)
 
             // Toggle control
             DisplayModeToggle(showMediaKeys: $preferMediaKeys)
 
-            // Educational tip
-            HStack(spacing: 8) {
-                FnKeyBadge()
-                Text("Hold fn to temporarily flip to \(preferMediaKeys ? "function keys" : "media keys")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 4)
+            Text(SystemActionInfo.driverlessMediaUnavailableReason + " Your keyboard’s normal media controls remain managed by macOS.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, 12)
-        .onAppear {
-            startMonitoringFnKey()
-        }
-        .onDisappear {
-            stopMonitoringFnKey()
-        }
         .onChange(of: preferMediaKeys) { _, newValue in
-            onModeChange?(FunctionKeyMode(preferMediaKeys: newValue))
+            let mode = FunctionKeyMode(preferMediaKeys: newValue)
+            guard mode.isSupportedInDriverlessSession else { return }
+            onModeChange?(mode)
         }
-    }
-
-    // MARK: - Fn Key Monitoring
-
-    private func startMonitoringFnKey() {
-        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
-            let fnPressed = event.modifierFlags.contains(.function)
-            if fnPressed != isFnHeld {
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isFnHeld = fnPressed
-                }
-            }
-            return event
-        }
-    }
-
-    private func stopMonitoringFnKey() {
-        if let monitor = flagsMonitor {
-            NSEvent.removeMonitor(monitor)
-            flagsMonitor = nil
-        }
-    }
-}
-
-// MARK: - Fn Key Badge
-
-private struct FnKeyBadge: View {
-    var body: some View {
-        Text("fn")
-            .font(.caption2.weight(.bold))
-            .foregroundColor(.white)
-            .frame(width: 20, height: 16)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.secondary.opacity(0.7))
-            )
     }
 }
 
@@ -225,11 +168,14 @@ private struct DisplayModeToggle: View {
                 SettingsOptionCard(
                     icon: "sun.max",
                     title: "Media Keys",
-                    subtitle: "Brightness, volume, media",
+                    subtitle: "Unsupported in driverless mode",
                     isSelected: showMediaKeys
                 ) {
+                    guard FunctionKeyMode.media.isSupportedInDriverlessSession else { return }
                     showMediaKeys = true
                 }
+                .disabled(!FunctionKeyMode.media.isSupportedInDriverlessSession)
+                .accessibilityIdentifier("function-key-mode-media")
 
                 SettingsOptionCard(
                     icon: "function",
@@ -239,6 +185,7 @@ private struct DisplayModeToggle: View {
                 ) {
                     showMediaKeys = false
                 }
+                .accessibilityIdentifier("function-key-mode-function")
             }
         }
         .padding(.vertical, 4)

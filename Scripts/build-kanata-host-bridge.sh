@@ -45,6 +45,8 @@ calculate_source_hash() {
 calculate_build_fingerprint() {
     {
         printf 'source=%s\n' "$(calculate_source_hash)"
+        printf 'kanata_commit=%s\n' "$(git -C "$PROJECT_ROOT/External/kanata" rev-parse HEAD)"
+        printf 'kanata_changes=%s\n' "$(git -C "$PROJECT_ROOT/External/kanata" diff --binary HEAD -- . | shasum -a 256 | cut -d' ' -f1)"
         printf 'features=%s\n' "$BRIDGE_FEATURES"
         printf 'target=%s\n' "$BRIDGE_TARGET"
         printf 'developer_dir=%s\n' "${DEVELOPER_DIR:-<unset>}"
@@ -55,7 +57,8 @@ calculate_build_fingerprint() {
 }
 
 verify_bridge() {
-    python3 "$BRIDGE_VERIFY_SCRIPT" "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib"
+    python3 "$BRIDGE_VERIFY_SCRIPT" "$BUILD_DIR/libkeypath_kanata_host_bridge.dylib" \
+        "$SCRIPT_DIR/test-fixtures/configs/host-bridge-passthru.kbd" --passthru
 }
 
 CURRENT_FINGERPRINT=$(calculate_build_fingerprint)

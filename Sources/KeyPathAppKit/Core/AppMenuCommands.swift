@@ -33,7 +33,6 @@ struct AppMenuCommands: Commands {
                     Label("Repair/Remove\u{2026}", systemImage: "wrench.and.screwdriver")
                 }
             )
-            .keyboardShortcut(",", modifiers: .command)
 
             Button(
                 action: {
@@ -44,15 +43,6 @@ struct AppMenuCommands: Commands {
                 }
             )
             .keyboardShortcut("r", modifiers: .command)
-
-            Button(
-                action: {
-                    openPreferencesTab(.openSettingsAdvanced)
-                },
-                label: {
-                    Label("Simulator (Repair/Remove)\u{2026}", systemImage: "keyboard")
-                }
-            )
 
             Button(
                 action: {
@@ -76,7 +66,7 @@ struct AppMenuCommands: Commands {
 
             Divider()
 
-            Button("Install wizard...") {
+            Button("Set Up KeyPath…") {
                 NotificationCenter.default.post(name: .showWizard, object: nil)
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
@@ -124,10 +114,12 @@ struct AppMenuCommands: Commands {
             )
             .keyboardShortcut("p", modifiers: [.command, .shift])
 
-            Button("Input Capture Experiment") {
-                InputCaptureExperimentWindowController.shared.showWindow()
-            }
-            .keyboardShortcut("i", modifiers: [.command, .shift])
+            #if DEBUG
+                Button("Input Capture Experiment") {
+                    InputCaptureExperimentWindowController.shared.showWindow()
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+            #endif
 
             Button("Mapper") {
                 NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
@@ -156,65 +148,27 @@ struct AppMenuCommands: Commands {
                 }
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
-
-            Divider()
-
-            Button(
-                role: .destructive,
-                action: {
-                    appDelegate.showMainWindow()
-                    NotificationCenter.default.post(name: .showUninstall, object: nil)
-                },
-                label: {
-                    Label("Uninstall KeyPath\u{2026}", systemImage: "trash")
-                }
-            )
-
-            // Hidden instant uninstall (no confirmation, just admin prompt)
-            Button(
-                role: .destructive,
-                action: {
-                    Task { @MainActor in
-                        AppLogger.shared.log("🗑️ [InstantUninstall] \u{2325}\u{2318}U triggered - performing immediate uninstall")
-                        let report = await InstallerEngine().uninstall(
-                            deleteConfig: false,
-                            using: PrivilegeBroker()
-                        )
-                        if report.success {
-                            AppLogger.shared.log("✅ [InstantUninstall] Uninstall completed successfully")
-                            NSApplication.shared.terminate(nil)
-                        } else {
-                            AppLogger.shared.log("❌ [InstantUninstall] Uninstall failed")
-                            let alert = NSAlert()
-                            alert.messageText = "Uninstall Failed"
-                            alert.informativeText = report.failureReason ?? "An unknown error occurred during uninstall"
-                            alert.alertStyle = .critical
-                            alert.runModal()
-                        }
-                    }
-                },
-                label: {
-                    Text("") // Hidden menu item
-                }
-            )
-            .keyboardShortcut("u", modifiers: [.control, .option, .command])
-            .hidden() // Hide from menu but keep keyboard shortcut active
         }
 
-        // View menu — exposes global hotkeys for discoverability
-        CommandMenu("View") {
+        // Extend the standard View menu with the overlay controls.
+        CommandGroup(after: .toolbar) {
             Button("Toggle Overlay") {
                 LiveKeyboardOverlayController.shared.toggle()
             }
             .keyboardShortcut("k", modifiers: [.option, .command])
 
             Button("Center Overlay") {
-                NotificationCenter.default.post(name: NSNotification.Name("ResetOverlayPosition"), object: nil)
+                LiveKeyboardOverlayController.shared.showResetCentered()
             }
             .keyboardShortcut("l", modifiers: [.option, .command])
 
             Button("Toggle Inspector") {
-                NotificationCenter.default.post(name: NSNotification.Name("ToggleInspectorDrawer"), object: nil)
+                let overlay = LiveKeyboardOverlayController.shared
+                if !overlay.isVisible {
+                    overlay.isVisible = true
+                }
+                overlay.bringToFront()
+                overlay.toggleDrawerWithHighlight()
             }
             .keyboardShortcut("d", modifiers: [.option, .command])
         }
@@ -226,21 +180,28 @@ struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("?", modifiers: .command)
 
-            Divider()
+            if FirstSuccessOnboardingGate.supportsTour() {
+                Divider()
 
-            Button(
-                action: {
-                    replayFirstSuccessTour()
-                },
-                label: {
-                    Text(
-                        "Replay KeyPath Tour…",
-                        bundle: KeyPathAppKitResources.bundle,
-                        comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
-                    )
+                Button(
+                    action: {
+                        replayFirstSuccessTour()
+                    },
+                    label: {
+                        Text(
+                            "Replay KeyPath Tour…",
+                            bundle: KeyPathAppKitResources.bundle,
+                            comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
+                        )
+                    }
+                )
+                .accessibilityIdentifier("menu-replay-keypath-tour")
+
+                Button("Preview KeyPath Tour…") {
+                    FirstSuccessTourPreviewWindowController.show()
                 }
-            )
-            .accessibilityIdentifier("menu-replay-keypath-tour")
+                .accessibilityIdentifier("menu-preview-keypath-tour")
+            }
         }
     }
 
@@ -251,6 +212,9 @@ struct AppMenuCommands: Commands {
         var detailLines = ["Keys that do more.", "", "Build \(info.build) \u{2022} \(info.git) \u{2022} \(info.date)"]
         if let kanataVersion = info.kanataVersion {
             detailLines.append("Kanata \(kanataVersion)")
+        }
+        if UpdateService.shared.usesManualDownloads {
+            detailLines.append("\nDownload updates from the KeyPath menu. Quit KeyPath before replacing the app.")
         }
         let details = detailLines.joined(separator: "\n")
         NSApplication.shared.orderFrontStandardAboutPanel(
@@ -334,7 +298,7 @@ struct CheckForUpdatesView: View {
     init(updater _: SPUUpdater?) {}
 
     var body: some View {
-        Button("Check for Updates\u{2026}") {
+        Button(updateService.usesManualDownloads ? "Download Update…" : "Check for Updates…") {
             updateService.checkForUpdates()
         }
         .disabled(!updateService.canCheckForUpdates)

@@ -36,6 +36,7 @@ struct ExpandableCollectionRow: View {
     var onCreateFirstRule: (() -> Void)?
     var onTapRow: (() -> Void)?
     var description: String?
+    var unavailableReason: String?
     var layerActivator: MomentaryActivator?
     /// Current leader key display name for layer-based collections
     var leaderKeyDisplay: String = "␣ Space"
@@ -171,7 +172,7 @@ struct ExpandableCollectionRow: View {
         .clipped()
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5) : Color(NSColor.windowBackgroundColor))
+                .fill(isHovered ? SettingsDesign.hoverFill : Color.clear)
                 .allowsHitTesting(false)
         )
         .overlay(
@@ -189,12 +190,12 @@ struct ExpandableCollectionRow: View {
         }
         .onAppear {
             if !hasInitialized {
-                isExpanded = defaultExpanded
+                isExpanded = onTapRow == nil && defaultExpanded
                 hasInitialized = true
             }
         }
         .onChange(of: defaultExpanded) { _, newValue in
-            if newValue, !isExpanded {
+            if onTapRow == nil, newValue, !isExpanded {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded = true
                 }
@@ -226,8 +227,12 @@ struct ExpandableCollectionRow: View {
 
     private var headerButtonView: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Icon tap → always expand inline (debug: compare inline vs gallery)
+            // Catalog icons open the same dedicated detail window as the row title.
             Button {
+                if let onTapRow {
+                    onTapRow()
+                    return
+                }
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
                     if isExpanded, let id = scrollID, let proxy = scrollProxy {
@@ -245,7 +250,7 @@ struct ExpandableCollectionRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("rules-summary-icon-button-\(collectionId)")
-            .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+            .accessibilityLabel(onTapRow != nil ? "Open \(name) settings" : (isExpanded ? "Collapse \(name)" : "Expand \(name)"))
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Rest of row → opens detail window (or expands if no pack)
@@ -301,7 +306,7 @@ struct ExpandableCollectionRow: View {
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
-            .accessibilityLabel(isExpanded ? "Collapse \(name)" : "Expand \(name)")
+            .accessibilityLabel(onTapRow != nil ? "Open \(name) settings" : (isExpanded ? "Collapse \(name)" : "Expand \(name)"))
             .accessibilityHint(activationAccessibilityHint ?? "")
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
@@ -352,6 +357,8 @@ struct ExpandableCollectionRow: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .tint(.blue)
+                .disabled(unavailableReason != nil && !effectiveEnabled)
+                .help(unavailableReason ?? "")
                 .accessibilityIdentifier("rules-summary-toggle-\(collectionId)")
                 .accessibilityLabel("Toggle \(name)")
             }
@@ -368,7 +375,7 @@ struct ExpandableCollectionRow: View {
 
     @ViewBuilder
     private var expandedContentView: some View {
-        if isExpanded {
+        if onTapRow == nil, isExpanded {
             // Inset back plane container for expanded content
             InsetBackPlane {
                 if isNeovimTerminalCollection {
@@ -596,8 +603,8 @@ struct ExpandableCollectionRow: View {
                         .padding(.bottom, 12)
                         .padding(.horizontal, 16)
                     } else if collection?.id == RuleCollectionIdentifier.vimNavigation {
-                        // Vim uses animated category cards
-                        VimCommandCardsView(mappings: collection?.mappings ?? [])
+                        // Vim draws its layer on the keyboard, same view as the Gallery detail
+                        VimLayerReferenceView(mappings: collection?.mappings ?? [])
                             .padding(.top, 8)
                             .padding(.bottom, 12)
                             .padding(.horizontal, 12)

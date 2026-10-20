@@ -3,6 +3,12 @@ import Foundation
 /// Shared, intentionally small Kanata configurations for tests that need valid
 /// syntax but are not testing the configuration text itself.
 enum KanataConfigFixtures {
+    static let sessionQToA = """
+    (defcfg)
+    (defsrc q)
+    (deflayer base a)
+    """
+
     static let capsToEscapeBare = """
     (defcfg)
     (defsrc caps)

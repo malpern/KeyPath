@@ -1,6 +1,6 @@
 # Help Content Philosophy
 
-Help articles live in `Sources/KeyPathAppKit/Resources/*.md` and render in the in-app Help Browser (`HelpBrowserView.swift`). All help content follows this layered structure.
+Help articles live in `guides/*.md` and `migration/*.md` and render in the in-app Help Browser (`HelpBrowserView.swift`). The app bundles generated HTML, images and CSS for offline use; the same Markdown feeds the website and compatible downloadable updates. See [offline help](../architecture/offline-help.md) for build/publish/test commands. All help content follows this layered structure.
 
 ## Content hierarchy (this order matters)
 
@@ -10,6 +10,8 @@ Help articles live in `Sources/KeyPathAppKit/Resources/*.md` and render in the i
 4. **Rich external resources** — Every article ends with curated links to community references, tool docs, learning resources, and hardware. Use `↗` suffix for external links.
 
 ## Content rules
+
+- **Brand tagline:** when using the product tagline in help content or artwork, use exactly **Keys that do more.** The former slogan is retired. Keep article introductions focused on the user’s goal rather than repeating the tagline in every guide. See [KeyPath brand](../design/keypath-brand.md).
 
 - **Titles are user goals**, not feature names: "Shortcuts Without Reaching" not "Home Row Mods", "One Key, Multiple Actions" not "Tap-Hold & Tap-Dance", "Launching Apps" not "Action URIs"
 - **Cross-links use goal-oriented names** throughout all articles

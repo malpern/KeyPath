@@ -116,6 +116,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var mappingConflictContinuation: CheckedContinuation<UUID?, Never>?
 
     // Forward prerequisite resolution state (#869)
+    var pendingRuleSetup: RuleSetupSession?
     var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
     var prerequisiteResolutionContinuation:
         CheckedContinuation<RulePrerequisiteResolutionChoice?, Never>?
@@ -290,13 +291,20 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize ConfigurationManager
         configurationManager = ConfigurationManager(configurationService: configurationService)
 
+        recoveryCoordinator = RecoveryCoordinator()
+        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
+            kanataDaemonService: kanataDaemonService,
+            recoveryCoordinator: recoveryCoordinator
+        )
+
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
             diagnosticsService: diagnosticsService,
             healthMonitor: serviceHealthMonitor,
-            processStatusProvider: { [kanataDaemonService] in
-                let isRunning = await kanataDaemonService.isDaemonRunning()
-                return ProcessHealthStatus(isRunning: isRunning, pid: nil)
+            processStatusProvider: { [serviceLifecycleCoordinator] in
+                let report = serviceLifecycleCoordinator.currentSessionReport()
+                return ProcessHealthStatus(isRunning: report?.state == .running && report?.tapActive == true,
+                                           pid: report.map { Int($0.pid) })
             }
         )
 
@@ -305,15 +313,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Initialize EngineClient
         self.engineClient = engineClient ?? TCPEngineClient()
-
-        // Initialize RecoveryCoordinator (will be configured after all initialization)
-        recoveryCoordinator = RecoveryCoordinator()
-
-        // Initialize ServiceLifecycleCoordinator
-        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
-            kanataDaemonService: kanataDaemonService,
-            recoveryCoordinator: recoveryCoordinator
-        )
 
         // Initialize ConfigReloadCoordinator
         configReloadCoordinator = ConfigReloadCoordinator(
@@ -325,6 +324,24 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             processLifecycleManager: lifecycleManager,
             isRuntimeTransitioning: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.isRuntimeTransitionInProgress
+            },
+            startRuntimeForExplicitApply: { [serviceLifecycleCoordinator] in
+                await serviceLifecycleCoordinator.startKanata(reason: "Applying onboarding rules after interrupted startup")
+            },
+            runtimeWantsRunning: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionWantsRunning
+            },
+            runtimeIntentGeneration: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionIntentGeneration
+            },
+            currentManagedCaps: { [serviceLifecycleCoordinator] in
+                serviceLifecycleCoordinator.sessionManagedCapsActive
+            },
+            restartForManagedCapsChange: { [serviceLifecycleCoordinator] in
+                await serviceLifecycleCoordinator.restartKanata(reason: "Caps runtime mode changed during config reload")
+            },
+            managedCapsRestartFailureReason: { [serviceLifecycleCoordinator] generation in
+                serviceLifecycleCoordinator.preparationFailureReason(for: generation)
             }
         )
 
@@ -371,12 +388,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         serviceLifecycleCoordinator.onStateChanged = { [weak self] in
             self?.notifyStateChanged()
         }
-        serviceLifecycleCoordinator.isVirtualHIDDaemonHealthy = {
-            await ServiceHealthChecker.shared.isServiceHealthy(
-                serviceID: ServiceHealthChecker.vhidDaemonServiceID
-            )
-        }
-
         // Wire up ConfigReloadCoordinator callbacks
         configReloadCoordinator.onReloadSuccess = { [weak self] in
             self?.clearDiagnostics()
@@ -396,25 +407,16 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             }
         )
 
-        // Configure RecoveryCoordinator handlers (after all initialization)
+        // Recording pause uses the same session owner; no process-wide termination.
         recoveryCoordinator.configure(
-            killAllKanataProcesses: { [weak self] in
-                guard let self else {
-                    throw KeyPathError.process(.noManager)
-                }
-                let report = await installerEngine
-                    .runSingleAction(.terminateConflictingProcesses, using: privilegeBroker)
-                if !report.success {
-                    throw KeyPathError.process(
-                        .terminateFailed(underlyingError: report.failureReason ?? "Unknown error")
-                    )
+            killAllKanataProcesses: { [weak serviceLifecycleCoordinator] in
+                guard await serviceLifecycleCoordinator?.stopKanata(reason: "Recording pause") == true else {
+                    throw KeyPathError.process(.notRunning)
                 }
             },
-            restartKarabinerDaemon: { [weak self] in
-                await self?.restartKarabinerDaemon() ?? false
-            },
-            restartService: { [weak self] reason in
-                await self?.restartKanata(reason: reason) ?? false
+            restartKarabinerDaemon: { false },
+            restartService: { [weak serviceLifecycleCoordinator] reason in
+                await serviceLifecycleCoordinator?.startKanata(reason: reason) ?? false
             }
         )
 
@@ -457,6 +459,22 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onMappingConflictResolution = { [weak self] context in
             await self?.promptForMappingConflict(context)
+        }
+        ruleCollectionsManager.onPrerequisiteSetup = { [weak self] context, apply in
+            guard let self else { return .failure(CancellationError()) }
+            // The sheet lives in the Settings window, and this waits while holding
+            // the rule-write gate. Bring Settings forward so a request made from the
+            // overlay or a pack window is answerable, and never strand an older one.
+            pendingRuleSetup?.finish(.failure(CancellationError()))
+            return await withCheckedContinuation { continuation in
+                self.pendingRuleSetup = RuleSetupSession(context: context, apply: apply) { [weak self] result in
+                    self?.pendingRuleSetup = nil
+                    self?.notifyStateChanged()
+                    continuation.resume(returning: result)
+                }
+                self.notifyStateChanged()
+                openPreferencesTab(.openSettingsRules)
+            }
         }
         ruleCollectionsManager.onPrerequisiteResolution = { [weak self] context in
             await self?.promptForPrerequisiteResolution(context)
@@ -587,17 +605,29 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await installerEngine.inspectSystem()
     }
 
+    private(set) var uninstallCleanupCompleted = false
+
     func uninstall(
         deleteConfig: Bool,
         removeVirtualHID: Bool = false,
         allowAdminFallback: Bool = false
     ) async -> InstallerReport {
-        await installerEngine.uninstall(
+        // Telemetry has its own debounced writer, outside the config operation
+        // gate. Drain it before backup and keep it closed through app termination.
+        KindaVimTelemetryStore.shared.suspendForUninstall()
+        let report = await installerEngine.uninstall(
             deleteConfig: deleteConfig,
             removeVirtualHID: removeVirtualHID,
             allowAdminFallback: allowAdminFallback,
             using: privilegeBroker
         )
+        // Successful uninstall already verified runtime cleanup and intentionally
+        // leaves configuration admission suspended until process exit.
+        uninstallCleanupCompleted = report.success
+        if !report.success {
+            KindaVimTelemetryStore.shared.resumeAfterFailedUninstall()
+        }
+        return report
     }
 
     private func captureRecentKanataErrorMessage() -> String? {
@@ -628,6 +658,34 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     private func stripANSICodes(from text: String) -> String {
         text.replacingOccurrences(of: #"\u001B\[[0-9;]*m"#, with: "", options: .regularExpression)
+    }
+
+    /// Persist exact-device Caps consent only after admitted runtime restoration.
+    /// The change stops the runtime to release the Caps lease; if it was running,
+    /// it is started again afterwards, whether the change committed or was refused.
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil) async -> Bool {
+        let wasRunning = serviceLifecycleCoordinator.sessionWantsRunning
+        let changed: Bool
+        do {
+            changed = try await configurationService.operationGate.withOperation { [serviceLifecycleCoordinator] _ in
+                await serviceLifecycleCoordinator.changeCapsSelection(verify: {
+                    guard let selection else { return }
+                    try await Task.detached {
+                        try selection.verifyConnected(devices: SessionCapsHIDUtilTransport.backend().enumerate(),
+                                                      currentBoot: SessionCapsRuntimeSupport.bootSessionUUID())
+                        try SessionCapsRuntimeSupport.requirePhysicalAllUp()
+                    }.value
+                }, commit: {
+                    try SessionCapsSelectionStore.save(selection)
+                    // Before any restart: start-up reads this to decide automatic Caps setup.
+                    if let automaticSetupDisabled {
+                        UserDefaults.standard.set(automaticSetupDisabled, forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
+                    }
+                })
+            }
+        } catch { changed = false }
+        await serviceLifecycleCoordinator.resumeAfterCapsSelectionChange(wasRunning: wasRunning)
+        return changed
     }
 
     /// Stop Kanata when the app is terminating (async version).
@@ -670,11 +728,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // MARK: - Installation and Permissions (delegates to SystemRequirementsChecker)
 
     func isInstalled() -> Bool {
-        systemRequirementsChecker.isInstalled()
+        isServiceInstalled()
     }
 
     func isCompletelyInstalled() -> Bool {
-        systemRequirementsChecker.isCompletelyInstalled(isServiceInstalled: isServiceInstalled)
+        isServiceInstalled()
     }
 
     func hasInputMonitoringPermission() async -> Bool {
@@ -696,13 +754,18 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     func hasAllSystemRequirements() async -> Bool {
-        await systemRequirementsChecker.hasAllSystemRequirements(isServiceInstalled: isServiceInstalled)
+        let snapshot = await installerEngine.inspectSystem()
+        return snapshot.isReady
     }
 
     func getSystemRequirementsStatus() async -> (
         installed: Bool, permissions: Bool, driver: Bool, daemon: Bool
     ) {
-        await systemRequirementsChecker.getSystemRequirementsStatus(isServiceInstalled: isServiceInstalled)
+        let snapshot = await installerEngine.inspectSystem()
+        // Historical tuple fields describe satisfied prerequisites: the session
+        // backend has no driver or privileged daemon prerequisite.
+        return (installed: snapshot.components.kanataBinaryInstalled,
+                permissions: snapshot.permissions.isSystemReady, driver: true, daemon: true)
     }
 
     public func openInputMonitoringSettings() {
@@ -717,8 +780,13 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         systemRequirementsChecker.revealKanataInFinder(onRevealed: nil)
     }
 
+    /// Compatibility query: this build has no DriverKit backend.
     public func isKarabinerDriverInstalled() -> Bool {
-        systemRequirementsChecker.isKarabinerDriverInstalled()
+        false
+    }
+
+    public func getVirtualHIDBreakageSummary() async -> String {
+        "VirtualHID is unavailable in the driverless build"
     }
 
     func isKarabinerDriverExtensionEnabled() async -> Bool {
@@ -729,81 +797,14 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await systemRequirementsChecker.isKarabinerElementsRunning()
     }
 
-    func killKarabinerGrabber() async -> Bool {
-        await systemRequirementsChecker.killKarabinerGrabber()
-    }
-
-    func isKarabinerDaemonRunning() async -> Bool {
-        await systemRequirementsChecker.isKarabinerDaemonRunning()
-    }
-
-    func startKarabinerDaemon() async -> Bool {
-        await systemRequirementsChecker.startKarabinerDaemon()
-    }
-
-    func restartKarabinerDaemon() async -> Bool {
-        await systemRequirementsChecker.restartKarabinerDaemon()
-    }
-
-    public func getVirtualHIDBreakageSummary() async -> String {
-        let summary = await systemRequirementsChecker.getVirtualHIDBreakageSummary(
-            diagnosticsService: diagnosticsService
-        )
-        AppLogger.shared.log("🔎 [VHID-DIAG] Diagnostic summary:\n\(summary)")
-        return summary
-    }
-
     func getInstallationStatus() -> String {
-        systemRequirementsChecker.getInstallationStatus(isServiceInstalled: isServiceInstalled)
+        isServiceInstalled() ? "✅ Session runtime installed" : "❌ Session runtime missing"
     }
 
     func performTransparentInstallation() async -> Bool {
-        AppLogger.shared.log("🔧 [Installation] Starting transparent installation...")
-
-        var stepsCompleted = 0
-        var stepsFailed = 0
-        let totalSteps = 5
-
-        // 1. Check Kanata binary
-        let step1 = installationCoordinator.checkKanataBinary(stepNumber: 1, totalSteps: totalSteps)
-        if step1.success {
-            stepsCompleted += 1
-        } else {
-            stepsFailed += 1
-        }
-
-        // 2. Check Karabiner driver
-        _ = installationCoordinator.checkKarabinerDriver(stepNumber: 2, totalSteps: totalSteps)
-        stepsCompleted += 1 // Always counts as completed (warning-only)
-
-        // 3. Prepare daemon directories
-        installationCoordinator.logDaemonDirectoriesStep(stepNumber: 3, totalSteps: totalSteps)
-        await installationCoordinator.prepareDaemonDirectories()
-        installationCoordinator.logDaemonDirectoriesSuccess(stepNumber: 3, totalSteps: totalSteps)
-        stepsCompleted += 1
-
-        // 4. Create initial config
         await createInitialConfigIfNeeded()
-        let step4 = installationCoordinator.checkConfigFile(configPath: configPath, stepNumber: 4, totalSteps: totalSteps)
-        if step4.success {
-            stepsCompleted += 1
-        } else {
-            stepsFailed += 1
-        }
-
-        // 5. System config step (skipped in new architecture)
-        installationCoordinator.logSystemConfigSkipped(stepNumber: 5, totalSteps: totalSteps)
-        stepsCompleted += 1
-
-        return installationCoordinator.logInstallationResult(
-            stepsCompleted: stepsCompleted,
-            stepsFailed: stepsFailed,
-            totalSteps: totalSteps
-        )
-    }
-
-    private func prepareDaemonDirectories() async {
-        await installationCoordinator.prepareDaemonDirectories()
+        let snapshot = await installerEngine.inspectSystem()
+        return snapshot.isReady
     }
 
     // MARK: - Configuration Management
@@ -816,19 +817,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // MARK: - Methods Expected by Tests
 
     func isServiceInstalled() -> Bool {
-        let state = KanataDaemonManager.shared.currentManagementState
-        switch state {
-        case .uninstalled:
-            return false
-        case .unknown:
-            // State is .unknown when process is running but SMAppService not fully registered yet.
-            // This happens during the startup window where SMAppService.status lags behind actual process state.
-            // Since .unknown specifically means "process running but unclear management" (see KanataDaemonManager:154),
-            // treat it as installed to allow recording during this transient state.
-            return true
-        default:
-            return true
-        }
+        Foundation.FileManager.default.fileExists(atPath: WizardSystemPaths.bundledKanataPath)
     }
 
     // MARK: - Configuration Backup Managemen
@@ -836,7 +825,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Create a backup before opening config for editing
     /// Returns true if backup was created successfully
     func createPreEditBackup() -> Bool {
-        configBackupManager.createPreEditBackup()
+        configBackupManager.createPreEditBackup(generationPreferences: RuleBackupPreferences(defaults: ruleCollectionsManager.preferencesService.persistenceDefaults))
     }
 
     /// Get list of available configuration backups
@@ -845,13 +834,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     /// Restore configuration from a specific backup
-    func restoreFromBackup(_ backup: BackupInfo) throws {
-        try configBackupManager.restoreFromBackup(backup)
-
-        // Trigger reload after restoration
-        Task {
-            _ = await self.triggerConfigReload()
-        }
+    func restoreFromBackup(_ backup: BackupInfo) async -> SaveResult {
+        await ruleCollectionsManager.restoreConfigurationBackup(backup)
     }
 
     func resetToDefaultConfig() async throws {
@@ -862,7 +846,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
 
         // Create a safety backup of the current config (if valid) before resetting
-        let backupCreated = configBackupManager.createPreEditBackup()
+        let backupCreated = configBackupManager.createPreEditBackup(generationPreferences: RuleBackupPreferences(defaults: ruleCollectionsManager.preferencesService.persistenceDefaults))
         if backupCreated {
             AppLogger.shared.log("💾 [Reset] Safety backup created before default reset")
         } else {
@@ -1152,8 +1136,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// deliberately suppress that callback so they can verify the live result
     /// use this same path explicitly, keeping state and overlay notifications
     /// consistent without issuing a duplicate reload.
-    func applyPersistedRuleChanges() async -> ReloadResult {
-        let result = await triggerConfigReload()
+    func applyPersistedRuleChanges(recoverStoppedRuntime: Bool = false) async -> ReloadResult {
+        let result = await configReloadCoordinator.triggerConfigReload(recoverStoppedRuntime: recoverStoppedRuntime)
         notifyStateChanged()
         AppLogger.shared.debug(
             "🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification"
@@ -1305,18 +1289,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     func attemptKeyboardRecovery() async {
-        await recoveryCoordinator.attemptKeyboardRecovery()
-    }
-
-    func killAllKanataProcesses() async {
-        let report = await installerEngine
-            .runSingleAction(.terminateConflictingProcesses, using: privilegeBroker)
-        if report.success {
-            AppLogger.shared.log("🔧 [Recovery] Killed Kanata processes")
-        } else {
-            let failureReason = report.failureReason ?? "Unknown error"
-            AppLogger.shared.warn("⚠️ [Recovery] Failed to kill Kanata processes: \(failureReason)")
-        }
+        _ = await restartKanata(reason: "Session keyboard recovery")
     }
 
     // MARK: - Service Management

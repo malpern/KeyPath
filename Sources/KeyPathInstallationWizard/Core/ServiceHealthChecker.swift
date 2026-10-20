@@ -78,6 +78,12 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     private let healthCache = OSAllocatedUnfairLock(initialState: [String: HealthCacheEntry]())
     private let runtimeCache = OSAllocatedUnfairLock(initialState: RuntimeCacheState())
     private let serviceStatusCache = OSAllocatedUnfairLock(initialState: ServiceStatusCacheEntry?.none)
+    private let sessionReadinessProvider = OSAllocatedUnfairLock<(@Sendable () async -> KanataRuntimeReadiness)?>(initialState: nil)
+
+    public func configureSessionReadinessProvider(_ provider: @escaping @Sendable () async -> KanataRuntimeReadiness) {
+        sessionReadinessProvider.withLock { $0 = provider }
+        invalidateHealthCache()
+    }
 
     /// Clear cached health results. Useful in tests or after service state changes.
     public nonisolated func invalidateHealthCache() {
@@ -570,6 +576,9 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataRuntimeReadiness {
+        if KanataRuntimeBackend.selected == .session {
+            return await sessionReadinessProvider.withLock { $0 }?() ?? KanataRuntimeReadiness(isRunning: false, isResponding: false, inputCaptureReady: false)
+        }
         if TestEnvironment.shouldSkipAdminOperations {
             return KanataRuntimeReadiness(isRunning: false, isResponding: false)
         }
@@ -591,6 +600,15 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataServiceRuntimeSnapshot {
+        if KanataRuntimeBackend.selected == .session {
+            let readiness = await checkKanataServiceHealth(tcpPort: tcpPort, timeoutMs: timeoutMs)
+            return KanataServiceRuntimeSnapshot(
+                managementState: .uninstalled, isRunning: readiness.isRunning,
+                isResponding: readiness.isResponding, inputCaptureReady: readiness.inputCaptureReady,
+                inputCaptureIssue: readiness.isReady ? nil : "driverless-runtime-not-ready",
+                launchctlExitCode: nil, staleEnabledRegistration: false, recentlyRestarted: false
+            )
+        }
         #if DEBUG
             if let override = Self.runtimeSnapshotOverride {
                 return await override()

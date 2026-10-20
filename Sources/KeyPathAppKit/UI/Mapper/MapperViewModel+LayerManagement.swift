@@ -190,6 +190,11 @@ extension MapperViewModel {
 
     /// Select a system action for the output
     func selectSystemAction(_ action: SystemActionInfo) {
+        guard action.isSupportedInDriverlessSession else {
+            statusMessage = SystemActionInfo.driverlessMediaUnavailableReason
+            statusIsError = true
+            return
+        }
         selectedSystemAction = action
         selectedApp = nil
         selectedURL = nil
@@ -216,6 +221,12 @@ extension MapperViewModel {
 
         guard let inputSeq = inputSequence, let action = selectedSystemAction else {
             statusMessage = "Set input key first"
+            statusIsError = true
+            return
+        }
+
+        guard action.isSupportedInDriverlessSession else {
+            statusMessage = SystemActionInfo.driverlessMediaUnavailableReason
             statusIsError = true
             return
         }

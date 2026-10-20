@@ -5,13 +5,13 @@ import KeyPathRulesCore
 @preconcurrency import XCTest
 
 @MainActor
-final class DurableConfigPreferenceRecoveryTests: XCTestCase {
+final class DurableConfigPreferenceRecoveryTests: KeyPathTestCase {
     private var directory: URL!
     private var defaults: UserDefaults!
     private var suiteName: String!
 
     override func setUp() async throws {
-        TestEnvironment.forceTestMode = true
+        try await super.setUp()
         directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("DurableConfigPreferenceRecovery-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -20,9 +20,9 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        TestEnvironment.forceTestMode = false
         defaults.removePersistentDomain(forName: suiteName)
         try? FileManager.default.removeItem(at: directory)
+        try await super.tearDown()
     }
 
     func testInterruptedWriteRestoresLeaderFromAnotherDefaultsInstance() throws {
@@ -239,7 +239,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
     }
 
     @MainActor
-    func testDeviceSelectionsCommitOnlyAfterRestartAndRestoreOnRejection() async throws {
+    func testUnsupportedDeviceSelectionsRefuseBeforeRestartOrJournal() async throws {
         for restartSucceeds in [true, false] {
             let caseDirectory = directory.appendingPathComponent("device-\(restartSucceeds)")
             let cache = DeviceSelectionCache()
@@ -266,9 +266,9 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
                 return restartSucceeds
             }
 
-            XCTAssertEqual(success, restartSucceeds)
-            XCTAssertEqual(restartCount, restartSucceeds ? 1 : 2)
-            let expected = restartSucceeds ? candidate : baseline
+            XCTAssertFalse(success)
+            XCTAssertEqual(restartCount, 0, "Unsupported targeting must never reach restart")
+            let expected = baseline
             let persistedSelections = try await deviceStore.loadForMutation()
             let cachedSelections = cache.allSelections()
             XCTAssertEqual(persistedSelections.count, 1)
@@ -280,12 +280,7 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
             XCTAssertEqual(cachedSelections.first?.productKey, expected.productKey)
             XCTAssertEqual(cachedSelections.first?.isEnabled, expected.isEnabled)
             let persistedConfig = try Data(contentsOf: configURL)
-            if restartSucceeds {
-                XCTAssertNotEqual(persistedConfig, beforeConfig)
-                XCTAssertTrue(String(decoding: persistedConfig, as: UTF8.self).contains("macos-dev-names-include"))
-            } else {
-                XCTAssertEqual(persistedConfig, beforeConfig)
-            }
+            XCTAssertEqual(persistedConfig, beforeConfig)
             XCTAssertFalse(FileManager.default.fileExists(
                 atPath: RecoverableRuleWrite.journalURL(caseDirectory, scope: .deviceRules).path
             ))
@@ -313,13 +308,21 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
         let configURL = caseDirectory.appendingPathComponent("keypath.kbd")
         let beforeConfig = try Data(contentsOf: configURL)
 
-        try await service.operationGate.withOperation { @MainActor permit in
-            _ = try await service.stageRuleState(
-                ruleCollections: manager.ruleCollections, customRules: manager.customRules,
-                collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
-                mutationPermit: permit, deviceSelections: [candidate]
-            )
-        }
+        // Simulate a journal written by the historical device backend. New
+        // production writes still go through canonical session eligibility.
+        let targets = [
+            "config": configURL,
+            "collections": caseDirectory.appendingPathComponent("RuleCollections.json"),
+            "customRules": caseDirectory.appendingPathComponent("CustomRules.json"),
+            "deviceTargetingManifest": caseDirectory.appendingPathComponent("keypath-device-targeting.manifest"),
+            "deviceSelection": caseDirectory.appendingPathComponent("DeviceSelection.json")
+        ]
+        var staged = try Dictionary(uniqueKeysWithValues: targets.map { role, url in
+            try (role, Data(contentsOf: url))
+        })
+        staged["config"] = Data((String(decoding: beforeConfig, as: UTF8.self) + "\n;; interrupted historical device targeting\n").utf8)
+        staged["deviceSelection"] = try await deviceStore.encodedSelections([candidate])
+        _ = try RecoverableRuleWrite.stage(files: targets, contents: staged, directory: caseDirectory, scope: .deviceRules)
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: RecoverableRuleWrite.journalURL(caseDirectory, scope: .deviceRules).path
         ))
@@ -504,7 +507,8 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        let service = ConfigurationService(
+        try SessionBridgeTestFixture.requireAvailable()
+        let service = ConfigurationService.sessionTestService(
             configDirectory: directory.path,
             ruleCollectionStore: collections,
             customRulesStore: rules,
@@ -520,8 +524,13 @@ final class DurableConfigPreferenceRecoveryTests: XCTestCase {
         for index in sourceCollections.indices where sourceCollections[index].id != RuleCollectionIdentifier.leaderKey {
             sourceCollections[index].isEnabled = false
         }
-        try await collections.saveCollections(sourceCollections)
-        try await rules.saveRules([])
+        // Reopening a manager must not overwrite an interrupted staged revision.
+        if !FileManager.default.fileExists(atPath: directory.appendingPathComponent("RuleCollections.json").path) {
+            try await collections.saveCollections(sourceCollections)
+        }
+        if !FileManager.default.fileExists(atPath: directory.appendingPathComponent("CustomRules.json").path) {
+            try await rules.saveRules([])
+        }
         let preferences = PreferencesService(leaderDefaults: defaults)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collections,

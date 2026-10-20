@@ -55,6 +55,10 @@ public actor SystemStateProvider {
         liveProbes.isProcessAlive(pid: pid)
     }
 
+    public nonisolated static func canSignalProcess(pid: pid_t) -> Bool {
+        SystemProbeClient.canSignalProcess(pid: pid)
+    }
+
     public nonisolated static func probeTCPPort(port: Int, timeoutMs: Int = 300) -> Bool {
         liveProbes.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }

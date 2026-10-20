@@ -37,7 +37,7 @@ final class HelperVersionContractTests: KeyPathTestCase {
     }
 
     @MainActor
-    func testHealthyHelperVersionProducesHealthyAssessmentAndEmptyPlan() {
+    func testReadySessionProducesHealthyAssessmentWithoutHelperRecipe() {
         let context = SystemContextBuilder(
             servicesHealthy: true,
             kanataLaunchdLoaded: true,
@@ -49,7 +49,7 @@ final class HelperVersionContractTests: KeyPathTestCase {
         ).build()
         let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
 
-        XCTAssertEqual(decision.assessment, .runningAndTCPResponding)
+        XCTAssertEqual(decision.assessment, .sessionRuntimeReady)
         XCTAssertTrue(decision.matrixActions.isEmpty)
         XCTAssertTrue(decision.autoFixActions.isEmpty)
     }

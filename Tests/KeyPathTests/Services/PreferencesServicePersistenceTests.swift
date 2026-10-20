@@ -15,7 +15,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         "KeyPath.LeaderKey.Preference",
         "KeyPath.ContextHUD.DisplayMode",
         "KeyPath.ContextHUD.TriggerMode",
-        "KeyPath.ContextHUD.Timeout",
         "KeyPath.ContextHUD.HoldDelayPreset",
         "KeyPath.ContextHUD.HoldDelayCustomMs",
         "KeyPath.KindaVim.LeaderHUDMode",
@@ -25,6 +24,8 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         "KeyPath.Overlay.UnmappedLayerKeyStyle",
         "KeyPath.Education.OverlayHiddenHintShowCount",
         "KeyPath.Overlay.SuppressedBundleIDs",
+        "KeyPath.Overlay.Opacity",
+        "KeyPath.Overlay.FadesWhenIdle",
     ]
 
     private func withPreservedDefaults<T>(
@@ -58,7 +59,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
                 enabled: false
             )
             let writer = PreferencesService()
-            writer.tcpServerPort = 45678
+            UserDefaults.standard.set(45678, forKey: "KeyPath.TCP.ServerPort")
             writer.notificationsEnabled = false
             writer.applyMappingsDuringRecording = false
             writer.isSequenceMode = false
@@ -71,7 +72,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             writer.overlaySuppressedBundleIDs = Set(["com.example.Editor", "com.example.Terminal"])
             writer.contextHUDDisplayMode = .both
             writer.contextHUDTriggerMode = .tapToToggle
-            writer.contextHUDTimeout = 6.5
             writer.contextHUDHoldDelayPreset = .custom
             writer.contextHUDHoldDelayCustomMs = 750
             writer.kindaVimLeaderHUDMode = .cheatSheetOnly
@@ -82,7 +82,8 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
             let loaded = PreferencesService()
 
-            XCTAssertEqual(loaded.tcpServerPort, 45678)
+            XCTAssertEqual(loaded.tcpServerPort, 37001)
+            XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 45678)
             XCTAssertFalse(loaded.notificationsEnabled)
             XCTAssertFalse(loaded.applyMappingsDuringRecording)
             XCTAssertFalse(loaded.isSequenceMode)
@@ -95,7 +96,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             XCTAssertEqual(loaded.overlaySuppressedBundleIDs, Set(["com.example.Editor", "com.example.Terminal"]))
             XCTAssertEqual(loaded.contextHUDDisplayMode, .both)
             XCTAssertEqual(loaded.contextHUDTriggerMode, .tapToToggle)
-            XCTAssertEqual(loaded.contextHUDTimeout, 6.5)
             XCTAssertEqual(loaded.contextHUDHoldDelayPreset, .custom)
             XCTAssertEqual(loaded.contextHUDHoldDelayCustomMs, 750)
             XCTAssertEqual(loaded.contextHUDHoldDelayMs, 750)
@@ -113,15 +113,12 @@ final class PreferencesServicePersistenceTests: XCTestCase {
     func testLoadClampsInvalidPersistedRuntimeAndHUDValues() {
         withPreservedDefaults {
             UserDefaults.standard.set(80, forKey: "KeyPath.TCP.ServerPort")
-            UserDefaults.standard.set(99.0, forKey: "KeyPath.ContextHUD.Timeout")
             UserDefaults.standard.set(-25, forKey: "KeyPath.ContextHUD.HoldDelayCustomMs")
 
             let prefs = PreferencesService()
 
             XCTAssertEqual(prefs.tcpServerPort, 37001)
-            XCTAssertNil(UserDefaults.standard.object(forKey: "KeyPath.TCP.ServerPort"))
-            XCTAssertEqual(prefs.contextHUDTimeout, 10.0)
-            XCTAssertEqual(UserDefaults.standard.double(forKey: "KeyPath.ContextHUD.Timeout"), 10.0)
+            XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 80)
             XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
             XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.ContextHUD.HoldDelayCustomMs"), 100)
         }
@@ -145,7 +142,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             XCTAssertEqual(prefs.communicationProtocol, .tcp)
             XCTAssertEqual(prefs.keyLabelStyle, .symbols)
             XCTAssertEqual(prefs.unmappedLayerKeyStyle, .baseLayer)
-            XCTAssertEqual(prefs.contextHUDDisplayMode, .overlayOnly)
+            XCTAssertEqual(prefs.contextHUDDisplayMode, .none)
             XCTAssertEqual(prefs.contextHUDTriggerMode, .holdToShow)
             XCTAssertEqual(prefs.contextHUDHoldDelayPreset, .long)
             XCTAssertEqual(prefs.kindaVimLeaderHUDMode, .off)
@@ -203,24 +200,22 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             let manager = ConfigurationManager(configurationService: configService)
 
             let prefs = PreferencesService.shared
-            let originalPort = prefs.tcpServerPort
             let originalVerboseLogging = prefs.verboseKanataLogging
             defer {
-                prefs.tcpServerPort = originalPort
                 prefs.verboseKanataLogging = originalVerboseLogging
             }
 
-            prefs.tcpServerPort = 45678
+            UserDefaults.standard.set(45678, forKey: "KeyPath.TCP.ServerPort")
             prefs.verboseKanataLogging = true
 
             let verboseArgs = manager.buildKanataArguments(checkOnly: false)
-            XCTAssertEqual(verboseArgs.portArgumentValue, "45678")
+            XCTAssertEqual(verboseArgs.portArgumentValue, "37001")
             XCTAssertTrue(verboseArgs.contains("--trace"))
             XCTAssertTrue(verboseArgs.contains("--log-layer-changes"))
 
             prefs.verboseKanataLogging = false
             let normalArgs = manager.buildKanataArguments(checkOnly: false)
-            XCTAssertEqual(normalArgs.portArgumentValue, "45678")
+            XCTAssertEqual(normalArgs.portArgumentValue, "37001")
             XCTAssertFalse(normalArgs.contains("--trace"))
             XCTAssertTrue(normalArgs.contains("--log-layer-changes"))
         }
@@ -228,30 +223,26 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
     // MARK: - Value Clamping Tests
 
-    func testContextHUDTimeout_ClampedToMinimum() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 0.5
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0, "Timeout should be clamped to minimum 1.0")
-    }
+    func testOverlayOpacityAndIdleFadePersistAndClamp() {
+        withPreservedDefaults {
+            let writer = PreferencesService()
+            XCTAssertEqual(writer.overlayOpacity, 1.0)
+            XCTAssertTrue(writer.overlayFadesWhenIdle)
 
-    func testContextHUDTimeout_ClampedToMaximum() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 15.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 10.0, "Timeout should be clamped to maximum 10.0")
-    }
+            writer.overlayOpacity = 0.6
+            writer.overlayFadesWhenIdle = false
+            let loaded = PreferencesService()
+            XCTAssertEqual(loaded.overlayOpacity, 0.6, accuracy: 0.001)
+            XCTAssertFalse(loaded.overlayFadesWhenIdle)
 
-    func testContextHUDTimeout_AcceptsValidValue() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 5.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 5.0)
-    }
-
-    func testContextHUDTimeout_AcceptsBoundaries() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 1.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0)
-        prefs.contextHUDTimeout = 10.0
-        XCTAssertEqual(prefs.contextHUDTimeout, 10.0)
+            // Never so faint the overlay is lost, never above fully opaque.
+            loaded.overlayOpacity = 0.05
+            XCTAssertEqual(loaded.overlayOpacity, 0.3, accuracy: 0.001)
+            loaded.overlayOpacity = 3
+            XCTAssertEqual(loaded.overlayOpacity, 1.0, accuracy: 0.001)
+            UserDefaults.standard.set(Double.nan, forKey: "KeyPath.Overlay.Opacity")
+            XCTAssertEqual(PreferencesService().overlayOpacity, 1.0, accuracy: 0.001)
+        }
     }
 
     func testContextHUDHoldDelayCustomMs_ClampedToMinimum() {
@@ -280,18 +271,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 2000)
     }
 
-    func testContextHUDTimeout_ZeroClampedToMin() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = 0
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0)
-    }
-
-    func testContextHUDTimeout_NegativeClampedToMin() {
-        let prefs = PreferencesService()
-        prefs.contextHUDTimeout = -5
-        XCTAssertEqual(prefs.contextHUDTimeout, 1.0)
-    }
-
     func testContextHUDHoldDelayCustomMs_ZeroClampedToMin() {
         let prefs = PreferencesService()
         prefs.contextHUDHoldDelayCustomMs = 0
@@ -306,19 +285,18 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
     // MARK: - TCP Port Validation
 
-    func testTcpServerPort_ValidPortAccepted() {
-        let prefs = PreferencesService()
-        let originalPort = prefs.tcpServerPort
-        prefs.tcpServerPort = 8080
-        XCTAssertEqual(prefs.tcpServerPort, 8080)
-        prefs.tcpServerPort = originalPort
-    }
-
-    func testTcpServerPort_InvalidPortReverts() {
-        let prefs = PreferencesService()
-        let originalPort = prefs.tcpServerPort
-        prefs.tcpServerPort = 80
-        XCTAssertEqual(prefs.tcpServerPort, originalPort, "Invalid port should revert to previous")
+    func testTcpServerPort_PersistedValuesCannotRedirectSessionClients() {
+        withPreservedDefaults(keys: ["KeyPath.TCP.ServerPort"]) {
+            for storedPort in [-1, 0, 80, 1024, 8123, 37001, 45678, 54141, 65535, 65536] {
+                UserDefaults.standard.set(storedPort, forKey: "KeyPath.TCP.ServerPort")
+                let prefs = PreferencesService()
+                XCTAssertEqual(prefs.tcpServerPort, 37001, "Stored port \(storedPort) must not redirect clients")
+                XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), storedPort)
+                prefs.resetCommunicationSettings()
+                XCTAssertEqual(prefs.tcpServerPort, 37001)
+                XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), storedPort)
+            }
+        }
     }
 
     func testTcpServerPort_BoundaryValues() {
@@ -347,56 +325,13 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertNil(UserDefaults.standard.object(forKey: key))
     }
 
-    // MARK: - Legacy TCP Port Migration
-
-    /// An old install that still has the UDP-era port (54141) stored should be
-    /// migrated to the current default (37001) on load, and the stale key
-    /// cleared so it tracks the default going forward. This is the fix for the
-    /// "no TCP" mismatch where the app dialed 54141 while kanata listened on 37001.
-    func testTcpServerPort_LegacyUDPEraPortMigratesToDefault() {
-        let key = "KeyPath.TCP.ServerPort"
-        let saved = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-
-        UserDefaults.standard.set(54141, forKey: key)
-
-        let prefs = PreferencesService()
-
-        XCTAssertEqual(prefs.tcpServerPort, 37001, "Legacy port should migrate to current default")
-        XCTAssertNil(
-            UserDefaults.standard.object(forKey: key),
-            "Stale key should be cleared so the port tracks the default going forward"
-        )
-    }
-
-    /// A deliberately-chosen non-legacy port must NOT be clobbered by the migration.
-    func testTcpServerPort_DeliberateCustomPortPreserved() {
-        let key = "KeyPath.TCP.ServerPort"
-        let saved = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let saved { UserDefaults.standard.set(saved, forKey: key) } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-
-        UserDefaults.standard.set(8123, forKey: key)
-
-        let prefs = PreferencesService()
-
-        XCTAssertEqual(prefs.tcpServerPort, 8123, "A non-legacy custom port must be preserved")
-    }
-
     // MARK: - LeaderKeyPreference Codable Tests
 
     func testLeaderKeyPreference_DefaultValues() {
         let pref = LeaderKeyPreference.default
         XCTAssertEqual(pref.key, "space")
         XCTAssertEqual(pref.targetLayer, .navigation)
-        XCTAssertTrue(pref.enabled)
+        XCTAssertFalse(pref.enabled, "Fresh profiles must not create an unrequested navigation layer")
     }
 
     func testLeaderKeyPreference_RoundTripCodable() throws {
@@ -605,12 +540,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertTrue(prefs.isSequenceMode)
     }
 
-    func testDefaultContextHUDTimeout_InRange() {
-        let prefs = PreferencesService()
-        XCTAssertGreaterThanOrEqual(prefs.contextHUDTimeout, 1.0)
-        XCTAssertLessThanOrEqual(prefs.contextHUDTimeout, 10.0)
-    }
-
     func testDefaultContextHUDHoldDelay_InRange() {
         let prefs = PreferencesService()
         XCTAssertGreaterThanOrEqual(prefs.contextHUDHoldDelayCustomMs, 100)
@@ -646,7 +575,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         let prefs = PreferencesService()
         let defaultPort = 37001
 
-        prefs.tcpServerPort = 9999
         prefs.resetCommunicationSettings()
 
         XCTAssertEqual(prefs.communicationProtocol, .tcp)

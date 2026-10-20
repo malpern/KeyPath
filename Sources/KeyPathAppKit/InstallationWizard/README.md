@@ -153,7 +153,7 @@ Pages are shown in priority order when issues are detected:
 All wizard types are defined in `WizardTypes.swift` (433 lines):
 
 ### Pages (`WizardPage` enum)
-- `summary`, `fullDiskAccess`, `conflicts`, `inputMonitoring`, `accessibility`
+- `summary`, `conflicts`, `inputMonitoring`, `accessibility`
 - `communication`, `karabinerComponents`, `kanataComponents`, `service`
 
 ### System State (`WizardSystemState` enum)
@@ -171,7 +171,7 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
 
 ### Requirements
 - `SystemConflict` - Conflicting processes (Karabiner-Grabber, orphaned Kanata, etc.)
-- `PermissionRequirement` - TCC permissions (Input Monitoring, Accessibility, FDA)
+- `PermissionRequirement` - TCC permissions (Input Monitoring, Accessibility)
 - `ComponentRequirement` - System components (drivers, binaries, services)
 
 ## How State-Driven Navigation Works
@@ -186,8 +186,7 @@ The wizard uses `WizardNavigationEngine.determineCurrentPage()` to calculate the
 4. Check for Karabiner issues → .karabinerComponents
 5. Check for Kanata issues → .kanataComponents
 6. Check service state → .service
-7. Show Full Disk Access once → .fullDiskAccess (if not shown and no blocking issues)
-8. Default → .summary (all clear)
+7. Default → .summary (all clear)
 ```
 
 This ensures users always see the **most critical issue first** without manual navigation.
@@ -208,7 +207,6 @@ InstallationWizardView.swift (1,020 lines)
 ├── Header (title, close button)
 ├── Page Content (dynamic based on currentPage)
 │   ├── WizardSummaryPage
-│   ├── WizardFullDiskAccessPage
 │   ├── WizardConflictsPage
 │   ├── WizardInputMonitoringPage
 │   ├── WizardAccessibilityPage

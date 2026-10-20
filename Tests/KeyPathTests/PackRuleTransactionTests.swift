@@ -12,11 +12,12 @@ final class PackRuleTransactionTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
+        try SessionBridgeTestFixture.requireAvailable()
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let collections = RuleCollectionStore.testStore(at: directory.appendingPathComponent("RuleCollections.json"))
         let rules = CustomRulesStore.testStore(at: directory.appendingPathComponent("CustomRules.json"))
-        let service = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let service = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: collections, customRulesStore: rules)
         manager = RuleCollectionsManager(ruleCollectionStore: collections, customRulesStore: rules, configurationService: service)
         manager.ruleCollections = []
         manager.customRules = [CustomRule(input: "f20", action: .keystroke(key: "f19"), createdAt: Date(timeIntervalSince1970: 42))]
@@ -29,7 +30,9 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: directory)
+        if let directory {
+            try? FileManager.default.removeItem(at: directory)
+        }
         manager = nil
         tracker = nil
         pack = nil
@@ -64,8 +67,8 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testDeclinedCollectionConflictPreservesExistingRuleAndExplainsFailure() async throws {
-        pack = PackRegistry.capsLockToEscape
-        manager.customRules.append(CustomRule(input: "caps", action: .keystroke(key: "f13")))
+        pack = PackRegistry.homeRowMods
+        manager.customRules.append(CustomRule(input: "a", action: .keystroke(key: "f13")))
         try await manager.configurationService.saveRuleState(
             ruleCollections: manager.ruleCollections,
             customRules: manager.customRules,
@@ -88,8 +91,115 @@ final class PackRuleTransactionTests: KeyPathTestCase {
         XCTAssertEqual(manager.customRules, originalRules)
     }
 
-    func testCollectionPackStagesRecordWithCollectionBeforeOneAcceptedReload() async throws {
+    func testCapsCollectionPackCommitsBeforeOneReloadAndPreservesCustomRules() async throws {
         pack = PackRegistry.capsLockToEscape
+        let rules = manager.customRules
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            let record = await self.tracker.record(for: self.pack.id)
+            XCTAssertNotNil(record)
+            XCTAssertTrue(self.manager.ruleCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
+            return Self.reload(.applied)
+        }
+        _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(manager.customRules, rules)
+        let storedCollections = await manager.ruleCollectionStore.loadCollections()
+        let storedCaps = try XCTUnwrap(storedCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        let activeCaps = try XCTUnwrap(manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        XCTAssertEqual(storedCaps.configuration, activeCaps.configuration)
+        XCTAssertEqual(storedCaps.isEnabled, activeCaps.isEnabled)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory, scope: .packRules).path))
+        let record = await tracker.record(for: pack.id)
+        XCTAssertEqual(record?.version, pack.version)
+    }
+
+    func testTourCapsPreparationFailureRestoresStateAndAllowsOrdinarySave() async throws {
+        try await assertTourCapsPreparationFailureRestoresState(capsInitiallyEnabled: false)
+    }
+
+    func testTourCapsPreparationFailurePreservesPreexistingEnabledCapsRule() async throws {
+        try await assertTourCapsPreparationFailureRestoresState(capsInitiallyEnabled: true)
+    }
+
+    private func assertTourCapsPreparationFailureRestoresState(capsInitiallyEnabled: Bool) async throws {
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        var caps = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        caps.isEnabled = capsInitiallyEnabled
+        let capsID = caps.id
+        var launcher = try XCTUnwrap(catalog.first { $0.id == RuleCollectionIdentifier.launcher })
+        launcher.isEnabled = true
+        manager.ruleCollections = [caps, launcher]
+        try await manager.configurationService.saveRuleState(
+            ruleCollections: manager.ruleCollections, customRules: manager.customRules,
+            collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore
+        )
+        manager.ruleCollections = try await manager.ruleCollectionStore.loadForMutation()
+        if capsInitiallyEnabled {
+            try await tracker.upsert(InstalledPackRecord(
+                packID: PackRegistry.capsLockToEscape.id, version: "previous",
+                installedAt: Date(timeIntervalSince1970: 21)
+            ))
+        }
+        let originalCollections = manager.ruleCollections
+        let originalRules = manager.customRules
+        let before = try snapshot()
+        let configuration = try XCTUnwrap(FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(from: caps.configuration))
+        var applications = 0
+        var ordinaryReloads = 0
+        manager.onRulesChanged = {
+            ordinaryReloads += 1
+            XCTAssertEqual(self.manager.ruleCollections.first { $0.id == capsID }?.isEnabled, capsInitiallyEnabled)
+            return Self.reload(.applied)
+        }
+        let outcome = await FirstSuccessOnboardingWindowController.installCapsLockEscapeTransaction(
+            manager: manager, configuration: configuration, disableCatalogLauncher: true,
+            installedPackTracker: tracker,
+            apply: {
+                applications += 1
+                if applications == 1 {
+                    XCTAssertTrue(self.manager.ruleCollections.contains { $0.id == capsID && $0.isEnabled })
+                    return ReloadResult(success: false, response: nil, errorMessage: "No compatible Caps keyboard",
+                                        protocol: nil, disposition: .rejected)
+                }
+                XCTAssertEqual(try? self.snapshot(), before)
+                return Self.reload(.applied)
+            }
+        )
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(applications, 2)
+        XCTAssertEqual(ordinaryReloads, 0)
+        XCTAssertEqual(try snapshot(), before)
+        XCTAssertEqual(manager.ruleCollections, originalCollections)
+        XCTAssertEqual(manager.customRules, originalRules)
+        let saved = await manager.saveCustomRule(CustomRule(input: "a", action: .keystroke(key: "c")))
+        XCTAssertTrue(saved)
+        XCTAssertEqual(ordinaryReloads, 1)
+        XCTAssertTrue(manager.customRules.contains { $0.input == "a" })
+    }
+
+    func testTourCapsSuccessfulApplicationRunsOnceInsidePackTransaction() async throws {
+        let caps = try XCTUnwrap(RuleCollectionCatalog().defaultCollections().first { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        let configuration = try XCTUnwrap(FirstSuccessOnboardingWindowController.escapeOnlyCapsLockConfiguration(from: caps.configuration))
+        var applications = 0
+        manager.onRulesChanged = { XCTFail("Tour must use its explicit recovery callback"); return Self.reload(.failed) }
+        let outcome = await FirstSuccessOnboardingWindowController.installCapsLockEscapeTransaction(
+            manager: manager, configuration: configuration, disableCatalogLauncher: false,
+            installedPackTracker: tracker,
+            apply: {
+                applications += 1
+                XCTAssertTrue(FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(self.directory, scope: .packRules).path))
+                return Self.reload(.applied)
+            }
+        )
+        XCTAssertEqual(outcome, .applied)
+        XCTAssertEqual(applications, 1)
+        XCTAssertTrue(manager.ruleCollections.contains { $0.id == caps.id && $0.isEnabled })
+    }
+
+    func testCollectionPackStagesRecordWithCollectionBeforeOneAcceptedReload() async throws {
+        pack = PackRegistry.homeRowMods
         var reloads = 0
         manager.onRulesChanged = {
             reloads += 1
@@ -105,7 +215,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testCollectionPackMetadataWriteFailureLeavesNoPartialActivation() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         let before = try snapshot()
         let collections = manager.ruleCollections
         let failing = InstalledPackTracker(fileURL: directory.appendingPathComponent("installed-packs.json"), writeFile: { _, _ in
@@ -126,7 +236,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testRejectedCollectionPackInstallRestoresFourFiles() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         let before = try snapshot()
         let collections = manager.ruleCollections
         var reloads = 0
@@ -145,7 +255,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testRejectedCollectionPackUninstallRestoresRecordAndCollection() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
         let before = try snapshot()
         let collections = manager.ruleCollections
@@ -167,7 +277,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testCollectionPackUninstallPendingCommitsRecordRemovalWithOneReload() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         _ = try await PackInstaller.shared.install(pack, manager: manager, installedPackTracker: tracker)
         var reloads = 0
         manager.onRulesChanged = { reloads += 1; return Self.reload(.pending) }
@@ -180,7 +290,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
     }
 
     func testCollectionPackExternalMetadataEditPreservesConflictingRevision() async throws {
-        pack = PackRegistry.capsLockToEscape
+        pack = PackRegistry.homeRowMods
         var external: [String: Data]?
         var reloads = 0
         manager.onRulesChanged = {
@@ -316,7 +426,7 @@ final class PackRuleTransactionTests: KeyPathTestCase {
                 packRecord: .init(tracker: self.tracker, record: InstalledPackRecord(packID: self.pack.id, version: "2"))
             )
         }
-        let fresh = ConfigurationService(configDirectory: directory.path, ruleCollectionStore: manager.ruleCollectionStore, customRulesStore: manager.customRulesStore)
+        let fresh = ConfigurationService.sessionTestService(configDirectory: directory.path, ruleCollectionStore: manager.ruleCollectionStore, customRulesStore: manager.customRulesStore)
         try await fresh.recoverPendingRuleWrite(collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore)
         XCTAssertEqual(try snapshot(), before)
     }

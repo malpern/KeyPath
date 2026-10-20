@@ -99,6 +99,10 @@ Notes:
 
 ### VM Lab Concurrency (mandatory admission path)
 
+- Before VM admission, follow the pre-run iteration policy in
+  `docs/testing/remote-installer-lab.md`. Batch same-artifact tests, verify scenario
+  capabilities before setup, and keep clean-consent evidence separate from UI iteration.
+
 - The lab now lives in its own repository and serves several projects. All
   disposable KeyPath VM work must go through the installed `vm-lab` CLI, which
   takes the tenant first: `vm-lab keypath <command>`. Do not create
@@ -226,9 +230,14 @@ It verifies:
 - code signature
 - Gatekeeper assessment
 - stapled notarization ticket
-- KeyPath process
-- `system/com.keypath.kanata` launchd job
-- TCP readiness on `127.0.0.1:37001`
+- exact installed KeyPath session parent and worker, with matching non-root UID
+- private owned worker report, bound to launch nonce/PID/UID and canonical freshness
+- TCP readiness on `127.0.0.1:37001`, with the listener owned by that worker
+
+Runtime inspection requires Python 3 (override `KEYPATH_VERIFY_PYTHON` with its
+executable path) and macOS `lsof`. It is read-only and never starts or repairs a
+runtime. The bundled CLI's legacy service/status commands are not driverless
+session readiness evidence.
 
 For non-notarized local debug builds, skip distribution trust checks:
 ```bash
@@ -463,3 +472,7 @@ Load these on demand; do not treat them as required reading for every session.
 | Architecture guides | `docs/architecture/` |
 | ADRs | `docs/adr/README.md` |
 | Feature docs | `docs/features/` |
+
+## Air UI iteration
+
+Follow `docs/ITERATION_WORKFLOW.md` for small Air-focused changes. Use Help → Preview KeyPath Tour for non-mutating visual checks, the real tour for save integration checks, and verify both JSON and generated config after deleting test shortcuts. Record the installed binary hash and distinguish automated coverage from live verification.

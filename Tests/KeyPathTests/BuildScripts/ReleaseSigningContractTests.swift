@@ -37,6 +37,17 @@ final class ReleaseSigningContractTests: XCTestCase {
             "release-doctor must run the source signing contract during release preflight."
         )
     }
+
+    func testCompletedPayloadGateRunsAfterResourceBundlesAndBeforeOptionalSigning() throws {
+        let root = repositoryRoot()
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
+        let copiedResourceBundle = try XCTUnwrap(buildAndSign.range(of: "ditto \"$RESOURCE_BUNDLE\" \"$RESOURCES/$BUNDLE_NAME\""))
+        let payloadGate = try XCTUnwrap(buildAndSign.range(of: "verify-identity-contract.sh\" --payload-only \"$APP_BUNDLE\""))
+        let signingBranch = try XCTUnwrap(buildAndSign.range(of: "if [ \"$SKIP_CODESIGN\" = \"1\" ]; then"))
+
+        XCTAssertLessThan(copiedResourceBundle.lowerBound, payloadGate.lowerBound)
+        XCTAssertLessThan(payloadGate.lowerBound, signingBranch.lowerBound)
+    }
 }
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {

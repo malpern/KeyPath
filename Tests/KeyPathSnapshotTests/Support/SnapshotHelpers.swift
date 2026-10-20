@@ -168,6 +168,14 @@ class ScreenshotTestCase: XCTestCase {
         guard snapshotsEnabled || isRecordingMode else {
             throw XCTSkip("Snapshot tests disabled. Set KEYPATH_SNAPSHOTS=1 to enable.")
         }
+        // Initialize AppKit even when this is the first/only suite in a filtered run.
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { _ = NSApplication.shared }
+        } else {
+            DispatchQueue.main.sync { _ = NSApplication.shared }
+        }
+        // Snapshot rendering must not scan the developer's installed apps.
+        HelperMaintenance.testDuplicateAppPathsOverride = { [] }
         originalHomeEnv = ProcessInfo.processInfo.environment["HOME"]
         originalFixedHomeEnv = ProcessInfo.processInfo.environment["CFFIXED_USER_HOME"]
         let isolatedHome = FileManager.default.temporaryDirectory
@@ -201,6 +209,7 @@ class ScreenshotTestCase: XCTestCase {
     }
 
     override func tearDown() {
+        HelperMaintenance.testDuplicateAppPathsOverride = nil
         if let snapshotDefaultsSuiteName {
             snapshotDefaults?.removePersistentDomain(forName: snapshotDefaultsSuiteName)
         }

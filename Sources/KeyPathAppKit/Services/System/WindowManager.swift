@@ -258,7 +258,7 @@ public final class WindowManager {
 
     /// Show user feedback when Accessibility permission is required
     private func notifyAccessibilityPermissionRequired() {
-        let message = "Window Management requires Accessibility permission. Enable in System Settings > Privacy & Security > Accessibility, then restart KeyPath."
+        let message = "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath), then restart KeyPath."
         AppLogger.shared.log("⚠️ [WindowManager] \(message)")
         notificationService.notifyActionError(message)
     }

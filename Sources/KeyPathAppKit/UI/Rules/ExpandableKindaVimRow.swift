@@ -20,8 +20,7 @@ struct ExpandableKindaVimRow: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isHovered ? Color(NSColor.controlBackgroundColor).opacity(0.5)
-                    : Color(NSColor.windowBackgroundColor))
+                .fill(isHovered ? SettingsDesign.hoverFill : Color.clear)
                 .allowsHitTesting(false)
         )
         .overlay(

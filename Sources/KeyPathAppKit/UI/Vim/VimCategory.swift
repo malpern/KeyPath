@@ -12,8 +12,8 @@ enum VimCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .navigation: "Navigation"
-        case .editing: "Editing"
+        case .navigation: "Move"
+        case .editing: "Edit"
         case .search: "Search"
         case .clipboard: "Clipboard"
         }
@@ -30,19 +30,16 @@ enum VimCategory: String, CaseIterable, Identifiable {
 
     var commandInputs: [String] {
         switch self {
-        case .navigation: ["h", "j", "k", "l", "0", "4", "a", "g"]
+        case .navigation: ["h", "j", "k", "l", "w", "b", "e", "0", "4", "a", "g"]
         case .editing: ["x", "r", "d", "u", "o"]
         case .search: ["/", "n"]
         case .clipboard: ["y", "p"]
         }
     }
 
+    /// Every Vim key uses the overlay's navigation color, so a key looks the same in
+    /// Settings, the Shortcut List and the overlay. Groups differ by heading and icon.
     var accentColor: Color {
-        switch self {
-        case .navigation: .blue
-        case .editing: .orange
-        case .search: .purple
-        case .clipboard: .green
-        }
+        KeyPathColors.layerGreen
     }
 }

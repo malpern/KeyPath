@@ -39,14 +39,18 @@ Release Space and you're back to normal typing. Space still types a space when y
 
 Vim Navigation is the foundation that every other layer pack depends on. It defines the Leader key (Space by default) that activates all layers.
 
-![Screenshot — Vim Navigation pack detail showing the full mapping table](pack-detail-vim-navigation.png)
+The pack's page draws the layer on your keyboard: each key you can use while holding Space is labelled with what it does, in the same green as the overlay, with the H/J/K/L arrows in orange. Point at a key to see the Mac shortcut it sends, and use **Space + ⇧** or **Space + ⌃** above the keyboard to see what those keys do with Shift or Control. The same commands are listed underneath in four groups (Move, Edit, Search, Clipboard), with the same names the overlay and the Shortcut List use.
+
+**Key names.** Below the list, choose **Plain** (Copy, Paste, Top — the default) or **Vim terms** (yank, put, gg). The choice changes the keys on the overlay and in the Shortcut List too.
+
+![Screenshot — Vim Navigation pack detail showing the layer on the keyboard](pack-detail-vim-navigation.png)
 
 ---
 
 ## How It Works
 
 1. **Tap Space** → types a normal space character
-2. **Hold Space** → activates the navigation layer (the overlay shows your mappings)
+2. **Hold Space** → activates the navigation layer (to see your mappings while you hold it, choose **Overlay** under **While a Layer Is Active** in Settings)
 3. **While holding Space, press a key** → fires the mapped action (arrow, copy, undo, etc.)
 4. **Release Space** → back to normal typing instantly
 

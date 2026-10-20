@@ -21,7 +21,7 @@ struct KindaVimModeBadge: View {
                     .foregroundStyle(.secondary)
                 Text(modeLabel(for: mode))
                     .font(.system(size: 9, weight: .heavy))
-                    .foregroundStyle(tint(for: mode))
+                    .foregroundStyle(Self.tint(for: mode))
                 if !sequenceObserver.countBuffer.isEmpty {
                     Text("\(sequenceObserver.countBuffer)×")
                         .font(.system(size: 9, weight: .heavy, design: .monospaced))
@@ -38,7 +38,7 @@ struct KindaVimModeBadge: View {
             .padding(.vertical, 2)
             .background(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(tint(for: mode).opacity(0.15))
+                    .fill(Self.tint(for: mode).opacity(0.15))
             )
             .accessibilityIdentifier("kindavim-mode-badge")
             .accessibilityLabel(accessibilityDescription(for: mode))
@@ -75,7 +75,8 @@ struct KindaVimModeBadge: View {
         return adapter.state.mode != .unknown
     }
 
-    private func tint(for mode: KindaVimStateAdapter.Mode) -> Color {
+    /// Mode colors, shared with the KindaVim pack's status panel.
+    static func tint(for mode: KindaVimStateAdapter.Mode) -> Color {
         switch mode {
         case .normal: .green
         case .insert: .blue

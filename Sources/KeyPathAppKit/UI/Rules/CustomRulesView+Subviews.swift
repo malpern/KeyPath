@@ -430,7 +430,7 @@ struct CustomRuleRow: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
     }
 

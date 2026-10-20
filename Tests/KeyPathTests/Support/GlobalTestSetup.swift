@@ -12,6 +12,15 @@ enum TestSingletonReset {
     /// Reset all known mutable singletons to their default state.
     /// Call this in setUp() of any test that touches shared state.
     static func resetAll() {
+        #if DEBUG
+            // All configuration-writing harnesses exercise the same fresh real
+            // bridge, including services constructed indirectly by managers.
+            // An explicit missing/bad path remains a validation failure.
+            ConfigurationService.setSessionValidationRuntimeHostForTesting(
+                ProcessInfo.processInfo.environment["KEYPATH_SESSION_TEST_BRIDGE_PATH"] == nil
+                    ? nil : SessionBridgeTestFixture.runtimeHost
+            )
+        #endif
         // MainAppStateController — most common source of flakiness
         let controller = MainAppStateController.shared
         controller.validationState = nil
@@ -30,18 +39,10 @@ enum TestSingletonReset {
         // with the other shared state so suites cannot inherit a forced result.
         KarabinerConflictService.testDaemonRunning = nil
 
-        // Wait-for-exit seams (#625 part-1): safe defaults so any test reaching
-        // ServiceLifecycleCoordinator.startKanata neither spawns real `pgrep`
-        // (parallel-run deadlock risk) nor waits real time. Tests that exercise the
-        // wait-for-exit logic override these explicitly and rely on this reset to
-        // avoid bleeding into the next test.
+        // Session lifecycle tests must never launch or terminate a real application.
         #if DEBUG
-            ServiceLifecycleCoordinator.testPgrepProvider = { _ in [] }
-            ServiceLifecycleCoordinator.testLivenessProbe = nil
-            ServiceLifecycleCoordinator.testSignal = nil
-            ServiceLifecycleCoordinator.testTCPProbe = nil
-            ServiceLifecycleCoordinator.testSleep = { _ in }
-            ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = nil
+            ServiceLifecycleCoordinator.testSessionStart = { _ in false }
+            ServiceLifecycleCoordinator.testSessionStop = { true }
             WizardSystemPaths.setBundledKanataPathOverride(nil)
 
             // ServiceHealthChecker.shared is a process-wide singleton with its own

@@ -164,9 +164,11 @@ cat > "$PLIST" <<PLIST_EOF
       domain. Do not assign this registration the swiftpm-safe label; route
       SwiftPM jobs to a real logged-in LaunchAgent. This daemon remains useful
       for lightweight jobs that do not resolve or build Swift packages.
+      ProcessType is Standard, not Background: Background makes macOS throttle
+      CPU and I/O, which made CI jobs about 10x slower (2026-10-19).
     -->
     <key>ProcessType</key>
-    <string>Background</string>
+    <string>Standard</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>

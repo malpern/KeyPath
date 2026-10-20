@@ -16,7 +16,9 @@ public extension SystemStateResult {
             stateMatrixPlan: decision.matrixActions.map(\.rawValue),
             captureStatus: context.captureStatus,
             helperInstalled: context.helper.isInstalled,
-            helperNeedsApproval: context.helper.requiresApproval
+            helperNeedsApproval: context.helper.requiresApproval,
+            backend: context.permissions.backend,
+            permissions: context.captureStatus.isComplete ? context.permissions : nil
         )
     }
 }

@@ -33,8 +33,10 @@ final class KanataConfigurationGeneratorSnapshotTests: XCTestCase {
     func testBaseConfigIncludesDefaultFunctionKeys() {
         let config = KanataConfiguration.generateFromCollections([])
 
-        assertContains(config, "brdn")
-        assertContains(config, "volu")
+        assertContains(config, "f1")
+        assertContains(config, "f12")
+        XCTAssertFalse(config.contains("brdn"))
+        XCTAssertFalse(config.contains("volu"))
     }
 
     func testManagedRepeatUsesExplicitDefrepeatAllowlist() throws {

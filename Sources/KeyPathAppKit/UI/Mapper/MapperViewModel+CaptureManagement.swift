@@ -436,7 +436,11 @@ extension MapperViewModel {
 
         AppLogger.shared.log("🎯 [MapperViewModel] finalizeCapture: canSave=\(canSave) selectedApp=\(selectedApp?.name ?? "nil") inputSeq=\(inputSequence?.displayString ?? "nil")")
 
-        // Auto-save when input is captured and we have either output or app/system action/URL/folder/script
+        autosaveCapturedMapping()
+    }
+
+    /// Auto-save when input is captured and we have either output or app/system action/URL/folder/script
+    private func autosaveCapturedMapping() {
         if canSave, let manager = kanataManager {
             Task {
                 if selectedURL != nil {
@@ -469,6 +473,10 @@ extension MapperViewModel {
         let wasRecordingOutput = isRecordingOutput
         let wasRecordingShiftedOutput = isRecordingShiftedOutput
         let wasRecordingMacro = isRecordingMacro
+        // Recording clears the sequence first, so one present now was captured
+        // in this session; ending early (before the 0.8s finalize) must keep it.
+        let capturedOutput = (wasRecordingOutput && outputSequence != nil)
+            || (wasRecordingShiftedOutput && shiftedOutputSequence != nil)
         isRecordingInput = false
         isRecordingOutput = false
         isRecordingShiftedOutput = false
@@ -515,6 +523,7 @@ extension MapperViewModel {
         }
 
         statusMessage = nil
+        if capturedOutput { autosaveCapturedMapping() }
     }
 
     func stopKeyCapture() {

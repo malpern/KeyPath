@@ -40,6 +40,16 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
         }
     }
 
+    /// Consumer-page outputs are not emitted by the driverless session. Keyboard-page
+    /// HID outputs such as Home, End and Forward Delete remain supported.
+    public var isSupportedInDriverlessSession: Bool {
+        guard let keycode = kanataKeycode else { return true }
+        return !["pp", "next", "prev", "mute", "volu", "voldwn", "brup", "brdown"].contains(keycode)
+    }
+
+    public static let driverlessMediaUnavailableReason =
+        "Media and brightness remapping is not supported in driverless mode."
+
     public var isSystemAction: Bool {
         if case .pushMessage = output { return true }
         return false

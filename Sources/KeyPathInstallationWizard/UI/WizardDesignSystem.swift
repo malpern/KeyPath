@@ -1135,7 +1135,7 @@ public struct AnimatedStatusIcon: View {
                     .modifier(AvailabilitySymbolBounce())
 
                 case .unverified:
-                    // Gray question mark - cannot verify without FDA
+                    // Gray question mark - permission evidence is unavailable
                     ZStack {
                         Circle()
                             .fill(Color(NSColor.controlBackgroundColor))

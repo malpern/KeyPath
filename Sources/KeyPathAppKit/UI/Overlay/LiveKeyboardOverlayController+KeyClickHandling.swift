@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathCore
+import KeyPathRulesCore
 
 extension LiveKeyboardOverlayController {
     // MARK: - Key Click Handling
@@ -71,6 +72,74 @@ extension LiveKeyboardOverlayController {
             }
         }
 
+        let userInfo = mapperSelection(key: key, layerInfo: layerInfo)
+        AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(userInfo["outputKey"] ?? inputKey) [layer: \(viewModel.currentLayerName)]")
+
+        guard isInspectorVisible else {
+            AppLogger.shared.log("🖱️ [OverlayController] Key click ignored (drawer not visible)")
+            return
+        }
+
+        viewModel.selectedKeyCode = key.keyCode
+        Foundation.NotificationCenter.default.post(
+            name: Foundation.Notification.Name.mapperDrawerKeySelected,
+            object: nil,
+            userInfo: userInfo
+        )
+    }
+
+    var isInspectorVisible: Bool {
+        uiState.isInspectorOpen || uiState.isInspectorAnimating || uiState.inspectorReveal > 0
+    }
+
+    /// Right-click "Remap…": show this key in the mapper, opening the drawer if needed.
+    /// A drawer that is not on screen yet receives the key as a pending selection,
+    /// because the mapper selects its default key when it appears.
+    func openMapper(for key: PhysicalKey, layerInfo: LayerKeyInfo?) {
+        guard key.layoutRole != .touchId, kanataViewModel != nil else { return }
+        let userInfo = mapperSelection(key: key, layerInfo: layerInfo)
+        AppLogger.shared.log("🖱️ [OverlayController] Remap requested from context menu: \(key.label) (keyCode: \(key.keyCode))")
+        viewModel.selectedKeyCode = key.keyCode
+        MapperDrawerSelectionRequest.pending = userInfo
+        UserDefaults.standard.set(InspectorSection.mapper.rawValue, forKey: "inspectorSection")
+        if isInspectorVisible {
+            Foundation.NotificationCenter.default.post(
+                name: Foundation.Notification.Name.mapperDrawerKeySelected,
+                object: nil,
+                userInfo: userInfo
+            )
+        } else {
+            toggleInspectorPanel()
+        }
+    }
+
+    /// Right-click "Reset to Default": remove the user's own rule for this key on
+    /// the current layer through the canonical rule transaction.
+    func resetKeyToDefault(_ key: PhysicalKey) {
+        guard let kanataViewModel else { return }
+        let input = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
+        guard let rule = Self.resettableRule(input: input, layer: viewModel.currentLayerName,
+                                             in: kanataViewModel.customRules) else { return }
+        AppLogger.shared.log("🖱️ [OverlayController] Reset to default from context menu: \(input) [layer: \(viewModel.currentLayerName)]")
+        Task { await kanataViewModel.removeCustomRule(rule.id) }
+    }
+
+    /// Only rules the user made, for this input, on this layer. Pack rules and
+    /// other layers are excluded: Reset removes exactly what the key shows here.
+    static func resettableRule(input: String, layer: String, in rules: [CustomRule]) -> CustomRule? {
+        rules.first {
+            $0.packSource == nil && $0.input.caseInsensitiveCompare(input) == .orderedSame
+                && $0.targetLayer.kanataName == layer.lowercased()
+        }
+    }
+
+    static func resettableInputs(in rules: [CustomRule], layer: String) -> Set<String> {
+        Set(rules.filter { $0.packSource == nil && $0.targetLayer.kanataName == layer.lowercased() }
+            .map { $0.input.lowercased() })
+    }
+
+    func mapperSelection(key: PhysicalKey, layerInfo: LayerKeyInfo?) -> [String: Any] {
+        let inputKey = OverlayKeyboardView.keyCodeToKanataName(key.keyCode)
         let outputKey: String = if let simpleOutput = layerInfo?.outputKey {
             simpleOutput
         } else if let displayLabel = layerInfo?.displayLabel, !displayLabel.isEmpty {
@@ -78,18 +147,7 @@ extension LiveKeyboardOverlayController {
         } else {
             inputKey
         }
-
         let currentLayer = viewModel.currentLayerName
-
-        AppLogger.shared.log("🖱️ [OverlayController] Key clicked: \(key.label) (keyCode: \(key.keyCode)) -> \(outputKey) [layer: \(currentLayer)]")
-
-        let inspectorVisible = uiState.isInspectorOpen || uiState.isInspectorAnimating || uiState.inspectorReveal > 0
-        guard inspectorVisible else {
-            AppLogger.shared.log("🖱️ [OverlayController] Key click ignored (drawer not visible)")
-            return
-        }
-
-        viewModel.selectedKeyCode = key.keyCode
 
         var userInfo: [String: Any] = [
             "keyCode": key.keyCode,
@@ -112,11 +170,7 @@ extension LiveKeyboardOverlayController {
         if let shiftedOutput = kanataViewModel?.underlyingManager.getCustomRule(forInput: inputKey)?.shiftedOutput {
             userInfo["shiftedOutputKey"] = shiftedOutput
         }
-        Foundation.NotificationCenter.default.post(
-            name: Foundation.Notification.Name.mapperDrawerKeySelected,
-            object: nil,
-            userInfo: userInfo
-        )
+        return userInfo
     }
 
     func handleKeyDoubleClick(key: PhysicalKey, layerInfo _: LayerKeyInfo?) {
@@ -138,5 +192,17 @@ extension LiveKeyboardOverlayController {
                 userInfo: ["key": normalizedKey]
             )
         }
+    }
+}
+
+/// One-shot key selection for a mapper that is not on screen yet. Consumed when
+/// the mapper appears, or cleared when a visible mapper handles the selection.
+@MainActor
+enum MapperDrawerSelectionRequest {
+    static var pending: [String: Any]?
+
+    static func take() -> [String: Any]? {
+        defer { pending = nil }
+        return pending
     }
 }

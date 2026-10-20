@@ -102,6 +102,9 @@ class KeyboardVisualizationViewModel {
     /// Pre-built layer mappings from startup prebuild, keyed by layer name.
     /// Used for instant layer switching without waiting for async simulator.
     @ObservationIgnored var prebuiltLayerMappings: [String: [UInt16: LayerKeyInfo]] = [:]
+    /// Bumped by invalidateLayerMappings so a prebuild started earlier cannot
+    /// install labels built from the old rules after the cache was cleared.
+    @ObservationIgnored var prebuildGeneration = 0
 
     // MARK: - Optional Feature Collections
 

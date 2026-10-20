@@ -107,6 +107,10 @@ struct ActivityLoggingSettingsSection: View {
 
     private func refreshEventCount() {
         Task { @MainActor in
+            await ActivityLogEncryption.shared.authorizeActivityHistoryAccess()
+            if InsightsPreferences.activityLoggingEnabled {
+                await ActivityLogger.shared.enable()
+            }
             eventCount = await ActivityLogStorage.shared.totalEventCount()
         }
     }

@@ -168,6 +168,67 @@ final class ConfigFacadeTests: XCTestCase {
         ))
     }
 
+    @MainActor
+    func testDryRunPreservesInterruptedRawConfiguration() async throws {
+        try await assertDryRunPreservesInterruptedWrite(includePreference: false)
+    }
+
+    @MainActor
+    func testDryRunPreservesInterruptedLeaderPreference() async throws {
+        try await assertDryRunPreservesInterruptedWrite(includePreference: true)
+    }
+
+    @MainActor
+    private func assertDryRunPreservesInterruptedWrite(includePreference: Bool) async throws {
+        let directory = tempRoot.appendingPathComponent("config", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let config = directory.appendingPathComponent("keypath.kbd")
+        let before = Data("before-config".utf8)
+        let interrupted = Data("interrupted-config".utf8)
+        try RecoverableRuleWrite.durableWrite(before, config)
+        let defaults = PreferencesService.canonicalDefaults
+        let key = PreferencesService.leaderKeyPreferenceKey
+        let originalPreference = defaults.object(forKey: key)
+        defer {
+            if let originalPreference { defaults.set(originalPreference, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+            PreferencesService.shared.reloadLeaderKeyPreference()
+        }
+        let priorPreference = try JSONEncoder().encode(LeaderKeyPreference.default)
+        let attemptedPreference = try JSONEncoder().encode(
+            LeaderKeyPreference(key: "tab", targetLayer: .navigation, enabled: true)
+        )
+        defaults.set(priorPreference, forKey: key)
+        _ = try RecoverableRuleWrite.stage(
+            files: ["config": config], contents: ["config": interrupted],
+            directory: directory, scope: .rawConfig,
+            preferences: includePreference ? defaults : nil,
+            preferenceChanges: includePreference
+                ? [.leader(before: priorPreference, after: attemptedPreference)] : []
+        )
+        let journal = RecoverableRuleWrite.journalURL(directory, scope: .rawConfig)
+        let journalBefore = try Data(contentsOf: journal)
+        let preferenceBefore = defaults.data(forKey: key)
+        let probe = ReloadProbe()
+        let facade = ConfigFacade(
+            configDirectory: directory.path,
+            ruleCollectionLoader: { [] }, customRuleLoader: { [] },
+            reloadHandler: { await probe.reload() }
+        )
+
+        do {
+            _ = try await facade.applyConfiguration(dryRun: true)
+            XCTFail("Preview must refuse while recovery is pending")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("recovery"))
+        }
+        XCTAssertEqual(try Data(contentsOf: config), interrupted)
+        XCTAssertEqual(try? Data(contentsOf: journal), journalBefore)
+        XCTAssertEqual(defaults.data(forKey: key), preferenceBefore)
+        let reloadCount = await probe.count
+        XCTAssertEqual(reloadCount, 0)
+    }
+
     // MARK: - #889: CLI apply must honor the Leader Key collection's selectedOutput
 
     /// Builds the default catalog with the Leader Key collection enabled and its

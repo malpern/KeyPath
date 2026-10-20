@@ -1,5 +1,6 @@
 import AppKit
 @preconcurrency import ApplicationServices // @preconcurrency: ApplicationServices lacks Sendable annotations in Apple SDK
+import CoreGraphics
 import Foundation
 import IOKit.hid
 import KeyPathCore
@@ -85,7 +86,7 @@ public final class PermissionRequestService {
             return false
         }
 
-        let beforePrompt = await SystemStateProvider.shared.currentPermissionSnapshot()
+        let beforePrompt = await SystemStateProvider.shared.refreshPermissionSnapshot()
         if beforePrompt.keyPath.inputMonitoring.isReady {
             AppLogger.shared.log("✅ [PermissionRequest] Input Monitoring already granted (Oracle)")
             return true
@@ -110,7 +111,11 @@ public final class PermissionRequestService {
         AppLogger.shared.log(
             "🔐 [PermissionRequest] Requesting Input Monitoring via IOHIDRequestAccess()"
         )
-        _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        if KanataRuntimeBackend.selected.requiresPrivilegedServices {
+            _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        } else {
+            _ = CGRequestListenEventAccess()
+        }
         let refreshed = await SystemStateProvider.shared.refreshPermissionSnapshot()
         let granted = refreshed.keyPath.inputMonitoring.isReady
         if granted {
@@ -169,9 +174,11 @@ public final class PermissionRequestService {
 
     /// Request both permissions (convenience for wizard flows).
     func requestAllPermissions() async -> (inputMonitoring: Bool, accessibility: Bool) {
-        let im = await requestInputMonitoringPermission()
-        try? await Task.sleep(for: .milliseconds(500)) // small delay
         let ax = await requestAccessibilityPermission()
+        // Do not queue an IM prompt while AX consent is still pending. A fresh
+        // Oracle check in the IM request observes effective access after AX.
+        guard ax else { return (false, false) }
+        let im = await requestInputMonitoringPermission()
         return (im, ax)
     }
 }

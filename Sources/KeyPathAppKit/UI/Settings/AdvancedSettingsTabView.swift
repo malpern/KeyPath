@@ -7,21 +7,16 @@ import SwiftUI
 struct AdvancedSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
 
-    @State private var helperInstalled: Bool = false
-    @State private var helperVersion: String?
-    @State private var helperInProgress = false
-    @State private var helperMessage: String?
+    @State private var showingUninstall = false
     @State private var duplicateAppCopies: [String] = []
     @State private var removeDuplicatesInProgress = false
 
-    @State private var showingHelperUninstallConfirm = false
     @State private var showingRemoveDuplicatesConfirm = false
-    @State private var showingResetEverythingConfirmation = false
-    @State private var showingUninstallDialog = false
 
     @State private var backups: [BackupInfo] = []
     @State private var backupToRestore: BackupInfo?
     @State private var showingRestoreConfirm = false
+    @State private var restoreInProgress = false
 
     @State private var settingsToastManager = WizardToastManager()
 
@@ -50,169 +45,77 @@ struct AdvancedSettingsTabView: View {
                             }
                         }
 
-                        // Uninstall button (primary - Enter key triggers)
-                        Button(role: .destructive) {
-                            showingUninstallDialog = true
-                        } label: {
-                            Text("Uninstall")
-                                .frame(minWidth: 100)
-                        }
-                        .keyboardShortcut(.defaultAction)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .accessibilityIdentifier("settings-uninstall-button")
-                        .accessibilityLabel("Uninstall KeyPath")
+                        Text("Back up your rules and settings, then remove KeyPath. Reinstalling starts fresh.")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 220)
+
+                        Button("Uninstall KeyPath…", role: .destructive) { showingUninstall = true }
+                            .settingsAction()
+                            .accessibilityIdentifier("settings-uninstall-keypath-button")
                     }
                     .frame(minWidth: 220)
 
                     // Right: Repair tools in priority order
                     VStack(alignment: .leading, spacing: 20) {
-                        // Emergency Helper
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Emergency Helper")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Text("Use when service is wedged and won't respond.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            Button {
-                                showingResetEverythingConfirmation = true
-                            } label: {
-                                Label("Reset Everything", systemImage: "exclamationmark.triangle")
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.red)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings-reset-everything-button")
-                            .accessibilityLabel("Reset Everything")
-                        }
-
-                        // Privileged Helper
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Privileged Helper")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Text("Handles admin-only install and repair tasks without repeated password prompts.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            HStack(spacing: 10) {
-                                HelperStatusDot(color: helperInstalled ? .green : .orange)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    if helperInstalled {
-                                        Text("Installed\(helperVersion.map { " (v\($0))" } ?? "")")
-                                            .font(.body)
-                                            .fontWeight(.medium)
-                                    } else {
-                                        Text("Not Installed")
-                                            .font(.body)
-                                            .fontWeight(.medium)
-                                    }
-                                }
-                                Spacer()
-                            }
-
-                            HStack(spacing: 10) {
-                                Button(role: .destructive) {
-                                    showingHelperUninstallConfirm = true
-                                } label: {
-                                    Label("Uninstall Helper", systemImage: "trash")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .disabled(helperInProgress || !helperInstalled)
-                                .accessibilityIdentifier("settings-uninstall-helper-button")
-                                .accessibilityLabel("Uninstall Privileged Helper")
-                            }
-                        }
-
                         // Simulator
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Simulator")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
+                        SettingsSection(title: "Simulator") {
+                            SettingsCard {
+                                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                                    Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
 
-                            Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            Button {
-                                SimulatorWindowController.shared.showWindow()
-                            } label: {
-                                Label("Open Simulator", systemImage: "keyboard")
+                                    Button {
+                                        SimulatorWindowController.shared.showWindow()
+                                    } label: {
+                                        Label("Open Simulator", systemImage: "keyboard")
+                                    }
+                                    .settingsAction()
+                                    .accessibilityIdentifier("settings-open-simulator-button")
+                                    .accessibilityLabel("Open Simulator")
+                                }
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings-open-simulator-button")
-                            .accessibilityLabel("Open Simulator")
                         }
                     }
 
                     Spacer()
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, SettingsDesign.pageInset)
                 .padding(.top, 24)
 
                 // Duplicate apps warning
                 if duplicateAppCopies.count > 1 {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("\u{26A0}\u{FE0F} Multiple Installations")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        duplicateAppsSection
+                    SettingsSection(title: "Other Copies of KeyPath") {
+                        SettingsCard { duplicateAppsSection }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
                 }
 
                 // Configuration Backups
                 configBackupsSection
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
             }
         }
+        .sheet(isPresented: $showingUninstall) {
+            UninstallKeyPathDialog().environment(kanataManager)
+        }
         .settingsBackground()
         .withToasts(settingsToastManager)
-        .sheet(isPresented: $showingUninstallDialog) {
-            UninstallKeyPathDialog()
-                .environment(kanataManager)
-        }
         .task {
-            await refreshHelperStatus()
             duplicateAppCopies = await HelperMaintenance.shared.detectDuplicateAppCopies()
             backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
         }
-        .alert("Uninstall Privileged Helper?", isPresented: $showingHelperUninstallConfirm) {
+        .alert("Move Extra Copies to Trash?", isPresented: $showingRemoveDuplicatesConfirm) {
             Button("Cancel", role: .cancel) {}
-            Button("Uninstall", role: .destructive) {
-                Task { await uninstallHelper() }
-            }
-        } message: {
-            Text(
-                "The helper enables privileged actions without repeated admin prompts. You can reinstall it from the Setup Wizard."
-            )
-        }
-        .alert("Remove Extra Copies?", isPresented: $showingRemoveDuplicatesConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Remove Extras", role: .destructive) {
+            Button("Move to Trash", role: .destructive) {
                 Task { await removeDuplicateAppCopies() }
             }
         } message: {
-            Text("All KeyPath.app copies outside /Applications will be moved to the Trash.")
-        }
-        .alert("Reset Everything?", isPresented: $showingResetEverythingConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Reset", role: .destructive) {
-                Task { await performResetEverything() }
-            }
-        } message: {
-            Text(
-                "Force kill Kanata, remove PID files, and clear transient state. Service does not restart automatically."
-            )
+            Text("The copy in Applications stays. You can restore the others from the Trash.")
         }
         .alert("Restore Configuration?", isPresented: $showingRestoreConfirm) {
             Button("Cancel", role: .cancel) {
@@ -220,12 +123,12 @@ struct AdvancedSettingsTabView: View {
             }
             Button("Restore", role: .destructive) {
                 if let backup = backupToRestore {
-                    restoreBackup(backup)
+                    Task { await restoreBackup(backup) }
                 }
             }
         } message: {
             if let backup = backupToRestore {
-                Text("Replace your current config with the backup from \(backup.formattedDate)?")
+                Text("Restore rules and configuration from \(backup.formattedDate)?")
             }
         }
     }
@@ -233,157 +136,117 @@ struct AdvancedSettingsTabView: View {
     // MARK: - Sections
 
     private var duplicateAppsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                    .font(.title2)
+        let extras = duplicateAppCopies.filter { $0 != "/Applications/KeyPath.app" }
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("Extra copies can confuse macOS permissions. Keep only the one in Applications.")
+                .font(.callout)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Found \(duplicateAppCopies.count) copies of KeyPath installed")
-                        .font(.body.weight(.semibold))
-
-                    Text(
-                        "Extra copies can cause stale TCC approvals and permission issues. We recommend keeping only the copy in /Applications."
-                    )
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    Text("Copies found at:")
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(duplicateAppCopies, id: \.self) { path in
-                            Text("\u{2022} \(path)")
-                                .font(.caption.monospaced())
-                                .foregroundColor(.secondary)
-                        }
+            ForEach(Array(extras.enumerated()), id: \.element) { index, path in
+                HStack(spacing: 10) {
+                    Image(systemName: "app.dashed")
+                        .foregroundStyle(.secondary)
+                    Text(HelperMaintenance.displayLocation(forAppAt: path))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(path)
+                    Spacer()
+                    Button("Show") {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
                     }
+                    .settingsAction()
+                    .accessibilityIdentifier("settings-show-duplicate-\(index)")
                 }
             }
 
-            Button(action: {
+            Button(role: .destructive) {
                 showingRemoveDuplicatesConfirm = true
-            }) {
-                Label(
-                    removeDuplicatesInProgress ? "Removing\u{2026}" : "Remove Extra Copies", systemImage: "trash"
-                )
+            } label: {
+                Text(removeDuplicatesInProgress ? "Moving to Trash\u{2026}" : "Move Extras to Trash")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.orange)
+            .settingsAction()
             .disabled(removeDuplicatesInProgress)
             .accessibilityIdentifier("settings-remove-duplicates-button")
-            .accessibilityLabel("Remove Extra Copies")
+            .accessibilityLabel("Move extra copies to Trash")
         }
-        .padding(.vertical, 8)
     }
 
     // MARK: - Configuration Backups
 
     private var configBackupsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Configuration Backups")
-                .font(.headline)
-                .foregroundColor(.secondary)
+        SettingsSection(title: "Configuration Backups") {
+            SettingsCard {
+                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                    Text("KeyPath keeps up to 5 recent rule and configuration backups. Older config-only backups can be opened for manual recovery.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
-            Text("KeyPath automatically saves your config before edits. Up to 5 recent backups are kept.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+                    if backups.isEmpty {
+                        Text("No backups yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary.opacity(0.6))
+                            .padding(.vertical, 4)
+                    } else {
+                        VStack(spacing: 0) {
+                            ForEach(Array(backups.enumerated()), id: \.element.filename) { index, backup in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(backup.createdAt.relativeDescription)
+                                            .font(.subheadline)
+                                        Text("\(backup.formattedDate) \u{2022} \(backup.formattedSize)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
 
-            if backups.isEmpty {
-                Text("No backups yet")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary.opacity(0.6))
-                    .padding(.vertical, 4)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(backups.enumerated()), id: \.element.filename) { index, backup in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(backup.createdAt.relativeDescription)
-                                    .font(.subheadline)
-                                Text("\(backup.formattedDate) \u{2022} \(backup.formattedSize)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    Spacer()
+
+                                    Button("Open") {
+                                        openFileInPreferredEditor(URL(fileURLWithPath: backup.fullPath))
+                                    }
+                                    .accessibilityIdentifier("settings-open-backup-\(index)")
+
+                                    Button("Restore") {
+                                        backupToRestore = backup
+                                        showingRestoreConfirm = true
+                                    }
+                                    .settingsAction()
+                                    .accessibilityIdentifier("settings-restore-backup-\(index)")
+                                    .disabled(restoreInProgress || !FileManager.default.fileExists(atPath: backup.fullPath + ".json"))
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+
+                                if index < backups.count - 1 {
+                                    Divider()
+                                }
                             }
-
-                            Spacer()
-
-                            Button("Restore") {
-                                backupToRestore = backup
-                                showingRestoreConfirm = true
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings-restore-backup-\(index)")
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-
-                        if index < backups.count - 1 {
-                            Divider()
                         }
                     }
                 }
-                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
             }
         }
     }
 
-    private func restoreBackup(_ backup: BackupInfo) {
-        let manager = kanataManager.underlyingManager.configBackupManager
-        do {
-            try manager.restoreFromBackup(backup)
-            backups = manager.getAvailableBackups()
-            settingsToastManager.showSuccess("Restored config from \(backup.createdAt.relativeDescription)")
-        } catch {
-            settingsToastManager.showError("Restore failed: \(error.localizedDescription)")
+    @MainActor
+    private func restoreBackup(_ backup: BackupInfo) async {
+        guard !restoreInProgress else { return }
+        restoreInProgress = true
+        defer { restoreInProgress = false; backupToRestore = nil }
+        let result = await kanataManager.underlyingManager.restoreFromBackup(backup)
+        backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
+        if result.success {
+            if result.reloadResult?.disposition == .pending {
+                settingsToastManager.showInfo("Rules restored. Start KeyPath to apply them.")
+            } else {
+                settingsToastManager.showSuccess("Restored rules from \(backup.createdAt.relativeDescription)")
+            }
+        } else {
+            settingsToastManager.showError("Restore failed: \(result.error?.localizedDescription ?? "Your current setup was kept.")")
         }
-        backupToRestore = nil
     }
 
     // MARK: - Actions
-
-    private func refreshHelperStatus() async {
-        let installed = await HelperManager.shared.isHelperInstalled()
-        await MainActor.run {
-            helperInstalled = installed
-        }
-        let version = await HelperManager.shared.getHelperVersion()
-        await MainActor.run { helperVersion = version }
-    }
-
-    private func uninstallHelper() async {
-        await MainActor.run {
-            helperInProgress = true
-            helperMessage = nil
-        }
-        defer {
-            Task {
-                await MainActor.run {
-                    helperInProgress = false
-                    showingHelperUninstallConfirm = false
-                }
-            }
-        }
-
-        do {
-            try await HelperManager.shared.uninstallHelper()
-            await MainActor.run {
-                helperMessage = "Helper uninstalled"
-                settingsToastManager.showSuccess("Helper uninstalled")
-            }
-        } catch {
-            await MainActor.run {
-                helperMessage = "Uninstall failed: \(error.localizedDescription)"
-                settingsToastManager.showError("Uninstall failed")
-            }
-        }
-        await refreshHelperStatus()
-    }
 
     private func removeDuplicateAppCopies() async {
         await MainActor.run { removeDuplicatesInProgress = true }
@@ -419,20 +282,6 @@ struct AdvancedSettingsTabView: View {
                 )
             } else {
                 settingsToastManager.showInfo("No extra copies removed")
-            }
-        }
-    }
-
-    private func performResetEverything() async {
-        let report = await InstallerEngine()
-            .runSingleAction(.terminateConflictingProcesses, using: PrivilegeBroker())
-        await MainActor.run {
-            if report.success {
-                settingsToastManager.showInfo("Reset everything complete")
-            } else {
-                settingsToastManager.showError(
-                    report.failureReason ?? "Reset everything failed"
-                )
             }
         }
     }

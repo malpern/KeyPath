@@ -237,13 +237,13 @@ extension KeyboardVisualizationViewModel {
         for mod in mods {
             activeOneShotModifiers.insert(mod)
         }
-        AppLogger.shared.info("⚡ [KeyboardViz] One-shot activated: \(modifiers) → active: \(activeOneShotModifiers)")
+        AppLogger.shared.debug("⚡ [KeyboardViz] One-shot activated: \(modifiers) → active: \(activeOneShotModifiers)")
     }
 
     /// Clear one-shot modifiers (called after next key press)
     func clearOneShotModifiers() {
         guard !activeOneShotModifiers.isEmpty else { return }
-        AppLogger.shared.info("⚡ [KeyboardViz] Clearing one-shot modifiers: \(activeOneShotModifiers)")
+        AppLogger.shared.debug("⚡ [KeyboardViz] Clearing one-shot modifiers: \(activeOneShotModifiers)")
         activeOneShotModifiers.removeAll()
     }
 
@@ -304,7 +304,7 @@ extension KeyboardVisualizationViewModel {
             }
 
             customEmphasisKeyCodes = keyCodes
-            AppLogger.shared.info("✨ [KeyboardViz] Emphasis set: \(keyNames.joined(separator: ", ")) -> \(keyCodes)")
+            AppLogger.shared.debug("✨ [KeyboardViz] Emphasis set: \(keyNames.joined(separator: ", ")) -> \(keyCodes)")
             return
         }
 
@@ -348,7 +348,7 @@ extension KeyboardVisualizationViewModel {
             keyVisualStates[keyCode, default: .init()].holdLabel = displayLabel
         }
         keyVisualStates[keyCode, default: .init()].isHoldActive = true
-        AppLogger.shared.info("🔒 [KeyboardViz] Hold activated: \(key) -> '\(keyVisualStates[keyCode]?.holdLabel ?? "pending")' (from '\(action)')")
+        AppLogger.shared.debug("🔒 [KeyboardViz] Hold activated: \(key) -> '\(keyVisualStates[keyCode]?.holdLabel ?? "pending")' (from '\(action)')")
 
         // If Kanata omitted the action string, try to resolve the hold label via simulator
         if action.isEmpty {
@@ -379,7 +379,7 @@ extension KeyboardVisualizationViewModel {
                         await MainActor.run {
                             self.keyVisualStates[keyCode, default: .init()].holdLabel = resolved
                             self.holdLabelCache[keyCode] = (resolved, Date())
-                            AppLogger.shared.info("🔒 [KeyboardViz] Hold label resolved via simulator: \(key) -> '\(resolved)'")
+                            AppLogger.shared.debug("🔒 [KeyboardViz] Hold label resolved via simulator: \(key) -> '\(resolved)'")
                             self.resolvingHoldLabels.remove(keyCode)
                         }
                     }

@@ -1,0 +1,176 @@
+> Accepted checkpoint, 2026-10-04 00:21 UTC: frozen signed product8fd1320b / Kanata0853689 / binary9f0e3435 passed app-managed remap, Secure Input pass-through/resume, independent held-output crash release, unchanged-permission reboot remap and all five final worker modes. Repeat had10 input/10 output and nine characters; each direct worker ended stopped with empty held ledger. Reboot parent also verified no remaining processes and bytewise restored config. All four owned VM UUIDs independently absent, fixture detached, policy ask unchanged. Evidence under evidence/session-runtime; details in current execution plan. Main safe target4314 tests/0 failures/28 skips; three unresolved home-row snapshot failures remain. Broader safety, profile eligibility, Caps ownership and physical Mac/device coverage still block release/default claims. Mixed-model pilot improved review coverage; token savings unknown. User asks about a driverless-only experiment; recommended separate preserved worktree, not yet executed.
+>
+> Execution resumed 2026-10-04 00:09 UTC. Final signed source8fd1320b / Kanata0853689 / binary9f0e3435 passed parent remap, Secure Input pass-through, automatic resume and independently verified held-output crash recovery. Reboot continuity and five final worker modes remain in progress. Main safe target4314 tests /0 failures /28 skips; three unchanged home-row snapshots fail, so full-suite pass is not claimed. Three source/candidate VM resources are destroyed and independently absent; final GUI lease still owned. Mixed-model pilot active; original restrictions unchanged. Earlier paused checkpoint below is historical.
+>
+# KeyPath permission reduction implementation — 2026-10-03
+
+## Paused execution — 2026-10-03
+
+The user paused execution to review model routing. Current ordered steps,
+recommended model/effort and independent verification gates are in the
+[execution plan](permission-reduction-plan.md). No delegated agents started.
+Final frozen build was stopped intentionally (exit 143); no artifact from it is
+accepted. The previous signed physical repeat retest completed successfully:
+`session-3826bf9efd914cae`, binary `32c5781f…`, 10 input/10 output events,
+nine repeated characters, exact fixture trace, empty held state and clean stopped
+worker report. The snapshot scan isolation check passed all 10 selected tests,
+including the formerly stalled repair view. Three home-row snapshots remain open.
+Worktrees and existing evidence are preserved. Lease expiry must be checked on resume.
+
+## Acceptance checkpoint — 2026-10-03 23:42 UTC (historical)
+
+Approval policy verified `never`; full filesystem access and network are enabled.
+All guest-only restrictions remain in force. Canonical open-feature backlog:
+[driverless gap register](driverless-gap-register.md), DL-01 through DL-12.
+
+Signed binary `32c5781fe643ed64c48bf1d2ebf86c5cf294bfa74f841375a574c416f25b5393`
+(source product f33beacf) passed app-managed physical remap (ed7813f1c0a74f85),
+Secure Input pass-through (a2252e5fff604762), and automatic resume/remap with a
+new supervised worker (7a9673b818da4dc8). Held-output crash test
+2349f557dd2e47fe refused before input because the read-only USB observation
+transport exited 255; this is neither crash acceptance nor a product failure.
+Parent cleanup stopped its worker with empty ledger and restored the QA profile.
+
+The full safe gate timed out at HardViewSnapshotTests.testRepairSettingsTabView.
+A captured stack identified a real installed-app scan blocking snapshot rendering;
+the existing duplicate-app test override now runs before launching mdfind, and
+snapshot tests explicitly provide it. Three home-row timing snapshot differences
+remain (missing quick-tap row, 52 px height difference); source and references are
+unchanged against origin/master, but an independent baseline run is not asserted.
+Do not refresh these references blindly. The gate also found installer-matrix,
+permission-provider, liveness and test-seam violations; corrected in d23349bf,
+1ba5a413 and ddf98304. All 35 targeted matrix/ownership/safety tests now pass.
+Snapshot-isolation verification, final frozen signed build, repeat and held-crash
+physical acceptance, controlled reboot continuity and resource cleanup remain.
+Older status sections below describe chronology, not current completion.
+
+
+Canonical gaps, candidate workarounds and acceptance criteria: [driverless gap register](driverless-gap-register.md). Current delivery order remains permission reduction and lifecycle acceptance first, then onboarding UX and broader feature experiments.
+
+## Current acceptance status (23:30 UTC)
+
+Parent runtime now starts after synchronous SwiftUI startup. The first parent
+remap produced correct output but failed worker liveness: the legacy VirtualHID
+safety monitor emergency-stopped the healthy session runtime. This failed trial
+is retained (`session-22defddc3cd740e9`), not accepted. Fix `f33beacf` scopes the
+observation and shutdown decision to DriverKit. Its regression preserves unsafe
+DriverKit shutdown and prevents session shutdown for an absent optional driver.
+Signed parent/Secure Input recovery retest and final safe gate remain pending.
+
+### Earlier continuation status
+
+Gap register committed in `da6d72ea`; repeat preservation fix in `bc6b0d7d`
+with local Kanata commit `0853689`. The real-engine press/repeat/release ABI
+regression passes and invalid input value 3 is rejected. Physical repeat failure
+`session-9f95f6699ec04e5f` remains excluded: ten input callbacks produced one
+character because the physical DriverKit conversion treated repeats as releases.
+Signed physical retest is pending.
+
+Current signed executable `71dc40ec...` also passed ordinary home-row tap
+`session-ae922917cc1640e9`, hold `session-630a30ea6055447a`, unmapped-key
+pass-through `session-a4abad55eaf0494f` and fixed Secure Input pass-through
+`session-38d3ca01b8314d51`. Each retains exact fixture and independent target
+checks. These are independent worker trials, not parent recovery acceptance.
+
+The first parent campaign did not start a lifecycle worker. Logs showed
+CompositionRoot initialization but no AppDelegate finish-launching callback.
+The normal SwiftUI entry point is now synchronous (`e02da015`); startup also
+uses backend-specific readiness instead of helper registration (`0b2e7a79`).
+The parent acceptance campaign is saved under
+`Scripts/experiments/session-runtime/parent-acceptance.py`. Signed retest and
+final safe gate remain pending. Normal AX revocation passed with unchanged
+physical `q` (`session-077d1044f2d84f44`). Re-enabling the ordinary Settings
+toggle restored AX/effective input access, verified by independent process
+nonce `e990a694-a9cc-40f9-afa9-0b428a2413a2`. The authorization helper refused
+before credential load because no authorization sheet was present; approval
+had already been restored. Preserve this refusal as a harness outcome, not a
+failed permission grant. Preserve all failed records; do not count them
+as successes. Approval remains never; host deployment and upstream changes
+remain excluded.
+
+## Caps Lock feasibility and shutdown correction (historical chronology)
+
+**Verified feasibility at 23:05 UTC:** all three real ESP32 Caps Lock cases passed in the owned macOS 26.5.2 guest with the signed KeyPath executable 71dc40ec7aa4709444c5a1bd0a0665e99eef77052aa737524f2073065ade6d87 (archive 035a0ff43fbd8725f7df90900dbad920fb37079d344a9e5c9cd4c4198cbaf253). Basic Caps→F18→Kanata→a: session-5190c26939bb4718. Tap/hold tap→q: session-df5b859d598c4d49. Hold→left Control plus physical a: session-a260c3b6ebda400c. Each passed exact real usage-57 trace, focus, same-boot, verified attachment, final released output/target state, live capture and clean stopped report. The fixture-scoped hidutil mapping was read back empty after cleanup. Campaign: evidence/session-runtime/cbx_92ff62339803-caps-path-1791068598.json. This verifies feasibility, not automatic product Caps setup or recovery. Secure Input, keyboard reconnect/reboot, conflicting mappings, real F18 collisions and crash cleanup of the OS mapping remain separate acceptance gates. No Karabiner driver or helper was installed and no new permission grant was made for these trials. Twelve targeted Swift tests passed with no warnings/errors, pinned formatting and accessibility validation passed.
+
+Follow-up: signed executable fc68b406b856bb920cd22236fc3f6790af2352e63224dd3aff5d6253ab5094d5 retained AX/effective input approval after update and passed ordinary physical q→a with a verified stopped report (session-c5244141b2ef4f21). The matching Caps→F18 trial still lost focus despite clean shutdown (session-eb01ba9985c4438a), so the shutdown crash did not explain all Caps failures. The worker was incorrectly copying F18's semantic Function flag onto its ordinary letter output, plausibly triggering the macOS Fn+A Dock shortcut. Physical Fn state is now established only from Fn's own flagsChanged events; a regression test distinguishes semantic F18 flags from actual held Fn. The subsequent signed build and physical Caps campaign verified the correction, as recorded above.
+
+Caps Lock is a current session adapter limitation, not an established driverless hard limit. The candidate path uses Apple's hidutil to translate Caps Lock usage 57 into F18 usage 109 before the session event tap, then feeds F18 through real Kanata. The feasibility harness limits this mapping to the verified ESP32 device in the owned guest, refuses to overwrite a nonempty existing mapping, and clears its mapping afterward. Product mapping ownership, reconnect/reboot restoration, real F18 conflicts and crash recovery remain unimplemented. Sources: [Apple TN2450](https://developer.apple.com/library/archive/technotes/tn2450/) and [Hyperkey](https://github.com/feedthejim/hyperkey). No host mapping was changed.
+
+Two physical Caps trials delivered real usage-57 press/release reports and recorded Kanata input/output, but the target lost focus. Both are excluded from acceptance. Investigation found repeated SIGTRAP crash reports at shutdown in the global DispatchSource signal handler: Swift inferred main-actor isolation for a callback running on a global queue. The handler is now explicitly Sendable and forwards shutdown to the main CFRunLoop; the subsequent rebuild and physical campaign passed. Earlier q→a evidence session-4a4ef0212aa145de verifies output but must not be cited as graceful shutdown proof: mere PID disappearance incorrectly accepted a crash. The harness now additionally requires a final stopped report with an empty output ledger. Crash alerts were dismissed through their observed Ignore controls; no reports were sent.
+
+Research evidence is preserved in `/private/tmp/keypath-permission-footprint/docs/testing/permission-exploration-results.md`. Development is isolated in `/private/tmp/keypath-permission-reduction`, branch `feature/permission-reduction`, starting at `d5581754`. No host KeyPath deployment, permission change or upstream change is authorized by this document.
+
+## First implementation slice
+
+### Follow-up priorities after Caps feasibility
+
+Review of current Apple APIs and Karabiner's own development documentation separates
+session-event constraints from missing adapter features. These are research/test
+priorities, not newly verified product capabilities:
+
+1. Preserve layers, tap/hold, chords, one-shots and keyboard macros through real
+   Kanata; their state machines do not inherently require a virtual HID device.
+2. Finish Caps OS-mapping ownership and reconnect/crash cleanup before expanding
+   static normalization. Explore selected device-specific trigger normalization,
+   but do not promise arbitrary per-device profiles: CGEventTap lacks source-device
+   identity. Matching raw HID observations by timing is not reliable attribution.
+3. Test common media inputs/outputs and physical Apple Fn/Globe. For Fn system
+   behavior, prefer equivalent KeyPath actions to synthesizing a physical Fn key.
+   Firmware-only Fn keys that emit no host event cannot be recovered by software.
+   Media normalization/direct OS actions are candidates, not accepted capabilities.
+4. Add mouse movement/click/scroll output through public Quartz APIs, then Unicode
+   output with target-app compatibility tests. Clipboard paste is an optional
+   alternative with clipboard preservation and application limitations; it is not
+   universal equivalence to keyboard typing.
+5. Keep Secure Input as explicit pause/reset/resume. Static OS substitutions are
+   a possible limited baseline but do not restore Kanata layers or tap/hold in
+   protected input; any Caps→F18 staging must have a safe protected-input policy.
+   The session app also does not run before login or in FileVault preboot.
+6. Prioritize held-key release, event-tap timeout, worker/parent crash, sleep/wake,
+   session changes and mapping restoration before claiming default-backend readiness.
+
+[Karabiner's event-capture/output comparison](https://github.com/pqrs-org/Karabiner-Elements/blob/main/DEVELOPMENT.md#the-difference-of-event-grabbing-methods)
+documents Secure Input, missing source-device identity and synthetic Fn limitations.
+Its CGEventTap fallback still emits through VirtualHIDDevice, so enabling that
+fallback does not remove the driver dependency. [Apple Quartz event APIs](https://developer.apple.com/documentation/coregraphics/cgevent)
+support mouse and Unicode output, but [Apple's Unicode documentation](https://developer.apple.com/documentation/coregraphics/cgevent/keyboardsetunicodestring(stringlength:unicodestring:))
+warns that application frameworks may ignore the Unicode string. [Karabiner's
+feature limitations](https://karabiner-elements.pqrs.org/docs/getting-started/features/#current-limitations)
+also distinguish firmware-only Fn handling from software remapping.
+
+Separate KeyPath's app permission requirements from the engine's requirements. Starting remapping still requires the engine's verified AX and input access, plus KeyPath AX for app actions; it no longer requires KeyPath's own Input Monitoring. Configuration reload goes through the existing TCP coordinator and requests no keyboard permissions. Local key capture and emergency handling require KeyPath AX without depending on unrelated engine grants. After an app grant, re-evaluate the whole action gate before executing; an engine denial or unknown state must not be bypassed.
+
+Route both denied and unknown permission setup to Accessibility before Input Monitoring. Refresh the Oracle before prompting for KeyPath IM, so cached pre-AX denial does not cause an unnecessary prompt. The convenience request-all flow waits for AX approval before attempting IM. Existing helper, driver and engine checks remain in place until a working driverless backend replaces their requirements.
+
+## Remaining permission reduction work
+
+1. Replace explicit engine TCC-entry assumptions with an independently launched, non-prompting capability report from the final stable remapper identity. Do not treat KeyPath's effective IOHID access as the engine's access, or infer permission from AX alone.
+2. Integrate the tested session-event-tap/CGEvent adapter with real Kanata, complete keys/layouts, output tagging, modifiers/repeats and safe failure handling. Keep it experimental until acceptance passes.
+3. Make runtime, installer planning and repair requirements backend-specific. For a verified driverless session backend, stop installing/checking/repairing root helper and Karabiner driver services for ordinary remapping; retain an explicit advanced driver path and migration/rollback.
+4. Verify clean installation, signed identity/update, permission revocation/regrant, physical USB and supported built-in/Bluetooth keyboards, Secure Input, crash/fail-open, sleep/wake and session/reboot continuity. Use owned vm-lab resources and destroy them after tests.
+5. Once reduced requirements are fully verified, revisit onboarding UX. The current slice adjusts requirement correctness and ordering; it does not redesign pages or announce a driverless default.
+
+All check results and any implementation limitations must be recorded below before reporting this slice verified.
+
+
+## Verification of the first slice
+
+Passed 200 selected tests via `Scripts/run-tests-safe.sh`: `PermissionGateEvaluationTests`, `WizardRouterUnverifiedPermissionsTests`, `WizardGoldenTests`, `WizardPureLogicTests`, `WizardDeterminismTests`, `ConfigReloadCoordinatorTests`, `SystemStateProjectionPermissionSeverityTests` and `PermissionOracleInputMonitoringTests`. The final build/test run reported no Swift warnings or app errors. An initial expanded run found one old IM-first routing expectation; it was updated to the intentional AX-first requirement and the rerun passed.
+
+Coverage includes denied app IM with a ready engine, engine denial/unknown despite an app grant, local capture with unverified app AX, TCP reload without keyboard consent, mixed app/engine failures and AX-first ordering for both denied and unknown setup. Test execution used the repository's isolated HOME and event-tap safety guards. No installed app was launched or deployed and no host permissions or services changed.
+
+SwiftFormat 0.61.1 was applied only to touched files. Accessibility identifier validation passed across 380 UI files; whitespace checks passed. Research and rig worktrees remain preserved. This is a verified first implementation slice, not completed driverless integration, clean-installer VM acceptance or a release candidate.
+
+## Driverless integration in progress
+
+The opt-in session backend runs real Kanata in an independently NSWorkspace-launched instance of the same signed KeyPath executable. The worker reads its own passive Apple capability APIs through PermissionOracle, captures with a modifying session tap and emits tagged CGEvents. Its private reports bind nonce, PID, UID and freshness; they carry counters and generated-key cleanup state, never captured input or typed text. The existing lifecycle owner supervises it. The process boundary contains Kanata's detached TCP threads so restart cannot retain an old listener.
+
+Installer planning, readiness, routing and repair now distinguish the session backend. Session readiness requires current capture plus TCP evidence and the bundled runtime payload; absent helper/DriverKit components remain truthfully absent. Session setup plans no privileged helper, DriverKit installation or service registration. Accessibility comes first; Input Monitoring is requested only if effective access is still denied. Legacy remains the default pending acceptance.
+
+The adapter implements the mapped macOS keyboard keys, sided modifiers, layers, tap/hold, one-shot and ordinary key macros. Repeat preservation required the correction recorded above and still needs a signed physical retest. It passes unmapped physical keys through. Caps Lock remapping/output, consumer/mouse/Unicode output, device filtering and several advanced Kanata actions are rejected by a parser-backed session configuration preflight. These are material limitations; no claim of full Kanata or physical keyboard compatibility is made. Configuration reload repeats that preflight. Secure Input pauses remapping and normal physical typing remains available; supervision is being validated for automatic recovery and held-output release.
+
+Kanata's local-only commit `0d05696` exposes its canonical mapped-input set to the bridge; no upstream contribution has been submitted. Bridge input uses a nonblocking queue. All 12 memory-only bridge checks passed: five supported configuration profiles, six rejected profiles and a real q→a press/release. 134 selected Swift tests passed before the latest supervision/health changes; rerun pending. Twenty rig safety tests pass after adding exact KeyPath toggle targeting. The Xcode 27 release scripts needed removal of the obsolete helper WMO override and discovery of SwiftPM's actual release output directory.
+
+Owned source VM `cbx_8bd54247c73b` / `39fdaa87-32be-487d-bd29-da32c4a15dd3` was admitted through the preserved lab controller, macOS 26.5.2 (25F84), console `keypathqa`. Its manifest's d5581754 source and Sept 16 baseline archive are preparation provenance only. It was prepared, stopped and cloned into temporary candidates: clawd `0c3d6351-c2f1-402c-99b1-b70e8dfba4bb`; malpern `3386c33c-8baf-4589-8096-4e5db5cb0204`. Actual current-KeyPath acceptance and cleanup remain pending. The original signed rig archive is preserved at `/private/tmp/keypath-session-original-rig-tools.zip`; the new KeyPath-targeting archive is SHA256 `3a9564aa70a0c14f7aa560a59197d7ee5d8f12f1f3b3d6460bd0b668e9d90ff1`.
+
+Latest local check: 209 targeted tests passed after supervision, reload and canonical health integration, with no reported Swift or app warnings/errors. Accessibility validation passes for all 380 UI files. `origin/master` is current at d5581754. Signed candidate v2: app executable SHA256 `6a66bff4a6875192291e4e72f8af21bb1a3a24c02a9859f6ee782fcff1bba2f8`; archive `335540a0e7b17e408ab6bb3bfdd555b00057eb3c89804f879a2ae2cb73b0bf1c`. This is a dirty experimental build, not an exact final source-commit artifact; the final candidate must be rebuilt from its checkpoint after remaining fixes. GUI lease `cbx_92ff62339803` / `66c8cc66-ce7c-4c96-8e6e-1e0cd63ba9c4` uses this archive. Its d5581754 manifest describes the lab harness base, not the modified executable's exact source revision.

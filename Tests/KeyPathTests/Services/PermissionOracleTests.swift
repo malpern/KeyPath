@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathPermissions
 import Testing
 
@@ -150,7 +151,7 @@ struct PermissionOracleTests {
         let noIssues = PermissionOracle.Snapshot(
             keyPath: granted,
             kanata: granted,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(noIssues.blockingIssue == nil)
 
@@ -165,9 +166,9 @@ struct PermissionOracleTests {
         let axIssue = PermissionOracle.Snapshot(
             keyPath: keyPathAXBlocked,
             kanata: granted,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
-        #expect(axIssue.blockingIssue?.contains("KeyPath needs Accessibility") == true)
+        #expect(axIssue.blockingIssue?.contains("KeyPath needs \(AccessibilityPermissionPresentation.current.name)") == true)
 
         // KeyPath IM denied — soft (overlay only), NOT a blocking issue (#931)
         let keyPathIMBlocked = PermissionOracle.PermissionSet(
@@ -180,7 +181,7 @@ struct PermissionOracleTests {
         let imIssue = PermissionOracle.Snapshot(
             keyPath: keyPathIMBlocked,
             kanata: granted,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(imIssue.blockingIssue == nil)
 
@@ -195,7 +196,7 @@ struct PermissionOracleTests {
         let kanataIssue = PermissionOracle.Snapshot(
             keyPath: granted,
             kanata: kanataBlocked,
-            timestamp: now
+            timestamp: now, backend: .driverKit
         )
         #expect(kanataIssue.blockingIssue?.contains("Kanata needs permissions") == true)
     }
@@ -322,80 +323,5 @@ struct PermissionOracleTests {
 
         // New snapshot should have same or newer timestamp
         #expect(timestamp2 >= timestamp1)
-    }
-
-    // MARK: - Mixed-Migration TCC Merge Logic
-
-    /// Validates the nil-coalescing merge pattern used in `checkTCCForKanata`:
-    ///   `(axBundle ?? axPath, imBundle ?? imPath)`
-    /// During migration from raw-path to bundle-ID TCC entries, a user may have
-    /// one permission under the bundle ID and the other still under the old path.
-    @Test("Mixed-migration TCC merge: bundle-ID fills one gap, path fills the other")
-    func mixedMigrationTCCMerge() {
-        typealias Status = PermissionOracle.Status
-
-        // Simulate: bundle-ID query returns granted for AX, nil for IM
-        let axBundle: Status? = .granted
-        let imBundle: Status? = nil
-
-        // Simulate: path-based query returns nil for AX, granted for IM
-        let axPath: Status? = nil
-        let imPath: Status? = .granted
-
-        // The merge pattern from checkTCCForKanata
-        let mergedAX = axBundle ?? axPath
-        let mergedIM = imBundle ?? imPath
-
-        #expect(mergedAX == .granted, "AX should come from bundle-ID query")
-        #expect(mergedIM == .granted, "IM should fall back to path-based query")
-    }
-
-    @Test("Mixed-migration TCC merge: bundle-ID takes precedence when both present")
-    func mixedMigrationBundlePrecedence() {
-        typealias Status = PermissionOracle.Status
-
-        // Both sources have values -- bundle-ID should win
-        let axBundle: Status? = .granted
-        let imBundle: Status? = .denied
-        let axPath: Status? = .denied
-        let imPath: Status? = .granted
-
-        let mergedAX = axBundle ?? axPath
-        let mergedIM = imBundle ?? imPath
-
-        #expect(mergedAX == .granted, "Bundle-ID AX should take precedence over path")
-        #expect(mergedIM == .denied, "Bundle-ID IM should take precedence over path")
-    }
-
-    @Test("Mixed-migration TCC merge: both nil yields nil")
-    func mixedMigrationBothNil() {
-        typealias Status = PermissionOracle.Status
-
-        let axBundle: Status? = nil
-        let imBundle: Status? = nil
-        let axPath: Status? = nil
-        let imPath: Status? = nil
-
-        let mergedAX = axBundle ?? axPath
-        let mergedIM = imBundle ?? imPath
-
-        #expect(mergedAX == nil, "Both nil should produce nil")
-        #expect(mergedIM == nil, "Both nil should produce nil")
-    }
-
-    @Test("Mixed-migration TCC merge: path fills both gaps when bundle returns nothing")
-    func mixedMigrationPathFillsBothGaps() {
-        typealias Status = PermissionOracle.Status
-
-        let axBundle: Status? = nil
-        let imBundle: Status? = nil
-        let axPath: Status? = .granted
-        let imPath: Status? = .denied
-
-        let mergedAX = axBundle ?? axPath
-        let mergedIM = imBundle ?? imPath
-
-        #expect(mergedAX == .granted, "Path should fill AX gap")
-        #expect(mergedIM == .denied, "Path should fill IM gap")
     }
 }

@@ -1,3 +1,7 @@
 #!/bin/bash
-# Help content is now served from gh-pages — no bundled markdown to validate.
-exit 0
+# Validate that every offline guide, local cross-link and image can be generated.
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+OUTPUT=$(mktemp -d)
+trap 'rm -rf "$OUTPUT"' EXIT
+python3 "$ROOT/Scripts/build-offline-help.py" --output "$OUTPUT"

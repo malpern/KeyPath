@@ -6,8 +6,8 @@ struct PermissionStatusRow: View {
     let icon: String
     let status: PermissionOracle.Status?
     let isKanata: Bool
-    let hasFullDiskAccess: Bool
     let onTap: (() -> Void)?
+    var identifier: String?
 
     var body: some View {
         Button(action: { onTap?() }) {
@@ -34,7 +34,7 @@ struct PermissionStatusRow: View {
         }
         .buttonStyle(.plain)
         .disabled(onTap == nil)
-        .accessibilityIdentifier("settings-status-action-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+        .accessibilityIdentifier(identifier ?? "settings-status-action-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
         .accessibilityLabel(title)
         .accessibilityValue(accessibilityValue)
     }
@@ -49,9 +49,6 @@ struct PermissionStatusRow: View {
         case let .error(message):
             return message.isEmpty ? "error" : "error: \(message)"
         case .unknown:
-            if isKanata, !hasFullDiskAccess {
-                return "unknown: full disk access required to verify"
-            }
             return "unknown"
         }
     }
@@ -64,8 +61,7 @@ struct PermissionStatusRow: View {
         case .denied, .error:
             return .red
         case .unknown:
-            // For Kanata, unknown is commonly due to missing Full Disk Access (TCC not readable).
-            // For KeyPath, unknown is usually a transient "still checking" (startup mode).
+            // Unknown means current permission evidence is unavailable.
             return isKanata ? .orange : .secondary
         }
     }
@@ -78,9 +74,6 @@ struct PermissionStatusRow: View {
         case .denied, .error:
             return "xmark.circle.fill"
         case .unknown:
-            if isKanata, !hasFullDiskAccess {
-                return "questionmark.circle.fill"
-            }
             return "questionmark.circle"
         }
     }
@@ -103,6 +96,8 @@ struct StatusDetailAction: Identifiable {
     let title: String
     let icon: String?
     let handler: () -> Void
+    var identifier: String?
+    var accessibilityTitle: String?
 }
 
 struct StatusDetail: Identifiable {
@@ -191,10 +186,9 @@ struct StatusDetailRow: View {
                                 Text(action.title)
                             }
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("status-action-\(action.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-                        .accessibilityLabel(action.title)
+                        .settingsAction()
+                        .accessibilityIdentifier(action.identifier ?? "status-action-\(action.title.lowercased().replacingOccurrences(of: " ", with: "-"))")
+                        .accessibilityLabel(action.accessibilityTitle ?? action.title)
                         .accessibilityValue(detail.message)
                     }
                 }

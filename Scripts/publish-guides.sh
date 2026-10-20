@@ -64,13 +64,18 @@ mkdir -p "$GHPAGES_WORKTREE/images/help"
 cp -R "$REPO_ROOT/images/help/." "$GHPAGES_WORKTREE/images/help/"
 echo "  synced docs.md and images/help/"
 
+# The website and downloadable offline guides share the same Markdown and assets.
+python3 "$REPO_ROOT/Scripts/build-offline-help.py" \
+    --output "$REPO_ROOT/.build/offline-help/OfflineHelp" \
+    --publish-root "$GHPAGES_WORKTREE/offline-help"
+
 # Check for changes
 if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
     echo "✅ No changes to publish"
     exit 0
 fi
 
-git add guides/ docs.md images/help/
+git add guides/ docs.md images/help/ offline-help/
 CHANGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
 git commit -m "Publish $CHANGED file(s) from master $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 git push origin gh-pages

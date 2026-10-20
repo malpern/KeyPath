@@ -147,6 +147,7 @@ struct ActivityReportView: View {
     private func loadReport() {
         isLoading = true
         Task { @MainActor in
+            await ActivityLogEncryption.shared.authorizeActivityHistoryAccess()
             report = await ActivityReportGenerator.shared.generateReport(for: selectedPeriod)
             isLoading = false
         }

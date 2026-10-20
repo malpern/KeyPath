@@ -1,10 +1,10 @@
 import Foundation
 @preconcurrency import XCTest
 
-/// Validates that wizard page polling implementations never auto-navigate.
+/// Validates that polling cannot navigate except after verified permission approval.
 ///
 /// Polling should only update UI state (via onRefresh() or local state changes).
-/// Navigation must be user-initiated (button clicks only).
+/// Permission pages may advance once after a fresh, ready snapshot.
 ///
 /// This test catches regressions where someone accidentally adds navigation
 /// calls to polling callbacks.
@@ -51,6 +51,7 @@ final class WizardPollingNoNavigationTests: XCTestCase {
 
             var inPollingBlock = false
             var braceDepth = 0
+            var pollingBody = ""
 
             for (lineNum, line) in lines.enumerated() {
                 // Detect start of polling block
@@ -59,15 +60,34 @@ final class WizardPollingNoNavigationTests: XCTestCase {
                 {
                     inPollingBlock = true
                     braceDepth = 0
+                    pollingBody = ""
                 }
 
                 if inPollingBlock {
+                    pollingBody += line + "\n"
                     braceDepth += line.filter { $0 == "{" }.count
                     braceDepth -= line.filter { $0 == "}" }.count
 
                     // Check for navigation calls inside polling block
                     for navCall in navigationCalls {
                         if line.contains(navCall) {
+                            // Clean installation intentionally advances after the user
+                            // grants permission in System Settings. Keep this exception
+                            // bound to the ready, one-shot, cancellation-checked branch.
+                            let readyGuard: String? = switch fileName {
+                            case "WizardAccessibilityPage.swift": "if accessibilityReady, !hasEverCelebrated {"
+                            case "WizardInputMonitoringPage.swift": "if inputReady, !hasEverCelebrated {"
+                            default: nil
+                            }
+                            if navCall == "navigateToNextStep()", let readyGuard,
+                               pollingBody.contains(readyGuard),
+                               pollingBody.contains("hasEverCelebrated = true"),
+                               pollingBody.contains("await SystemStateProvider.shared.refreshPermissionSnapshot()"),
+                               pollingBody.contains("await onRefresh()"),
+                               pollingBody.contains("guard !Task.isCancelled else { return }")
+                            {
+                                continue
+                            }
                             violations.append(
                                 "\(fileName):\(lineNum + 1): Navigation call '\(navCall)' found inside polling block"
                             )
@@ -84,10 +104,10 @@ final class WizardPollingNoNavigationTests: XCTestCase {
         XCTAssert(
             violations.isEmpty,
             """
-            Polling methods must NOT auto-navigate!
+            Polling navigation must be user-initiated or follow verified permission approval.
 
             Polling should only update UI state (via onRefresh() or local @State).
-            Navigation must be user-initiated via button clicks.
+            Only the guarded, one-shot permission-approval branches may advance automatically.
 
             Violations found:
             \(violations.joined(separator: "\n"))

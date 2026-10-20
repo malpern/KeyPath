@@ -161,7 +161,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .fill(SettingsDesign.groupFill)
         )
     }
 
@@ -180,7 +180,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Color(NSColor.controlBackgroundColor)))
+                    .background(Capsule().fill(SettingsDesign.chipFill))
             }
         }
     }
@@ -340,9 +340,9 @@ struct HomeRowKeyChip: View {
         } else if isHovered {
             Color(NSColor.controlAccentColor).opacity(0.2)
         } else if isEnabled {
-            Color(NSColor.controlBackgroundColor)
+            SettingsDesign.chipFill
         } else {
-            Color(NSColor.controlBackgroundColor).opacity(0.3)
+            SettingsDesign.chipFill.opacity(0.4)
         }
     }
 

@@ -78,8 +78,7 @@ struct PluginCatalogCard: View {
                     } label: {
                         Text("Download & Install")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .settingsPrimaryAction()
                     .accessibilityIdentifier("plugin-install-\(entry.id)")
 
                     Text("(\(entry.estimatedSize))")

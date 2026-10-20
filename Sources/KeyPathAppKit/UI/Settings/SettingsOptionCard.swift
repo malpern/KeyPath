@@ -3,7 +3,7 @@ import SwiftUI
 /// Reusable horizontal option card for settings selections.
 /// Displays an icon + title/subtitle with accent-colored selected state.
 struct SettingsOptionCard: View {
-    static let settingsRowWidth: CGFloat = 240
+    static let settingsRowWidth: CGFloat = SettingsDesign.optionWidth
 
     let icon: String
     let title: String
@@ -20,7 +20,7 @@ struct SettingsOptionCard: View {
                 action()
             }
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: SettingsDesign.optionGap) {
                 Image(systemName: icon)
                     .font(.headline)
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
@@ -44,11 +44,11 @@ struct SettingsOptionCard: View {
             .frame(maxWidth: cardWidth == nil ? .infinity : nil, alignment: .leading)
             .contentShape(Rectangle())
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: SettingsDesign.optionRadius, style: .continuous)
                     .fill(isSelected ? Color.accentColor.opacity(0.06) : .clear)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: SettingsDesign.optionRadius, style: .continuous)
                     .strokeBorder(
                         isSelected
                             ? Color.accentColor.opacity(0.3)

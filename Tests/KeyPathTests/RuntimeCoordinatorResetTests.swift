@@ -11,7 +11,9 @@ final class KanataManagerResetTests: KeyPathTestCase {
         try await manager.resetToDefaultConfig()
 
         // Then: the default config file should exist and be a valid Kanata config
-        let path = NSHomeDirectory() + "/.config/keypath/keypath.kbd"
+        // Read the file reset wrote. Test hosts redirect the config directory, so a
+        // hard-coded ~/.config path reads a stale file (on CI, one from July).
+        let path = manager.configPath
         let written = try String(contentsOfFile: path, encoding: .utf8)
 
         // Verify the file was written and contains essential elements
@@ -33,11 +35,13 @@ final class KanataManagerResetTests: KeyPathTestCase {
             "Config should contain deflayer block"
         )
 
-        // The config should have the macOS function keys collection enabled by default
-        // These are the F-key mappings that preserve brightness/volume controls
-        XCTAssertTrue(
-            written.contains("brdn") || written.contains("brup") || written.contains("mute"),
-            "Config should contain macOS function key mappings"
-        )
+        // macOS Function Keys is enabled by default as plain F1-F12. Brightness
+        // and media keys are consumer output the driverless session cannot send,
+        // so a reset must not write them.
+        XCTAssertTrue(written.contains("macOS Function Keys"), "Config should enable macOS Function Keys")
+        for consumerKey in ["brdn", "brup", "mute", "volu", "vold", "pp", "prev", "next"] {
+            XCTAssertNil(written.range(of: "\\b\(consumerKey)\\b", options: .regularExpression),
+                         "Reset config must not emit consumer key \(consumerKey)")
+        }
     }
 }

@@ -54,6 +54,17 @@ extension LiveKeyboardOverlayController {
                 self?.viewModel.invalidateLayerMappings()
             }
         }
+
+        // A Vim pack switched between plain and Vim-term key names: rebuild the labels.
+        Foundation.NotificationCenter.default.addObserver(
+            forName: .vimKeyNameStyleChanged,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { [weak self] (_: Foundation.Notification) in
+            Task { @MainActor in
+                self?.viewModel.invalidateLayerMappings()
+            }
+        }
     }
 
     func setupKeyInputObserver() {
@@ -67,6 +78,7 @@ extension LiveKeyboardOverlayController {
             Task { @MainActor in
                 guard let self else { return }
                 guard let key, action == "press" else { return }
+                self.applyLayerRevealEffects(self.layerReveal.keyPressed())
 
                 if let overrideLayer = self.oneShotOverride.clearOnKeyPress(
                     key,
@@ -90,6 +102,7 @@ extension LiveKeyboardOverlayController {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         handleLauncherLayerTransition(normalizedLayer: normalized)
+        noteLayerForReveal(normalized)
 
         switch source {
         case .push:

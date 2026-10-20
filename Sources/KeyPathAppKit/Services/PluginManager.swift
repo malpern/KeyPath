@@ -55,14 +55,23 @@ public final class PluginManager {
     /// The in-flight install task, used for cancellation.
     private var installTask: Task<Void, Never>?
 
+    #if DEBUG
+        var testPluginsDirectory: URL?
+        var testDownload: ((URL) async throws -> URL)?
+        var testPluginInstance: ((URL) throws -> NSObject)?
+    #endif
+
     private var userPluginsDirectory: URL {
+        #if DEBUG
+            if let testPluginsDirectory { return testPluginsDirectory }
+        #endif
         guard let appSupport = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             fatalError("Application Support directory unavailable")
         }
         return appSupport.appendingPathComponent("KeyPath/Plugins", isDirectory: true)
     }
 
-    private init() {
+    init() {
         // Hardcoded catalog — just Insights for now
         availablePlugins = [
             PluginCatalogEntry(
@@ -117,37 +126,27 @@ public final class PluginManager {
     }
 
     /// Load a single plugin bundle from a URL.
-    public func loadPlugin(from bundleURL: URL) {
+    @discardableResult
+    public func loadPlugin(from bundleURL: URL) -> Bool {
         let path = bundleURL.path
         guard !loadedBundlePaths.contains(path) else {
             AppLogger.shared.debug("🔌 [PluginManager] Already loaded: \(bundleURL.lastPathComponent)")
-            return
+            return true
         }
 
-        guard let bundle = Bundle(url: bundleURL) else {
-            AppLogger.shared.error("🔌 [PluginManager] Failed to create Bundle for: \(bundleURL.lastPathComponent)")
-            return
+        let instance: NSObject
+        do {
+            instance = try pluginInstance(from: bundleURL)
+        } catch {
+            AppLogger.shared.error("🔌 [PluginManager] Failed to load plugin: \(error)")
+            return false
         }
-
-        guard bundle.load() else {
-            AppLogger.shared.error("🔌 [PluginManager] Failed to load bundle: \(bundleURL.lastPathComponent)")
-            return
-        }
-
-        guard let principalClass = bundle.principalClass as? NSObject.Type else {
-            AppLogger.shared.error(
-                "🔌 [PluginManager] NSPrincipalClass is not NSObject: \(bundleURL.lastPathComponent)"
-            )
-            return
-        }
-
-        let instance = principalClass.init()
 
         guard let plugin = instance as? any KeyPathPlugin else {
             AppLogger.shared.error(
                 "🔌 [PluginManager] NSPrincipalClass does not conform to KeyPathPlugin: \(bundleURL.lastPathComponent)"
             )
-            return
+            return false
         }
 
         plugins.append(plugin)
@@ -163,6 +162,26 @@ public final class PluginManager {
 
         // Remove from available catalog
         availablePlugins.removeAll { $0.id == identifier }
+        return true
+    }
+
+    private func pluginInstance(from bundleURL: URL) throws -> NSObject {
+        #if DEBUG
+            if let testPluginInstance { return try testPluginInstance(bundleURL) }
+        #endif
+        guard let bundle = Bundle(url: bundleURL), bundle.load(),
+              let principalClass = bundle.principalClass as? NSObject.Type
+        else {
+            throw InstallError(userMessage: "The plugin bundle could not be loaded.")
+        }
+        return principalClass.init()
+    }
+
+    private func downloadPlugin(from url: URL, downloader: PluginDownloader) async throws -> URL {
+        #if DEBUG
+            if let testDownload { return try await testDownload(url) }
+        #endif
+        return try await downloader.download(from: url)
     }
 
     // MARK: - Action Broadcasting
@@ -224,7 +243,7 @@ public final class PluginManager {
         installProgressMessage = "Downloading\u{2026}"
 
         installTask = Task { [self] in
-            await performInstall(from: url)
+            _ = await performInstall(from: url)
             isInstalling = false
             installProgressMessage = nil
             installProgress = nil
@@ -254,14 +273,13 @@ public final class PluginManager {
             installProgressMessage = nil
             installProgress = nil
         }
-        await performInstall(from: url)
-        return installError == nil
+        return await performInstall(from: url)
     }
 
     /// Runs the full download → unzip → install pipeline, updating observable
     /// state. Sets `installError` with a specific message on failure; leaves it
     /// nil on success or user cancellation.
-    private func performInstall(from url: URL) async {
+    private func performInstall(from url: URL) async -> Bool {
         do {
             // Download with progress + cancellation support.
             let downloader = PluginDownloader { [weak self] progress in
@@ -269,13 +287,14 @@ public final class PluginManager {
             }
             let tempFileURL: URL
             do {
-                tempFileURL = try await downloader.download(from: url)
+                tempFileURL = try await downloadPlugin(from: url, downloader: downloader)
             } catch let urlError as URLError where urlError.code == .cancelled {
                 throw CancellationError()
             } catch let urlError as URLError {
                 throw InstallError(userMessage: networkMessage(for: urlError))
             }
 
+            defer { try? Foundation.FileManager().removeItem(at: tempFileURL) }
             try Task.checkCancellation()
             installProgressMessage = "Installing\u{2026}"
             installProgress = nil
@@ -287,12 +306,16 @@ public final class PluginManager {
             let unzipDir = Foundation.FileManager().temporaryDirectory.appendingPathComponent(UUID().uuidString)
             try Foundation.FileManager().createDirectory(at: unzipDir, withIntermediateDirectories: true)
 
+            defer { try? Foundation.FileManager().removeItem(at: unzipDir) }
+
             let result = try await SubprocessRunner.shared.run("/usr/bin/ditto", args: ["-xk", tempFileURL.path, unzipDir.path])
             guard result.exitCode == 0 else {
                 AppLogger.shared.error("🔌 [PluginManager] Unzip failed with status \(result.exitCode)")
                 try? Foundation.FileManager().removeItem(at: tempFileURL)
                 throw InstallError(userMessage: "The download couldn't be unpacked — it may be corrupted. Try again.")
             }
+
+            try Task.checkCancellation()
 
             // Find the .bundle in unzipped contents
             let unzippedContents = try Foundation.FileManager().contentsOfDirectory(
@@ -310,21 +333,56 @@ public final class PluginManager {
 
             let destination = userPluginsDirectory.appendingPathComponent(bundleSource.lastPathComponent)
 
-            // Remove existing if present
-            if Foundation.FileManager().fileExists(atPath: destination.path) {
-                try Foundation.FileManager().removeItem(at: destination)
+            // A loaded bundle cannot be replaced safely in this process.
+            guard !loadedBundlePaths.contains(destination.path) else {
+                throw InstallError(userMessage: "This plugin is already loaded. Restart KeyPath before replacing it.")
+            }
+            try Task.checkCancellation()
+
+            // Keep an unloaded previous installation until the replacement activates.
+            // The backup lives beside the destination, outside temporary extraction
+            // cleanup, so a failed restoration cannot erase the recovery copy.
+            let fileManager = Foundation.FileManager()
+            let backup = userPluginsDirectory.appendingPathComponent(".plugin-backup-" + UUID().uuidString)
+            let hadPrevious = fileManager.fileExists(atPath: destination.path)
+            if hadPrevious {
+                try fileManager.moveItem(at: destination, to: backup)
+            }
+            var movedReplacement = false
+            do {
+                try fileManager.moveItem(at: bundleSource, to: destination)
+                movedReplacement = true
+                guard loadPlugin(from: destination) else {
+                    throw InstallError(userMessage: "The plugin could not be activated. Check that it is compatible with this version of KeyPath.")
+                }
+            } catch {
+                let installationError = error
+                do {
+                    if movedReplacement {
+                        try fileManager.removeItem(at: destination)
+                    }
+                    if hadPrevious {
+                        try fileManager.moveItem(at: backup, to: destination)
+                    }
+                } catch {
+                    // Leave the backup intact and identify it instead of reporting
+                    // that the previous installation was restored.
+                    let recovery = hadPrevious ? " The previous plugin is preserved at \(backup.path)." : ""
+                    throw InstallError(userMessage: "Plugin installation failed and cleanup could not finish." + recovery + " \(error.localizedDescription)")
+                }
+                throw installationError
+            }
+            if hadPrevious {
+                do { try fileManager.removeItem(at: backup) }
+                catch {
+                    // Activation succeeded; leftover backup cleanup is not an
+                    // activation failure and must not trigger another activation.
+                    AppLogger.shared.warn("🔌 [PluginManager] Installed plugin; could not remove backup at \(backup.path): \(error)")
+                }
             }
 
-            try Foundation.FileManager().moveItem(at: bundleSource, to: destination)
-
-            // Clean up temp files
-            try? Foundation.FileManager().removeItem(at: tempFileURL)
-            try? Foundation.FileManager().removeItem(at: unzipDir)
-
-            // Load immediately
-            loadPlugin(from: destination)
-
             AppLogger.shared.info("🔌 [PluginManager] Plugin installed from: \(url.lastPathComponent)")
+            return true
         } catch is CancellationError {
             AppLogger.shared.info("🔌 [PluginManager] Install cancelled by user")
         } catch let error as InstallError {
@@ -334,6 +392,7 @@ public final class PluginManager {
             AppLogger.shared.error("🔌 [PluginManager] Install failed: \(error)")
             installError = "Installation failed: \(error.localizedDescription)"
         }
+        return false
     }
 
     /// Maps a `URLError` to a concise, user-facing reason.

@@ -434,22 +434,6 @@
         }
       }
     },
-    "About Full Disk Access": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "フルディスクアクセスについて"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About Full Disk Access"
-          }
-        }
-      }
-    },
     "Accessibility": {
       "localizations": {
         "ja": {
@@ -1838,54 +1822,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "For the smoothest setup, move KeyPath to /Applications and relaunch."
-          }
-        }
-      }
-    },
-    "Full Disk Access": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "フルディスクアクセス"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Full Disk Access"
-          }
-        }
-      }
-    },
-    "Full Disk Access Granted!": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "フルディスクアクセスが許可されました!"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Full Disk Access Granted!"
-          }
-        }
-      }
-    },
-    "Full Disk Access requires KeyPath to restart": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "フルディスクアクセスにはKeyPathの再起動が必要です"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Full Disk Access requires KeyPath to restart"
           }
         }
       }
@@ -4594,22 +4530,6 @@
         }
       }
     },
-    "To verify kanata's permission, please grant Full Disk Access to KeyPath.": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kanataの許可を確認するには、KeyPathにフルディスクアクセスを付与してください。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "To verify kanata's permission, please grant Full Disk Access to KeyPath."
-          }
-        }
-      }
-    },
     "Toggle KeyPath to ON under Background Items, then return here.": {
       "localizations": {
         "ja": {
@@ -4910,22 +4830,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Warnings"
-          }
-        }
-      }
-    },
-    "What is Full Disk Access?": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "フルディスクアクセスとは?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "What is Full Disk Access?"
           }
         }
       }

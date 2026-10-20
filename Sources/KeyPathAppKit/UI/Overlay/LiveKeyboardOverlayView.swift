@@ -17,6 +17,9 @@ struct LiveKeyboardOverlayView: View {
     var onKeyClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
     /// Callback when a key is double-clicked in launcher mode (opens edit panel)
     var onKeyDoubleClick: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    /// Right-click "Remap…"; works whether or not the drawer is open.
+    var onKeyRemap: ((PhysicalKey, LayerKeyInfo?) -> Void)?
+    var onKeyReset: ((PhysicalKey) -> Void)?
     /// Callback when the overlay close button is pressed
     var onClose: (() -> Void)?
     /// Callback when the inspector button is pressed
@@ -517,6 +520,7 @@ struct LiveKeyboardOverlayView: View {
             outerHorizontalPadding: outerHorizontalPadding,
             trailingOuterPadding: trailingOuterPadding,
             deepFadeAmount: viewModel.deepFadeAmount,
+            restingOpacity: PreferencesService.shared.overlayOpacity,
             reduceMotion: reduceMotion,
             onMouseMove: { viewModel.noteInteraction() }
         )
