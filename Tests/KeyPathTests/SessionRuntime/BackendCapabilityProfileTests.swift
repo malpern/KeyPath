@@ -33,7 +33,6 @@ final class BackendCapabilityProfileTests: XCTestCase {
         XCTAssertFalse(profile.supportsDeviceTargeting)
     }
 
-    @MainActor
     func testFormerHardCodedListsGiveTheSameAnswersThroughTheBridge() throws {
         BackendCapabilityProfile.testOverride = try bridgeProfile()
 

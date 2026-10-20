@@ -9,8 +9,8 @@ import KeyPathRulesCore
 /// Phase 3 of docs/architecture/rules-admission-review.md; every caller (toggle,
 /// editor, pack install, save gate, startup, doctor) asks it. Conflicts are
 /// computed here from claims — what each rule puts on which slot — attributed
-/// by rule id, never by display name (§4.4g).
-@MainActor
+/// by rule id, never by display name (§4.4g). Pure: value types in, verdicts
+/// out, no actor; the save gate, the CLI and the UI all call it directly.
 enum AdmissionEngine {
     struct State {
         var collections: [RuleCollection]
@@ -97,9 +97,9 @@ enum AdmissionEngine {
 
     /// Every conflict in `collections` (enabled ones; custom rules already folded
     /// in as collections) plus the leader key. Pure, so the save gate and the CLI
-    /// call it off the main actor. Order is the slot order of the claims; callers
+    /// call it directly. Order is the slot order of the claims; callers
     /// that need a total order sort (see `mappingConflicts`).
-    nonisolated static func conflicts(in collections: [RuleCollection], leaderKey: LeaderKeyPreference? = nil)
+    static func conflicts(in collections: [RuleCollection], leaderKey: LeaderKeyPreference? = nil)
         -> [AdmissionVerdict]
     {
         let owners: [(subject: AdmissionSubject, collection: RuleCollection)] =
@@ -108,7 +108,7 @@ enum AdmissionEngine {
     }
 
     /// The same, for the save gate and the CLI, in the error type they report.
-    nonisolated static func mappingConflicts(in collections: [RuleCollection], leaderKey: LeaderKeyPreference? = nil)
+    static func mappingConflicts(in collections: [RuleCollection], leaderKey: LeaderKeyPreference? = nil)
         -> [KeyPathError.MappingConflictInfo]
     {
         let names = Dictionary(collections.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
@@ -142,8 +142,8 @@ enum AdmissionEngine {
         conflicts(owners: owners, leaderKey: state.leaderKey)
     }
 
-    private nonisolated static func conflicts(owners: [(subject: AdmissionSubject, collection: RuleCollection)],
-                                              leaderKey: LeaderKeyPreference?) -> [AdmissionVerdict]
+    private static func conflicts(owners: [(subject: AdmissionSubject, collection: RuleCollection)],
+                                  leaderKey: LeaderKeyPreference?) -> [AdmissionVerdict]
     {
         var verdicts: [AdmissionVerdict] = []
         func conflict(_ key: String, _ layer: String, _ stakes: [Stake], subject: AdmissionSubject? = nil) {

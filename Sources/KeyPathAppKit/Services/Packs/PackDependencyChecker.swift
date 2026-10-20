@@ -5,7 +5,7 @@ import KeyPathRulesCore
 ///
 /// Simple flat validation — iterates each pack's requirements and checks
 /// if they're met. No graph traversal needed for ~15 packs with 1-2 depth chains.
-@MainActor
+/// Pure: it reads only the immutable registry, so any actor may ask.
 enum PackDependencyChecker {
     /// Returns unmet hard requirements for a specific pack.
     static func unmetRequirements(

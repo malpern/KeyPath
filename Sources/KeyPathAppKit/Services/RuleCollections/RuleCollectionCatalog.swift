@@ -17,7 +17,7 @@ struct RuleCollectionCatalog {
     /// rules list and the toggle all say the same thing. Only the backend's
     /// own limits count here: whether a companion app is installed is a
     /// question for install or toggle time, with the user's real files.
-    @MainActor static func driverlessUnavailableReason(for id: UUID, profile: BackendCapabilityProfile = .shared) -> String? {
+    static func driverlessUnavailableReason(for id: UUID, profile: BackendCapabilityProfile = .shared) -> String? {
         guard let collection = installedDefinitions.first(where: { $0.id == id }) else { return nil }
         var enabled = collection
         enabled.isEnabled = true

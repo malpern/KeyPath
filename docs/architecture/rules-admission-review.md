@@ -502,6 +502,10 @@ carries names and details rather than ids, and lives in KeyPathCore where the ve
 types cannot be seen. It is produced from verdicts in exactly one place
 (`AdmissionEngine.mappingConflicts`).
 
+The engine and `PackDependencyChecker` are plain enums with no actor: both only read
+value types and the immutable registry. `driverlessUnavailableReason` lost the
+main-actor annotation that had followed from the engine's.
+
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
 Rules keep expressing intent (`volu`, `caps` → Hyper, "this keyboard only").
