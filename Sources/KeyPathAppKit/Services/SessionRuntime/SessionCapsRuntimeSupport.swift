@@ -290,11 +290,6 @@ enum SessionCapsRuntimeSupport {
         return selection
     }
 
-    /// Without attribution; the lifecycle coordinator adds the engine's.
-    static func startupFailureMessage(_ result: KanataHostBridgeValidationResult) -> String? {
-        SessionConfigurationRefusal.message(result)
-    }
-
     static func journalDirectory(configPath: String = KeyPathConstants.Config.mainConfigPath) -> URL {
         URL(fileURLWithPath: configPath).deletingLastPathComponent().appendingPathComponent(".session-caps-mapping", isDirectory: true)
     }

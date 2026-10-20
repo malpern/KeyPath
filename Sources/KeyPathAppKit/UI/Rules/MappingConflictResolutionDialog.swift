@@ -12,8 +12,8 @@ struct MappingConflictOption: Sendable, Equatable, Identifiable {
 
 /// Context for a save-time mapping conflict that can be resolved by disabling a
 /// collection. Sendable so it can cross the actor boundary from the save task to
-/// the UI. Built only when every conflicting party is a real, toggleable collection
-/// (see `RuleCollectionsManager.resolvableCollectionConflict`).
+/// the UI. Built from the engine's verdicts by `RuleCollectionsManager.mappingConflictContext(for:)`,
+/// only when every conflicting party is a real, toggleable collection.
 struct MappingConflictContext: Sendable, Equatable {
     /// Plain-English explanation of the conflict(s).
     let explanation: String

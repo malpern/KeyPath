@@ -207,39 +207,6 @@ final class RuleCollectionConflictDetectionTests: XCTestCase {
         XCTAssertNotNil(conflict)
     }
 
-    // MARK: - conflictWithCustomRules
-
-    func testConflictWithCustomRules_FindsMatchingKey() {
-        let manager = makeManager()
-        var rule = CustomRule(input: "x", action: .keystroke(key: "y"))
-        rule.isEnabled = true
-        manager.customRules = [rule]
-
-        let conflict = manager.conflictWithCustomRules(Set(["x"]), layer: .base)
-        XCTAssertNotNil(conflict)
-    }
-
-    func testConflictWithCustomRules_NoMatchWhenDifferentLayer() {
-        let manager = makeManager()
-        var rule = CustomRule(input: "x", action: .keystroke(key: "y"))
-        rule.isEnabled = true
-        rule.targetLayer = .base
-        manager.customRules = [rule]
-
-        let conflict = manager.conflictWithCustomRules(Set(["x"]), layer: .navigation)
-        XCTAssertNil(conflict)
-    }
-
-    func testConflictWithCustomRules_NoMatchWhenDisabled() {
-        let manager = makeManager()
-        var rule = CustomRule(input: "x", action: .keystroke(key: "y"))
-        rule.isEnabled = false
-        manager.customRules = [rule]
-
-        let conflict = manager.conflictWithCustomRules(Set(["x"]), layer: .base)
-        XCTAssertNil(conflict)
-    }
-
     // MARK: - RuleConflictInfo
 
     func testRuleConflictInfo_DisplayName_Collection() {

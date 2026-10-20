@@ -6,41 +6,6 @@ import KeyPathRulesCore
 extension RuleCollectionsManager {
     // MARK: - Save-time mapping-conflict resolution (#460)
 
-    /// Determine whether a set of save-time mapping conflicts can be resolved by
-    /// disabling a collection — i.e. every named party of every conflict maps to a
-    /// real, enabled collection by exact name. Synthetic parties (chord group names,
-    /// alias key-pairs, the "Leader Key" preference) won't match a collection, so
-    /// those conflicts fall back to a plain explanation rather than offering an
-    /// action that wouldn't apply.
-    ///
-    /// - Returns: the distinct collections the user could disable (≥2), or nil when
-    ///   the conflicts aren't all collection-vs-collection.
-    nonisolated static func resolvableCollectionConflict(
-        conflicts: [KeyPathError.MappingConflictInfo],
-        collections: [RuleCollection]
-    ) -> [RuleCollection]? {
-        guard !conflicts.isEmpty else { return nil }
-
-        let byName = Dictionary(
-            collections.filter(\.isEnabled).map { ($0.name, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-
-        var involved: [UUID: RuleCollection] = [:]
-        for conflict in conflicts {
-            // Every party must resolve to a real enabled collection; otherwise the
-            // whole set is treated as non-actionable (explanation fallback).
-            for name in conflict.conflictingCollections {
-                guard let collection = byName[name] else { return nil }
-                involved[collection.id] = collection
-            }
-        }
-
-        // Need at least two distinct collections for "disable one" to resolve anything.
-        guard involved.count >= 2 else { return nil }
-        return involved.values.sorted { $0.name < $1.name }
-    }
-
     /// On a save-time mapping-conflict failure, if the conflicting parties are all
     /// real collections, prompt the user to disable one and retry the save (#460).
     /// - Returns: the retry result, or nil when the failure wasn't a resolvable

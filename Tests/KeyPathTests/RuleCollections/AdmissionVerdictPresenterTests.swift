@@ -41,13 +41,13 @@ final class AdmissionVerdictPresenterTests: XCTestCase {
                                        reason: .unmetNeed(.emits(key: "volu")), fixes: [.disable(.collection(UUID()))])
         let p = AdmissionVerdictPresenter.present(verdict, name: names)
         XCTAssertEqual(p.title, "Home Row Mods can't run here")
-        XCTAssertEqual(p.explanation, "Home Row Mods sends volu, which the current backend can't send.")
+        XCTAssertEqual(p.explanation, "Home Row Mods sends Volume Up, which the current backend can't send.")
     }
 
     func testReservedKeyMoveIsOneLineAndBlockedFormHasAnOption() {
         let move = AdmissionVerdict(severity: .automatic, subject: .customRule(UUID()), reason: .reservedKey(key: "f18"),
                                     fixes: [.moveCapsIntermediate(candidates: ["f19", "f20"])])
-        XCTAssertEqual(AdmissionVerdictPresenter.oneLine(move, name: names),
+        XCTAssertEqual(AdmissionVerdictPresenter.present(move, name: names).explanation,
                        "My rule uses F18, which KeyPath had reserved for Caps Lock. Caps Lock will use F19 instead.")
         let blocked = AdmissionVerdict(severity: .blocking, subject: .customRule(UUID()), reason: .reservedKey(key: "f18"),
                                        fixes: [.disable(.customRule(UUID()))])

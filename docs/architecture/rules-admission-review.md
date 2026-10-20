@@ -354,7 +354,7 @@ Callers, all through this one function:
 ### 4.4c Phase 4b (2026-10-19)
 
 - `AdmissionVerdictPresenter` words every verdict once (title, explanation, options
-  from its fixes; `oneLine` for automatic verdicts). Dialogs, toasts and the CLI
+  from its fixes). Dialogs, toasts and the CLI
   render from it.
 - The save-time dialog (`MappingConflictContext`) is now built by
   `RuleCollectionsManager.mappingConflictContext(for:)` from the engine's conflict
@@ -433,8 +433,7 @@ Callers, all through this one function:
 ### 4.4f Phase 4e (2026-10-19)
 
 - **One renderer.** `SessionConfigurationRefusal.message(result, attribution:)` is the
-  only place "this configuration cannot run" is worded. `startupFailureMessage` delegates
-  to it; the lifecycle coordinator (`admitSessionConfiguration`'s error,
+  only place "this configuration cannot run" is worded; the lifecycle coordinator (`admitSessionConfiguration`'s error,
   `sessionConfigurationRefusal`, `currentRuntimeStatus`) and the save gate
   (`requireSessionEligibleConfiguration`) call it, so the setup screen, Status, the
   reload error and a refused save all say the same sentence.
@@ -486,6 +485,22 @@ The detector's test corpus (`RuleCollectionDeduplicatorTests`, `MultiCollectionC
 `AliasDeduplicationTests`, the CLI and save-pipeline tests) now runs against the engine
 unchanged, which is the proof the replacement preserves behaviour; two tests were
 added for what it fixes (same-titled rules told apart; details carried).
+
+### 4.4h Cleanup (2026-10-20)
+
+Dead paths removed once the engine was the only implementation:
+`RuleCollectionsManager.resolvableCollectionConflict` (resolved parties *by name*; the
+save path has used `mappingConflictContext(for:)`, by id, since 4b) with its tests;
+`conflictWithCustomRules` (no production caller since 4a); the presenter's `oneLine`;
+and the `startupFailureMessage` shim that only delegated to `SessionConfigurationRefusal`.
+Presenter sentences now name media keys and Caps Lock as the user knows them
+("sends Volume Up", "Key conflict on Caps Lock") through the one existing table,
+`LayerMappingBuilder.mediaKeyDisplayLabel`; other keys keep their Kanata names.
+
+`KeyPathError.MappingConflictInfo` stays, deliberately: it is the save gate's error,
+carries names and details rather than ids, and lives in KeyPathCore where the verdict
+types cannot be seen. It is produced from verdicts in exactly one place
+(`AdmissionEngine.mappingConflicts`).
 
 ### 4.5 Lowering: intent in rules, backend output in the generator
 
