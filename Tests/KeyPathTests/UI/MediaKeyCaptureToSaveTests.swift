@@ -100,4 +100,22 @@ final class MediaKeyCaptureToSaveTests: KeyPathTestCase {
         vm.applyCapturedOutput(KeySequence(keys: [mute, chord], captureMode: .sequence))
         XCTAssertNotNil(vm.outputSequence)
     }
+
+    /// Phase 6, part 2: a captured media key works as a rule *input*; the real
+    /// bridge admits it and the config captures it in defsrc.
+    func testCapturedMediaKeyIsAnAdmittedInput() async throws {
+        let mute = try XCTUnwrap(KeyboardCapture.mediaKeyPress(from: mediaEvent(nxKeyType: 7, down: true)))
+        let vm = MapperViewModel()
+        vm.configure(kanataManager: coordinator)
+        vm.inputSequence = KeySequence(keys: [mute], captureMode: .single)
+        vm.outputSequence = KeySequence(keys: [KeyPress(baseKey: "a", modifiers: [], keyCode: 0)], captureMode: .single)
+        await vm.save(kanataManager: coordinator)
+        XCTAssertFalse(vm.statusIsError, vm.statusMessage ?? "")
+        let config = try String(contentsOfFile: service.configurationPath, encoding: .utf8)
+        let defsrc = try XCTUnwrap(config.components(separatedBy: "(defsrc").last?.components(separatedBy: ")").first)
+        XCTAssertTrue(defsrc.contains("mute"), defsrc)
+        let admission = SessionCapsRuntimeSupport.validate(configPath: service.configurationPath,
+                                                           runtimeHost: SessionBridgeTestFixture.runtimeHost, requireSelection: false)
+        guard case .valid = admission.result else { return XCTFail("media input refused: \(admission.result)") }
+    }
 }

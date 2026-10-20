@@ -188,4 +188,28 @@ final class SessionOutputStateTests: XCTestCase {
         XCTAssertEqual((up.data1 >> 16) & 0xFFFF, 17)
         XCTAssertEqual((up.data1 >> 8) & 0xFF, 0xB)
     }
+
+    // MARK: - Media keys as inputs (phase 6, part 2)
+
+    func testSystemDefinedMediaEventsDecodeToConsumerInputs() {
+        func data1(_ keyType: Int, _ state: Int, isRepeat: Bool = false) -> Int {
+            (keyType << 16) | (state << 8) | (isRepeat ? 1 : 0)
+        }
+        XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: data1(7, 0xA))?.usage, 0xE2)
+        XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: data1(7, 0xA))?.value, 1)
+        XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: data1(7, 0xA, isRepeat: true))?.value, 2)
+        XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: data1(7, 0xB))?.value, 0)
+        XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: data1(0, 0xA))?.usage, 0xE9) // volume up
+        XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: data1(3, 0xA))?.usage, 0x70) // brightness down
+        XCTAssertNil(SessionKeyMap.mediaInput(subtype: 8, data1: data1(21, 0xA)), "keyboard backlight is not in the table")
+        XCTAssertNil(SessionKeyMap.mediaInput(subtype: 7, data1: data1(7, 0xA)), "only subtype 8 carries media keys")
+        XCTAssertNil(SessionKeyMap.mediaInput(subtype: 8, data1: data1(7, 0x5)))
+    }
+
+    /// Every media input round-trips to the NX type the output path posts.
+    func testMediaInputAndOutputTablesAgree() {
+        for (usage, keyType) in SessionKeyMap.consumerUsageToMediaKeyType {
+            XCTAssertEqual(SessionKeyMap.mediaInput(subtype: 8, data1: (keyType << 16) | (0xA << 8))?.usage, usage)
+        }
+    }
 }
