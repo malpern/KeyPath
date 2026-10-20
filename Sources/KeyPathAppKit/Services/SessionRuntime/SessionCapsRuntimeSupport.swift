@@ -27,6 +27,35 @@ enum SessionCapsRuntimeSupport {
     /// Worker failure meaning "the reloaded profile needs a restart": it
     /// uses the reserved key, or no longer runs as managed Caps.
     static let profileChangedReason = "managed-caps-profile-changed"
+
+    /// One tick of the reconnect watcher for a kept (displaced) choice.
+    enum ReconnectState: Equatable {
+        /// Its keyboard is back at the same port: restart onto it.
+        case back
+        /// The choice belongs to an earlier boot: forget it and stop watching.
+        case stale
+        /// Not back yet, or nothing could be read this tick: look again.
+        case waiting
+    }
+
+    /// Unreadable boot identity or inventory waits rather than giving up:
+    /// one failed read must not end the watch, and never re-binds.
+    static func reconnectState(displaced: Data, boot: String?,
+                               devices: () throws -> [Policy.DeviceIdentity]) -> ReconnectState
+    {
+        guard let boot else { return .waiting }
+        guard (try? SessionCapsSelection.decode(displaced, currentBoot: boot)) != nil else { return .stale }
+        guard let devices = try? devices() else { return .waiting }
+        return reboundSelection(selectionData: displaced, devices: devices, boot: boot) != nil ? .back : .waiting
+    }
+
+    /// Worker failure meaning the leased keyboard instance is gone. Its
+    /// mapping went with it; the app restarts without managed Caps.
+    static let keyboardDisconnectedReason = "managed-caps-keyboard-disconnected"
+    static let ownershipLostReason = "managed-caps-ownership-lost"
+    /// Display name of the chosen keyboard, kept so messages can name it
+    /// after it disconnects. Never used to identify a device.
+    static let selectionNameKey = "keypath.session.caps.selection.name.v1"
     static let automaticSetupDisabledKey = "keypath.session.caps.automatic.disabled"
     static let selectionKey = "keypath.session.caps.selection.v1"
     static let selectionEnvironmentKey = "KEYPATH_SESSION_CAPS_SELECTION"
@@ -100,6 +129,10 @@ enum SessionCapsRuntimeSupport {
         /// The intermediate the profile was admitted with. It differs from the
         /// saved one when the profile or `occupied` took the saved key.
         let intermediateUsage: UInt32
+        /// The profile needs managed Caps but no keyboard is usable (none
+        /// chosen, the chosen one disconnected, or setup is off). It runs
+        /// with Caps Lock passing through unchanged; its other rules work.
+        var capsPaused = false
     }
 
     /// `occupied` names keys something else already uses (see
@@ -144,17 +177,21 @@ enum SessionCapsRuntimeSupport {
                                  managedCaps: false, intermediateUsage: preferred)
             }
         }
-        guard case .valid = managed(chosen) else { return Admission(result: legacy, managedCaps: false, intermediateUsage: preferred) }
-        if !requireSelection, !UserDefaults.standard.bool(forKey: automaticSetupDisabledKey) {
+        let canManage = (!requireSelection && !UserDefaults.standard.bool(forKey: automaticSetupDisabledKey))
+            || (try? selected(environment: environment, selectionData: selectionData)) != nil
+        if canManage {
+            guard case .valid = managed(chosen) else { return Admission(result: legacy, managedCaps: false, intermediateUsage: preferred) }
             return Admission(result: .valid, managedCaps: true, intermediateUsage: chosen)
         }
-        do {
-            guard try selected(environment: environment, selectionData: selectionData) != nil else { throw Refusal.selection }
-            return Admission(result: .valid, managedCaps: true, intermediateUsage: chosen)
-        } catch {
-            return Admission(result: .invalid(reason: "Caps Lock setup needs a current keyboard selection. Open Settings > General and choose your keyboard under Caps Lock remapping"),
-                             managedCaps: false, intermediateUsage: preferred)
+        // No usable keyboard. Physical Caps Lock is never mapped, so no key is
+        // reserved; the profile only has to parse under some candidate.
+        let parses = if case .valid = managed(chosen) { true } else {
+            SessionCapsIntermediate.choose(preferred: preferred, occupied: [], acceptsProfile: {
+                if case .valid = managed($0) { true } else { false }
+            }) != nil
         }
+        guard parses else { return Admission(result: legacy, managedCaps: false, intermediateUsage: preferred) }
+        return Admission(result: .valid, managedCaps: false, intermediateUsage: preferred, capsPaused: true)
     }
 
     /// Pool keys already used elsewhere: in any keyboard service's
@@ -213,6 +250,13 @@ enum SessionCapsRuntimeSupport {
                              raycast: SessionCapsConflict.RaycastHyperKey? = raycastHyperKey()) throws -> SessionCapsConflict?
     {
         try SessionCapsConflict.identify(backend.read(device).mappings, raycast: raycast)
+    }
+
+    /// The saved choice re-bound to its keyboard replugged at the same port
+    /// (see `SessionCapsSelection.rebound`), or nil.
+    static func reboundSelection(selectionData: Data?, devices: [Policy.DeviceIdentity], boot: String) -> SessionCapsSelection? {
+        guard let selectionData, let stored = try? SessionCapsSelection.decode(selectionData, currentBoot: boot) else { return nil }
+        return stored.rebound(among: devices, currentBoot: boot)
     }
 
     /// Only discovers a selection. Mapping writes remain owned by the worker lease.
@@ -287,6 +331,17 @@ enum SessionCapsRuntimeSupport {
         do { try Policy.requireUnique(record.device, among: backend.enumerate()) } catch { throw Refusal.selection }
         let snapshot = try backend.read(record.device)
         _ = try Policy.restore(record: record, current: snapshot.mappings, device: snapshot.device, bootSessionUUID: bootSessionUUID())
+    }
+
+    /// The worker's periodic lease check. Only a leased instance that no
+    /// longer exists is a disconnect; one that is present but no longer
+    /// verifies (a foreign write, a duplicate locator) is lost ownership.
+    static func leaseCheckFailure(registryEntryID: UInt64, verify: () throws -> Void,
+                                  registryEntryExists: (UInt64) throws -> Bool) -> String?
+    {
+        do { try verify(); return nil } catch {
+            return (try? registryEntryExists(registryEntryID)) == false ? keyboardDisconnectedReason : ownershipLostReason
+        }
     }
 
     /// Off-main caller constructs the transport here; only scalar ownership

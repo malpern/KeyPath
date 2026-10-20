@@ -1,9 +1,10 @@
 import Foundation
 import KeyPathCore
 
-/// Consent belongs to one event-service instance in one boot. It is never a
-/// reconnect locator or permission to substitute another keyboard. It also
-/// names the intermediate key reserved for the substitution. Version 1 had no
+/// Consent belongs to one keyboard in one boot. It names one event-service
+/// instance; the only substitute is the same keyboard plugged back into the
+/// same port in the same boot (`rebound`). It also names the intermediate key
+/// reserved for the substitution. Version 1 had no
 /// choice: `reservesF18: true` meant F18, and such records still decode.
 struct SessionCapsSelection: Codable, Sendable, Equatable {
     let version: Int
@@ -62,6 +63,22 @@ struct SessionCapsSelection: Codable, Sendable, Equatable {
         return device
     }
 
+    /// The chosen keyboard replugged at the same port in this boot: the one
+    /// connected instance with the same VID, PID, LocationID and serial (or
+    /// the same absence of one). nil across a reboot, at another port, when
+    /// twins match, or while the original instance still exists.
+    func rebound(among devices: [SessionCapsMappingPolicy.DeviceIdentity], currentBoot: String) -> Self? {
+        guard let chosen = try? approvedDevice(currentBoot: currentBoot),
+              let location = chosen.locationID, location != 0 else { return nil }
+        let matches = devices.filter {
+            $0.vendorID == chosen.vendorID && $0.productID == chosen.productID && $0.locationID == location
+                && $0.serialNumber == chosen.serialNumber && $0.appleBuiltIn == chosen.appleBuiltIn
+        }
+        guard matches.count == 1, let match = matches.first, match.registryEntryID != chosen.registryEntryID,
+              (try? SessionCapsMappingPolicy.requireUnique(match, among: devices)) != nil else { return nil }
+        return Self(device: match, bootSessionUUID: bootSessionUUID, intermediateUsage: intermediateUsage)
+    }
+
     func verifyConnected(devices: [SessionCapsMappingPolicy.DeviceIdentity], currentBoot: String) throws {
         do {
             try SessionCapsMappingPolicy.requireUnique(approvedDevice(currentBoot: currentBoot), among: devices)
@@ -96,6 +113,45 @@ enum SessionCapsSelectionStore {
             UserDefaults.standard.set(data, forKey: SessionCapsRuntimeSupport.selectionKey)
         } else {
             UserDefaults.standard.removeObject(forKey: SessionCapsRuntimeSupport.selectionKey)
+            UserDefaults.standard.removeObject(forKey: SessionCapsRuntimeSupport.selectionNameKey)
+            setDisplaced(nil, name: nil)
         }
+    }
+
+    private static let displacedKey = "keypath.session.caps.displaced.v1"
+
+    /// The choice whose keyboard disconnected, with its name. Kept so that
+    /// keyboard, back at the same port in the same boot, gets its choice back
+    /// even after automatic setup moved Caps rules to another keyboard.
+    /// Cleared by any explicit choice, by turning setup off, and on re-bind.
+    static var displaced: (data: Data, name: String?)? {
+        guard let record = UserDefaults.standard.dictionary(forKey: displacedKey),
+              let data = record["selection"] as? Data, data.count <= 4096 else { return nil }
+        return (data, record["name"] as? String)
+    }
+
+    static func setDisplaced(_ data: Data?, name: String?) {
+        guard let data else {
+            UserDefaults.standard.removeObject(forKey: displacedKey)
+            return
+        }
+        var record: [String: Any] = ["selection": data]
+        if let name { record["name"] = name }
+        UserDefaults.standard.set(record, forKey: displacedKey)
+    }
+
+    /// Remember what the chosen keyboard is called, for messages after it
+    /// disconnects. Display only; the selection alone identifies the device.
+    /// An unknown name clears the old one rather than naming the wrong keyboard.
+    static func saveName(_ name: String?) {
+        guard let name, !name.isEmpty, name.utf8.count <= 256 else {
+            UserDefaults.standard.removeObject(forKey: SessionCapsRuntimeSupport.selectionNameKey)
+            return
+        }
+        UserDefaults.standard.set(name, forKey: SessionCapsRuntimeSupport.selectionNameKey)
+    }
+
+    static var savedName: String? {
+        UserDefaults.standard.string(forKey: SessionCapsRuntimeSupport.selectionNameKey)
     }
 }

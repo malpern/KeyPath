@@ -16,6 +16,16 @@ final class ServiceLifecycleCoordinator {
     var sessionNonce: String?
     /// The managed-Caps intermediate the current session was launched with.
     var sessionCapsIntermediate: UInt32?
+    /// Why the current session runs with Caps Lock rules paused, worded for
+    /// the user; nil when Caps is managed, not needed, or turned off.
+    var sessionCapsPaused: String?
+    /// One-time notice for the session start that follows (shown as a warning).
+    var sessionCapsNotice: String?
+    /// The chosen Caps keyboard disconnected while its session ran. Cleared
+    /// once Caps runs on a keyboard again or the user changes the setup.
+    var sessionCapsDisconnectedName: String?
+    /// Watches for that keyboard to come back at the same port.
+    var sessionCapsReconnectTask: Task<Void, Never>?
     var sessionOutputsRecovered = false
     private(set) var sessionConfigurationAdmission: KanataHostBridgeValidationResult?
     var sessionSupervisionTask: Task<Void, Never>?
@@ -40,14 +50,6 @@ final class ServiceLifecycleCoordinator {
     let sessionOperationGate = ConfigurationOperationGate()
     private(set) var sessionIntentGeneration: UInt64 = 0
     private(set) var sessionWantsRunning = false
-    private var sessionPreparationFailure: (generation: UInt64, reason: String)?
-
-    func preparationFailureReason(for generation: UInt64) -> String? {
-        guard generation == sessionIntentGeneration,
-              sessionPreparationFailure?.generation == generation else { return nil }
-        return sessionPreparationFailure?.reason
-    }
-
     private var updatePreparationActive = false
     private var terminationPreparationActive = false
     var startsSuppressed: Bool {
@@ -265,6 +267,9 @@ final class ServiceLifecycleCoordinator {
     private func commitCapsSelection(generation: UInt64, commit: @MainActor () throws -> Void) throws -> Bool {
         guard generation == sessionIntentGeneration, !startsSuppressed, !Task.isCancelled else { return false }
         try commit()
+        sessionCapsDisconnectedName = nil
+        // An explicit choice replaces any claim of a disconnected keyboard.
+        SessionCapsSelectionStore.setDisplaced(nil, name: nil)
         refreshSessionConfigurationAdmission()
         onStateChanged?()
         return true
@@ -277,7 +282,6 @@ final class ServiceLifecycleCoordinator {
         if case .stop = operation {} else if Task.isCancelled { return false }
         sessionIntentGeneration &+= 1
         let generation = sessionIntentGeneration
-        sessionPreparationFailure = nil
         if case .stop = operation { sessionWantsRunning = false } else { sessionWantsRunning = true }
         #if DEBUG
             testSessionRequestObserved?(generation)
@@ -395,13 +399,10 @@ final class ServiceLifecycleCoordinator {
             try await prepareAutomaticCapsSelection(generation: generation)
         } catch {
             guard sessionStartIsCurrent(generation) else { return false }
-            retainOwnedSessionSupervision(generation: generation)
-            let reason = "Caps Lock could not be set up automatically. If more than one keyboard is connected, choose one in Settings > General under Caps Lock remapping; otherwise connect a compatible keyboard and try again. Your rules were kept."
-            sessionPreparationFailure = (generation, reason)
-            AppLogger.shared.warn("[Session] Caps preparation refused: \(error). \(reason)")
-            onError?(reason)
-            onStateChanged?()
-            return false
+            // No keyboard could be chosen for Caps Lock. The session still
+            // starts: Caps Lock passes through and every other rule runs. The
+            // launch words the pause for the user.
+            AppLogger.shared.info("[Session] Caps keyboard not chosen automatically (\(error)); starting with Caps Lock rules paused")
         }
         guard sessionStartIsCurrent(generation), admitSessionConfiguration(generation: generation),
               sessionStartIsCurrent(generation) else { return false }
@@ -418,17 +419,45 @@ final class ServiceLifecycleCoordinator {
         guard !TestEnvironment.isTestHostProcess,
               SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath,
                                                  runtimeHost: .current(), requireSelection: false).managedCaps,
-              (try? SessionCapsRuntimeSupport.selectedDevice()) == nil,
               !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey) else { return }
-        let selection = try await Task.detached {
-            let inventory = try SessionCapsHIDUtilTransport.inventory()
-            return try SessionCapsRuntimeSupport.automaticSelection(
-                devices: inventory.devices, withheld: inventory.withheld,
-                boot: SessionCapsRuntimeSupport.bootSessionUUID()
-            )
+        let displaced = SessionCapsSelectionStore.displaced?.data
+        let hasCurrent = (try? SessionCapsRuntimeSupport.selectedDevice()) != nil
+        // A current choice stands unless a disconnected one may come back.
+        guard !hasCurrent || displaced != nil else { return }
+        let stored = UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey)
+        let found = try await Task.detached { () -> (choice: (SessionCapsSelection, String?, Bool)?, displacedStale: Bool) in
+            let list = try SessionCapsHIDUtilTransport.keyboards()
+            let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+            let devices = list.keyboards.map(\.device)
+            let stale = displaced.map { (try? SessionCapsSelection.decode($0, currentBoot: boot)) == nil } ?? false
+            func named(_ selection: SessionCapsSelection) -> String? {
+                list.keyboards.first { $0.device == selection.device }?.name
+            }
+            // The chosen keyboard back at the same port gets its choice back,
+            // ahead of whatever automatic setup picked while it was away.
+            if let rebound = SessionCapsRuntimeSupport.reboundSelection(selectionData: displaced, devices: devices, boot: boot)
+                ?? SessionCapsRuntimeSupport.reboundSelection(selectionData: stored, devices: devices, boot: boot)
+            {
+                return ((rebound, named(rebound), true), stale)
+            }
+            if hasCurrent { return (nil, stale) }
+            let selection = try SessionCapsRuntimeSupport.automaticSelection(devices: devices, withheld: list.withheld, boot: boot)
+            return ((selection, named(selection), false), stale)
         }.value
         guard sessionStartIsCurrent(generation) else { throw CancellationError() }
+        // A new boot ends any claim: a restart always asks again.
+        if found.displacedStale { SessionCapsSelectionStore.setDisplaced(nil, name: nil) }
+        guard let (selection, name, rebound) = found.choice else { return }
         try SessionCapsSelectionStore.save(selection)
+        SessionCapsSelectionStore.saveName(name)
+        if rebound {
+            AppLogger.shared.info("[Session] Caps keyboard reconnected at the same port; keeping its choice")
+            if sessionCapsDisconnectedName != nil || displaced != nil {
+                sessionCapsNotice = "\(name ?? "Your keyboard") was reconnected. Caps Lock rules are back on."
+            }
+            sessionCapsDisconnectedName = nil
+            SessionCapsSelectionStore.setDisplaced(nil, name: nil)
+        }
     }
 
     private func startSessionAdmitted(reason: String, generation: UInt64) async -> Bool {

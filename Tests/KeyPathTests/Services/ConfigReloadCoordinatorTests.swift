@@ -46,6 +46,7 @@ private final class MutableRuntimeTransition {
     var reloadCount = 0
     var tcpReloadCount = 0
     var managedCaps = false
+    var paused = false
     var restartCount = 0
     var wantsRunning = true
     var intentGeneration: UInt64 = 0
@@ -111,7 +112,9 @@ struct ConfigReloadCoordinatorTests {
         restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
         sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
         currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
-        admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil
+        admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil,
+        currentCapsPaused: @escaping @MainActor @Sendable () -> Bool = { false },
+        capsNoLongerNeeded: (@MainActor @Sendable () -> Void)? = nil
     ) -> (
         coordinator: ConfigReloadCoordinator,
         engine: MockEngineClient,
@@ -154,6 +157,8 @@ struct ConfigReloadCoordinatorTests {
             runtimeIntentGeneration: { transitionState.intentGeneration },
             currentManagedCaps: currentManagedCaps,
             currentCapsIntermediate: currentCapsIntermediate,
+            currentCapsPaused: currentCapsPaused,
+            capsNoLongerNeeded: capsNoLongerNeeded,
             restartForManagedCapsChange: restartForManagedCapsChange,
             sessionValidationOverride: sessionValidationOverride,
             admittedIntermediateOverride: admittedIntermediateOverride
@@ -230,6 +235,55 @@ struct ConfigReloadCoordinatorTests {
         #expect(state.tcpReloadCount == 0)
         #expect(engine.reloadCallCount == 0)
         #expect(state.managedCaps == !current)
+    }
+
+    @Test("A session running with Caps paused reloads in place instead of restarting on every save")
+    func pausedCapsSessionReloadsInPlace() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, engine, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { false },
+            restartForManagedCapsChange: { state.restartCount += 1; return true },
+            sessionValidationOverride: { (.valid, true) },
+            currentCapsPaused: { true }
+        )
+        #expect(await coordinator.triggerTCPReload().isSuccess)
+        #expect(state.restartCount == 0)
+        #expect(state.tcpReloadCount == 1)
+        #expect(engine.reloadCallCount == 0)
+    }
+
+    @Test("Reloading a profile without Caps rules clears a standing pause; one with Caps rules keeps it",
+          arguments: [false, true])
+    func reloadClearsPauseOnlyWithoutCapsRules(needsCaps: Bool) async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        state.paused = true
+        let (coordinator, _, _) = Self.makeSUT(
+            tcpReloadOverride: { .success(response: "tcp") },
+            currentManagedCaps: { false },
+            restartForManagedCapsChange: { state.restartCount += 1; return true },
+            sessionValidationOverride: { (.valid, needsCaps) },
+            currentCapsPaused: { state.paused },
+            capsNoLongerNeeded: { state.paused = false }
+        )
+        #expect(await coordinator.triggerTCPReload().isSuccess)
+        #expect(state.paused == needsCaps)
+        #expect(state.restartCount == 0)
+    }
+
+    @Test("A Caps restart that lands paused (no keyboard found) still applies the reload")
+    func capsRestartLandingPausedSucceeds() async {
+        let state = MutableRuntimeTransition(isTransitioning: false)
+        let (coordinator, _, _) = Self.makeSUT(
+            tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "tcp") },
+            currentManagedCaps: { false },
+            restartForManagedCapsChange: { state.restartCount += 1; state.paused = true; return true },
+            sessionValidationOverride: { (.valid, true) },
+            currentCapsPaused: { state.paused }
+        )
+        #expect(await coordinator.triggerTCPReload().isSuccess)
+        #expect(state.restartCount == 1)
+        #expect(state.tcpReloadCount == 0)
     }
 
     @Test("A rule that takes the running Caps intermediate restarts instead of reloading", arguments: [UInt32(109), 110])

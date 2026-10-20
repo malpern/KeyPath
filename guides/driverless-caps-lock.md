@@ -85,24 +85,58 @@ Caps Lock input, which needs compatible keyboard setup.
 
 ## Restarts and connected keyboards
 
-The saved selection identifies one keyboard instance for the current boot.
-When it becomes stale, automatic setup can discover an eligible keyboard again;
-it does not trust an old device identifier after reconnect or reboot. Automatic
-selection only happens when exactly one compatible keyboard is connected. With
-several, KeyPath asks you to choose again after a restart. If you unplug the
-chosen keyboard and KeyPath restarts while only one keyboard remains, it uses
-that one; when you plug yours back in, pick it again from the menu in
-**Settings → General**.
+The saved selection identifies one keyboard for the current boot. After a
+restart of your Mac it is never reused: automatic setup discovers an eligible
+keyboard again, which only happens when exactly one compatible keyboard is
+connected. With several, KeyPath asks you to choose again. Unplugging and
+replugging during the same boot is covered below.
 
-Some keyboards can't be chosen. Virtual keyboards from other remapping tools
-(such as Karabiner-Elements) and virtual machines are left out of the list.
-A keyboard that macOS shows as several keyboard devices, or one KeyPath does
-not recognize, is also left out, because KeyPath cannot change only that one;
-Settings says how many were left out. While such a keyboard is connected,
-KeyPath does not choose for you, even if only one keyboard is in the list.
+## Unplugging the chosen keyboard
 
-KeyPath checks existing mappings and ownership before changing or restoring
-them. Conflicting mappings are refused.
+macOS removes the Caps Lock mapping together with the keyboard, so nothing is
+left behind. KeyPath keeps running: all your other rules keep working, and
+Caps Lock rules pause until a keyboard is chosen again.
+
+```text
+Status
+
+  Keyboard remapping
+  Running normally. cl80 was disconnected. Caps Lock rules are paused;
+  your other rules keep working. Choose a keyboard in Settings > General
+  to turn them back on.
+
+Settings → General
+
+  ⇪  Caps Lock remapping                              [ On ]
+     cl80 is disconnected · Caps Lock rules are paused; choose a keyboard
+       Keyboard: [ Choose a keyboard ▾ ]
+```
+
+Plug it back into the **same USB port** and KeyPath picks it up again by
+itself within a few seconds: Caps Lock rules turn back on, with the same
+reserved key, and KeyPath says **cl80 was reconnected. Caps Lock rules are back
+on.** KeyPath treats it as the same keyboard only when all of this holds:
+
+- it is the same boot (a restart of your Mac always asks again),
+- the vendor, product and USB port match the keyboard you chose, and so does
+  the serial number when the keyboard has one,
+- exactly one connected keyboard matches. Two identical keyboards that look
+  the same to macOS are never guessed between.
+
+Plugged into a **different port**, it counts as a different keyboard. Settings
+then reads **cl80 is connected to a different port · Choose it again to turn
+Caps Lock rules back on**; pick it from the menu.
+
+If only one compatible keyboard is left after the unplug, KeyPath uses that one
+automatically, the same as at startup, and says so: **cl80 was disconnected.
+Caps Lock rules now apply to Built-in keyboard.** Plugging the cl80 back into
+the same port moves them back to it. Choosing a keyboard yourself in Settings
+in the meantime replaces that claim.
+
+While Caps Lock rules are paused, Caps Lock on every keyboard works as a normal
+Caps Lock key. The same happens when you turn **Caps Lock remapping** off, or
+when more than one keyboard is connected and none is chosen yet: rules that use
+Caps Lock don't run, and every other rule does.
 
 ## Another app already uses Caps Lock
 
@@ -131,8 +165,8 @@ KeyPath never removes another app's mapping. Once it is gone, choose
 the recovery record is retained and restart can be blocked. Follow the displayed
 recovery instructions instead of overwriting another mapping.
 
-Disabling setup preserves your rules. A configuration that still uses physical
-Caps Lock needs setup enabled again, or a different trigger.
+Disabling setup preserves your rules. Rules that use physical Caps Lock stay
+paused until setup is on again; your other rules keep running.
 
 ## Other limitations
 

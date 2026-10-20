@@ -60,6 +60,9 @@ struct KanataUIState: Sendable {
     /// Disable-time dependent resolution (#868)
     let pendingDependentResolution: RuleDependentResolutionDialogModel?
 
+    /// Why the running session leaves Caps Lock rules inactive, if it does.
+    var capsPausedMessage: String?
+
     /// Empty state for initialization fallback
     static let empty = KanataUIState(
         lastError: nil,

@@ -30,11 +30,12 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         let environment = try ["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE": String(decoding: JSONEncoder().encode(device), as: UTF8.self),
                                "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18": "1"]
         try "(defsrc caps)(deflayer base esc)".write(to: file, atomically: true, encoding: .utf8)
-        let disabled = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: [:])
-        guard case let .invalid(reason) = disabled.result else { return XCTFail("Caps must require opt-in") }
-        XCTAssertTrue(reason.contains("Settings > General"))
-        XCTAssertFalse(reason.contains("driver backend"))
+        // Without consent Caps is never managed (nothing is mapped). The
+        // profile still runs, with Caps Lock passing through: paused.
+        let disabled = SessionCapsRuntimeSupport.admit(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: [:])
+        guard case .valid = disabled.result else { return XCTFail("A Caps profile without consent runs paused") }
         XCTAssertFalse(disabled.managedCaps)
+        XCTAssertTrue(disabled.capsPaused)
         let validatedDigest = try SessionCapsRuntimeSupport.configSHA256(file.path)
         let enabled = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost, environment: environment)
         guard case .valid = enabled.result else { return XCTFail("Owned Caps profile should validate") }
@@ -52,10 +53,11 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         guard case .valid = ordinaryWithStaleConsent.result else { return XCTFail("Stale Caps consent must not block ordinary rules") }
         XCTAssertFalse(ordinaryWithStaleConsent.managedCaps)
         try "(defsrc caps)(deflayer base esc)".write(to: file, atomically: true, encoding: .utf8)
-        let capsWithStaleConsent = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
-                                                                      environment: [:], selectionData: staleData)
-        guard case .invalid = capsWithStaleConsent.result else { return XCTFail("Caps needs fresh consent") }
-        XCTAssertFalse(capsWithStaleConsent.managedCaps)
+        let capsWithStaleConsent = SessionCapsRuntimeSupport.admit(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
+                                                                   environment: [:], selectionData: staleData)
+        guard case .valid = capsWithStaleConsent.result else { return XCTFail("Stale consent pauses Caps, not the profile") }
+        XCTAssertFalse(capsWithStaleConsent.managedCaps, "Caps needs fresh consent")
+        XCTAssertTrue(capsWithStaleConsent.capsPaused)
         try "(defsrc caps)(deflayer base".write(to: file, atomically: true, encoding: .utf8)
         let malformed = SessionCapsRuntimeSupport.validate(configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
                                                            environment: [:], selectionData: nil)
@@ -87,18 +89,22 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         )
         guard case .valid = eligible.result else { return XCTFail("First tour rule must reach automatic keyboard setup") }
         XCTAssertTrue(eligible.managedCaps)
-        // Admission does not authorize the worker to run without a verified selection.
-        let worker = SessionCapsRuntimeSupport.validate(
+        // Admission does not authorize the worker to manage Caps without a
+        // verified selection; it runs the rest of the profile with Caps paused.
+        let worker = SessionCapsRuntimeSupport.admit(
             configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
             environment: [:], selectionData: nil
         )
-        guard case .invalid = worker.result else { return XCTFail("Worker must still require a selection") }
+        guard case .valid = worker.result else { return XCTFail("Worker runs the profile with Caps paused") }
+        XCTAssertFalse(worker.managedCaps, "Worker must still require a selection to manage Caps")
+        XCTAssertTrue(worker.capsPaused)
         defaults.set(true, forKey: key)
-        let disabled = SessionCapsRuntimeSupport.validate(
+        let disabled = SessionCapsRuntimeSupport.admit(
             configPath: file.path, runtimeHost: SessionBridgeTestFixture.runtimeHost,
             environment: [:], selectionData: nil, requireSelection: false
         )
-        guard case .invalid = disabled.result else { return XCTFail("Explicit opt-out must remain respected") }
+        XCTAssertFalse(disabled.managedCaps, "Explicit opt-out must remain respected")
+        XCTAssertTrue(disabled.capsPaused, "Opt-out pauses Caps rules; the other rules still run")
     }
 
     /// A rule that uses the saved intermediate, or another app that took it,
