@@ -3,6 +3,7 @@ import KeyPathRulesCore
 import XCTest
 
 /// Turning Caps Lock remapping off warns only when enabled rules actually use Caps Lock.
+@MainActor
 final class SessionCapsSettingsSectionTests: XCTestCase {
     private func collection(input: String, enabled: Bool = true) -> RuleCollection {
         RuleCollection(

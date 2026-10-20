@@ -8,17 +8,17 @@ final class VimKeyNameStyleTests: XCTestCase {
     private let suite = "VimKeyNameStyleTests"
     private var savedStandard: Any?
 
-    override func setUp() {
-        super.setUp()
+    override func setUp() async throws {
+        try await super.setUp()
         defaults = UserDefaults(suiteName: suite)
         defaults.removePersistentDomain(forName: suite)
         savedStandard = UserDefaults.standard.object(forKey: VimKeyNameStyle.defaultsKey)
     }
 
-    override func tearDown() {
+    override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suite)
         UserDefaults.standard.set(savedStandard, forKey: VimKeyNameStyle.defaultsKey)
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testDefaultsArePlainForVimAndVimTermsForNeovim() {

@@ -7,9 +7,9 @@ import XCTest
 /// drawer open or closed. A closed drawer receives the key as a pending selection.
 @MainActor
 final class OverlayKeyRemapContextMenuTests: XCTestCase {
-    override func tearDown() {
+    override func tearDown() async throws {
         MapperDrawerSelectionRequest.pending = nil
-        super.tearDown()
+        try await super.tearDown()
     }
 
     func testPendingSelectionIsConsumedOnce() {
