@@ -16,8 +16,11 @@ typedef struct {
     uint8_t final_key;
 } smoke_reports_t;
 
-static bool capture_report(uint8_t modifiers, const uint8_t keys[6], void *context) {
+static bool capture_report(uint8_t modifiers, const uint8_t keys[6], uint16_t consumer,
+                           bool consumer_report, void *context) {
     (void)modifiers;
+    (void)consumer;
+    (void)consumer_report;
     smoke_reports_t *reports = context;
     if (reports->count == 0u) reports->first_key = keys[0];
     reports->final_key = keys[0];

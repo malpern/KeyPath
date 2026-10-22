@@ -31,7 +31,8 @@ uint8_t const *tud_descriptor_device_cb(void) {
 }
 
 uint8_t const hid_report_descriptor[] = {
-    TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD))
+    TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD)),
+    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER))
 };
 
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t instance) {

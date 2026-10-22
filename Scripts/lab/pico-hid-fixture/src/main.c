@@ -17,9 +17,11 @@
 static fixture_t fixture;
 static bool mdns_started;
 
-static bool send_keyboard_report(uint8_t modifiers, const uint8_t keys[6], void *context) {
+static bool send_keyboard_report(uint8_t modifiers, const uint8_t keys[6], uint16_t consumer,
+                                 bool consumer_report, void *context) {
     (void)context;
     if (!tud_hid_ready()) return false;
+    if (consumer_report) return tud_hid_report(REPORT_ID_CONSUMER, &consumer, sizeof(consumer));
     return tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifiers, keys);
 }
 

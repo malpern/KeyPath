@@ -139,10 +139,12 @@ static void trace_response(http_client_t *client, const char *path) {
         int count = snprintf(body + used, sizeof(body) - used,
                              "{\"sequence\":%" PRIu64 ",\"scheduledUs\":%" PRIu64 ","
                              "\"submittedUs\":%" PRIu64 ",\"latenessUs\":%" PRId64 ","
-                             "\"modifiers\":%u,\"keys\":[%u,%u,%u,%u,%u,%u]}\n",
+                             "\"modifiers\":%u,\"keys\":[%u,%u,%u,%u,%u,%u],"
+                             "\"consumer\":%u,\"consumerReport\":%s}\n",
                              trace->sequence, trace->scheduled_us, trace->submitted_us,
                              trace->lateness_us, trace->modifiers, trace->keys[0], trace->keys[1],
-                             trace->keys[2], trace->keys[3], trace->keys[4], trace->keys[5]);
+                             trace->keys[2], trace->keys[3], trace->keys[4], trace->keys[5],
+                             trace->consumer, trace->consumer_report ? "true" : "false");
         if (count < 0 || (size_t)count >= sizeof(body) - used) break;
         used += (size_t)count;
     }

@@ -22,8 +22,26 @@ static bool valid_run_id(const char *value) {
     return true;
 }
 
+static bool keyboard_state_equal(const fixture_event_t *left, const fixture_event_t *right) {
+    return left->modifiers == right->modifiers && memcmp(left->keys, right->keys, 6u) == 0;
+}
+
+/// Each event is one USB report: it may change the keyboard state or the
+/// consumer state from the event before it (all released before the first), not both.
+static bool events_change_one_report(const fixture_event_t *events, uint32_t count) {
+    fixture_event_t previous = {0};
+    for (uint32_t index = 0u; index < count; ++index) {
+        bool keyboard_changed = !keyboard_state_equal(&previous, &events[index]);
+        bool consumer_changed = previous.consumer != events[index].consumer;
+        if (keyboard_changed && consumer_changed) return false;
+        if (events[index].consumer > FIXTURE_MAX_CONSUMER_USAGE) return false;
+        previous = events[index];
+    }
+    return true;
+}
+
 static bool report_is_empty(const fixture_event_t *event) {
-    if (event->modifiers != 0u) return false;
+    if (event->modifiers != 0u || event->consumer != 0u) return false;
     for (size_t index = 0; index < 6u; ++index) {
         if (event->keys[index] != 0u) return false;
     }
@@ -178,12 +196,21 @@ bool fixture_load_script(fixture_t *fixture, const char *body, size_t length,
         line[line_length] = '\0';
         fixture_event_t event = {0};
         unsigned int values[7] = {0};
-        fields = sscanf(line, "%" SCNu32 " %u %u %u %u %u %u %u %c", &event.at_us,
-                        &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &extra);
-        if (fields != 8) {
-            set_error(error, error_capacity, "event must contain time, modifiers, and six key usages");
+        unsigned int consumer = 0u;
+        // An optional ninth field is the consumer usage held (0 = none), so
+        // every eight-field script written before it still parses unchanged.
+        fields = sscanf(line, "%" SCNu32 " %u %u %u %u %u %u %u %u %c", &event.at_us,
+                        &values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6],
+                        &consumer, &extra);
+        if (fields != 8 && fields != 9) {
+            set_error(error, error_capacity, "event must contain time, modifiers, six key usages, and an optional consumer usage");
             return false;
         }
+        if (consumer > FIXTURE_MAX_CONSUMER_USAGE) {
+            set_error(error, error_capacity, "consumer usage is outside the consumer page");
+            return false;
+        }
+        event.consumer = (uint16_t)consumer;
         if ((index > 0u && event.at_us <= previous_at) || event.at_us >= cycle_us) {
             set_error(error, error_capacity, "event times must increase and remain inside the cycle");
             return false;
@@ -207,6 +234,10 @@ bool fixture_load_script(fixture_t *fixture, const char *body, size_t length,
     while (cursor < end && isspace((unsigned char)*cursor)) ++cursor;
     if (cursor != end) {
         set_error(error, error_capacity, "script contains more event lines than declared");
+        return false;
+    }
+    if (!events_change_one_report(fixture->events, event_count)) {
+        set_error(error, error_capacity, "an event may change the keyboard or the consumer report, not both");
         return false;
     }
     if (!report_is_empty(&fixture->events[event_count - 1u])) {
@@ -260,6 +291,10 @@ bool fixture_load_events(fixture_t *fixture, const char *run_id,
             return false;
         }
         previous_at = events[index].at_us;
+    }
+    if (!events_change_one_report(events, event_count)) {
+        set_error(error, error_capacity, "an event may change the keyboard or the consumer report, not both");
+        return false;
     }
     if (!report_is_empty(&events[event_count - 1u])) {
         set_error(error, error_capacity, "each cycle must end with an all-keys-released report");
@@ -342,7 +377,7 @@ uint32_t fixture_time_until_next_action_us(const fixture_t *fixture, uint64_t no
 }
 
 static void trace_report(fixture_t *fixture, uint64_t scheduled, uint64_t submitted,
-                         uint8_t modifiers, const uint8_t keys[6]) {
+                         uint8_t modifiers, const uint8_t keys[6], uint16_t consumer, bool consumer_report) {
     uint32_t slot = fixture->trace_head;
     fixture_trace_t *trace = &fixture->trace[slot];
     trace->sequence = fixture->reports_submitted;
@@ -351,21 +386,30 @@ static void trace_report(fixture_t *fixture, uint64_t scheduled, uint64_t submit
     trace->lateness_us = (int64_t)(submitted - scheduled);
     trace->modifiers = modifiers;
     memcpy(trace->keys, keys, 6u);
+    trace->consumer = consumer;
+    trace->consumer_report = consumer_report;
     fixture->trace_head = (slot + 1u) % FIXTURE_TRACE_CAPACITY;
     if (fixture->trace_count < FIXTURE_TRACE_CAPACITY) fixture->trace_count++;
 }
 
 static bool submit_report(fixture_t *fixture, uint64_t scheduled, uint64_t now_us,
-                          uint8_t modifiers, const uint8_t keys[6],
+                          uint8_t modifiers, const uint8_t keys[6], uint16_t consumer,
                           fixture_send_report_fn send_report, void *send_context) {
-    if (!send_report(modifiers, keys, send_context)) return false;
+    bool consumer_report = consumer != fixture->last_consumer;
+    if (!send_report(modifiers, keys, consumer, consumer_report, send_context)) return false;
+    if (consumer_report) fixture->last_consumer = consumer;
     int64_t lateness = (int64_t)(now_us - scheduled);
     fixture->reports_submitted++;
     if (lateness > 1000) fixture->late_reports++;
     if (lateness > fixture->maximum_lateness_us) fixture->maximum_lateness_us = lateness;
-    uint8_t report[7] = {modifiers, keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]};
-    fixture->submitted_crc32 ^= fixture_crc32(report, sizeof(report)) + (uint32_t)fixture->reports_submitted;
-    trace_report(fixture, scheduled, now_us, modifiers, keys);
+    if (consumer_report) {
+        uint8_t report[3] = {0x0cu, (uint8_t)(consumer & 0xffu), (uint8_t)(consumer >> 8u)};
+        fixture->submitted_crc32 ^= fixture_crc32(report, sizeof(report)) + (uint32_t)fixture->reports_submitted;
+    } else {
+        uint8_t report[7] = {modifiers, keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]};
+        fixture->submitted_crc32 ^= fixture_crc32(report, sizeof(report)) + (uint32_t)fixture->reports_submitted;
+    }
+    trace_report(fixture, scheduled, now_us, modifiers, keys, consumer, consumer_report);
     return true;
 }
 
@@ -382,7 +426,12 @@ void fixture_poll(fixture_t *fixture, uint64_t now_us, bool usb_mounted, bool us
 
     static const uint8_t empty_keys[6] = {0};
     if (fixture->pending_release) {
-        if (send_report(0u, empty_keys, send_context)) fixture->pending_release = false;
+        // Release a held media key first, then the keyboard; one report per poll.
+        if (fixture->last_consumer != 0u) {
+            if (send_report(0u, empty_keys, 0u, true, send_context)) fixture->last_consumer = 0u;
+            return;
+        }
+        if (send_report(0u, empty_keys, 0u, false, send_context)) fixture->pending_release = false;
         return;
     }
     if (fixture->state != FIXTURE_RUNNING || now_us < fixture->start_at_us) return;
@@ -391,7 +440,8 @@ void fixture_poll(fixture_t *fixture, uint64_t now_us, bool usb_mounted, bool us
                          fixture->events[fixture->next_event].at_us;
     if (now_us < scheduled) return;
     fixture_event_t *event = &fixture->events[fixture->next_event];
-    if (!submit_report(fixture, scheduled, now_us, event->modifiers, event->keys, send_report, send_context)) return;
+    if (!submit_report(fixture, scheduled, now_us, event->modifiers, event->keys, event->consumer,
+                       send_report, send_context)) return;
 
     fixture->next_event++;
     if (fixture->next_event == fixture->event_count) {

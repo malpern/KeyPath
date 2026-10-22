@@ -15,6 +15,7 @@
 #include "tinyusb_default_config.h"
 
 #define REPORT_ID_KEYBOARD 1u
+#define REPORT_ID_CONSUMER 2u
 #define HID_ENDPOINT 0x81u
 #define CONFIGURATION_LENGTH (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 
@@ -55,6 +56,9 @@ static const tusb_desc_device_t device_descriptor = {
 
 static const uint8_t hid_report_descriptor[] = {
     TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(REPORT_ID_KEYBOARD)),
+    // Media keys (Mute, Volume, Play/Pause...) are consumer-page usages and
+    // need their own report; macOS turns them into system-defined events.
+    TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(REPORT_ID_CONSUMER)),
 };
 
 static const uint8_t configuration_descriptor[] = {
@@ -108,9 +112,12 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report, uint16_
     runtime_unlock();
 }
 
-static bool send_keyboard_report(uint8_t modifiers, const uint8_t keys[6], void *context) {
+static bool send_keyboard_report(uint8_t modifiers, const uint8_t keys[6], uint16_t consumer,
+                                 bool consumer_report, void *context) {
     (void)context;
-    return tud_hid_ready() && tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifiers, keys);
+    if (!tud_hid_ready()) return false;
+    if (consumer_report) return tud_hid_report(REPORT_ID_CONSUMER, &consumer, sizeof(consumer));
+    return tud_hid_keyboard_report(REPORT_ID_KEYBOARD, modifiers, keys);
 }
 
 static void executor_task(void *context) {

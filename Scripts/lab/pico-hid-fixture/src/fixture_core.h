@@ -22,10 +22,15 @@ typedef enum {
     FIXTURE_ERROR,
 } fixture_state_t;
 
+#define FIXTURE_MAX_CONSUMER_USAGE 0x3ffu
+
+/// One state of the keyboard and of the consumer-control (media) report.
+/// An event changes one of the two, so each event is exactly one USB report.
 typedef struct {
     uint32_t at_us;
     uint8_t modifiers;
     uint8_t keys[6];
+    uint16_t consumer; /* consumer-page usage held, 0 = none (0xE2 Mute, 0xE9 Volume Up, ...) */
 } fixture_event_t;
 
 typedef struct {
@@ -35,6 +40,8 @@ typedef struct {
     int64_t lateness_us;
     uint8_t modifiers;
     uint8_t keys[6];
+    uint16_t consumer;
+    bool consumer_report; /* true: this entry is the consumer report, not the keyboard report */
 } fixture_trace_t;
 
 typedef struct {
@@ -56,6 +63,7 @@ typedef struct {
     uint32_t submitted_crc32;
     bool pending_release;
     bool usb_mounted;
+    uint16_t last_consumer; /* consumer usage the host currently sees as held */
 
     fixture_trace_t trace[FIXTURE_TRACE_CAPACITY];
     uint32_t trace_head;
@@ -63,7 +71,10 @@ typedef struct {
     char error[128];
 } fixture_t;
 
-typedef bool (*fixture_send_report_fn)(uint8_t modifiers, const uint8_t keys[6], void *context);
+/// Sends the keyboard report, or with `consumer_report` the consumer-control
+/// report carrying `consumer` (keyboard fields unchanged and ignored).
+typedef bool (*fixture_send_report_fn)(uint8_t modifiers, const uint8_t keys[6], uint16_t consumer,
+                                       bool consumer_report, void *context);
 
 void fixture_init(fixture_t *fixture);
 const char *fixture_state_name(fixture_state_t state);
