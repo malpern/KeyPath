@@ -389,6 +389,10 @@ public final class SessionRuntimeWorker {
         #endif
         let original = Unmanaged.passUnretained(event)
         if finished || event.getIntegerValueField(.eventSourceUserData) == Self.outputTag { return original }
+        // Aqua Voice and other software inject complete shortcuts. Sending their
+        // keys through Kanata loses aggregate-only modifiers (Cmd+V becomes v)
+        // and can contaminate the physical key/held-output state.
+        if SessionInputEventPolicy.isSoftwareKeyboardEvent(type: type, event: event) { return original }
         if type == .tapDisabledByTimeout {
             finish(.failed, reason: "tap-disabled-by-timeout")
         }
