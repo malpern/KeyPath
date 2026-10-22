@@ -304,11 +304,22 @@ enum SessionCapsRuntimeSupport {
         return value
     }
 
-    /// Combined session state is conservative: all representable keys must be up
-    /// excluding Caps Lock’s persistent latch. It does not attribute a key to a device.
-    static func requirePhysicalAllUp() throws {
-        guard SessionKeyMap.keyCodeToUsage.keys.filter({ $0 != 57 }).allSatisfy({ !CGEventSource.keyState(.combinedSessionState, key: $0) })
-        else { throw Refusal.physicalKeysHeld }
+    /// All representable keys must be up in HID state, excluding Caps Lock’s
+    /// persistent latch. It does not attribute a key to a device. Combined
+    /// session state also keeps a posted press whose own release never came:
+    /// on 2026-10-20 it reported Space held for hours while HID state and every
+    /// keyboard had released it. Posted presses can still reach HID state, so a
+    /// caller that waits on this must say which key it is waiting for.
+    static func requirePhysicalAllUp(isDown: (CGKeyCode) -> Bool = hidKeyDown) throws {
+        guard heldKeys(isDown: isDown).isEmpty else { throw Refusal.physicalKeysHeld }
+    }
+
+    static func heldKeys(isDown: (CGKeyCode) -> Bool = hidKeyDown) -> [CGKeyCode] {
+        SessionKeyMap.keyCodeToUsage.keys.filter { $0 != 57 && isDown($0) }.sorted()
+    }
+
+    static func hidKeyDown(_ key: CGKeyCode) -> Bool {
+        CGEventSource.keyState(.hidSystemState, key: key)
     }
 
     static func configSHA256(_ path: String) throws -> String {

@@ -4,6 +4,14 @@ import XCTest
 
 @MainActor
 final class SessionFailureRecoveryMessageTests: XCTestCase {
+    func testHeldKeysWarningNamesTheKeyToRelease() {
+        XCTAssertEqual(ServiceLifecycleCoordinator.heldKeysWarning([49]),
+                       "Remapping is waiting because macOS reports the \u{201C}space\u{201D} key as held down. Press and release it to resume.")
+        let several = ServiceLifecycleCoordinator.heldKeysWarning([0, 49])
+        XCTAssertTrue(several.contains("these keys as held down: \u{201C}a\u{201D}, \u{201C}space\u{201D}."), several)
+        XCTAssertTrue(several.hasSuffix("Press and release each one to resume."), several)
+    }
+
     func testConfirmedDenialExplainsBothGrantsAndRelaunch() {
         let message = ServiceLifecycleCoordinator.sessionFailureRecoveryMessage("missing-current-process-permission")
         XCTAssertTrue(message.hasPrefix("Enable \(AccessibilityPermissionPresentation.current.name)"))

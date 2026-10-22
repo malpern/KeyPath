@@ -521,6 +521,8 @@ extension ServiceLifecycleCoordinator {
         onStateChanged?()
         let recoveryStarted = Date()
         var lastBlocker: String?
+        var heldSince: Date?
+        var namedHeldKeys: [CGKeyCode]?
         while sessionStartIsCurrent(expectedGeneration) {
             // Screen wake can precede system wake by tens of seconds after a
             // quick lid close/open. Only a signal after this retirement counts;
@@ -532,6 +534,21 @@ extension ServiceLifecycleCoordinator {
             if blocker != lastBlocker {
                 AppLogger.shared.info("[SessionRuntime] Wake recovery gate: \(blocker ?? "ready") elapsedMs=\(Int(Date().timeIntervalSince(recoveryStarted) * 1000))")
                 lastBlocker = blocker
+            }
+            // A key nobody is pressing can read as held indefinitely (a posted
+            // press whose release never came). Past a normal keystroke, name it.
+            if blocker == "held-keys" {
+                let since = heldSince ?? Date()
+                heldSince = since
+                let held = SessionCapsRuntimeSupport.heldKeys()
+                if Date().timeIntervalSince(since) >= 5, !held.isEmpty, held != namedHeldKeys {
+                    namedHeldKeys = held
+                    AppLogger.shared.warn("[SessionRuntime] Wake recovery waiting on held key codes \(held)")
+                    onWarning?(Self.heldKeysWarning(held))
+                }
+            } else {
+                heldSince = nil
+                namedHeldKeys = nil
             }
             if blocker == nil {
                 AppLogger.shared.info("[SessionRuntime] Resuming after keyboard readiness")
@@ -551,6 +568,14 @@ extension ServiceLifecycleCoordinator {
             catch { return false }
         }
         return false
+    }
+
+    static func heldKeysWarning(_ keys: [CGKeyCode]) -> String {
+        let names = keys.map { "\u{201C}\(KanataKeyCodeMap.overlayName(for: $0))\u{201D}" }
+        if names.count == 1 {
+            return "Remapping is waiting because macOS reports the \(names[0]) key as held down. Press and release it to resume."
+        }
+        return "Remapping is waiting because macOS reports these keys as held down: \(names.joined(separator: ", ")). Press and release each one to resume."
     }
 
     static func canRetryWakeStartup(_ report: SessionRuntimeReport?, nonce: String,

@@ -1,3 +1,4 @@
+import CoreGraphics
 import Darwin
 import Foundation
 @testable import KeyPathAppKit
@@ -151,6 +152,16 @@ final class SessionCapsRuntimeSupportTests: XCTestCase {
         guard case let .invalid(reason) = full.result else { return XCTFail("No free key must refuse") }
         XCTAssertTrue(reason.contains("F13"), reason)
         XCTAssertFalse(full.managedCaps)
+    }
+
+    func testPhysicalAllUpRefusesAnyHeldKeyButCapsLatch() throws {
+        XCTAssertNoThrow(try SessionCapsRuntimeSupport.requirePhysicalAllUp(isDown: { _ in false }))
+        // Caps Lock's latch persists while it is not pressed; it never blocks.
+        XCTAssertNoThrow(try SessionCapsRuntimeSupport.requirePhysicalAllUp(isDown: { $0 == 57 }))
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.requirePhysicalAllUp(isDown: { $0 == 49 })) { error in
+            XCTAssertEqual(error as? SessionCapsRuntimeSupport.Refusal, .physicalKeysHeld)
+        }
+        XCTAssertEqual(SessionCapsRuntimeSupport.heldKeys(isDown: { [49, 57, 0].contains($0) }), [0, 49])
     }
 
     func testOrphanMutationMarkerBlocksRecoveryEvenWithoutIntent() throws {
