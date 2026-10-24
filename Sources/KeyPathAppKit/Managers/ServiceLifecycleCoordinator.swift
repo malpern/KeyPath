@@ -430,7 +430,7 @@ final class ServiceLifecycleCoordinator {
             }
         #endif
         guard !TestEnvironment.isTestHostProcess,
-              UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+              SessionCapsRuntimeSupport.selectedKeyboardOnly(),
               SessionCapsRuntimeSupport.validate(configPath: KeyPathConstants.Config.mainConfigPath,
                                                  runtimeHost: .current(), requireSelection: false).managedCaps,
               !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey) else { return }

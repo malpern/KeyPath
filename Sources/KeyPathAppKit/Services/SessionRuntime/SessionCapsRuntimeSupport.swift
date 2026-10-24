@@ -59,6 +59,14 @@ enum SessionCapsRuntimeSupport {
     static let automaticSetupDisabledKey = "keypath.session.caps.automatic.disabled"
     /// Advanced compatibility mode. The normal rule scope is every keyboard.
     static let selectedKeyboardOnlyKey = "keypath.session.caps.selected.only"
+
+    /// Preserve the scope of an existing exact-device selection on upgrade.
+    /// A fresh installation has no selection and starts in all-keyboards mode.
+    static func selectedKeyboardOnly(defaults: UserDefaults = .standard) -> Bool {
+        if let explicit = defaults.object(forKey: selectedKeyboardOnlyKey) as? Bool { return explicit }
+        return defaults.data(forKey: selectionKey) != nil
+    }
+
     static let allIntermediateKey = "keypath.session.caps.all.intermediate"
     static let excludedKeyboardsKey = "keypath.session.caps.excluded.keyboards.v1"
     static let selectionKey = "keypath.session.caps.selection.v1"
@@ -414,10 +422,25 @@ enum SessionCapsRuntimeSupport {
     /// Off-main caller constructs the transport here; only scalar ownership
     /// crosses actor boundaries. A PID reused by a live process refuses recovery.
     static func recoverPending(directory: URL, expectedOwner: Policy.Owner? = nil) throws {
-        try recoverLegacyPending(directory: directory, expectedOwner: expectedOwner)
         let boot = try bootSessionUUID()
-        try SessionCapsMappingFleet(directory: directory, backend: SessionCapsHIDUtilTransport.backend())
-            .recover(expectedOwner: expectedOwner, bootSessionUUID: boot)
+        try recoverIndependent(
+            legacy: { try recoverLegacyPending(directory: directory, expectedOwner: expectedOwner) },
+            fleet: {
+                try SessionCapsMappingFleet(directory: directory, backend: SessionCapsHIDUtilTransport.backend())
+                    .recover(expectedOwner: expectedOwner, bootSessionUUID: boot)
+            }
+        )
+    }
+
+    static func recoverIndependent(legacy: () throws -> Void, fleet: () throws -> Void) throws {
+        var firstFailure: Error?
+        do { try legacy() }
+        catch { firstFailure = error }
+        do { try fleet() }
+        catch {
+            if firstFailure == nil { firstFailure = error }
+        }
+        if let firstFailure { throw firstFailure }
     }
 
     private static func recoverLegacyPending(directory: URL, expectedOwner: Policy.Owner?) throws {

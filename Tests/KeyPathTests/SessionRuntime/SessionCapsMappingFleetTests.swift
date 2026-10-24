@@ -16,10 +16,15 @@ final class SessionCapsMappingFleetTests: XCTestCase {
         var connected = Set<UInt64>([101, 102])
         var mappings: [UInt64: [Policy.Mapping]] = [:]
         var writes: [UInt64] = []
+        var failReadOnce: UInt64?
         var backend: SessionCapsMappingLease.Backend {
             .init(enumerate: { self.devices.filter { self.connected.contains($0.registryEntryID) } },
                   read: { device in
-                      .init(device: device, mappings: self.mappings[device.registryEntryID] ?? [])
+                      if self.failReadOnce == device.registryEntryID {
+                          self.failReadOnce = nil
+                          throw NSError(domain: "fixture", code: 1)
+                      }
+                      return .init(device: device, mappings: self.mappings[device.registryEntryID] ?? [])
                   },
                   write: { device, rows in
                       self.writes.append(device.registryEntryID)
@@ -78,6 +83,43 @@ final class SessionCapsMappingFleetTests: XCTestCase {
             XCTAssertEqual(Set(active.records.map(\.device.registryEntryID)), [101, 103])
             XCTAssertEqual(fake.writes.filter { $0 == 101 }.count, 1)
         }
+    }
+
+    func testOneReadFailureRetiresOnlyThatDevice() throws {
+        try fixture { fleet, fake, owner in
+            let devices = Array(fake.devices.prefix(2))
+            _ = try fleet.acquire(owner: owner, configSHA256: String(repeating: "a", count: 64),
+                                  devices: devices, intermediate: Policy.f18)
+            fake.failReadOnce = devices[0].registryEntryID
+            let coverage = try fleet.reconcile(owner: owner, configSHA256: String(repeating: "a", count: 64),
+                                               devices: devices, intermediate: Policy.f18,
+                                               bootSessionUUID: owner.bootSessionUUID, allowNewDevices: false)
+            XCTAssertEqual(coverage.records.map(\.device.registryEntryID), [devices[1].registryEntryID])
+            XCTAssertNotNil(coverage.failures[devices[0].registryEntryID])
+            XCTAssertEqual(fake.mappings[devices[0].registryEntryID], [])
+            XCTAssertEqual(fake.mappings[devices[1].registryEntryID], [.init(source: Policy.caps, destination: Policy.f18)])
+            try fleet.restore(owner: owner, bootSessionUUID: owner.bootSessionUUID)
+        }
+    }
+
+    func testExistingSelectionKeepsSingleKeyboardScopeUntilExplicitlyChanged() {
+        let domain = "caps-fleet-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        XCTAssertFalse(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))
+        defaults.set(Data("legacy".utf8), forKey: SessionCapsRuntimeSupport.selectionKey)
+        XCTAssertTrue(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))
+        defaults.set(false, forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
+        XCTAssertFalse(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))
+    }
+
+    func testLegacyRecoveryFailureStillRunsFleetRecovery() {
+        var fleetRan = false
+        XCTAssertThrowsError(try SessionCapsRuntimeSupport.recoverIndependent(
+            legacy: { throw NSError(domain: "legacy", code: 1) },
+            fleet: { fleetRan = true }
+        ))
+        XCTAssertTrue(fleetRan)
     }
 
     func testConflictingKeyboardDoesNotDisableOtherKeyboard() throws {

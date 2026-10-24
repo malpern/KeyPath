@@ -12,6 +12,11 @@ KeyPath applies the same rule to every compatible connected keyboard by default.
 There is no keyboard to choose before the rule works. A keyboard connected later
 is set up automatically once all keys are released.
 
+If you previously chose one keyboard for Caps Lock, KeyPath keeps that choice
+when you upgrade. Use **Settings → General → Caps Lock options → Use Caps Lock
+rules on all keyboards** to switch to the new default. You can also choose
+**Use on one keyboard only** there and select a keyboard from the picker.
+
 ## Make an exception for one keyboard
 
 Open **Settings → General → Caps Lock rules → Caps Lock options**. Turn

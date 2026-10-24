@@ -131,11 +131,11 @@ extension ServiceLifecycleCoordinator {
                         {
                             // The keyboard went away between the choice and the
                             // worker's own check, so the worker runs paused.
-                            if UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey) {
+                            if SessionCapsRuntimeSupport.selectedKeyboardOnly() {
                                 sessionCapsIntermediate = nil
                             }
                             sessionCapsNotice = nil
-                            sessionCapsPaused = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
+                            sessionCapsPaused = SessionCapsRuntimeSupport.selectedKeyboardOnly()
                                 ? Self.capsPausedMessage(
                                     disconnected: SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock",
                                     setupOff: false
@@ -402,7 +402,7 @@ extension ServiceLifecycleCoordinator {
                 }
                 return false
             }
-            if !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+            if !SessionCapsRuntimeSupport.selectedKeyboardOnly(),
                sessionCapsIntermediate != nil
             {
                 let warning = report.capsCoverage.map(Self.capsCoverageWarning)
@@ -767,12 +767,12 @@ extension ServiceLifecycleCoordinator {
             // Always say explicitly; the worker must not fall back to a saved
             // selection this launch declined.
             var passed = SessionCapsRuntimeSupport.noSelection
-            if !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+            if !SessionCapsRuntimeSupport.selectedKeyboardOnly(),
                let usage = await chooseAllCapsIntermediate()
             {
                 passed = SessionCapsRuntimeSupport.allKeyboardLaunchValue(intermediateUsage: usage)
                 sessionCapsIntermediate = usage
-            } else if UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+            } else if SessionCapsRuntimeSupport.selectedKeyboardOnly(),
                       let selection = try await chooseCapsSelection()
             {
                 passed = try String(decoding: JSONEncoder().encode(selection), as: UTF8.self)

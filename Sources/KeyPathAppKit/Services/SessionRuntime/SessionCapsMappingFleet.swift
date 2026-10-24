@@ -45,8 +45,8 @@ struct SessionCapsMappingFleet {
     }
 
     /// A failed device is left uncovered while working keyboards remain live.
-    /// Any durable intent from a failed write is retained for exact-owner
-    /// recovery before that device is attempted again.
+    /// An uncertain write is restored under its exact owner before continuing.
+    /// If safe restoration fails, the whole admission fails closed.
     func acquire(owner: Policy.Owner, configSHA256: String, devices: [Policy.DeviceIdentity],
                  intermediate: UInt64) throws -> (records: [Policy.Record], failures: [UInt64: String])
     {
@@ -62,6 +62,10 @@ struct SessionCapsMappingFleet {
                     records.append(record)
                 } catch {
                     failures[device.registryEntryID] = String(describing: error)
+                    if let pending = try lease.pendingRecord() {
+                        guard pending.owner == owner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
+                        try lease.restore(expectedOwner: owner, bootSessionUUID: owner.bootSessionUUID)
+                    }
                 }
             }
             return (records, failures)
@@ -108,21 +112,32 @@ struct SessionCapsMappingFleet {
                 {
                     try lease.restore(expectedOwner: owner, bootSessionUUID: bootSessionUUID)
                 } else {
-                    try SessionCapsRuntimeSupport.verifyActive(
-                        directory: deviceDirectory(record.device.registryEntryID), owner: owner, backend: backend,
-                        bootSessionUUID: { bootSessionUUID }
-                    )
+                    do {
+                        try SessionCapsRuntimeSupport.verifyActive(
+                            directory: deviceDirectory(record.device.registryEntryID), owner: owner, backend: backend,
+                            bootSessionUUID: { bootSessionUUID }
+                        )
+                    } catch {
+                        try lease.restore(expectedOwner: owner, bootSessionUUID: bootSessionUUID)
+                        failures[record.device.registryEntryID] = String(describing: error)
+                    }
                 }
             }
             var records = try recordsOnDisk()
             let leased = Set(records.map(\.device.registryEntryID))
-            for device in devices where allowNewDevices && !leased.contains(device.registryEntryID) {
+            for device in devices where allowNewDevices && !leased.contains(device.registryEntryID)
+                && failures[device.registryEntryID] == nil
+            {
                 let lease = SessionCapsMappingLease(directory: deviceDirectory(device.registryEntryID), backend: backend)
                 do {
                     try records.append(lease.acquire(owner: owner, configSHA256: configSHA256,
                                                      device: device, intermediate: intermediate))
                 } catch {
                     failures[device.registryEntryID] = String(describing: error)
+                    if let pending = try lease.pendingRecord() {
+                        guard pending.owner == owner else { throw SessionCapsMappingLease.Refusal.wrongOwner }
+                        try lease.restore(expectedOwner: owner, bootSessionUUID: bootSessionUUID)
+                    }
                 }
             }
             return (records, failures)

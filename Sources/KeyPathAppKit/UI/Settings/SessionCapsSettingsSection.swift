@@ -41,7 +41,7 @@ struct SessionCapsSettingsSection: View {
     @State private var fleetUncovered: [String] = []
     @State private var excludedIDs = SessionCapsRuntimeSupport.excludedKeyboardIDs()
     @State private var automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
-    @State private var selectedOnly = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
+    @State private var selectedOnly = SessionCapsRuntimeSupport.selectedKeyboardOnly()
     @State private var showAdvanced = false
     @State private var choosingOneKeyboard = false
     @State private var busy = false
@@ -80,6 +80,12 @@ struct SessionCapsSettingsSection: View {
                         }
                         .disabled(busy)
                         .accessibilityIdentifier("settings-caps-use-all-keyboards")
+                    } else if choosingOneKeyboard {
+                        Button("Cancel choosing a keyboard") {
+                            choosingOneKeyboard = false
+                            message = nil
+                        }
+                        .accessibilityIdentifier("settings-caps-cancel-keyboard-choice")
                     } else {
                         ForEach(keyboards) { keyboard in
                             let id = SessionCapsRuntimeSupport.preferenceID(keyboard.device)
@@ -90,6 +96,31 @@ struct SessionCapsSettingsSection: View {
                             .disabled(busy || automaticDisabled)
                             .accessibilityIdentifier("settings-caps-keyboard-\(keyboard.id)")
                         }
+                        Button("Use on one keyboard only") {
+                            Task { await setSelectedOnly(true) }
+                        }
+                        .disabled(busy || keyboards.isEmpty)
+                        .accessibilityIdentifier("settings-caps-use-one-keyboard")
+                    }
+
+                    if selectedOnly || choosingOneKeyboard {
+                        Picker("Keyboard", selection: Binding(
+                            get: { choosingOneKeyboard ? nil : (choices.pending?.registryEntryID ?? device?.registryEntryID) },
+                            set: { id in
+                                guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
+                                Task { await choose(chosen.device) }
+                            }
+                        )) {
+                            if device == nil || choosingOneKeyboard { Text("Choose a keyboard").tag(UInt64?.none) }
+                            ForEach(keyboards) { keyboard in
+                                Text(keyboard.name).tag(UInt64?.some(keyboard.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .fixedSize()
+                        .disabled(busy)
+                        .accessibilityIdentifier("settings-caps-keyboard-picker")
+                        .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
                     }
 
                     Toggle("Enable Caps Lock rules", isOn: Binding(
@@ -128,7 +159,13 @@ struct SessionCapsSettingsSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .task { await reviewKeyboard() }
+        .task {
+            await reviewKeyboard()
+            if rulesUseCaps, !automaticDisabled {
+                try? await Task.sleep(for: .seconds(3))
+                if !Task.isCancelled, !busy { await reviewKeyboard() }
+            }
+        }
         // Keyboards come and go while Settings is open; refresh on return.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await reviewKeyboard() }
@@ -141,12 +178,10 @@ struct SessionCapsSettingsSection: View {
             Task {
                 try? await Task.sleep(for: .milliseconds(500))
                 await reviewKeyboard()
+                // The worker's next inventory check may follow the HID event.
+                try? await Task.sleep(for: .seconds(3))
+                if !Task.isCancelled, !busy { await reviewKeyboard() }
             }
-        }
-        // The worker maps a newly connected keyboard after the HID arrival
-        // notification. Refresh again when its coverage report has settled.
-        .onReceive(Timer.publish(every: 3, on: .main, in: .common).autoconnect()) { _ in
-            if rulesUseCaps, !automaticDisabled { Task { await reviewKeyboard() } }
         }
     }
 
@@ -348,7 +383,7 @@ struct SessionCapsSettingsSection: View {
                     ?? (gone ? stored?.rebound(among: devices, currentBoot: boot) : nil)
                 let excluded = SessionCapsRuntimeSupport.excludedKeyboardIDs()
                 var uncovered: [String] = []
-                if needsCaps, !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey) {
+                if needsCaps, !SessionCapsRuntimeSupport.selectedKeyboardOnly() {
                     let fleet = SessionCapsMappingFleet(directory: SessionCapsRuntimeSupport.journalDirectory(),
                                                         backend: SessionCapsHIDUtilTransport.backend())
                     let active = (try? fleet.activeDeviceIDs(bootSessionUUID: boot)) ?? []
