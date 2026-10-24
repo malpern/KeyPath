@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>KindaVim</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-kindavim.png" alt="Guide illustration" /></p>
+<h1 id="kindavim">KindaVim</h1>
+<p>Most vim emulators stop at hjkl arrows. <a href="https://kindavim.app">KindaVim ↗</a> — a separate macOS app by <a href="https://github.com/godbout">godbout ↗</a> — gives you the <em>real</em> thing: Normal mode, Visual mode, operators, motions, and text objects across every text field on your Mac. KeyPath complements it with a live overlay, mode badge, and progress insights. The two apps coordinate; neither replaces the other.</p>
+<p>New to keyboard customization? Read <a href="help://concepts">Keyboard Concepts</a> first for background on layers and dual-role keys.</p>
+<hr />
+<h2 id="what-kindavim-adds">What KindaVim Adds</h2>
+<p>KindaVim is a third-party macOS app that adds genuine Vim modes to almost every text field on your Mac — Mail, Notes, Slack, your browser's address bar, code editors, and more:</p>
+<ul>
+<li><strong>Normal mode</strong> — navigate, delete, yank, paste with real Vim commands</li>
+<li><strong>Visual mode</strong> — select text with motions and text objects</li>
+<li><strong>Operators + motions</strong> — <code>d3w</code>, <code>ct.</code>, <code>yap</code> parse exactly like Vim</li>
+<li><strong>Text objects</strong> — <code>ci"</code>, <code>da(</code>, <code>vis</code> for inner sentence, etc.</li>
+</ul>
+<p>Press <code>Esc</code> (or whatever you've configured — <code>fj</code> is a popular choice) to enter Normal mode; press <code>i</code> / <code>a</code> / <code>o</code> to return to Insert. Just like real Vim.</p>
+<hr />
+<h2 id="how-keypath-coordinates">How KeyPath Coordinates</h2>
+<p>The KindaVim <strong>pack</strong> in KeyPath is "visual-only" — it adds <strong>no</strong> keyboard remappings. KindaVim itself handles every keypress. KeyPath layers on:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Mode badge</strong></td>
+<td>A small <code>VIM: NORMAL</code> / <code>INSERT</code> / <code>VISUAL</code> indicator in the live keyboard overlay header.</td>
+</tr>
+<tr>
+<td><strong>hjkl arrow hints</strong></td>
+<td>When KindaVim is in Normal mode, the live keyboard overlay highlights <code>h</code> / <code>j</code> / <code>k</code> / <code>l</code> with loud arrow glyphs and dims the rest.</td>
+</tr>
+<tr>
+<td><strong>Operator-pending callout</strong></td>
+<td>Press an operator (<code>d</code>, <code>c</code>, <code>y</code>) and the overlay tells you "Press <code>d</code> again for the whole line." A <code>5×</code> count badge appears while you're typing a numeric prefix.</td>
+</tr>
+<tr>
+<td><strong>Strategy awareness</strong></td>
+<td>KindaVim runs on one of two backends per app — Accessibility (full set) or Keyboard (degraded fallback for apps like Slack). KeyPath reads which is active for your frontmost app and only shows hints that will actually fire.</td>
+</tr>
+<tr>
+<td><strong>Mastery insights</strong></td>
+<td>If you opt into local-only telemetry, the Pack Detail panel shows a 30-day arrow-key reliance chart, your most-used commands with mastery tiers, and stage-appropriate suggestions ("you've never used <code>b</code> — pairs with <code>w</code> you already know").</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="setting-it-up">Setting It Up</h2>
+<h3 id="1-install-kindavim">1. Install KindaVim</h3>
+<p>Download KindaVim from <a href="https://kindavim.app">kindavim.app ↗</a>. KeyPath's KindaVim pack detects whether the app is installed and shows a status row in Pack Detail.</p>
+<h3 id="2-install-the-kindavim-pack-in-keypath">2. Install the KindaVim pack in KeyPath</h3>
+<p>Open the <strong>Gallery</strong> in KeyPath, find the <strong>KindaVim Mode Display</strong> pack, and turn it on. The pack:</p>
+<ul>
+<li>Adds zero kanata remappings (KindaVim handles all the keystrokes)</li>
+<li>Just enables KeyPath's visual layer to track and display KindaVim's state</li>
+</ul>
+<p>If kindaVim.app isn't installed, KeyPath surfaces an alert with a <strong>Get KindaVim →</strong> button before letting you enable the pack.</p>
+<h3 id="3-optional-turn-on-local-usage-stats">3. (Optional) Turn on local usage stats</h3>
+<p>Pack Detail has a <strong>Record local KindaVim usage stats</strong> toggle. When on, KeyPath records aggregate counts (how often you press each key, time spent in each mode, etc.) and surfaces a "Your vim vocabulary" panel with charts and suggestions.</p>
+<p>The data stays on your Mac and is never sent anywhere. A <strong>Clear all KindaVim usage data</strong> button in the same panel deletes it at any time.</p>
+<hr />
+<h2 id="reading-the-overlay">Reading the Overlay</h2>
+<p>When KindaVim is in Normal mode and the pack is on, KeyPath transforms the overlay:</p>
+<ul>
+<li><strong><code>h</code> <code>j</code> <code>k</code> <code>l</code></strong> render as large accent-coloured arrow glyphs (◀ ▼ ▲ ▶), the loudest signal on the keyboard.</li>
+<li><strong>Other Normal-mode keys</strong> (<code>w</code> <code>b</code> <code>e</code>, <code>0</code> <code>$</code>, <code>i</code> <code>a</code> <code>o</code>, <code>x</code>, <code>d</code> <code>c</code> <code>y</code>, <code>f</code> <code>t</code>, <code>gg</code> <code>G</code>, etc.) get small chips in the top-right corner of their keycap.</li>
+<li><strong>Tier styling</strong> dims keys by how core they are: foundational keys at full strength, secondary keys faded, advanced (Page Up/Down, search) hidden behind a "Show all keys" toggle.</li>
+<li><strong>Operator-pending mode</strong> dims non-motion keys to ~15% so you can see at a glance which keys will accept the next motion.</li>
+</ul>
+<p>Screenshot — KeyPath overlay in KindaVim Normal mode:</p>
+<pre><code>┌─ KeyPath ──────────────────────── VIM: NORMAL ─── ● ──┐
+│                                                        │
+│  ┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐  │
+│  │ q ││ w ││ e ││ r ││ t ││ y ││ u ││ i ││ o ││ p │  │
+│  │   ││ w ││ e ││   ││ t ││ y ││ u ││ i ││ o ││ p │  │
+│  └───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘  │
+│  ┌───┐┌───┐┌───┐┌───┐┌───┐┌═══╗┌═══╗┌═══╗┌═══╗┌───┐  │
+│  │ a ││ s ││ d ││ f ││ g │║ ◀ ║║ ▼ ║║ ▲ ║║ ▶ ║│ ; │  │
+│  │   ││   ││ d ││ f ││ g │║ h ║║ j ║║ k ║║ l ║│   │  │
+│  └───┘└───┘└───┘└───┘└───┘╚═══╝╚═══╝╚═══╝╚═══╝└───┘  │
+│  ┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐┌───┐       │
+│  │ z ││ x ││ c ││ v ││ b ││ n ││ m ││   ││   │       │
+│  │   ││ x ││ c ││   ││ b ││   ││   ││   ││   │       │
+│  └───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘└───┘       │
+└────────────────────────────────────────────────────────┘
+  ═══ hjkl arrows (accent color)    d/f/g = operators
+  w/e/b = word motions              x/c = delete/change</code></pre>
+<p>The overlay vanishes back to its normal state the instant KindaVim flips to Insert mode.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li><strong>Start with KindaVim alone</strong> — get comfortable with Normal/Visual modes before turning on the KeyPath pack. The mode signal needs to feel intuitive before the visual layer adds value.</li>
+<li><strong>The hint layer is a teacher, not a contract</strong> — KindaVim's two strategies (Accessibility vs. Keyboard fallback) wire up different command sets per app. KeyPath only renders hints that the <em>current</em> strategy supports.</li>
+<li><strong>Watch the arrow-reliance metric</strong> — the headline chart in Pack Detail shows what fraction of your cursor moves are still arrow keys vs. hjkl. Down = better. A heavy vim user reaches zero.</li>
+<li><strong>Don't worry about counts in early days</strong> — the "What to try next" panel waits until you have ~50 navigation events before suggesting anything specific.</li>
+</ul>
+<hr />
+<h2 id="where-to-go-next">Where to Go Next</h2>
+<ul>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Layers, modifiers, and dual-role keys explained</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Combine KindaVim with home row modifiers</li>
+<li><strong><a href="help://neovim-terminal">Neovim in the Terminal</a></strong> — Lighter alternative: Leader-layer shortcuts with a HUD reference card</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — Tap-hold for the rare key you want to remap <em>outside</em> of vim mode</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="external-resources">External Resources</h2>
+<ul>
+<li><strong><a href="https://kindavim.app">KindaVim website ↗</a></strong> — The official KindaVim app, by <a href="https://github.com/godbout">godbout ↗</a>. Download, documentation, and updates.</li>
+<li><strong><a href="https://docs.kindavim.app">KindaVim docs ↗</a></strong> — Full command reference, including which commands are supported by the Accessibility vs. Keyboard strategies.</li>
+<li><strong><a href="https://github.com/godbout/kindaVim.theapp">KindaVim on GitHub ↗</a></strong> — Source code, releases, and issue tracker.</li>
+<li><strong><a href="https://vim.rtorr.com/">Vim Cheat Sheet ↗</a></strong> — Quick reference for all Vim commands.</li>
+</ul>
+</body></html>

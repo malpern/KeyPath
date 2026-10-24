@@ -1,0 +1,219 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Remapping Keys</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-remapping.png" alt="Guide illustration" /></p>
+<h1 id="remapping-keys">Remapping Keys</h1>
+<p>Remapping means making a key do something different than what's printed on it. A key you never use becomes one you press constantly. An awkward reach becomes a comfortable press.</p>
+<p>This is the most useful thing KeyPath does. If you've never remapped a key before, this guide will get you there in under a minute — and by the end, you'll see why people redesign their whole keyboard.</p>
+<hr />
+<h2 id="the-problem">The problem</h2>
+<p>You navigate text every day — moving the cursor through documents, emails, code, spreadsheets. Every time you reach for the arrow keys, your right hand leaves the home row:</p>
+<pre><code>                                          your hand has to
+                                          travel here ──┐
+                                                        ↓
+  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐      ┌───┐
+  │   │   │   │   │   │   │   │   │   │   │      │ ↑ │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤  ┌───┼───┼───┐
+  │   │   │   │ F │   │   │ J │   │   │   │  │ ← │ ↓ │ → │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘  └───┴───┴───┘
+                  ↑                   ↑
+            your left hand      your right hand
+            stays here          has to leave</code></pre>
+<p>On a MacBook, those arrow keys are tiny. You look down to find them. You lose your place in the text. Then you move your hand back to the home row and find your position again. Dozens of times a day.</p>
+<hr />
+<h2 id="your-first-remap-home-row-arrows">Your first remap: Home Row Arrows</h2>
+<p>What if your right hand could stay on the home row and <em>still</em> have arrow keys?</p>
+<p><strong>Home Row Arrows</strong> turns F into a trigger. Tap F normally and it types "f". But hold F, and your right hand becomes arrow keys:</p>
+<pre><code>  Hold F, then press:
+
+  ┌───┬───┬───┬───┐
+  │   │ ↑ │   │   │     I = Up
+  ├───┼───┼───┼───┤
+  │ ← │ ↓ │ → │   │     J = Left, K = Down, L = Right
+  └───┴───┴───┴───┘
+
+  Plus: H = Home, ; = End, U = Page Up, O = Page Down</code></pre>
+<p>The arrow layout matches the physical arrow keys you already know — up is above down, left and right are on either side. No new layout to memorize.</p>
+<h3 id="try-it-now">Try it now</h3>
+<p>KeyPath installs Home Row Arrows by default. If it's already running, try it:</p>
+<ol type="1">
+<li>Open any text editor or document</li>
+<li><strong>Hold F</strong> (don't release)</li>
+<li>Press <strong>J, K, I, or L</strong> to move the cursor</li>
+<li><strong>Release F</strong> to go back to normal typing</li>
+</ol>
+<p>That's it. Your hand never left the home row. No reaching, no looking down, no tiny arrow keys.</p>
+<h3 id="prefer-vim-style-hjkl">Prefer Vim-style HJKL?</h3>
+<p>If you're a developer who already knows Vim's HJKL navigation, you can switch layouts in the pack settings:</p>
+<ol type="1">
+<li>Open the <strong>Pack Gallery</strong></li>
+<li>Click <strong>Home Row Arrows</strong></li>
+<li>Choose <strong>Vim-Style</strong> from the layout picker</li>
+</ol>
+<pre><code>  Inverted-T (default):            Vim-Style:
+  ┌───┬───┬───┬───┐               ┌───┬───┬───┬───┐
+  │   │ ↑ │   │   │               │ ← │ ↓ │ ↑ │ → │
+  ├───┼───┼───┼───┤               ├───┼───┼───┼───┤
+  │ ← │ ↓ │ → │   │               │ H │ J │ K │ L │
+  └───┴───┴───┴───┘               └───┴───┴───┴───┘</code></pre>
+<h3 id="if-its-not-installed-yet">If it's not installed yet</h3>
+<ol type="1">
+<li>Open KeyPath from the menu bar</li>
+<li>Open the <strong>Pack Gallery</strong></li>
+<li>Find <strong>Home Row Arrows</strong> and click <strong>Install</strong></li>
+</ol>
+<p>Or from the command line:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack install home-row-arrows</span></code></pre></div>
+<hr />
+<h2 id="what-just-happened">What just happened?</h2>
+<p>When you held F and pressed J, KeyPath told the <a href="https://github.com/jtroo/kanata">Kanata</a> remapping engine to intercept the keypress and send Left Arrow instead. This happens at a level below your apps — every application on your Mac sees an arrow key, not the letter J.</p>
+<pre><code>  You press:        KeyPath intercepts:      Your Mac sees:
+  ┌───┐ + ┌───┐     ┌───────────────┐       ┌───┐
+  │ F │   │ J │  →   │    Kanata     │   →   │ ← │
+  │   │   │   │      │    engine     │       │   │
+  └───┘   └───┘      └───────────────┘       └───┘
+  (hold)  (press)</code></pre>
+<p>When you release F, everything goes back to normal. F types "f" when tapped. J types "j" when tapped. The magic only happens when F is held.</p>
+<p>Kanata is the open-source keyboard remapping engine that powers KeyPath. It runs as a system service, so your remaps work in every app, every context — even before you log in. KeyPath provides the visual interface; Kanata provides the engine.</p>
+<hr />
+<h2 id="a-simpler-remap-one-key-becomes-another">A simpler remap: one key becomes another</h2>
+<p>Home Row Arrows uses a powerful technique (tap-hold + a layer), but remapping can also be much simpler. You can make one key behave as another key — no holding required.</p>
+<h3 id="caps-lock--escape">Caps Lock → Escape</h3>
+<p>The most popular simple remap. Caps Lock sits in prime real estate next to the home row, but it's useless for most people. Escape is far away but you press it constantly — dismissing dialogs, canceling searches, exiting full-screen.</p>
+<ol type="1">
+<li>Open the <strong>Pack Gallery</strong></li>
+<li>Install <strong>Caps Lock Remap</strong></li>
+</ol>
+<p>Done. Caps Lock now sends Escape every time you press it.</p>
+<h3 id="right-option--forward-delete">Right Option → Forward Delete</h3>
+<p>Macs don't have a Forward Delete key (delete the character <em>after</em> the cursor). Right Option is right there and almost nobody uses it deliberately. Remap it:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> remap right_option delete</span></code></pre></div>
+<h3 id="more-popular-simple-remaps">More popular simple remaps</h3>
+<table>
+<thead>
+<tr>
+<th>Remap</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock → Escape</td>
+<td>Move Escape to the home row</td>
+</tr>
+<tr>
+<td>Right Option → Forward Delete</td>
+<td>Add the missing Forward Delete key</td>
+</tr>
+<tr>
+<td>Right Control → Enter</td>
+<td>Bring Enter closer to the home row</td>
+</tr>
+<tr>
+<td>Right Command → Hyper</td>
+<td>A modifier no app uses — free shortcut real estate</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="seeing-your-remaps">Seeing your remaps</h2>
+<p>The keyboard overlay shows you what every key does right now. Remapped keys are highlighted so you can always tell what's been changed.</p>
+<p>To see or change what a key does, right-click it and choose <strong>Remap</strong>. The settings drawer opens with that key selected, even if the drawer was closed. With the drawer already open, a plain click selects a key too. If you ever forget what you've changed, the overlay is your map.</p>
+<hr />
+<h2 id="undoing-a-remap">Undoing a remap</h2>
+<p>Changed your mind? Nothing is permanent:</p>
+<ul>
+<li><strong>Pack Gallery</strong> — click <strong>Uninstall</strong> on the pack</li>
+<li><strong>Overlay</strong> — right-click the key and choose <strong>Reset to Default</strong> (shown for remaps you made on the current layer)</li>
+<li><strong>CLI</strong> — <code>keypath unmap caps_lock</code></li>
+</ul>
+<p>Experiment freely.</p>
+<hr />
+<h2 id="whats-next">What's next?</h2>
+<p>You've seen two kinds of remapping — a simple key swap (Caps Lock → Escape) and a hold-activated layer (Home Row Arrows). That second one is the gateway to much more.</p>
+<p><strong><a href="help://tap-hold">Tap-Hold</a></strong> — The technique Home Row Arrows uses. One key, two jobs: tap for one thing, hold for another. This is the second fundamental concept, and it unlocks everything else.</p>
+<p><strong><a href="help://concepts">Layers</a></strong> — Home Row Arrows gave you one extra layer (arrows). Imagine having <em>several</em> — a numpad layer, a symbol layer, an app launcher layer. That's where the real power lives.</p>
+<p><strong><a href="help://packs">Browse the Pack Gallery</a></strong> — Pre-built feature packs you install with one click. Start with what's already on and explore from there.</p>
+<hr />
+<h2 id="quick-reference">Quick reference</h2>
+<h3 id="pack-gallery-remaps">Pack Gallery remaps</h3>
+<table>
+<thead>
+<tr>
+<th>Pack</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="help://packs">Home Row Arrows</a></td>
+<td>Hold F for arrow keys on IJKL. Installed by default.</td>
+</tr>
+<tr>
+<td><a href="help://packs">Caps Lock Remap</a></td>
+<td>Tap: Escape (or Backspace/Hyper). Hold: modifier.</td>
+</tr>
+<tr>
+<td><a href="help://packs">Escape Remap</a></td>
+<td>Move Escape to Caps Lock, Backtick, or Tab.</td>
+</tr>
+<tr>
+<td><a href="help://packs">Delete Enhancement</a></td>
+<td>Forward-delete, word-delete, and line-delete from Backspace.</td>
+</tr>
+<tr>
+<td><a href="help://packs">Backup Caps Lock</a></td>
+<td>Both Shift keys together → Caps Lock.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cli-remapping">CLI remapping</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> remap <span class="op">&lt;</span>from<span class="op">&gt;</span> <span class="op">&lt;</span>to<span class="op">&gt;</span>          <span class="co"># Remap a key</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> unmap <span class="op">&lt;</span>from<span class="op">&gt;</span>               <span class="co"># Remove a remap</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack install <span class="op">&lt;</span>name<span class="op">&gt;</span>        <span class="co"># Install a feature pack</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack uninstall <span class="op">&lt;</span>name<span class="op">&gt;</span>      <span class="co"># Remove a feature pack</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule list                  <span class="co"># See all active rules</span></span></code></pre></div>
+<h3 id="common-key-names">Common key names</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Name in KeyPath</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Caps Lock</td>
+<td><code>caps_lock</code></td>
+</tr>
+<tr>
+<td>Escape</td>
+<td><code>esc</code></td>
+</tr>
+<tr>
+<td>Delete/Backspace</td>
+<td><code>backspace</code></td>
+</tr>
+<tr>
+<td>Forward Delete</td>
+<td><code>delete</code></td>
+</tr>
+<tr>
+<td>Right Option</td>
+<td><code>right_option</code></td>
+</tr>
+<tr>
+<td>Right Control</td>
+<td><code>right_control</code></td>
+</tr>
+<tr>
+<td>Right Command</td>
+<td><code>right_command</code></td>
+</tr>
+<tr>
+<td>Backtick</td>
+<td><code>grave_accent</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="app-specific-edits-and-hand-written-configurations">App-specific edits and hand-written configurations</h2>
+<p>If KeyPath says your configuration was preserved, it could not safely reproduce your current configuration from the rules in the visual editor. The attempted app-specific edit has not been saved. Your configuration files remain unchanged.</p>
+<p>This can happen with hand-written configurations, manual changes to generated files, or stored rules that differ from the generated configuration. App-specific editing requires an explicit conversion with a backup first. KeyPath does not perform that conversion automatically. Keep using your existing configuration; this editing limit does not stop it from running.</p>
+</body></html>

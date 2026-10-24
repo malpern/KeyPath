@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Action URI Reference</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-action-uri-reference.png" alt="Guide illustration" /></p>
+<h1 id="action-uri-reference">Action URI Reference</h1>
+<p>KeyPath uses a URI scheme (<code>keypath://</code>) to trigger actions. This is the technical reference for integrating KeyPath with external tools like Raycast, Alfred, Shortcuts.app, or your own scripts.</p>
+<p>If you just want to set up app launching through KeyPath's UI, see the <a href="help://action-uri">Launching Apps guide</a> instead.</p>
+<hr />
+<h2 id="deep-link-format">Deep link format</h2>
+<p>Trigger any KeyPath action from Terminal or any tool that can open URLs:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/Safari&quot;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/snap/left&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://notify?title=Deployed&amp;body=Build complete&quot;</span></span></code></pre></div>
+<hr />
+<h2 id="supported-actions">Supported actions</h2>
+<h3 id="keypathlaunchapp"><code>keypath://launch/{app}</code></h3>
+<p>Launch an application by name or bundle identifier.</p>
+<p>KeyPath resolves app names in this order:</p>
+<ol type="1">
+<li>Bundle identifier lookup (e.g., <code>com.apple.Safari</code>)</li>
+<li><code>/Applications/</code></li>
+<li><code>/System/Applications/</code></li>
+<li><code>~/Applications/</code></li>
+</ol>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/Safari&quot;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/com.apple.Safari&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/Visual Studio Code&quot;</span></span></code></pre></div>
+<hr />
+<h3 id="keypathwindowsnapposition"><code>keypath://window/snap/{position}</code></h3>
+<p>Tile the current window to a screen position.</p>
+<p>Positions: <code>left</code>, <code>right</code>, <code>top</code>, <code>bottom</code>, <code>topleft</code>, <code>topright</code>, <code>bottomleft</code>, <code>bottomright</code>, <code>maximize</code>, <code>center</code></p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/snap/left&quot;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/snap/maximize&quot;</span></span></code></pre></div>
+<hr />
+<h3 id="keypathlayername"><code>keypath://layer/{name}</code></h3>
+<p>Signal a layer change for UI feedback.</p>
+<p>Subpaths: <code>/activate</code>, <code>/deactivate</code>, <code>/toggle</code></p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://layer/nav/activate&quot;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://layer/vim/toggle&quot;</span></span></code></pre></div>
+<hr />
+<h3 id="keypathnotify"><code>keypath://notify</code></h3>
+<p>Show a system notification.</p>
+<p>Query parameters:</p>
+<ul>
+<li><code>title</code> (required) — notification title</li>
+<li><code>body</code> (optional) — notification body text</li>
+<li><code>sound</code> (optional, default: <code>true</code>) — play notification sound</li>
+</ul>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://notify?title=Build%20Complete&amp;body=Ready%20to%20deploy&quot;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://notify?title=Saved&amp;sound=false&quot;</span></span></code></pre></div>
+<hr />
+<h3 id="keypathoverlaytoggleshowhide"><code>keypath://overlay/{toggle|show|hide}</code></h3>
+<p>Show or hide the keyboard overlay. Bind it to a key to get a "show me my layout" key.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://overlay/toggle&quot;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://overlay/show&quot;</span></span></code></pre></div>
+<p>From a Kanata config, use the short form: <code>(push-msg "overlay:toggle")</code>.</p>
+<hr />
+<h3 id="keypathruntimestartstoprestart"><code>keypath://runtime/{start|stop|restart}</code></h3>
+<p>Turn remapping on or off, or restart it. This does the same thing as <code>keypath start</code>, <code>keypath stop</code> and <code>keypath restart</code>, but reports no result; use the CLI when a script needs to know whether it worked.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://runtime/stop&quot;</span>      <span class="co"># Pause remapping</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://runtime/start&quot;</span>     <span class="co"># Resume it</span></span></code></pre></div>
+<h3 id="keypathfakekeyname"><code>keypath://fakekey/{name}</code></h3>
+<p>Trigger a virtual key press.</p>
+<p>Subpaths: <code>/press</code>, <code>/release</code>, <code>/tap</code></p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://fakekey/vk1/tap&quot;</span></span></code></pre></div>
+<hr />
+<h2 id="integration-examples">Integration examples</h2>
+<h3 id="raycast">Raycast</h3>
+<p>Create a Raycast script command:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co"># @raycast.title Launch Safari</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co"># @raycast.mode silent</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/Safari&quot;</span></span></code></pre></div>
+<h3 id="alfred">Alfred</h3>
+<p>Use an Alfred workflow "Open URL" action with <code>keypath://launch/{query}</code>.</p>
+<h3 id="shortcutsapp--siri">Shortcuts.app / Siri</h3>
+<p>KeyPath has native Shortcuts integration — no shell scripts needed. Use the "Send KeyPath Action" action directly, or ask Siri to start/stop KeyPath or check your current layer. See the <a href="help://siri-and-shortcuts">Siri &amp; Shortcuts guide</a>.</p>
+<p>You can also use a "Run Shell Script" action:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/Safari&quot;</span></span></code></pre></div>
+<h3 id="hammerspoon">Hammerspoon</h3>
+<p>Use the <a href="help://hammerspoon">KeyPath.spoon</a> to react to layer changes and send actions:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="va">spoon</span><span class="op">.</span><span class="va">KeyPath</span><span class="op">:</span>sendAction<span class="op">(</span><span class="st">&quot;launch/Safari&quot;</span><span class="op">)</span></span></code></pre></div>
+<h3 id="shell-scripts">Shell scripts</h3>
+<p>Chain multiple actions:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">#!/bin/bash</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/snap/left&quot;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sleep</span> 0.5</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://launch/Terminal&quot;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/snap/right&quot;</span></span></code></pre></div>
+<hr />
+<h2 id="security">Security</h2>
+<p>Action URIs are only processed from local sources:</p>
+<ul>
+<li>KeyPath's own remapping engine (via the internal message system)</li>
+<li>Local system processes (via the <code>open</code> command)</li>
+</ul>
+<p>No network access is required or used. Actions execute with your normal user permissions.</p>
+<hr />
+<h2 id="error-handling">Error handling</h2>
+<p>If an action fails (e.g., app not found), KeyPath logs the error but doesn't crash. Check <strong>File → View Logs</strong> for details. Invalid URIs are silently ignored.</p>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://action-uri">Launching Apps</a></strong> — Set up app launching through KeyPath's UI</li>
+<li><strong><a href="help://siri-and-shortcuts">Siri &amp; Shortcuts</a></strong> — Voice control and Shortcuts automations</li>
+<li><strong><a href="help://hammerspoon">Hammerspoon</a></strong> — Layer-aware desktop automation</li>
+<li><strong><a href="help://window-management">Windows &amp; App Shortcuts</a></strong> — App-specific keymaps and window snapping</li>
+<li><strong><a href="help://kanata-users">From Kanata</a></strong> — Using Action URIs in your Kanata config</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong> — See all available guides</li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc">Kanata configuration reference</a></strong> — For using Action URIs in raw Kanata configs</li>
+<li><strong><a href="https://www.raycast.com/">Raycast</a></strong> — Pairs well with KeyPath's deep link system</li>
+<li><strong><a href="https://www.alfredapp.com/">Alfred</a></strong> — Another launcher that integrates with KeyPath deep links</li>
+</ul>
+</body></html>

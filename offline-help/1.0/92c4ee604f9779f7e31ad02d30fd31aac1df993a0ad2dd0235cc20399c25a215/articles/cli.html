@@ -1,0 +1,197 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Command Line</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-cli.png" alt="Guide illustration" /></p>
+<h1 id="command-line">Command Line</h1>
+<p>KeyPath includes a CLI tool (<code>keypath-cli</code>) for managing your keyboard from Terminal. Opening KeyPath.app remains the primary way to launch KeyPath; the CLI is a separate terminal entry point.</p>
+<p>For DMG installs, open KeyPath and choose <strong>File &gt; Install Command Line Tool</strong>. That installs:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath-cli</span></span></code></pre></div>
+<p>The installed command points at the signed CLI inside <code>/Applications/KeyPath.app</code>, so configuration validation and simulation use the same bundled engine as the app. Installing this command-line tool is separate from installing system services.</p>
+<p>You can also run the bundled CLI directly:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">/Applications/KeyPath.app/Contents/MacOS/keypath-cli</span> config check</span></code></pre></div>
+<p>All commands support <code>--json</code> for machine-readable output, making them easy to use in scripts, Shortcuts, and automation tools.</p>
+<hr />
+<h2 id="quick-reference">Quick reference</h2>
+<h3 id="remapping-on-and-off">Remapping on and off</h3>
+<p>These ask the running KeyPath app, which owns remapping, so the answer is the app's own view.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> status                    <span class="co"># Is remapping running? Also shows the current layer</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> start                     <span class="co"># Start remapping (opens KeyPath in the background if needed)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> stop                      <span class="co"># Stop remapping; KeyPath keeps running</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> restart                   <span class="co"># Stop and start again</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> status <span class="at">--json</span>             <span class="co"># The same, for scripts</span></span></code></pre></div>
+<p><code>start</code>, <code>stop</code> and <code>restart</code> wait until KeyPath has finished before they return. The same commands also live under <code>keypath service</code> (<code>keypath service status</code>, and so on).</p>
+<table>
+<thead>
+<tr>
+<th>Exit code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Done, or remapping is running</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Remapping is not running, or KeyPath could not do what you asked (the output says why)</td>
+</tr>
+<tr>
+<td><code>6</code></td>
+<td>KeyPath isn't running, or didn't answer in time (try a longer <code>--timeout</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><code>keypath stop</code> succeeds when KeyPath isn't running, since remapping is already off.</p>
+<h3 id="setup-and-health">Setup and health</h3>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> doctor                    <span class="co"># Check permissions, remapping and config, with the fix for each problem</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> setup                     <span class="co"># Repair, ask for missing permissions, then start remapping</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> setup <span class="at">--no-open</span>           <span class="co"># Just report what&#39;s needed; don&#39;t open System Settings</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> uninstall                 <span class="co"># Show what uninstalling would do (add --yes to do it)</span></span></code></pre></div>
+<p>macOS only lets a person turn on Accessibility and Input Monitoring. When one is off, <code>keypath setup</code> opens that pane in System Settings and waits up to five minutes (<code>--wait</code>) for you to switch KeyPath on, then finishes. <code>keypath repair</code> is the same command.</p>
+<table>
+<thead>
+<tr>
+<th>Exit code</th>
+<th><code>doctor</code> and <code>setup</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Ready and remapping</td>
+</tr>
+<tr>
+<td><code>7</code></td>
+<td>A macOS permission still needs you</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Another problem (the output says what)</td>
+</tr>
+<tr>
+<td><code>6</code></td>
+<td>KeyPath couldn't be reached (<code>doctor</code> doesn't open the app; <code>setup</code> does)</td>
+</tr>
+</tbody>
+</table>
+<p><code>keypath uninstall</code> exits <code>2</code> without <code>--yes</code>, with nothing changed. See <a href="help://uninstall">Uninstall KeyPath</a>.</p>
+<h3 id="configuration-reload-and-logs">Configuration reload and logs</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> logs                      <span class="co"># Show recent app logs</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> service reload            <span class="co"># Hot-reload config without restart</span></span></code></pre></div>
+<h3 id="layers">Layers</h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer list                <span class="co"># List all layers</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer current             <span class="co"># Show the active layer</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer switch nav          <span class="co"># Switch to a layer</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer create window       <span class="co"># Create a new layer</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer rename nav arrow    <span class="co"># Rename a layer</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer delete window       <span class="co"># Delete a layer and its rules</span></span></code></pre></div>
+<h3 id="key-remapping">Key remapping</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> remap caps_lock esc       <span class="co"># Remap a key (shortcut)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> unmap caps_lock           <span class="co"># Remove a mapping (shortcut)</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule add caps_lock esc                    <span class="co"># Add a rule</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule add <span class="at">--layer</span> nav h left               <span class="co"># Layer-specific rule</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule add <span class="at">--type</span> tap-hold caps_lock esc lctl  <span class="co"># Tap-hold rule</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule ensure caps_lock esc                 <span class="co"># Idempotent add</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule list                                 <span class="co"># List all rules</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule show caps_lock                       <span class="co"># Show a rule&#39;s details</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule enable caps_lock                     <span class="co"># Enable a rule</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule disable caps_lock                    <span class="co"># Disable a rule</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule remove caps_lock                     <span class="co"># Remove a rule</span></span></code></pre></div>
+<h3 id="collections">Collections</h3>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection list           <span class="co"># List all rule collections</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection show <span class="st">&quot;My Rules&quot;</span>  <span class="co"># Show collection details</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection create <span class="st">&quot;Gaming&quot;</span>  <span class="co"># Create a new collection</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection enable <span class="st">&quot;Gaming&quot;</span>  <span class="co"># Enable a collection</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection disable <span class="st">&quot;Gaming&quot;</span> <span class="co"># Disable a collection</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection rename <span class="st">&quot;Gaming&quot;</span> <span class="st">&quot;FPS&quot;</span>  <span class="co"># Rename</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection reorder <span class="st">&quot;Gaming&quot;</span> 0     <span class="co"># Move to top</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection duplicate <span class="st">&quot;My Rules&quot;</span>   <span class="co"># Duplicate</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> collection delete <span class="st">&quot;Gaming&quot;</span>        <span class="co"># Delete</span></span></code></pre></div>
+<h3 id="packs">Packs</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack list                 <span class="co"># List available packs</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack show vim-navigation  <span class="co"># Show pack details</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack install vim-navigation  <span class="co"># Install a pack</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack uninstall vim-navigation  <span class="co"># Uninstall</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> pack configure vim-navigation <span class="at">--set</span> key=value  <span class="co"># Configure</span></span></code></pre></div>
+<h3 id="configuration">Configuration</h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> config show               <span class="co"># Print the generated .kbd config</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> config path               <span class="co"># Print the config file path</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> config check              <span class="co"># Validate config with kanata --check</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> config apply              <span class="co"># Regenerate config and reload</span></span></code></pre></div>
+<h3 id="import--export">Import / Export</h3>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> import karabiner ~/karabiner.json   <span class="co"># Import from Karabiner</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> import collection rules.json        <span class="co"># Import a collection</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> export all                          <span class="co"># Export all collections</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> export collection <span class="st">&quot;My Rules&quot;</span>        <span class="co"># Export one collection</span></span></code></pre></div>
+<h3 id="system">System</h3>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> system inspect                    <span class="co"># Read local permission/configuration diagnostics</span></span></code></pre></div>
+<p><code>system inspect</code> reads diagnostics available to the CLI process. <code>keypath doctor</code> asks the running app instead, so it sees the permissions and remapping the app actually has; prefer it. Its <code>Rules:</code> section (<code>admission</code> in <code>--json</code>) lists what the admission engine says about the rules now on: a block (<code>✗</code>, a key this backend can't send, Caps Lock held by another app), a choice (<code>!</code>, a key two rules both map), or something KeyPath resolves by itself (<code>•</code>, the Caps Lock intermediate moving to a free key).</p>
+<h3 id="simulation">Simulation</h3>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> simulate <span class="st">&quot;caps h&quot;</span>         <span class="co"># Simulate a key sequence</span></span></code></pre></div>
+<hr />
+<h2 id="json-output">JSON output</h2>
+<p>Every command supports <code>--json</code> for machine-readable output:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> config check <span class="at">--json</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer current <span class="at">--json</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule list <span class="at">--json</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer list <span class="at">--json</span></span></code></pre></div>
+<p>This makes the CLI a first-class integration point for scripts, Shortcuts, Hammerspoon, and any other automation tool.</p>
+<h3 id="scripting-examples">Scripting examples</h3>
+<p>Get the current layer in a script:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="va">LAYER</span><span class="op">=</span><span class="va">$(</span><span class="ex">keypath</span> layer current<span class="va">)</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;Active layer: </span><span class="va">$LAYER</span><span class="st">&quot;</span></span></code></pre></div>
+<p>Conditional logic based on layer:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="va">LAYER</span><span class="op">=</span><span class="va">$(</span><span class="ex">keypath</span> layer current<span class="va">)</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="cf">case</span> <span class="st">&quot;</span><span class="va">$LAYER</span><span class="st">&quot;</span> <span class="kw">in</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="ss">nav</span><span class="kw">)</span>    <span class="bu">echo</span> <span class="st">&quot;Navigation mode&quot;</span> <span class="cf">;;</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="ss">window</span><span class="kw">)</span> <span class="bu">echo</span> <span class="st">&quot;Window management mode&quot;</span> <span class="cf">;;</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="ss">base</span><span class="kw">)</span>   <span class="bu">echo</span> <span class="st">&quot;Default mode&quot;</span> <span class="cf">;;</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="cf">esac</span></span></code></pre></div>
+<h3 id="applescript">AppleScript</h3>
+<p>Use the CLI from AppleScript to query KeyPath state:</p>
+<pre class="applescript"><code>-- Get the current layer
+set currentLayer to do shell script &quot;/usr/local/bin/keypath layer current&quot;
+
+-- Conditional logic based on layer
+if currentLayer is &quot;nav&quot; then
+    display notification &quot;Navigation layer active&quot; with title &quot;KeyPath&quot;
+end if
+</code></pre>
+<p>Send actions to KeyPath from AppleScript:</p>
+<pre class="applescript"><code>-- Launch an app through KeyPath
+do shell script &quot;open &#39;keypath://launch/Obsidian&#39;&quot;
+
+-- Switch layers
+do shell script &quot;/usr/local/bin/keypath layer switch nav&quot;</code></pre>
+<h3 id="hammerspoon">Hammerspoon</h3>
+<p>Use the CLI alongside the <a href="help://hammerspoon">KeyPath.spoon</a>:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode lua"><code class="sourceCode lua"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Query current layer via CLI (synchronous)</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="kw">local</span> <span class="va">layer</span> <span class="op">=</span> <span class="va">hs</span><span class="op">.</span>execute<span class="op">(</span><span class="st">&quot;/usr/local/bin/keypath layer current&quot;</span><span class="op">):</span><span class="fu">gsub</span><span class="op">(</span><span class="st">&quot;%s+$&quot;</span><span class="op">,</span> <span class="st">&quot;&quot;</span><span class="op">)</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- Get all layers as JSON</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="kw">local</span> <span class="va">output</span> <span class="op">=</span> <span class="va">hs</span><span class="op">.</span>execute<span class="op">(</span><span class="st">&quot;/usr/local/bin/keypath layer list --json&quot;</span><span class="op">)</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="kw">local</span> <span class="va">layers</span> <span class="op">=</span> <span class="va">hs</span><span class="op">.</span><span class="va">json</span><span class="op">.</span>decode<span class="op">(</span><span class="va">output</span><span class="op">)</span></span></code></pre></div>
+<p>For reactive layer-change events, use the Spoon's <code>onLayerChange</code> callback instead of polling the CLI.</p>
+<hr />
+<h2 id="shell-completions">Shell completions</h2>
+<p>Install tab completions for your shell:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> completions install        <span class="co"># Auto-detect shell</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> completions install-man    <span class="co"># Install man pages</span></span></code></pre></div>
+<p>Or generate completions manually:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> completions zsh <span class="op">&gt;</span> ~/.zsh/completions/_keypath</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> completions bash <span class="op">&gt;</span> /etc/bash_completion.d/keypath</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> completions fish <span class="op">&gt;</span> ~/.config/fish/completions/keypath.fish</span></code></pre></div>
+<hr />
+<h2 id="help">Help</h2>
+<div class="sourceCode" id="cb22"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> <span class="at">--help</span>                     <span class="co"># Top-level help</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule <span class="at">--help</span>                <span class="co"># Help for a subcommand group</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> help-topics examples       <span class="co"># Curated workflow examples</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> help-topics examples rule  <span class="co"># Examples for a specific topic</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> help-topics schemas        <span class="co"># JSON schema discovery</span></span></code></pre></div>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://siri-and-shortcuts">Siri &amp; Shortcuts</a></strong> — Voice control and Shortcuts automations</li>
+<li><strong><a href="help://hammerspoon">Hammerspoon</a></strong> — Layer-aware desktop automation</li>
+<li><strong><a href="help://action-uri-reference">Action URI Reference</a></strong> — Deep link reference for <code>keypath://</code> URIs</li>
+</ul>
+</body></html>

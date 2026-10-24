@@ -1,0 +1,105 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Choose Your Leader Key</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-leader-key.png" alt="Guide illustration" /></p>
+<h1 id="choose-your-leader-key">Choose Your Leader Key</h1>
+<p>Your Leader key is the starting key for KeyPath layers and sequences. It is Space by default. If Space doesn't feel right, you can switch to Caps Lock, Tab, or Backtick. One change here updates navigation, numpad, symbols, function keys, window snapping, and every other Leader-based layer at once.</p>
+<hr />
+<h2 id="what-is-the-leader-key">What Is the Leader Key?</h2>
+<p>The Leader key is the single key you hold to enter the navigation layer. From there, you either use navigation directly (H/J/K/L for arrows) or press a second key to reach a deeper layer (S for symbols, F for function keys, ; for numpad).</p>
+<p>Think of it as the front door to all your keyboard shortcuts. Every layer pack that says "Hold Space →" is really saying "Hold your Leader key →."</p>
+<p>Leader is different from Hyper. Leader starts a KeyPath layer or sequence. Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. Caps Lock Remap usually provides Hyper when you hold Caps Lock. A rule may offer Leader or Hyper as its activation method.</p>
+<hr />
+<h2 id="your-options">Your Options</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Why you'd pick it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>␣ Space</strong> (default)</td>
+<td>Easiest thumb access. Tap for space, hold for layers. Most people start here.</td>
+</tr>
+<tr>
+<td><strong>⇪ Caps Lock</strong></td>
+<td>Dedicated modifier — no conflict with typing. Great if you never use Caps Lock anyway.</td>
+</tr>
+<tr>
+<td><strong>⇥ Tab</strong></td>
+<td>Left pinky access. Tap for Tab, hold for layers. Good for Vim users who want Space untouched.</td>
+</tr>
+<tr>
+<td><strong>` Backtick</strong></td>
+<td>Upper-left corner. Rarely used in normal typing. Tap for backtick, hold for layers.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="changing-it">Changing It</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Leader Key</strong> in the list (look for the hand icon)</li>
+<li>Select your preferred key from the picker</li>
+</ol>
+<p>The change takes effect immediately — all layers that use the Leader key update automatically. No need to individually reconfigure each pack.</p>
+<hr />
+<h2 id="how-it-affects-other-packs">How It Affects Other Packs</h2>
+<p>The Leader key setting is global. Changing it from Space to Caps Lock means:</p>
+<ul>
+<li><strong>Vim Navigation</strong>: Hold Caps Lock + H/J/K/L for arrows (instead of Space)</li>
+<li><strong>Window Snapping</strong>: Hold Caps Lock → W → window actions</li>
+<li><strong>Numpad</strong>: Hold Caps Lock → ; → number entry</li>
+<li><strong>Symbol</strong>: Hold Caps Lock → S → programming symbols</li>
+<li><strong>Function</strong>: Hold Caps Lock → F → F-keys and media</li>
+<li><strong>Delete Enhancement</strong>: Hold Caps Lock + Delete for forward-delete</li>
+<li><strong>Mission Control</strong>: Hold Caps Lock → shortcuts for Exposé, desktops</li>
+</ul>
+<hr />
+<h2 id="which-should-you-pick">Which Should You Pick?</h2>
+<h3 id="space-default--best-for-most-people">Space (default) — best for most people</h3>
+<p>Pros: Your strongest finger (thumb) does the work. Natural to hold while other fingers move.</p>
+<p>Cons: Adds a tiny delay to typing spaces (the tap/hold threshold). Most people don't notice after a day.</p>
+<h3 id="caps-lock--best-if-youve-already-remapped-it">Caps Lock — best if you've already remapped it</h3>
+<p>Pros: Zero conflict with typing. Feels natural if you're used to Caps Lock as a modifier (Ctrl or Hyper). Dedicated key that you never accidentally press.</p>
+<p>Cons: Left pinky does all the work. Slightly less ergonomic for extended layer use.</p>
+<h3 id="tab--best-for-vim-purists">Tab — best for Vim purists</h3>
+<p>Pros: Keeps Space completely normal. Left hand activates, right hand navigates. Familiar if you've used Leader in Vim/Neovim.</p>
+<p>Cons: Tab key now needs a tap/hold distinction. Can conflict with tab-completion in some apps.</p>
+<h3 id="backtick--best-for-minimal-disruption">Backtick — best for minimal disruption</h3>
+<p>Pros: Rarely used in normal typing (markdown/code aside). No conflict with common shortcuts.</p>
+<p>Cons: Awkward reach from the home row. You'll need to hold an unusual key.</p>
+<hr />
+<h2 id="combining-with-caps-lock-remap">Combining with Caps Lock Remap</h2>
+<p>If you set Leader to <strong>Caps Lock</strong>, you probably also want the <strong>Caps Lock Remap</strong> pack configured with a tap action (like Escape or Backspace). That way:</p>
+<ul>
+<li><strong>Tap Caps Lock</strong> → Escape (or your chosen action)</li>
+<li><strong>Hold Caps Lock</strong> → Leader key (activates all layers)</li>
+</ul>
+<p>This is the "Caps Lock does everything" setup that many keyboard enthusiasts use.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="changing-the-leader-doesnt-seem-to-work">Changing the Leader doesn't seem to work</h3>
+<ol type="1">
+<li>Make sure the Leader Key pack is <strong>enabled</strong> (toggled on)</li>
+<li>Verify KeyPath's service reloaded (check for the green indicator)</li>
+<li>Try disabling and re-enabling one of the dependent packs (like Vim Navigation)</li>
+</ol>
+<h3 id="space-feels-laggy-after-enabling">Space feels laggy after enabling</h3>
+<p>The <strong>Leader hold delay</strong> (default: Long, 300 ms) determines how long you must hold before KeyPath treats the key as your Leader. The Medium preset (200 ms) matches previous behavior. If typing feels sluggish:</p>
+<ul>
+<li>Practice releasing Space quickly between words</li>
+<li>The threshold is tuned for most typists — give it a day before adjusting</li>
+</ul>
+<h3 id="i-want-a-key-thats-not-in-the-list">I want a key that's not in the list</h3>
+<p>Currently the four options (Space, Caps Lock, Tab, Backtick) are the supported leaders. These were chosen for ergonomics and compatibility with the layer system.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://vim-navigation">Navigate Text Like a Keyboard Ninja</a></strong> — The foundation layer that Leader activates</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Combine Leader layers with home row modifiers</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — A glossary of KeyPath timing controls</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers and momentary activation</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>

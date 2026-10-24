@@ -1,0 +1,193 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Window Management</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-window-management.png" alt="Guide illustration" /></p>
+<h1 id="window-management">Window Management</h1>
+<p>Dragging windows with a mouse breaks your flow. KeyPath lets you tile, snap, and move windows with keyboard shortcuts — left half, right half, corners, maximize, center, and switch between displays. All without touching the trackpad.</p>
+<hr />
+<h2 id="quick-start-the-window-snapping-pack">Quick start: the Window Snapping pack</h2>
+<p>The fastest way to get window management:</p>
+<ol type="1">
+<li>Open the <strong>Pack Gallery</strong></li>
+<li>Install <strong>Window Snapping</strong></li>
+<li>Install <strong>Vim Navigation</strong> if you haven't already (Window Snapping requires it)</li>
+</ol>
+<p>Now hold Space, press W to enter the window layer, then press a key to snap:</p>
+<pre><code>  Hold Space, then W, then:
+
+  ┌─────┬─────┬─────┐
+  │  U  │  I  │     │     U = Top-left corner
+  │ ◸   │ ◹   │     │     I = Top-right corner
+  ├─────┼─────┼─────┤
+  │  J  │  K  │  L  │     J = Left half
+  │ ◧   │ ☐   │ ◨   │     K = Maximize    L = Right half
+  ├─────┼─────┼─────┤
+  │  N  │  M  │     │     N = Bottom-left corner
+  │ ◺   │ ◻   │     │     M = Bottom-right corner
+  └─────┴─────┴─────┘
+
+  Also:
+  [ = Previous display    ] = Next display
+  , = Previous Space      . = Next Space</code></pre>
+<p>Release Space to leave the window layer.</p>
+<hr />
+<h2 id="how-it-works">How it works</h2>
+<p>Window snapping uses macOS Accessibility APIs to move and resize the frontmost window. When you press a position key, KeyPath:</p>
+<ol type="1">
+<li>Reads the current screen dimensions</li>
+<li>Calculates the target frame (e.g., left half = left edge, full height, 50% width)</li>
+<li>Moves and resizes the window via the Accessibility API</li>
+</ol>
+<p>This works in every app — no per-app configuration needed.</p>
+<h3 id="accessibility-permission-required">Accessibility permission required</h3>
+<p>The first time you use window snapping, macOS will ask you to grant KeyPath Accessibility permission in <strong>System Settings &gt; Privacy &amp; Security &gt; Accessibility</strong>. Window management won't work without this.</p>
+<hr />
+<h2 id="all-window-positions">All window positions</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Position</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>J</td>
+<td>Left half</td>
+<td>Window fills the left 50% of the screen</td>
+</tr>
+<tr>
+<td>L</td>
+<td>Right half</td>
+<td>Window fills the right 50%</td>
+</tr>
+<tr>
+<td>K</td>
+<td>Maximize</td>
+<td>Window fills the entire screen</td>
+</tr>
+<tr>
+<td>;</td>
+<td>Center</td>
+<td>Window centers on screen at current size</td>
+</tr>
+<tr>
+<td>U</td>
+<td>Top-left</td>
+<td>Window fills the top-left quarter</td>
+</tr>
+<tr>
+<td>I</td>
+<td>Top-right</td>
+<td>Window fills the top-right quarter</td>
+</tr>
+<tr>
+<td>N</td>
+<td>Bottom-left</td>
+<td>Window fills the bottom-left quarter</td>
+</tr>
+<tr>
+<td>M</td>
+<td>Bottom-right</td>
+<td>Window fills the bottom-right quarter</td>
+</tr>
+<tr>
+<td>[</td>
+<td>Previous display</td>
+<td>Move window to the display on the left</td>
+</tr>
+<tr>
+<td>]</td>
+<td>Next display</td>
+<td>Move window to the display on the right</td>
+</tr>
+<tr>
+<td>,</td>
+<td>Previous Space</td>
+<td>Move window to the previous desktop Space</td>
+</tr>
+<tr>
+<td>.</td>
+<td>Next Space</td>
+<td>Move window to the next desktop Space</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="using-window-actions-from-scripts-and-tools">Using window actions from scripts and tools</h2>
+<p>You can trigger window positions from Terminal, Shortcuts, or any tool that can open URLs:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/left&quot;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/right&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/maximize&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/center&quot;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/top-left&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">open</span> <span class="st">&quot;keypath://window/next-display&quot;</span></span></code></pre></div>
+<p>This works from Raycast, Alfred, Hammerspoon, or any automation tool. See the <a href="help://action-uri-reference">Action URI Reference</a> for the full list.</p>
+<hr />
+<h2 id="app-specific-keymaps">App-Specific Keymaps</h2>
+<p>Beyond window management, KeyPath can detect which app is in the foreground and switch your key mappings automatically. Different apps get different shortcuts — no manual toggling.</p>
+<h3 id="creating-app-specific-rules">Creating app-specific rules</h3>
+<ol type="1">
+<li>Open the <strong>Custom Rules</strong> tab in the inspector panel</li>
+<li>Click <strong>New Rule</strong> (+ button)</li>
+<li>Select an application from the app picker</li>
+<li>Add key mappings for that app</li>
+<li>Click <strong>Save</strong></li>
+</ol>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  Custom Rules                                       │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  EVERYWHERE (global rules)                     │ │
+  │  │  caps_lock ──→ escape                          │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  🧭 SAFARI                                     │ │
+  │  │  h ──→ left    j ──→ down                      │ │
+  │  │  k ──→ up      l ──→ right                     │ │
+  │  └────────────────────────────────────────────────┘ │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<p>When you switch apps, KeyPath tells Kanata to switch layers automatically. Your keyboard adapts instantly.</p>
+<h3 id="example-vim-navigation-in-safari">Example: Vim navigation in Safari</h3>
+<p>A popular setup — use HJKL as arrow keys in Safari for keyboard-driven browsing:</p>
+<ol type="1">
+<li>Click <strong>New Rule</strong> and select <strong>Safari</strong> as the target app</li>
+<li>Add mappings: H → Left, J → Down, K → Up, L → Right</li>
+<li>Click <strong>Save</strong></li>
+</ol>
+<p>Now HJKL works as arrow keys in Safari. Switch to any other app and they go back to normal letters.</p>
+<hr />
+<h2 id="combining-with-other-features">Combining with other features</h2>
+<p><strong>Quick Launcher + Window Snapping:</strong> Launch an app and immediately tile it. Hold Hyper to launch Safari, then Space → W → L to snap it to the right half.</p>
+<p><strong>Vim Navigation + Window Snapping:</strong> Navigate text with Space → HJKL, then Space → W to tile the window, all without lifting your hands.</p>
+<p><strong><a href="help://script-execution">Running Scripts</a> + Window Snapping:</strong> Script complex layouts — open three apps and tile them into a coding workspace with one key.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<p><strong>Window snapping doesn't work:</strong></p>
+<ul>
+<li>Check that Accessibility permission is granted in System Settings</li>
+<li>Make sure the Window Snapping pack is installed and enabled</li>
+<li>Try the CLI: <code>open "keypath://window/left"</code> — if that works, the issue is in the layer activation</li>
+</ul>
+<p><strong>App-specific rules don't activate:</strong></p>
+<ul>
+<li>Verify the app appears in your rules list</li>
+<li>Check that KeyPath's service is running (green status indicator)</li>
+<li>Try switching away from the app and back</li>
+<li>Check <strong>File &gt; View Logs</strong> for errors</li>
+</ul>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://packs">Packs &amp; Layers</a></strong> — Browse the full pack catalog</li>
+<li><strong><a href="help://vim-navigation">Vim Navigation</a></strong> — The foundation layer that Window Snapping builds on</li>
+<li><strong><a href="help://action-uri-reference">Action URI Reference</a></strong> — All <code>keypath://window/</code> action types</li>
+<li><strong><a href="help://quick-launcher">Quick Launcher</a></strong> — Launch apps with one key</li>
+<li><strong><a href="help://script-execution">Running Scripts</a></strong> — Automate complex workflows</li>
+<li><strong><a href="help://layers">Layers</a></strong> — How layers and activation work</li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://rectangleapp.com/">Rectangle</a></strong> — Dedicated window manager that pairs well with KeyPath shortcuts ↗</li>
+<li><strong><a href="https://www.raycast.com/extensions/window-management">Raycast Window Management</a></strong> — Raycast's built-in window tiling ↗</li>
+</ul>
+</body></html>

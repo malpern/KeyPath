@@ -1,0 +1,131 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Neovim in the Terminal</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-neovim-terminal.png" alt="Guide illustration" /></p>
+<h1 id="neovim-in-the-terminal">Neovim in the Terminal</h1>
+<p>You live in the terminal. Neovim is your editor. But when you switch to other macOS apps, your muscle memory goes silent — no <code>hjkl</code>, no <code>w</code>/<code>b</code>, no <code>gd</code>. KeyPath bridges the gap: hold the Leader key and your vim instincts work everywhere, while the HUD shows a quick-reference card for the Neovim commands you use most.</p>
+<h2 id="what-you-get">What You Get</h2>
+<p>Enable the <strong>Neovim Terminal</strong> collection in the Rules tab and you get two things:</p>
+<ol type="1">
+<li><p><strong>Leader-layer shortcuts</strong> — hold the Leader key and use <code>h j k l</code>, <code>w b e</code>, <code>0 $</code>, <code>/</code>, <code>y</code>, <code>p</code>, and more in any macOS app. These translate vim motions into native macOS cursor movements and editing commands.</p></li>
+<li><p><strong>Quick-reference HUD</strong> — the same Leader hold pops up a categorized reference card covering core vim <em>and</em> Neovim-specific features (LSP, Telescope, buffers, terminal mode). Glance at it when you forget a binding; dismiss by releasing Leader.</p></li>
+</ol>
+<h2 id="enabling-it">Enabling It</h2>
+<ol type="1">
+<li>Open <strong>KeyPath → Rules</strong> tab</li>
+<li>Find <strong>Neovim Terminal</strong> in the Navigation section</li>
+<li>Toggle it <strong>on</strong></li>
+</ol>
+<p>The collection shares the navigation layer with Vim and KindaVim — only one of the three should be active at a time. KeyPath handles conflict detection automatically.</p>
+<h2 id="the-hud-reference-card">The HUD Reference Card</h2>
+<p>When you hold the Leader key, the HUD appears with two columns:</p>
+<p><strong>Left column — Core Vim:</strong></p>
+<ul>
+<li><strong>Movement</strong> — <code>h j k l</code>, <code>w b e</code>, <code>0 $</code>, <code>gg G</code>, <code>f t</code>, <code>{ }</code></li>
+<li><strong>Operators</strong> — <code>d</code>, <code>c</code>, <code>y</code>, <code>&gt; &lt;</code>, <code>=</code></li>
+<li><strong>Text Objects</strong> — <code>iw aw</code>, <code>ip ap</code>, <code>i" a"</code></li>
+<li><strong>Search</strong> — <code>/ ?</code>, <code>n N</code>, <code>* #</code></li>
+</ul>
+<p><strong>Right column — Neovim-specific:</strong></p>
+<ul>
+<li><strong>Buffers &amp; Tabs</strong> — <code>:bn :bp :bd</code>, <code>gt gT</code>, <code>Ctrl-^</code></li>
+<li><strong>LSP</strong> — <code>gd</code>, <code>gr</code>, <code>K</code>, <code>&lt;leader&gt;rn</code>, <code>&lt;leader&gt;ca</code></li>
+<li><strong>Telescope</strong> — <code>&lt;leader&gt;ff fg fb fh</code></li>
+<li><strong>Terminal Mode</strong> — <code>:terminal</code>, <code>Ctrl-\ Ctrl-n</code>, <code>i</code></li>
+</ul>
+<p>The reference content is static — no mode tracking or app detection needed. It shows the same card every time, designed to be scanned in under a second.</p>
+<h2 id="leader-layer-shortcuts">Leader-Layer Shortcuts</h2>
+<p><strong>Key names.</strong> Neovim Terminal names its keys in Vim terms by default (yank, put, gg, word, back). Under <strong>Key names</strong> on the pack's page, switch to <strong>Plain</strong> (Copy, Paste, Top) if you prefer. The choice applies to the overlay and the Shortcut List.</p>
+<p>These shortcuts work in any macOS app while holding the Leader key:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>h j k l</code></td>
+<td>Arrow keys (left/down/up/right)</td>
+</tr>
+<tr>
+<td><code>w</code></td>
+<td>Word forward (Option-Right)</td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>Word back (Option-Left)</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>End of word (Option-Right)</td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td>Line start (Cmd-Left)</td>
+</tr>
+<tr>
+<td><code>$</code></td>
+<td>Line end (Cmd-Right)</td>
+</tr>
+<tr>
+<td><code>gg / G</code></td>
+<td>Document top/bottom</td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>Find (Cmd-F)</td>
+</tr>
+<tr>
+<td><code>n / N</code></td>
+<td>Next/previous match</td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td>Yank / copy (Cmd-C)</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>Put / paste (Cmd-V)</td>
+</tr>
+<tr>
+<td><code>u</code></td>
+<td>Undo (Cmd-Z)</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Redo (Cmd-Shift-Z)</td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>Delete word (Option-Backspace)</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>Forward delete</td>
+</tr>
+<tr>
+<td><code>o / O</code></td>
+<td>Open line below/above</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tips">Tips</h2>
+<ul>
+<li>The Neovim-specific categories (LSP, Telescope, etc.) on the right column are reference-only — they describe commands that work inside Neovim, not shortcuts that KeyPath sends. They're there so you have one place to look.</li>
+<li>If you use both Neovim and regular macOS apps, this collection is for you. For deeper KindaVim modal editing integration, see <a href="help://kindavim">KindaVim Integration</a>.</li>
+<li>The Leader key defaults to Space. Change it in the <strong>Leader Key</strong> collection in the Rules tab.</li>
+</ul>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://kindavim">KindaVim Integration</a></strong> — Full modal editing (Normal/Insert/Visual) system-wide</li>
+<li><strong><a href="help://chords">Press Two Keys at Once</a></strong> — Chords complement vim navigation</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See vim navigation as part of a complete keyboard workflow</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="https://neovim.io/doc/">Neovim documentation</a> ↗</li>
+<li><a href="https://github.com/nvim-telescope/telescope.nvim">Telescope.nvim</a> ↗</li>
+<li><a href="https://github.com/neovim/nvim-lspconfig">nvim-lspconfig</a> ↗</li>
+<li><a href="https://vim.rtorr.com/">Vim Cheat Sheet</a> ↗</li>
+</ul>
+</body></html>
