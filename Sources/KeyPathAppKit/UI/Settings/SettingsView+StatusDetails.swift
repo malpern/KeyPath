@@ -52,6 +52,10 @@ extension StatusSettingsTabView {
             return .warning
         }
 
+        if isDriverless, kanataManager.capsPausedMessage != nil {
+            return .warning
+        }
+
         return .success
     }
 
@@ -105,6 +109,9 @@ extension StatusSettingsTabView {
                 }
             }
             return "Permissions Required"
+        }
+        if isDriverless, kanataManager.capsPausedMessage != nil {
+            return "Caps Lock Needs Attention"
         }
         return overallHealthLevel == .success ? "Everything's Working" : "Setup Needed"
     }

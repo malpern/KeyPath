@@ -1,199 +1,72 @@
 ---
 layout: default
 title: "Caps Lock in driverless KeyPath"
-description: "Automatic Caps Lock setup, the reserved function key, conflicts with other apps, and keyboard compatibility"
+description: "Caps Lock rules across keyboards, keyboard exceptions, and compatibility"
 permalink: /guides/driverless-caps-lock/
 ---
 
 # Caps Lock in driverless KeyPath
 
-Choose a Caps Lock rule in **Rules**, such as Escape on tap and Hyper on hold.
-KeyPath prepares Caps Lock automatically when exactly one compatible keyboard
-is connected and automatic setup is enabled. You do not normally need to
-select a keyboard before using the tour.
+Add a Caps Lock rule in **Rules**, such as Escape on tap and Hyper on hold.
+KeyPath applies the same rule to every compatible connected keyboard by default.
+There is no keyboard to choose before the rule works. A keyboard connected later
+is set up automatically once all keys are released.
 
-## More than one keyboard
+## Make an exception for one keyboard
 
-A MacBook with an external keyboard has two keyboards. KeyPath does not guess
-which one you mean, so a Caps Lock rule stays inactive until you choose:
+Open **Settings → General → Caps Lock rules → Caps Lock options**. Turn
+off **Use on [keyboard name]** to leave that keyboard's Caps Lock key alone.
+Other keyboards continue using the rule. Turn it back on to resume. The
+exception follows a keyboard reconnected at the same port, with the same
+serial number when one is available. Moving it to another port makes it a new
+keyboard for this preference.
 
-```text
-Settings → General
-
-  ⇪  Caps Lock remapping                              [ On ]
-     Choose which keyboard Caps Lock rules apply to
-       Keyboard: [ Choose a keyboard ▾ ]
-                   Built-in keyboard
-                   cl80
-```
-
-Pick the keyboard whose Caps Lock key you want to remap. The status line then
-reads **On · cl80 · Uses F18 behind the scenes** (with your keyboard's name,
-and whichever key KeyPath reserved; see below). Caps Lock on your other keyboards
-keeps working as a normal Caps Lock key. You can change the choice at any time
-from the same menu.
-
-A virtual keyboard in a VM is not a compatible physical keyboard and is not
-listed.
-
-Some keyboards connect to the Mac as more than one device. Boards running QMK,
-VIA or Vial firmware often do, especially with N-key rollover turned on: every
-key, Caps Lock included, can arrive through a second connection that macOS
-labels as a mouse. KeyPath lists such a board once and remaps Caps Lock on
-every connection of it that can send keys, so the choice works whichever one
-the board uses.
+This setting controls whether a keyboard's Caps Lock enters KeyPath's rule
+engine. Different Caps actions on different keyboards are not yet available in
+driverless mode: macOS does not include a dependable keyboard identity in the
+event stream KeyPath uses for ordinary rules.
 
 ## Why a function key is involved
 
-Caps Lock changes macOS's lock state before ordinary driverless interception.
-KeyPath uses a macOS mapping on the selected keyboard:
+macOS toggles Caps Lock before KeyPath's driverless keyboard event handler can
+stop it. KeyPath changes physical Caps Lock to a spare function key **on each
+keyboard**, then handles that key as the Caps Lock input to your rule:
 
 ```text
-Physical Caps Lock → macOS substitutes F18 → KeyPath applies your Caps Lock rule
+Physical Caps Lock → spare function key → your Caps Lock rule
 ```
 
-The function key is an internal stand-in. Configure a Caps Lock rule, not a
-rule for that key. This does not install a keyboard driver or require Full Disk
-Access. Accessibility is used by driverless setup; a separate Input Monitoring
-step is not required in the tested flow.
+KeyPath starts with F18 and can choose another key from F13–F20 when a rule,
+another mapping, or a macOS shortcut uses it. The spare key is shared across
+the participating keyboards. A physical press of that same function key cannot
+be distinguished from remapped Caps Lock while Caps rules are running.
 
-## Which key is reserved
+KeyPath saves each keyboard's original macOS mapping before changing it and
+restores each mapping when the keyboard session ends. An unplugged keyboard's
+mapping disappears with that device. A recovery record is retained if a
+mapping cannot be restored safely.
 
-KeyPath reserves one key from **F13 to F20** while Caps Lock rules are on. It
-starts with F18. Settings shows the current one:
+## A keyboard could not be used
 
-```text
-Settings → General
+Settings names a keyboard whose Caps Lock setup is unavailable; rules on other
+keyboards keep working. KeyPath does not replace an existing Caps Lock mapping
+from **System Settings → Keyboard → Modifier Keys** or another app such as
+Raycast. Remove that conflicting mapping if you want KeyPath to control Caps
+Lock on that keyboard, then choose **Check Again**.
 
-  ⇪  Caps Lock remapping  ⓘ                           [ On ]
-     On · cl80 · Uses F19 behind the scenes
-```
+Some keyboards expose several interfaces, including one labeled as a mouse for
+N-key rollover. KeyPath covers every interface it can verify may send keys.
+If it cannot determine the covered interfaces safely, that keyboard is left
+uncovered rather than guessing. Virtual keyboards are not physical Caps Lock
+targets.
 
-A real press of the reserved key cannot be told apart from Caps Lock that
-macOS changed into it, so KeyPath avoids any key that is already in use. Each
-time KeyPath starts its keyboard session it checks, and moves to the next free
-key when the current one is taken by:
+The first Caps Lock press immediately after plugging in a keyboard can arrive
+before macOS finishes presenting the device for setup. If Caps Lock behaves
+normally at that moment, release all keys and try again after KeyPath reports
+the keyboard as active. Protected password fields and Secure Input still
+prevent dynamic remapping.
 
-- one of your rules (for example a Caps Lock → F18 rule, or a rule triggered by F18),
-- another app's macOS key mapping on any keyboard, or
-- a shortcut in **System Settings → Keyboard → Keyboard Shortcuts**.
+## Can a rule turn Caps Lock on?
 
-You do not need to do anything when it moves. If every key from F13 to F20 is
-in use, KeyPath says so and Caps Lock rules stay off until one is free.
-F21 to F24 cannot be used: macOS gives them no key code, so KeyPath would
-never see them.
-
-## Can I still turn Caps Lock on?
-
-Yes. Caps Lock output uses the native macOS lock state. Backup Caps Lock and
-multi-tap rules can toggle it; holding or repeating that output does not
-repeatedly toggle the state. This is distinct from remapping the physical
-Caps Lock input, which needs compatible keyboard setup.
-
-## Restarts and connected keyboards
-
-The saved selection identifies one keyboard for the current boot. After a
-restart of your Mac it is never reused: automatic setup discovers an eligible
-keyboard again, which only happens when exactly one compatible keyboard is
-connected. With several, KeyPath asks you to choose again. Unplugging and
-replugging during the same boot is covered below.
-
-## Unplugging the chosen keyboard
-
-macOS removes the Caps Lock mapping together with the keyboard, so nothing is
-left behind. KeyPath keeps running: all your other rules keep working, and
-Caps Lock rules pause until a keyboard is chosen again.
-
-```text
-Status
-
-  Keyboard remapping
-  Running normally. cl80 was disconnected. Caps Lock rules are paused;
-  your other rules keep working. Choose a keyboard in Settings > General
-  to turn them back on.
-
-Settings → General
-
-  ⇪  Caps Lock remapping                              [ On ]
-     cl80 is disconnected · Caps Lock rules are paused; choose a keyboard
-       Keyboard: [ Choose a keyboard ▾ ]
-```
-
-Plug it back into the **same USB port** and KeyPath picks it up again by
-itself within a few seconds: Caps Lock rules turn back on, with the same
-reserved key, and KeyPath says **cl80 was reconnected. Caps Lock rules are back
-on.** KeyPath treats it as the same keyboard only when all of this holds:
-
-- it is the same boot (a restart of your Mac always asks again),
-- the vendor, product and USB port match the keyboard you chose, and so does
-  the serial number when the keyboard has one,
-- exactly one connected keyboard matches. Two identical keyboards that look
-  the same to macOS are never guessed between.
-
-Plugged into a **different port**, it counts as a different keyboard. Settings
-then reads **cl80 is connected to a different port · Choose it again to turn
-Caps Lock rules back on**; pick it from the menu.
-
-If only one compatible keyboard is left after the unplug, KeyPath uses that one
-automatically, the same as at startup, and says so: **cl80 was disconnected.
-Caps Lock rules now apply to Built-in keyboard.** Plugging the cl80 back into
-the same port moves them back to it. Choosing a keyboard yourself in Settings
-in the meantime replaces that claim.
-
-While Caps Lock rules are paused, Caps Lock on every keyboard works as a normal
-Caps Lock key. The same happens when you turn **Caps Lock remapping** off, or
-when more than one keyboard is connected and none is chosen yet: rules that use
-Caps Lock don't run, and every other rule does.
-
-## Another app already uses Caps Lock
-
-Only one app can remap Caps Lock on a keyboard this way. When another app got
-there first, Settings says which one when KeyPath can tell:
-
-```text
-Settings → General
-
-  ⇪  Caps Lock remapping                              [ On ]
-     On · cl80 · Uses F18 behind the scenes
-     Raycast's Hyper Key is using Caps Lock. Turn it off in Raycast,
-     or use another trigger for Hyper Key.
-```
-
-- **Raycast Hyper Key**: in Raycast's settings, turn Hyper Key off or give it
-  another key. Raycast's Hyper Key remaps Caps Lock on
-  every keyboard, so it conflicts whichever keyboard you choose. KeyPath can do
-  the same job: a Caps Lock rule with Hyper on hold.
-- **Something else**: KeyPath names the key Caps Lock was changed to when it
-  can. Check other keyboard apps, and **System Settings → Keyboard → Keyboard
-  Shortcuts → Modifier Keys**, which can also change Caps Lock.
-
-KeyPath never removes another app's mapping. Once it is gone, choose
-**Check Again** or reopen Settings. If safe restoration cannot be verified,
-the recovery record is retained and restart can be blocked. Follow the displayed
-recovery instructions instead of overwriting another mapping.
-
-Disabling setup preserves your rules. Rules that use physical Caps Lock stay
-paused until setup is on again; your other rules keep running.
-
-## Other limitations
-
-- Caps Lock rules apply to one chosen keyboard at a time. The reserved key
-  (F18 unless KeyPath moved it) stays reserved on every keyboard, because
-  KeyPath cannot tell which keyboard sent it.
-- Protected password fields and Secure Input do not gain dynamic remapping.
-  Do not rely on a Caps remap for password entry.
-- Media and brightness remapping remain unavailable in driverless mode.
-  Your keyboard's normal media controls remain managed by macOS.
-
-## Validation status
-
-The current implementation includes automatic selection and native Caps Lock
-output. These describe code behavior, not a completed hardware certification.
-Physical USB qualification of the current candidate, including reconnect and
-restart recovery, remains a release gate. Earlier physical tests do not
-substitute for testing this candidate.
-
-## Updating KeyPath
-
-Choose **Download Update…**, download the new app, then quit KeyPath before
-replacing it. Your rules are kept. This driverless version uses manual downloads.
+Yes. A rule whose **output** is Caps Lock uses macOS's native lock state. That
+is separate from remapping the physical Caps Lock **input** described above.

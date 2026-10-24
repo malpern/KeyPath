@@ -682,7 +682,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Persist exact-device Caps consent only after admitted runtime restoration.
     /// The change stops the runtime to release the Caps lease; if it was running,
     /// it is started again afterwards, whether the change committed or was refused.
-    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil) async -> Bool {
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil,
+                          selectedKeyboardOnly: Bool? = nil) async -> Bool
+    {
         let wasRunning = serviceLifecycleCoordinator.sessionWantsRunning
         let changed: Bool
         do {
@@ -700,6 +702,26 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                     if let automaticSetupDisabled {
                         UserDefaults.standard.set(automaticSetupDisabled, forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
                     }
+                    if let selectedKeyboardOnly {
+                        UserDefaults.standard.set(selectedKeyboardOnly, forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
+                    }
+                })
+            }
+        } catch { changed = false }
+        await serviceLifecycleCoordinator.resumeAfterCapsSelectionChange(wasRunning: wasRunning)
+        return changed
+    }
+
+    /// Apply keyboard exceptions only after the current leases were restored.
+    /// A failed stop leaves both the preference and live mappings unchanged.
+    func setCapsExcludedKeyboardIDs(_ ids: Set<String>) async -> Bool {
+        guard ids.count <= 128, ids.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 4096 }) else { return false }
+        let wasRunning = serviceLifecycleCoordinator.sessionWantsRunning
+        let changed: Bool
+        do {
+            changed = try await configurationService.operationGate.withOperation { [serviceLifecycleCoordinator] _ in
+                await serviceLifecycleCoordinator.changeCapsSelection(verify: {}, commit: {
+                    UserDefaults.standard.set(ids.sorted(), forKey: SessionCapsRuntimeSupport.excludedKeyboardsKey)
                 })
             }
         } catch { changed = false }

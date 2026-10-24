@@ -584,8 +584,15 @@ class KanataViewModel {
         await manager.restartKanata(reason: reason)
     }
 
-    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil) async -> Bool {
-        await manager.setCapsSelection(selection, automaticSetupDisabled: automaticSetupDisabled)
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil,
+                          selectedKeyboardOnly: Bool? = nil) async -> Bool
+    {
+        await manager.setCapsSelection(selection, automaticSetupDisabled: automaticSetupDisabled,
+                                       selectedKeyboardOnly: selectedKeyboardOnly)
+    }
+
+    func setCapsExcludedKeyboardIDs(_ ids: Set<String>) async -> Bool {
+        await manager.setCapsExcludedKeyboardIDs(ids)
     }
 
     func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {

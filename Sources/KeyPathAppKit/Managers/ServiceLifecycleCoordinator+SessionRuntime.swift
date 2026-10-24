@@ -131,12 +131,19 @@ extension ServiceLifecycleCoordinator {
                         {
                             // The keyboard went away between the choice and the
                             // worker's own check, so the worker runs paused.
-                            sessionCapsIntermediate = nil
+                            if UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey) {
+                                sessionCapsIntermediate = nil
+                            }
                             sessionCapsNotice = nil
-                            sessionCapsPaused = Self.capsPausedMessage(
-                                disconnected: SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock",
-                                setupOff: false
-                            )
+                            sessionCapsPaused = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
+                                ? Self.capsPausedMessage(
+                                    disconnected: SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock",
+                                    setupOff: false
+                                )
+                                : "Caps Lock rules could not start on a connected keyboard. Your other rules keep working. Check keyboard details in Settings > General."
+                        }
+                        if let coverage = report.capsCoverage {
+                            sessionCapsPaused = Self.capsCoverageWarning(coverage)
                         }
                         onError?(nil)
                         onWarning?(sessionCapsNotice ?? sessionCapsPaused)
@@ -389,11 +396,23 @@ extension ServiceLifecycleCoordinator {
         guard sessionStartIsCurrent(generation), sessionNonce == expectedNonce,
               let application = sessionApplication, application.processIdentifier == pid else { return false }
         if !application.isTerminated {
-            if currentSessionReport() == nil {
+            guard let report = currentSessionReport() else {
                 _ = try? await sessionOperationGate.withOperation { [self] _ in
                     await stopUnresponsiveSession(expectedGeneration: generation, nonce: expectedNonce)
                 }
                 return false
+            }
+            if !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+               sessionCapsIntermediate != nil
+            {
+                let warning = report.capsCoverage.map(Self.capsCoverageWarning)
+                    ?? (report.managedCapsGeneration == expectedNonce ? nil
+                        : "Caps Lock rules are waiting for a compatible keyboard. Your other rules keep working.")
+                if warning != sessionCapsPaused {
+                    sessionCapsPaused = warning
+                    onWarning?(warning)
+                    onStateChanged?()
+                }
             }
             return true
         }
@@ -748,7 +767,14 @@ extension ServiceLifecycleCoordinator {
             // Always say explicitly; the worker must not fall back to a saved
             // selection this launch declined.
             var passed = SessionCapsRuntimeSupport.noSelection
-            if let selection = try await chooseCapsSelection() {
+            if !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+               let usage = await chooseAllCapsIntermediate()
+            {
+                passed = SessionCapsRuntimeSupport.allKeyboardLaunchValue(intermediateUsage: usage)
+                sessionCapsIntermediate = usage
+            } else if UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey),
+                      let selection = try await chooseCapsSelection()
+            {
                 passed = try String(decoding: JSONEncoder().encode(selection), as: UTF8.self)
                 sessionCapsIntermediate = selection.intermediateUsage
             }
@@ -784,6 +810,36 @@ extension ServiceLifecycleCoordinator {
     /// mapped, a keyboard shortcut, or a new rule since the last start moves
     /// the reservation to the next free key, saved so Settings shows it.
     /// nil when the profile does not need managed Caps.
+    private func chooseAllCapsIntermediate() async -> UInt32? {
+        let path = KeyPathConstants.Config.mainConfigPath
+        guard !UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey) else {
+            let admission = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current())
+            if admission.capsPaused {
+                sessionCapsPaused = Self.capsPausedMessage(disconnected: nil, setupOff: true)
+            }
+            return nil
+        }
+        let occupied: Set<UInt32>
+        do {
+            occupied = try await Task.detached { try SessionCapsRuntimeSupport.occupiedIntermediates() }.value
+        } catch {
+            AppLogger.shared.warn("[SessionRuntime] Could not read keyboard mappings for the Caps intermediate: \(error)")
+            occupied = []
+        }
+        let admission = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current(),
+                                                        requireSelection: false, occupied: occupied)
+        onAdmissionEnvironment?(.init(intermediateUsage: admission.managedCaps ? admission.intermediateUsage : nil,
+                                      occupied: occupied, foreignCapsOwner: nil))
+        guard admission.managedCaps else {
+            if case let .invalid(reason) = admission.result {
+                sessionCapsPaused = "Caps Lock rules are off: \(reason). Your other rules keep working."
+            }
+            return nil
+        }
+        UserDefaults.standard.set(admission.intermediateUsage, forKey: SessionCapsRuntimeSupport.allIntermediateKey)
+        return admission.intermediateUsage
+    }
+
     private func chooseCapsSelection() async throws -> SessionCapsSelection? {
         let path = KeyPathConstants.Config.mainConfigPath
         let needed = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current())
@@ -860,6 +916,16 @@ extension ServiceLifecycleCoordinator {
     /// for this launch: the worker admitted the profile paused.
     static func workerPausedCaps(intended: Bool, managedCapsGeneration: String?, nonce: String) -> Bool {
         intended && managedCapsGeneration != nonce
+    }
+
+    nonisolated static func capsCoverageWarning(_ coverage: SessionRuntimeReport.CapsCoverage) -> String? {
+        if coverage.covered < coverage.eligible {
+            return "Caps Lock rules work on \(coverage.covered) of \(coverage.eligible) selected keyboards. Check keyboard details in Settings > General. Your other rules keep working."
+        }
+        if coverage.withheld > 0 {
+            return "Caps Lock rules could not be verified on \(coverage.withheld) connected keyboard\(coverage.withheld == 1 ? "" : "s"). Check Settings > General. Your other rules keep working."
+        }
+        return nil
     }
 
     /// While a disconnected keyboard's choice is kept (`displaced`), check
