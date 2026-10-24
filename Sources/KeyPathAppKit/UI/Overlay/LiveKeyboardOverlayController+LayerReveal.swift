@@ -10,7 +10,8 @@ extension LiveKeyboardOverlayController {
         let preferences = PreferencesService.shared
         layerReveal.configuration = .make(
             displayMode: preferences.contextHUDDisplayMode,
-            triggerMode: preferences.contextHUDTriggerMode
+            triggerMode: preferences.contextHUDTriggerMode,
+            showsOnlyWhileLayerHeld: preferences.overlayShowsOnlyWhileLayerHeld
         )
         let effects = layerReveal.layerChanged(
             isBase: normalizedLayer == "base",
@@ -54,6 +55,16 @@ extension LiveKeyboardOverlayController {
                 AppLogger.shared.log("🫥 [OverlayController] Layer ended - hiding revealed overlay")
                 hideWindow()
             }
+        }
+    }
+
+    /// "Show only while a layer is held" was switched on: put away an overlay the user
+    /// had open, and forget any pending restore, so it is hidden until a layer is held.
+    func overlayShowsOnlyWhileLayerHeldChanged(_ enabled: Bool) {
+        guard enabled else { return }
+        forgetPendingVisibilityRestores()
+        if isVisibleByChoice {
+            isVisible = false
         }
     }
 

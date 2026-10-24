@@ -10,6 +10,8 @@ import Foundation
 ///   never flash it; it shows up when you pause because you need it.
 /// - Tap trigger: tapping the layer key on is a request to see it, so it appears at once.
 /// - It leaves alone an overlay the user opened themselves.
+/// - "Show only while a layer is held" turns the reveal on whatever the
+///   "While a Layer Is Active" choice is: it is how that mode shows the overlay at all.
 struct OverlayLayerRevealPolicy: Equatable {
     struct Configuration: Equatable {
         var isEnabled: Bool
@@ -19,8 +21,12 @@ struct OverlayLayerRevealPolicy: Equatable {
 
         static let disabled = Configuration(isEnabled: false, revealDelay: 0, cancelOnKeyPress: false)
 
-        static func make(displayMode: ContextHUDDisplayMode, triggerMode: ContextHUDTriggerMode) -> Configuration {
-            let showsOverlay = displayMode == .overlayOnly || displayMode == .both
+        static func make(
+            displayMode: ContextHUDDisplayMode,
+            triggerMode: ContextHUDTriggerMode,
+            showsOnlyWhileLayerHeld: Bool = false
+        ) -> Configuration {
+            let showsOverlay = showsOnlyWhileLayerHeld || displayMode == .overlayOnly || displayMode == .both
             switch triggerMode {
             case .holdToShow:
                 return Configuration(isEnabled: showsOverlay, revealDelay: 0.35, cancelOnKeyPress: true)

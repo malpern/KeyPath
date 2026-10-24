@@ -70,6 +70,18 @@ struct GeneralSettingsTabView: View {
                                 ),
                                 identifier: "settings-overlay-fade-when-idle"
                             )
+                            SettingsToggleRow(
+                                title: "Show when a layer is active",
+                                subtitle: "Keep the overlay hidden on the base layer. Hold or toggle a layer to reveal it.",
+                                isOn: Binding(
+                                    get: { services.preferences.overlayShowsOnlyWhileLayerHeld },
+                                    set: {
+                                        services.preferences.overlayShowsOnlyWhileLayerHeld = $0
+                                        LiveKeyboardOverlayController.shared.overlayShowsOnlyWhileLayerHeldChanged($0)
+                                    }
+                                ),
+                                identifier: "settings-overlay-show-only-while-layer-held"
+                            )
                         }
                     }
                 }

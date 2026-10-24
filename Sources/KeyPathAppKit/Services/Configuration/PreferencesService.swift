@@ -310,6 +310,15 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// When true the overlay stays hidden and appears only while a layer is held
+    /// (see OverlayLayerRevealPolicy); launch and app activation no longer open it.
+    var overlayShowsOnlyWhileLayerHeld: Bool {
+        didSet {
+            UserDefaults.standard.set(overlayShowsOnlyWhileLayerHeld, forKey: Keys.overlayShowsOnlyWhileLayerHeld)
+            AppLogger.shared.log("🎨 [Preferences] overlayShowsOnlyWhileLayerHeld = \(overlayShowsOnlyWhileLayerHeld)")
+        }
+    }
+
     static func clampedOverlayOpacity(_ value: Double) -> Double {
         guard value.isFinite else { return 1.0 }
         return min(max(value, 0.3), 1.0)
@@ -496,6 +505,7 @@ final class PreferencesService: @unchecked Sendable {
         static let unmappedLayerKeyStyle = "KeyPath.Overlay.UnmappedLayerKeyStyle"
         static let overlayOpacity = "KeyPath.Overlay.Opacity"
         static let overlayFadesWhenIdle = "KeyPath.Overlay.FadesWhenIdle"
+        static let overlayShowsOnlyWhileLayerHeld = "KeyPath.Overlay.ShowsOnlyWhileLayerHeld"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
         static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
@@ -516,6 +526,7 @@ final class PreferencesService: @unchecked Sendable {
         static let unmappedLayerKeyStyle = UnmappedLayerKeyStyle.baseLayer
         static let overlayOpacity = 1.0
         static let overlayFadesWhenIdle = true
+        static let overlayShowsOnlyWhileLayerHeld = false
         static let accessibilityTestMode = false
         // Nothing pops up on a layer hold unless the user picks it: holding Space to
         // type must not flash a window for people who never asked for one.
@@ -581,6 +592,8 @@ final class PreferencesService: @unchecked Sendable {
         )
         overlayFadesWhenIdle = UserDefaults.standard.object(forKey: Keys.overlayFadesWhenIdle) as? Bool
             ?? Defaults.overlayFadesWhenIdle
+        overlayShowsOnlyWhileLayerHeld = UserDefaults.standard.object(forKey: Keys.overlayShowsOnlyWhileLayerHeld) as? Bool
+            ?? Defaults.overlayShowsOnlyWhileLayerHeld
 
         // Testing preferences
         accessibilityTestMode =
