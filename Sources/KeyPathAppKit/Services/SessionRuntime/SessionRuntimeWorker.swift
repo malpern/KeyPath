@@ -729,7 +729,16 @@ public final class SessionRuntimeWorker {
                         if case SessionCapsMappingLease.Refusal.busy = error { return }
                         if error is CapsInventoryFailure {
                             self.capsFleetReadFailures += 1
-                            if self.capsFleetReadFailures < 3 { return }
+                            if self.capsFleetReadFailures == 3 {
+                                self.capsFleetCoverage = .init(
+                                    eligible: self.capsFleetCoverage?.eligible ?? self.capsFleetRecords.count,
+                                    covered: self.capsFleetRecords.count,
+                                    withheld: self.capsFleetCoverage?.withheld ?? 0,
+                                    inventoryUnavailable: true
+                                )
+                                self.writeReport(.running)
+                            }
+                            return
                         }
                         AppLogger.shared.warn("[SessionCaps] Fleet verification failed: \(error)")
                         self.finish(.failed, reason: SessionCapsRuntimeSupport.ownershipLostReason)

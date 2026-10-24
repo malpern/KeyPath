@@ -925,6 +925,9 @@ extension ServiceLifecycleCoordinator {
     }
 
     nonisolated static func capsCoverageWarning(_ coverage: SessionRuntimeReport.CapsCoverage) -> String? {
+        if coverage.inventoryUnavailable == true {
+            return "KeyPath cannot check newly connected keyboards for Caps Lock rules right now. Existing keyboard rules keep working; check Settings > General."
+        }
         if coverage.covered < coverage.eligible {
             return "Caps Lock rules work on \(coverage.covered) of \(coverage.eligible) selected keyboards. Check keyboard details in Settings > General. Your other rules keep working."
         }

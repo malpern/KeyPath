@@ -201,6 +201,9 @@ final class SessionCapsMappingFleetTests: XCTestCase {
             .contains("2 of 3") == true)
         XCTAssertTrue(ServiceLifecycleCoordinator.capsCoverageWarning(.init(eligible: 2, covered: 2, withheld: 1))?
             .contains("1 connected keyboard") == true)
+        XCTAssertTrue(ServiceLifecycleCoordinator.capsCoverageWarning(
+            .init(eligible: 2, covered: 2, withheld: 0, inventoryUnavailable: true)
+        )?.contains("cannot check newly connected keyboards") == true)
     }
 
     /// Opt-in hardware qualification on the lab mini. Each original mapping

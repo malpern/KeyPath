@@ -7,11 +7,14 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         public let eligible: Int
         public let covered: Int
         public let withheld: Int
+        /// The last inventory refresh failed; previous coverage is not current.
+        public let inventoryUnavailable: Bool?
 
-        public init(eligible: Int, covered: Int, withheld: Int) {
+        public init(eligible: Int, covered: Int, withheld: Int, inventoryUnavailable: Bool? = nil) {
             self.eligible = eligible
             self.covered = covered
             self.withheld = withheld
+            self.inventoryUnavailable = inventoryUnavailable
         }
     }
 
