@@ -4,8 +4,10 @@
 crash-recoverable mapping per eligible keyboard and checks for arrivals every two
 seconds. Settings reports uncovered keyboards and offers per-keyboard exclusions.
 The original spike and open questions below remain the qualification record;
-this document is not evidence that a release build has passed physical-keyboard
-or hot-plug testing. In particular, a press immediately after plugging in a
+the opt-in `SessionCapsMappingFleetTests/testLiveAttachedKeyboardsAcquireAndRestore`
+passed on three attached USB keyboard services, including the physical HID
+fixture, with readback and exact restoration on 2026-10-24. This is not a
+release-build or hot-plug test. In particular, a press immediately after plugging in a
 keyboard can precede the worker's next inventory check. The passive per-press
 attribution described in the proposal has not been implemented.
 **Question:** can driverless KeyPath apply Caps Lock rules without asking the user to

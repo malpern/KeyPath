@@ -160,4 +160,51 @@ final class SessionCapsMappingFleetTests: XCTestCase {
         XCTAssertTrue(ServiceLifecycleCoordinator.capsCoverageWarning(.init(eligible: 2, covered: 2, withheld: 1))?
             .contains("1 connected keyboard") == true)
     }
+
+    /// Opt-in hardware qualification on the lab mini. Each original mapping
+    /// is read before the write and verified after an exact-owner restore.
+    func testLiveAttachedKeyboardsAcquireAndRestore() throws {
+        guard ProcessInfo.processInfo.environment["KEYPATH_LIVE_CAPS_FLEET"] == "1" else {
+            throw XCTSkip("Set KEYPATH_LIVE_CAPS_FLEET=1 to test attached physical keyboards")
+        }
+        let backend = SessionCapsHIDUtilTransport.backend()
+        let inventory = try SessionCapsHIDUtilTransport.keyboards()
+        let devices = inventory.keyboards.map(\.device)
+        guard inventory.withheld == 0, devices.count >= 2,
+              inventory.keyboards.contains(where: { $0.name.contains("KeyPath Physical HID Fixture") })
+        else {
+            throw XCTSkip("Requires the lab mini's eligible keyboards and physical HID fixture")
+        }
+        try SessionCapsRuntimeSupport.requirePhysicalAllUp()
+        let original = try Dictionary(uniqueKeysWithValues: devices.map { device in
+            try (device.registryEntryID, backend.read(device).mappings)
+        })
+        guard original.values.allSatisfy({ rows in !rows.contains(where: { $0.source == Policy.caps }) }) else {
+            throw XCTSkip("Another Caps Lock mapping is already present")
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keypath-live-caps-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        let boot = try SessionCapsRuntimeSupport.bootSessionUUID()
+        let owner = Policy.Owner(uid: getuid(), parentPID: getppid(), workerPID: getpid(),
+                                 nonce: UUID().uuidString, generation: UUID().uuidString, bootSessionUUID: boot)
+        let fleet = SessionCapsMappingFleet(directory: root, backend: backend)
+        do {
+            let result = try fleet.acquire(owner: owner, configSHA256: String(repeating: "a", count: 64),
+                                           devices: devices, intermediate: Policy.f18)
+            XCTAssertEqual(result.records.count, devices.count, "Uncovered devices: \(result.failures)")
+            for device in devices {
+                let rows = try backend.read(device).mappings
+                XCTAssertTrue(rows.contains(.init(source: Policy.caps, destination: Policy.f18)))
+            }
+            try fleet.restore(owner: owner, bootSessionUUID: boot)
+            for device in devices {
+                XCTAssertEqual(try backend.read(device).mappings, original[device.registryEntryID])
+            }
+            try FileManager.default.removeItem(at: root)
+        } catch {
+            try? fleet.restore(owner: owner, bootSessionUUID: boot)
+            throw error
+        }
+    }
 }
