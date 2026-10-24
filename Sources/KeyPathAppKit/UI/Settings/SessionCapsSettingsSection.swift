@@ -196,7 +196,8 @@ struct SessionCapsSettingsSection: View {
     }
 
     private var reservedKey: String {
-        let usage = selectedOnly ? saved?.intermediateUsage : UInt32(exactly: UserDefaults.standard.integer(forKey: SessionCapsRuntimeSupport.allIntermediateKey))
+        let stored = UInt32(exactly: UserDefaults.standard.integer(forKey: SessionCapsRuntimeSupport.allIntermediateKey))
+        let usage = selectedOnly ? saved?.intermediateUsage : stored.flatMap { SessionCapsIntermediate.isCandidate($0) ? $0 : nil }
         return SessionCapsIntermediate.label(usage ?? SessionCapsIntermediate.defaultUsage)
     }
 

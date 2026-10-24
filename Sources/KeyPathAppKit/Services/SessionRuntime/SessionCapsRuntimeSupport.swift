@@ -94,7 +94,7 @@ enum SessionCapsRuntimeSupport {
         let fields = [String(device.vendorID), String(device.productID),
                       device.serialNumber ?? "", String(device.locationID ?? 0),
                       device.appleBuiltIn == true ? "1" : "0"]
-        return (try? JSONEncoder().encode(fields).base64EncodedString()) ?? ""
+        return fields.map { "\($0.utf8.count):\($0)" }.joined()
     }
 
     static func excludedKeyboardIDs(defaults: UserDefaults = .standard) -> Set<String> {

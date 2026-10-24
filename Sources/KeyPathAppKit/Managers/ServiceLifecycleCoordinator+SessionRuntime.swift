@@ -142,8 +142,11 @@ extension ServiceLifecycleCoordinator {
                                 )
                                 : "Caps Lock rules could not start on a connected keyboard. Your other rules keep working. Check keyboard details in Settings > General."
                         }
-                        if let coverage = report.capsCoverage {
-                            sessionCapsPaused = Self.capsCoverageWarning(coverage)
+                        if !SessionCapsRuntimeSupport.selectedKeyboardOnly(),
+                           let coverage = report.capsCoverage,
+                           let warning = Self.capsCoverageWarning(coverage)
+                        {
+                            sessionCapsPaused = warning
                         }
                         onError?(nil)
                         onWarning?(sessionCapsNotice ?? sessionCapsPaused)
@@ -405,9 +408,10 @@ extension ServiceLifecycleCoordinator {
             if !SessionCapsRuntimeSupport.selectedKeyboardOnly(),
                sessionCapsIntermediate != nil
             {
-                let warning = report.capsCoverage.map(Self.capsCoverageWarning)
-                    ?? (report.managedCapsGeneration == expectedNonce ? nil
-                        : "Caps Lock rules are waiting for a compatible keyboard. Your other rules keep working.")
+                let coverageWarning = report.capsCoverage.flatMap(Self.capsCoverageWarning)
+                let warning = report.managedCapsGeneration == expectedNonce ? coverageWarning
+                    : (coverageWarning ?? sessionCapsPaused
+                        ?? "Caps Lock rules are waiting for a compatible keyboard. Your other rules keep working.")
                 if warning != sessionCapsPaused {
                     sessionCapsPaused = warning
                     onWarning?(warning)
@@ -840,6 +844,8 @@ extension ServiceLifecycleCoordinator {
         return admission.intermediateUsage
     }
 
+    /// The advanced single-keyboard path retains exact-device consent and
+    /// rechecks its intermediate before each worker launch.
     private func chooseCapsSelection() async throws -> SessionCapsSelection? {
         let path = KeyPathConstants.Config.mainConfigPath
         let needed = SessionCapsRuntimeSupport.admit(configPath: path, runtimeHost: .current())
