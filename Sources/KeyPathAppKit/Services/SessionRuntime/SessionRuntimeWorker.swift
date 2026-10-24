@@ -12,6 +12,7 @@ import KeyPathPermissions
 /// not expose a joinable shutdown, so their library must live until process exit.
 @MainActor
 public final class SessionRuntimeWorker {
+    private enum CapsInventoryFailure: Error { case unavailable }
     private static let outputTag: Int64 = 0x4B50_5345_5353_494F
     private let reportURL: URL
     private let nonce: String
@@ -30,6 +31,11 @@ public final class SessionRuntimeWorker {
     /// usage numbers overlap across pages (0xE2 is Mute here, Left Alt on page 7).
     private var mediaInputs: Set<UInt32> = []
     private var capsRecord: SessionCapsMappingPolicy.Record?
+    private var capsFleetEnabled = false
+    private var capsFleetRecords: [SessionCapsMappingPolicy.Record] = []
+    private var capsFleetCoverage: SessionRuntimeReport.CapsCoverage?
+    private var capsFleetRetryAfter: [UInt64: Date] = [:]
+    private var capsFleetReadFailures = 0
     private var capsOwner: SessionCapsMappingPolicy.Owner?
     private var capsDirectory: URL?
     private var capsInput = SessionCapsInputState()
@@ -220,11 +226,15 @@ public final class SessionRuntimeWorker {
         if admission.managedCaps {
             CGEvent.tapEnable(tap: startupTap, enable: false)
             do {
+                let allUsage = SessionCapsRuntimeSupport.allKeyboardIntermediate()
                 guard runtime?.isInputMapped(usagePage: 7, usage: 57) == true,
-                      let selection = try SessionCapsRuntimeSupport.selected(), let capsDigest,
-                      selection.intermediateUsage == admission.intermediateUsage,
+                      let capsDigest,
                       try SessionCapsRuntimeSupport.configSHA256(configPath) == capsDigest
                 else {
+                    throw SessionCapsRuntimeSupport.Refusal.configIdentity
+                }
+                let selection = allUsage == nil ? try SessionCapsRuntimeSupport.selected() : nil
+                guard (allUsage ?? selection?.intermediateUsage) == admission.intermediateUsage else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity
                 }
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
@@ -237,21 +247,44 @@ public final class SessionRuntimeWorker {
                 // The tap is disabled. Keep the main run loop out of startup
                 // acquisition; environment shutdown cannot race this writer.
                 // Ownership is retained even when write/readback throws.
-                let device = selection.device
-                let intermediate = SessionCapsMappingPolicy.packed(selection.intermediateUsage)
                 // Before any HID work: the transport's diagnostics go to the log.
                 SessionCapsHIDUtilTransport.warn = { AppLogger.shared.warn($0) }
-                capsRecord = try Self.performHIDWork {
-                    let backend = SessionCapsHIDUtilTransport.backend()
-                    do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {
-                        throw SessionCapsRuntimeSupport.Refusal.selection
+                if let allUsage {
+                    let result = try Self.performHIDWork {
+                        let backend = SessionCapsHIDUtilTransport.backend()
+                        let excluded = SessionCapsRuntimeSupport.excludedKeyboardIDs()
+                        let inventory = try SessionCapsHIDUtilTransport.keyboards()
+                        let devices = inventory.keyboards.map(\.device)
+                            .filter { !excluded.contains(SessionCapsRuntimeSupport.preferenceID($0)) }
+                        let coverage = try SessionCapsMappingFleet(directory: directory, backend: backend)
+                            .acquire(owner: owner, configSHA256: capsDigest, devices: devices,
+                                     intermediate: SessionCapsMappingPolicy.packed(allUsage))
+                        return (coverage, devices.count, inventory.withheld)
                     }
-                    let lease = SessionCapsMappingLease(directory: directory, backend: backend)
-                    return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device,
-                                             intermediate: intermediate)
+                    capsFleetEnabled = true
+                    capsFleetRecords = result.0.records
+                    capsRecord = result.0.records.first
+                    capsFleetCoverage = .init(eligible: result.1, covered: result.0.records.count, withheld: result.2)
+                    for (id, reason) in result.0.failures {
+                        AppLogger.shared.warn("[SessionCaps] Keyboard \(id) left uncovered: \(reason)")
+                    }
+                } else if let selection {
+                    let device = selection.device
+                    let intermediate = SessionCapsMappingPolicy.packed(selection.intermediateUsage)
+                    capsRecord = try Self.performHIDWork {
+                        let backend = SessionCapsHIDUtilTransport.backend()
+                        do { try SessionCapsMappingPolicy.requireUnique(device, among: backend.enumerate()) } catch {
+                            throw SessionCapsRuntimeSupport.Refusal.selection
+                        }
+                        let lease = SessionCapsMappingLease(directory: directory, backend: backend)
+                        return try lease.acquire(owner: owner, configSHA256: capsDigest, device: device,
+                                                 intermediate: intermediate)
+                    }
                 }
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
-                capsInput.activate(generation: owner.generation, intermediateUsage: selection.intermediateUsage)
+                if capsRecord != nil {
+                    capsInput.activate(generation: owner.generation, intermediateUsage: admission.intermediateUsage)
+                }
                 capsConfigPath = configPath
                 capsAdmittedDigest = capsDigest
             } catch {
@@ -586,8 +619,13 @@ public final class SessionRuntimeWorker {
     }
 
     private func checkCapsOwnershipIfNeeded() {
-        guard let record = capsRecord, !capsCheckInFlight,
-              Date().timeIntervalSince(lastCapsCheck) >= 0.5 else { return }
+        guard !capsCheckInFlight,
+              Date().timeIntervalSince(lastCapsCheck) >= (capsFleetEnabled ? 2 : 0.5) else { return }
+        if capsFleetEnabled {
+            checkCapsFleetIfNeeded()
+            return
+        }
+        guard let record = capsRecord else { return }
         capsCheckInFlight = true
         lastCapsCheck = Date()
         guard let directory = capsDirectory else { finish(.failed, reason: "managed-caps-directory-unavailable") }
@@ -611,6 +649,100 @@ public final class SessionRuntimeWorker {
                     if let lost { self.finish(.failed, reason: lost) }
                     if !fits { self.finish(.failed, reason: SessionCapsRuntimeSupport.profileChangedReason) }
                     self.capsAdmittedDigest = digest
+                }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
+    }
+
+    private func checkCapsFleetIfNeeded() {
+        guard let owner = capsOwner, let directory = capsDirectory,
+              let configPath = capsConfigPath, let admittedDigest = capsAdmittedDigest else { return }
+        capsCheckInFlight = true
+        lastCapsCheck = Date()
+        let previous = Set(capsFleetRecords.map(\.device.registryEntryID))
+        let retryAfter = capsFleetRetryAfter
+        let usage = SessionCapsRuntimeSupport.preferredIntermediate()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let digest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
+            let result: Result<(records: [SessionCapsMappingPolicy.Record], failures: [UInt64: String],
+                                eligible: Int, withheld: Int), Error>
+            do {
+                guard digest == nil || digest == admittedDigest else {
+                    throw SessionCapsRuntimeSupport.Refusal.configIdentity
+                }
+                let excluded = SessionCapsRuntimeSupport.excludedKeyboardIDs()
+                let inventory: (keyboards: [SessionCapsHIDUtilTransport.Keyboard], withheld: Int)
+                do { inventory = try SessionCapsHIDUtilTransport.keyboards() }
+                catch { throw CapsInventoryFailure.unavailable }
+                let devices = inventory.keyboards.map(\.device)
+                    .filter { !excluded.contains(SessionCapsRuntimeSupport.preferenceID($0)) }
+                let now = Date()
+                let retryable = devices.filter { device in
+                    previous.contains(device.registryEntryID)
+                        || now >= (retryAfter[device.registryEntryID] ?? .distantPast)
+                }
+                let fleet = SessionCapsMappingFleet(directory: directory, backend: SessionCapsHIDUtilTransport.backend())
+                let coverage = try fleet.reconcile(
+                    owner: owner, configSHA256: admittedDigest, devices: retryable,
+                    intermediate: SessionCapsMappingPolicy.packed(usage),
+                    bootSessionUUID: owner.bootSessionUUID,
+                    allowNewDevices: SessionCapsRuntimeSupport.heldKeys().isEmpty
+                )
+                result = .success((coverage.records, coverage.failures, devices.count, inventory.withheld))
+            } catch {
+                result = .failure(error)
+            }
+            CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, !self.finished, self.capsOwner == owner else { return }
+                    self.capsCheckInFlight = false
+                    guard digest == nil || digest == admittedDigest else {
+                        self.finish(.failed, reason: SessionCapsRuntimeSupport.profileChangedReason)
+                    }
+                    switch result {
+                    case let .success(coverage):
+                        self.capsFleetReadFailures = 0
+                        let current = Set(coverage.records.map(\.device.registryEntryID))
+                        if previous.isEmpty, !current.isEmpty {
+                            self.capsInput.activate(generation: owner.generation, intermediateUsage: usage)
+                        }
+                        self.capsFleetRecords = coverage.records
+                        self.capsRecord = coverage.records.first
+                        if current.isEmpty { self.capsInput.revoke() }
+                        for id in current {
+                            self.capsFleetRetryAfter.removeValue(forKey: id)
+                        }
+                        for id in coverage.failures.keys {
+                            self.capsFleetRetryAfter[id] = Date().addingTimeInterval(30)
+                        }
+                        let nextCoverage = SessionRuntimeReport.CapsCoverage(
+                            eligible: coverage.eligible, covered: coverage.records.count, withheld: coverage.withheld
+                        )
+                        let coverageChanged = self.capsFleetCoverage != nextCoverage
+                        self.capsFleetCoverage = nextCoverage
+                        if current != previous || coverageChanged { self.writeReport(.running) }
+                        for (id, reason) in coverage.failures where !previous.contains(id) {
+                            AppLogger.shared.warn("[SessionCaps] Keyboard \(id) left uncovered: \(reason)")
+                        }
+                    case let .failure(error):
+                        if case SessionCapsMappingLease.Refusal.busy = error { return }
+                        if error is CapsInventoryFailure {
+                            self.capsFleetReadFailures += 1
+                            if self.capsFleetReadFailures == 3 {
+                                self.capsFleetCoverage = .init(
+                                    eligible: self.capsFleetCoverage?.eligible ?? self.capsFleetRecords.count,
+                                    covered: self.capsFleetRecords.count,
+                                    withheld: self.capsFleetCoverage?.withheld ?? 0,
+                                    inventoryUnavailable: true
+                                )
+                                self.writeReport(.running)
+                            }
+                            return
+                        }
+                        AppLogger.shared.warn("[SessionCaps] Fleet verification failed: \(error)")
+                        self.finish(.failed, reason: SessionCapsRuntimeSupport.ownershipLostReason)
+                    }
                 }
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())
@@ -773,7 +905,8 @@ public final class SessionRuntimeWorker {
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
             experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic,
-            managedCapsGeneration: capsRecord?.owner.generation, rawPermissions: rawPermissions,
+            managedCapsGeneration: capsRecord?.owner.generation, capsCoverage: capsFleetCoverage,
+            rawPermissions: rawPermissions,
             retirementReason: retirementReason
         )
         do {

@@ -308,70 +308,78 @@ struct StatusSettingsTabView: View {
             SettingsSectionHeader(title: "Connected Keyboard")
 
             if let activeKeyboard = autoDetectController.activeKeyboard {
-                HStack(spacing: 10) {
-                    Image(systemName: "keyboard")
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "keyboard")
+                            .foregroundStyle(.secondary)
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(activeKeyboard.keyboardName)
-                            .font(.body.weight(.medium))
-                        Text([activeKeyboard.manufacturer,
-                              activeKeyboard.status == .remembered ? "Remembered" : "Connected"]
-                                .compactMap(\.self).joined(separator: " · "))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(activeKeyboard.keyboardName)
+                                .font(.body.weight(.medium))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text([activeKeyboard.manufacturer,
+                                  activeKeyboard.status == .remembered ? "Remembered" : "Connected"]
+                                    .compactMap(\.self).joined(separator: " · "))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Button("Forget", role: .destructive) {
+                            autoDetectController.forgetKeyboard(activeKeyboard.id)
+                        }
+                        .buttonStyle(.plain)
+                        .font(.callout)
+                        .foregroundColor(.red)
+                        .help("Forget This Keyboard")
+                        .accessibilityLabel("Forget This Keyboard")
+                        .accessibilityIdentifier("status-forget-keyboard-button")
                     }
 
-                    Spacer()
-
-                    Menu {
-                        ForEach(PhysicalLayout.layoutsByCategory(), id: \.category) { group in
-                            if !group.layouts.isEmpty {
-                                Section(group.category.displayName) {
-                                    ForEach(group.layouts) { layout in
-                                        Button {
-                                            autoDetectController.selectLayout(layout.id)
-                                        } label: {
-                                            if layout.id == activeKeyboard.layoutId {
-                                                Label(layout.name, systemImage: "checkmark")
-                                            } else {
-                                                Text(layout.name)
+                    HStack(spacing: 10) {
+                        Text("Layout")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Menu {
+                            ForEach(PhysicalLayout.layoutsByCategory(), id: \.category) { group in
+                                if !group.layouts.isEmpty {
+                                    Section(group.category.displayName) {
+                                        ForEach(group.layouts) { layout in
+                                            Button {
+                                                autoDetectController.selectLayout(layout.id)
+                                            } label: {
+                                                if layout.id == activeKeyboard.layoutId {
+                                                    Label(layout.name, systemImage: "checkmark")
+                                                } else {
+                                                    Text(layout.name)
+                                                }
                                             }
+                                            .accessibilityIdentifier("status-layout-option-\(layout.id)")
                                         }
-                                        .accessibilityIdentifier("status-layout-option-\(layout.id)")
                                     }
                                 }
                             }
+                            Divider()
+                            Button("Search All Keyboards\u{2026}") {
+                                autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
+                                LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                            }
+                            .accessibilityIdentifier("status-search-keyboard-layouts-button")
+                        } label: {
+                            // One Text keeps the chevron trailing; a menu label lays out
+                            // an HStack's image before its text.
+                            Text("\(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout") ")
+                                + Text(Image(systemName: "chevron.up.chevron.down"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(.secondary)
                         }
-                        Divider()
-                        Button("Search All Keyboards\u{2026}") {
-                            autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
-                            LiveKeyboardOverlayController.shared.showForQuickLaunch()
-                        }
-                        .accessibilityIdentifier("status-search-keyboard-layouts-button")
-                    } label: {
-                        // One Text keeps the chevron trailing; a menu label lays out
-                        // an HStack's image before its text.
-                        Text("\(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout") ")
-                            + Text(Image(systemName: "chevron.up.chevron.down"))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundColor(.secondary)
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .lineLimit(1)
+                        .accessibilityLabel("Keyboard layout")
+                        .accessibilityIdentifier("status-keyboard-layout-menu")
                     }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .accessibilityLabel("Keyboard layout")
-                    .accessibilityIdentifier("status-keyboard-layout-menu")
-
-                    Button("Forget", role: .destructive) {
-                        autoDetectController.forgetKeyboard(activeKeyboard.id)
-                    }
-                    .buttonStyle(.plain)
-                    .font(.callout)
-                    .foregroundColor(.red)
-                    .help("Forget This Keyboard")
-                    .accessibilityLabel("Forget This Keyboard")
-                    .accessibilityIdentifier("status-forget-keyboard-button")
                 }
                 .padding(.horizontal, SettingsDesign.cardInset)
                 .padding(.vertical, 10)

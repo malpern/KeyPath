@@ -1,6 +1,15 @@
 # Caps Lock rules on every keyboard
 
-**Status:** design proposal with spike evidence, 2026-10-21. No production code changes.
+**Status:** implementation in progress, 2026-10-24. The worker now applies one
+crash-recoverable mapping per eligible keyboard and checks for arrivals every two
+seconds. Settings reports uncovered keyboards and offers per-keyboard exclusions.
+The original spike and open questions below remain the qualification record;
+the opt-in `SessionCapsMappingFleetTests/testLiveAttachedKeyboardsAcquireAndRestore`
+passed on three attached USB keyboard services, including the physical HID
+fixture, with readback and exact restoration on 2026-10-24. This is not a
+release-build or hot-plug test. In particular, a press immediately after plugging in a
+keyboard can precede the worker's next inventory check. The passive per-press
+attribution described in the proposal has not been implemented.
 **Question:** can driverless KeyPath apply Caps Lock rules without asking the user to
 choose one keyboard?
 
@@ -45,7 +54,7 @@ frames this as "KeyPath does not guess which one you mean."
   `Caps keyboard not chosen automatically (selection); starting with Caps Lock rules paused`.
   Its Caps Lock rule has never run there.
 
-## Proposal
+## Original proposal and remaining qualification work
 
 Keep the device-scoped mapping. Apply it to every keyboard KeyPath can target.
 

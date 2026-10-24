@@ -3,6 +3,21 @@ import Foundation
 /// Private, nonce-bound evidence from the independently launched app process.
 /// Contains capabilities and emitted-key cleanup state, never captured input or text.
 public struct SessionRuntimeReport: Codable, Sendable, Equatable {
+    public struct CapsCoverage: Codable, Sendable, Equatable {
+        public let eligible: Int
+        public let covered: Int
+        public let withheld: Int
+        /// The last inventory refresh failed; previous coverage is not current.
+        public let inventoryUnavailable: Bool?
+
+        public init(eligible: Int, covered: Int, withheld: Int, inventoryUnavailable: Bool? = nil) {
+            self.eligible = eligible
+            self.covered = covered
+            self.withheld = withheld
+            self.inventoryUnavailable = inventoryUnavailable
+        }
+    }
+
     public enum State: String, Codable, Sendable {
         case capabilities, starting, running, secureInput, stopped, failed
     }
@@ -315,6 +330,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let heldOutputUsages: [UInt32]
     public let experimentalTapDiagnostics: ExperimentalTapDiagnostics?
     public let managedCapsGeneration: String?
+    public let capsCoverage: CapsCoverage?
     public let experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic?
 
     public init(
@@ -324,7 +340,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
         inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil,
         experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil,
-        managedCapsGeneration: String? = nil, rawPermissions: RawPermissions? = nil,
+        managedCapsGeneration: String? = nil, capsCoverage: CapsCoverage? = nil,
+        rawPermissions: RawPermissions? = nil,
         retirementReason: String? = nil
     ) {
         self.nonce = nonce
@@ -346,6 +363,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.experimentalTapDiagnostics = experimentalTapDiagnostics
         self.experimentalTapTimeout = experimentalTapTimeout
         self.managedCapsGeneration = managedCapsGeneration
+        self.capsCoverage = capsCoverage
     }
 
     public var recoveryReason: String? {

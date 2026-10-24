@@ -57,12 +57,49 @@ enum SessionCapsRuntimeSupport {
     /// after it disconnects. Never used to identify a device.
     static let selectionNameKey = "keypath.session.caps.selection.name.v1"
     static let automaticSetupDisabledKey = "keypath.session.caps.automatic.disabled"
+    /// Advanced compatibility mode. The normal rule scope is every keyboard.
+    static let selectedKeyboardOnlyKey = "keypath.session.caps.selected.only"
+
+    /// Preserve the scope of an existing exact-device selection on upgrade.
+    /// A fresh installation has no selection and starts in all-keyboards mode.
+    static func selectedKeyboardOnly(defaults: UserDefaults = .standard) -> Bool {
+        if let explicit = defaults.object(forKey: selectedKeyboardOnlyKey) as? Bool { return explicit }
+        return defaults.data(forKey: selectionKey) != nil
+    }
+
+    static let allIntermediateKey = "keypath.session.caps.all.intermediate"
+    static let excludedKeyboardsKey = "keypath.session.caps.excluded.keyboards.v1"
     static let selectionKey = "keypath.session.caps.selection.v1"
     static let selectionEnvironmentKey = "KEYPATH_SESSION_CAPS_SELECTION"
     /// What the app passes when it launched the worker without managed Caps.
     /// The worker then never falls back to the saved selection, which the
     /// app may have declined (for example when no intermediate was free).
     static let noSelection = "none"
+    private static let allPrefix = "all:"
+
+    static func allKeyboardLaunchValue(intermediateUsage: UInt32) -> String {
+        "\(allPrefix)\(intermediateUsage)"
+    }
+
+    static func allKeyboardIntermediate(environment: [String: String] = ProcessInfo.processInfo.environment) -> UInt32? {
+        guard let value = environment[selectionEnvironmentKey], value.hasPrefix(allPrefix),
+              let usage = UInt32(value.dropFirst(allPrefix.count)), SessionCapsIntermediate.isCandidate(usage) else { return nil }
+        return usage
+    }
+
+    /// An exception follows the physical keyboard at its serial or port, not
+    /// a boot-scoped IORegistry entry. The encoded tuple is unambiguous even
+    /// when a vendor uses punctuation in its serial number.
+    static func preferenceID(_ device: Policy.DeviceIdentity) -> String {
+        let fields = [String(device.vendorID), String(device.productID),
+                      device.serialNumber ?? "", String(device.locationID ?? 0),
+                      device.appleBuiltIn == true ? "1" : "0"]
+        return fields.map { "\($0.utf8.count):\($0)" }.joined()
+    }
+
+    static func excludedKeyboardIDs(defaults: UserDefaults = .standard) -> Set<String> {
+        Set((defaults.stringArray(forKey: excludedKeyboardsKey) ?? []).filter { $0.utf8.count <= 4096 })
+    }
 
     private static func selectionSource(_ environment: [String: String], _ selectionData: Data?) -> Data? {
         guard let passed = environment[selectionEnvironmentKey] else { return selectionData }
@@ -101,6 +138,7 @@ enum SessionCapsRuntimeSupport {
     static func preferredIntermediate(environment: [String: String] = ProcessInfo.processInfo.environment,
                                       selectionData: Data? = UserDefaults.standard.data(forKey: selectionKey)) -> UInt32
     {
+        if let all = allKeyboardIntermediate(environment: environment) { return all }
         #if DEBUG
             if environment["KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"] != nil { return SessionCapsIntermediate.defaultUsage }
         #endif
@@ -177,7 +215,9 @@ enum SessionCapsRuntimeSupport {
                                  managedCaps: false, intermediateUsage: preferred)
             }
         }
-        let canManage = (!requireSelection && !UserDefaults.standard.bool(forKey: automaticSetupDisabledKey))
+        let canManage = (allKeyboardIntermediate(environment: environment) != nil
+            && !UserDefaults.standard.bool(forKey: automaticSetupDisabledKey))
+            || (!requireSelection && !UserDefaults.standard.bool(forKey: automaticSetupDisabledKey))
             || (try? selected(environment: environment, selectionData: selectionData)) != nil
         if canManage {
             guard case .valid = managed(chosen) else { return Admission(result: legacy, managedCaps: false, intermediateUsage: preferred) }
@@ -382,6 +422,28 @@ enum SessionCapsRuntimeSupport {
     /// Off-main caller constructs the transport here; only scalar ownership
     /// crosses actor boundaries. A PID reused by a live process refuses recovery.
     static func recoverPending(directory: URL, expectedOwner: Policy.Owner? = nil) throws {
+        let boot = try bootSessionUUID()
+        try recoverIndependent(
+            legacy: { try recoverLegacyPending(directory: directory, expectedOwner: expectedOwner) },
+            fleet: {
+                try SessionCapsMappingFleet(directory: directory, backend: SessionCapsHIDUtilTransport.backend())
+                    .recover(expectedOwner: expectedOwner, bootSessionUUID: boot)
+            }
+        )
+    }
+
+    static func recoverIndependent(legacy: () throws -> Void, fleet: () throws -> Void) throws {
+        var firstFailure: Error?
+        do { try legacy() }
+        catch { firstFailure = error }
+        do { try fleet() }
+        catch {
+            if firstFailure == nil { firstFailure = error }
+        }
+        if let firstFailure { throw firstFailure }
+    }
+
+    private static func recoverLegacyPending(directory: URL, expectedOwner: Policy.Owner?) throws {
         var metadata = stat()
         if lstat(directory.appendingPathComponent("caps-mapping-intent.json").path, &metadata) != 0 {
             guard errno == ENOENT else { throw SessionCapsMappingLease.Refusal.unsafeFile }
