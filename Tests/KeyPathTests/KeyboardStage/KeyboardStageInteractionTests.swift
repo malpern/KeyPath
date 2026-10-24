@@ -1,7 +1,22 @@
+import AppKit
 @testable import KeyPathAppKit
 import XCTest
 
 final class KeyboardStageInteractionTests: XCTestCase {
+    /// The Metal view must stay transparent to the mouse. It is a real NSView,
+    /// so without this it returns itself for every point inside the keyboard
+    /// and swallows clicks before the semantic overlay's per-key hit targets
+    /// receive them — pointer presses then work only in the SwiftUI fallback.
+    @MainActor
+    func testMetalStageViewPassesPointerEventsToTheOverlayAbove() {
+        let view = KeyboardStageMTKView(
+            frame: NSRect(x: 0, y: 0, width: 400, height: 300)
+        )
+
+        XCTAssertNil(view.hitTest(NSPoint(x: 200, y: 150)))
+        XCTAssertNil(view.hitTest(NSPoint(x: 1, y: 1)))
+    }
+
     func testKeyDownFeedbackIsImmediate() {
         var presentation = KeyboardStageInteractionPresentation()
         let pressed = KeyboardStageInteractionState(
