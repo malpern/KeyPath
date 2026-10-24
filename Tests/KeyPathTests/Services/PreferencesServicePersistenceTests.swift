@@ -25,6 +25,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         "KeyPath.Education.OverlayHiddenHintShowCount",
         "KeyPath.Overlay.SuppressedBundleIDs",
         "KeyPath.Overlay.Opacity",
+        "KeyPath.Overlay.ShowsOnlyWhileLayerHeld",
         "KeyPath.Overlay.FadesWhenIdle",
     ]
 
@@ -242,6 +243,15 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             XCTAssertEqual(loaded.overlayOpacity, 1.0, accuracy: 0.001)
             UserDefaults.standard.set(Double.nan, forKey: "KeyPath.Overlay.Opacity")
             XCTAssertEqual(PreferencesService().overlayOpacity, 1.0, accuracy: 0.001)
+        }
+    }
+
+    func testShowOnlyWhileLayerHeldIsOffByDefaultAndPersists() {
+        withPreservedDefaults {
+            let writer = PreferencesService()
+            XCTAssertFalse(writer.overlayShowsOnlyWhileLayerHeld)
+            writer.overlayShowsOnlyWhileLayerHeld = true
+            XCTAssertTrue(PreferencesService().overlayShowsOnlyWhileLayerHeld)
         }
     }
 

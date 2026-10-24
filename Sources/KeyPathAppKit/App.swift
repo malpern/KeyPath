@@ -473,7 +473,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // auto-hide), dismiss it — a configured app must never strand it.
             mainWindowController?.hideSplash()
             LiveKeyboardOverlayController.shared.clearExplicitHideFlag()
-            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true, userRequested: true)
 
         case .showSplash:
             AppLogger.shared.info("🪟 [AppDelegate] \(trigger): setup incomplete — showing wizard")

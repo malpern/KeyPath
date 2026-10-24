@@ -181,6 +181,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     func restoreState() {
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: DefaultsKey.isVisible) else { return }
+        guard !PreferencesService.shared.overlayShowsOnlyWhileLayerHeld else { return }
         guard canShowOverlay(reason: "restore state") else { return }
 
         // Only restore if system is healthy
@@ -200,8 +201,18 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     /// Also starts health state observation to show validation progress.
     /// - Parameter bypassHiddenCheck: If true, shows overlay even if user explicitly hid it.
     ///   Only use this for the initial app launch, not for subsequent activations.
-    func showForStartup(bypassHiddenCheck: Bool = false) {
+    /// - Parameter userRequested: The user asked for KeyPath (reopened it, or finished a
+    ///   guided step that hands over to the keyboard). Otherwise launch and activation
+    ///   leave the overlay hidden while "Show only while a layer is held" is on.
+    func showForStartup(bypassHiddenCheck: Bool = false, userRequested: Bool = false) {
         guard canShowOverlay(reason: "startup show") else { return }
+        guard Self.startupShowAllowed(
+            showsOnlyWhileLayerHeld: PreferencesService.shared.overlayShowsOnlyWhileLayerHeld,
+            userRequested: userRequested
+        ) else {
+            AppLogger.shared.log("⏸️ [OverlayController] showForStartup skipped - overlay shows only while a layer is held")
+            return
+        }
 
         // IMPORTANT: Respect user's explicit hide unless bypassed (initial launch only)
         if !bypassHiddenCheck, userExplicitlyHidden {
@@ -477,6 +488,16 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
         if isVisible {
             isVisible = false
         }
+    }
+
+    nonisolated static func startupShowAllowed(showsOnlyWhileLayerHeld: Bool, userRequested: Bool) -> Bool {
+        userRequested || !showsOnlyWhileLayerHeld
+    }
+
+    /// Drop restores queued by Settings/Wizard or app suppression.
+    func forgetPendingVisibilityRestores() {
+        wasVisibleBeforeAutoHide = false
+        wasVisibleBeforeAppSuppression = false
     }
 
     /// Reset the auto-hide guard when Settings/Wizard closes.

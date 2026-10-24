@@ -834,7 +834,7 @@ extension FirstSuccessOnboardingWindowController: NSWindowDelegate {
         let overlay = LiveKeyboardOverlayController.shared
         overlay.resetSettingsAutoHideGuard()
         overlay.setOnboardingCompleted(true)
-        overlay.showForStartup(bypassHiddenCheck: true)
+        overlay.showForStartup(bypassHiddenCheck: true, userRequested: true)
         if !overlay.uiState.isInspectorOpen {
             overlay.toggleInspectorPanel()
         }

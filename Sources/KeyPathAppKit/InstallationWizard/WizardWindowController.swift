@@ -65,7 +65,7 @@ final class WizardWindowController {
                     // The wizard only schedules this after verifying a healthy runtime.
                     // Complete the overlay gate before presenting the successful handoff.
                     overlay.setOnboardingCompleted(true)
-                    overlay.showForStartup(bypassHiddenCheck: true)
+                    overlay.showForStartup(bypassHiddenCheck: true, userRequested: true)
                     if !overlay.uiState.isInspectorOpen {
                         overlay.toggleInspectorPanel()
                     }
