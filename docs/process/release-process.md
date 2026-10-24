@@ -111,7 +111,7 @@ changes the cdhash and permanently detaches the installed app from its ticket.
 whenever notarization was requested.
 
 Notarization credentials: the scripts prefer the file-based App Store Connect
-API key (`~/.appstoreconnect/private_keys/AuthKey_XQ4565NYZ7.p8`, overridable
+API key (`~/.appstoreconnect/private_keys/AuthKey_62KY64SQQB.p8`, overridable
 via `KP_NOTARY_KEY_PATH`/`KP_NOTARY_KEY_ID`/`KP_NOTARY_ISSUER`) over the
 `KeyPath-Profile` keychain profile. notarytool stores profiles in the
 data-protection keychain, which becomes unreadable when the login session

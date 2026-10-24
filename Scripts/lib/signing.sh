@@ -19,8 +19,8 @@ KP_NOTARY_WAIT_TIMEOUT=${KP_NOTARY_WAIT_TIMEOUT:-15m}
 # the ~9 minute build, and submit failed with "No Keychain password item
 # found"). The file-based API key has no lock-state dependency. The key id and
 # issuer are identifiers, not secrets.
-KP_NOTARY_DEFAULT_KEY_PATH=${KP_NOTARY_DEFAULT_KEY_PATH:-"$HOME/.appstoreconnect/private_keys/AuthKey_XQ4565NYZ7.p8"}
-KP_NOTARY_DEFAULT_KEY_ID=${KP_NOTARY_DEFAULT_KEY_ID:-XQ4565NYZ7}
+KP_NOTARY_DEFAULT_KEY_PATH=${KP_NOTARY_DEFAULT_KEY_PATH:-"$HOME/.appstoreconnect/private_keys/AuthKey_62KY64SQQB.p8"}
+KP_NOTARY_DEFAULT_KEY_ID=${KP_NOTARY_DEFAULT_KEY_ID:-62KY64SQQB}
 KP_NOTARY_DEFAULT_ISSUER=${KP_NOTARY_DEFAULT_ISSUER:-60b8eb46-ca64-4580-a43b-850d92fcc7ab}
 
 # Opt release scripts into the API key when the key file exists and no auth was

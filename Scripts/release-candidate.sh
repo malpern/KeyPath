@@ -43,7 +43,7 @@ Environment:
   NOTARY_PROFILE      notarytool keychain profile override.
   KP_NOTARY_KEY_PATH / KP_NOTARY_KEY_ID / KP_NOTARY_ISSUER
                       App Store Connect API key for notarytool. Defaults to
-                      ~/.appstoreconnect/private_keys/AuthKey_XQ4565NYZ7.p8
+                      ~/.appstoreconnect/private_keys/AuthKey_62KY64SQQB.p8
                       when that file exists; set KP_NOTARY_AUTH=keychain-profile
                       to force keychain-profile auth instead.
   KP_NOTARY_WAIT_TIMEOUT
