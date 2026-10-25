@@ -1,37 +1,59 @@
 import Foundation
 import IOKit
 
-/// When the worker next reconciles its Caps fleet. Arrivals pull the check
-/// forward: a keyboard plugged in should be mapped before its first Caps press,
-/// not up to one backstop interval later.
+/// When the worker next reconciles its Caps fleet. An arrival pulls one check
+/// forward. Checks then stay fast only while a keyboard is waiting to be mapped,
+/// so a wake that re-registers already-covered keyboards costs a single check.
 struct SessionCapsCheckSchedule: Equatable {
-    /// The steady backstop while every keyboard's mapping stays verified.
+    /// The steady backstop, measured between check starts.
     static let backstop: TimeInterval = 2
-    /// The pause after each check right after an arrival. hidutil can list a new
-    /// event service a moment after IOKit reports it.
+    /// The pause after each fast check finishes. hidutil can list a new event
+    /// service a moment after IOKit reports it.
     static let afterArrival: TimeInterval = 0.25
-    /// How long arrival checks stay fast.
+    /// Fast checks after a recognised keyboard arrives, before any check reports.
     static let arrivalWindow: TimeInterval = 3
+    /// The longest a waiting keyboard keeps checks fast, for example while keys
+    /// held at plug-in block admission.
+    static let waitLimit: TimeInterval = 30
 
-    private(set) var fastUntil: Date = .distantPast
     private(set) var arrivalPending = false
+    private(set) var fastUntil: Date = .distantPast
+    private(set) var arrivedAt: Date?
 
-    mutating func keyboardArrived(at now: Date) {
+    /// `recognised`: the service reads as a keyboard. An unreadable one still gets
+    /// its immediate check, but cannot open a fast window by itself.
+    mutating func keyboardArrived(at now: Date, recognised: Bool) {
         arrivalPending = true
-        fastUntil = now.addingTimeInterval(Self.arrivalWindow)
+        guard recognised else { return }
+        if arrivedAt == nil { arrivedAt = now }
+        fastUntil = max(fastUntil, now.addingTimeInterval(Self.arrivalWindow))
     }
 
-    /// Whether a fleet check should start now. `lastCheck` is when the previous
-    /// check finished, so fast checks still leave the HID queue idle between them.
-    func isDue(now: Date, lastCheck: Date) -> Bool {
+    func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
         if arrivalPending { return true }
-        let interval = now < fastUntil ? Self.afterArrival : Self.backstop
-        return now.timeIntervalSince(lastCheck) >= interval
+        if now < fastUntil { return now.timeIntervalSince(lastEnd) >= Self.afterArrival }
+        return now.timeIntervalSince(lastStart) >= Self.backstop
     }
 
     /// A check is starting; it covers every arrival reported so far.
     mutating func checkStarted() {
         arrivalPending = false
+    }
+
+    /// `waiting`: eligible keyboards the check left unmapped that may still be
+    /// admitted (not backing off after a failed write).
+    mutating func checkFinished(at now: Date, waiting: Int) {
+        guard waiting > 0 else {
+            fastUntil = .distantPast
+            arrivedAt = nil
+            return
+        }
+        guard let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) else {
+            fastUntil = .distantPast
+            arrivedAt = nil
+            return
+        }
+        fastUntil = max(fastUntil, now.addingTimeInterval(Self.afterArrival + Self.backstop))
     }
 }
 
@@ -40,7 +62,7 @@ struct SessionCapsCheckSchedule: Equatable {
 /// decided by the fleet reconcile, exactly as for the backstop check.
 @MainActor
 final class SessionCapsKeyboardArrivalMonitor {
-    private let onArrival: () -> Void
+    private let onArrival: (_ recognised: Bool) -> Void
     private let emitsKeyboardUsages: (UInt64) -> Bool?
     private var port: IONotificationPortRef?
     private var iterator: io_iterator_t = 0
@@ -49,7 +71,7 @@ final class SessionCapsKeyboardArrivalMonitor {
     /// `emitsKeyboardUsages` is the same predicate the lease uses to group a
     /// keyboard's interfaces; injectable for tests.
     init(emitsKeyboardUsages: @escaping (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages,
-         onArrival: @escaping () -> Void)
+         onArrival: @escaping (_ recognised: Bool) -> Void)
     {
         self.emitsKeyboardUsages = emitsKeyboardUsages
         self.onArrival = onArrival
@@ -106,11 +128,11 @@ final class SessionCapsKeyboardArrivalMonitor {
         if report { reportArrivals(registryIDs) }
     }
 
-    /// Fails open: a service whose keyboard capability can't be read yet is still
-    /// an arrival, because one extra inventory read is cheap and a missed one
-    /// leaves the keyboard unmapped until the backstop.
+    /// Fails open: a service whose keyboard capability can't be read yet still
+    /// earns one pulled-forward check, so the keyboard isn't left for the backstop.
     func reportArrivals(_ registryIDs: [UInt64]) {
-        let arrived = registryIDs.contains { id in id == 0 || emitsKeyboardUsages(id) != false }
-        if arrived { onArrival() }
+        let answers = registryIDs.map { $0 == 0 ? nil : emitsKeyboardUsages($0) }
+        guard answers.contains(where: { $0 != false }) else { return }
+        onArrival(answers.contains(true))
     }
 }

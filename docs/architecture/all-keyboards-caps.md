@@ -196,12 +196,16 @@ single-keyboard record remains readable for recovery.
 **Hot-plug.** `SessionCapsKeyboardArrivalMonitor` listens for `IOHIDEventService`
 registrations (first-match notifications; services present at startup are ignored)
 and classifies each with the lease's own `serviceEmitsKeyboardUsages`, so a board's
-shared NKRO interface counts. An unreadable capability still counts as an arrival:
-an extra inventory read is cheap, a missed arrival is not. An arrival makes the next
-fleet check due at once; for three seconds after it, checks then run 0.25 s after the
-previous one finishes, because hidutil can list a new service a moment after IOKit
-reports it (`SessionCapsCheckSchedule`). The two-second check remains as a backstop,
-and covers everything if the notification cannot be registered. The worker logs
+shared NKRO interface counts. An unreadable capability still earns one immediate
+check: an extra inventory read is cheap, a missed arrival is not. Only a recognised
+keyboard opens a fast window (`SessionCapsCheckSchedule`): checks then run 0.25 s
+after the previous one finishes, because hidutil can list a new service a moment
+after IOKit reports it. The window ends as soon as a check finds no eligible keyboard
+waiting to be mapped. While one is waiting (for example, keys held at plug-in), it
+continues for up to 30 s after the arrival. A wake re-registers every keyboard's
+service, so it costs one check, and nothing more if every keyboard is still covered.
+The two-second backstop is measured between check starts, so a slow check doesn't
+stretch it, and covers everything if the notification cannot be registered. The worker logs
 `[SessionCaps] Keyboard covered` for every newly covered keyboard, and
 `[SessionCaps] Keyboard arrival mapped in N ms` when the newly covered keyboard
 follows an arrival within 30 s (a keyboard recovering from its failure backoff is not
