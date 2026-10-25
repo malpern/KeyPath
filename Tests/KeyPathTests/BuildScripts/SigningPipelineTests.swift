@@ -510,6 +510,8 @@ final class SigningPipelineTests: XCTestCase {
                           "needs a full Xcode selected on this machine")
         // `xcode-select -p` reports an exported DEVELOPER_DIR, so it drives the default branch here.
         let notXcode = FileManager.default.temporaryDirectory.appendingPathComponent("keypath-not-xcode-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: notXcode, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: notXcode) }
         let chosen = runScript(
             #"unset KEYPATH_DEV_XCODE_DEVELOPER_DIR; source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR""#,
             env: ["DEVELOPER_DIR": selected]
