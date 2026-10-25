@@ -213,7 +213,8 @@ KEYPATH_CONFIRM_XCODE=<build> ./Scripts/release.sh <version>
 ```
 
 Shipping requires `KEYPATH_CONFIRM_XCODE` to equal the selected Xcode's build,
-which `release-doctor` prints. Only the person releasing sets it, after checking
+which `release-doctor` prints. Set it per invocation, never in a shell profile.
+Only the person releasing sets it, after checking
 that the Xcode is a released version; agents must not set it on Micah's behalf.
 See `docs/process/release-process.md`.
 

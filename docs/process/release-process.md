@@ -176,7 +176,9 @@ Builds use the Xcode that `xcode-select` points at; there is no version pin.
 Before a public release, check that the selected Xcode is a released version,
 not a beta. `release-doctor.sh --ship` prints it, for example
 `Selected Xcode: 27.0 (27A266a)`. Then confirm that exact build by setting
-`KEYPATH_CONFIRM_XCODE` to it. That confirmation is the real check: a beta
+`KEYPATH_CONFIRM_XCODE` to it on the release command itself, never in a shell
+profile, where it would confirm every later build with that Xcode. That
+confirmation is the real check: a beta
 usually reports a plain version such as 27.1 from an ordinary path, so only a
 person can tell. Shipping fails without it or when it names a different build,
 and an Xcode whose path or version does say "beta" fails outright. `release.sh`
