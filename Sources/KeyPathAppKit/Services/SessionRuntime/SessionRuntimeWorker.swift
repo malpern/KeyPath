@@ -38,7 +38,6 @@ public final class SessionRuntimeWorker {
     private var capsFleetReadFailures = 0
     private var capsCheckSchedule = SessionCapsCheckSchedule()
     private var capsArrivalMonitor: SessionCapsKeyboardArrivalMonitor?
-    /// First unanswered arrival, for the arrival-to-mapped log line.
     /// Tracked arrivals not yet mapped, each with when it arrived.
     private var capsTimedArrivals: [SessionCapsArrivedService: Date] = [:]
     private var capsOwner: SessionCapsMappingPolicy.Owner?
@@ -838,8 +837,12 @@ public final class SessionRuntimeWorker {
                         arrival.lines.forEach { AppLogger.shared.log($0) }
                         self.capsTimedArrivals = arrival.remaining
                     case let .failure(error):
-                        self.capsCheckSchedule.checkFailed()
+                        self.capsTimedArrivals = self.capsTimedArrivals.filter {
+                            Date().timeIntervalSince($0.value) < Self.arrivalAttributionLimit
+                        }
+                        // Lease contention clears in moments; keep the arrival's fast checks.
                         if case SessionCapsMappingLease.Refusal.busy = error { return }
+                        self.capsCheckSchedule.checkFailed()
                         if error is CapsInventoryFailure {
                             self.capsFleetReadFailures += 1
                             if self.capsFleetReadFailures == 3 {

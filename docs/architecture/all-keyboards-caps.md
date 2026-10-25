@@ -205,10 +205,11 @@ service yet (under its own registry ID, or as another interface at the same
 LocationID), up to five more follow, each 0.25 s after the previous one finishes,
 because hidutil can list a new service a moment after IOKit reports it. Each check
 spawns several hidutil processes, so every check ahead of the backstop draws on one
-shared budget of six per 10 s, however many arrivals there are: a device that keeps
+shared budget of twelve per 10 s (two keyboards' worth), however many arrivals there are: a device that keeps
 re-registering gets the backstop, not a continuous loop. A keyboard
 plugged in with keys held, or one still not listed, is left to the backstop, and a
-check that fails hands over to the backstop at once. Classification runs off the
+check that fails hands over to the backstop at once (lease contention, which clears in
+moments, keeps the arrival's fast checks). Classification runs off the
 event tap's run loop. A wake re-registers services hidutil already lists, so it costs
 one check. A press immediately after plugging in can still come before the keyboard is
 mapped; the `arrival mapped in N ms` log measures that window.

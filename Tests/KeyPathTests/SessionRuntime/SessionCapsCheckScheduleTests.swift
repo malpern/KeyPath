@@ -157,6 +157,24 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
                       "the backstop still runs")
     }
 
+    func testASecondKeyboardSoonAfterTheFirstStillGetsEarlyChecks() {
+        var schedule = SessionCapsCheckSchedule()
+        var now = start
+        var lastStart = Date.distantPast
+        // The first keyboard never shows up in hidutil's list and uses all its fast checks.
+        schedule.keyboardArrived(keyboards: [usb])
+        for _ in 0 ..< SessionCapsCheckSchedule.fastChecks {
+            XCTAssertTrue(schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)))
+            _ = schedule.checkStarted(at: now, lastStart: lastStart)
+            schedule.checkFinished(resolved: [])
+            lastStart = now
+            now = now.addingTimeInterval(0.3)
+        }
+        // A second keyboard is plugged in a moment later.
+        schedule.keyboardArrived(keyboards: [SessionCapsArrivedService(registryEntryID: 43, locationID: 0x0120_0000)])
+        XCTAssertTrue(schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)))
+    }
+
     func testAnEarlyCheckWaitsForThePauseAfterTheLastOneFinished() {
         var schedule = SessionCapsCheckSchedule()
         schedule.keyboardArrived(keyboards: [usb])
@@ -202,6 +220,59 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         XCTAssertFalse(monitor.start(), "a started monitor refuses a second start")
         // Every service counts as a keyboard here, so a zero is the startup drain at work.
         XCTAssertEqual(arrivals, 0, "services present at start are inventory, not arrivals")
+    }
+
+    /// The production path: classify off the main thread, deliver on the main run loop.
+    @MainActor
+    func testArrivalsAreClassifiedOffTheMainThreadAndDeliveredOnIt() throws {
+        var delivered: [[UInt64]] = []
+        let monitor = SessionCapsKeyboardArrivalMonitor(emitsKeyboardUsages: { id in
+            XCTAssertFalse(Thread.isMainThread, "classification must stay off the event tap's run loop")
+            return id == 1
+        }) { delivered.append($0.map(\.registryEntryID)) }
+        defer { monitor.stop() }
+        try XCTSkipUnless(monitor.start(), "IOKit notifications unavailable on this host")
+
+        monitor.classifyAndDeliver([.init(registryEntryID: 1, locationID: 1), .init(registryEntryID: 2, locationID: 2)])
+        let deadline = Date().addingTimeInterval(5)
+        while delivered.isEmpty, Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertEqual(delivered, [[1]])
+    }
+
+    @MainActor
+    func testAClassificationFinishingAfterStopIsDropped() throws {
+        var delivered = 0
+        let monitor = SessionCapsKeyboardArrivalMonitor(emitsKeyboardUsages: { _ in
+            Thread.sleep(forTimeInterval: 0.05)
+            return true
+        }) { _ in delivered += 1 }
+        try XCTSkipUnless(monitor.start(), "IOKit notifications unavailable on this host")
+
+        monitor.classifyAndDeliver([.init(registryEntryID: 1, locationID: 1)])
+        monitor.stop()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(delivered, 0)
+    }
+
+    /// The arrival side reads LocationID from IOKit, the listing side from hidutil's
+    /// JSON; matching by location needs the two to agree.
+    func testIOKitAndHidutilAgreeOnLocationIDs() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["KEYPATH_LIVE_CAPS_FLEET"] == "1",
+                          "set KEYPATH_LIVE_CAPS_FLEET=1 to check attached keyboards")
+        let rows = try SessionCapsHIDUtilTransport.parseServiceRows(
+            SessionCapsHIDUtilTransport.runHIDUtil(["list", "--ndjson", "--matching", "keyboard"])
+        ).filter { ($0.locationID ?? 0) != 0 }
+        try XCTSkipIf(rows.isEmpty, "no located keyboard attached")
+        for row in rows {
+            guard let matching = IORegistryEntryIDMatching(row.registryEntryID) else { continue }
+            let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+            guard service != 0 else { continue }
+            defer { IOObjectRelease(service) }
+            XCTAssertEqual(SessionCapsKeyboardArrivalMonitor.locationID(of: service), row.locationID,
+                           "registry ID \(row.registryEntryID)")
+        }
     }
 
     @MainActor

@@ -24,7 +24,9 @@ struct SessionCapsCheckSchedule: Equatable {
     /// Each check spawns several hidutil processes, so checks ahead of the
     /// backstop share one budget however many arrivals there are: a device that
     /// re-registers over and over gets the backstop, not a continuous loop.
-    static let earlyBudget = 6
+    /// Room for two keyboards' fast checks, so a second keyboard plugged in
+    /// moments after the first is not left for the backstop.
+    static let earlyBudget = 12
     static let budgetWindow: TimeInterval = 10
 
     private(set) var arrivalPending = false
@@ -39,6 +41,8 @@ struct SessionCapsCheckSchedule: Equatable {
     @discardableResult
     mutating func keyboardArrived(keyboards: [SessionCapsArrivedService]) -> [SessionCapsArrivedService] {
         arrivalPending = true
+        // Unlike the rest of this subsystem, an unreadable (nil) LocationID counts
+        // as real here: failing open costs a few checks, failing closed a keyboard.
         let real = keyboards.filter { $0.locationID != 0 }
         guard !real.isEmpty else { return [] }
         unlisted.formUnion(real)
@@ -163,14 +167,26 @@ final class SessionCapsKeyboardArrivalMonitor {
             // An unreadable ID still counts: the arrival is reported, and the
             // reconcile decides whether there is anything to map.
             let readable = IORegistryEntryGetRegistryEntryID(service, &id) == KERN_SUCCESS
-            let location = IORegistryEntryCreateCFProperty(service, "LocationID" as CFString, kCFAllocatorDefault, 0)?
-                .takeRetainedValue() as? NSNumber
-            services.append(.init(registryEntryID: readable ? id : 0,
-                                  locationID: location.flatMap { UInt32(exactly: $0.uint64Value) }))
+            services.append(.init(registryEntryID: readable ? id : 0, locationID: Self.locationID(of: service)))
         }
-        guard report, !services.isEmpty else { return }
-        // Classifying can walk the registry and parse report descriptors, once per
-        // service in a batch. Keep that off the run loop the event tap shares.
+        guard report else { return }
+        classifyAndDeliver(services)
+    }
+
+    /// The registry's LocationID as the 32-bit pattern hidutil prints. It may be
+    /// stored as a signed CFNumber, so take the low 32 bits rather than refusing
+    /// a value with the high bit set.
+    nonisolated static func locationID(of service: io_service_t) -> UInt32? {
+        let value = IORegistryEntryCreateCFProperty(service, "LocationID" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? NSNumber
+        return value.map { UInt32(truncatingIfNeeded: $0.int64Value) }
+    }
+
+    /// Classifying can walk the registry and parse report descriptors, once per
+    /// service in a batch. Keep that off the run loop the event tap shares, and
+    /// drop a result that lands after `stop()`.
+    func classifyAndDeliver(_ services: [SessionCapsArrivedService]) {
+        guard !services.isEmpty else { return }
         let classify = emitsKeyboardUsages
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let answers = Self.classify(services, with: classify)
