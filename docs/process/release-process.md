@@ -169,8 +169,17 @@ Public releases are intentionally slower and should be explicit:
 
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh <version>
+KEYPATH_CONFIRM_XCODE=<build> ./Scripts/release.sh <version>
 ```
+
+Builds use the Xcode that `xcode-select` points at; there is no version pin.
+Before a public release, check that the selected Xcode is a released version,
+not a beta. `release-doctor.sh --ship` prints it, for example
+`Selected Xcode: 27.0 (27A266a)`. Then confirm that exact build by setting
+`KEYPATH_CONFIRM_XCODE` to it. Shipping fails without the confirmation, when it
+names a different build, or when the Xcode path or version says "beta". The
+build is also recorded as `XcodeVersion`/`XcodeBuild` in the app's
+`BuildInfo.plist`.
 
 Use `--dry-run` before an unfamiliar release:
 
@@ -208,6 +217,8 @@ public distribution; unnotarized apps trigger Gatekeeper warnings.
 `release-doctor.sh` is read-only. It checks local prerequisites and state before
 the expensive build starts:
 
+- the selected Xcode: a beta fails; in `--ship` mode the build must also match
+  `KEYPATH_CONFIRM_XCODE`
 - required tools (`swift`, `xcrun`, `codesign`, `security`, `git`, `gh`, `nc`)
 - current git branch, dirty state, and master worktree ownership
 - Developer ID signing identity

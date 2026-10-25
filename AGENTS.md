@@ -209,8 +209,13 @@ If local worktrees/builds are consuming disk, inspect generated artifacts with
 Use the public release script only when producing public distribution artifacts:
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh <version>
+KEYPATH_CONFIRM_XCODE=<build> ./Scripts/release.sh <version>
 ```
+
+Shipping requires `KEYPATH_CONFIRM_XCODE` to equal the selected Xcode's build,
+which `release-doctor` prints. Only the person releasing sets it, after checking
+that the Xcode is a released version; agents must not set it on Micah's behalf.
+See `docs/process/release-process.md`.
 
 This path may bump versions, regenerate screenshots, create Sparkle artifacts,
 notarize, staple, deploy, tag, create a GitHub release, and publish website help

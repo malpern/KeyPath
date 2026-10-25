@@ -140,8 +140,13 @@ if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version"; then
         warn "Selected Xcode looks like a beta; builds will record it in BuildInfo.plist"
     fi
 elif [[ "$MODE" == "ship" ]]; then
-    # Path and version can't prove a release build, so shipping asks a person to confirm.
-    warn "Confirm Xcode ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) is a released Xcode before shipping"
+    # Path and version can't prove a release build, so shipping needs a person to
+    # confirm the exact build: KEYPATH_CONFIRM_XCODE=<build> (see release-process.md).
+    if [[ -n "$selected_xcode_build" && "${KEYPATH_CONFIRM_XCODE:-}" == "$selected_xcode_build" ]]; then
+        pass "Xcode ${selected_xcode_version} (${selected_xcode_build}) confirmed as a released Xcode"
+    else
+        fail "Confirm Xcode ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${selected_xcode_build:-<build>}"
+    fi
 else
     pass "No beta marker in the Xcode path or version"
 fi

@@ -38,7 +38,8 @@ final class DeploymentScriptContractTests: XCTestCase {
         let releaseDoctor = try contents(of: root.appendingPathComponent("Scripts/release-doctor.sh"))
         XCTAssertTrue(releaseDoctor.contains(#"keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version""#))
         XCTAssertTrue(releaseDoctor.contains(#"fail "Selected Xcode looks like a beta; select a released Xcode before shipping""#))
-        XCTAssertTrue(releaseDoctor.contains("is a released Xcode before shipping"))
+        XCTAssertTrue(releaseDoctor.contains(#""${KEYPATH_CONFIRM_XCODE:-}" == "$selected_xcode_build""#))
+        XCTAssertTrue(releaseDoctor.contains(#"rerun with KEYPATH_CONFIRM_XCODE="#))
 
         // Without a pin, every signed build records the Xcode that produced it.
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
