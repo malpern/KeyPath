@@ -337,6 +337,9 @@ GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 CFVER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS/Info.plist" 2>/dev/null || echo "1.0.0")
 CFBUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist" 2>/dev/null || echo "0")
+# There is no Xcode pin, so record which Xcode produced this build.
+XCODE_VERSION=$("$DEVELOPER_DIR/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Xcode //p' | head -n 1)
+XCODE_BUILD=$("$DEVELOPER_DIR/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Build version //p' | head -n 1)
 cat > "$RESOURCES/BuildInfo.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -350,6 +353,10 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
   <string>${GIT_HASH}</string>
   <key>BuildDate</key>
   <string>${BUILD_DATE}</string>
+  <key>XcodeVersion</key>
+  <string>${XCODE_VERSION:-unknown}</string>
+  <key>XcodeBuild</key>
+  <string>${XCODE_BUILD:-unknown}</string>
 </dict>
 </plist>
 EOF

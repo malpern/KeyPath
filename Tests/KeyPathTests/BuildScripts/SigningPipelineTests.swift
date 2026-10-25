@@ -473,6 +473,30 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stdout.contains("forced:none"))
     }
 
+    func testXcodeSelectionRefusesCommandLineTools() {
+        let result = runScript(
+            "source Scripts/lib/xcode.sh && keypath_use_selected_xcode",
+            env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": "/Library/Developer/CommandLineTools"]
+        )
+
+        XCTAssertNotEqual(result.code, 0)
+        XCTAssertTrue(result.stderr.contains("is not a full Xcode developer directory"), result.stderr)
+    }
+
+    func testXcodeSelectionHonorsOverrideAndExportsMatchingSDK() throws {
+        let selected = runScript("/usr/bin/xcode-select -p").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
+                          "needs a full Xcode selected on this machine")
+        let result = runScript(
+            #"source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR" && echo "sdk=$SDKROOT""#,
+            env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": selected]
+        )
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("dev=\(selected)"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("sdk=\(selected)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"), result.stdout)
+    }
+
     func testPinnedNotarytoolSupportsExplicitNoWait() {
         let script = """
         source Scripts/lib/xcode.sh

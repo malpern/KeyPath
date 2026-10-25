@@ -58,8 +58,11 @@ Notes:
   They refuse Command Line Tools: KeyPath needs a full Xcode with the Metal
   toolchain (`Scripts/ensure-metal-toolchain.sh`). Set
   `KEYPATH_DEV_XCODE_DEVELOPER_DIR` to build with another Xcode without
-  changing the machine-wide selection. Keep each build machine's `xcode-select`
-  on the Xcode you want builds and CI to use, not a beta.
+  changing the machine-wide selection. An exported `DEVELOPER_DIR` also wins,
+  because `xcode-select -p` reports it; the scripts print the Xcode they chose.
+  Keep each build machine's `xcode-select` on the Xcode you want builds and CI
+  to use, not a beta. Signed builds record `XcodeVersion` and `XcodeBuild` in
+  `BuildInfo.plist`.
 - It intentionally does **not** redeploy the privileged helper unless
   `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
