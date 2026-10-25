@@ -695,6 +695,8 @@ public final class SessionRuntimeWorker {
 
     /// Without the monitor the backstop check still finds arrivals, only later.
     private func startCapsArrivalMonitor() {
+        // Once per session: a second monitor would report every arrival twice.
+        guard capsArrivalMonitor == nil else { return }
         let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
             guard let self, !self.finished else { return }
             Self.noteArrival(keyboards, at: Date(), schedule: &capsCheckSchedule, timed: &capsTimedArrivals)
