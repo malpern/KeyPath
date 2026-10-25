@@ -42,8 +42,9 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertTrue(releaseDoctor.contains(#"rerun with KEYPATH_CONFIRM_XCODE="#))
         let xcodeLib = try contents(of: root.appendingPathComponent("Scripts/lib/xcode.sh"))
         XCTAssertTrue(xcodeLib.contains(#""${KEYPATH_CONFIRM_XCODE:-}" == "$build""#))
-        // Skipping the doctor (--no-doctor) must not skip the confirmation.
+        // Skipping the doctor (--no-doctor) must not skip the beta check or the confirmation.
         let release = try contents(of: root.appendingPathComponent("Scripts/release.sh"))
+        XCTAssertTrue(release.contains(#"if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$release_xcode_version"; then"#))
         XCTAssertTrue(release.contains(#"if ! keypath_xcode_confirmed "$release_xcode_build"; then"#))
         let doctorCall = try XCTUnwrap(release.range(of: "./Scripts/release-doctor.sh --ship"))
         let confirmation = try XCTUnwrap(release.range(of: "keypath_xcode_confirmed"))
