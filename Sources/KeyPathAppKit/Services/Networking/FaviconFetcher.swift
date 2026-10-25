@@ -112,6 +112,10 @@ final class FaviconFetcher {
 
     /// Perform actual network fetch for favicon
     private func performFetch(for domain: String, fullURL: String) async -> NSImage? {
+        // Unit tests must not reach the network. A launcher edit warms icons for
+        // every mapping, so a URL mapping in a test used to fetch a live favicon
+        // and draw it with AppKit on the headless CI runner.
+        guard !TestEnvironment.isRunningTests else { return nil }
         AppLogger.shared.debug("🌐 [FaviconFetcher] Fetching favicon for \(domain)")
 
         // Try strategy 1: /favicon.ico (most common)
