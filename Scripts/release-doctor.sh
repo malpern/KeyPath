@@ -140,7 +140,7 @@ if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version"; then
         warn "Selected Xcode looks like a beta; builds will record it in BuildInfo.plist"
     fi
 else
-    pass "Selected Xcode is not a beta by path or version"
+    pass "No beta marker in the Xcode path or version; confirm ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) is a released Xcode before shipping"
 fi
 
 print_section "Required Tools"
