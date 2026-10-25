@@ -198,7 +198,10 @@ single-keyboard record remains readable for recovery.
 **Hot-plug.** `SessionCapsKeyboardArrivalMonitor` listens for `IOHIDEventService`
 registrations (first-match notifications; services present at startup are ignored)
 and classifies each with the lease's own `serviceEmitsKeyboardUsages`, so a board's
-shared NKRO interface counts. Every arrival earns one immediate check: a
+shared NKRO interface counts. No check runs in the 0.25 s after an arrival: a key held
+on the new keyboard is known only once its first report has been processed, and the
+all-keys-up gate must not read it earlier (unmeasured; a fixture test with a held key
+would settle it). Every arrival then earns one early check: a
 service whose capability can't be read yet counts too, since an extra inventory read
 is cheap and a missed arrival is not. One that reads as definitely not a keyboard
 (including a keyboard whose properties are only partly published) is left to the

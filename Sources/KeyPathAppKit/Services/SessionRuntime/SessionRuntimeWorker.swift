@@ -666,7 +666,7 @@ public final class SessionRuntimeWorker {
                             schedule: inout SessionCapsCheckSchedule,
                             timed: inout [SessionCapsArrivedService: Date])
     {
-        timed = recordArrivals(schedule.keyboardArrived(keyboards: keyboards), at: now, into: timed)
+        timed = recordArrivals(schedule.keyboardArrived(keyboards: keyboards, at: now), at: now, into: timed)
     }
 
     /// Interfaces of one keyboard register within moments of each other; a new

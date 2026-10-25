@@ -34,6 +34,10 @@ struct SessionCapsCheckSchedule: Equatable {
     private(set) var unlisted: Set<SessionCapsArrivedService> = []
     private(set) var fastChecksLeft = 0
     private(set) var earlyStarts: [Date] = []
+    /// The latest arrival. No check runs within `afterArrival` of it: a key held
+    /// on a new keyboard is known only once its first report has been processed,
+    /// and the all-keys-up gate must not read it before then.
+    private(set) var lastArrivalAt: Date?
     /// Bumped by each tracked arrival, so a check knows whether one landed while
     /// it ran (that arrival's fast checks start after it, not with it).
     private var arrivalGeneration = 0
@@ -46,8 +50,9 @@ struct SessionCapsCheckSchedule: Equatable {
     /// keyboard and is not virtual can earn fast checks until hidutil lists it.
     /// Returns those tracked services, which are what may be timed.
     @discardableResult
-    mutating func keyboardArrived(keyboards: [SessionCapsArrivedService]) -> [SessionCapsArrivedService] {
+    mutating func keyboardArrived(keyboards: [SessionCapsArrivedService], at now: Date) -> [SessionCapsArrivedService] {
         arrivalPending = true
+        lastArrivalAt = now
         // Unlike the rest of this subsystem, an unreadable (nil) LocationID counts
         // as real here: failing open costs a few checks, failing closed a keyboard.
         let real = keyboards.filter { $0.locationID != 0 }
@@ -59,6 +64,8 @@ struct SessionCapsCheckSchedule: Equatable {
     }
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
+        // No check, backstop included, in the settling pause after an arrival.
+        if let lastArrivalAt, now.timeIntervalSince(lastArrivalAt) < Self.afterArrival { return false }
         let wantsEarly = arrivalPending || (!unlisted.isEmpty && fastChecksLeft > 0)
         if wantsEarly, earlyStarts.count(where: { now.timeIntervalSince($0) < Self.budgetWindow }) < Self.earlyBudget,
            now.timeIntervalSince(lastEnd) >= Self.afterArrival

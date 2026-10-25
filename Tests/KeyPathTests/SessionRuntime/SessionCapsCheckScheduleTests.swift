@@ -5,6 +5,10 @@ import XCTest
 
 final class SessionCapsCheckScheduleTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_000_000)
+    /// Arrivals in most tests land a second before `start`, past the settling pause.
+    private var earlier: Date {
+        start.addingTimeInterval(-1)
+    }
 
     private let usb = SessionCapsArrivedService(registryEntryID: 42, locationID: 0x0110_0000)
 
@@ -22,19 +26,20 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(2), lastStart: start, lastEnd: lastEnd))
     }
 
-    func testAnArrivalMakesTheNextCheckDueAtOnce() {
+    func testAnArrivalsFirstCheckWaitsForItsKeysToBeKnown() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
-
-        // The previous check finished a second ago, well past the pause.
-        XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(0.01), lastStart: start.addingTimeInterval(-1.5),
-                                     lastEnd: start.addingTimeInterval(-1)))
+        schedule.keyboardArrived(keyboards: [usb], at: start)
+        // The previous check finished long ago; only the new keyboard's settling pause applies.
+        let longAgo = start.addingTimeInterval(-5)
+        XCTAssertFalse(schedule.isDue(now: start.addingTimeInterval(0.1), lastStart: longAgo, lastEnd: longAgo),
+                       "a held key on the new keyboard may not be known yet")
+        XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(0.25), lastStart: longAgo, lastEnd: longAgo))
     }
 
     func testAnUnrecognisedOrVirtualArrivalEarnsOneCheckButNoFastChecks() {
         for keyboards in [[], [SessionCapsArrivedService(registryEntryID: 7, locationID: 0)]] {
             var schedule = SessionCapsCheckSchedule()
-            schedule.keyboardArrived(keyboards: keyboards)
+            schedule.keyboardArrived(keyboards: keyboards, at: earlier)
             XCTAssertTrue(schedule.isDue(now: start, lastStart: .distantPast, lastEnd: .distantPast))
             XCTAssertTrue(schedule.checkStarted(at: start, lastStart: .distantPast).isEmpty)
 
@@ -45,7 +50,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
     func testAKeyboardHidutilHasNotListedYetGetsFastChecks() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         XCTAssertEqual(schedule.checkStarted(at: start, lastStart: .distantPast), [usb])
         // The first listing does not include the new service yet.
         let firstEnd = start.addingTimeInterval(0.1)
@@ -64,7 +69,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
     func testFastChecksAreCappedByCountForAServiceHidutilNeverLists() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         var now = start
         var checks = 0
         while schedule.isDue(now: now, lastStart: now, lastEnd: now.addingTimeInterval(-1)), checks < 100 {
@@ -80,7 +85,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
     func testAWakeThatReRegistersListedKeyboardsCostsOneCheck() {
         var schedule = SessionCapsCheckSchedule()
         let builtIn = SessionCapsArrivedService(registryEntryID: 9, locationID: 0x0200_0000)
-        schedule.keyboardArrived(keyboards: [builtIn, usb])
+        schedule.keyboardArrived(keyboards: [builtIn, usb], at: earlier)
         let arrived = schedule.checkStarted(at: start, lastStart: .distantPast)
         let resolved = SessionCapsCheckSchedule.resolved(
             arrived, listed: [row(9, location: 0x0200_0000), row(42, location: 0x0110_0000)], exists: { _ in true }
@@ -93,7 +98,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
     func testFastChecksAreSpacedFromTheLastCheckFinishing() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         _ = schedule.checkStarted(at: start, lastStart: .distantPast)
         let lastEnd = start.addingTimeInterval(0.4)
         schedule.checkFinished(resolved: [])
@@ -104,7 +109,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
     func testAFailedCheckHandsOverToTheBackstop() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         _ = schedule.checkStarted(at: start, lastStart: .distantPast)
         schedule.checkFailed()
 
@@ -128,8 +133,8 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         var schedule = SessionCapsCheckSchedule()
         let virtual = SessionCapsArrivedService(registryEntryID: 7, locationID: 0)
         // A virtual keyboard (Karabiner, a VM's platform keyboard) is not timed.
-        XCTAssertEqual(schedule.keyboardArrived(keyboards: [virtual, usb]), [usb])
-        XCTAssertEqual(schedule.keyboardArrived(keyboards: [virtual]), [])
+        XCTAssertEqual(schedule.keyboardArrived(keyboards: [virtual, usb], at: earlier), [usb])
+        XCTAssertEqual(schedule.keyboardArrived(keyboards: [virtual], at: earlier), [])
     }
 
     func testRepeatedArrivalsShareOneEarlyCheckBudget() {
@@ -139,7 +144,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         var early = 0
         // A flapping device re-registers every 0.3 s, and every listing shows it.
         for _ in 0 ..< 30 {
-            schedule.keyboardArrived(keyboards: [usb])
+            schedule.keyboardArrived(keyboards: [usb], at: earlier)
             if schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)),
                now.timeIntervalSince(lastStart) < SessionCapsCheckSchedule.backstop || lastStart == .distantPast
             {
@@ -163,7 +168,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         var now = start
         var lastStart = Date.distantPast
         // The first keyboard never shows up in hidutil's list and uses all its fast checks.
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         for _ in 0 ..< SessionCapsCheckSchedule.fastChecks {
             XCTAssertTrue(schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)))
             _ = schedule.checkStarted(at: now, lastStart: lastStart)
@@ -172,13 +177,13 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
             now = now.addingTimeInterval(0.3)
         }
         // A second keyboard is plugged in a moment later.
-        schedule.keyboardArrived(keyboards: [SessionCapsArrivedService(registryEntryID: 43, locationID: 0x0120_0000)])
+        schedule.keyboardArrived(keyboards: [SessionCapsArrivedService(registryEntryID: 43, locationID: 0x0120_0000)], at: now.addingTimeInterval(-0.25))
         XCTAssertTrue(schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)))
     }
 
     func testBusyResultsKeepFastChecksBrieflyThenHandOver() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         let due = { schedule.isDue(now: self.start, lastStart: self.start, lastEnd: self.start.addingTimeInterval(-1)) }
         for _ in 0 ..< SessionCapsCheckSchedule.busyRetries {
             _ = schedule.checkStarted(at: start, lastStart: start)
@@ -190,7 +195,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         XCTAssertFalse(due(), "the next busy result hands over to the backstop")
 
         // A finished check resets the streak.
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         _ = schedule.checkStarted(at: start, lastStart: start)
         schedule.checkBusy()
         _ = schedule.checkStarted(at: start, lastStart: start)
@@ -202,25 +207,25 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         var schedule = SessionCapsCheckSchedule()
         _ = schedule.checkStarted(at: start, lastStart: .distantPast)
         // A keyboard registers while the backstop check is in flight.
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         schedule.checkFinished(resolved: [])
         XCTAssertEqual(schedule.fastChecksLeft, SessionCapsCheckSchedule.fastChecks)
     }
 
     func testAnEarlyCheckWaitsForThePauseAfterTheLastOneFinished() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         XCTAssertFalse(schedule.isDue(now: start.addingTimeInterval(0.1), lastStart: start, lastEnd: start))
         XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(0.25), lastStart: start, lastEnd: start))
     }
 
     func testAnArrivalDuringACheckIsNotLostWhenThatCheckStarted() {
         var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(keyboards: [usb])
+        schedule.keyboardArrived(keyboards: [usb], at: earlier)
         _ = schedule.checkStarted(at: start, lastStart: .distantPast)
         // A second keyboard arrives while the first check is still in flight.
         let second = SessionCapsArrivedService(registryEntryID: 43, locationID: 0x0120_0000)
-        schedule.keyboardArrived(keyboards: [second])
+        schedule.keyboardArrived(keyboards: [second], at: earlier)
         schedule.checkFinished(resolved: [usb])
 
         XCTAssertTrue(schedule.arrivalPending)
