@@ -33,6 +33,13 @@ trap keypath_release_deploy_lock EXIT
 APP_NAME="KeyPath"
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
+
+# Resuming compiles nothing: the selected Xcode supplies only notarytool and
+# stapler. The Xcode that built the archive was checked when it was built
+# (release.sh for public releases); show it so a resume can be cross-checked.
+BUILT_WITH_VERSION=$(/usr/libexec/PlistBuddy -c "Print :XcodeVersion" "$APP_BUNDLE/Contents/Resources/BuildInfo.plist" 2>/dev/null || echo unknown)
+BUILT_WITH_BUILD=$(/usr/libexec/PlistBuddy -c "Print :XcodeBuild" "$APP_BUNDLE/Contents/Resources/BuildInfo.plist" 2>/dev/null || echo unknown)
+echo "🛠  Archive built with Xcode $BUILT_WITH_VERSION ($BUILT_WITH_BUILD)"
 ZIP_PATH="${DIST_DIR}/${APP_NAME}.zip"
 STATE_FILE=${KP_NOTARY_STATE_FILE:-"${ZIP_PATH%.zip}.notary-submission.json"}
 

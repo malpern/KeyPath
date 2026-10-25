@@ -504,6 +504,25 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stdout.contains("Xcode-27.app/Contents/Developer|27.0=release"), result.stdout)
     }
 
+    func testShippingConfirmationMatchesOnlyTheExactNonEmptyBuild() {
+        let result = runScript("""
+        source Scripts/lib/xcode.sh
+        check() { if keypath_xcode_confirmed "$1"; then echo "$2=confirmed"; else echo "$2=refused"; fi; }
+        unset KEYPATH_CONFIRM_XCODE
+        check "" empty-build-unset
+        check 27A266a unset
+        KEYPATH_CONFIRM_XCODE="" check "" empty-build-empty
+        KEYPATH_CONFIRM_XCODE=27A266a check 27A266b mismatch
+        KEYPATH_CONFIRM_XCODE=27A266a check 27A266a match
+        """)
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        for refused in ["empty-build-unset", "unset", "empty-build-empty", "mismatch"] {
+            XCTAssertTrue(result.stdout.contains("\(refused)=refused"), result.stdout)
+        }
+        XCTAssertTrue(result.stdout.contains("match=confirmed"), result.stdout)
+    }
+
     func testXcodeSelectionDefaultsToXcodeSelectWithoutOverride() throws {
         let selected = runScript("/usr/bin/xcode-select -p").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
