@@ -34,12 +34,21 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertTrue(xcodeContract.contains("keypath_use_selected_xcode"))
         XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
 
-        // Without a pin, shipping refuses a beta Xcode and asks a person to confirm any other.
+        // Without a pin, shipping refuses an Xcode marked beta and asks a person to confirm any other.
         let releaseDoctor = try contents(of: root.appendingPathComponent("Scripts/release-doctor.sh"))
         XCTAssertTrue(releaseDoctor.contains(#"keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version""#))
         XCTAssertTrue(releaseDoctor.contains(#"fail "Selected Xcode looks like a beta; select a released Xcode before shipping""#))
-        XCTAssertTrue(releaseDoctor.contains(#""${KEYPATH_CONFIRM_XCODE:-}" == "$selected_xcode_build""#))
+        XCTAssertTrue(releaseDoctor.contains(#"keypath_xcode_confirmed "$selected_xcode_build""#))
         XCTAssertTrue(releaseDoctor.contains(#"rerun with KEYPATH_CONFIRM_XCODE="#))
+        let xcodeLib = try contents(of: root.appendingPathComponent("Scripts/lib/xcode.sh"))
+        XCTAssertTrue(xcodeLib.contains(#""${KEYPATH_CONFIRM_XCODE:-}" == "$build""#))
+        // Skipping the doctor (--no-doctor) must not skip the confirmation.
+        let release = try contents(of: root.appendingPathComponent("Scripts/release.sh"))
+        XCTAssertTrue(release.contains(#"if ! keypath_xcode_confirmed "$release_xcode_build"; then"#))
+        let doctorCall = try XCTUnwrap(release.range(of: "./Scripts/release-doctor.sh --ship"))
+        let confirmation = try XCTUnwrap(release.range(of: "keypath_xcode_confirmed"))
+        let build = try XCTUnwrap(release.range(of: "SKIP_NOTARIZE=1 ./build.sh"))
+        XCTAssertTrue(doctorCall.lowerBound < confirmation.lowerBound && confirmation.lowerBound < build.lowerBound)
 
         // Without a pin, every signed build records the Xcode that produced it.
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))

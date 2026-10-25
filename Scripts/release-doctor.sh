@@ -132,7 +132,8 @@ print_section "Xcode"
 selected_xcode_version="$(keypath_xcode_version "$DEVELOPER_DIR" || true)"
 selected_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
 echo "Selected Xcode: ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) at $DEVELOPER_DIR"
-# No version pin: refuse a beta Xcode for public artifacts, warn for candidates.
+# No version pin. An Xcode whose path or version says beta fails shipping (and warns
+# for candidates); every other one must be confirmed by a person to ship.
 if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version"; then
     if [[ "$MODE" == "ship" ]]; then
         fail "Selected Xcode looks like a beta; select a released Xcode before shipping"
@@ -142,7 +143,8 @@ if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version"; then
 elif [[ "$MODE" == "ship" ]]; then
     # Path and version can't prove a release build, so shipping needs a person to
     # confirm the exact build: KEYPATH_CONFIRM_XCODE=<build> (see release-process.md).
-    if [[ -n "$selected_xcode_build" && "${KEYPATH_CONFIRM_XCODE:-}" == "$selected_xcode_build" ]]; then
+    # release.sh repeats this check, so skipping the doctor does not skip it.
+    if keypath_xcode_confirmed "$selected_xcode_build"; then
         pass "Xcode ${selected_xcode_version} (${selected_xcode_build}) confirmed as a released Xcode"
     else
         fail "Confirm Xcode ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${selected_xcode_build:-<build>}"

@@ -14,6 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 REPO_ROOT="${SCRIPT_DIR%/Scripts}"
+source "$SCRIPT_DIR/lib/xcode.sh"
 INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
 
 DRY_RUN=false
@@ -196,6 +197,14 @@ fi
 if [ "$RUN_DOCTOR" = true ] && [ "${SKIP_RELEASE_DOCTOR:-0}" != "1" ]; then
     echo "🩺 Running release preflight..."
     ./Scripts/release-doctor.sh --ship
+fi
+
+# The doctor can be skipped for script debugging; the Xcode confirmation cannot.
+keypath_use_selected_xcode
+release_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
+if ! keypath_xcode_confirmed "$release_xcode_build"; then
+    echo "❌ Confirm Xcode $(keypath_xcode_version "$DEVELOPER_DIR" || echo unknown) (${release_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${release_xcode_build:-<build>}" >&2
+    exit 1
 fi
 
 if [ "$REFRESH_KEYBOARD_DATA" = true ]; then

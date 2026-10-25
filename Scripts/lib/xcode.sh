@@ -20,11 +20,20 @@ keypath_xcode_build() {
     "$developer_dir/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Build version //p' | head -n 1
 }
 
-# True when the developer directory or version names a beta. Build numbers are not
-# used: released Xcodes also end in a lowercase letter (15.4 is 15F31d, 16.0 is 16A242d).
+# True when the developer directory or version names a beta. This is only a coarse
+# check: a beta usually prints a plain version (Xcode 27.1) from an ordinary path,
+# so it is caught by the shipping confirmation below, not here. Build numbers are
+# not used: released Xcodes also end in a lowercase letter (15.4 is 15F31d).
 keypath_xcode_looks_beta() {
     local developer_dir="$1" version="${2:-}"
     [[ "$developer_dir" == *[Bb]eta* || "$version" == *[Bb]eta* ]]
+}
+
+# True when a person confirmed this exact build as a released Xcode, by setting
+# KEYPATH_CONFIRM_XCODE to it. Path and version cannot prove a release build.
+keypath_xcode_confirmed() {
+    local build="${1:-}"
+    [[ -n "$build" && "${KEYPATH_CONFIRM_XCODE:-}" == "$build" ]]
 }
 
 keypath_use_selected_xcode() {
