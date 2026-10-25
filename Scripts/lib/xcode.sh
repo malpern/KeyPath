@@ -20,6 +20,13 @@ keypath_xcode_build() {
     "$developer_dir/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Build version //p' | head -n 1
 }
 
+# True when the developer directory or version names a beta. Build numbers are not
+# used: released Xcodes also end in a lowercase letter (15.4 is 15F31d, 16.0 is 16A242d).
+keypath_xcode_looks_beta() {
+    local developer_dir="$1" version="${2:-}"
+    [[ "$developer_dir" == *[Bb]eta* || "$version" == *[Bb]eta* ]]
+}
+
 keypath_use_selected_xcode() {
     if [[ -n "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ]]; then
         export DEVELOPER_DIR="$KEYPATH_DEV_XCODE_DEVELOPER_DIR"

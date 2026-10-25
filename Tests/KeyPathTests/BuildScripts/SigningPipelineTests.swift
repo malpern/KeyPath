@@ -487,6 +487,23 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stderr.contains("is not a full Xcode developer directory"), result.stderr)
     }
 
+    func testBetaGuardMatchesBetaPathsAndVersionsButNotReleaseBuildNumbers() {
+        let result = runScript("""
+        source Scripts/lib/xcode.sh
+        check() { if keypath_xcode_looks_beta "$1" "$2"; then echo "$1|$2=beta"; else echo "$1|$2=release"; fi; }
+        check /Applications/Xcode-beta.app/Contents/Developer 27.1
+        check /Applications/Xcode.app/Contents/Developer "27.1 beta 2"
+        check /Applications/Xcode.app/Contents/Developer 16.0
+        check /Applications/Xcode-27.app/Contents/Developer 27.0
+        """)
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("Xcode-beta.app/Contents/Developer|27.1=beta"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("Xcode.app/Contents/Developer|27.1 beta 2=beta"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("Xcode.app/Contents/Developer|16.0=release"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("Xcode-27.app/Contents/Developer|27.0=release"), result.stdout)
+    }
+
     func testXcodeSelectionDefaultsToXcodeSelectWithoutOverride() throws {
         let selected = runScript("/usr/bin/xcode-select -p").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
