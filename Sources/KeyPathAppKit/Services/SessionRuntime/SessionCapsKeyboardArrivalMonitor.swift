@@ -67,14 +67,22 @@ struct SessionCapsCheckSchedule: Equatable {
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
         // No check, backstop included, in the settling pause after an arrival.
-        if let settlingSince, now.timeIntervalSince(settlingSince) < Self.afterArrival { return false }
+        if let settlingSince, Self.isRecent(settlingSince, now: now, within: Self.afterArrival) { return false }
         let wantsEarly = arrivalPending || (!unlisted.isEmpty && fastChecksLeft > 0)
-        if wantsEarly, earlyStarts.count(where: { now.timeIntervalSince($0) < Self.budgetWindow }) < Self.earlyBudget,
+        if wantsEarly, earlyStarts.count(where: { Self.isRecent($0, now: now, within: Self.budgetWindow) }) < Self.earlyBudget,
            now.timeIntervalSince(lastEnd) >= Self.afterArrival
         {
             return true
         }
         return now.timeIntervalSince(lastStart) >= Self.backstop
+    }
+
+    /// Wall-clock time can step backwards (NTP, a manual change). A timestamp
+    /// from the "future" counts as old, so a step back can't hold off checks or
+    /// exhaust the early budget until the clock catches up.
+    private static func isRecent(_ date: Date, now: Date, within interval: TimeInterval) -> Bool {
+        let age = now.timeIntervalSince(date)
+        return age >= 0 && age < interval
     }
 
     /// A check is starting; it covers every arrival reported so far. Returns the
@@ -83,7 +91,7 @@ struct SessionCapsCheckSchedule: Equatable {
     mutating func checkStarted(at now: Date, lastStart: Date) -> Set<SessionCapsArrivedService> {
         arrivalPending = false
         settlingSince = nil
-        earlyStarts.removeAll { now.timeIntervalSince($0) >= Self.budgetWindow }
+        earlyStarts.removeAll { !Self.isRecent($0, now: now, within: Self.budgetWindow) }
         if now.timeIntervalSince(lastStart) < Self.backstop { earlyStarts.append(now) }
         generationAtStart = arrivalGeneration
         return unlisted
@@ -218,15 +226,23 @@ final class SessionCapsKeyboardArrivalMonitor {
     /// Classifying can walk the registry and parse report descriptors, once per
     /// service in a batch. Keep that off the run loop the event tap shares, and
     /// drop a result that lands after `stop()`.
-    func classifyAndDeliver(_ services: [SessionCapsArrivedService]) {
+    /// `processed` runs on the main run loop once the result has been handled
+    /// (delivered, or dropped after `stop()`); for tests.
+    func classifyAndDeliver(_ services: [SessionCapsArrivedService],
+                            processed: (@MainActor (_ delivered: Bool) -> Void)? = nil)
+    {
         guard !services.isEmpty else { return }
         let classify = emitsKeyboardUsages
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let answers = Self.classify(services, with: classify)
             CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
                 MainActor.assumeIsolated {
-                    guard let self, self.port != nil else { return }
+                    guard let self, self.port != nil else {
+                        processed?(false)
+                        return
+                    }
                     self.deliver(services, answers)
+                    processed?(true)
                 }
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())

@@ -326,17 +326,39 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
     @MainActor
     func testAClassificationFinishingAfterStopIsDropped() throws {
+        let started = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
         var delivered = 0
         let monitor = SessionCapsKeyboardArrivalMonitor(emitsKeyboardUsages: { _ in
-            Thread.sleep(forTimeInterval: 0.05)
+            started.signal()
+            release.wait()
             return true
         }) { _ in delivered += 1 }
         try XCTSkipUnless(monitor.start(), "IOKit notifications unavailable on this host")
 
-        monitor.classifyAndDeliver([.init(registryEntryID: 1, locationID: 1)])
+        let handled = expectation(description: "the classification's result was handled")
+        var wasDelivered: Bool?
+        monitor.classifyAndDeliver([.init(registryEntryID: 1, locationID: 1)]) {
+            wasDelivered = $0
+            handled.fulfill()
+        }
+        // Classification is in progress; stop, then let it finish.
+        XCTAssertEqual(started.wait(timeout: .now() + 5), .success)
         monitor.stop()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        release.signal()
+        wait(for: [handled], timeout: 5)
+
+        XCTAssertEqual(wasDelivered, false)
         XCTAssertEqual(delivered, 0)
+    }
+
+    func testAClockStepBackDoesNotHoldOffChecks() {
+        var schedule = SessionCapsCheckSchedule()
+        schedule.keyboardArrived(keyboards: [usb], at: start)
+        // The clock steps back an hour right after the arrival.
+        let stepped = start.addingTimeInterval(-3600)
+        XCTAssertTrue(schedule.isDue(now: stepped, lastStart: stepped.addingTimeInterval(-5),
+                                     lastEnd: stepped.addingTimeInterval(-5)))
     }
 
     /// A LocationID with the high bit set, stored by IOKit as a signed CFNumber,
