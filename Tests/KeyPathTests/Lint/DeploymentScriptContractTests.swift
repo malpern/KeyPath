@@ -34,6 +34,12 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertTrue(xcodeContract.contains("keypath_use_selected_xcode"))
         XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
 
+        // Without a pin, every signed build records the Xcode that produced it.
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
+        XCTAssertTrue(buildAndSign.contains("<key>XcodeVersion</key>"))
+        XCTAssertTrue(buildAndSign.contains("<key>XcodeBuild</key>"))
+        XCTAssertTrue(buildAndSign.contains(#"XCODE_VERSION=$(keypath_xcode_version "$DEVELOPER_DIR" || true)"#))
+
         for relativePath in consumers {
             let script = try contents(of: root.appendingPathComponent(relativePath))
             XCTAssertTrue(

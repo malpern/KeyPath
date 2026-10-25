@@ -505,6 +505,7 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertEqual(chosen.code, 0, chosen.stderr)
         XCTAssertTrue(chosen.stdout.contains("dev=\(selected)"), chosen.stdout)
         XCTAssertNotEqual(refused.code, 0)
+        XCTAssertTrue(refused.stderr.contains("is not a full Xcode developer directory"), refused.stderr)
     }
 
     func testXcodeSelectionHonorsOverrideAndExportsMatchingSDK() throws {
