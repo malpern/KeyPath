@@ -1,15 +1,14 @@
 # Caps Lock rules on every keyboard
 
 **Status:** deployed on the mini and Air, 2026-10-24. The worker applies one
-crash-recoverable mapping per eligible keyboard and checks for arrivals every two
-seconds. Settings reports uncovered keyboards and offers per-keyboard exclusions.
+crash-recoverable mapping per eligible keyboard. Since 2026-10-25 it reacts to a
+keyboard arriving (an IOKit notification) instead of waiting for its two-second check. Settings reports uncovered keyboards and offers per-keyboard exclusions.
 The original spike and remaining questions below remain the qualification record;
 the opt-in `SessionCapsMappingFleetTests/testLiveAttachedKeyboardsAcquireAndRestore`
 passed on three attached USB keyboard services, including the physical HID
 fixture, with readback and exact restoration on 2026-10-24. The release build
 passed notarization and runtime verification, but this is not a hot-plug test.
-In particular, a press immediately after plugging in a
-keyboard can precede the worker's next inventory check. The passive per-press
+The arrival-to-mapped time is logged but has not yet been measured on a physical replug. The passive per-press
 attribution described in the proposal has not been implemented.
 
 **Question:** can driverless KeyPath apply Caps Lock rules without asking the user to
@@ -56,16 +55,16 @@ for users who already made a choice.
 ## Original proposal and shipped scope
 
 The proposal kept device-scoped mappings and applied them to every keyboard KeyPath
-can target. The shipped implementation differs in two ways: it polls inventory every
-two seconds rather than mapping in an arrival callback, and it reports coverage in
-Settings instead of using passive per-press attribution.
+can target. The shipped implementation differs in one way: it reports coverage in Settings
+instead of using passive per-press attribution. (It first polled inventory every two
+seconds; arrivals now trigger a check, see Hot-plug below.)
 
 1. **Every eligible keyboard service gets the mapping** when the session starts, using
    the same write and readback the single-device path uses. A failed write affects only
    that keyboard.
-2. **Hot-plug.** The worker reconciles its device inventory every two seconds. It
-   admits a newly arrived keyboard when all keys are up and retires a removed one.
-   A first press can precede the next check.
+2. **Hot-plug.** A keyboard arriving triggers an immediate reconcile, with a
+   two-second backstop. It admits a newly arrived keyboard when all keys are up and
+   retires a removed one.
 3. **Journal one lease per device.** Crash recovery restores each device under the
    existing exact-owner, same-boot, same-device and unchanged-mapping checks. A failed
    restoration retains its own record without discarding other keyboards' records.
@@ -194,8 +193,14 @@ Acquisition, recovery and restoration use the existing exact-owner checks; one
 keyboard's failure does not discard other keyboards' recovery records. The old
 single-keyboard record remains readable for recovery.
 
-**Hot-plug.** The worker checks inventory every two seconds while Caps rules run.
-It admits a new keyboard under the same eligibility and all-keys-up checks as at
+**Hot-plug.** `SessionCapsKeyboardArrivalMonitor` listens for `IOHIDEventService`
+registrations (first-match notifications; services present at startup are ignored)
+whose `DeviceUsagePairs` include keyboard, which also catches a board's shared NKRO
+interface. An arrival makes the next fleet check due at once, then checks run every
+0.25 s for three seconds, because hidutil can list a new service a moment after IOKit
+reports it (`SessionCapsCheckSchedule`). The two-second check remains as a backstop,
+and covers everything if the notification cannot be registered. The worker logs
+`[SessionCaps] Keyboard arrival mapped in N ms`. It admits a new keyboard under the same eligibility and all-keys-up checks as at
 startup, and retires records for a removed service. A failed device is left
 uncovered and retried with backoff; an unavailable inventory leaves existing
 coverage intact and reports that it cannot be verified.
@@ -279,7 +284,8 @@ selection step.
 
 The shipped fleet passed unit tests and an opt-in live test that acquired and
 restored mappings on three attached USB keyboard services. A physical unplug/replug
-test is still needed to measure the first-press window and check whether macOS
+test is still needed to measure the first-press window (read the `arrival mapped in N
+ms` log line) and check whether macOS
 reapplies Modifier Keys preferences after arrival. A physical Caps press on the
 cl80 in NKRO mode would close the multi-interface question. The stuck-F18 VM
 result above narrows the investigation but does not reproduce the host incident.
