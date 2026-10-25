@@ -1,0 +1,843 @@
+import AppKit
+import KeyPathCore
+import KeyPathInstallationWizard
+import KeyPathRulesCore
+import SwiftUI
+
+enum FirstSuccessCapsStepLauncherPreparation: Equatable, Sendable {
+    case leaveAsIs
+    case disableCatalogDefault
+    case requiresRules
+}
+
+enum FirstSuccessOnboardingPresentationSource: Equatable, Sendable {
+    case firstRun
+    case replay
+}
+
+/// Presents the first-success learning path after a healthy first setup.
+@MainActor
+final class FirstSuccessOnboardingWindowController: NSWindowController {
+    private static var currentController: FirstSuccessOnboardingWindowController?
+    private let actionCoordinator: FirstSuccessOnboardingActionCoordinator
+
+    static var isPresented: Bool {
+        currentController != nil
+    }
+
+    static func show(
+        kanataViewModel: KanataViewModel?,
+        source: FirstSuccessOnboardingPresentationSource
+    ) {
+        guard FirstSuccessOnboardingGate.supportsTour() else { return }
+        if let currentController {
+            currentController.showWindow(nil)
+            currentController.window?.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let controller = FirstSuccessOnboardingWindowController(
+            kanataViewModel: kanataViewModel,
+            source: source
+        )
+        currentController = controller
+        // Keep floating keyboard surfaces behind the active learning path.
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
+        LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
+        controller.showWindow(nil)
+        FirstSuccessOnboardingGate.markPresented()
+    }
+
+    @discardableResult
+    static func bringPresentedTourToFront() -> Bool {
+        guard let currentController else { return false }
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
+        currentController.showWindow(nil)
+        currentController.window?.makeKeyAndOrderFront(nil)
+        return true
+    }
+
+    private init(
+        kanataViewModel: KanataViewModel?,
+        source: FirstSuccessOnboardingPresentationSource
+    ) {
+        let actionCoordinator = FirstSuccessOnboardingActionCoordinator()
+        let existingLauncher = kanataViewModel?.underlyingManager.rulesManager
+            .ruleCollections.first(where: {
+                $0.id == RuleCollectionIdentifier.launcher
+            })
+        let catalogLauncherConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+            .configuration
+        let launcherChoice = FirstSuccessLauncherChoiceModel(
+            occupiedCanonicalKeys: Self.occupiedLauncherKeys(
+                existing: existingLauncher,
+                catalogConfiguration: catalogLauncherConfiguration
+            )
+        )
+        let dialog = FirstSuccessOnboardingDialog(
+            actionCoordinator: actionCoordinator,
+            makeCapsLockEscape: {
+                if Self.usesNonMutatingVisualPreviewActions() {
+                    return await Self.previewActionResult()
+                }
+                guard let kanataViewModel else { return .failed }
+                let result = await Self.installCapsLockEscape(
+                    using: kanataViewModel,
+                    source: source
+                )
+                switch result {
+                case .applied, .alreadyConfigured:
+                    actionCoordinator.session.recordCapsLockHold(
+                        isHyper: Self.capsLockHoldIsHyper(
+                            in: kanataViewModel.underlyingManager.rulesManager.ruleCollections
+                        )
+                    )
+                case .savedButNotActive, .savedButNotActiveWithReason, .needsRules, .failed:
+                    break
+                }
+                return result
+            },
+            addHyperHold: {
+                if Self.usesNonMutatingVisualPreviewActions() {
+                    return await Self.previewActionResult()
+                }
+                guard let kanataViewModel else { return .failed }
+                return await Self.installQuickLauncher(using: kanataViewModel)
+            },
+            saveLauncherShortcut: { mapping in
+                if Self.usesNonMutatingVisualPreviewActions() {
+                    return await Self.previewActionResult()
+                }
+                guard let kanataViewModel else { return .failed }
+                return await Self.saveLauncherShortcut(
+                    mapping,
+                    using: kanataViewModel
+                )
+            },
+            finishInKeyboard: {
+                FirstSuccessOnboardingWindowController.dismiss()
+            },
+            dismiss: {
+                FirstSuccessOnboardingWindowController.dismiss()
+            },
+            launcherChoice: launcherChoice
+        )
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "KeyPath"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = FirstSuccessOnboardingStyle.initialBackgroundNSColor
+        window.isOpaque = true
+        window.isMovableByWindowBackground = false
+        window.contentMinSize = NSSize(width: 960, height: 520)
+        if let screen = window.screen ?? NSScreen.main {
+            let available = window.contentRect(forFrameRect: screen.visibleFrame).size
+            window.setContentSize(NSSize(
+                width: min(1120, available.width),
+                height: min(720, available.height)
+            ))
+        }
+        window.center()
+
+        self.actionCoordinator = actionCoordinator
+        super.init(window: window)
+        window.contentViewController = NSHostingController(rootView: dialog)
+        window.delegate = self
+        actionCoordinator.actionStateDidChange = { [weak window] isActionInFlight in
+            window?.standardWindowButton(.closeButton)?.isEnabled = !isActionInFlight
+        }
+    }
+
+    /// Debug-only seam for reviewing every visual state without replacing a
+    /// developer's live keyboard configuration. Production builds always use
+    /// the canonical PackInstaller actions above.
+    static func usesNonMutatingVisualPreviewActions(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        #if DEBUG
+            environment["KEYPATH_FIRST_SUCCESS_PREVIEW_ACTIONS"] == "1"
+        #else
+            false
+        #endif
+    }
+
+    /// Hold the applying scene long enough for installed-app visual QA to
+    /// inspect the causal Metal transition. This path exists only in DEBUG and
+    /// never writes keyboard state; production actions use their real save and
+    /// reload duration.
+    private static func previewActionResult() async -> FirstSuccessOnboardingSession.ActionResult {
+        try? await Task<Never, Never>.sleep(for: .seconds(8))
+        return .applied
+    }
+
+    static func dismiss() {
+        guard let controller = currentController else { return }
+        guard controller.actionCoordinator.canDismiss else {
+            NSSound.beep()
+            return
+        }
+        controller.close()
+        Self.currentController = nil
+    }
+
+    private static func installCapsLockEscape(
+        using viewModel: KanataViewModel,
+        source: FirstSuccessOnboardingPresentationSource
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        let manager = viewModel.underlyingManager.rulesManager
+
+        let catalogCollections = RuleCollectionCatalog().defaultCollections()
+        guard let catalogConfiguration = catalogCollections
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+            .configuration,
+            let catalogLauncherConfiguration = catalogCollections
+            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+            .configuration
+        else {
+            AppLogger.shared.error("❌ [FirstSuccessOnboarding] Required catalog collections are unavailable")
+            return .failed
+        }
+
+        let existingCapsLock = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })
+        let existingLauncher = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.launcher
+        })
+        let quickLauncherInstalled = await PackInstaller.shared.isInstalled(
+            packID: PackRegistry.launcher.id
+        )
+        let launcherPreparation = capsStepLauncherPreparation(
+            existing: existingLauncher,
+            catalogConfiguration: catalogLauncherConfiguration,
+            quickLauncherInstalled: quickLauncherInstalled,
+            source: source
+        )
+        guard launcherPreparation != .requiresRules else {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Existing Quick Launcher behavior left untouched"
+            )
+            return .needsRules
+        }
+
+        guard let configuration = escapeOnlyCapsLockConfiguration(
+            from: catalogConfiguration,
+            preservingHoldFrom: capsHoldConfigurationToPreserve(
+                existing: existingCapsLock,
+                quickLauncherInstalled: quickLauncherInstalled,
+                source: source
+            )
+        ) else {
+            AppLogger.shared.error("❌ [FirstSuccessOnboarding] Caps Lock catalog configuration is invalid")
+            return .failed
+        }
+
+        if let existing = existingCapsLock {
+            if capsLockAlreadyProvidesFirstWin(
+                existing: existing,
+                quickLauncherInstalled: quickLauncherInstalled
+            ) {
+                return await verifyLiveRuleApplication(
+                    using: viewModel,
+                    alreadyConfigured: true
+                )
+            }
+
+            if existing.isEnabled,
+               existing.configuration == configuration,
+               launcherPreparation != .disableCatalogDefault,
+               await PackInstaller.shared.isInstalled(packID: PackRegistry.capsLockToEscape.id)
+            {
+                return await verifyLiveRuleApplication(
+                    using: viewModel,
+                    alreadyConfigured: true
+                )
+            }
+
+            if capsLockRequiresRulesHandoff(
+                existing: existing,
+                catalogConfiguration: catalogConfiguration,
+                onboardingConfiguration: configuration
+            ) {
+                AppLogger.shared.log(
+                    "🛡️ [FirstSuccessOnboarding] Existing Caps Lock behavior left untouched"
+                )
+                return .needsRules
+            }
+        }
+
+        if onboardingConfigurationConflicts(
+            manager: manager,
+            collectionID: RuleCollectionIdentifier.capsLockRemap,
+            configuration: configuration
+        ) {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Caps Lock conflicts with an existing rule; leaving it untouched"
+            )
+            return .needsRules
+        }
+
+        return await installCapsLockEscapeTransaction(
+            manager: manager,
+            configuration: configuration,
+            disableCatalogLauncher: launcherPreparation == .disableCatalogDefault,
+            apply: {
+                await viewModel.underlyingManager.applyPersistedRuleChanges(recoverStoppedRuntime: true)
+            }
+        )
+    }
+
+    /// Keep runtime preparation inside the retained pack write. In particular, a
+    /// missing compatible Caps device must restore the previous collection,
+    /// launcher state, generated config and pack record before leaving the tour.
+    static func installCapsLockEscapeTransaction(
+        manager: RuleCollectionsManager,
+        configuration: RuleCollectionConfiguration,
+        disableCatalogLauncher: Bool,
+        installedPackTracker: InstalledPackTracker = .shared,
+        apply: @escaping @MainActor @Sendable () async -> ReloadResult
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        var application: ReloadResult?
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.capsLockToEscape,
+                collectionConfiguration: configuration,
+                autoResolveCollectionConflicts: false,
+                additionalCollectionIDsToDisable: disableCatalogLauncher
+                    ? [RuleCollectionIdentifier.launcher]
+                    : [],
+                manager: manager,
+                reloadHandler: {
+                    let result = await apply()
+                    // Recovery can call the handler again. Only the candidate's
+                    // outcome describes whether this onboarding action applied.
+                    if application == nil { application = result }
+                    return result
+                },
+                installedPackTracker: installedPackTracker
+            )
+        } catch {
+            AppLogger.shared.error("❌ [FirstSuccessOnboarding] Could not install Caps Lock Remap: \(error)")
+            return .failed
+        }
+        guard let application else { return .failed }
+        return onboardingActionResult(
+            for: application.disposition,
+            failureReason: application.errorMessage
+        )
+    }
+
+    static func capsLockRequiresRulesHandoff(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration,
+        onboardingConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        existing.configuration != catalogConfiguration
+            && existing.configuration != onboardingConfiguration
+    }
+
+    static func capsStepLauncherPreparation(
+        existing: RuleCollection?,
+        catalogConfiguration: RuleCollectionConfiguration,
+        quickLauncherInstalled: Bool,
+        source: FirstSuccessOnboardingPresentationSource = .firstRun
+    ) -> FirstSuccessCapsStepLauncherPreparation {
+        guard !quickLauncherInstalled,
+              let existing,
+              existing.isEnabled
+        else {
+            return .leaveAsIs
+        }
+
+        if source == .replay {
+            return .leaveAsIs
+        }
+
+        return existing.configuration == catalogConfiguration
+            ? .disableCatalogDefault
+            : .requiresRules
+    }
+
+    static func capsLockRequiresHyperRulesHandoff(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration,
+        escapeConfiguration: RuleCollectionConfiguration,
+        hyperConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        // Replaying step 1 preserves Hyper while adding the original Caps Lock
+        // option to the picker. That exact tour-produced configuration is safe
+        // too; comparing only to the catalog mistakes its extra option for a
+        // custom behavior and prevents reaching the app chooser.
+        let replayedHyperConfiguration = escapeOnlyCapsLockConfiguration(
+            from: catalogConfiguration,
+            preservingHoldFrom: hyperConfiguration
+        )
+        return existing.configuration != catalogConfiguration
+            && existing.configuration != escapeConfiguration
+            && existing.configuration != hyperConfiguration
+            && existing.configuration != replayedHyperConfiguration
+    }
+
+    static func capsLockAlreadyProvidesFirstWin(
+        existing: RuleCollection,
+        quickLauncherInstalled: Bool
+    ) -> Bool {
+        guard quickLauncherInstalled,
+              existing.isEnabled,
+              let tapHold = existing.configuration.tapHoldPickerConfig
+        else {
+            return false
+        }
+
+        return tapHold.selectedTapOutput == "esc"
+            && tapHold.selectedHoldOutput == "hyper"
+    }
+
+    static func capsLockHoldIsHyper(in collections: [RuleCollection]) -> Bool {
+        collections.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        })?.configuration.tapHoldPickerConfig?.selectedHoldOutput == "hyper"
+    }
+
+    static func capsHoldConfigurationToPreserve(
+        existing: RuleCollection?,
+        quickLauncherInstalled: Bool,
+        source: FirstSuccessOnboardingPresentationSource
+    ) -> RuleCollectionConfiguration? {
+        guard quickLauncherInstalled || source == .replay else { return nil }
+        return existing?.configuration
+    }
+
+    static func escapeOnlyCapsLockConfiguration(
+        from configuration: RuleCollectionConfiguration,
+        preservingHoldFrom existingConfiguration: RuleCollectionConfiguration? = nil
+    ) -> RuleCollectionConfiguration? {
+        guard let tapHold = configuration.tapHoldPickerConfig else { return nil }
+
+        var holdOptions = tapHold.holdOptions
+        if !holdOptions.contains(where: { $0.output == "caps" }) {
+            holdOptions.append(SingleKeyPreset(
+                output: "caps",
+                label: "⇪ Caps Lock",
+                description: "Keep the original Caps Lock action when the key is held",
+                icon: "capslock"
+            ))
+        }
+
+        let existingHoldOutput = existingConfiguration?
+            .tapHoldPickerConfig?
+            .selectedHoldOutput
+        // Step 1 owns only the tap action. Keep any supported hold action the
+        // person already has (notably Hyper for Quick Launcher) so replaying
+        // the tour cannot break an existing shortcut layer.
+        let selectedHoldOutput = existingHoldOutput.flatMap { output in
+            holdOptions.contains(where: { $0.output == output }) ? output : nil
+        } ?? "caps"
+
+        return .tapHoldPicker(TapHoldPickerConfig(
+            inputKey: tapHold.inputKey,
+            tapOptions: tapHold.tapOptions,
+            holdOptions: holdOptions,
+            selectedTapOutput: "esc",
+            selectedHoldOutput: selectedHoldOutput
+        ))
+    }
+
+    private static func installQuickLauncher(
+        using viewModel: KanataViewModel
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        let manager = viewModel.underlyingManager.rulesManager
+
+        guard let catalogConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.launcher })?
+            .configuration,
+            let emptyConfiguration = emptyQuickLauncherConfiguration(
+                from: catalogConfiguration
+            )
+        else {
+            AppLogger.shared.error(
+                "❌ [FirstSuccessOnboarding] Quick Launcher catalog configuration is unavailable"
+            )
+            return .failed
+        }
+
+        let existingLauncher = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.launcher
+        })
+        // An untouched catalog collection can already be enabled and contain
+        // example mappings. Onboarding starts that managed state empty so the
+        // first shortcut is genuinely the person's choice. A customized
+        // launcher remains byte-for-byte intact only when it already uses the
+        // Hyper-hold gesture this lesson teaches.
+        let shouldPreserveExistingLauncher = existingLauncher.map {
+            shouldPreserveLauncherConfiguration(
+                existing: $0,
+                catalogConfiguration: catalogConfiguration
+            )
+        } ?? false
+        let customizedLauncherBlocksTaughtGesture = existingLauncher.map {
+            customizedLauncherBlocksTaughtHyperGesture(
+                existing: $0,
+                catalogConfiguration: catalogConfiguration
+            )
+        } ?? false
+
+        if customizedLauncherBlocksTaughtGesture {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Existing Quick Launcher activation left untouched"
+            )
+            return .needsRules
+        }
+
+        if await PackInstaller.shared.isInstalled(packID: PackRegistry.launcher.id) {
+            guard await quickLauncherIsReady(using: viewModel) else { return .needsRules }
+
+            if shouldPreserveExistingLauncher {
+                return await verifyLiveRuleApplication(
+                    using: viewModel,
+                    alreadyConfigured: true
+                )
+            }
+
+            guard let freshLauncher = emptyConfiguration.launcherGridConfig else {
+                return .failed
+            }
+            let saved = await manager.applyLauncherConfig(
+                id: RuleCollectionIdentifier.launcher,
+                config: freshLauncher,
+                skipReload: true
+            )
+            guard saved,
+                  manager.ruleCollections.first(where: {
+                      $0.id == RuleCollectionIdentifier.launcher
+                  })?.configuration.launcherGridConfig == freshLauncher
+            else {
+                return .failed
+            }
+            return await verifyLiveRuleApplication(using: viewModel)
+        }
+        let launcherConfiguration = shouldPreserveExistingLauncher
+            ? existingLauncher?.configuration ?? emptyConfiguration
+            : emptyConfiguration
+
+        guard let capsCatalogConfiguration = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })?
+            .configuration,
+            let escapeConfiguration = escapeOnlyCapsLockConfiguration(
+                from: capsCatalogConfiguration
+            ),
+            let hyperConfiguration = PackRegistry.launcher.managedDefaults
+            .first(where: { $0.collectionID == RuleCollectionIdentifier.capsLockRemap })?
+            .defaultConfiguration
+        else {
+            AppLogger.shared.error(
+                "❌ [FirstSuccessOnboarding] Quick Launcher Hyper configuration is unavailable"
+            )
+            return .failed
+        }
+
+        if let capsLock = manager.ruleCollections.first(where: {
+            $0.id == RuleCollectionIdentifier.capsLockRemap
+        }) {
+            if capsLockRequiresHyperRulesHandoff(
+                existing: capsLock,
+                catalogConfiguration: capsCatalogConfiguration,
+                escapeConfiguration: escapeConfiguration,
+                hyperConfiguration: hyperConfiguration
+            ) {
+                AppLogger.shared.log(
+                    "🛡️ [FirstSuccessOnboarding] Existing Caps Lock hold behavior left untouched"
+                )
+                return .needsRules
+            }
+        }
+
+        if onboardingConfigurationConflicts(
+            manager: manager,
+            collectionID: RuleCollectionIdentifier.capsLockRemap,
+            configuration: hyperConfiguration
+        ) || onboardingConfigurationConflicts(
+            manager: manager,
+            collectionID: RuleCollectionIdentifier.launcher,
+            configuration: launcherConfiguration
+        ) {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Quick Launcher conflicts with an existing rule; leaving it untouched"
+            )
+            return .needsRules
+        }
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.launcher,
+                collectionConfiguration: launcherConfiguration,
+                managedDefaultPolicy: .useRecommended,
+                manager: manager,
+                skipFinalReload: true
+            )
+        } catch {
+            AppLogger.shared.error("❌ [FirstSuccessOnboarding] Could not install Quick Launcher: \(error)")
+            return .failed
+        }
+
+        guard await quickLauncherIsReady(using: viewModel),
+              manager.ruleCollections.first(where: {
+                  $0.id == RuleCollectionIdentifier.launcher
+              })?.configuration == launcherConfiguration
+        else {
+            return .failed
+        }
+        return await verifyLiveRuleApplication(using: viewModel)
+    }
+
+    static func emptyQuickLauncherConfiguration(
+        from configuration: RuleCollectionConfiguration
+    ) -> RuleCollectionConfiguration? {
+        guard var launcher = configuration.launcherGridConfig else { return nil }
+        launcher.activationMode = .holdHyper
+        launcher.hyperTriggerMode = .hold
+        launcher.mappings = []
+        return .launcherGrid(launcher)
+    }
+
+    static func shouldPreserveLauncherConfiguration(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        existing.configuration != catalogConfiguration
+    }
+
+    static func occupiedLauncherKeys(
+        existing: RuleCollection?,
+        catalogConfiguration: RuleCollectionConfiguration?
+    ) -> Set<String> {
+        guard let existing else { return [] }
+        let shouldPreserve = catalogConfiguration.map {
+            shouldPreserveLauncherConfiguration(
+                existing: existing,
+                catalogConfiguration: $0
+            )
+        } ?? true
+        guard shouldPreserve else { return [] }
+        return Set(existing.configuration.launcherGridConfig?.mappings.map(\.key) ?? [])
+    }
+
+    static func launcherUsesTaughtHyperGesture(
+        _ configuration: RuleCollectionConfiguration
+    ) -> Bool {
+        guard let launcher = configuration.launcherGridConfig else { return false }
+        return launcher.activationMode == .holdHyper
+            && launcher.hyperTriggerMode == .hold
+    }
+
+    static func customizedLauncherBlocksTaughtHyperGesture(
+        existing: RuleCollection,
+        catalogConfiguration: RuleCollectionConfiguration
+    ) -> Bool {
+        shouldPreserveLauncherConfiguration(
+            existing: existing,
+            catalogConfiguration: catalogConfiguration
+        ) && !launcherUsesTaughtHyperGesture(existing.configuration)
+    }
+
+    static func launcherConfiguration(
+        appending mapping: LauncherMapping,
+        to configuration: RuleCollectionConfiguration
+    ) -> LauncherGridConfig? {
+        guard var launcher = configuration.launcherGridConfig else { return nil }
+        let normalizedKey = LauncherGridConfig.normalizeKey(mapping.key)
+        guard LauncherGridConfig.isValidKey(normalizedKey),
+              !launcher.mappings.contains(where: {
+                  $0.id != mapping.id
+                      && LauncherGridConfig.normalizeKey($0.key) == normalizedKey
+              })
+        else {
+            return nil
+        }
+
+        var normalizedMapping = mapping
+        normalizedMapping.key = normalizedKey
+        if let existingIndex = launcher.mappings.firstIndex(where: { $0.id == mapping.id }) {
+            launcher.mappings[existingIndex] = normalizedMapping
+        } else {
+            launcher.mappings.append(normalizedMapping)
+        }
+        launcher.hasSeenWelcome = true
+        return launcher
+    }
+
+    private static func saveLauncherShortcut(
+        _ mapping: LauncherMapping,
+        using viewModel: KanataViewModel
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        let manager = viewModel.underlyingManager.rulesManager
+        guard await quickLauncherIsReady(using: viewModel),
+              let launcherIndex = manager.ruleCollections.firstIndex(where: {
+                  $0.id == RuleCollectionIdentifier.launcher
+              })
+        else {
+            return .failed
+        }
+
+        let currentCollection = manager.ruleCollections[launcherIndex]
+        let normalizedKey = LauncherGridConfig.normalizeKey(mapping.key)
+        let existingMappings = currentCollection.configuration.launcherGridConfig?.mappings ?? []
+        if let existingMapping = existingMappings.first(where: { $0.id == mapping.id }),
+           LauncherGridConfig.normalizeKey(existingMapping.key) == normalizedKey,
+           existingMapping.action == mapping.action,
+           existingMapping.isEnabled
+        {
+            return await verifyLiveRuleApplication(
+                using: viewModel,
+                alreadyConfigured: true
+            )
+        }
+
+        if let existingMapping = existingMappings.first(where: {
+            $0.id != mapping.id
+                && LauncherGridConfig.normalizeKey($0.key) == normalizedKey
+        }) {
+            guard existingMapping.action == mapping.action,
+                  existingMapping.isEnabled
+            else {
+                return .needsRules
+            }
+            return await verifyLiveRuleApplication(
+                using: viewModel,
+                alreadyConfigured: true
+            )
+        }
+
+        guard let desiredConfiguration = launcherConfiguration(
+            appending: mapping,
+            to: currentCollection.configuration
+        ) else {
+            return .failed
+        }
+
+        var candidate = currentCollection
+        candidate.configuration = .launcherGrid(desiredConfiguration)
+        candidate.isEnabled = true
+        if manager.conflictInfo(for: candidate) != nil {
+            AppLogger.shared.log(
+                "🛡️ [FirstSuccessOnboarding] Selected launcher key conflicts with an existing rule"
+            )
+            return .needsRules
+        }
+
+        let saved = await manager.applyLauncherConfig(
+            id: RuleCollectionIdentifier.launcher,
+            config: desiredConfiguration,
+            skipReload: true
+        )
+        guard saved,
+              manager.ruleCollections.first(where: {
+                  $0.id == RuleCollectionIdentifier.launcher
+              })?.configuration.launcherGridConfig == desiredConfiguration
+        else {
+            return .failed
+        }
+
+        return await verifyLiveRuleApplication(using: viewModel)
+    }
+
+    static func onboardingConfigurationConflicts(
+        manager: RuleCollectionsManager,
+        collectionID: UUID,
+        configuration: RuleCollectionConfiguration
+    ) -> Bool {
+        let catalogCollection = RuleCollectionCatalog().defaultCollections()
+            .first(where: { $0.id == collectionID })
+        guard var candidate = manager.ruleCollections.first(where: {
+            $0.id == collectionID
+        }) ?? catalogCollection else {
+            return true
+        }
+
+        candidate.isEnabled = true
+        candidate.configuration = configuration
+        return manager.conflictInfo(for: candidate) != nil
+    }
+
+    static func onboardingActionResult(
+        for disposition: ReloadDisposition,
+        alreadyConfigured: Bool = false,
+        failureReason: String? = nil
+    ) -> FirstSuccessOnboardingSession.ActionResult {
+        guard disposition == .applied else {
+            if disposition != .pending,
+               let reason = failureReason?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !reason.isEmpty
+            {
+                return .savedButNotActiveWithReason(reason)
+            }
+            return .savedButNotActive
+        }
+        return alreadyConfigured ? .alreadyConfigured : .applied
+    }
+
+    private static func verifyLiveRuleApplication(
+        using viewModel: KanataViewModel,
+        alreadyConfigured: Bool = false
+    ) async -> FirstSuccessOnboardingSession.ActionResult {
+        let result = await viewModel.underlyingManager.applyPersistedRuleChanges(recoverStoppedRuntime: true)
+        return onboardingActionResult(
+            for: result.disposition,
+            alreadyConfigured: alreadyConfigured,
+            failureReason: result.errorMessage
+        )
+    }
+
+    private static func quickLauncherIsReady(using viewModel: KanataViewModel) async -> Bool {
+        let manager = viewModel.underlyingManager.rulesManager
+        guard await PackInstaller.shared.isInstalled(packID: PackRegistry.launcher.id),
+              let capsLock = manager.ruleCollections.first(where: {
+                  $0.id == RuleCollectionIdentifier.capsLockRemap
+              }),
+              let launcher = manager.ruleCollections.first(where: {
+                  $0.id == RuleCollectionIdentifier.launcher
+              })
+        else {
+            return false
+        }
+
+        return capsLock.isEnabled
+            && capsLock.configuration.tapHoldPickerConfig?.selectedTapOutput == "esc"
+            && capsLock.configuration.tapHoldPickerConfig?.selectedHoldOutput == "hyper"
+            && launcher.isEnabled
+            && launcherUsesTaughtHyperGesture(launcher.configuration)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+extension FirstSuccessOnboardingWindowController: NSWindowDelegate {
+    func windowShouldClose(_: NSWindow) -> Bool {
+        guard actionCoordinator.canDismiss else {
+            NSSound.beep()
+            return false
+        }
+        return true
+    }
+
+    func windowWillClose(_: Notification) {
+        let overlay = LiveKeyboardOverlayController.shared
+        overlay.resetSettingsAutoHideGuard()
+        overlay.setOnboardingCompleted(true)
+        overlay.showForStartup(bypassHiddenCheck: true, userRequested: true)
+        if !overlay.uiState.isInspectorOpen {
+            overlay.toggleInspectorPanel()
+        }
+        Self.currentController = nil
+    }
+}

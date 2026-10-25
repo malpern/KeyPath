@@ -1,5 +1,7 @@
 import Foundation
+import KeyPathCore
 import KeyPathDaemonLifecycle
+import KeyPathPermissions
 import SwiftUI
 
 // MARK: - Core Types
@@ -13,7 +15,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     case welcome = "Welcome"
     case summary = "Summary"
     case helper = "Privileged Helper"
-    case fullDiskAccess = "Full Disk Access"
     case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
@@ -30,7 +31,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .welcome: "Welcome to KeyPath"
         case .summary: "Setup Overview"
         case .helper: "Privileged Helper Installation"
-        case .fullDiskAccess: "Full Disk Access (Optional)"
         case .conflicts: "Resolve System Conflicts"
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "Accessibility Permission"
@@ -48,7 +48,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .welcome: "welcome"
         case .summary: "overview"
-        case .fullDiskAccess: "full-disk-access"
         case .conflicts: "conflicts"
         case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
@@ -73,7 +72,6 @@ public extension WizardPage {
         .stopExternalKanata,
         .karabinerImport,
         .helper,
-        .fullDiskAccess,
         .conflicts,
         .accessibility,
         .inputMonitoring,
@@ -114,7 +112,7 @@ public enum InstallationStatus {
     case completed
     case warning // Partial success or degraded state (e.g., installed but unhealthy)
     case failed
-    case unverified // Cannot verify status (e.g., no FDA to read TCC database)
+    case unverified // Permission evidence is unavailable
 }
 
 /// Launch failure status for Kanata service failures
@@ -355,6 +353,7 @@ public struct WizardNavigationState: Sendable {
 
 /// Result of system state detection
 public struct SystemStateResult: Sendable {
+    public let backend: KanataRuntimeBackend
     public let state: WizardSystemState
     public let issues: [WizardIssue]
     public let autoFixActions: [AutoFixAction]
@@ -366,6 +365,9 @@ public struct SystemStateResult: Sendable {
     /// `issues`; wizard clients must not re-probe helper state while routing.
     public let helperInstalled: Bool
     public let helperNeedsApproval: Bool
+    /// Permission facts from the same canonical capture as `state` and `issues`.
+    /// Optional for synthetic/error results that have no permission snapshot.
+    public let permissions: PermissionOracle.Snapshot?
 
     public init(
         state: WizardSystemState, issues: [WizardIssue], autoFixActions: [AutoFixAction],
@@ -374,7 +376,9 @@ public struct SystemStateResult: Sendable {
         stateMatrixPlan: [String] = [],
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         helperInstalled: Bool = false,
-        helperNeedsApproval: Bool = false
+        helperNeedsApproval: Bool = false,
+        backend: KanataRuntimeBackend = .selected,
+        permissions: PermissionOracle.Snapshot? = nil
     ) {
         self.state = state
         self.issues = issues
@@ -385,6 +389,8 @@ public struct SystemStateResult: Sendable {
         self.captureStatus = captureStatus
         self.helperInstalled = helperInstalled
         self.helperNeedsApproval = helperNeedsApproval
+        self.backend = backend
+        self.permissions = permissions
     }
 
     public var hasBlockingIssues: Bool {

@@ -1,7 +1,8 @@
 import ArgumentParser
 
-struct Help: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
+public struct Help: AsyncParsableCommand {
+    public init() {}
+    public static let configuration = CommandConfiguration(
         commandName: "help-topics",
         abstract: "Extended help and API discovery",
         subcommands: [

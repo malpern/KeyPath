@@ -14,6 +14,11 @@ import KeyPathRulesCore
 public final class PackInstaller {
     public static let shared = PackInstaller()
 
+    enum ManagedDefaultInstallPolicy: Equatable, Sendable {
+        case promptWhenCustomized
+        case useRecommended
+    }
+
     #if DEBUG
         /// Test-only overrides for dialog responses. When set, bypasses NSAlert
         /// and returns this value instead.
@@ -36,6 +41,9 @@ public final class PackInstaller {
         /// the dependency display name and a website URL the UI can
         /// surface as a "Get it →" CTA.
         case dependencyMissing(name: String, websiteURL: URL)
+        /// Admission found something the user must decide (or that blocks).
+        /// The UI shows the preview and calls `install` again with `.confirmed`.
+        case needsReview(PackInstallPreview)
 
         public var errorDescription: String? {
             switch self {
@@ -48,11 +56,94 @@ public final class PackInstaller {
                 return "Conflicts with \(names). Turn that pack off first to enable this one."
             case let .dependencyMissing(name, _):
                 return "\(name) isn't installed."
+            case let .needsReview(preview):
+                return preview.items.map(\.presentation.title).joined(separator: "; ")
             }
         }
     }
 
     // MARK: - Public API
+
+    /// Recover before reading installed state, including metadata-only operations
+    /// that would otherwise overwrite the pending transaction's record revision.
+    func recoverAndValidateState(manager: RuleCollectionsManager, tracker: InstalledPackTracker,
+                                 permit: ConfigurationOperationGate.Permit) async throws
+    {
+        try await manager.configurationService.recoverPendingAppKeymapWrite(mutationPermit: permit)
+        let recovered = try await manager.configurationService.recoverPendingRuleWrite(
+            collectionStore: manager.ruleCollectionStore, customStore: manager.customRulesStore,
+            mutationPermit: permit, installedPackTracker: tracker,
+            preferenceDefaults: manager.preferencesService.persistenceDefaults
+        )
+        manager.preferencesService.reloadLeaderKeyPreference(from: manager.preferencesService.persistenceDefaults)
+        do {
+            try await manager.refreshRuleStateAtMutationAdmission(recovered: recovered, mutationPermit: permit)
+        } catch let error as KeyPathError {
+            if case let .configuration(.loadFailed(reason)) = error {
+                throw InstallError.saveFailed(reason)
+            }
+            throw error
+        }
+        try await tracker.validateForMutation()
+    }
+
+    /// Change only a visual capability's installed record. Legacy Rules toggles
+    /// use this narrower operation; catalog installation still enforces its
+    /// dependency/conflict gates before entering here. Nonvisual packs must use install/uninstall.
+    @discardableResult
+    func setVisualPackEnabled(
+        _ pack: Pack, enabled: Bool, quickSettingValues: [String: Int]? = nil,
+        manager: RuleCollectionsManager, installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
+    ) async throws -> InstalledPackRecord? {
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            guard pack.visualOnly else { throw InstallError.saveFailed("This operation requires a visual-only pack") }
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
+            let previous = await installedPackTracker.record(for: pack.id)
+            let record: InstalledPackRecord?
+            if enabled {
+                let next = InstalledPackRecord(packID: pack.id, version: pack.version, installedAt: Date(),
+                                               quickSettingValues: quickSettingValues ?? previous?.quickSettingValues ?? [:])
+                do { try await installedPackTracker.upsert(next) }
+                catch {
+                    guard await restoreInstallRecord(previous, packID: pack.id, installedPackTracker: installedPackTracker) else {
+                        throw InstallError.saveFailed("visual-only installed-pack record could not be saved and the previous state could not be fully restored")
+                    }
+                    throw error
+                }
+                record = next
+            } else {
+                try await installedPackTracker.remove(packID: pack.id)
+                record = nil
+            }
+            // Settle the capability only after its record commits, before releasing admission.
+            if installedPackTracker === InstalledPackTracker.shared, pack.id == PackRegistry.keystrokeHistory.id {
+                KeystrokeHistoryService.shared.applyPackState(enabled)
+            }
+            return record
+        }
+    }
+
+    /// Repair the existing enabled-collection/missing-record case using persisted
+    /// sources under admission. Never turn a failed write into an installed result.
+    func reconcileInstallRecord(
+        for pack: Pack, manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker = .shared
+    ) async throws -> InstalledPackRecord? {
+        try await manager.configurationService.operationGate.withOperation { @MainActor permit in
+            try await self.recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
+            if let existing = await installedPackTracker.record(for: pack.id) { return existing }
+            guard let collectionID = pack.associatedCollectionID else { return nil }
+            let loaded = await manager.ruleCollectionStore.loadCollectionsDetailed()
+            guard !loaded.wasFullReset, loaded.failedCollectionNames.isEmpty else {
+                throw InstallError.saveFailed("Rule collections could not be read completely")
+            }
+            guard loaded.collections.contains(where: { $0.id == collectionID && $0.isEnabled }) else { return nil }
+            let record = InstalledPackRecord(packID: pack.id, version: pack.version, installedAt: Date(), quickSettingValues: [:])
+            try await installedPackTracker.upsert(record)
+            return record
+        }
+    }
 
     /// Install a pack. Expands its binding templates into `CustomRule`s
     /// tagged with the pack's id, adds them to the user's rules, and
@@ -61,215 +152,260 @@ public final class PackInstaller {
     /// - Parameter pack: the pack to install.
     /// - Parameter quickSettingValues: user-chosen values for the pack's
     ///   quick settings. Missing keys fall back to the pack's defaults.
+    /// - Parameter collectionConfiguration: An explicit configuration for the
+    ///   pack's associated collection. Collection-backed and system packs apply
+    ///   it atomically with enabling the collection.
+    /// - Parameter managedDefaultPolicy: Controls whether a system pack asks
+    ///   before replacing a customized managed collection. Onboarding can use
+    ///   `.useRecommended` after the user has explicitly approved the change.
+    /// - Parameter autoResolveCollectionConflicts: Whether a collection-backed
+    ///   pack may automatically disable conflicting rules while it is enabled.
+    /// - Parameter additionalCollectionIDsToDisable: Related catalog
+    ///   collections to turn off in the same collection-backed transaction.
     /// - Parameter manager: the app's RuleCollectionsManager. Required.
+    /// - Parameter skipFinalReload: Persist and validate the resulting config
+    ///   without notifying the runtime; the caller owns the live reload.
+    /// - Parameter reloadHandler: Optional application callback kept inside the
+    ///   retained write, including rollback. Used by onboarding to recover a
+    ///   stopped runtime without committing a rejected candidate first.
     /// - Returns: the install record persisted for this pack.
     @discardableResult
     func install(
         _ pack: Pack,
         quickSettingValues: [String: Int] = [:],
+        collectionConfiguration: RuleCollectionConfiguration? = nil,
+        managedDefaultPolicy: ManagedDefaultInstallPolicy = .promptWhenCustomized,
+        autoResolveCollectionConflicts: Bool = true,
+        additionalCollectionIDsToDisable: Set<UUID> = [],
         manager: RuleCollectionsManager,
-        skipFinalReload: Bool = false
+        skipFinalReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
+        installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        admission: PackInstallAdmission = .unchecked
     ) async throws -> InstalledPackRecord {
-        AppLogger.shared.log(
-            "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
-        )
-
-        try await enforcePreInstallGates(for: pack, manager: manager)
-
-        // Resolve effective quick-setting values (user-provided ∪ defaults).
-        let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
-
-        // Visual-only packs (e.g. KindaVim Mode Display) don't touch the
-        // kanata config at all — install just persists the tracker record
-        // so other parts of the app (overlay, mode monitor) can react to
-        // "this pack is active". No collection toggle, no reload.
-        if pack.visualOnly {
-            let record = InstalledPackRecord(
-                packID: pack.id,
-                version: pack.version,
-                installedAt: Date(),
-                quickSettingValues: resolvedSettings
-            )
-            try await InstalledPackTracker.shared.upsert(record)
-            AppLogger.shared.log(
-                "✅ [PackInstaller] Installed visual-only pack '\(pack.name)' (no kanata side effects)"
-            )
-            return record
-        }
-
-        // System packs batch all collection changes into a single config regen.
-        if pack.isSystemPack {
-            let record = InstalledPackRecord(
-                packID: pack.id,
-                version: pack.version,
-                installedAt: Date(),
-                quickSettingValues: resolvedSettings
-            )
-            do {
-                try await applyManagedDefaults(pack: pack, manager: manager)
-            } catch {
-                try? await InstalledPackTracker.shared.remove(packID: pack.id)
-                throw error
+        var additionalCollectionIDsToDisable = additionalCollectionIDsToDisable
+        var rulesToDisable: Set<UUID> = []
+        switch admission {
+        case .checked:
+            let preview = await admissionPreview(for: pack, manager: manager, installedPackTracker: installedPackTracker)
+            if preview.requiresConfirmation { throw InstallError.needsReview(preview) }
+        case let .confirmed(collections, rules, packs):
+            for other in packs.sorted() {
+                try await uninstall(packID: other, manager: manager, installedPackTracker: installedPackTracker,
+                                    mutationPermit: mutationPermit)
             }
-            try await InstalledPackTracker.shared.upsert(record)
-            AppLogger.shared.log(
-                "✅ [PackInstaller] Installed system pack '\(pack.name)'"
-            )
-            return record
+            additionalCollectionIDsToDisable.formUnion(collections)
+            rulesToDisable = rules
+            // The user may have chosen to proceed with a block they can't fix here
+            // (e.g. a missing app); refuse anything still blocking after their choices.
+            let preview = await admissionPreview(for: pack, manager: manager, installedPackTracker: installedPackTracker,
+                                                 ignoringCollections: collections, ignoringRules: rules)
+            if preview.isBlocked { throw InstallError.needsReview(preview) }
+        case .unchecked:
+            if let id = pack.associatedCollectionID, let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: id) {
+                throw InstallError.saveFailed(reason)
+            }
         }
+        let autoResolveCollectionConflicts = autoResolveCollectionConflicts
+        return try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
+            AppLogger.shared.log(
+                "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
+            )
 
-        // Collection-backed packs (e.g. Home Row Mods) don't generate custom
-        // rules — they just toggle the built-in RuleCollection on.
-        if let collectionID = pack.associatedCollectionID {
-            let ok = await manager.toggleCollection(id: collectionID, isEnabled: true, autoResolveConflicts: true, bypassOwnershipCheck: true)
-            if !ok {
-                throw InstallError.saveFailed("could not enable associated rule collection")
+            try await enforcePreInstallGates(
+                for: pack,
+                manager: manager,
+                installedPackTracker: installedPackTracker
+            )
+            for id in rulesToDisable {
+                if let index = manager.customRules.firstIndex(where: { $0.id == id }) {
+                    manager.customRules[index].isEnabled = false
+                }
             }
 
-            let record = InstalledPackRecord(
-                packID: pack.id,
-                version: pack.version,
-                installedAt: Date(),
-                quickSettingValues: resolvedSettings
-            )
-            try await InstalledPackTracker.shared.upsert(record)
-            AppLogger.shared.log(
-                "✅ [PackInstaller] Installed pack '\(pack.name)' via collection toggle (id=\(collectionID))"
-            )
-            return record
-        }
+            // Resolve effective quick-setting values (user-provided ∪ defaults).
+            let resolvedSettings = resolveQuickSettings(pack: pack, overrides: quickSettingValues)
 
-        // Build CustomRule entries from templates.
-        let rules = renderBindings(for: pack, quickSettings: resolvedSettings)
+            // Visual-only packs (e.g. KindaVim Mode Display) don't touch the
+            // kanata config at all — install just persists the tracker record
+            // so other parts of the app (overlay, mode monitor) can react to
+            // "this pack is active". No collection toggle, no reload.
+            if pack.visualOnly {
+                guard let record = try await setVisualPackEnabled(pack, enabled: true, quickSettingValues: resolvedSettings,
+                                                                  manager: manager, installedPackTracker: installedPackTracker,
+                                                                  mutationPermit: permit)
+                else { throw InstallError.saveFailed("Visual pack activation returned no installed record") }
+                return record
+            }
 
-        // Append rules in one batch: use skipReload=true for all but the
-        // last, so we only regenerate the config file once at the end.
-        // Callers that chain an immediate edit after install can pass
-        // `skipFinalReload: true` to suppress even the last reload, so a
-        // followup `updateTapHold` fires exactly one reload for the
-        // combined result (and doesn't trip the TCP reload cooldown).
-        for (index, rule) in rules.enumerated() {
-            let isLast = (index == rules.count - 1)
-            let suppressReload = !isLast || skipFinalReload
-            let ok = await manager.saveCustomRule(rule, skipReload: suppressReload)
-            if !ok {
-                AppLogger.shared.log(
-                    "❌ [PackInstaller] Failed to save rule \(index + 1)/\(rules.count) for pack '\(pack.id)'"
+            // The pre-install snapshot travels inside the journaled record.
+            if pack.isSystemPack {
+                let before = manager.snapshotRuleState()
+                let managedSnapshot: PackCollectionSnapshot
+                do {
+                    managedSnapshot = try await prepareManagedDefaults(
+                        pack: pack, manager: manager, policy: managedDefaultPolicy,
+                        associatedCollectionConfiguration: collectionConfiguration
+                    )
+                } catch {
+                    restorePreparedRuleState(before, manager: manager)
+                    throw error
+                }
+                let record = InstalledPackRecord(packID: pack.id, version: pack.version,
+                                                 installedAt: Date(), quickSettingValues: resolvedSettings,
+                                                 managedCollectionSnapshot: managedSnapshot)
+                manager.refreshLayerIndicatorState()
+                try await commitPreparedPackRules(manager: manager, snapshot: before,
+                                                  record: .init(tracker: installedPackTracker, record: record),
+                                                  skipReload: skipFinalReload, reloadHandler: reloadHandler, permit: permit)
+                AppLogger.shared.log("✅ [PackInstaller] Installed system pack '\(pack.name)'")
+                return record
+            }
+
+            // Commit the collection and installation record as one revision.
+            if let collectionID = pack.associatedCollectionID {
+                let record = InstalledPackRecord(
+                    packID: pack.id, version: pack.version,
+                    installedAt: Date(), quickSettingValues: resolvedSettings
                 )
-                // Roll back: remove whatever got added so far.
-                await rollbackPartialInstall(packID: pack.id, manager: manager)
-                throw InstallError.saveFailed("rule \(index + 1) of \(rules.count) could not be saved")
+                let result = await manager.toggleCollectionResult(
+                    id: collectionID,
+                    isEnabled: true,
+                    autoResolveConflicts: autoResolveCollectionConflicts,
+                    bypassOwnershipCheck: true,
+                    configurationOverride: collectionConfiguration,
+                    additionalCollectionIDsToDisable: additionalCollectionIDsToDisable,
+                    skipReload: skipFinalReload,
+                    reloadHandler: reloadHandler,
+                    packRecord: .init(tracker: installedPackTracker, record: record),
+                    mutationPermit: permit
+                )
+                guard result.success else {
+                    throw InstallError.saveFailed(result.error?.localizedDescription ?? "could not enable associated rule collection")
+                }
+                AppLogger.shared.log(
+                    "✅ [PackInstaller] Installed pack '\(pack.name)' via collection toggle (id=\(collectionID))"
+                )
+                return record
             }
+
+            // Prepare the entire custom-rule pack before writing. The metadata and
+            // all rules remain one recoverable revision through runtime application.
+            let ruleStateSnapshot = manager.snapshotRuleState()
+            let rules = renderBindings(for: pack, quickSettings: resolvedSettings)
+            for (index, rule) in rules.enumerated() {
+                guard await manager.updateCustomRuleInMemory(rule, mutationPermit: permit) else {
+                    manager.ruleCollections = ruleStateSnapshot.collections
+                    manager.customRules = ruleStateSnapshot.customRules
+                    manager.refreshLayerIndicatorState()
+                    throw InstallError.saveFailed("rule \(index + 1) of \(rules.count) could not be prepared")
+                }
+            }
+            let record = InstalledPackRecord(packID: pack.id, version: pack.version,
+                                             installedAt: Date(), quickSettingValues: resolvedSettings)
+            try await commitPreparedPackRules(manager: manager, snapshot: ruleStateSnapshot,
+                                              record: .init(tracker: installedPackTracker, record: record),
+                                              skipReload: skipFinalReload, reloadHandler: reloadHandler, permit: permit)
+
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
+            )
+            return record
         }
-
-        // Record the install.
-        let record = InstalledPackRecord(
-            packID: pack.id,
-            version: pack.version,
-            installedAt: Date(),
-            quickSettingValues: resolvedSettings
-        )
-        try await InstalledPackTracker.shared.upsert(record)
-
-        AppLogger.shared.log(
-            "✅ [PackInstaller] Installed pack '\(pack.name)': \(rules.count) binding(s)"
-        )
-        return record
     }
 
     /// Uninstall a pack. Removes every `CustomRule` tagged with this pack's
     /// id, regenerates the config, and drops the install record.
     func uninstall(
         packID: String,
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
+            AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
 
-        // Visual-only packs just clear the tracker record; no kanata
-        // changes to revert.
-        if let pack = PackRegistry.pack(id: packID), pack.visualOnly {
-            try await InstalledPackTracker.shared.remove(packID: packID)
-            AppLogger.shared.log(
-                "✅ [PackInstaller] Uninstalled visual-only pack '\(packID)'"
-            )
-            return
-        }
+            // Visual-only packs just clear the tracker record; no kanata
+            // changes to revert.
+            if let pack = PackRegistry.pack(id: packID), pack.visualOnly {
+                try await setVisualPackEnabled(pack, enabled: false, manager: manager,
+                                               installedPackTracker: installedPackTracker, mutationPermit: permit)
+                return
+            }
 
-        // System packs batch all collection changes into a single config regen.
-        if let pack = PackRegistry.pack(id: packID), pack.isSystemPack {
-            let originalCollections = manager.ruleCollections
-            let didRestore = await restoreOrKeepOnUninstall(pack: pack, manager: manager)
-            if let collectionID = pack.associatedCollectionID,
-               let i = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
+            if let pack = PackRegistry.pack(id: packID), pack.isSystemPack {
+                let before = manager.snapshotRuleState()
+                let installed = await installedPackTracker.record(for: packID)
+                do {
+                    let didRestore = try await restoreOrKeepOnUninstall(pack: pack, manager: manager,
+                                                                        installedSnapshot: installed?.managedCollectionSnapshot)
+                    if let collectionID = pack.associatedCollectionID,
+                       let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
+                    {
+                        manager.ruleCollections[index].isEnabled = false
+                    }
+                    manager.refreshLayerIndicatorState()
+                    let candidate = manager.snapshotRuleState()
+                    let removal = InstalledPackTracker.RecordChange(tracker: installedPackTracker, removing: packID)
+                    var result = await savePreparedPackRules(manager: manager, snapshot: before, record: removal, permit: permit)
+                    // Preserve the existing known-conflict fallback, but only for
+                    // generation conflicts, never for runtime or file failures.
+                    if !result.success, didRestore,
+                       let error = result.error as? KeyPathError,
+                       case .configuration(.mappingConflicts) = error
+                    {
+                        restorePreparedRuleState(candidate, manager: manager)
+                        if disableRestoreConflictCollections(for: pack, manager: manager) {
+                            result = await savePreparedPackRules(manager: manager, snapshot: before, record: removal, permit: permit)
+                        }
+                    }
+                    guard result.success else {
+                        throw InstallError.saveFailed(result.error?.localizedDescription ?? "could not apply managed collection restore")
+                    }
+                    removeManagedSnapshot(for: pack)
+                    AppLogger.shared.log("✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(didRestore))")
+                } catch {
+                    restorePreparedRuleState(before, manager: manager)
+                    throw error
+                }
+                return
+            }
+
+            // Collection-backed packs uninstall by disabling the associated
+            // built-in collection; they don't have their own CustomRules to
+            // remove.
+            if let pack = PackRegistry.pack(id: packID),
+               let collectionID = pack.associatedCollectionID
             {
-                manager.ruleCollections[i].isEnabled = false
-            }
-
-            var applied = await manager.regenerateConfigFromCollections()
-            if !applied, didRestore, disableRestoreConflictCollections(for: pack, manager: manager) {
+                let result = await manager.toggleCollectionResult(id: collectionID, isEnabled: false, bypassOwnershipCheck: true,
+                                                                  packRecord: .init(tracker: installedPackTracker, removing: packID), mutationPermit: permit)
+                guard result.success else {
+                    throw InstallError.saveFailed(result.error?.localizedDescription ?? "could not disable associated rule collection")
+                }
                 AppLogger.shared.log(
-                    "⚠️ [PackInstaller] Retrying managed restore for '\(packID)' after disabling install-conflict collections"
+                    "✅ [PackInstaller] Uninstalled pack '\(packID)' via collection toggle off (id=\(collectionID))"
                 )
-                applied = await manager.regenerateConfigFromCollections()
+                return
             }
 
-            guard applied else {
-                manager.ruleCollections = originalCollections
-                throw InstallError.saveFailed("could not apply managed collection restore")
+            let snapshot = manager.snapshotRuleState()
+            let packRules = snapshot.customRules.filter { $0.packSource == packID }
+            guard !packRules.isEmpty else {
+                try await installedPackTracker.remove(packID: packID)
+                return
             }
-            removeManagedSnapshot(for: pack)
-            try await InstalledPackTracker.shared.remove(packID: packID)
+            manager.customRules.removeAll { $0.packSource == packID }
+            try await commitPreparedPackRules(manager: manager, snapshot: snapshot,
+                                              record: .init(tracker: installedPackTracker, removing: packID),
+                                              permit: permit)
+
             AppLogger.shared.log(
-                "✅ [PackInstaller] Uninstalled system pack '\(packID)' (restored=\(didRestore))"
+                "✅ [PackInstaller] Uninstalled pack '\(packID)': removed \(packRules.count) rule(s)"
             )
-            return
         }
-
-        // Collection-backed packs uninstall by disabling the associated
-        // built-in collection; they don't have their own CustomRules to
-        // remove.
-        if let pack = PackRegistry.pack(id: packID),
-           let collectionID = pack.associatedCollectionID
-        {
-            let ok = await manager.toggleCollection(id: collectionID, isEnabled: false, bypassOwnershipCheck: true)
-            guard ok else {
-                throw InstallError.saveFailed("could not disable associated rule collection")
-            }
-            try await InstalledPackTracker.shared.remove(packID: packID)
-            AppLogger.shared.log(
-                "✅ [PackInstaller] Uninstalled pack '\(packID)' via collection toggle off (id=\(collectionID))"
-            )
-            return
-        }
-
-        // Snapshot current rule set, drop those owned by this pack.
-        let before = await manager.snapshotCurrentRules()
-        let packRules = before.filter { $0.packSource == packID }
-
-        guard !packRules.isEmpty else {
-            // Nothing to remove from rules, but still clear the tracker
-            // record in case it drifted out of sync.
-            try await InstalledPackTracker.shared.remove(packID: packID)
-            AppLogger.shared.log(
-                "ℹ️ [PackInstaller] No rules tagged with pack '\(packID)'; cleared tracker record"
-            )
-            return
-        }
-
-        for (index, rule) in packRules.enumerated() {
-            let isLast = (index == packRules.count - 1)
-            // We remove directly — skipReload avoided here since
-            // removeCustomRule regenerates on each call. For M1 we accept
-            // N regenerations; M2 will batch.
-            _ = isLast // reserved for future batching
-            await manager.removeCustomRule(id: rule.id)
-        }
-
-        try await InstalledPackTracker.shared.remove(packID: packID)
-
-        AppLogger.shared.log(
-            "✅ [PackInstaller] Uninstalled pack '\(packID)': removed \(packRules.count) rule(s)"
-        )
     }
 
     /// Update the tap/hold outputs on an installed pack binding. Used by
@@ -290,59 +426,62 @@ public final class PackInstaller {
         hold: String? = nil,
         manager: RuleCollectionsManager
     ) async -> Bool {
-        let snapshot = await manager.snapshotCurrentRules()
-        let normalizedInput = input.lowercased()
-        guard var rule = snapshot.first(where: {
-            $0.packSource == packID && $0.input.lowercased() == normalizedInput
-        }) else {
-            AppLogger.shared.log(
-                "⚠️ [PackInstaller] updateTapHold: no rule found for pack '\(packID)' input '\(input)'"
-            )
-            return false
-        }
-
-        let existingDual: DualRoleBehavior? = {
-            if case let .dualRole(dr) = rule.behavior { return dr }
-            return nil
-        }()
-
-        let newTap = tap ?? existingDual?.tapActionString ?? rule.action.outputString
-        let newHold = hold ?? existingDual?.holdActionString
-
-        if let newHold, !newHold.isEmpty {
-            rule.action = .keystroke(key: newTap)
-            rule.behavior = .dualRole(
-                DualRoleBehavior(
-                    tapAction: KanataBehaviorRenderer.parseActionString(newTap),
-                    holdAction: KanataBehaviorRenderer.parseActionString(newHold),
-                    tapTimeout: existingDual?.tapTimeout ?? 200,
-                    holdTimeout: existingDual?.holdTimeout ?? 200,
-                    activateHoldOnOtherKey: existingDual?.activateHoldOnOtherKey ?? true,
-                    quickTap: existingDual?.quickTap ?? false,
-                    customTapKeys: existingDual?.customTapKeys ?? [],
-                    useOppositeHand: existingDual?.useOppositeHand ?? false,
-                    useOppositeHandRelease: existingDual?.useOppositeHandRelease ?? false,
-                    useReleaseOrder: existingDual?.useReleaseOrder ?? false,
-                    requirePriorIdleOverrideMs: existingDual?.requirePriorIdleOverrideMs
+        await manager.withRuleMutation(failure: false) { @MainActor permit in
+            guard let recovered = await manager.recoverAndSnapshotRuleState(mutationPermit: permit) else { return false }
+            let snapshot = recovered.customRules
+            let normalizedInput = input.lowercased()
+            guard var rule = snapshot.first(where: {
+                $0.packSource == packID && $0.input.lowercased() == normalizedInput
+            }) else {
+                AppLogger.shared.log(
+                    "⚠️ [PackInstaller] updateTapHold: no rule found for pack '\(packID)' input '\(input)'"
                 )
-            )
-        } else {
-            // Simple remap (no hold).
-            rule.action = .keystroke(key: newTap)
-            rule.behavior = nil
-        }
+                return false
+            }
 
-        let ok = await manager.saveCustomRule(rule, skipReload: false)
-        if ok {
-            AppLogger.shared.log(
-                "✅ [PackInstaller] updateTapHold: pack '\(packID)' input '\(input)' tap='\(newTap)' hold='\(newHold ?? "—")'"
-            )
-        } else {
-            AppLogger.shared.log(
-                "❌ [PackInstaller] updateTapHold: save failed for pack '\(packID)' input '\(input)'"
-            )
+            let existingDual: DualRoleBehavior? = {
+                if case let .dualRole(dr) = rule.behavior { return dr }
+                return nil
+            }()
+
+            let newTap = tap ?? existingDual?.tapActionString ?? rule.action.outputString
+            let newHold = hold ?? existingDual?.holdActionString
+
+            if let newHold, !newHold.isEmpty {
+                rule.action = .keystroke(key: newTap)
+                rule.behavior = .dualRole(
+                    DualRoleBehavior(
+                        tapAction: KanataBehaviorRenderer.parseActionString(newTap),
+                        holdAction: KanataBehaviorRenderer.parseActionString(newHold),
+                        tapTimeout: existingDual?.tapTimeout ?? 200,
+                        holdTimeout: existingDual?.holdTimeout ?? 200,
+                        activateHoldOnOtherKey: existingDual?.activateHoldOnOtherKey ?? true,
+                        quickTap: existingDual?.quickTap ?? false,
+                        customTapKeys: existingDual?.customTapKeys ?? [],
+                        useOppositeHand: existingDual?.useOppositeHand ?? false,
+                        useOppositeHandRelease: existingDual?.useOppositeHandRelease ?? false,
+                        useReleaseOrder: existingDual?.useReleaseOrder ?? false,
+                        requirePriorIdleOverrideMs: existingDual?.requirePriorIdleOverrideMs
+                    )
+                )
+            } else {
+                // Simple remap (no hold).
+                rule.action = .keystroke(key: newTap)
+                rule.behavior = nil
+            }
+
+            let ok = await manager.saveCustomRule(rule, skipReload: false, mutationPermit: permit)
+            if ok {
+                AppLogger.shared.log(
+                    "✅ [PackInstaller] updateTapHold: pack '\(packID)' input '\(input)' tap='\(newTap)' hold='\(newHold ?? "—")'"
+                )
+            } else {
+                AppLogger.shared.log(
+                    "❌ [PackInstaller] updateTapHold: save failed for pack '\(packID)' input '\(input)'"
+                )
+            }
+            return ok
         }
-        return ok
     }
 
     /// Is this pack currently installed?
@@ -364,56 +503,104 @@ public final class PackInstaller {
     func updateQuickSettings(
         packID: String,
         newValues: [String: Int],
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker = .shared,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        guard let pack = PackRegistry.pack(id: packID) else {
-            throw InstallError.saveFailed("pack not found in registry: \(packID)")
-        }
-        guard var record = await InstalledPackTracker.shared.record(for: packID) else {
-            throw InstallError.saveFailed("pack is not installed: \(packID)")
-        }
+        try await manager.configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
+            guard let pack = PackRegistry.pack(id: packID) else {
+                throw InstallError.saveFailed("pack not found in registry: \(packID)")
+            }
+            guard var record = await installedPackTracker.record(for: packID) else {
+                throw InstallError.saveFailed("pack is not installed: \(packID)")
+            }
 
-        // Merge new values into existing settings
-        var mergedSettings = record.quickSettingValues
-        for (key, value) in newValues {
-            mergedSettings[key] = value
-        }
+            // Merge new values into existing settings
+            var mergedSettings = record.quickSettingValues
+            for (key, value) in newValues {
+                mergedSettings[key] = value
+            }
 
-        // Clamp to valid ranges
-        let resolved = resolveQuickSettings(pack: pack, overrides: mergedSettings)
+            // Clamp to valid ranges
+            let resolved = resolveQuickSettings(pack: pack, overrides: mergedSettings)
 
-        if let collectionID = pack.associatedCollectionID {
-            // Collection-backed pack: update timing config
-            if let holdTimeout = resolved["holdTimeout"],
-               let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID })
-            {
-                if case var .homeRowMods(config) = manager.ruleCollections[index].configuration {
+            let snapshot = manager.snapshotRuleState()
+            var hasRuleChanges = false
+            if let collectionID = pack.associatedCollectionID {
+                if let holdTimeout = resolved["holdTimeout"] {
+                    guard let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID }),
+                          case var .homeRowMods(config) = manager.ruleCollections[index].configuration
+                    else {
+                        throw InstallError.saveFailed("The pack's timing collection is missing or cannot be edited. Your settings were not changed.")
+                    }
                     config.timing.tapWindow = holdTimeout
                     config.timing.holdDelay = holdTimeout
                     manager.ruleCollections[index].configuration = .homeRowMods(config)
-                    await manager.regenerateConfigFromCollections()
+                    hasRuleChanges = true
                 }
+            } else if !pack.bindings.isEmpty {
+                manager.customRules.removeAll { $0.packSource == packID }
+                for rule in renderBindings(for: pack, quickSettings: resolved) {
+                    guard await manager.updateCustomRuleInMemory(rule, mutationPermit: permit) else {
+                        restorePreparedRuleState(snapshot, manager: manager)
+                        throw InstallError.saveFailed("updated pack rules could not be prepared")
+                    }
+                }
+                hasRuleChanges = true
             }
-        } else if !pack.bindings.isEmpty {
-            // Rule-based pack: re-render bindings with new settings
-            let oldRules = await manager.snapshotCurrentRules().filter { $0.packSource == packID }
-            for rule in oldRules {
-                await manager.removeCustomRule(id: rule.id)
+
+            record.quickSettingValues = resolved
+            if hasRuleChanges {
+                try await commitPreparedPackRules(manager: manager, snapshot: snapshot,
+                                                  record: .init(tracker: installedPackTracker, record: record),
+                                                  permit: permit)
+            } else {
+                try await installedPackTracker.upsert(record)
             }
-            let newRules = renderBindings(for: pack, quickSettings: resolved)
-            for (index, rule) in newRules.enumerated() {
-                let isLast = (index == newRules.count - 1)
-                _ = await manager.saveCustomRule(rule, skipReload: !isLast)
-            }
+
+            AppLogger.shared.log(
+                "✅ [PackInstaller] Updated quick settings for '\(pack.name)': \(resolved)"
+            )
         }
+    }
 
-        // Persist updated record
-        record.quickSettingValues = resolved
-        try await InstalledPackTracker.shared.upsert(record)
+    /// One application/recovery boundary for prepared pack rule mutations.
+    private func commitPreparedPackRules(
+        manager: RuleCollectionsManager, snapshot: RuleCollectionsManager.RuleStateSnapshot,
+        record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
+        permit: ConfigurationOperationGate.Permit
+    ) async throws {
+        let result = await savePreparedPackRules(manager: manager, snapshot: snapshot, record: record,
+                                                 skipReload: skipReload, reloadHandler: reloadHandler, permit: permit)
+        guard result.success else {
+            if result.error is CancellationError { throw CancellationError() }
+            throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack change could not be committed")
+        }
+    }
 
-        AppLogger.shared.log(
-            "✅ [PackInstaller] Updated quick settings for '\(pack.name)': \(resolved)"
+    private func savePreparedPackRules(
+        manager: RuleCollectionsManager, snapshot: RuleCollectionsManager.RuleStateSnapshot,
+        record: InstalledPackTracker.RecordChange, skipReload: Bool = false,
+        reloadHandler: (@MainActor @Sendable () async -> ReloadResult)? = nil,
+        permit: ConfigurationOperationGate.Permit
+    ) async -> SaveResult {
+        let result = await SaveCoordinator(configurationService: manager.configurationService).saveRuleState(
+            manager: manager, mutationPermit: permit, packRecord: record,
+            reloadHandler: skipReload ? nil : (reloadHandler ?? manager.onRulesChanged)
         )
+        if result.success { NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil) }
+        else { restorePreparedRuleState(snapshot, manager: manager) }
+        return result
+    }
+
+    private func restorePreparedRuleState(_ snapshot: RuleCollectionsManager.RuleStateSnapshot,
+                                          manager: RuleCollectionsManager)
+    {
+        manager.ruleCollections = snapshot.collections
+        manager.customRules = snapshot.customRules
+        manager.refreshLayerIndicatorState()
     }
 
     // MARK: - Rendering
@@ -468,52 +655,135 @@ public final class PackInstaller {
 
     // MARK: - Pre-install gates
 
-    /// Pack-specific install gates. Right now only the KindaVim Mode
-    /// Display pack has any: it conflicts with Vim Navigation (both want
-    /// to own the h/j/k/l story) and requires kindaVim.app to be present.
+    /// Install gates the admission engine cannot express. Pack-vs-pack mutual
+    /// exclusion is now declared in the registry (`conflictsWith`) and the
+    /// KindaVim app requirement in `Pack.requires`; both reach the user through
+    /// `admissionPreview`. What remains: the retired KindaVim rule collection,
+    /// preserved on disk for upgraders, must not be enabled alongside the pack.
     private func enforcePreInstallGates(
         for pack: Pack,
-        manager: RuleCollectionsManager
+        manager: RuleCollectionsManager,
+        installedPackTracker: InstalledPackTracker
     ) async throws {
-        if pack.id == PackRegistry.kindaVim.id {
-            // Mutex: refuse if any conflicting pack is installed.
-            var conflicts: [(id: String, name: String)] = []
-            if await InstalledPackTracker.shared.isInstalled(packID: "com.keypath.pack.vim-navigation"),
-               let conflict = PackRegistry.pack(id: "com.keypath.pack.vim-navigation")
-            {
-                conflicts.append((id: conflict.id, name: conflict.name))
-            }
-            // Also block on the legacy KindaVim rule collection (retired
-            // in this release but preserved on disk for upgraders until the
-            // migration runs). If it's still enabled, kindaVim.app would be
-            // fighting our old h/j/k/l remaps — refuse and surface it as
-            // a conflict the user can resolve from Rules.
-            if manager.ruleCollections.contains(where: {
-                $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled
-            }) {
-                conflicts.append((id: RuleCollectionIdentifier.kindaVim.uuidString, name: "Legacy KindaVim rules"))
-            }
-            if !conflicts.isEmpty {
-                throw InstallError.mutuallyExclusive(conflicts: conflicts)
-            }
-
-            // Dependency: kindaVim.app must be installed.
-            if !FileManager.default.fileExists(atPath: "/Applications/kindaVim.app") {
-                throw InstallError.dependencyMissing(
-                    name: "KindaVim",
-                    websiteURL: URL(string: "https://kindavim.app")!
-                )
-            }
-        }
-
-        if pack.id == "com.keypath.pack.vim-navigation",
-           await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.kindaVim.id)
+        if pack.id == PackRegistry.kindaVim.id,
+           manager.ruleCollections.contains(where: { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled })
         {
-            throw InstallError.mutuallyExclusive(conflicts: [(id: PackRegistry.kindaVim.id, name: PackRegistry.kindaVim.name)])
+            throw InstallError.mutuallyExclusive(conflicts: [(id: RuleCollectionIdentifier.kindaVim.uuidString, name: "Legacy KindaVim rules")])
+        }
+        // Unchecked installs keep the old behaviour: conflicts first, then the app.
+        let conflicts = await Self.installedPackConflicts(for: pack, tracker: installedPackTracker)
+        if !conflicts.isEmpty {
+            throw InstallError.mutuallyExclusive(conflicts: conflicts.map {
+                (id: $0.packID, name: PackRegistry.pack(id: $0.packID)?.name ?? $0.packID)
+            })
+        }
+        for case let .externalApp(name, path) in pack.requires where !FileManager.default.fileExists(atPath: path) {
+            throw InstallError.dependencyMissing(name: name, websiteURL: URL(string: "https://kindavim.app")!)
         }
     }
 
+    private static func installedPackConflicts(for pack: Pack, tracker: InstalledPackTracker) async -> [PackDependency] {
+        let installed = await Set(tracker.allInstalled().map(\.packID))
+        return PackDependencyChecker.conflicts(for: pack.id, installedPackIDs: installed)
+    }
+
+    // MARK: - Admission preview (phase 4c)
+
+    /// What installing `pack` would change, from the admission engine, before any
+    /// write. `ignoringCollections`/`ignoringRules` are parties the user already
+    /// chose to turn off in a confirmed install.
+    func admissionPreview(
+        for pack: Pack, manager: RuleCollectionsManager, installedPackTracker: InstalledPackTracker = .shared,
+        ignoringCollections: Set<UUID> = [], ignoringRules: Set<UUID> = [],
+        profile: BackendCapabilityProfile = .shared,
+        fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
+    ) async -> PackInstallPreview {
+        var collections = manager.ruleCollections.filter { !manager.isNeovimAppScopedReference($0) }
+        var ownCollectionIDs = Set<UUID>()
+        for id in pack.managedCollectionIDs + (pack.associatedCollectionID.map { [$0] } ?? []) {
+            ownCollectionIDs.insert(id)
+            if let index = collections.firstIndex(where: { $0.id == id }) {
+                collections[index].isEnabled = true
+            } else if let fresh = RuleCollectionCatalog().defaultCollections().first(where: { $0.id == id }) {
+                var enabled = fresh
+                enabled.isEnabled = true
+                collections.append(enabled)
+            }
+        }
+        for id in ignoringCollections {
+            if let index = collections.firstIndex(where: { $0.id == id }) { collections[index].isEnabled = false }
+        }
+        var rules = manager.customRules.map { rule -> CustomRule in
+            var r = rule
+            if ignoringRules.contains(rule.id) { r.isEnabled = false }
+            return r
+        }
+        var ownRuleIDs = Set<UUID>()
+        if !pack.visualOnly, pack.associatedCollectionID == nil, !pack.isSystemPack {
+            let rendered = renderBindings(for: pack, quickSettings: resolveQuickSettings(pack: pack, overrides: [:]))
+            ownRuleIDs = Set(rendered.map(\.id))
+            rules += rendered
+        }
+        let installed = await Set(installedPackTracker.allInstalled().map(\.packID))
+        let state = manager.admissionState(collections: collections, customRules: rules,
+                                           installedPackIDs: installed.union([pack.id]))
+        let involvesPack: (AdmissionSubject) -> Bool = { subject in
+            switch subject {
+            case let .collection(id): ownCollectionIDs.contains(id)
+            case let .customRule(id): ownRuleIDs.contains(id)
+            case let .pack(id): id == pack.id
+            case .named: false
+            }
+        }
+        let name = RuleCollectionsManager.nameLookup(state)
+        let verdicts = AdmissionEngine.evaluate(state, profile: profile, fileExists: fileExists).filter { verdict in
+            if involvesPack(verdict.subject) { return true }
+            if case let .conflict(_, _, parties, _) = verdict.reason { return parties.contains(where: involvesPack) }
+            if case let .packConflict(other, _) = verdict.reason { return other == pack.id }
+            return false
+        }
+        var disable: [(subject: AdmissionSubject, id: UUID, label: String)] = []
+        var remove: [(packID: String, label: String)] = []
+        var seen = Set<String>()
+        let items = verdicts.map { verdict -> PackInstallPreview.Item in
+            let presentation = AdmissionVerdictPresenter.present(verdict, name: name)
+            for option in presentation.options where seen.insert(option.id).inserted {
+                switch option.subject {
+                case let .collection(id) where !ownCollectionIDs.contains(id): disable.append((option.subject, id, option.label))
+                case let .customRule(id) where !ownRuleIDs.contains(id): disable.append((option.subject, id, option.label))
+                case let .pack(id) where id != pack.id: remove.append((id, option.label))
+                default: break
+                }
+            }
+            return PackInstallPreview.Item(severity: verdict.severity, presentation: presentation)
+        }
+        return PackInstallPreview(packID: pack.id, items: items, disableOptions: disable, removeOptions: remove)
+    }
+
     // MARK: - Helpers
+
+    private func restoreInstallRecord(
+        _ previousRecord: InstalledPackRecord?,
+        packID: String,
+        installedPackTracker: InstalledPackTracker
+    ) async -> Bool {
+        do {
+            if let previousRecord {
+                try await installedPackTracker.upsert(previousRecord)
+            } else {
+                try await installedPackTracker.remove(packID: packID)
+            }
+            return true
+        } catch {
+            // A failed atomic write leaves the prior on-disk record intact.
+            // The tracker reads committed disk state, so no speculative cache
+            // can claim the compensating write succeeded.
+            AppLogger.shared.errorUnlessQuietTest(
+                "❌ [PackInstaller] Could not persist tracker rollback for '\(packID)': \(error)"
+            )
+            return false
+        }
+    }
 
     private func resolveQuickSettings(
         pack: Pack,
@@ -545,13 +815,13 @@ public final class PackInstaller {
     private func snapshotManagedCollections(
         pack: Pack,
         manager: RuleCollectionsManager
-    ) -> PackCollectionSnapshot {
+    ) throws -> PackCollectionSnapshot {
         let encoder = JSONEncoder()
         var entries: [PackCollectionSnapshot.Entry] = []
 
         for managed in pack.managedDefaults {
             let collection = manager.ruleCollections.first { $0.id == managed.collectionID }
-            let configJSON = (try? encoder.encode(collection?.configuration ?? .list)) ?? Data()
+            let configJSON = try encoder.encode(collection?.configuration ?? .list)
             entries.append(PackCollectionSnapshot.Entry(
                 collectionID: managed.collectionID,
                 wasEnabled: collection?.isEnabled ?? false,
@@ -562,19 +832,22 @@ public final class PackInstaller {
         return PackCollectionSnapshot(packID: pack.id, entries: entries)
     }
 
-    private func applyManagedDefaults(
+    private func prepareManagedDefaults(
         pack: Pack,
-        manager: RuleCollectionsManager
-    ) async throws {
-        let snapshot = snapshotManagedCollections(pack: pack, manager: manager)
-        let originalCollections = manager.ruleCollections
-
+        manager: RuleCollectionsManager,
+        policy: ManagedDefaultInstallPolicy,
+        associatedCollectionConfiguration: RuleCollectionConfiguration?
+    ) async throws -> PackCollectionSnapshot {
+        let snapshot = try snapshotManagedCollections(pack: pack, manager: manager)
         let catalog = RuleCollectionCatalog().defaultCollections()
 
         // Ensure the pack's own associated collection exists too
         if let associated = pack.associatedCollectionID {
             ensureCollectionExists(id: associated, catalog: catalog, manager: manager)
             if let i = manager.ruleCollections.firstIndex(where: { $0.id == associated }) {
+                if let associatedCollectionConfiguration {
+                    manager.ruleCollections[i].configuration = associatedCollectionConfiguration
+                }
                 manager.ruleCollections[i].isEnabled = true
             }
         }
@@ -590,7 +863,8 @@ public final class PackInstaller {
                 let shouldApply = await shouldApplyManagedDefault(
                     managed: managed,
                     existingCollection: manager.ruleCollections[i],
-                    packName: pack.name
+                    packName: pack.name,
+                    policy: policy
                 )
                 if shouldApply {
                     manager.ruleCollections[i].configuration = defaultConfig
@@ -604,24 +878,14 @@ public final class PackInstaller {
             }
         }
 
-        try PackCollectionSnapshot.save(snapshot)
-
-        let applied = await manager.regenerateConfigFromCollections()
-        guard applied else {
-            manager.ruleCollections = originalCollections
-            PackCollectionSnapshot.remove(for: pack.id)
-            if pack.id == "com.keypath.pack.vallack-system" {
-                PackCollectionSnapshot.removeLegacyVallack()
-            }
-            throw InstallError.saveFailed("could not apply managed collection defaults")
-        }
-        AppLogger.shared.log("📦 [PackInstaller] Applied managed defaults for '\(pack.name)'")
+        return snapshot
     }
 
     private func shouldApplyManagedDefault(
         managed: ManagedCollectionDefault,
         existingCollection: RuleCollection,
-        packName: String
+        packName: String,
+        policy: ManagedDefaultInstallPolicy
     ) async -> Bool {
         guard existingCollection.isEnabled,
               let defaultConfig = managed.defaultConfiguration,
@@ -635,6 +899,10 @@ public final class PackInstaller {
         let catalogDefault = RuleCollectionCatalog().defaultCollections()
             .first { $0.id == managed.collectionID }
         if let catalogDefault, existingCollection.configuration == catalogDefault.configuration {
+            return true
+        }
+
+        if policy == .useRecommended {
             return true
         }
 
@@ -676,18 +944,25 @@ public final class PackInstaller {
     @discardableResult
     private func restoreOrKeepOnUninstall(
         pack: Pack,
-        manager: RuleCollectionsManager
-    ) async -> Bool {
-        var snapshot = PackCollectionSnapshot.load(for: pack.id)
-
-        // Legacy migration for Vallack System
+        manager: RuleCollectionsManager,
+        installedSnapshot: PackCollectionSnapshot?
+    ) async throws -> Bool {
+        var snapshot = try installedSnapshot ?? PackCollectionSnapshot.loadForMutation(for: pack.id)
         if snapshot == nil, pack.id == "com.keypath.pack.vallack-system" {
-            snapshot = PackCollectionSnapshot.loadLegacyVallack()
+            snapshot = try PackCollectionSnapshot.loadLegacyVallackForMutation()
         }
-
         guard let snapshot else {
             AppLogger.shared.log("⚠️ [PackInstaller] No snapshot found for '\(pack.id)' — skipping restore")
             return false
+        }
+        let ids = snapshot.entries.map(\.collectionID)
+        guard snapshot.packID == pack.id, Set(ids).count == ids.count,
+              Set(ids).isSubset(of: Set(pack.managedDefaults.map(\.collectionID)))
+        else {
+            throw InstallError.saveFailed("Saved settings do not match this pack; no changes were made")
+        }
+        for entry in snapshot.entries {
+            _ = try JSONDecoder().decode(RuleCollectionConfiguration.self, from: entry.configurationJSON)
         }
 
         let decoder = JSONDecoder()
@@ -865,22 +1140,6 @@ public final class PackInstaller {
         guard !manager.ruleCollections.contains(where: { $0.id == id }) else { return }
         if let catalogCollection = catalog.first(where: { $0.id == id }) {
             manager.ruleCollections.append(catalogCollection)
-        }
-    }
-
-    /// Remove any rules already committed for this pack id. Best-effort —
-    /// used when an install fails partway through.
-    private func rollbackPartialInstall(
-        packID: String,
-        manager: RuleCollectionsManager
-    ) async {
-        let current = await manager.snapshotCurrentRules()
-        let partial = current.filter { $0.packSource == packID }
-        AppLogger.shared.log(
-            "↩️ [PackInstaller] Rolling back \(partial.count) rule(s) after failed install of '\(packID)'"
-        )
-        for rule in partial {
-            await manager.removeCustomRule(id: rule.id)
         }
     }
 }

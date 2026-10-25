@@ -149,6 +149,7 @@ final class KindaVimTelemetryStore {
     /// seconds of counter increments — fine for aggregate telemetry.
     private let flushInterval: TimeInterval
     private var pendingWrite: Bool = false
+    private var isSuspendedForUninstall = false
     private var flushTask: Task<Void, Never>?
 
     init(
@@ -274,6 +275,17 @@ final class KindaVimTelemetryStore {
         AppLogger.shared.log("🧹 [KindaVimTelemetry] Cleared all usage data")
     }
 
+    /// Drain counters before the uninstall backup, then prevent any timer or
+    /// termination callback from recreating the removed settings directory.
+    func suspendForUninstall() {
+        flushNow()
+        isSuspendedForUninstall = true
+    }
+
+    func resumeAfterFailedUninstall() {
+        isSuspendedForUninstall = false
+    }
+
     /// Force any pending writes to disk synchronously. Callers (Pack
     /// Detail open, app deactivation) use this to make sure the user
     /// sees fresh data the moment they look at it. Tests use it to
@@ -281,7 +293,7 @@ final class KindaVimTelemetryStore {
     func flushNow() {
         flushTask?.cancel()
         flushTask = nil
-        guard pendingWrite, let snapshot = cached else { return }
+        guard !isSuspendedForUninstall, pendingWrite, let snapshot = cached else { return }
         pendingWrite = false
         writeToDisk(snapshot)
     }
@@ -289,6 +301,7 @@ final class KindaVimTelemetryStore {
     // MARK: - Internals
 
     private func mutate(_ body: (inout KindaVimTelemetrySnapshot) -> Void) {
+        guard !isSuspendedForUninstall else { return }
         var snapshot = loadSnapshot()
         let now = Date()
         if snapshot.firstRecordedAt == nil {

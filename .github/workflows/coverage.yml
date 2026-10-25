@@ -30,7 +30,12 @@ jobs:
           persist-credentials: false
 
       - name: Verify runner disk reserve
+        env:
+          KEYPATH_MIN_FREE_DISK_GIB: "40"
         run: ./Scripts/lab/host-disk-reserve
+
+      - name: Ensure Metal toolchain
+        run: ./Scripts/ensure-metal-toolchain.sh
 
       - name: Add Homebrew to PATH
         run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
@@ -118,7 +123,12 @@ jobs:
           persist-credentials: false
 
       - name: Verify runner disk reserve
+        env:
+          KEYPATH_MIN_FREE_DISK_GIB: "40"
         run: ./Scripts/lab/host-disk-reserve
+
+      - name: Ensure Metal toolchain
+        run: ./Scripts/ensure-metal-toolchain.sh
 
       - name: Add Homebrew to PATH
         run: echo "/opt/homebrew/bin" >> $GITHUB_PATH

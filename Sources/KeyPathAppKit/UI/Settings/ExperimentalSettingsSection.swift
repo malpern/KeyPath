@@ -20,204 +20,160 @@ struct ExperimentalSettingsSection: View {
     @State private var suppressedBundleIDs: [String] = Array(PreferencesService.shared.overlaySuppressedBundleIDs).sorted()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Quick Features Section
-                SettingsCard {
-                    VStack(alignment: .leading, spacing: 16) {
-                        SectionHeader(icon: "keyboard.badge.ellipsis", title: "Quick Features", color: .blue)
+        VStack(alignment: .leading, spacing: SettingsDesign.sectionGap) {
+            // Quick Features Section
+            SettingsCard {
+                VStack(alignment: .leading, spacing: 16) {
+                    SettingsSectionHeader(title: "Quick Features", icon: "keyboard.badge.ellipsis", color: .blue)
 
-                        globalHotkeyToggle
-                        Divider()
-                        qmkSearchToggle
-                    }
+                    globalHotkeyToggle
+                    Divider()
+                    qmkSearchToggle
                 }
+            }
 
-                // Script Execution Section
-                SettingsCard {
-                    ScriptExecutionSettingsSection()
+            // Script Execution Section
+            SettingsCard {
+                ScriptExecutionSettingsSection()
+            }
+
+            // AI Config Section
+            SettingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SettingsSectionHeader(title: "AI Config Generation", icon: "sparkles", color: .purple)
+
+                    AIConfigGenerationSettingsSection()
                 }
+            }
 
-                // AI Config Section
-                SettingsCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(icon: "sparkles", title: "AI Config Generation", color: .purple)
-
-                        AIConfigGenerationSettingsSection()
-                    }
-                }
-
-                // Plugins Section
-                if !PluginManager.shared.plugins.isEmpty {
-                    ForEach(PluginManager.shared.plugins.map(PluginWrapper.init)) { wrapper in
-                        SettingsCard {
-                            InstalledPluginCard(plugin: wrapper.plugin)
-                        }
-                    }
-                }
-                ForEach(PluginManager.shared.availablePlugins) { entry in
+            // Plugins Section
+            if !PluginManager.shared.plugins.isEmpty {
+                ForEach(PluginManager.shared.plugins.map(PluginWrapper.init)) { wrapper in
                     SettingsCard {
-                        PluginCatalogCard(entry: entry)
-                    }
-                }
-
-                // Per-app overlay suppression
-                SettingsCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(
-                            icon: "eye.slash",
-                            title: "Hide Overlay in Specific Apps",
-                            color: .indigo
-                        )
-                        Text("The live keyboard overlay and hint panel auto-hide while these apps are frontmost. They restore when you switch away.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        VStack(spacing: 6) {
-                            ForEach(suppressedBundleIDs, id: \.self) { bundleID in
-                                HStack {
-                                    Image(systemName: appIcon(for: bundleID))
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 16)
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text(appDisplayName(for: bundleID))
-                                            .font(.callout.weight(.medium))
-                                        Text(bundleID)
-                                            .font(.caption.monospaced())
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Button {
-                                        removeBundleID(bundleID)
-                                    } label: {
-                                        Image(systemName: "minus.circle.fill")
-                                            .foregroundStyle(.red.opacity(0.7))
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Remove \(appDisplayName(for: bundleID))")
-                                    .accessibilityIdentifier("overlay-suppressed-remove-\(bundleID)")
-                                }
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.secondary.opacity(0.08))
-                                )
-                            }
-                            if suppressedBundleIDs.isEmpty {
-                                Text("No apps configured.")
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                                    .padding(.vertical, 8)
-                            }
-                        }
-
-                        Button {
-                            addAppViaPicker()
-                        } label: {
-                            Label("Add App…", systemImage: "plus")
-                                .font(.callout.weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .accessibilityIdentifier("overlay-suppressed-add-app")
-                    }
-                }
-
-                // Testing Section
-                SettingsCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(icon: "ant.fill", title: "Testing", color: .green)
-
-                        HStack(spacing: 12) {
-                            HStack(spacing: 4) {
-                                Text("Accessibility Test Mode")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                InfoTip("Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately.")
-                            }
-
-                            Spacer()
-
-                            Toggle("", isOn: Binding(
-                                get: { accessibilityTestMode },
-                                set: { newValue in
-                                    accessibilityTestMode = newValue
-                                    services.preferences.accessibilityTestMode = newValue
-                                }
-                            ))
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                            .controlSize(.small)
-                            .accessibilityIdentifier("settings-accessibility-test-mode")
-                            .accessibilityLabel("Accessibility test mode")
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-
-                // Developer Feature Flags Section
-                SettingsCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        SectionHeader(icon: "flag.fill", title: "Developer Feature Flags", color: .orange)
-
-                        Text("These flags control experimental functionality. Changes may require app restart.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-
-                        featureFlagsSection
+                        InstalledPluginCard(plugin: wrapper.plugin)
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            ForEach(PluginManager.shared.availablePlugins) { entry in
+                SettingsCard {
+                    PluginCatalogCard(entry: entry)
+                }
+            }
+
+            // Per-app overlay suppression
+            SettingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SettingsSectionHeader(
+                        title: "Hide Overlay in Specific Apps",
+                        icon: "eye.slash",
+                        color: .indigo
+                    )
+                    Text("The live keyboard overlay and hint panel auto-hide while these apps are frontmost. They restore when you switch away.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    VStack(spacing: 6) {
+                        ForEach(suppressedBundleIDs, id: \.self) { bundleID in
+                            HStack {
+                                Image(systemName: appIcon(for: bundleID))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 16)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(appDisplayName(for: bundleID))
+                                        .font(.callout.weight(.medium))
+                                    Text(bundleID)
+                                        .font(.caption.monospaced())
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button {
+                                    removeBundleID(bundleID)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.red.opacity(0.7))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Remove \(appDisplayName(for: bundleID))")
+                                .accessibilityIdentifier("overlay-suppressed-remove-\(bundleID)")
+                            }
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.secondary.opacity(0.08))
+                            )
+                        }
+                        if suppressedBundleIDs.isEmpty {
+                            Text("No apps configured.")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .padding(.vertical, 8)
+                        }
+                    }
+
+                    Button {
+                        addAppViaPicker()
+                    } label: {
+                        Label("Add App…", systemImage: "plus")
+                            .font(.callout.weight(.medium))
+                    }
+                    .settingsAction()
+                    .accessibilityIdentifier("overlay-suppressed-add-app")
+                }
+            }
+
+            // Testing Section
+            SettingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SettingsSectionHeader(title: "Testing", icon: "ant.fill", color: .green)
+
+                    SettingsToggleRow(
+                        title: "Accessibility Test Mode",
+                        help: "Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately.",
+                        isOn: Binding(get: { accessibilityTestMode }, set: { newValue in
+                            accessibilityTestMode = newValue
+                            services.preferences.accessibilityTestMode = newValue
+                        }), identifier: "settings-accessibility-test-mode"
+                    )
+                }
+            }
+
+            // Developer Feature Flags Section
+            SettingsCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    SettingsSectionHeader(title: "Developer Feature Flags", icon: "flag.fill", color: .orange)
+
+                    Text("These flags control experimental functionality. Changes may require app restart.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    featureFlagsSection
+                }
+            }
         }
     }
 
     // MARK: - Global Hotkey Toggle
 
     private var globalHotkeyToggle: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Global Hotkey")
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text("⌥⌘K to show/hide overlay, ⌥⌘L to reset & center")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-            Toggle("", isOn: Binding(
-                get: { GlobalHotkeyService.shared.isEnabled },
-                set: { GlobalHotkeyService.shared.isEnabled = $0 }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-        }
-        .accessibilityIdentifier("settings-global-hotkey-toggle")
-        .accessibilityLabel("Global hotkey to show/hide KeyPath")
+        SettingsToggleRow(
+            title: "Global Hotkey", subtitle: "⌥⌘K to show/hide overlay, ⌥⌘L to reset & center",
+            isOn: Binding(get: { GlobalHotkeyService.shared.isEnabled }, set: { GlobalHotkeyService.shared.isEnabled = $0 }),
+            identifier: "settings-global-hotkey-toggle"
+        )
     }
 
     // MARK: - QMK Search Toggle
 
     private var qmkSearchToggle: some View {
-        HStack {
-            HStack(spacing: 4) {
-                Text("QMK Keyboard Search")
-                    .font(.body)
-                    .fontWeight(.medium)
-                InfoTip("Search and import layouts from the QMK keyboard database")
+        SettingsToggleRow(title: "QMK Keyboard Search",
+                          help: "Search and import layouts from the QMK keyboard database",
+                          isOn: $qmkSearchEnabled, identifier: "settings-qmk-search-toggle")
+            .onChange(of: qmkSearchEnabled) { _, newValue in
+                UserDefaults.standard.set(newValue, forKey: LayoutPreferences.qmkSearchEnabledKey)
             }
-            Spacer()
-            Toggle("", isOn: $qmkSearchEnabled)
-                .toggleStyle(.switch)
-                .labelsHidden()
-        }
-        .onChange(of: qmkSearchEnabled) { _, newValue in
-            UserDefaults.standard.set(newValue, forKey: LayoutPreferences.qmkSearchEnabledKey)
-        }
-        .accessibilityIdentifier("settings-qmk-search-toggle")
-        .accessibilityLabel("Enable QMK keyboard search")
+            .accessibilityIdentifier("settings-qmk-search-toggle")
+            .accessibilityLabel("Enable QMK keyboard search")
     }
 
     // MARK: - Feature Flags
@@ -231,7 +187,6 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setSimulatorAndVirtualKeysEnabled($0) },
                 identifier: "feature-flag-simulator"
             )
-            .accessibilityIdentifier("feature-flag-simulator-row")
 
             featureFlagToggle(
                 title: "Listen-Only Event Tap",
@@ -240,16 +195,16 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setCaptureListenOnlyEnabled($0) },
                 identifier: "feature-flag-listen-only"
             )
-            .accessibilityIdentifier("feature-flag-listen-only-row")
 
-            featureFlagToggle(
-                title: "SMAppService for Daemon",
-                description: "Use modern daemon registration API",
-                isOn: $useSMAppServiceForDaemon,
-                onChange: { FeatureFlags.setUseSMAppServiceForDaemon($0) },
-                identifier: "feature-flag-smappservice"
-            )
-            .accessibilityIdentifier("feature-flag-smappservice-row")
+            if KanataRuntimeBackend.selected != .session {
+                featureFlagToggle(
+                    title: "SMAppService for Daemon",
+                    description: "Use modern daemon registration API",
+                    isOn: $useSMAppServiceForDaemon,
+                    onChange: { FeatureFlags.setUseSMAppServiceForDaemon($0) },
+                    identifier: "feature-flag-smappservice"
+                )
+            }
 
             featureFlagToggle(
                 title: "Uninstall for Testing",
@@ -258,7 +213,6 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setUninstallForTesting($0) },
                 identifier: "feature-flag-uninstall-testing"
             )
-            .accessibilityIdentifier("feature-flag-uninstall-testing-row")
 
             featureFlagToggle(
                 title: "Context HUD List",
@@ -267,10 +221,8 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setContextHUDListEnabled($0) },
                 identifier: "feature-flag-context-hud-list"
             )
-            .accessibilityIdentifier("feature-flag-context-hud-list-row")
 
             learningTipsModePicker
-                .accessibilityIdentifier("feature-flag-learning-tips-row")
         }
     }
 
@@ -281,32 +233,13 @@ struct ExperimentalSettingsSection: View {
         onChange: @escaping (Bool) -> Void,
         identifier: String
     ) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        SettingsToggleRow(title: title, subtitle: description, isOn: Binding(
+            get: { isOn.wrappedValue },
+            set: { newValue in
+                isOn.wrappedValue = newValue
+                onChange(newValue)
             }
-
-            Spacer()
-
-            Toggle("", isOn: Binding(
-                get: { isOn.wrappedValue },
-                set: { newValue in
-                    isOn.wrappedValue = newValue
-                    onChange(newValue)
-                }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .controlSize(.small)
-            .accessibilityIdentifier(identifier)
-            .accessibilityLabel(title)
-        }
-        .padding(.vertical, 4)
+        ), identifier: identifier)
     }
 
     private var learningTipsModePicker: some View {
@@ -386,43 +319,6 @@ struct ExperimentalSettingsSection: View {
 
     private func appIcon(for _: String) -> String {
         "app"
-    }
-}
-
-// MARK: - Supporting Views
-
-private struct SectionHeader: View {
-    let icon: String
-    let title: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .font(.body)
-            Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
-        }
-    }
-}
-
-private struct SettingsCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        content
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(NSColor.controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color(NSColor.separatorColor), lineWidth: 0.5)
-            )
     }
 }
 

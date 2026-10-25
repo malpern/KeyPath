@@ -6,7 +6,7 @@ import KeyPathRulesCore
 extension RuleCollectionsManager {
     // MARK: - Conflict Detection
 
-    private func isNeovimAppScopedReference(_ collection: RuleCollection) -> Bool {
+    func isNeovimAppScopedReference(_ collection: RuleCollection) -> Bool {
         collection.id == RuleCollectionIdentifier.neovimTerminal
     }
 
@@ -24,95 +24,71 @@ extension RuleCollectionsManager {
         return (KanataKeyConverter.convertToKanataKey(activator.input), activator.targetLayer)
     }
 
-    func conflictInfo(for candidate: RuleCollection) -> RuleConflictInfo? {
-        // Neovim Terminal is app-scoped educational content; it intentionally coexists
-        // with other navigation collections without forcing toggle conflicts.
+    /// Toggle-time admission: would enabling `candidate` (as proposed) conflict
+    /// with an enabled collection or custom rule? Asks the same `AdmissionEngine`
+    /// the save path uses, so toggle-time and save-time can no longer disagree
+    /// (they used to be separate implementations with different identity rules
+    /// and a first-hit-only toggle check). Returns the first other party with
+    /// every key it collides with, in the shape the resolution dialog expects.
+    func conflictInfo(
+        for candidate: RuleCollection,
+        ignoringCollectionIDs: Set<UUID> = []
+    ) -> RuleConflictInfo? {
+        // Neovim Terminal is app-scoped educational content; the save path drops
+        // it from the generated config, so it never conflicts at toggle time.
         if isNeovimAppScopedReference(candidate) {
             return nil
         }
-
-        let candidateKeys = normalizedKeys(for: candidate)
-        let candidateActivator = normalizedActivator(for: candidate)
-
-        for other in ruleCollections where other.isEnabled && other.id != candidate.id {
-            if isNeovimAppScopedReference(other) {
-                continue
-            }
-
-            if candidate.targetLayer == other.targetLayer {
-                let overlap = candidateKeys.intersection(normalizedKeys(for: other))
-                if !overlap.isEmpty {
-                    return RuleConflictInfo(source: .collection(other), keys: Array(overlap))
-                }
-            }
-
-            // Cross-type: a mapping and another collection's momentary activator on the
-            // same physical key is rejected by config generation (e.g. Home Row Mods maps
-            // `f` on base while Home Row Arrows holds `f` on base to activate its layer),
-            // so detect it here where toggle-time auto-resolution can handle it (#953).
-            if let otherActivator = other.momentaryActivator,
-               candidate.targetLayer == otherActivator.sourceLayer
-            {
-                let activatorKey = KanataKeyConverter.convertToKanataKey(otherActivator.input)
-                if candidateKeys.contains(activatorKey) {
-                    return RuleConflictInfo(source: .collection(other), keys: [activatorKey])
-                }
-            }
-            if let candidateRawActivator = candidate.momentaryActivator,
-               other.targetLayer == candidateRawActivator.sourceLayer
-            {
-                let activatorKey = KanataKeyConverter.convertToKanataKey(candidateRawActivator.input)
-                if normalizedKeys(for: other).contains(activatorKey) {
-                    return RuleConflictInfo(source: .collection(other), keys: [activatorKey])
-                }
-            }
-
-            if let act1 = candidateActivator,
-               let act2 = normalizedActivator(for: other)
-            {
-                if act1 == act2 {
-                    // Identical momentary activators are treated as redundant, not conflicts
-                    continue
-                }
-                if act1.input == act2.input {
-                    return RuleConflictInfo(source: .collection(other), keys: [act1.input])
-                }
-            }
+        var proposed = candidate
+        proposed.isEnabled = true
+        let others = ruleCollections.filter {
+            $0.id != candidate.id && !ignoringCollectionIDs.contains($0.id) && !isNeovimAppScopedReference($0)
         }
-
-        if let conflict = conflictWithCustomRules(candidateKeys, layer: candidate.targetLayer) {
-            return conflict
-        }
-
-        return nil
+        return firstConflict(
+            involving: .collection(candidate.id),
+            in: admissionState(collections: others + [proposed], customRules: customRules)
+        )
     }
 
     func conflictInfo(for rule: CustomRule) -> RuleConflictInfo? {
-        let normalizedKey = KanataKeyConverter.convertToKanataKey(rule.input)
-
-        for collection in ruleCollections where collection.isEnabled && collection.targetLayer == rule.targetLayer {
-            if isNeovimAppScopedReference(collection) {
-                continue
-            }
-            if normalizedKeys(for: collection).contains(normalizedKey) {
-                return RuleConflictInfo(source: .collection(collection), keys: [normalizedKey])
-            }
-        }
-
-        for other in customRules where other.isEnabled && other.id != rule.id {
-            if KanataKeyConverter.convertToKanataKey(other.input) == normalizedKey {
-                return RuleConflictInfo(source: .customRule(other), keys: [normalizedKey])
-            }
-        }
-
-        return nil
+        var proposed = rule
+        proposed.isEnabled = true
+        let collections = ruleCollections.filter { !isNeovimAppScopedReference($0) }
+        let otherRules = customRules.filter { $0.id != rule.id }
+        return firstConflict(
+            involving: .customRule(rule.id),
+            in: admissionState(collections: collections, customRules: otherRules + [proposed])
+        )
     }
 
-    func conflictWithCustomRules(_ keys: Set<String>, layer: RuleCollectionLayer) -> RuleConflictInfo? {
-        for rule in customRules where rule.isEnabled && rule.targetLayer == layer {
-            let normalized = KanataKeyConverter.convertToKanataKey(rule.input)
-            if keys.contains(normalized) {
-                return RuleConflictInfo(source: .customRule(rule), keys: [normalized])
+    /// The first conflict verdict naming `subject`, folded to one other party and
+    /// all the keys they collide on. A synthetic party (the leader key, a chord
+    /// group) is reported too; the dialog shows it without offering to disable it.
+    private func firstConflict(involving subject: AdmissionSubject, in state: AdmissionEngine.State) -> RuleConflictInfo? {
+        var keysByParty: [AdmissionSubject: Set<String>] = [:]
+        var order: [AdmissionSubject] = []
+        for verdict in AdmissionEngine.evaluate(state) {
+            guard case let .conflict(key, _, parties, _) = verdict.reason, parties.contains(subject) else { continue }
+            for party in parties where party != subject {
+                if keysByParty[party] == nil { order.append(party) }
+                keysByParty[party, default: []].insert(key)
+            }
+        }
+        for party in order {
+            let keys = Array(keysByParty[party] ?? []).sorted()
+            switch party {
+            case let .collection(id):
+                if let collection = state.collections.first(where: { $0.id == id }) {
+                    return RuleConflictInfo(source: .collection(collection), keys: keys)
+                }
+            case let .customRule(id):
+                if let rule = state.customRules.first(where: { $0.id == id }) {
+                    return RuleConflictInfo(source: .customRule(rule), keys: keys)
+                }
+            case let .named(text):
+                return RuleConflictInfo(source: .named(text), keys: keys)
+            case .pack:
+                continue
             }
         }
         return nil

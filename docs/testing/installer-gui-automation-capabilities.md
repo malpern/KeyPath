@@ -100,13 +100,18 @@ Create a desktop lease and use the typed guest adapter for evidence-producing
 semantic operations:
 
 ```bash
-Scripts/lab/keypath-lab create \
+vm-lab keypath create \
   --macos 15 --lane unmanaged-ui --commit "$SHA" --installer dist/KeyPath.zip --desktop
 
-Scripts/lab/keypath-lab nameplate "$LEASE" enable
+vm-lab keypath nameplate "$LEASE" enable
 
-Scripts/lab/keypath-lab run "$LEASE" -- \
-  Scripts/lab/peekaboo-ui snapshot \
+> `peekaboo-ui` moved to the vm-lab repository and is no longer shipped into
+> the guest with this repo. The desktop base provides `peekaboo` itself at
+> `/usr/local/bin/peekaboo`; call it directly, or see vm-lab's
+> `docs/ui-automation.md` for the targeting contract.
+
+vm-lab keypath run "$LEASE" -- \
+  peekaboo-ui snapshot \
   --app 'System Settings' \
   --output .keypath-lab/scenario-output/approvals/system-settings.json
 ```
@@ -121,7 +126,7 @@ automatically. Nameplate launch-at-login remains disabled so its own
 For a password sheet on the Tart lane:
 
 ```bash
-Scripts/lab/keypath-lab secure-dialog-input "$LEASE" \
+vm-lab keypath secure-dialog-input "$LEASE" \
   --app 'System Settings' \
   --field Password \
   --submit 'Modify Settings'

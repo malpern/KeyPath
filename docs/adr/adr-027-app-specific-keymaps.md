@@ -56,7 +56,7 @@ Each app gets its own virtual key. No grouping/profiles in v1—users define per
 
 ```
 ~/.config/keypath/
-  keypath-apps.kbd    ← KeyPath owns (regenerated freely)
+  keypath-apps.kbd    ← Generated include; external edits are preserved
   keypath.kbd         ← User owns (optional, for power users)
   AppKeymaps.json     ← KeyPath-owned store (per-app keymaps)
 ```
@@ -159,3 +159,32 @@ VS Code → Unknown App (no keymap defined):
 - [ADR-023: No Config Parsing](adr-023-no-config-parsing.md)
 - [Kanata TCP Protocol](../../External/kanata/docs/config.adoc)
 - Strategy document: "App-Specific Rule Context in KeyPath"
+
+### September 2026 save ownership update
+
+App-specific mutations use `RuntimeCoordinator.mutateAppKeymaps` and the existing
+`SaveCoordinator`. Under one configuration-directory admission, they read fresh
+sources, validate the generated main/include together, stage all three files,
+and keep the prior revision until runtime classification. Applied and pending
+results commit; rejected, failed or cancelled attempts restore all three files.
+Recovery reload results are retained separately from file recovery. A conflicting
+external edit stops recovery and leaves the journal for diagnosis.
+
+Main/include content must be reproducible before a visual edit is admitted. The
+legacy include timestamp is ignored; other differences conservatively block the
+edit. This includes hand-written content, formatting changes and source/generated
+mismatches. The user-approved behavior is preservation plus an explanation that
+explicit conversion with a backup is required. There is no automatic conversion.
+Startup may create a missing include but does not overwrite differing content.
+
+Kanata's live reload replaces the layout, clearing held virtual keys. After an
+applied app save or successful recovery reload, AppContextService must reassert
+the current app's virtual key even when its name is unchanged. Pending saves do
+not claim an applied mapping. Deferred cooldown/transition reloads reacquire
+configuration admission and refresh app context after success; service startup
+also loads the persisted app sources. Recovery reloads run outside caller
+cancellation and are awaited before releasing admission.
+
+The broader reset-all and mixed global/app import journeys still compose multiple
+operations. Global rule/preference/pack rollback and external-watch reconciliation
+are separate remaining refactor work.

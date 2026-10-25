@@ -8,9 +8,65 @@ import KeyPathWizardCore
 public enum SystemInspector {
     /// Inspect the system and return the current state plus all detected issues.
     public static func inspect(context: SystemContext) -> (WizardSystemState, [WizardIssue]) {
+        if context.permissions.backend == .session { return inspectSession(context) }
         let state = determineState(context)
         let issues = generateIssues(context)
         return (state, issues)
+    }
+
+    private static func inspectSession(_ context: SystemContext) -> (WizardSystemState, [WizardIssue]) {
+        guard context.captureStatus.isComplete else { return (.serviceNotRunning, []) }
+        var issues: [WizardIssue] = []
+        var missing: [PermissionRequirement] = []
+        if context.permissions.keyPath.accessibility == .denied || context.permissions.kanata.accessibility == .denied {
+            missing.append(.keyPathAccessibility)
+            issues.append(WizardIssue(
+                identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
+                title: "Allow KeyPath to remap keys", description: context.permissions.blockingIssue ?? "Enable KeyPath in Accessibility, then quit and reopen KeyPath.",
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Open Accessibility in System Settings"
+            ))
+        } else if context.permissions.keyPath.accessibility.isReady,
+                  context.permissions.kanata.accessibility.isReady,
+                  context.permissions.kanata.inputMonitoring == .denied
+        {
+            missing.append(.keyPathInputMonitoring)
+            issues.append(WizardIssue(
+                identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
+                title: "Keyboard access still needs approval",
+                description: context.permissions.blockingIssue ?? "Enable Accessibility and Input Monitoring for KeyPath, then quit and reopen KeyPath.",
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Enable KeyPath in Input Monitoring, then quit and reopen KeyPath"
+            ))
+        }
+        if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }
+        if !context.components.requiredRuntimePayloadPresent {
+            return (.missingComponents(missing: [.bundledKanataMissing]), [WizardIssue(
+                identifier: .component(.bundledKanataMissing), severity: .error, category: .installation,
+                title: "Bundled runtime missing", description: "Reinstall this KeyPath build.", autoFixAction: nil, userAction: "Reinstall KeyPath"
+            )])
+        }
+        if !context.permissions.keyPath.accessibility.isReady
+            || !context.permissions.kanata.accessibility.isReady
+            || !context.permissions.kanata.inputMonitoring.isReady
+        {
+            return sessionPermissionEvidenceUnavailable()
+        }
+        if context.services.kanataRuntimeReadiness.isReady { return (.active, []) }
+        return (.serviceNotRunning, [WizardIssue(
+            identifier: .daemon, severity: .error, category: .daemon,
+            title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
+            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+        )])
+    }
+
+    /// An absent or failed worker check is not proof that macOS refused consent.
+    /// Retry through the canonical runtime lifecycle to obtain fresh evidence.
+    private static func sessionPermissionEvidenceUnavailable() -> (WizardSystemState, [WizardIssue]) {
+        (.serviceNotRunning, [WizardIssue(
+            identifier: .daemon, severity: .error, category: .daemon,
+            title: "Check keyboard access",
+            description: "Keyboard access has not been verified by the session runtime. Start or retry the keyboard service to check access.",
+            autoFixAction: .restartCommServer, userAction: "Start or retry the keyboard service"
+        )])
     }
 
     // MARK: - State Determination
@@ -202,17 +258,17 @@ public enum SystemInspector {
             if status == .unknown {
                 return switch identifier {
                 case .permission(.kanataInputMonitoring):
-                    "Not verified (grant Full Disk Access to verify). If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
+                    "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Input Monitoring."
                 case .permission(.kanataAccessibility):
-                    "Not verified (grant Full Disk Access to verify). If remapping doesn't work, add the KeyPath runtime binary in System Settings > Privacy & Security > Accessibility."
+                    "Permission not verified. If remapping doesn't work, add the KeyPath runtime binary in \(AccessibilityPermissionPresentation.current.settingsPath)."
                 default:
-                    "Not verified (grant Full Disk Access to verify)."
+                    "Permission not verified."
                 }
             }
             return deniedDescription
         }()
         let userActionText = (status == .unknown)
-            ? "Add kanata manually in System Settings, or enable Enhanced Diagnostics to verify"
+            ? "If remapping does not work, add the KeyPath runtime binary in the matching System Settings privacy pane"
             : userAction
 
         issues.append(WizardIssue(
@@ -333,7 +389,7 @@ public enum SystemInspector {
                     severity: .error,
                     category: .permissions,
                     title: "Kanata Engine Accessibility Permission",
-                    description: "macOS rejected Kanata Engine after a rebuild. Remove and re-add the Kanata Engine entry in System Settings > Privacy & Security > Accessibility.",
+                    description: "macOS rejected Kanata Engine after a rebuild. Remove and re-add the Kanata Engine entry in \(AccessibilityPermissionPresentation.current.settingsPath).",
                     autoFixAction: nil,
                     userAction: "Re-grant Accessibility permission for Kanata Engine in System Settings"
                 ))

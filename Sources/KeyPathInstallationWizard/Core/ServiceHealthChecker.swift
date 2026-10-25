@@ -78,6 +78,12 @@ public final class ServiceHealthChecker: @unchecked Sendable {
     private let healthCache = OSAllocatedUnfairLock(initialState: [String: HealthCacheEntry]())
     private let runtimeCache = OSAllocatedUnfairLock(initialState: RuntimeCacheState())
     private let serviceStatusCache = OSAllocatedUnfairLock(initialState: ServiceStatusCacheEntry?.none)
+    private let sessionReadinessProvider = OSAllocatedUnfairLock<(@Sendable () async -> KanataRuntimeReadiness)?>(initialState: nil)
+
+    public func configureSessionReadinessProvider(_ provider: @escaping @Sendable () async -> KanataRuntimeReadiness) {
+        sessionReadinessProvider.withLock { $0 = provider }
+        invalidateHealthCache()
+    }
 
     /// Clear cached health results. Useful in tests or after service state changes.
     public nonisolated func invalidateHealthCache() {
@@ -171,6 +177,16 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         case enabled
         case installedButNotEnabled
         case missing
+        case unknown
+    }
+
+    /// Evidence used by the runtime's emergency-stop invariant.
+    /// `unknown` is deliberately distinct from confirmed failure: inability to
+    /// inspect macOS system-extension or launchd state must fail safe without
+    /// turning a transient probe failure into a runtime shutdown.
+    public enum VHIDSafetyStatus: Sendable, Equatable {
+        case healthy
+        case confirmedUnhealthy
         case unknown
     }
 
@@ -560,6 +576,9 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataRuntimeReadiness {
+        if KanataRuntimeBackend.selected == .session {
+            return await sessionReadinessProvider.withLock { $0 }?() ?? KanataRuntimeReadiness(isRunning: false, isResponding: false, inputCaptureReady: false)
+        }
         if TestEnvironment.shouldSkipAdminOperations {
             return KanataRuntimeReadiness(isRunning: false, isResponding: false)
         }
@@ -581,6 +600,15 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
         timeoutMs: Int = 300
     ) async -> KanataServiceRuntimeSnapshot {
+        if KanataRuntimeBackend.selected == .session {
+            let readiness = await checkKanataServiceHealth(tcpPort: tcpPort, timeoutMs: timeoutMs)
+            return KanataServiceRuntimeSnapshot(
+                managementState: .uninstalled, isRunning: readiness.isRunning,
+                isResponding: readiness.isResponding, inputCaptureReady: readiness.inputCaptureReady,
+                inputCaptureIssue: readiness.isReady ? nil : "driverless-runtime-not-ready",
+                launchctlExitCode: nil, staleEnabledRegistration: false, recentlyRestarted: false
+            )
+        }
         #if DEBUG
             if let override = Self.runtimeSnapshotOverride {
                 return await override()
@@ -618,6 +646,18 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         }
 
         return await checkKanataServiceRuntimeSnapshotUncached(tcpPort: tcpPort, timeoutMs: timeoutMs)
+    }
+
+    /// Fresh runtime evidence for lifecycle transition postconditions.
+    ///
+    /// Tight start/stop polling must not reuse the normal two-second snapshot
+    /// cache: a cached pre-transition result can otherwise make a successful
+    /// launchd mutation look like a failure.
+    public nonisolated func checkKanataServiceRuntimeSnapshotFresh(
+        tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort,
+        timeoutMs: Int = 300
+    ) async -> KanataServiceRuntimeSnapshot {
+        await checkKanataServiceRuntimeSnapshotUncached(tcpPort: tcpPort, timeoutMs: timeoutMs)
     }
 
     private nonisolated func checkKanataServiceRuntimeSnapshotUncached(
@@ -685,6 +725,57 @@ public final class ServiceHealthChecker: @unchecked Sendable {
 
     public nonisolated func isVHIDDriverExtensionEnabled() async -> Bool {
         await vhidDriverExtensionStatus() == .enabled
+    }
+
+    /// Captures the two pieces of evidence required by the runtime safety path:
+    /// an enabled DriverKit extension and a live VirtualHID launch daemon.
+    /// Probe failures remain `.unknown` rather than being collapsed to `false`.
+    public nonisolated func vhidSafetyStatus() async -> VHIDSafetyStatus {
+        let driverStatus = await vhidDriverExtensionStatus()
+        switch driverStatus {
+        case .installedButNotEnabled, .missing:
+            return .confirmedUnhealthy
+        case .enabled, .unknown:
+            break
+        }
+
+        let evidence = await systemStateProvider.launchctlPrint(
+            target: "system/\(Self.vhidDaemonServiceID)"
+        )
+        guard let exitCode = evidence.exitCode else {
+            AppLogger.shared.log(
+                "⚠️ [ServiceHealthChecker] Unable to confirm VHID launchd health: \(evidence.stderr)"
+            )
+            return .unknown
+        }
+        if exitCode == Self.launchctlNotFoundExitCode {
+            return .confirmedUnhealthy
+        }
+        guard exitCode == 0 else {
+            AppLogger.shared.log(
+                "⚠️ [ServiceHealthChecker] Inconclusive VHID launchd probe (exit \(exitCode)): \(evidence.stderr)"
+            )
+            return .unknown
+        }
+
+        let state = evidence.stdout
+            .firstMatchString(pattern: #"(?m)^\s*state\s*=\s*([^\r\n]+)"#)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let pid = evidence.stdout.firstMatchInt(pattern: #"\bpid\s*=\s*([0-9]+)"#)
+        if state == "running" || state == "launching" || pid != nil {
+            return driverStatus == .enabled ? .healthy : .unknown
+        }
+
+        switch state {
+        case "exited", "not running", "stopped", "waiting":
+            return .confirmedUnhealthy
+        default:
+            AppLogger.shared.log(
+                "⚠️ [ServiceHealthChecker] Unrecognized VHID launchd state; preserving unknown: \(state ?? "missing")"
+            )
+            return .unknown
+        }
     }
 
     public nonisolated func vhidDriverExtensionStatus() async -> VHIDDriverExtensionStatus {

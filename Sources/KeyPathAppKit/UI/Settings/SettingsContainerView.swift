@@ -36,7 +36,6 @@ enum SettingsTab: Hashable, CaseIterable {
 struct SettingsContainerView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @State private var selection: SettingsTab = .status
-    @State private var canManageRules: Bool = true
 
     var body: some View {
         @Bindable var kanataManager = kanataManager
@@ -49,18 +48,12 @@ struct SettingsContainerView: View {
                 }
                 .tag(SettingsTab.status)
 
-            Group {
-                if canManageRules {
-                    RulesTabView()
-                } else {
-                    RulesDisabledView(onOpenStatus: { selection = .status })
+            RulesTabView()
+                .tabItem {
+                    Label("Rules", systemImage: "list.bullet")
+                        .accessibilityIdentifier("settings-tab-rules")
                 }
-            }
-            .tabItem {
-                Label("Rules", systemImage: "list.bullet")
-                    .accessibilityIdentifier("settings-tab-rules")
-            }
-            .tag(SettingsTab.rules)
+                .tag(SettingsTab.rules)
 
             GeneralSettingsTabView()
                 .tabItem {
@@ -76,8 +69,13 @@ struct SettingsContainerView: View {
                 }
                 .tag(SettingsTab.advanced)
         }
+        .controlSize(.regular)
         .accessibilityIdentifier("settings-window")
         .background(tabShortcutHandlers)
+        .sheet(item: $kanataManager.pendingRuleSetup) { session in
+            RuleSetupSheet(session: session)
+                .interactiveDismissDisabled()
+        }
         .sheet(isPresented: $kanataManager.showPrerequisiteResolutionDialog) {
             if let model = kanataManager.pendingPrerequisiteResolution {
                 RulePrerequisiteResolutionDialog(
@@ -112,10 +110,9 @@ struct SettingsContainerView: View {
             minWidth: 680,
             idealWidth: 680,
             maxWidth: 680,
-            minHeight: 550,
+            minHeight: 400,
             idealHeight: 700
         )
-        .task { await refreshCanManageRules() }
         .onAppear {
             LiveKeyboardOverlayController.shared.autoHideOnceForSettings()
             applyPendingSettingsNavigationIfNeeded()
@@ -146,16 +143,13 @@ struct SettingsContainerView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { notification in
-            selection = canManageRules ? .rules : .status
+            selection = .rules
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsRules)
             AppLogger.shared.log("🎯 [Settings] Selected Rules tab target=\(notification.userInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String ?? "none")")
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsSimulator)) { _ in
             selection = .advanced
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsSimulator)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .wizardClosed)) { _ in
-            Task { await refreshCanManageRules() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsAdvanced)) { _ in
             selection = .advanced
@@ -168,7 +162,7 @@ struct SettingsContainerView: View {
             Button("") { selection = .status }
                 .keyboardShortcut("1", modifiers: .command)
                 .accessibilityIdentifier("settings-shortcut-status-button")
-            Button("") { selection = canManageRules ? .rules : selection }
+            Button("") { selection = .rules }
                 .keyboardShortcut("2", modifiers: .command)
                 .accessibilityIdentifier("settings-shortcut-rules-button")
             Button("") { selection = .general }
@@ -184,23 +178,13 @@ struct SettingsContainerView: View {
         .accessibilityHidden(true)
     }
 
-    private func refreshCanManageRules() async {
-        let context = await kanataManager.inspectSystemContext()
-        await MainActor.run {
-            canManageRules = context.services.isHealthy && context.services.kanataRunning
-            if !canManageRules, selection == .rules {
-                selection = .status
-            }
-        }
-    }
-
     private func applyPendingSettingsNavigationIfNeeded() {
         guard let request = SettingsNavigationCoordinator.shared.consumePendingRequest() else { return }
         switch request.notification {
         case .openSettingsGeneral, .openSettingsLogs:
             selection = .general
         case .openSettingsRules:
-            selection = canManageRules ? .rules : .status
+            selection = .rules
             AppLogger.shared.log("🎯 [Settings] Applied pending Rules navigation target=\(request.userInfo?[SettingsNavigationUserInfo.ruleCollectionTarget] as? String ?? "none")")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 NotificationCenter.default.post(name: .openSettingsRules, object: nil, userInfo: request.userInfo)
@@ -221,31 +205,5 @@ extension SettingsTab {
         case .general: "general"
         case .advanced: "repair"
         }
-    }
-}
-
-private struct RulesDisabledView: View {
-    let onOpenStatus: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "power")
-                .font(.largeTitle.weight(.semibold))
-                .foregroundColor(.secondary)
-            Text("Turn on Kanata to manage rules.")
-                .font(.title3.weight(.semibold))
-            Text("Start the service on the Status tab, then return to manage rules.")
-                .font(.callout)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.secondary)
-                .padding(.horizontal, 40)
-            Button(action: onOpenStatus) {
-                Label("Go to Status", systemImage: "arrow.right.circle.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("settings-go-to-status-button")
-            .accessibilityLabel("Go to Status")
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

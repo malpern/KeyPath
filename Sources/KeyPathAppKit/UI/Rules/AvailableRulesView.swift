@@ -103,7 +103,7 @@ private struct AvailableRuleCollectionCard: View {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 4)
-                            .background(Color(NSColor.controlBackgroundColor))
+                            .background(SettingsDesign.chipFill)
                             .clipShape(.rect(cornerRadius: 6))
                         }
                         if collection.mappings.count > 6 {
@@ -118,7 +118,7 @@ private struct AvailableRuleCollectionCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(Color(NSColor.windowBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
     }
 }

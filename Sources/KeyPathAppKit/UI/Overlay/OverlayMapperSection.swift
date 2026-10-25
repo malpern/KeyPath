@@ -234,6 +234,10 @@ struct OverlayMapperSection: View {
                     }
                     .frame(height: 132)
 
+                    // The overlay saves on capture, so a refusal or a declined save
+                    // must be said here; otherwise the mapping just seems to vanish.
+                    MapperStatusLine(message: viewModel.statusMessage, isError: viewModel.statusIsError)
+
                     appMappingIndicators
                         .saturation(Double(1 - fadeAmount))
                         .opacity(Double(1 - fadeAmount * 0.5))

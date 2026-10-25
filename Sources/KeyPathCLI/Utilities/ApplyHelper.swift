@@ -3,9 +3,8 @@ import Foundation
 import KeyPathAppKit
 import KeyPathCLISupport
 
-func applyConfigurationOrHint(apply: Bool, context: OutputContext) async throws {
+func applyConfigurationOrHint(apply: Bool, context: OutputContext, facade: ConfigFacade) async throws {
     if apply {
-        let facade = ConfigFacade()
         let result = try await facade.applyConfiguration()
         if result.reloadSuccess {
             CLIOutput.write(["applied": true], context: context) {

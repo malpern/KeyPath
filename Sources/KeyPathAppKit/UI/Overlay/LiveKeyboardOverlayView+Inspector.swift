@@ -80,10 +80,6 @@ struct OverlayInspectorPanel: View {
     @State var launcherActivationMode: LauncherActivationMode = .holdHyper
     /// Current hyper trigger mode (hold vs tap)
     @State var launcherHyperTriggerMode: HyperTriggerMode = .hold
-    /// Whether browser history sheet is showing
-    @State var showLauncherHistorySuggestions = false
-    /// Existing launcher domains (for history import)
-    @State var launcherExistingDomains: Set<String> = []
 
     /// Labels for tap-dance steps beyond double tap
     static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap"]

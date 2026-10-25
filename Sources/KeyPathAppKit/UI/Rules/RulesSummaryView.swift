@@ -14,11 +14,14 @@ struct RulesTabView: View {
     @State private var searchQuery = ""
     @State var recommendationFocusCollectionId: UUID?
     @State private var showingResetConfirmation = false
+    @State private var showingCatalogUpdateReview = false
+    @State private var showingKarabinerImport = false
     @State private var showingNewRuleSheet = false
     @State var settingsToastManager = WizardToastManager()
     @State private var createButtonHovered = false
     @State var stableSortOrder: [UUID] = []
     @State var pendingSelections: [UUID: String] = [:]
+    @State var pendingSelectionEdits: [UUID: UUID] = [:]
     @State var pendingToggles: [UUID: Bool] = [:]
     @State var showingHomeRowModsHelp = false
     @State var homeRowModsEditState: HomeRowModsEditState?
@@ -28,6 +31,8 @@ struct RulesTabView: View {
     @State var appKeymaps: [AppKeymap] = []
     @State var isKindaVimInstalled = false
     @State var isKeystrokeHistoryInstalled = false
+    @State var kindaVimMutationID: UUID?
+    @State var keystrokeHistoryMutationID: UUID?
     @State var pendingEnablePack: Pack?
     @State var pendingEnableUnmetDeps: [UnmetDependency] = []
     @State var pendingDisablePack: Pack?
@@ -230,23 +235,47 @@ struct RulesTabView: View {
 
                 Spacer()
 
+                if !kanataManager.catalogUpdatePreviews().isEmpty {
+                    Button {
+                        showingCatalogUpdateReview = true
+                    } label: {
+                        Label("Catalog updates", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .settingsAction()
+                    .controlSize(.large)
+                    .accessibilityIdentifier("rules-catalog-updates-button")
+                    .accessibilityLabel("Review catalog updates")
+                }
+
                 Button {
                     showingResetConfirmation = true
                 } label: {
                     Label("Reset", systemImage: "arrow.counterclockwise")
                 }
-                .buttonStyle(.bordered)
+                .settingsAction()
                 .controlSize(.large)
                 .tint(.red)
                 .accessibilityIdentifier("rules-reset-button")
                 .accessibilityLabel("Reset Rules")
 
                 Button {
+                    showingKarabinerImport = true
+                } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                }
+                .settingsAction()
+                .controlSize(.large)
+                .help("Import rules from Karabiner-Elements")
+                .accessibilityIdentifier("rules-import-karabiner-button")
+                .accessibilityLabel("Import from Karabiner")
+                .sheet(isPresented: $showingKarabinerImport) { KarabinerImportSheet() }
+
+                Button {
                     openConfigInEditor()
                 } label: {
                     Label("Edit config", systemImage: "square.and.pencil")
                 }
-                .buttonStyle(.bordered)
+                .settingsAction()
                 .controlSize(.large)
                 .accessibilityIdentifier("rules-edit-config-button")
                 .accessibilityLabel("Edit Config")
@@ -256,14 +285,13 @@ struct RulesTabView: View {
                 } label: {
                     Label("Create Rule", systemImage: "plus.circle.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .settingsPrimaryAction()
                 .controlSize(.large)
                 .accessibilityIdentifier("rules-create-button")
                 .accessibilityLabel("Create Rule")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(NSColor.controlBackgroundColor).opacity(0.3))
 
             Divider()
 
@@ -416,8 +444,7 @@ struct RulesTabView: View {
                                 Button("Clear Search") {
                                     searchQuery = ""
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                                .settingsPrimaryAction()
                                 .accessibilityIdentifier("rules-search-empty-clear-button")
                                 .accessibilityLabel("Clear rules search from empty state")
                             }
@@ -442,7 +469,7 @@ struct RulesTabView: View {
             if let toastMessage = kanataManager.toastMessage {
                 ToastView(message: toastMessage, type: kanataManager.toastType)
                     .padding(.top, 16)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(1000)
             }
@@ -559,6 +586,14 @@ struct RulesTabView: View {
         }
         .sheet(isPresented: $showingHomeRowModsHelp) {
             MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+        }
+        .sheet(isPresented: $showingCatalogUpdateReview) {
+            CatalogUpdateReviewSheet(
+                previews: kanataManager.catalogUpdatePreviews(),
+                onApply: { ids in
+                    await kanataManager.applyCatalogUpdates(ids: ids)
+                }
+            )
         }
         .alert("Reset Configuration?", isPresented: $showingResetConfirmation) {
             Button("Cancel", role: .cancel) {}

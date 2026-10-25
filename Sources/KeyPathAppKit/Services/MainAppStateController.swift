@@ -59,6 +59,7 @@ class MainAppStateController {
 
     @ObservationIgnored private var validator: (any WizardSystemValidating)?
     @ObservationIgnored private var inProgressValidation: Task<Void, Never>?
+    @ObservationIgnored private var validationRefreshPending = false
     @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
     @ObservationIgnored private var onSystemHealthy: (() -> Void)?
     @ObservationIgnored private var hasRunInitialValidation = false
@@ -119,6 +120,7 @@ class MainAppStateController {
 
     @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
     @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
+    @ObservationIgnored private var lastKnownRecoveryRevision: UInt64?
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
@@ -127,6 +129,8 @@ class MainAppStateController {
     @ObservationIgnored private let startupCheckInterval: TimeInterval = 0.5
 
     #if DEBUG
+        @ObservationIgnored private var startupGateNowOverride: (() -> Date)?
+        @ObservationIgnored private var startupGatePermissionsOverride: (() async -> PermissionOracle.Snapshot)?
         @ObservationIgnored private var startupGateHealthOverride:
             (() async -> KanataRuntimeReadiness)?
         @ObservationIgnored private var startupGateTransientWindowOverride:
@@ -135,6 +139,8 @@ class MainAppStateController {
             (definitiveGrace: TimeInterval, transientGrace: TimeInterval, checkInterval: TimeInterval)?
 
         func configureStartupGateTestingState(
+            nowOverride: (() -> Date)? = nil,
+            permissionsOverride: (() async -> PermissionOracle.Snapshot)? = nil,
             healthOverride: (() async -> KanataRuntimeReadiness)? = nil,
             transientWindowOverride: (() async -> Bool)? = nil,
             timingOverride: (
@@ -143,12 +149,16 @@ class MainAppStateController {
                 checkInterval: TimeInterval
             )? = nil
         ) {
+            startupGateNowOverride = nowOverride
+            startupGatePermissionsOverride = permissionsOverride
             startupGateHealthOverride = healthOverride
             startupGateTransientWindowOverride = transientWindowOverride
             startupGateTimingOverride = timingOverride
         }
 
         func resetStartupGateTestingState() {
+            startupGateNowOverride = nil
+            startupGatePermissionsOverride = nil
             startupGateHealthOverride = nil
             startupGateTransientWindowOverride = nil
             startupGateTimingOverride = nil
@@ -180,8 +190,8 @@ class MainAppStateController {
 
         AppLogger.shared.log("🎯 [MainAppStateController] Configured (Phase 3)")
 
-        // Check for orphaned installation (leftover files from manual deletion)
-        OrphanDetector.shared.checkForOrphans()
+        // Existing user data is expected on relaunch, not evidence of app deletion.
+        // Keep legacy cleanup out of startup: a modal alert here blocks bootstrap.
 
         // Start service health monitoring to fix stale overlay state
         if TestEnvironment.isRunningTests {
@@ -273,6 +283,13 @@ class MainAppStateController {
 
     /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
     /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
+    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64) -> Bool {
+        let changed = lastKnownRuntimeHealthy != isHealthy || lastKnownRecoveryRevision != recoveryRevision
+        lastKnownRuntimeHealthy = isHealthy
+        lastKnownRecoveryRevision = recoveryRevision
+        return changed
+    }
+
     private func subscribeToServiceHealth() {
         guard let serviceLifecycle else { return }
 
@@ -286,30 +303,13 @@ class MainAppStateController {
                 let isHealthy = runtimeStatus.isRunning
                 let wasHealthy = lastKnownRuntimeHealthy
 
-                if wasHealthy != isHealthy {
-                    lastKnownRuntimeHealthy = isHealthy
+                if runtimeValidationNeedsRefresh(isHealthy: isHealthy,
+                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision)
+                {
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
                     )
                     await revalidate()
-                }
-
-                // VHID safety invariant: if kanata is running but VirtualHID daemon
-                // is not healthy, emergency-stop kanata to release the keyboard.
-                // W3 safety exception: this background mutation only stops remapping
-                // to prevent unsafe keyboard capture; it must not perform repair.
-                if isHealthy {
-                    let vhidHealthy = await ServiceHealthChecker.shared.isServiceHealthy(
-                        serviceID: ServiceHealthChecker.vhidDaemonServiceID
-                    )
-                    if VHIDSafetyCheck.shouldEmergencyStop(
-                        kanataRunning: true, vhidDaemonHealthy: vhidHealthy
-                    ) {
-                        AppLogger.shared.error(
-                            "🚨 [MainAppStateController] SAFETY: Kanata running without VirtualHID daemon — emergency stop"
-                        )
-                        await serviceLifecycle.stopKanata(reason: "Emergency: VirtualHID not running")
-                    }
                 }
 
                 try? await Task.sleep(for: .seconds(2))
@@ -430,7 +430,7 @@ class MainAppStateController {
             validator?.invalidateCaches()
             AppLogger.shared.log("🔄 [MainAppStateController] Force refresh - cooldown cleared")
         }
-        await performValidation()
+        await performValidation(requiresFreshResult: force)
     }
 
     /// Invalidate validation cooldown (call when system state may have changed externally)
@@ -446,19 +446,24 @@ class MainAppStateController {
         AppLogger.shared.log("🔄 [MainAppStateController] Revalidate requested - clearing cooldown")
         lastValidationTime = nil
         validator?.invalidateCaches()
-        await performValidation()
+        await performValidation(requiresFreshResult: true)
     }
 
     // MARK: - Private Implementation
 
-    private enum KanataStartupGateResult {
+    private enum KanataStartupGateResult: Equatable {
         case ready
+        case recoveringFromWake
         case transientTimeout
         case definitiveFailure
+        case missingSessionPermissions
+        case invalidSessionConfiguration(String)
+        case sessionRecoveryRefused(String)
     }
 
-    private func performValidation() async {
+    private func performValidation(requiresFreshResult: Bool = false) async {
         if let inProgressValidation {
+            if requiresFreshResult { validationRefreshPending = true }
             AppLogger.shared.log(
                 "🔍 [MainAppStateController] Validation already in progress - waiting for published result"
             )
@@ -468,11 +473,17 @@ class MainAppStateController {
 
         let task = Task<Void, Never> { @MainActor [weak self] in
             guard let self else { return }
-            await performValidationBody()
+            repeat {
+                validationRefreshPending = false
+                await performValidationBody()
+                // An explicit refresh may arrive after this capture started. Invalidate
+                // again because the completed capture can have repopulated caches.
+                if validationRefreshPending { validator?.invalidateCaches() }
+            } while validationRefreshPending
+            inProgressValidation = nil
         }
         inProgressValidation = task
         await task.value
-        inProgressValidation = nil
     }
 
     private func performValidationBody() async {
@@ -488,6 +499,15 @@ class MainAppStateController {
         switch await evaluateKanataStartupGate() {
         case .ready:
             break
+        case .recoveringFromWake:
+            publishWakeRecoveryInProgress()
+            return
+        case let .invalidSessionConfiguration(reason):
+            publishSessionConfigurationRefusal(reason)
+            return
+        case let .sessionRecoveryRefused(reason):
+            publishSessionConfigurationRefusal(reason, recovery: true)
+            return
         case .transientTimeout:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "transientTimeout") {
                 AppLogger.shared.warn(
@@ -501,6 +521,10 @@ class MainAppStateController {
                     "⚠️ [MainAppStateController] Kanata still in transient startup window (repeat #\(repeatCount(forSite: .startupGate)), suppressing detailed log)"
                 )
             }
+        case .missingSessionPermissions:
+            AppLogger.shared.info(
+                "🔍 [MainAppStateController] Session permissions are blocked - proceeding with full validation"
+            )
         case .definitiveFailure:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "definitiveFailure") {
                 AppLogger.shared.warn(
@@ -522,7 +546,28 @@ class MainAppStateController {
         // SystemValidator owns the canonical capture timeout so every consumer
         // receives the same first-class `.timedOut` snapshot evidence.
         AppLogger.shared.log("🔍 [MainAppStateController] Canonical validation run started")
+        let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
         let snapshot = await validator.checkSystem()
+        if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+            publishSessionConfigurationRefusal(refusal, recovery: true)
+            return
+        }
+        if let refusal = serviceLifecycle?.configurationRefusalForStartup() {
+            publishSessionConfigurationRefusal(refusal)
+            return
+        }
+        // Recovery can begin while a snapshot is suspended. Do not publish that
+        // retired worker's missing-runtime result as a setup failure.
+        if serviceLifecycle?.isRecoveringFromSystemWake == true {
+            publishWakeRecoveryInProgress()
+            return
+        }
+
+        if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision {
+            publishWakeRecoveryInProgress()
+            validationRefreshPending = true
+            return
+        }
 
         let validationDuration = Date().timeIntervalSince(validationStart)
         AppLogger.shared.log(
@@ -703,11 +748,11 @@ class MainAppStateController {
             )
             let signature = "\(adapted.state):\(blockingIssues.map(\.title).joined(separator: ","))"
             if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
-                AppLogger.shared.error(
+                AppLogger.shared.errorUnlessQuietTest(
                     "❌ [MainAppStateController] Validation FAILED - adapter state: \(adapted.state)"
                 )
                 for issue in blockingIssues {
-                    AppLogger.shared.error(
+                    AppLogger.shared.errorUnlessQuietTest(
                         "❌ [MainAppStateController]   - \(issue.title): \(issue.description)"
                     )
                 }
@@ -720,7 +765,10 @@ class MainAppStateController {
 
         // Unified grace period: suppress failures during startup window so all
         // consumers (overlay, Settings, wizard) see .checking instead of .failed.
-        if case .failed = validationState, await isInRuntimeStartupWindow() {
+        if case .failed = validationState,
+           !Self.hasDefinitiveSessionPermissionFailure(snapshot.permissions),
+           await isInRuntimeStartupWindow()
+        {
             AppLogger.shared.info(
                 "⏳ [MainAppStateController] Suppressing .failed → .checking (startup grace window)"
             )
@@ -728,15 +776,88 @@ class MainAppStateController {
         }
     }
 
+    /// A known permission denial cannot recover by waiting for runtime startup.
+    /// Unknown evidence retains the existing grace period until validation resolves it.
+    static func hasDefinitiveSessionPermissionFailure(_ permissions: PermissionOracle.Snapshot) -> Bool {
+        permissions.backend == .session && (
+            permissions.keyPath.accessibility.isBlocking ||
+                permissions.kanata.accessibility.isBlocking ||
+                permissions.kanata.inputMonitoring.isBlocking
+        )
+    }
+
+    private func publishSessionConfigurationRefusal(_ reason: String, recovery: Bool = false) {
+        // Keep this actionable correction out of installer repair. A full system
+        // snapshot cannot make a proven unsupported configuration start running.
+        issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
+                              category: .systemRequirements, title: recovery ? "Keyboard recovery requires attention" : "Configuration cannot run in driverless mode",
+                              description: reason, autoFixAction: nil,
+                              userAction: recovery ? "The recovery record was preserved. Do not clear it to force a restart."
+                                  : "Edit the configuration and retry. Existing rules were preserved.")]
+        validationState = .failed(blockingCount: 1, totalCount: 1)
+        lastValidatedSystemContext = nil
+        lastAdaptedState = .serviceNotRunning
+        lastTCPConfigured = nil
+        lastInstallerStateMatrixRow = nil
+        lastInstallerStateMatrixPlan = []
+        lastValidationDate = Date()
+        lastValidationTime = Date()
+        AppLogger.shared.errorUnlessQuietTest("Driverless configuration refused: \(reason)")
+    }
+
+    private func publishWakeRecoveryInProgress() {
+        validationState = .checking
+        lastAdaptedState = .initializing
+        issues = []
+        lastValidationDate = Date()
+        lastValidationTime = Date()
+    }
+
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
+        if KanataRuntimeBackend.selected == .session,
+           let refusal = serviceLifecycle?.configurationRefusalForStartup()
+        {
+            return .invalidSessionConfiguration(refusal)
+        }
+        if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+            return .sessionRecoveryRefused(refusal)
+        }
+        if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
         let timing = startupGateTiming()
-        let start = Date()
+        let start = startupGateNow()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
         let transientDeadline = start.addingTimeInterval(timing.transientGrace)
         var checks = 0
 
-        while Date() < transientDeadline {
+        while startupGateNow() < transientDeadline {
+            if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+                return .sessionRecoveryRefused(refusal)
+            }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+            if KanataRuntimeBackend.selected == .session {
+                let permissions: PermissionOracle.Snapshot
+                #if DEBUG
+                    if let override = startupGatePermissionsOverride {
+                        permissions = await override()
+                    } else {
+                        permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
+                    }
+                #else
+                    permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
+                #endif
+                if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+                if Self.hasDefinitiveSessionPermissionFailure(permissions) {
+                    return .missingSessionPermissions
+                }
+            }
+            let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
             let health = await currentKanataStartupHealth()
+            // Recovery may finish while health is suspended; stale readiness must not win.
+            if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
+                return .sessionRecoveryRefused(refusal)
+            }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+            if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision { continue }
             let isReady = health.isReady
             if isReady {
                 if checks > 0 {
@@ -748,7 +869,7 @@ class MainAppStateController {
             }
 
             let inTransientWindow = await isInKanataTransientStartupWindow()
-            if !inTransientWindow, Date() >= definitiveDeadline {
+            if !inTransientWindow, startupGateNow() >= definitiveDeadline {
                 return .definitiveFailure
             }
 
@@ -760,6 +881,13 @@ class MainAppStateController {
         }
 
         return .transientTimeout
+    }
+
+    private func startupGateNow() -> Date {
+        #if DEBUG
+            if let override = startupGateNowOverride { return override() }
+        #endif
+        return Date()
     }
 
     private func startupGateTiming()
@@ -801,16 +929,7 @@ class MainAppStateController {
             }
         #endif
 
-        let recentlyRestarted = ServiceBootstrapper.wasRecentlyRestarted(
-            ServiceHealthChecker.kanataServiceID,
-            within: startupGateTiming().transientGrace
-        )
-        if recentlyRestarted {
-            return true
-        }
-
-        let managementState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        return managementState == .smappservicePending
+        return await serviceLifecycle?.isInTransientRuntimeStartupWindow() ?? false
     }
 
     #if DEBUG

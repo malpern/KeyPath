@@ -218,6 +218,31 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
         XCTAssertEqual(controller.activeKeyboard?.id, initialKeyboardEvents.first?.id)
     }
 
+    /// Settings' layout dropdown applies the layout and binds it to the keyboard.
+    func testSelectLayoutAppliesAndRemembersLayoutForActiveKeyboard() async throws {
+        let previous = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey)
+        defer { UserDefaults.standard.set(previous, forKey: LayoutPreferences.layoutIdKey) }
+        let event = HIDDeviceMonitor.HIDKeyboardEvent(
+            vendorID: 0x05AC, productID: 0x0342,
+            productName: "Apple Internal Keyboard / Trackpad", isConnected: true
+        )
+        await controller.handleConnectedKeyboardForTesting(event, showFeedback: false)
+        let target = try XCTUnwrap(PhysicalLayout.all.first { $0.id != controller.activeKeyboard?.layoutId })
+
+        controller.selectLayout(target.id)
+
+        XCTAssertEqual(UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey), target.id)
+        XCTAssertEqual(controller.activeKeyboard?.layoutId, target.id)
+        XCTAssertEqual(controller.activeKeyboard?.status, .remembered)
+    }
+
+    func testSelectLayoutIgnoresUnknownLayout() {
+        let previous = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey)
+        defer { UserDefaults.standard.set(previous, forKey: LayoutPreferences.layoutIdKey) }
+        controller.selectLayout("no-such-layout")
+        XCTAssertEqual(UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey), previous)
+    }
+
     func testLowConfidenceVendorFallbackRequiresReviewInsteadOfAutoActivation() async {
         KeyboardDetectionIndex.seedIndex(
             exactEntries: [],

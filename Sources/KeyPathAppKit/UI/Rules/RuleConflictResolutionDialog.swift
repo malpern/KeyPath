@@ -18,13 +18,17 @@ struct RuleConflictSourceSnapshot: Sendable, Equatable {
     let icon: String
     let summary: String
     let mappings: [ConflictMapping]
+    /// False for a party no stored rule owns (the leader key, a chord group):
+    /// it can be shown but not turned off from the conflict dialog.
+    var canBeDisabled: Bool = true
 
     /// Memberwise initializer for direct construction
-    init(name: String, icon: String, summary: String, mappings: [ConflictMapping]) {
+    init(name: String, icon: String, summary: String, mappings: [ConflictMapping], canBeDisabled: Bool = true) {
         self.name = name
         self.icon = icon
         self.summary = summary
         self.mappings = mappings
+        self.canBeDisabled = canBeDisabled
     }
 
     /// Create a snapshot from a RuleConflictInfo.Source
@@ -39,6 +43,9 @@ struct RuleConflictSourceSnapshot: Sendable, Equatable {
             mappings = collection.mappings.map { ConflictMapping(input: $0.input, output: $0.action.displayName) }
         case let .customRule(rule):
             mappings = [ConflictMapping(input: rule.input, output: rule.action.displayName)]
+        case .named:
+            mappings = []
+            canBeDisabled = false
         }
     }
 }
@@ -101,7 +108,9 @@ struct RuleConflictResolutionDialog: View {
                 Text("Switch to \(context.newRule.name)?")
                     .font(.title2.weight(.semibold))
 
-                Text("This will disable \(context.existingRule.name) since both use the same keys.")
+                Text(context.existingRule.canBeDisabled
+                    ? "This will disable \(context.existingRule.name) since both use the same keys."
+                    : "\(context.existingRule.name) uses the same keys. Change it in Settings first, then enable \(context.newRule.name).")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -155,21 +164,23 @@ struct RuleConflictResolutionDialog: View {
             .accessibilityIdentifier("rule-conflict-keep-existing-button")
             .accessibilityLabel("Keep \(context.existingRule.name)")
 
-            Button {
-                onChoice(.keepNew)
-            } label: {
-                HStack {
-                    Spacer()
-                    Text("Switch to \(context.newRule.name)")
-                        .font(.body.weight(.medium))
-                    Spacer()
+            if context.existingRule.canBeDisabled {
+                Button {
+                    onChoice(.keepNew)
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text("Switch to \(context.newRule.name)")
+                            .font(.body.weight(.medium))
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, 8)
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("rule-conflict-enable-new-button")
+                .accessibilityLabel("Switch to \(context.newRule.name)")
             }
-            .buttonStyle(.borderedProminent)
-            .keyboardShortcut(.defaultAction)
-            .accessibilityIdentifier("rule-conflict-enable-new-button")
-            .accessibilityLabel("Switch to \(context.newRule.name)")
         }
         .padding(20)
     }
@@ -185,6 +196,8 @@ extension RuleConflictInfo.Source {
             collection.icon ?? "square.stack.3d.up"
         case .customRule:
             "pencil.circle"
+        case .named:
+            "command"
         }
     }
 
@@ -195,6 +208,8 @@ extension RuleConflictInfo.Source {
             collection.summary
         case let .customRule(rule):
             rule.notes ?? "Custom key mapping"
+        case .named:
+            "Set in Settings, not a rule"
         }
     }
 }

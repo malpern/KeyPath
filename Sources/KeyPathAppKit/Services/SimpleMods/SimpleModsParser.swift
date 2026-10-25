@@ -18,6 +18,11 @@ public final class SimpleModsParser: Sendable {
         }
 
         let content = try String(contentsOfFile: configPath, encoding: .utf8)
+        return try parse(content: content)
+    }
+
+    /// Parse a captured revision without rereading a potentially newer file.
+    func parse(content: String) throws -> (block: SentinelBlock?, allMappings: [SimpleMapping], conflicts: [MappingConflict]) {
         let lines = content.components(separatedBy: .newlines)
 
         // Find sentinel block
@@ -35,6 +40,8 @@ public final class SimpleModsParser: Sendable {
         var blockMappings: [SimpleMapping] = []
         var currentMappingLine: Int?
         var currentFromKey: String?
+        var externalMapDepth = 0
+        var awaitingExternalLayerName = false
 
         for (index, line) in lines.enumerated() {
             let lineNumber = index + 1
@@ -118,8 +125,24 @@ public final class SimpleModsParser: Sendable {
                     currentFromKey = nil
                 }
             } else {
-                // Outside block - check for conflicts (other deflayermap mappings)
-                if let mapping = parseMappingLine(line, at: lineNumber) {
+                // Ordinary defsrc/deflayer rows are positional keys, not mapping pairs.
+                // Index only entries in an explicit base deflayermap.
+                let code = KanataConfigTokenizer.stripInlineComment(line)
+                    .trimmingCharacters(in: .whitespaces)
+                let depthChange = code.filter { $0 == "(" }.count - code.filter { $0 == ")" }.count
+                if externalMapDepth == 0 {
+                    if awaitingExternalLayerName, code.isEmpty { continue }
+                    if awaitingExternalLayerName, code == "(base)" {
+                        externalMapDepth = 1
+                    } else if code.hasPrefix("(deflayermap"), code.contains("(base)") {
+                        externalMapDepth = max(0, depthChange)
+                    }
+                    awaitingExternalLayerName = code == "(deflayermap"
+                    continue
+                }
+                let isEntry = externalMapDepth == 1
+                externalMapDepth = max(0, externalMapDepth + depthChange)
+                if isEntry, let mapping = parseMappingLine(line, at: lineNumber) {
                     // Check if this conflicts with any in our block
                     if blockMappings.contains(where: { $0.fromKey == mapping.fromKey }) {
                         conflicts.append(

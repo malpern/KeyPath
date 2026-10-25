@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # KeyPath Build, Sign, and Notarize Script
-# Run this to create a production-ready, signed, and notarized app
+# Run this to create a production-ready, signed, and notarized app.
+# Set SKIP_DEPLOY=1 to leave the assembled candidate in dist/ without touching
+# the currently installed app or its running keyboard service.
 
 set -euo pipefail
 
@@ -9,8 +11,12 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
+source "$SCRIPT_DIR/lib/deploy-app.sh"
 source "$SCRIPT_DIR/lib/submodules.sh"
+source "$SCRIPT_DIR/lib/sparkle.sh"
+export KEYPATH_PROJECT_DIR="$SCRIPT_DIR/.."
 keypath_use_stable_xcode
+command -v pandoc >/dev/null || { echo "Offline help requires pandoc (brew install pandoc)." >&2; exit 2; }
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
 
@@ -41,103 +47,35 @@ create_sparkle_archive() {
     ditto -c -k --keepParent "${APP_NAME}.app" "sparkle/${ARCHIVE_NAME}"
     cd ..
 
-    # Sign with EdDSA using Sparkle's sign_update tool.
-    # Resolve dynamically because Homebrew cask versions change frequently.
-    local SIGN_UPDATE=""
-    local SIGNATURE=""
-    if [ -n "${KP_SPARKLE_SIGN_CMD:-}" ]; then
-        # Explicit override (e.g. an unattended wrapper that signs in the GUI session).
-        SIGN_UPDATE="$KP_SPARKLE_SIGN_CMD"
-    elif command -v sign_update >/dev/null 2>&1; then
-        SIGN_UPDATE="$(command -v sign_update)"
+    local GENERATE_APPCAST
+    GENERATE_APPCAST="$(keypath_resolve_sparkle_tool generate_appcast)" || {
+        echo "❌ ERROR: Sparkle generate_appcast is unavailable." >&2
+        return 1
+    }
+    local FEED_WORK_DIR="${SPARKLE_DIR}/feed"
+    mkdir -p "$FEED_WORK_DIR"
+    ditto "$SCRIPT_DIR/../appcast.xml" "$FEED_WORK_DIR/appcast.xml"
+    ditto "${SPARKLE_DIR}/${ARCHIVE_NAME}" "$FEED_WORK_DIR/${ARCHIVE_NAME}"
+
+    local APPCAST_ARGS=(
+        --download-url-prefix "https://github.com/malpern/KeyPath/releases/download/v${VERSION}/"
+        --full-release-notes-url "https://github.com/malpern/KeyPath/releases/tag/v${VERSION}"
+        --link "https://keypath-app.com"
+        --versions "$BUILD"
+        --maximum-versions 0
+        --maximum-deltas 0
+    )
+    if [[ "$VERSION" == *-* ]]; then
+        APPCAST_ARGS+=(--channel beta)
     else
-        local CASK_VERSION=""
-        # `|| CASK_VERSION=""` keeps `set -euo pipefail` from aborting the whole build
-        # when the sparkle cask isn't installed (brew exits non-zero); fall through to
-        # the graceful "sign_update not found" handling below instead.
-        CASK_VERSION="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')" || CASK_VERSION=""
-        for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
-            if [ -n "$CASK_VERSION" ] && [ -x "$CASK_ROOT/$CASK_VERSION/bin/sign_update" ]; then
-                SIGN_UPDATE="$CASK_ROOT/$CASK_VERSION/bin/sign_update"
-                break
-            fi
-        done
-
-        # Fallback: pick the newest installed sign_update in known cask roots.
-        if [ -z "$SIGN_UPDATE" ]; then
-            local CANDIDATE=""
-            for CASK_ROOT in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
-                CANDIDATE="$(ls -1dt "$CASK_ROOT"/*/bin/sign_update 2>/dev/null | head -n1 || true)"
-                if [ -n "$CANDIDATE" ] && [ -x "$CANDIDATE" ]; then
-                    SIGN_UPDATE="$CANDIDATE"
-                    break
-                fi
-            done
-        fi
+        APPCAST_ARGS+=(--phased-rollout-interval 86400)
     fi
 
-    if [ -n "$SIGN_UPDATE" ] && [ -x "$SIGN_UPDATE" ]; then
-        echo "🔎 Using sign_update at: $SIGN_UPDATE"
-        echo "🔐 Signing archive with EdDSA..."
-
-        # sign_update typically prints: sparkle:edSignature="BASE64..."
-        # Normalize so SIGNATURE is just the base64 payload (not the full attribute string).
-        local SIGN_OUTPUT
-        SIGN_OUTPUT=$("$SIGN_UPDATE" "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "")
-        SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
-        if [ -z "$SIGNATURE" ]; then
-            # Some versions may print just the signature string; accept that form too.
-            SIGNATURE=$(echo "$SIGN_OUTPUT" | tr -d '\n' | tr -d '\r')
-        fi
-
-        if [ -n "$SIGNATURE" ]; then
-            echo "$SIGNATURE" > "${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
-            echo "✅ EdDSA signature generated"
-        else
-            echo "⚠️ WARNING: EdDSA signing failed - check Keychain for Sparkle key"
-        fi
-    else
-        echo "⚠️ WARNING: sign_update not found in PATH or Homebrew Caskroom"
-        echo "   Install Sparkle CLI tools and ensure sign_update is available on PATH."
-    fi
-
-    if [ -z "$SIGNATURE" ]; then
-        if [ "${ALLOW_UNSIGNED_SPARKLE:-0}" = "1" ]; then
-            echo "⚠️ WARNING: Continuing without Sparkle EdDSA signature (ALLOW_UNSIGNED_SPARKLE=1)"
-        else
-            echo "❌ ERROR: Missing Sparkle EdDSA signature; aborting release archive generation." >&2
-            echo "   Ensure sign_update is installed and your Sparkle private key is available in Keychain." >&2
-            echo "   Set ALLOW_UNSIGNED_SPARKLE=1 only for local testing." >&2
-            return 1
-        fi
-    fi
-
-    # Get file size
-    local SIZE
-    SIZE=$(stat -f '%z' "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || stat --format='%s' "${SPARKLE_DIR}/${ARCHIVE_NAME}" 2>/dev/null || echo "0")
-    local PUB_DATE
-    PUB_DATE=$(date -R 2>/dev/null || date '+%a, %d %b %Y %T %z')
-
-    # Generate appcast entry XML
-    echo "📝 Generating appcast entry..."
-    cat > "${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml" <<EOF
-<!-- Add this item to appcast.xml -->
-<item>
-    <title>Version ${VERSION}</title>
-    <sparkle:version>${BUILD}</sparkle:version>
-    <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-    <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-    <pubDate>${PUB_DATE}</pubDate>
-    <enclosure
-        url="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/${ARCHIVE_NAME}"
-        sparkle:edSignature="${SIGNATURE}"
-        length="${SIZE}"
-        type="application/octet-stream"/>
-    <sparkle:releaseNotesLink>
-        https://github.com/malpern/KeyPath/releases/tag/v${VERSION}
-    </sparkle:releaseNotesLink>
-</item>
-EOF
+    echo "📝 Generating and signing complete appcast with Sparkle..."
+    keypath_run_generate_appcast "$GENERATE_APPCAST" "${APPCAST_ARGS[@]}" "$FEED_WORK_DIR"
+    keypath_verify_sparkle_feed "$FEED_WORK_DIR/appcast.xml"
+    ditto "$FEED_WORK_DIR/appcast.xml" "$SPARKLE_DIR/appcast.xml"
+    echo "✅ Sparkle archive and signed appcast verified"
 
     # Create styled DMG with background image and icon positioning
     local DMG_NAME="KeyPath-${VERSION}.dmg"
@@ -173,13 +111,17 @@ EOF
     echo ""
     echo "✅ Sparkle archive created:"
     echo "   📦 Archive: ${SPARKLE_DIR}/${ARCHIVE_NAME}"
-    echo "   🔐 Signature: ${SPARKLE_DIR}/${ARCHIVE_NAME}.sig"
-    echo "   📝 Appcast entry: ${SPARKLE_DIR}/${ARCHIVE_NAME}.appcast-entry.xml"
+    echo "   📝 Signed appcast: ${SPARKLE_DIR}/appcast.xml"
     echo "   💿 DMG: ${SPARKLE_DIR}/${DMG_NAME}"
 }
 
 keypath_ensure_kanata_submodule "$SCRIPT_DIR/.."
 "$SCRIPT_DIR/verify-release-signing-contract.sh" --source
+if [ "${SKIP_SPARKLE:-0}" != "1" ]; then
+    keypath_load_sparkle_private_key || true
+    keypath_verify_sparkle_signing_identity "$SCRIPT_DIR/../Sources/KeyPathApp/Info.plist"
+    echo "✅ Sparkle signing identity '$KEYPATH_SPARKLE_ACCOUNT' matches SUPublicEDKey"
+fi
 
 echo "🦀 Building Rust artifacts in parallel (kanata, simulator, host bridge)..."
 ./Scripts/build-kanata.sh &
@@ -199,10 +141,6 @@ if [ $RUST_FAILED -ne 0 ]; then
 fi
 echo "✅ All Rust builds complete"
 
-echo "🔐 Building privileged helper..."
-# Build and sign the helper tool
-./Scripts/build-helper.sh
-
 # Screenshot regeneration is only needed for full public release builds or when
 # help/snapshot assets intentionally changed. Release-candidate builds should set
 # SKIP_SNAPSHOTS=1 to avoid spending time regenerating unrelated images.
@@ -221,11 +159,17 @@ BUILD_SYSTEM_FLAGS=()
 if [[ -n "${KEYPATH_BUILD_SYSTEM:-}" && "${KEYPATH_BUILD_SYSTEM:-}" != "native" ]]; then
     BUILD_SYSTEM_FLAGS=(--build-system "$KEYPATH_BUILD_SYSTEM")
 fi
-swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --configuration release -Xswiftc -no-whole-module-optimization
-
+# Whole-module optimization is left at the release default. It was disabled
+# here in August 2025 to dodge a build hang on the toolchain of the day; that
+# hang no longer reproduces, and the workaround now breaks the build outright:
+# Xcode 27 makes SwiftPM's newer build system the default, and that system
+# fails to emit the per-file dependencies output the flag implies
+# ("unable to open dependencies file ... -primary.d"). Restoring the flag
+# therefore also means forcing --build-system native, which is deprecated and
+# slated for removal. If the hang ever returns, that pair is the fallback.
 echo "📦 Creating app bundle..."
 APP_NAME="KeyPath"
-BUILD_DIR=".build/arm64-apple-macosx/release"
+BUILD_DIR=$(swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product KeyPath --show-bin-path)
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
@@ -239,6 +183,13 @@ MACOS="${CONTENTS}/MacOS"
 	mkdir -p "$RESOURCES"
 	mkdir -p "$FRAMEWORKS"
 	mkdir -p "$CONTENTS/Library/KeyPath"
+
+	# Build only the distributable app components. Helper and launcher targets
+	# remain in Package.swift for the existing installer architecture, but are
+	# intentionally not built into this driverless experiment.
+	for product in KeyPath keypath-cli KeyPathInsights; do
+	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product "$product"
+	done
 
 	# Copy main executable
 	ditto "$BUILD_DIR/KeyPath" "$MACOS/KeyPath"
@@ -286,7 +237,7 @@ MACOS="${CONTENTS}/MacOS"
 	# Copy bundled kanata simulator binary
 	ditto "build/kanata-simulator" "$CONTENTS/Library/KeyPath/kanata-simulator"
 
-	# Copy bundled host bridge library used for in-process smoke checks and future runtime hosting
+	# Copy bundled host bridge library used for config validation and host runtime.
 	ditto "build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib" "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib"
 
 	# Embed Sparkle.framework (required at runtime for updates; otherwise dyld aborts at launch)
@@ -328,38 +279,13 @@ MACOS="${CONTENTS}/MacOS"
 	    exit 1
 	fi
 
-		# Copy the bundled runtime host executable used by SMAppService
-		KANATA_LAUNCHER_SRC="$BUILD_DIR/KeyPathKanataLauncher"
-		KANATA_LAUNCHER_DST="$CONTENTS/Library/KeyPath/kanata-launcher"
-		ditto "$KANATA_LAUNCHER_SRC" "$KANATA_LAUNCHER_DST"
-		chmod 755 "$KANATA_LAUNCHER_DST"
-
-# Embed privileged helper for SMJobBless
-echo "📦 Embedding privileged helper (SMAppService layout)..."
-HELPER_TOOLS="$CONTENTS/Library/HelperTools"
-LAUNCH_DAEMONS="$CONTENTS/Library/LaunchDaemons"
-mkdir -p "$HELPER_TOOLS" "$LAUNCH_DAEMONS"
-
-# Copy helper binary into Contents/Library/HelperTools/
-ditto "$BUILD_DIR/KeyPathHelper" "$HELPER_TOOLS/KeyPathHelper"
-
-# Copy daemon plist into bundle-local LaunchDaemons with final name
-ditto "Sources/KeyPathHelper/com.keypath.helper.plist" "$LAUNCH_DAEMONS/com.keypath.helper.plist"
-
-# Copy Kanata daemon plist for SMAppService
-ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath.kanata.plist"
-
-	verify_embedded_artifacts() {
+		verify_embedded_artifacts() {
 	    local missing=0
 	    for path in \
-	        "$HELPER_TOOLS/KeyPathHelper" \
 	        "$MACOS/keypath-cli" \
-	        "$LAUNCH_DAEMONS/com.keypath.helper.plist" \
-	        "$LAUNCH_DAEMONS/com.keypath.kanata.plist" \
 	        "$FRAMEWORKS/Sparkle.framework" \
 	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
 	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
-	        "$KANATA_LAUNCHER_DST" \
 	        "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
 	        "$CONTENTS/Library/KeyPath/kanata-simulator" \
 	        "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" \
@@ -371,27 +297,23 @@ ditto "Sources/KeyPathApp/com.keypath.kanata.plist" "$LAUNCH_DAEMONS/com.keypath
     done
 
     if [ $missing -ne 0 ]; then
-        echo "💥 Packaging aborted because helper assets are incomplete." >&2
+	        echo "💥 Packaging aborted because a required driverless runtime artifact is missing." >&2
         exit 1
     fi
 }
 
 verify_embedded_artifacts
-./Scripts/verify-kanata-plist.sh "$APP_BUNDLE"
 
-echo "✅ Helper embedded: $HELPER_TOOLS/KeyPathHelper"
-echo "✅ Helper plist embedded: $LAUNCH_DAEMONS/com.keypath.helper.plist"
-echo "✅ Kanata daemon plist embedded: $LAUNCH_DAEMONS/com.keypath.kanata.plist"
+echo "✅ Driverless runtime artifacts verified"
 
 # Copy main app Info.plist
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
 
-# Copy bundled app resources (icons, helper scripts, etc.)
+# Copy bundled app resources (icons, sounds, and UI assets).
+python3 "$SCRIPT_DIR/build-offline-help.py" --output "$RESOURCES/OfflineHelp"
+
 if [ -d "Sources/KeyPathApp/Resources" ]; then
     ditto "Sources/KeyPathApp/Resources/" "$RESOURCES"
-    if [ -f "$RESOURCES/uninstall.sh" ]; then
-        chmod 755 "$RESOURCES/uninstall.sh"
-    fi
     echo "✅ Copied app resources"
 else
     echo "⚠️ WARNING: Sources/KeyPathApp/Resources directory not found"
@@ -432,6 +354,12 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
 </plist>
 EOF
 
+# Check the completed bundle after direct and SwiftPM resource bundles have
+# been copied. This gate runs even for unsigned candidates, so stale build-cache
+# resources cannot reintroduce privileged or DriverKit payloads.
+"$SCRIPT_DIR/verify-identity-contract.sh" --payload-only "$APP_BUNDLE"
+bash "$SCRIPT_DIR/verify-apple-silicon.sh" "$APP_BUNDLE"
+
 SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 SKIP_CODESIGN="${SKIP_CODESIGN:-0}"
 
@@ -450,29 +378,19 @@ else
         fi
     fi
 
-    # Sign from innermost to outermost (helper -> kanata -> main app)
-
-    # Sign privileged helper (bundle-local binary)
-    HELPER_ENTITLEMENTS="Sources/KeyPathHelper/KeyPathHelper.entitlements"
-    kp_sign "$HELPER_TOOLS/KeyPathHelper" \
-        --force --options=runtime \
-        --identifier "com.keypath.helper" \
-        --entitlements "$HELPER_ENTITLEMENTS" \
-        --sign "$SIGNING_IDENTITY"
+    # Sign from innermost to outermost (Kanata core -> main app)
 
     # Sign "Kanata Engine.app" bundle inside-out: sign the inner binary first, then the bundle.
     kp_sign "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" --force --options=runtime --sign "$SIGNING_IDENTITY"
     kp_sign "$CONTENTS/Library/KeyPath/Kanata Engine.app" --force --options=runtime --sign "$SIGNING_IDENTITY"
 
     # Sign the bundled runtime host pieces explicitly before the outer app sign.
-    kp_sign "$CONTENTS/Library/KeyPath/kanata-launcher" --force --options=runtime --sign "$SIGNING_IDENTITY"
-    kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --sign "$SIGNING_IDENTITY"
+	kp_sign "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" --force --options=runtime --identifier "com.keypath.kanata-host-bridge" --sign "$SIGNING_IDENTITY"
 
     # Sign bundled kanata simulator binary
-    kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --sign "$SIGNING_IDENTITY"
+	kp_sign "$CONTENTS/Library/KeyPath/kanata-simulator" --force --options=runtime --identifier "com.keypath.kanata-simulator" --sign "$SIGNING_IDENTITY"
 
-    # Sign command-line tool embedded in the app bundle with a stable identifier
-    # trusted by the privileged helper for CLI system diagnostics and repair.
+    # Sign command-line tool embedded in the app bundle with a stable identifier.
     kp_sign "$MACOS/keypath-cli" \
         --force --options=runtime \
         --identifier "com.keypath.KeyPath.CLI" \
@@ -511,6 +429,9 @@ else
 
     echo "📋 Submitting for notarization..."
     NOTARY_PROFILE="${NOTARY_PROFILE:-KeyPath-Profile}"
+    # Prefer the file-based App Store Connect API key when present: keychain
+    # profiles become unreadable if the session locks mid-build.
+    kp_notary_default_auth_from_environment
     kp_notarize_zip "${DIST_DIR}/${APP_NAME}.zip" "$NOTARY_PROFILE"
 
     echo "🔖 Stapling notarization..."
@@ -525,74 +446,33 @@ else
 
     echo "✨ Ready for distribution!"
 
-    # Create Sparkle-compatible versioned archive
-    create_sparkle_archive
 fi
 
-# Stop running KeyPath and kanata BEFORE replacing the app bundle.
-# Replacing binaries while the process is live causes macOS to detect
-# code page mismatches and kill the process with:
-#   SIGKILL (Code Signature Invalid) / CODESIGNING / Invalid Page
-# If kanata is killed mid-keystroke, the virtual HID holds the key down
-# and the character repeats infinitely.
-if pgrep -x "KeyPath" > /dev/null; then
-    echo "🛑 Stopping running KeyPath before deploy..."
-    killall KeyPath 2>/dev/null || true
+# Sparkle generation is controlled independently from notarization. Public
+# releases still require notarization, while SKIP_NOTARIZE=1 + SKIP_DEPLOY=1
+# provides a safe way to exercise signing and appcast generation locally.
+create_sparkle_archive
 
-    # Wait up to 5 seconds for graceful shutdown
-    for i in {1..10}; do
-        if ! pgrep -x "KeyPath" > /dev/null; then
-            break
-        fi
-        sleep 0.5
-    done
+if [ "${SKIP_DEPLOY:-0}" = "1" ]; then
+    echo "⏭️  Skipping deployment (SKIP_DEPLOY=1)"
+    echo "📍 Candidate retained at: $APP_BUNDLE"
+    exit 0
+fi
 
-    # Force kill if still running
-    if pgrep -x "KeyPath" > /dev/null; then
-        echo "   ⚠️  Process still running, force killing..."
-        killall -9 KeyPath 2>/dev/null || true
-        sleep 1
+# A build that was submitted for notarization must never reach /Applications
+# without its stapled ticket: Gatekeeper rejects the installed copy, and any
+# later local re-sign changes the cdhash so the eventual ticket can no longer
+# be stapled in place (2026-07-30 RC incident).
+if [ "${SKIP_NOTARIZE:-}" != "1" ]; then
+    echo "🔎 Verifying stapled ticket before deploy..."
+    if ! kp_staple_validate "$APP_BUNDLE"; then
+        echo "❌ $APP_BUNDLE has no valid stapled notarization ticket; refusing to deploy." >&2
+        echo "   Resume without rebuilding: Scripts/release-candidate.sh --resume-notarization" >&2
+        exit 1
     fi
 fi
 
-# Verify no KeyPath process remains
-if pgrep -x "KeyPath" > /dev/null; then
-    echo "   ❌ ERROR: Failed to stop KeyPath process" >&2
-    echo "   Please manually quit KeyPath and run the deploy manually." >&2
-    exit 1
-fi
-
-# Stop kanata so it doesn't get killed by the bundle replacement.
-if pgrep -x "kanata" > /dev/null; then
-    echo "🛑 Stopping kanata service..."
-    KANATA_PID=$(pgrep -x "kanata")
-    sudo kill "$KANATA_PID" 2>/dev/null || true
-    sleep 1
-fi
-
-echo "📂 Deploying to /Applications..."
-SYSTEM_APPS_DIR="/Applications"
-APP_DEST="$SYSTEM_APPS_DIR/${APP_NAME}.app"
-rm -rf "$APP_DEST"
-if ditto "$APP_BUNDLE" "$APP_DEST"; then
-    echo "✅ Deployed latest $APP_NAME to $APP_DEST"
-else
-    echo "⚠️ WARNING: Failed to copy $APP_NAME to $APP_DEST" >&2
-    echo "💡 TIP: You may need to manually copy dist/${APP_NAME}.app to /Applications/" >&2
-fi
-
-echo "🚪 Restarting app..."
-echo "   Starting new KeyPath..."
-open "$APP_DEST"
-
-# Wait for new process to start and verify
-sleep 2
-if pgrep -x "KeyPath" > /dev/null; then
-    NEW_PID=$(pgrep -x "KeyPath")
-    echo "   ✅ KeyPath restarted successfully (PID: $NEW_PID)"
-else
-    echo "   ⚠️  WARNING: KeyPath may not have started. Run manually: open $APP_DEST" >&2
-fi
+kp_deploy_bundle_to_applications "$APP_BUNDLE" "$APP_NAME"
 
 # ─────────────────────────────────────────────────────────────────────
 # Publish help content to website

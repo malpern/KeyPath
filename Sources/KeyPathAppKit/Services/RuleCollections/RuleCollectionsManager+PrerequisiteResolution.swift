@@ -49,9 +49,13 @@ extension RuleCollectionsManager {
     func confirmedPrerequisiteProviderIDs(
         for candidate: RuleCollection,
         operation: RulePrerequisiteOperation,
+        disablingCollectionIDs: Set<UUID> = [],
         nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders
     ) async -> [UUID]? {
-        let missing = prerequisites(for: candidate)
+        let missing = prerequisites(
+            for: candidate,
+            disablingCollectionIDs: disablingCollectionIDs
+        )
         guard !missing.isEmpty else { return [] }
 
         let context = prerequisiteResolutionContext(
@@ -75,7 +79,7 @@ extension RuleCollectionsManager {
         case .enableRequiredProvidersAndApply:
             guard let providerIDs = context.recommendedProviderIDs else {
                 AppLogger.shared.log(
-                    "⚠️ [RuleCollections] Automatic prerequisite resolution aborted because a requirement has multiple providers"
+                    "⚠️ [RuleCollections] Automatic prerequisite resolution aborted because a requirement has no unambiguous supporting rule"
                 )
                 return nil
             }
@@ -84,7 +88,7 @@ extension RuleCollectionsManager {
     }
 
     /// Replaces or appends the candidate and enables confirmed providers
-    /// in memory. The caller owns the single regeneration and rollback.
+    /// in memory. The caller owns save settlement and recovery.
     func applyPrerequisiteChangeInMemory(
         candidate: RuleCollection,
         providerIDs: [UUID]
@@ -112,38 +116,37 @@ extension RuleCollectionsManager {
     }
 
     /// Applies one proposed save plus its confirmed provider enables as a
-    /// single mutation and regeneration, restoring the full snapshot on failure.
+    /// single retained transaction, restoring the full snapshot on failure.
     func applyProposedCollectionWithPrerequisites(
         _ candidate: RuleCollection,
-        rollbackMessage: String,
-        nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders
+        nonInteractiveChoice: RulePrerequisiteResolutionChoice = .applyWithoutProviders,
+        skipReload: Bool = false,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> [UUID]? {
-        let snapshot = snapshotRuleState()
-        guard let providerIDs = await confirmedPrerequisiteProviderIDs(
-            for: candidate,
-            operation: .save,
-            nonInteractiveChoice: nonInteractiveChoice
-        ) else {
-            return nil
-        }
+        await withRuleMutation(using: mutationPermit, failure: nil) { [self] permit in
+            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return nil }
+            guard let providerIDs = await confirmedPrerequisiteProviderIDs(
+                for: candidate,
+                operation: .save,
+                nonInteractiveChoice: nonInteractiveChoice
+            ) else {
+                return nil
+            }
 
-        applyPrerequisiteChangeInMemory(
-            candidate: candidate,
-            providerIDs: providerIDs
-        )
-
-        guard await regenerateConfigFromCollections() else {
-            AppLogger.shared.log(
-                "↩️ [RuleCollections] Prerequisite-aware save failed; rolling back"
+            applyPrerequisiteChangeInMemory(
+                candidate: candidate,
+                providerIDs: providerIDs
             )
-            await rollbackToSnapshot(snapshot, userMessage: rollbackMessage)
-            return nil
-        }
 
-        return providerIDs
+            guard await commitRuleMutation(snapshot: snapshot, skipReload: skipReload, failureContext: candidate.name, mutationPermit: permit) else {
+                return nil
+            }
+
+            return providerIDs
+        }
     }
 
-    private func prerequisiteResolutionContext(
+    func prerequisiteResolutionContext(
         operation: RulePrerequisiteOperation,
         candidate: RuleCollection,
         prerequisites: [RulePrerequisite]

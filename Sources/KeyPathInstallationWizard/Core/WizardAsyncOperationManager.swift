@@ -21,6 +21,7 @@ public class WizardAsyncOperationManager {
     // MARK: - Cancellation Support
 
     private var runningTasks: [String: Task<Void, Never>] = [:]
+    private var operationGenerations: [String: UUID] = [:]
 
     /// Default timeout for operations (30 seconds)
     private let defaultTimeout: TimeInterval = 30.0
@@ -42,27 +43,23 @@ public class WizardAsyncOperationManager {
     ) {
         let operationId = operation.id
         let timeoutDuration = timeout ?? defaultTimeout
+        let generation = UUID()
 
         // Handle duplicate operation IDs: cancel existing operation if running
         if let existingTask = runningTasks[operationId] {
             AppLogger.shared.warn("🔄 [AsyncOp] Cancelling duplicate operation: \(operation.name)")
             existingTask.cancel()
             runningTasks.removeValue(forKey: operationId)
-            Task { @MainActor in
-                runningOperations.remove(operationId)
-                operationProgress.removeValue(forKey: operationId)
-            }
+            runningOperations.remove(operationId)
+            operationProgress.removeValue(forKey: operationId)
         }
+        operationGenerations[operationId] = generation
+        runningOperations.insert(operationId)
+        lastError = nil
 
         // Create a background task that doesn't block the UI
         let task = Task { [weak self] in
             guard let self else { return }
-
-            // Update UI state on main thread
-            await MainActor.run {
-                self.runningOperations.insert(operationId)
-                self.lastError = nil
-            }
 
             let opName = operation.name
             AppLogger.shared.debug(
@@ -70,46 +67,55 @@ public class WizardAsyncOperationManager {
             )
 
             do {
-                // Prepare operation task on the main actor to avoid crossing actor boundaries in sendable closures
-                let operationTask: Task<T, Error> = Task { @MainActor in
-                    try await operation.execute { progress in
-                        // Ensure main actor mutation from a synchronous handler
-                        Task { @MainActor in
-                            self.operationProgress[operationId] = progress
+                // A task group waits for every child on exit, even after its
+                // timer wins. A stream lets the deadline retire UI ownership
+                // while a non-cooperative dependency finishes in the background.
+                let (stream, continuation) = AsyncThrowingStream<T, Error>.makeStream()
+                let operationTask = Task { @MainActor in
+                    do {
+                        let value = try await operation.execute { progress in
+                            Task { @MainActor in
+                                guard self.operationGenerations[operationId] == generation else { return }
+                                self.operationProgress[operationId] = progress
+                            }
                         }
+                        continuation.yield(value)
+                        continuation.finish()
+                    } catch {
+                        continuation.finish(throwing: error)
                     }
                 }
-
-                // Execute operation with timeout protection
-                let result = try await withThrowingTaskGroup(of: T.self) { group in
-                    // Operation task
-                    group.addTask {
-                        try await operationTask.value
-                    }
-
-                    // Timeout task
-                    group.addTask {
-                        let clock = ContinuousClock()
-                        try await clock.sleep(for: .seconds(timeoutDuration))
-                        throw TimeoutError(operation: opName, timeout: timeoutDuration)
-                    }
-
-                    // Return first result and cancel other task
-                    let result = try await group.next()!
-                    group.cancelAll()
-                    return result
+                let deadlineTask = Task {
+                    do {
+                        try await ContinuousClock().sleep(for: .seconds(timeoutDuration))
+                        continuation.finish(throwing: TimeoutError(operation: opName, timeout: timeoutDuration))
+                    } catch {}
                 }
+                continuation.onTermination = { _ in
+                    operationTask.cancel()
+                    deadlineTask.cancel()
+                }
+                defer {
+                    operationTask.cancel()
+                    deadlineTask.cancel()
+                    continuation.finish()
+                }
+                var iterator = stream.makeAsyncIterator()
+                guard let result = try await iterator.next() else { throw CancellationError() }
 
                 // Check if task was cancelled
                 guard !Task.isCancelled else {
                     AppLogger.shared.debug("🛑 [AsyncOp] Operation cancelled: \(opName)")
-                    cleanupOperation(operationId)
+                    cleanupOperation(operationId, generation: generation)
                     return
                 }
+                guard operationGenerations[operationId] == generation else { return }
 
                 AppLogger.shared.debug("✅ [AsyncOp] Operation completed: \(opName)")
 
-                // Call success handler on main thread
+                // Follow-up UI work can suspend or start another operation. The
+                // completed check must not keep its spinner or block refreshes.
+                cleanupOperation(operationId, generation: generation)
                 await onSuccess(result)
 
             } catch {
@@ -117,6 +123,7 @@ public class WizardAsyncOperationManager {
                 if Task.isCancelled {
                     AppLogger.shared.debug("🛑 [AsyncOp] Operation cancelled: \(opName)")
                 } else {
+                    guard operationGenerations[operationId] == generation else { return }
                     let wizardError: WizardError
                     if let timeoutError = error as? TimeoutError {
                         wizardError = WizardError.timeout(operation: timeoutError.operation)
@@ -132,6 +139,8 @@ public class WizardAsyncOperationManager {
 
                     // Update error state and call failure handler on main thread
                     await MainActor.run {
+                        guard self.operationGenerations[operationId] == generation else { return }
+                        self.cleanupOperation(operationId, generation: generation)
                         self.lastError = wizardError
                         onFailure(wizardError)
                     }
@@ -139,7 +148,7 @@ public class WizardAsyncOperationManager {
             }
 
             // Clean up
-            cleanupOperation(operationId)
+            cleanupOperation(operationId, generation: generation)
         }
 
         // Store the task reference for cancellation
@@ -165,10 +174,10 @@ public class WizardAsyncOperationManager {
             task.cancel()
         }
 
-        Task { @MainActor in
-            self.runningOperations.removeAll()
-            self.operationProgress.removeAll()
-        }
+        runningTasks.removeAll()
+        operationGenerations.removeAll()
+        runningOperations.removeAll()
+        operationProgress.removeAll()
 
         AppLogger.shared.debug("🛑 [AsyncOp] All operations cancelled")
     }
@@ -188,11 +197,10 @@ public class WizardAsyncOperationManager {
             "🛑 [AsyncOp] All operations cancelled asynchronously (\(tasksToCancel.count) tasks)"
         )
 
-        // Schedule UI cleanup for later, but don't wait for it
-        Task { @MainActor [weak self] in
-            self?.runningOperations.removeAll()
-            self?.operationProgress.removeAll()
-        }
+        // Retire ownership immediately so cancelled work cannot affect a successor.
+        operationGenerations.removeAll()
+        runningOperations.removeAll()
+        operationProgress.removeAll()
     }
 
     /// Cancel a specific operation
@@ -206,7 +214,9 @@ public class WizardAsyncOperationManager {
 
     /// Clean up after operation completion or cancellation
     @MainActor
-    private func cleanupOperation(_ operationId: String) {
+    private func cleanupOperation(_ operationId: String, generation: UUID) {
+        guard operationGenerations[operationId] == generation else { return }
+        operationGenerations.removeValue(forKey: operationId)
         runningOperations.remove(operationId)
         operationProgress.removeValue(forKey: operationId)
 

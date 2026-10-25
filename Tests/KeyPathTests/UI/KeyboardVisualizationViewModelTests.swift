@@ -265,8 +265,8 @@ final class KeyboardVisualizationViewModelTests: XCTestCase {
     }
 
     func testKanataNameToKeyCode_rightControl() {
-        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rightctrl"), 102)
-        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rctl"), 102)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rightctrl"), 62)
+        XCTAssertEqual(KeyboardVisualizationViewModel.kanataNameToKeyCode("rctl"), 62)
     }
 
     // MARK: - Tap-Hold Output Suppression Tests

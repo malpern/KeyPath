@@ -109,13 +109,31 @@ public struct SystemSnapshot: Sendable {
 
     /// System is ready when all critical components are operational
     public var isReady: Bool {
-        captureStatus.isComplete && compatibility.driverCompatible
+        if permissions.backend == .session {
+            return captureStatus.isComplete && permissions.isSystemReady && !conflicts.hasConflicts
+                && components.requiredRuntimePayloadPresent && health.kanataRuntimeReadiness.isReady
+        }
+        return captureStatus.isComplete && compatibility.driverCompatible
             && helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
             && components.hasAllRequired && health.isHealthy
     }
 
     /// Issues that prevent the system from working
     public var blockingIssues: [Issue] {
+        if permissions.backend == .session {
+            var issues: [Issue] = []
+            if !permissions.isSystemReady {
+                issues.append(.permissionMissing(app: "KeyPath", permission: "Accessibility / effective input access",
+                                                 action: "Grant \(AccessibilityPermissionPresentation.current.name) first, then retry the current-process check"))
+            }
+            if !components.requiredRuntimePayloadPresent {
+                issues.append(.componentMissing(name: "Bundled session runtime", autoFix: false))
+            }
+            if !health.kanataRuntimeReadiness.isReady {
+                issues.append(.componentUnhealthy(name: "Session keyboard runtime", autoFix: true))
+            }
+            return issues
+        }
         var issues: [Issue] = []
 
         // Helper issues (check first - required for system operations)
@@ -132,7 +150,7 @@ public struct SystemSnapshot: Sendable {
                     .permissionMissing(
                         app: "KeyPath",
                         permission: "Accessibility",
-                        action: "Enable in System Settings > Privacy & Security > Accessibility"
+                        action: "Enable in \(AccessibilityPermissionPresentation.current.settingsPath)"
                     )
                 )
             }
@@ -408,6 +426,7 @@ public struct KanataRuntimeReadiness: Sendable, Equatable {
 // MARK: - Health Status
 
 public struct HealthStatus: Sendable {
+    public let backend: KanataRuntimeBackend
     /// True when launchd can find/load the Kanata job. This is distinct from
     /// the runtime being usable: launchd can know about a job whose process is
     /// stopped or whose TCP server is not responding.
@@ -429,8 +448,8 @@ public struct HealthStatus: Sendable {
     public let activeRuntimePathDetail: String?
     public let kanataServiceFreshness: RuntimeFreshness
     /// True when the daemon stderr log shows kanata was rejected by macOS
-    /// at runtime despite the TCC database reporting permissions as granted
-    /// (stale grant after a rebuild/move/upgrade).
+    /// at runtime despite an earlier permission grant
+    /// (e.g., after a rebuild/move/upgrade).
     public let kanataPermissionRejected: Bool
     /// Non-nil when kanata's stderr contains a configuration parse error
     /// (e.g., duplicate alias, syntax error). This causes kanata to exit
@@ -450,6 +469,7 @@ public struct HealthStatus: Sendable {
     public let loginItemsApprovalRequired: Bool?
 
     public init(
+        backend: KanataRuntimeBackend = .selected,
         kanataLaunchdLoaded: Bool? = nil,
         kanataProcessRunning: Bool? = nil,
         kanataTCPResponding: Bool? = nil,
@@ -468,6 +488,7 @@ public struct HealthStatus: Sendable {
         kanataSMAppServiceRegistered: Bool? = nil,
         loginItemsApprovalRequired: Bool? = nil
     ) {
+        self.backend = backend
         self.kanataLaunchdLoaded = kanataLaunchdLoaded
         self.kanataProcessRunning = kanataProcessRunning
         self.kanataTCPResponding = kanataTCPResponding
@@ -489,7 +510,7 @@ public struct HealthStatus: Sendable {
 
     /// Overall health (includes Kanata runtime)
     public var isHealthy: Bool {
-        kanataRuntimeReadiness.isReady && karabinerDaemonRunning && vhidHealthy
+        kanataRuntimeReadiness.isReady && (backend == .session || (karabinerDaemonRunning && vhidHealthy))
             && (kanataTCPConfigured ?? true)
     }
 
@@ -506,7 +527,7 @@ public struct HealthStatus: Sendable {
 
     /// Health of background services only (Karabiner daemon + VHID driver)
     public var backgroundServicesHealthy: Bool {
-        karabinerDaemonRunning && vhidHealthy
+        backend == .session || (karabinerDaemonRunning && vhidHealthy)
     }
 
     /// Convenience factory for empty/fallback state
@@ -571,9 +592,13 @@ public enum Issue: Equatable {
     case configParseError(detail: String)
 
     public var title: String {
+        displayTitle(accessibility: .current)
+    }
+
+    public func displayTitle(accessibility: AccessibilityPermissionPresentation) -> String {
         switch self {
         case let .permissionMissing(app, permission, _):
-            "\(app) needs \(permission) permission"
+            "\(app) needs \(accessibility.displayName(for: permission)) permission"
         case let .componentMissing(name, _):
             "\(name) not installed"
         case let .componentUnhealthy(name, _):

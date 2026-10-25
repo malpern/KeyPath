@@ -8,12 +8,24 @@
 /// system services are needed.
 @MainActor
 final class VHIDSafetyInvariantTests: KeyPathTestCase {
+    func test_sessionBackendDoesNotStopForAbsentVirtualHID() {
+        XCTAssertFalse(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, vhidDaemonHealthy: false, backend: .session
+        ))
+        XCTAssertFalse(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, confirmedFailureCount: 2, backend: .session
+        ))
+        XCTAssertTrue(VHIDSafetyCheck.shouldEmergencyStop(
+            kanataRunning: true, confirmedFailureCount: 2, backend: .driverKit
+        ))
+    }
+
     // MARK: - Emergency Stop Decision
 
     func test_emergencyStop_triggeredWhenKanataRunningWithoutVHID() {
         let result = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: true,
-            vhidDaemonHealthy: false
+            vhidDaemonHealthy: false, backend: .driverKit
         )
         XCTAssertTrue(result, "Should trigger emergency stop when kanata is running but VHID is unhealthy")
     }
@@ -21,7 +33,7 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
     func test_noEmergencyStop_whenVHIDHealthy() {
         let result = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: true,
-            vhidDaemonHealthy: true
+            vhidDaemonHealthy: true, backend: .driverKit
         )
         XCTAssertFalse(result, "Should NOT trigger emergency stop when VHID is healthy")
     }
@@ -30,16 +42,63 @@ final class VHIDSafetyInvariantTests: KeyPathTestCase {
         // VHID unhealthy but kanata not running — nothing to stop
         let unhealthy = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: false,
-            vhidDaemonHealthy: false
+            vhidDaemonHealthy: false, backend: .driverKit
         )
         XCTAssertFalse(unhealthy, "Should NOT trigger emergency stop when kanata is not running (VHID unhealthy)")
 
         // VHID healthy and kanata not running — nothing to stop
         let healthy = VHIDSafetyCheck.shouldEmergencyStop(
             kanataRunning: false,
-            vhidDaemonHealthy: true
+            vhidDaemonHealthy: true, backend: .driverKit
         )
         XCTAssertFalse(healthy, "Should NOT trigger emergency stop when kanata is not running (VHID healthy)")
+    }
+
+    func test_unknownVHIDObservationPreservesButDoesNotAdvanceConfirmation() {
+        let count = VHIDSafetyCheck.confirmedFailureCount(
+            after: .unknown,
+            previousCount: VHIDSafetyCheck.requiredConfirmedFailures - 1
+        )
+
+        XCTAssertEqual(count, 1)
+        XCTAssertFalse(
+            VHIDSafetyCheck.shouldEmergencyStop(
+                kanataRunning: true,
+                confirmedFailureCount: count, backend: .driverKit
+            )
+        )
+    }
+
+    func test_emergencyStopRequiresTwoConfirmedFailures() {
+        let first = VHIDSafetyCheck.confirmedFailureCount(
+            after: .confirmedUnhealthy,
+            previousCount: 0
+        )
+        XCTAssertFalse(
+            VHIDSafetyCheck.shouldEmergencyStop(
+                kanataRunning: true,
+                confirmedFailureCount: first, backend: .driverKit
+            )
+        )
+
+        let second = VHIDSafetyCheck.confirmedFailureCount(
+            after: .confirmedUnhealthy,
+            previousCount: first
+        )
+        XCTAssertTrue(
+            VHIDSafetyCheck.shouldEmergencyStop(
+                kanataRunning: true,
+                confirmedFailureCount: second, backend: .driverKit
+            )
+        )
+    }
+
+    func test_healthyObservationResetsConfirmedFailureSequence() {
+        let count = VHIDSafetyCheck.confirmedFailureCount(
+            after: .healthy,
+            previousCount: 1
+        )
+        XCTAssertEqual(count, 0)
     }
 
     // MARK: - Start Gate Decision

@@ -1,4 +1,5 @@
 import Foundation
+import KeyPathCore
 
 /// How a `SystemActionInfo` produces its kanata output string.
 ///
@@ -39,6 +40,17 @@ public struct SystemActionInfo: Equatable, Hashable, Identifiable, Sendable {
             combo
         }
     }
+
+    /// Whether the active backend can emit this action. Push-message and modifier
+    /// actions always can; a HID keycode asks the backend's capability profile
+    /// (the driverless session refuses consumer-page keys such as media keys).
+    public var isSupportedInDriverlessSession: Bool {
+        guard let keycode = kanataKeycode else { return true }
+        return BackendCapabilityProfile.shared.canEmit(kanataKey: keycode)
+    }
+
+    public static let driverlessMediaUnavailableReason =
+        "Media and brightness remapping is not supported in driverless mode."
 
     public var isSystemAction: Bool {
         if case .pushMessage = output { return true }

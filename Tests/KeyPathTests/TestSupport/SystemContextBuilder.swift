@@ -10,6 +10,7 @@ struct SystemContextBuilder {
     var permissionsStatus: PermissionOracle.Status = .granted
     var helperReady: Bool = true
     var helperRequiresApproval: Bool = false
+    var helperVersion: String? = WizardHelperConstants.expectedHelperVersion
     var servicesHealthy: Bool = false
     var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?
@@ -21,6 +22,7 @@ struct SystemContextBuilder {
     var vhidHealthy: Bool?
     var loginItemsApprovalRequired: Bool?
     var kanataInputCaptureReady: Bool = true
+    var kanataServiceFreshness: RuntimeFreshness = .unknown
     /// The input-capture failure reason surfaced when not ready (#624 attribution).
     /// Defaults to the built-in-keyboard permission reason; set to a grab-failure
     /// reason, or explicitly nil, to exercise the other branches.
@@ -46,7 +48,7 @@ struct SystemContextBuilder {
 
         let helper = HelperStatus(
             isInstalled: helperReady || helperRequiresApproval,
-            version: WizardHelperConstants.expectedHelperVersion,
+            version: helperVersion,
             isWorking: helperReady,
             requiresApproval: helperRequiresApproval
         )
@@ -75,6 +77,7 @@ struct SystemContextBuilder {
             vhidHealthy: vhidHealthy ?? servicesHealthy,
             kanataInputCaptureReady: kanataInputCaptureReady,
             kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue,
+            kanataServiceFreshness: kanataServiceFreshness,
             kanataSMAppServiceRegistered: kanataSMAppServiceRegistered,
             loginItemsApprovalRequired: loginItemsApprovalRequired
         )

@@ -4,6 +4,15 @@ import KeyPathRulesCore
 import XCTest
 
 final class VallackSystemPackTests: XCTestCase {
+    func testSnapshotWritesStayInsideTestSandbox() throws {
+        let id = "sandbox-\(UUID().uuidString)"
+        let url = PackCollectionSnapshot.snapshotURL(for: id)
+        XCTAssertTrue(url.path.hasPrefix(AppPaths.testSandboxDirectory.path + "/"))
+        defer { PackCollectionSnapshot.remove(for: id) }
+        try PackCollectionSnapshot.save(PackCollectionSnapshot(packID: id, entries: []))
+        XCTAssertNotNil(PackCollectionSnapshot.load(for: id))
+    }
+
     private var originalInstalledPacks: [InstalledPackRecord] = []
 
     override func setUp() async throws {
@@ -261,29 +270,21 @@ final class VallackSystemPackTests: XCTestCase {
     }
 
     @MainActor
-    func testVallackInstallCreatesSnapshotFile() async throws {
+    func testVallackInstallEmbedsSnapshotInRecord() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
         let (manager, tempDir) = try makeTestManager()
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        _ = try await PackInstaller.shared.install(
+        let installed = try await PackInstaller.shared.install(
             PackRegistry.vallackSystem,
             manager: manager
         )
 
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
-        XCTAssertTrue(
-            FileManager.default.fileExists(atPath: snapshotURL.path),
-            "Snapshot file should exist after install"
-        )
-        // Clean up snapshot
-        defer { try? FileManager.default.removeItem(at: snapshotURL) }
-
-        let data = try Data(contentsOf: snapshotURL)
-        XCTAssertFalse(data.isEmpty, "Snapshot file should not be empty")
+        let snapshot = try XCTUnwrap(installed.managedCollectionSnapshot)
+        XCTAssertEqual(snapshot.packID, PackRegistry.vallackSystem.id)
+        XCTAssertFalse(snapshot.entries.isEmpty)
     }
 
     @MainActor
@@ -295,8 +296,7 @@ final class VallackSystemPackTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
 
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         defer { try? FileManager.default.removeItem(at: snapshotURL) }
 
         // Capture pre-install state
@@ -357,8 +357,7 @@ final class VallackSystemPackTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
         manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
 
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         defer { try? FileManager.default.removeItem(at: snapshotURL) }
 
         guard let modsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.homeRowMods }),
@@ -398,7 +397,7 @@ final class VallackSystemPackTests: XCTestCase {
     }
 
     @MainActor
-    func testVallackInstallDoesNotRecordWhenManagedApplyFails() async throws {
+    func testVallackInstallDoesNotRecordWhenSourceChangesBeforeStaging() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -413,8 +412,132 @@ final class VallackSystemPackTests: XCTestCase {
             PackCollectionSnapshot.remove(for: PackRegistry.vallackSystem.id)
         }
 
-        let blockedConfigDirectory = tempDir.appendingPathComponent("not-a-directory")
-        try "file blocks config directory".write(to: blockedConfigDirectory, atomically: true, encoding: .utf8)
+        let collections = RuleCollectionStore.testStore(at: tempDir.appendingPathComponent("RuleCollections.json"))
+        let rules = CustomRulesStore.testStore(at: tempDir.appendingPathComponent("CustomRules.json"))
+        let service = ConfigurationService(configDirectory: tempDir.path, ruleCollectionStore: collections, customRulesStore: rules)
+        let manager = RuleCollectionsManager(
+            ruleCollectionStore: collections,
+            customRulesStore: rules,
+            configurationService: service,
+            eventListener: KanataEventListener()
+        )
+        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        try await service.saveRuleState(
+            ruleCollections: manager.ruleCollections,
+            customRules: manager.customRules,
+            collectionStore: collections,
+            customStore: rules
+        )
+        let originalCollections = manager.ruleCollections
+        let tracker = InstalledPackTracker(fileURL: tempDir.appendingPathComponent("installed-packs.json"))
+        let customRulesURL = tempDir.appendingPathComponent("CustomRules.json")
+        var shouldBlockNextSourceWrite = true
+        service.onWillStageConfigurationWrite = { _ in
+            guard shouldBlockNextSourceWrite else { return }
+            shouldBlockNextSourceWrite = false
+            // Simulate a concurrent source revision after admission captures its
+            // baseline and before it may stage a managed-pack transaction.
+            try? FileManager.default.removeItem(at: customRulesURL)
+            try? FileManager.default.createDirectory(at: customRulesURL, withIntermediateDirectories: true)
+        }
+        defer { service.onWillStageConfigurationWrite = nil }
+
+        do {
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.vallackSystem,
+                manager: manager,
+                installedPackTracker: tracker
+            )
+            XCTFail("Install should fail when a source changes before staging")
+        } catch let error as PackInstaller.InstallError {
+            guard case .saveFailed = error else {
+                XCTFail("Expected saveFailed, got \(error)")
+                return
+            }
+        }
+
+        let isInstalled = await tracker.isInstalled(packID: PackRegistry.vallackSystem.id)
+        XCTAssertFalse(
+            isInstalled,
+            "A rejected source revision must not record the pack as installed"
+        )
+        XCTAssertEqual(
+            manager.ruleCollections,
+            originalCollections,
+            "A rejected source revision should restore in-memory collections"
+        )
+        XCTAssertNil(
+            PackCollectionSnapshot.load(for: PackRegistry.vallackSystem.id),
+            "A rejected source revision should not leave an uninstall snapshot behind"
+        )
+    }
+
+    @MainActor
+    func testVallackFailedInstallPreservesModernAndLegacySnapshots() async throws {
+        TestEnvironment.forceTestMode = true
+        defer { TestEnvironment.forceTestMode = false }
+
+        let packID = PackRegistry.vallackSystem.id
+        let modernSnapshotURL = PackCollectionSnapshot.snapshotURL(for: packID)
+        let legacySnapshotURL = AppPaths.configDirectory.appendingPathComponent("vallack-system-snapshot.json")
+        let originalModernSnapshotData = try? Data(contentsOf: modernSnapshotURL)
+        let originalLegacySnapshotData = try? Data(contentsOf: legacySnapshotURL)
+        defer {
+            try? FileManager.default.removeItem(at: modernSnapshotURL)
+            if let originalModernSnapshotData {
+                try? FileManager.default.createDirectory(
+                    at: modernSnapshotURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? originalModernSnapshotData.write(to: modernSnapshotURL, options: .atomic)
+            }
+
+            try? FileManager.default.removeItem(at: legacySnapshotURL)
+            if let originalLegacySnapshotData {
+                try? FileManager.default.createDirectory(
+                    at: legacySnapshotURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? originalLegacySnapshotData.write(to: legacySnapshotURL, options: .atomic)
+            }
+        }
+
+        let catalog = RuleCollectionCatalog().defaultCollections()
+        let previousCollection = try XCTUnwrap(
+            catalog.first(where: { $0.id == RuleCollectionIdentifier.homeRowMods })
+        )
+        let previousSnapshot = try PackCollectionSnapshot(
+            packID: packID,
+            snapshotDate: Date(timeIntervalSince1970: 126),
+            entries: [
+                PackCollectionSnapshot.Entry(
+                    collectionID: previousCollection.id,
+                    wasEnabled: previousCollection.isEnabled,
+                    configurationJSON: JSONEncoder().encode(previousCollection.configuration)
+                ),
+            ]
+        )
+        try PackCollectionSnapshot.save(previousSnapshot)
+
+        try FileManager.default.createDirectory(
+            at: legacySnapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let legacySnapshotData = try JSONSerialization.data(withJSONObject: [
+            "homeRowModsEnabled": true,
+            "homeRowLayerTogglesEnabled": false,
+        ])
+        try legacySnapshotData.write(to: legacySnapshotURL, options: .atomic)
+
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("vallack-legacy-rollback-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        // Keep admission/recovery usable; fail the later source-write stage so
+        // this still exercises managed-default snapshot rollback and cleanup.
+        let blockedSource = tempDir.appendingPathComponent("CustomRules.json")
+        try FileManager.default.createDirectory(at: blockedSource, withIntermediateDirectories: true)
 
         let manager = RuleCollectionsManager(
             ruleCollectionStore: RuleCollectionStore(
@@ -423,35 +546,39 @@ final class VallackSystemPackTests: XCTestCase {
             customRulesStore: CustomRulesStore(
                 fileURL: tempDir.appendingPathComponent("CustomRules.json")
             ),
-            configurationService: ConfigurationService(configDirectory: blockedConfigDirectory.path),
+            configurationService: ConfigurationService(configDirectory: tempDir.path),
             eventListener: KanataEventListener()
         )
-        manager.ruleCollections = RuleCollectionCatalog().defaultCollections()
-        let originalCollections = manager.ruleCollections
+        manager.ruleCollections = catalog
+        let originalRuleState = manager.snapshotRuleState()
+        let tracker = InstalledPackTracker(
+            fileURL: tempDir.appendingPathComponent("installed-packs.json")
+        )
 
         do {
-            _ = try await PackInstaller.shared.install(PackRegistry.vallackSystem, manager: manager)
+            _ = try await PackInstaller.shared.install(
+                PackRegistry.vallackSystem,
+                manager: manager,
+                installedPackTracker: tracker
+            )
             XCTFail("Install should fail when managed defaults cannot be applied")
-        } catch let error as PackInstaller.InstallError {
-            guard case .saveFailed = error else {
-                XCTFail("Expected saveFailed, got \(error)")
-                return
-            }
+        } catch {
+            // Expected: the custom-rule source is deliberately unreadable.
         }
 
-        let isInstalled = await InstalledPackTracker.shared.isInstalled(packID: PackRegistry.vallackSystem.id)
-        XCTAssertFalse(
-            isInstalled,
-            "Failed managed install must not record the pack as installed"
+        XCTAssertEqual(manager.ruleCollections, originalRuleState.collections)
+        XCTAssertEqual(manager.customRules, originalRuleState.customRules)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: legacySnapshotURL.path),
+            "A rejected installation must preserve the legacy restore data"
         )
+
+        let restoredSnapshot = try XCTUnwrap(PackCollectionSnapshot.load(for: packID))
+        XCTAssertEqual(restoredSnapshot.snapshotDate, previousSnapshot.snapshotDate)
+        XCTAssertEqual(restoredSnapshot.entries.count, previousSnapshot.entries.count)
         XCTAssertEqual(
-            manager.ruleCollections,
-            originalCollections,
-            "Failed managed install should restore in-memory collections"
-        )
-        XCTAssertNil(
-            PackCollectionSnapshot.load(for: PackRegistry.vallackSystem.id),
-            "Failed managed install should not leave an uninstall snapshot behind"
+            restoredSnapshot.entries.first?.configurationJSON,
+            previousSnapshot.entries.first?.configurationJSON
         )
     }
 
@@ -482,8 +609,7 @@ final class VallackSystemPackTests: XCTestCase {
         ))
 
         // Ensure no snapshot file exists
-        let snapshotURL = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/keypath/pack-snapshots/com.keypath.pack.vallack-system.json")
+        let snapshotURL = PackCollectionSnapshot.snapshotURL(for: PackRegistry.vallackSystem.id)
         try? FileManager.default.removeItem(at: snapshotURL)
 
         // Uninstall should not crash — just skip the revert

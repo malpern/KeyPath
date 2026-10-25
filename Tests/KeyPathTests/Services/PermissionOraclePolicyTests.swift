@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathCore
 import KeyPathPermissions
 import Testing
 
@@ -37,10 +38,10 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
-        #expect(issue.contains("Accessibility"))
+        #expect(issue.contains(AccessibilityPermissionPresentation.current.name))
         #expect(!issue.contains("Input Monitoring"))
         #expect(issue.contains("KeyPath"))
     }
@@ -68,7 +69,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
 
         #expect(snap.blockingIssue == nil)
         #expect(snap.isSystemReady)
@@ -98,11 +99,11 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
         #expect(issue.contains("Kanata"))
-        #expect(!issue.contains("KeyPath needs Accessibility"))
+        #expect(!issue.contains("KeyPath needs \(AccessibilityPermissionPresentation.current.name)"))
         #expect(!issue.contains("KeyPath needs Input Monitoring"))
     }
 
@@ -126,7 +127,7 @@ struct PermissionOraclePolicyTests {
             timestamp: now
         )
 
-        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now)
+        let snap = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
         let issue = snap.blockingIssue ?? ""
 
         #expect(issue.contains("KeyPath"))

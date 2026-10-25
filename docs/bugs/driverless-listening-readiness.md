@@ -1,0 +1,79 @@
+# Driverless keyboard readiness requires ListenEvent and PostEvent
+
+October 5, 2026. Experimental branch only; signed247822796 fresh guest acceptance passed as detailed below.
+
+A normal macOS 26 guest with Accessibility granted and Input Monitoring denied reported
+AX/PostEvent granted. The session capability probe used PostEvent as effectiveInputAccess,
+so PermissionOracle reported system ready. The actual worker's registered modifying tap
+contained mask4096 (flagsChanged), missing keyboard down/up from requested7168. The
+worker correctly refused startup. Normal Input Monitoring consent and Quit & Reopen
+produced mask7168 and passed physical q→a before and after a normal app restart.
+Evidence: `/private/tmp/keypath-restart-simple-01/startup-reason-result.json` and
+`permission-runtime-observe-result.json`; durable restart receipt in the permission
+footprint branch at `docs/testing/evidence/2026-10-05-normal-restart.json`.
+
+The Oracle now requires current-process AX, ListenEvent and PostEvent for session
+readiness. Missing, unknown or error authorization never counts as granted. The existing
+PermissionSet inputMonitoring field represents combined input/output readiness for the
+session worker; provenance identifies `current-process.apple-api.listen-and-post-event`.
+Raw ListenEvent and PostEvent remain separately obtained by the Oracle for experimental
+tap diagnostics. No UI or lifecycle class reads permission APIs directly.
+
+Missing worker permissions produce instructions to enable Accessibility and Input
+Monitoring for KeyPath and quit/reopen it. The service page retains the coordinator's
+failure detail. Existing app and Kanata permission identifiers remain distinct in wizard
+messages. This fixes readiness and error reporting, without redesigning onboarding.
+
+The earlier AX/PostEvent-only hypothesis in
+`docs/testing/session-active-tap-authorization-candidate.md` is superseded by these
+measured results. Historical evidence and signed artifacts remain unchanged.
+
+Source verification: canonical Xcode27 incremental build and focused tests passed:
+15 XCTest cases (wizard service evaluation and permission evidence) plus two Swift
+Testing cases (64 AX/Listen/Post combinations, session snapshot readiness and typed
+report decoding). Accessibility check and diff whitespace checks passed. Independent
+Sol review passed after corrections. Test log:
+`/private/tmp/keypath-readiness-focused-tests-v2.log`. The earlier failed test log is
+preserved; it contained an incorrect expectation that a stopped process was failed.
+These are source checks, not fresh signed-artifact or guest acceptance.
+
+Follow-up status delay: the fresh signed dabf guest negative log at
+`/private/tmp/keypath-readiness-live-01/negative-log-01-result.json` proved the Oracle
+already reported AX granted, Input Monitoring denied, system ready false and actionable
+consent guidance. MainAppStateController still polled the legacy startup gate while the
+lifecycle grace window was active, delaying publication of that snapshot. The controller
+now bypasses this wait for definitive required session permission failures and preserves
+the resulting failure through startup grace. Confirmed session denial issues now preserve
+the Oracle consent and quit/reopen guidance in their description and action.
+Unknown/granted session evidence and legacy
+backend behavior retain the existing wait. Fresh signed-artifact validation of this
+status-publication follow-up remains pending; the successful physical sample used dabf
+before this follow-up source change.
+
+Follow-up source verification: canonical safe focused runner passed 8 XCTest cases
+(SessionInspectorPermissionEvidenceTests) and 33 Swift Testing cases (three controller
+suites), including immediate denied-listening publication during lifecycle startup grace,
+canonical consent guidance, and retained granted/unknown startup polling. Log:
+`/private/tmp/keypath-status-delay-safe-02.log`. The two earlier focused runs retained
+failed guidance assertions before the inspector projection correction; no failure was
+waived. Diff whitespace check passed. No guest validation of these new source bytes has
+been performed.
+
+Fresh signed f7678dacb acceptance on October5: canonical missing-listening failure
+was initially published, but the visible status returned to checking. A wizard
+capabilities refresh briefly returned workerPID=-1/unknown; the next validation
+entered the startup gate, which checked permissions only once. Later definitive
+denial could not interrupt that wait. The same guest passed normal IM consent and
+reopen plus all eight physical q-to-a checks. Original profile and process cleanup,
+VM destruction, preserved template and detached fixture were independently verified.
+Raw receipts: `/private/tmp/keypath-status-live-01`.
+
+The existing startup loop now rechecks the canonical session snapshot while waiting.
+No additional timer, lab wrapper or runtime owner was introduced. Regression covers
+unknown→denied evidence interrupting the gate after one health poll and publishing
+consent/reopen guidance during lifecycle grace; immediate denial takes zero health
+polls. Canonical focused runner passed eight XCTest plus33 Swift Testing cases,
+log `/private/tmp/keypath-status-recheck-safe-01.log`. Fresh signed validation of
+this additional correction remains pending.
+
+Signed247822796 fresh guest acceptance completed October5: canonical missing-IM guidance visible at10.6sec and53.3sec after launch-result observation, including the temporary unknown refresh. Normal IM consent/reopen and physical q→a passed all eight checks. Ordinary logout stopped the old worker (owner-exited, inactive tap, no held keys); login reopened the app with new parent2308/worker2461 and physical q→a passed all eight checks. This is one all-up lifecycle cycle, not held-key or observer-specific recovery. TCP Hello passed; the preserved bridge rejects Status. Profile/process cleanup, destruction and independent provider/template/fixture checks passed. Selected receipt: permission-footprint branch `docs/testing/evidence/2026-10-05-permission-and-session-acceptance.json`; raw `/private/tmp/keypath-status-recheck-live-01`. Earlier pending statements above describe historical checks, superseded for these exact signed bytes by this result.

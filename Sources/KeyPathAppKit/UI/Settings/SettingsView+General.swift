@@ -9,7 +9,6 @@ struct GeneralSettingsTabView: View {
     @Environment(KanataViewModel.self) var kanataManager
     @Environment(\.services) private var services
     @State private var settingsToastManager = WizardToastManager()
-    @State private var showingKarabinerImport = false
 
     var body: some View {
         generalSettingsContent
@@ -22,227 +21,136 @@ struct GeneralSettingsTabView: View {
 
     private var generalSettingsContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Shortcut List
+            VStack(alignment: .leading, spacing: SettingsDesign.sectionGap) {
+                LaunchAtLoginSettingsSection()
+                // What appears while a layer is active (overlay, list, banner)
                 ContextHUDSettingsSection()
-                LayerIndicatorToggle()
-
-                // Key Label Style
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Key Labels")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    HStack(spacing: 10) {
-                        SettingsOptionCard(
-                            icon: "textformat.123",
-                            title: "Symbols",
-                            subtitle: "⌫ ⇥ ⇪ ⇧ ↩",
-                            isSelected: services.preferences.keyLabelStyle == .symbols,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.keyLabelStyle = .symbols
+                SettingsSection(title: "Keyboard Appearance") {
+                    SettingsCard {
+                        VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                            Text("Key labels").font(.body.weight(.medium))
+                            HStack(spacing: SettingsDesign.optionGap) {
+                                SettingsKeyPreviewChoice(title: "Symbols", keys: ["⌫", "⇥", "⇧"],
+                                                         isSelected: services.preferences.keyLabelStyle == .symbols,
+                                                         identifier: "settings-key-label-symbols")
+                                {
+                                    services.preferences.keyLabelStyle = .symbols
+                                }
+                                SettingsKeyPreviewChoice(title: "Text", keys: ["delete", "tab", "shift"],
+                                                         isSelected: services.preferences.keyLabelStyle == .text,
+                                                         identifier: "settings-key-label-text")
+                                {
+                                    services.preferences.keyLabelStyle = .text
+                                }
+                            }
+                            Divider()
+                            Text("Unmapped keys on layers").font(.body.weight(.medium))
+                            HStack(spacing: SettingsDesign.optionGap) {
+                                SettingsKeyPreviewChoice(title: "Normal", keys: ["A", "S", "D"],
+                                                         isSelected: services.preferences.unmappedLayerKeyStyle == .baseLayer,
+                                                         identifier: "settings-unmapped-layer-keys-base")
+                                {
+                                    services.preferences.unmappedLayerKeyStyle = .baseLayer
+                                }
+                                SettingsKeyPreviewChoice(title: "Dimmed", keys: ["A", "S", "D"], dimmed: true,
+                                                         isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed,
+                                                         identifier: "settings-unmapped-layer-keys-dimmed")
+                                {
+                                    services.preferences.unmappedLayerKeyStyle = .dimmed
+                                }
+                            }
+                            Divider()
+                            OverlayOpacityRow()
+                            SettingsToggleRow(
+                                title: "Fade when idle",
+                                subtitle: "The overlay fades after a while without typing.",
+                                isOn: Binding(
+                                    get: { services.preferences.overlayFadesWhenIdle },
+                                    set: { services.preferences.overlayFadesWhenIdle = $0 }
+                                ),
+                                identifier: "settings-overlay-fade-when-idle"
+                            )
+                            SettingsToggleRow(
+                                title: "Show when a layer is active",
+                                subtitle: "Keep the overlay hidden on the base layer. Hold or toggle a layer to reveal it.",
+                                isOn: Binding(
+                                    get: { services.preferences.overlayShowsOnlyWhileLayerHeld },
+                                    set: {
+                                        services.preferences.overlayShowsOnlyWhileLayerHeld = $0
+                                        LiveKeyboardOverlayController.shared.overlayShowsOnlyWhileLayerHeldChanged($0)
+                                    }
+                                ),
+                                identifier: "settings-overlay-show-only-while-layer-held"
+                            )
                         }
-                        .accessibilityIdentifier("settings-key-label-symbols")
-                        .accessibilityLabel("Symbol key labels")
-
-                        SettingsOptionCard(
-                            icon: "textformat.abc",
-                            title: "Text",
-                            subtitle: "delete tab caps shift",
-                            isSelected: services.preferences.keyLabelStyle == .text,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.keyLabelStyle = .text
-                        }
-                        .accessibilityIdentifier("settings-key-label-text")
-                        .accessibilityLabel("Text key labels")
                     }
-                    .accessibilityIdentifier("settings-key-label-style-picker")
                 }
 
-                // Unmapped keys on layers (Nav, Vim, etc.)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Unmapped Keys on Layers")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    HStack(spacing: 10) {
-                        SettingsOptionCard(
-                            icon: "keyboard",
-                            title: "Base layer",
-                            subtitle: "Look like the base layer",
-                            isSelected: services.preferences.unmappedLayerKeyStyle == .baseLayer,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.unmappedLayerKeyStyle = .baseLayer
+                SettingsSection(title: "Recording") {
+                    SettingsCard {
+                        VStack(spacing: SettingsDesign.rowGap) {
+                            SettingsControlRow(title: "Capture", icon: "record.circle", help: "Record keys one after another, or a combination pressed together.") {
+                                Picker("Capture", selection: Binding(get: { services.preferences.isSequenceMode }, set: { services.preferences.isSequenceMode = $0 })) {
+                                    Text("Sequences").tag(true)
+                                    Text("Combos").tag(false)
+                                }
+                                .pickerStyle(.segmented).labelsHidden().frame(width: SettingsDesign.optionWidth)
+                                .accessibilityIdentifier("settings-capture-mode-picker")
+                            }
+                            Divider()
+                            SettingsControlRow(title: "Record", icon: "keyboard", help: "Physical keys pauses your mappings while recording. With mappings includes KeyPath’s remapped output.") {
+                                Picker(
+                                    "Recording behavior",
+                                    selection: Binding(get: { services.preferences.applyMappingsDuringRecording }, set: { services.preferences.applyMappingsDuringRecording = $0 })
+                                ) {
+                                    Text("Physical keys").tag(false)
+                                    Text("With mappings").tag(true)
+                                }
+                                .pickerStyle(.segmented).labelsHidden().frame(width: SettingsDesign.optionWidth)
+                                .accessibilityIdentifier("settings-recording-behavior-picker")
+                            }
                         }
-                        .accessibilityIdentifier("settings-unmapped-layer-keys-base")
-                        .accessibilityLabel("Unmapped layer keys look like the base layer")
-
-                        SettingsOptionCard(
-                            icon: "eye.slash",
-                            title: "Dimmed",
-                            subtitle: "Dim so mappings stand out",
-                            isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.unmappedLayerKeyStyle = .dimmed
-                        }
-                        .accessibilityIdentifier("settings-unmapped-layer-keys-dimmed")
-                        .accessibilityLabel("Dim unmapped layer keys")
                     }
-                    .accessibilityIdentifier("settings-unmapped-layer-keys-picker")
                 }
 
-                // Capture Mode
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Capture Mode")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    HStack(spacing: 10) {
-                        SettingsOptionCard(
-                            icon: "arrow.right",
-                            title: "Sequences",
-                            subtitle: "Keys one after another",
-                            isSelected: services.preferences.isSequenceMode,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.isSequenceMode = true
-                        }
-                        .accessibilityLabel("Sequences capture mode")
-
-                        SettingsOptionCard(
-                            icon: "command",
-                            title: "Combos",
-                            subtitle: "Keys pressed together",
-                            isSelected: !services.preferences.isSequenceMode,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.isSequenceMode = false
-                        }
-                        .accessibilityLabel("Combos capture mode")
-                    }
-                    .accessibilityIdentifier("settings-capture-mode-picker")
+                SettingsSection(title: "Caps Lock") {
+                    SettingsCard { SessionCapsSettingsSection() }
                 }
 
-                // Recording Behavior
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Recording Behavior")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    HStack(spacing: 10) {
-                        SettingsOptionCard(
-                            icon: "keyboard",
-                            title: "Physical Keys",
-                            subtitle: "Pause mappings",
-                            isSelected: !services.preferences.applyMappingsDuringRecording,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.applyMappingsDuringRecording = false
+                SettingsSection(title: "Advanced") {
+                    SettingsCard {
+                        VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                            DisclosureGroup {
+                                VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
+                                    HStack {
+                                        Button("KeyPath Log") { openLogFile(KeyPathConstants.Logs.userDebugLog) }
+                                            .settingsAction().accessibilityIdentifier("settings-open-keypath-log-button")
+                                        Button("Runtime Log") { openLogFile(WizardSystemPaths.kanataLogFile) }
+                                            .settingsAction().accessibilityIdentifier("settings-open-kanata-log-button")
+                                    }
+                                    VerboseLoggingToggle()
+                                }.padding(.top, SettingsDesign.rowGap)
+                            } label: { Label("Logs & Diagnostics", systemImage: "waveform.path.ecg") }
+                                .accessibilityIdentifier("settings-logs-disclosure")
+                            if FeatureFlags.simulatorAndVirtualKeysEnabled {
+                                Divider()
+                                DisclosureGroup {
+                                    VirtualKeysInspectorView()
+                                } label: { Label("Virtual Keys", systemImage: "keyboard.badge.ellipsis") }
+                                    .accessibilityIdentifier("settings-virtual-keys-disclosure")
+                            }
+                            #if DEBUG
+                                Divider()
+                                DisclosureGroup {
+                                    ExperimentalSettingsSection().padding(.top, SettingsDesign.rowGap)
+                                } label: { Label("Experimental", systemImage: "flask") }
+                                    .accessibilityIdentifier("settings-experimental-disclosure")
+                            #endif
                         }
-                        .accessibilityLabel("Physical Keys recording behavior")
-
-                        SettingsOptionCard(
-                            icon: "wand.and.stars",
-                            title: "With Mappings",
-                            subtitle: "Include KeyPath",
-                            isSelected: services.preferences.applyMappingsDuringRecording,
-                            cardWidth: SettingsOptionCard.settingsRowWidth
-                        ) {
-                            services.preferences.applyMappingsDuringRecording = true
-                        }
-                        .accessibilityLabel("With Mappings recording behavior")
                     }
-                    .accessibilityIdentifier("settings-recording-behavior-picker")
                 }
-
-                Divider()
-
-                // Logs
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Logs")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            openLogFile(KeyPathConstants.Logs.userDebugLog)
-                        } label: {
-                            Label("KeyPath Log", systemImage: "doc.text")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
-                        .accessibilityIdentifier("settings-open-keypath-log-button")
-                        .accessibilityLabel("Open KeyPath log")
-
-                        Button {
-                            openLogFile(WizardSystemPaths.kanataLogFile)
-                        } label: {
-                            Label("Kanata Log", systemImage: "doc.text")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
-                        .accessibilityIdentifier("settings-open-kanata-log-button")
-                        .accessibilityLabel("Open Kanata log")
-                    }
-
-                    VerboseLoggingToggle()
-                        .padding(.top, 4)
-                }
-
-                Divider()
-
-                // Import
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Import")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-
-                    Button {
-                        showingKarabinerImport = true
-                    } label: {
-                        Label("Import from Karabiner", systemImage: "square.and.arrow.down")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                    .accessibilityIdentifier("settings-import-karabiner-button")
-                    .accessibilityLabel("Import from Karabiner")
-                }
-                .sheet(isPresented: $showingKarabinerImport) {
-                    KarabinerImportSheet()
-                }
-
-                if FeatureFlags.simulatorAndVirtualKeysEnabled {
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Virtual Keys")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        VirtualKeysInspectorView()
-                    }
-                    .accessibilityIdentifier("settings-virtual-keys-section")
-                }
-
-                #if DEBUG
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Experimental")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        ExperimentalSettingsSection()
-                            .padding(.top, 8)
-                    }
-                    .accessibilityIdentifier("settings-experimental-section")
-                #endif
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, SettingsDesign.pageInset)
             .padding(.top, 8)
             .padding(.bottom, 16)
         }
@@ -262,27 +170,48 @@ struct GeneralSettingsTabView: View {
     }
 }
 
+// MARK: - Overlay Opacity
+
+struct OverlayOpacityRow: View {
+    @Environment(\.services) private var services
+
+    var body: some View {
+        let opacity = Binding(
+            get: { services.preferences.overlayOpacity },
+            set: { services.preferences.overlayOpacity = $0 }
+        )
+        HStack(spacing: SettingsDesign.rowGap) {
+            VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
+                Text("Overlay opacity").font(.body.weight(.medium))
+                Text("Lower it to see your work through the keyboard.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Slider(value: opacity, in: 0.3 ... 1.0, step: 0.05)
+                .frame(width: 160)
+                .accessibilityIdentifier("settings-overlay-opacity-slider")
+                .accessibilityLabel("Overlay opacity")
+                .accessibilityValue("\(Int((opacity.wrappedValue * 100).rounded())) percent")
+            Text("\(Int((opacity.wrappedValue * 100).rounded()))%")
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .trailing)
+        }
+    }
+}
+
 // MARK: - Layer Indicator Toggle
 
 struct LayerIndicatorToggle: View {
     @AppStorage("KeyPath.layerIndicatorDisabled") private var disabled: Bool = true
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Layer change notification")
-                    .font(.body.weight(.medium))
-                Text("Shows a banner and plays a sound when switching layers.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("", isOn: Binding(get: { !disabled }, set: { disabled = !$0 }))
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .accessibilityLabel("Layer change notification")
-        }
-        .accessibilityIdentifier("settings-layer-indicator-toggle")
+        SettingsToggleRow(
+            title: "Layer change notification",
+            subtitle: "Banner and sound when switching layers.",
+            isOn: Binding(get: { !disabled }, set: { disabled = !$0 }),
+            identifier: "settings-layer-indicator-toggle"
+        )
     }
 }
 
@@ -296,35 +225,14 @@ struct VerboseLoggingToggle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("Verbose Logging")
-                            .font(.headline)
-                        InfoTip("Detailed Kanata trace logs for debugging")
-                    }
-                    Text("May impact performance")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-
-                Toggle(
-                    "",
-                    isOn: $verboseLogging
-                )
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .tint(.blue)
-                .accessibilityIdentifier("settings-verbose-logging-toggle")
-                .accessibilityLabel("Verbose Kanata Logging")
-                .onChange(of: verboseLogging) { _, newValue in
-                    Task { @MainActor in
-                        services.preferences.verboseKanataLogging = newValue
-                        showingRestartAlert = true
-                    }
-                }
+            SettingsToggleRow(
+                title: "Verbose Logging", subtitle: "May impact performance",
+                help: "Detailed Kanata trace logs for debugging",
+                isOn: $verboseLogging, identifier: "settings-verbose-logging-toggle"
+            )
+            .onChange(of: verboseLogging) { _, newValue in
+                services.preferences.verboseKanataLogging = newValue
+                showingRestartAlert = true
             }
 
             if verboseLogging {
@@ -345,11 +253,6 @@ struct VerboseLoggingToggle: View {
                 .clipShape(.rect(cornerRadius: 8))
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: NSColor.windowBackgroundColor))
-        )
         .alert("Service Restart Required", isPresented: $showingRestartAlert) {
             Button("Later", role: .cancel) {}
             Button("Restart Now") {

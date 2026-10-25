@@ -3,7 +3,7 @@ import Foundation
 import KeyPathAppKit
 import KeyPathRulesCore
 
-struct RuleAdd: AsyncParsableCommand {
+struct RuleAdd: AsyncParsableCommand, Sendable {
     static let configuration = CommandConfiguration(
         commandName: "add",
         abstract: "Create or modify a key remapping"
@@ -61,9 +61,16 @@ struct RuleAdd: AsyncParsableCommand {
     }
 
     mutating func run() async throws {
+        let command = self
+        try await CLIConfigurationOperation.run { operation in
+            try await command.run(operation: operation)
+        }
+    }
+
+    private func run(operation: CLIConfigurationOperation) async throws {
         let ctx = globals.outputContext
         let validator = SimulatorFacade()
-        let rules = RulesFacade()
+        let rules = operation.rules
 
         guard validator.validateKey(input) != nil else {
             let error = CLIError.invalidKey(input, label: "input")
@@ -162,6 +169,14 @@ struct RuleAdd: AsyncParsableCommand {
             )
             CLIOutput.writeError(error, context: ctx)
             throw CLIExitCode.conflict.exitCode
+        } catch let collisionErr as CLICollectionConflictError {
+            let error = CLIError.conflict(
+                collisionErr.description,
+                hint: "Disable the collection that owns this key (keypath collection disable <name>), or pick a different key. Nothing was written.",
+                details: [collisionErr.explanation]
+            )
+            CLIOutput.writeError(error, context: ctx)
+            throw CLIExitCode.conflict.exitCode
         } catch is CLIConflictError {
             let error = CLIError.conflict(
                 "Rule already exists for '\(input)'",
@@ -171,7 +186,7 @@ struct RuleAdd: AsyncParsableCommand {
             throw CLIExitCode.conflict.exitCode
         }
 
-        try await applyConfigurationOrHint(apply: apply, context: ctx)
+        try await applyConfigurationOrHint(apply: apply, context: ctx, facade: operation.config)
     }
 
     private func decodeAction(_ json: String, context: OutputContext) throws -> KeyAction {

@@ -3,7 +3,11 @@ set -euo pipefail
 
 APP_PATH="${APP_PATH:-/Applications/KeyPath.app}"
 CLI="${KEYPATH_CLI:-$APP_PATH/Contents/MacOS/keypath-cli}"
-CONFIG_DIR="${KEYPATH_CONFIG_DIR:-$HOME/.config/keypath}"
+# The installed CLI intentionally uses KeyPath's canonical user config path.
+# Keep the smoke backup and fixtures on that same path; accepting an override
+# here would only redirect the harness while the CLI continued mutating the
+# real config.
+CONFIG_DIR="$HOME/.config/keypath"
 CONFIG_PATH="$CONFIG_DIR/keypath.kbd"
 CONFIG_REAL_DIR="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$CONFIG_DIR")"
 KANATA_BIN="${KEYPATH_KANATA_BIN:-$APP_PATH/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata}"
@@ -50,6 +54,17 @@ assert_contains() {
   if [[ "$haystack" != *"$needle"* ]]; then
     echo "error: $label did not contain expected snippet:" >&2
     echo "  $needle" >&2
+    exit 1
+  fi
+}
+
+assert_matches() {
+  local haystack="$1"
+  local pattern="$2"
+  local label="$3"
+  if [[ ! "$haystack" =~ $pattern ]]; then
+    echo "error: $label did not match expected pattern:" >&2
+    echo "  $pattern" >&2
     exit 1
   fi
 }
@@ -331,7 +346,7 @@ prepare_custom_rule_fixtures
 apply_and_verify "custom rule families, app-specific aliases, and bundled Kanata validation"
 
 config="$("$CLI" config show --no-json --quiet)"
-assert_contains "$config" "z x" "simple remap config"
+assert_matches "$config" 'Description: Maps z to x' "simple remap config"
 assert_contains "$config" "tap-hold" "tap-hold config"
 assert_contains "$config" "(multi lctl lmet lalt lsft)" "hyper modifier config"
 assert_contains "$config" "f13" "function key config source"

@@ -21,6 +21,38 @@ final class InstalledPackTrackerTests: XCTestCase {
         return InstalledPackTracker(fileURL: fileURL)
     }
 
+    func testExistingTrackerObservesAnotherInstancesEditsAndDeletion() async throws {
+        let first = makeTracker()
+        let second = makeTracker()
+        let initiallyEmpty = await first.allInstalled()
+        XCTAssertTrue(initiallyEmpty.isEmpty)
+        try await second.upsert(InstalledPackRecord(packID: "external", version: "1"))
+        let external = await first.record(for: "external")
+        XCTAssertEqual(external?.version, "1")
+        try await first.upsert(InstalledPackRecord(packID: "local", version: "1"))
+        let combined = await second.allInstalled()
+        XCTAssertEqual(Set(combined.map(\.packID)), ["external", "local"])
+        try FileManager.default.removeItem(at: tempDir.appendingPathComponent("installed-packs.json"))
+        let afterDeletion = await first.allInstalled()
+        XCTAssertTrue(afterDeletion.isEmpty)
+    }
+
+    func testMutationDoesNotOverwriteMalformedMetadata() async throws {
+        let file = tempDir.appendingPathComponent("installed-packs.json")
+        let original = Data("not valid JSON".utf8)
+        try original.write(to: file)
+        let tracker = makeTracker()
+        do {
+            try await tracker.upsert(InstalledPackRecord(packID: "new", version: "1"))
+            XCTFail("Must preserve unreadable metadata")
+        } catch is DecodingError {}
+        do {
+            try await tracker.remove(packID: "old")
+            XCTFail("Must preserve unreadable metadata")
+        } catch is DecodingError {}
+        XCTAssertEqual(try Data(contentsOf: file), original)
+    }
+
     // MARK: - Empty state
 
     func testEmptyTracker_AllInstalledReturnsEmpty() async {

@@ -2,7 +2,7 @@
 #
 # Build Script: build-kanata.sh (TCC-Safe Caching Version)
 # Purpose: Compile kanata from source with proper macOS signing and TCC preservation
-# Output: build/kanata-universal (signed, universal binary)
+# Output: build/kanata-universal (signed ARM64 binary; legacy filename)
 # 
 # TCC-Safe Caching Strategy:
 # - Only rebuild kanata when source code actually changes
@@ -62,9 +62,9 @@ KANATA_FEATURES="tcp_server"
 # TCC-Safe Caching Logic
 function calculate_source_hash() {
     # Generate hash based on kanata source files (excluding build artifacts).
-    # Includes C/C++ sources: the fork vendors the karabiner-driverkit crate
-    # (driverkit/c_src), and a .cpp/.hpp-only change must invalidate the cache
-    # or a stale engine silently ships (bit MAL-57 Layer 3).
+    # Includes the Cargo manifests and lockfile that pin the external
+    # karabiner-driverkit revision. A DriverKit source update therefore changes
+    # the pin and invalidates the cache without requiring a sibling checkout.
     # Also folds in the cargo feature set: a feature change (e.g. dropping
     # `cmd`, #879) alters the binary without touching any source file.
     cd "$KANATA_SOURCE"
@@ -129,7 +129,6 @@ echo "🔨 Proceeding with kanata compilation..."
 # Add required Rust targets
 echo "🎯 Adding Rust targets..."
 rustup target add aarch64-apple-darwin >/dev/null 2>&1 || true
-rustup target add x86_64-apple-darwin >/dev/null 2>&1 || true
 
 # Build for ARM64 (Apple Silicon)
 echo "🔨 Building for ARM64 (Apple Silicon)..."
@@ -147,7 +146,7 @@ cargo build \
 # Return to project root
 cd "$PROJECT_ROOT"
 
-# Copy ARM64 binary (x86_64 cross-compilation is disabled)
+# Apple Silicon only. Keep the legacy output filename for existing callers.
 echo "📋 Copying ARM64 binary..."
 cp "$KANATA_SOURCE/target/aarch64-apple-darwin/release/kanata" "$BUILD_DIR/kanata-universal"
 

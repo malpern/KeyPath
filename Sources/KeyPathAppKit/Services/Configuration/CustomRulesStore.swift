@@ -13,9 +13,12 @@ actor CustomRulesStore {
 
     init(fileURL: URL? = nil, fileManager: FileManager = Foundation.FileManager()) {
         self.fileManager = fileManager
-        let defaultDirectory = URL(
-            fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true
-        )
+        // Under test, use the per-process sandbox like RuleCollectionStore, so a
+        // plain `swift test` (no KEYPATH_HOME_DIR_OVERRIDE) can never overwrite the
+        // developer's real ~/.config/keypath/CustomRules.json. Production is unchanged.
+        let defaultDirectory = TestEnvironment.isRunningTests
+            ? AppPaths.configDirectory
+            : URL(fileURLWithPath: WizardSystemPaths.userConfigDirectory, isDirectory: true)
         self.fileURL = fileURL ?? defaultDirectory.appendingPathComponent("CustomRules.json")
 
         let encoder = JSONEncoder()
@@ -49,6 +52,21 @@ actor CustomRulesStore {
         }
     }
 
+    func loadForMutation() throws -> [CustomRule] {
+        let data: Data
+        do { data = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { return [] }
+        return try decoder.decode([CustomRule].self, from: data)
+    }
+
+    func encodedRules(_ rules: [CustomRule]) throws -> Data {
+        try encoder.encode(rules)
+    }
+
+    var persistenceURL: URL {
+        fileURL
+    }
+
     func saveRules(_ rules: [CustomRule]) throws {
         AppLogger.shared.log("💾 [CustomRulesStore] saveRules: \(rules.count) rules to \(fileURL.path)")
         for rule in rules {
@@ -56,7 +74,7 @@ actor CustomRulesStore {
         }
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let data = try encoder.encode(rules)
+        let data = try encodedRules(rules)
         try data.write(to: fileURL, options: .atomic)
         AppLogger.shared.log("💾 [CustomRulesStore] Saved \(data.count) bytes")
     }

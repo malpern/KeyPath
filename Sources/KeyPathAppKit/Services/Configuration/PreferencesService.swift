@@ -1,5 +1,18 @@
 import Foundation
 import KeyPathCore
+
+/// The three shortcut-list values that affect generated Kanata configuration.
+/// A mutation captures this immutable candidate before it writes any defaults.
+struct ShortcutListGenerationInput: Sendable, Equatable {
+    let triggerMode: ContextHUDTriggerMode
+    let holdDelayPreset: ContextHUDHoldDelayPreset
+    let customHoldDelayMs: Int
+
+    var holdDelayMs: Int {
+        holdDelayPreset.milliseconds ?? customHoldDelayMs
+    }
+}
+
 import Observation
 
 /// Key label display style for modifier and action keys on the keyboard visualization.
@@ -64,17 +77,19 @@ enum CommunicationProtocol: String, CaseIterable {
     }
 }
 
-/// Display mode for the Context HUD
+/// What appears while a layer is active: the keyboard overlay, the shortcut list, both, or nothing.
 enum ContextHUDDisplayMode: String, CaseIterable {
     case overlayOnly
     case hudOnly
     case both
+    case none
 
     var displayName: String {
         switch self {
         case .overlayOnly: "Overlay Only"
         case .hudOnly: "HUD Only"
         case .both: "Both"
+        case .none: "Nothing"
         }
     }
 }
@@ -163,6 +178,27 @@ final class PreferencesService: @unchecked Sendable {
 
     @MainActor static let shared = PreferencesService()
 
+    static var canonicalDefaults: UserDefaults {
+        TestEnvironment.isRunningTests
+            ? .standard
+            : canonicalDefaults(using: UserDefaults(suiteName: "com.keypath.KeyPath"))
+    }
+
+    /// The suite can be unavailable during early app launch. Preferences must
+    /// still initialize so launchd does not restart the app in a crash loop.
+    static func canonicalDefaults(using suiteDefaults: UserDefaults?) -> UserDefaults {
+        suiteDefaults ?? .standard
+    }
+
+    static let leaderKeyPreferenceKey = "KeyPath.LeaderKey.Preference"
+    private let leaderDefaults: UserDefaults
+    var persistenceDefaults: UserDefaults {
+        leaderDefaults
+    }
+
+    private var suppressLeaderPersistence = false
+    private var suppressShortcutListPersistence = false
+
     // MARK: - Communication Protocol Configuration
 
     /// Communication protocol preference (always TCP)
@@ -177,20 +213,10 @@ final class PreferencesService: @unchecked Sendable {
 
     // MARK: - TCP Server Configuration
 
-    /// TCP server port for Kanata communication
+    /// The driverless worker and every app/CLI client share one fixed endpoint.
+    /// Historical stored port values remain untouched and cannot redirect clients.
     var tcpServerPort: Int {
-        didSet {
-            // Validate port range and revert if invalid
-            if !Self.isValidPort(tcpServerPort) {
-                AppLogger.shared.log(
-                    "❌ [PreferencesService] Invalid TCP port \(tcpServerPort), reverting to \(oldValue)"
-                )
-                tcpServerPort = oldValue
-            } else {
-                UserDefaults.standard.set(tcpServerPort, forKey: Keys.tcpServerPort)
-                AppLogger.shared.log("🔧 [PreferencesService] TCP server port: \(tcpServerPort)")
-            }
-        }
+        KeyPathConstants.Networking.defaultTCPPort
     }
 
     /// Whether user notifications are enabled
@@ -264,17 +290,66 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
+    /// How opaque the keyboard overlay is at rest (0.3–1.0), so it can sit over work.
+    var overlayOpacity: Double {
+        didSet {
+            let clamped = Self.clampedOverlayOpacity(overlayOpacity)
+            if clamped != overlayOpacity {
+                overlayOpacity = clamped
+            } else {
+                UserDefaults.standard.set(overlayOpacity, forKey: Keys.overlayOpacity)
+            }
+        }
+    }
+
+    /// Whether the overlay fades out after a while without typing.
+    var overlayFadesWhenIdle: Bool {
+        didSet {
+            UserDefaults.standard.set(overlayFadesWhenIdle, forKey: Keys.overlayFadesWhenIdle)
+            AppLogger.shared.log("🎨 [Preferences] overlayFadesWhenIdle = \(overlayFadesWhenIdle)")
+        }
+    }
+
+    /// When true the overlay stays hidden and appears only while a layer is held
+    /// (see OverlayLayerRevealPolicy); launch and app activation no longer open it.
+    var overlayShowsOnlyWhileLayerHeld: Bool {
+        didSet {
+            UserDefaults.standard.set(overlayShowsOnlyWhileLayerHeld, forKey: Keys.overlayShowsOnlyWhileLayerHeld)
+            AppLogger.shared.log("🎨 [Preferences] overlayShowsOnlyWhileLayerHeld = \(overlayShowsOnlyWhileLayerHeld)")
+        }
+    }
+
+    static func clampedOverlayOpacity(_ value: Double) -> Double {
+        guard value.isFinite else { return 1.0 }
+        return min(max(value, 0.3), 1.0)
+    }
+
     // MARK: - Leader Key Configuration
 
     /// Primary leader key preference (Space → Nav by default)
     /// This is independent of any collection - collections just target this layer
     var leaderKeyPreference: LeaderKeyPreference {
         didSet {
+            guard !suppressLeaderPersistence else { return }
             if let data = try? JSONEncoder().encode(leaderKeyPreference) {
-                UserDefaults.standard.set(data, forKey: Keys.leaderKeyPreference)
+                leaderDefaults.set(data, forKey: Keys.leaderKeyPreference)
                 AppLogger.shared.log("🎯 [Preferences] Leader key: \(leaderKeyPreference.key) → \(leaderKeyPreference.targetLayer.displayName) (enabled: \(leaderKeyPreference.enabled))")
             }
         }
+    }
+
+    /// Update the generation candidate without creating a crash window before
+    /// ConfigurationService has durably journaled the preference transaction.
+    func stageLeaderKeyPreference(_ preference: LeaderKeyPreference) {
+        suppressLeaderPersistence = true
+        leaderKeyPreference = preference
+        suppressLeaderPersistence = false
+    }
+
+    func reloadLeaderKeyPreference(from defaults: UserDefaults = PreferencesService.canonicalDefaults) {
+        let value = defaults.data(forKey: Self.leaderKeyPreferenceKey)
+            .flatMap { try? JSONDecoder().decode(LeaderKeyPreference.self, from: $0) } ?? .default
+        stageLeaderKeyPreference(value)
     }
 
     // MARK: - Education Hints
@@ -320,45 +395,31 @@ final class PreferencesService: @unchecked Sendable {
     /// How the HUD/overlay is triggered by the modifier key
     var contextHUDTriggerMode: ContextHUDTriggerMode {
         didSet {
-            UserDefaults.standard.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
+            guard !suppressShortcutListPersistence else { return }
+            leaderDefaults.set(contextHUDTriggerMode.rawValue, forKey: Keys.contextHUDTriggerMode)
             AppLogger.shared.log("🎯 [Preferences] contextHUDTriggerMode = \(contextHUDTriggerMode.rawValue)")
-            // Trigger config regeneration since this affects Kanata layer activation behavior
-            NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
-        }
-    }
-
-    /// Auto-dismiss timeout for the Context HUD (seconds, 1-10)
-    var contextHUDTimeout: TimeInterval {
-        didSet {
-            let clamped = Self.clampedContextHUDTimeout(contextHUDTimeout)
-            if clamped != contextHUDTimeout {
-                contextHUDTimeout = clamped
-            } else {
-                UserDefaults.standard.set(contextHUDTimeout, forKey: Keys.contextHUDTimeout)
-                AppLogger.shared.log("🎯 [Preferences] contextHUDTimeout = \(contextHUDTimeout)s")
-            }
         }
     }
 
     /// Preset hold duration for triggering Shortcut List/navigation layer.
     var contextHUDHoldDelayPreset: ContextHUDHoldDelayPreset {
         didSet {
-            UserDefaults.standard.set(contextHUDHoldDelayPreset.rawValue, forKey: Keys.contextHUDHoldDelayPreset)
+            guard !suppressShortcutListPersistence else { return }
+            leaderDefaults.set(contextHUDHoldDelayPreset.rawValue, forKey: Keys.contextHUDHoldDelayPreset)
             AppLogger.shared.log("🎯 [Preferences] contextHUDHoldDelayPreset = \(contextHUDHoldDelayPreset.rawValue)")
-            NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
         }
     }
 
     /// Custom hold duration in milliseconds (used when preset is `.custom`).
     var contextHUDHoldDelayCustomMs: Int {
         didSet {
+            guard !suppressShortcutListPersistence else { return }
             let clamped = Self.clampedContextHUDHoldDelayCustomMs(contextHUDHoldDelayCustomMs)
             if clamped != contextHUDHoldDelayCustomMs {
                 contextHUDHoldDelayCustomMs = clamped
             } else {
-                UserDefaults.standard.set(contextHUDHoldDelayCustomMs, forKey: Keys.contextHUDHoldDelayCustomMs)
+                leaderDefaults.set(contextHUDHoldDelayCustomMs, forKey: Keys.contextHUDHoldDelayCustomMs)
                 AppLogger.shared.log("🎯 [Preferences] contextHUDHoldDelayCustomMs = \(contextHUDHoldDelayCustomMs)")
-                NotificationCenter.default.post(name: .configAffectingPreferenceChanged, object: nil)
             }
         }
     }
@@ -366,6 +427,37 @@ final class PreferencesService: @unchecked Sendable {
     /// Effective hold duration in milliseconds used by generated config.
     var contextHUDHoldDelayMs: Int {
         contextHUDHoldDelayPreset.milliseconds ?? contextHUDHoldDelayCustomMs
+    }
+
+    var shortcutListGenerationInput: ShortcutListGenerationInput {
+        ShortcutListGenerationInput(
+            triggerMode: contextHUDTriggerMode,
+            holdDelayPreset: contextHUDHoldDelayPreset,
+            customHoldDelayMs: contextHUDHoldDelayCustomMs
+        )
+    }
+
+    /// Reload only the configuration-affecting shortcut-list values after their
+    /// retained write settles. This intentionally avoids emitting the legacy
+    /// notification-driven regeneration path.
+    func reloadShortcutListGenerationInput(from defaults: UserDefaults? = nil) {
+        let source = defaults ?? leaderDefaults
+        let trigger = source.string(forKey: Keys.contextHUDTriggerMode) ?? Defaults.contextHUDTriggerMode.rawValue
+        let preset = source.string(forKey: Keys.contextHUDHoldDelayPreset) ?? Defaults.contextHUDHoldDelayPreset.rawValue
+        let custom = source.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int ?? Defaults.contextHUDHoldDelayCustomMs
+        stageShortcutListGenerationInput(ShortcutListGenerationInput(
+            triggerMode: ContextHUDTriggerMode(rawValue: trigger) ?? Defaults.contextHUDTriggerMode,
+            holdDelayPreset: ContextHUDHoldDelayPreset(rawValue: preset) ?? Defaults.contextHUDHoldDelayPreset,
+            customHoldDelayMs: Self.clampedContextHUDHoldDelayCustomMs(custom)
+        ))
+    }
+
+    func stageShortcutListGenerationInput(_ input: ShortcutListGenerationInput) {
+        suppressShortcutListPersistence = true
+        contextHUDTriggerMode = input.triggerMode
+        contextHUDHoldDelayPreset = input.holdDelayPreset
+        contextHUDHoldDelayCustomMs = input.customHoldDelayMs
+        suppressShortcutListPersistence = false
     }
 
     /// Presentation mode for KindaVim in leader-hold HUD/key list.
@@ -396,16 +488,14 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Keys {
         static let communicationProtocol = "KeyPath.Communication.Protocol"
-        static let tcpServerPort = "KeyPath.TCP.ServerPort"
         static let notificationsEnabled = "KeyPath.Notifications.Enabled"
         static let applyMappingsDuringRecording = "KeyPath.Recording.ApplyMappingsDuringRecording"
         static let isSequenceMode = "KeyPath.Recording.IsSequenceMode"
         static let verboseKanataLogging = "KeyPath.Diagnostics.VerboseKanataLogging"
         static let accessibilityTestMode = "KeyPath.Testing.AccessibilityTestMode"
-        static let leaderKeyPreference = "KeyPath.LeaderKey.Preference"
+        static let leaderKeyPreference = PreferencesService.leaderKeyPreferenceKey
         static let contextHUDDisplayMode = "KeyPath.ContextHUD.DisplayMode"
         static let contextHUDTriggerMode = "KeyPath.ContextHUD.TriggerMode"
-        static let contextHUDTimeout = "KeyPath.ContextHUD.Timeout"
         static let contextHUDHoldDelayPreset = "KeyPath.ContextHUD.HoldDelayPreset"
         static let contextHUDHoldDelayCustomMs = "KeyPath.ContextHUD.HoldDelayCustomMs"
         static let kindaVimLeaderHUDMode = "KeyPath.KindaVim.LeaderHUDMode"
@@ -413,6 +503,9 @@ final class PreferencesService: @unchecked Sendable {
         static let neovimReferenceTopicsVersion = "KeyPath.Neovim.ReferenceTopicsVersion"
         static let keyLabelStyle = "KeyPath.Display.KeyLabelStyle"
         static let unmappedLayerKeyStyle = "KeyPath.Overlay.UnmappedLayerKeyStyle"
+        static let overlayOpacity = "KeyPath.Overlay.Opacity"
+        static let overlayFadesWhenIdle = "KeyPath.Overlay.FadesWhenIdle"
+        static let overlayShowsOnlyWhileLayerHeld = "KeyPath.Overlay.ShowsOnlyWhileLayerHeld"
         static let overlayHiddenHintShowCount = "KeyPath.Education.OverlayHiddenHintShowCount"
         static let overlaySuppressedBundleIDs = "KeyPath.Overlay.SuppressedBundleIDs"
     }
@@ -421,7 +514,6 @@ final class PreferencesService: @unchecked Sendable {
 
     private enum Defaults {
         static let communicationProtocol = CommunicationProtocol.tcp // TCP is only protocol
-        static let tcpServerPort = KeyPathConstants.Networking.defaultTCPPort
         static let notificationsEnabled = true
         static let applyMappingsDuringRecording = true
         static let isSequenceMode = true
@@ -432,10 +524,14 @@ final class PreferencesService: @unchecked Sendable {
         #endif
         static let keyLabelStyle = KeyLabelStyle.symbols
         static let unmappedLayerKeyStyle = UnmappedLayerKeyStyle.baseLayer
+        static let overlayOpacity = 1.0
+        static let overlayFadesWhenIdle = true
+        static let overlayShowsOnlyWhileLayerHeld = false
         static let accessibilityTestMode = false
-        static let contextHUDDisplayMode = ContextHUDDisplayMode.overlayOnly
+        // Nothing pops up on a layer hold unless the user picks it: holding Space to
+        // type must not flash a window for people who never asked for one.
+        static let contextHUDDisplayMode = ContextHUDDisplayMode.none
         static let contextHUDTriggerMode = ContextHUDTriggerMode.holdToShow
-        static let contextHUDTimeout: TimeInterval = 3.0
         static let contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset.long
         static let contextHUDHoldDelayCustomMs = 200
         static let kindaVimLeaderHUDMode = KindaVimLeaderHUDMode.off
@@ -452,7 +548,8 @@ final class PreferencesService: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init() {
+    init(leaderDefaults: UserDefaults = PreferencesService.canonicalDefaults) {
+        self.leaderDefaults = leaderDefaults
         // The command-action feature was removed in #879. Clear its retired
         // preference so older installs do not retain a misleading security flag.
         UserDefaults.standard.removeObject(forKey: "KeyPath.Security.ConfigCommandActionsEnabled")
@@ -463,29 +560,6 @@ final class PreferencesService: @unchecked Sendable {
                 ?? Defaults.communicationProtocol.rawValue
         communicationProtocol =
             CommunicationProtocol(rawValue: protocolString) ?? Defaults.communicationProtocol
-
-        // TCP server port. Migrate the legacy UDP-era port (54141) to the
-        // current default. PR #500 changed the default to 37001, but existing
-        // installs kept 54141 in UserDefaults while the kanata daemon was
-        // (re)launched on the new default — so the app dialed a port nothing was
-        // listening on and reported "no TCP". Clear the stale key so it tracks
-        // the current default; preserve any deliberately-set non-legacy port.
-        let storedTCPPort = UserDefaults.standard.object(forKey: Keys.tcpServerPort) as? Int
-        if let storedTCPPort, storedTCPPort == KeyPathConstants.Networking.legacyUDPEraPort {
-            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
-            tcpServerPort = Defaults.tcpServerPort
-            AppLogger.shared.log(
-                "🔧 [PreferencesService] Migrated legacy TCP port \(storedTCPPort) → \(Defaults.tcpServerPort)"
-            )
-        } else if let storedTCPPort, !Self.isValidPort(storedTCPPort) {
-            UserDefaults.standard.removeObject(forKey: Keys.tcpServerPort)
-            tcpServerPort = Defaults.tcpServerPort
-            AppLogger.shared.log(
-                "🔧 [PreferencesService] Removed invalid TCP port \(storedTCPPort); using \(Defaults.tcpServerPort)"
-            )
-        } else {
-            tcpServerPort = storedTCPPort ?? Defaults.tcpServerPort
-        }
 
         notificationsEnabled =
             UserDefaults.standard.object(forKey: Keys.notificationsEnabled) as? Bool
@@ -513,6 +587,13 @@ final class PreferencesService: @unchecked Sendable {
         let unmappedLayerKeyStyleString = UserDefaults.standard.string(forKey: Keys.unmappedLayerKeyStyle)
             ?? Defaults.unmappedLayerKeyStyle.rawValue
         unmappedLayerKeyStyle = UnmappedLayerKeyStyle(rawValue: unmappedLayerKeyStyleString) ?? Defaults.unmappedLayerKeyStyle
+        overlayOpacity = Self.clampedOverlayOpacity(
+            UserDefaults.standard.object(forKey: Keys.overlayOpacity) as? Double ?? Defaults.overlayOpacity
+        )
+        overlayFadesWhenIdle = UserDefaults.standard.object(forKey: Keys.overlayFadesWhenIdle) as? Bool
+            ?? Defaults.overlayFadesWhenIdle
+        overlayShowsOnlyWhileLayerHeld = UserDefaults.standard.object(forKey: Keys.overlayShowsOnlyWhileLayerHeld) as? Bool
+            ?? Defaults.overlayShowsOnlyWhileLayerHeld
 
         // Testing preferences
         accessibilityTestMode =
@@ -520,7 +601,7 @@ final class PreferencesService: @unchecked Sendable {
                 ?? Defaults.accessibilityTestMode
 
         // Leader key preference
-        if let data = UserDefaults.standard.data(forKey: Keys.leaderKeyPreference),
+        if let data = leaderDefaults.data(forKey: Keys.leaderKeyPreference),
            let stored = try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)
         {
             leaderKeyPreference = stored
@@ -546,30 +627,22 @@ final class PreferencesService: @unchecked Sendable {
         contextHUDDisplayMode = ContextHUDDisplayMode(rawValue: hudModeString)
             ?? Defaults.contextHUDDisplayMode
 
-        let triggerModeString = UserDefaults.standard.string(forKey: Keys.contextHUDTriggerMode)
+        let triggerModeString = leaderDefaults.string(forKey: Keys.contextHUDTriggerMode)
             ?? Defaults.contextHUDTriggerMode.rawValue
         contextHUDTriggerMode = ContextHUDTriggerMode(rawValue: triggerModeString)
             ?? Defaults.contextHUDTriggerMode
 
-        let storedTimeout = UserDefaults.standard.object(forKey: Keys.contextHUDTimeout) as? TimeInterval
-        let rawTimeout = storedTimeout ?? Defaults.contextHUDTimeout
-        let sanitizedTimeout = Self.clampedContextHUDTimeout(rawTimeout)
-        contextHUDTimeout = sanitizedTimeout
-        if storedTimeout != nil, sanitizedTimeout != rawTimeout {
-            UserDefaults.standard.set(sanitizedTimeout, forKey: Keys.contextHUDTimeout)
-        }
-
-        let holdDelayPresetString = UserDefaults.standard.string(forKey: Keys.contextHUDHoldDelayPreset)
+        let holdDelayPresetString = leaderDefaults.string(forKey: Keys.contextHUDHoldDelayPreset)
             ?? Defaults.contextHUDHoldDelayPreset.rawValue
         contextHUDHoldDelayPreset = ContextHUDHoldDelayPreset(rawValue: holdDelayPresetString)
             ?? Defaults.contextHUDHoldDelayPreset
 
-        let storedCustomDelay = UserDefaults.standard.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
+        let storedCustomDelay = leaderDefaults.object(forKey: Keys.contextHUDHoldDelayCustomMs) as? Int
         let rawCustomDelay = storedCustomDelay ?? Defaults.contextHUDHoldDelayCustomMs
         let sanitizedCustomDelay = Self.clampedContextHUDHoldDelayCustomMs(rawCustomDelay)
         contextHUDHoldDelayCustomMs = sanitizedCustomDelay
         if storedCustomDelay != nil, sanitizedCustomDelay != rawCustomDelay {
-            UserDefaults.standard.set(sanitizedCustomDelay, forKey: Keys.contextHUDHoldDelayCustomMs)
+            leaderDefaults.set(sanitizedCustomDelay, forKey: Keys.contextHUDHoldDelayCustomMs)
         }
 
         let kindaVimHUDModeString = UserDefaults.standard.string(forKey: Keys.kindaVimLeaderHUDMode)
@@ -602,7 +675,6 @@ final class PreferencesService: @unchecked Sendable {
     /// Reset all communication settings to defaults
     func resetCommunicationSettings() {
         communicationProtocol = Defaults.communicationProtocol
-        tcpServerPort = Defaults.tcpServerPort
         AppLogger.shared.log("🔧 [PreferencesService] All communication settings reset to defaults")
     }
 
@@ -620,10 +692,6 @@ final class PreferencesService: @unchecked Sendable {
 private extension PreferencesService {
     static func isValidPort(_ port: Int) -> Bool {
         port >= 1024 && port <= 65535
-    }
-
-    static func clampedContextHUDTimeout(_ timeout: TimeInterval) -> TimeInterval {
-        min(max(timeout, 1), 10)
     }
 
     static func clampedContextHUDHoldDelayCustomMs(_ delay: Int) -> Int {

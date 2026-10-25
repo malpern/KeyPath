@@ -39,6 +39,7 @@ public protocol WizardDaemonManaging: AnyObject, Sendable {
     func refreshManagementState() async -> WizardServiceManagementState
 
     func isRegisteredButNotLoaded() async -> Bool
+    func activeRuntimeFreshness() async -> RuntimeFreshness
 
     func register() async throws
     func unregister() async throws

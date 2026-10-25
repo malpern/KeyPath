@@ -1,9 +1,58 @@
 import Foundation
+import KeyPathCore
 import KeyPathRulesCore
 
 /// Provides predefined rule collections that ship with the app.
 struct RuleCollectionCatalog {
+    /// Why a built-in collection cannot run on the active backend, or nil. Derived
+    /// from the keys the collection's catalog definition emits, so a collection
+    /// becomes unavailable (or available) with the backend, not a hard-coded id.
+    ///
+    /// Uses the collection as a profile receives it (the fresh-profile default),
+    /// not the raw catalog entry: macOS Function Keys is stored as its media
+    /// definition but always installed in function mode, and media mode's own
+    /// availability is `FunctionKeyMode.isSupportedInDriverlessSession`.
+    ///
+    /// The sentence is the admission engine's (phase 4d), so the gallery, the
+    /// rules list and the toggle all say the same thing. Only the backend's
+    /// own limits count here: whether a companion app is installed is a
+    /// question for install or toggle time, with the user's real files.
+    static func driverlessUnavailableReason(for id: UUID, profile: BackendCapabilityProfile = .shared) -> String? {
+        guard let collection = installedDefinitions.first(where: { $0.id == id }) else { return nil }
+        var enabled = collection
+        enabled.isEnabled = true
+        let state = AdmissionEngine.State(collections: [enabled])
+        let verdicts = AdmissionEngine.evaluate(state, profile: profile, fileExists: { _ in true })
+        guard let verdict = verdicts.first(where: { if case .unmetNeed = $0.reason { return true }; return false })
+        else { return nil }
+        return AdmissionVerdictPresenter.present(verdict) { _ in collection.name }.explanation
+    }
+
+    private static let installedDefinitions = RuleCollectionCatalog().defaultCollections()
+
+    /// True when any key these mappings emit is outside the backend's profile.
+    static func emitsUnsupportedOutput(_ mappings: [KeyMapping],
+                                       profile: BackendCapabilityProfile = .shared) -> Bool
+    {
+        !RuleCollectionNeedsExtractor.unmet(RuleCollectionNeedsExtractor.needs(for: mappings), profile: profile).isEmpty
+    }
+
     func defaultCollections() -> [RuleCollection] {
+        // Fresh profiles use conservative keyboard behavior. Keep every built-in
+        // definition available without silently changing persisted enable states.
+        Self.builtInList.map { collection in
+            var fresh = collection
+            fresh.isEnabled = collection.id == RuleCollectionIdentifier.macFunctionKeys
+            if fresh.id == RuleCollectionIdentifier.macFunctionKeys {
+                fresh.functionKeyMode = .function
+                fresh.mappings = Self.functionKeyMappings(for: .function)
+            }
+            return fresh
+        }
+    }
+
+    /// The catalog's own definitions, before fresh-profile adjustments.
+    func originalCollections() -> [RuleCollection] {
         Self.builtInList
     }
 
@@ -55,7 +104,8 @@ struct RuleCollectionCatalog {
         if existing.id == RuleCollectionIdentifier.windowSnapping {
             if let convention = existing.windowKeyConvention {
                 merged.windowKeyConvention = convention
-                merged.mappings = Self.windowMappings(for: convention)
+                merged.mappings = Self.preservingIdentity(of: existing.mappings,
+                                                          in: Self.windowMappings(for: convention))
             }
 
             if let activationMode = existing.windowSnappingActivationMode {
@@ -65,11 +115,9 @@ struct RuleCollectionCatalog {
             }
         }
 
-        if existing.id == RuleCollectionIdentifier.macFunctionKeys,
-           let mode = existing.functionKeyMode
-        {
-            merged.functionKeyMode = mode
-            merged.mappings = Self.functionKeyMappings(for: mode)
+        if existing.id == RuleCollectionIdentifier.macFunctionKeys {
+            merged.functionKeyMode = existing.functionKeyMode
+            merged.mappings = existing.mappings
         }
 
         return merged
@@ -97,6 +145,23 @@ struct RuleCollectionCatalog {
     // MARK: - Dynamic Mapping Generators
 
     /// Generate window snapping key mappings for a given convention
+    /// Regenerated mappings take the ids of the saved mappings they replace.
+    /// Fresh ids made an unchanged collection compare unequal, so it was offered
+    /// as a catalog update again after every apply.
+    static func preservingIdentity(of existing: [KeyMapping], in regenerated: [KeyMapping]) -> [KeyMapping] {
+        let ids = Dictionary(existing.map { ($0.input, $0.id) }, uniquingKeysWith: { first, _ in first })
+        return regenerated.map { mapping in
+            guard let id = ids[mapping.input] else { return mapping }
+            return KeyMapping(
+                id: id, input: mapping.input, action: mapping.action,
+                shiftedOutput: mapping.shiftedOutput, ctrlOutput: mapping.ctrlOutput,
+                description: mapping.description, sectionBreak: mapping.sectionBreak,
+                sectionLabel: mapping.sectionLabel, behavior: mapping.behavior,
+                deviceOverrides: mapping.deviceOverrides
+            )
+        }
+    }
+
     static func windowMappings(for convention: WindowKeyConvention) -> [KeyMapping] {
         switch convention {
         case .standard:
@@ -168,5 +233,13 @@ struct RuleCollectionCatalog {
                 KeyMapping(input: "f12", action: .keystroke(key: "f12"), description: "F12")
             ]
         }
+    }
+}
+
+public extension FunctionKeyMode {
+    /// Whether the active backend can emit every key this mode maps F1–F12 to.
+    /// Media mode needs consumer-page output, which the driverless session lacks.
+    var isSupportedInDriverlessSession: Bool {
+        !RuleCollectionCatalog.emitsUnsupportedOutput(RuleCollectionCatalog.functionKeyMappings(for: self))
     }
 }

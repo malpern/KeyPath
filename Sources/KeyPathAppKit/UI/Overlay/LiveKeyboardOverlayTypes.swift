@@ -40,6 +40,51 @@ enum HealthIndicatorState: Equatable {
     case dismissed
 }
 
+/// One bounded settling window per disconnected episode. Routine validation must
+/// not keep renewing it and conceal a genuinely failed event stream.
+struct OverlayTCPRecoveryGrace {
+    static let duration: TimeInterval = 5
+    private(set) var awaitingValidation = false
+    private(set) var deadline: Date?
+    private var consumed = false
+
+    mutating func update(isConnected: Bool, isCheckingHealth: Bool, now: Date) {
+        if isConnected {
+            self = Self()
+        } else if !consumed, isCheckingHealth {
+            awaitingValidation = true
+        } else if awaitingValidation, !isCheckingHealth {
+            awaitingValidation = false
+            consumed = true
+            deadline = now.addingTimeInterval(Self.duration)
+        }
+    }
+
+    func isActive(at now: Date) -> Bool {
+        awaitingValidation || deadline.map { now < $0 } == true
+    }
+}
+
+enum OverlayTCPStatusPresentation: Equatable {
+    case hidden
+    case starting
+    case restarting
+    case disconnected
+
+    static func resolve(
+        isConnected: Bool,
+        hasSeenConnection: Bool,
+        isWithinStartupGrace: Bool,
+        isCheckingHealth: Bool = false
+    ) -> Self {
+        if isConnected { return .hidden }
+        if isWithinStartupGrace || isCheckingHealth {
+            return hasSeenConnection ? .restarting : .starting
+        }
+        return .disconnected
+    }
+}
+
 @Observable
 @MainActor
 final class LiveKeyboardOverlayUIState {
@@ -226,8 +271,6 @@ final class OneShotLayerOverrideState {
 // MARK: - Notification Integration
 
 extension Notification.Name {
-    /// Posted when the live keyboard overlay should be toggled
-    static let toggleLiveKeyboardOverlay = Notification.Name("KeyPath.ToggleLiveKeyboardOverlay")
     /// Posted when accessibility test mode preference changes (overlay must recreate its window)
     static let accessibilityTestModeChanged = Notification.Name("KeyPath.AccessibilityTestModeChanged")
     /// Posted when the Kanata layer changes (userInfo["layerName"] = String)

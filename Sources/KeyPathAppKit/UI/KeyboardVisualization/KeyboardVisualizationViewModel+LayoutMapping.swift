@@ -82,11 +82,15 @@ extension KeyboardVisualizationViewModel {
     }
 
     /// Pre-warm launcher mappings cache at startup so layer switch is instant.
-    func prewarmLauncherMappings() {
+    @discardableResult
+    func prewarmLauncherMappings(store: RuleCollectionStore = .shared) -> Task<Void, Never> {
         Task {
-            let mappings = await Self.buildLauncherMappings()
+            let mappings = await Self.buildLauncherMappings(store: store)
             await MainActor.run {
                 cachedLauncherMappings = mappings
+                // The drawer can preview launcher icons while the runtime stays on base.
+                // Keep this snapshot current; the view decides whether to display it.
+                launcherMappings = mappings
                 AppLogger.shared.info("🚀 [KeyboardViz] Pre-warmed \(mappings.count) launcher mappings")
             }
 
@@ -97,8 +101,8 @@ extension KeyboardVisualizationViewModel {
     }
 
     /// Build launcher mappings from rule collections (shared by load and prewarm).
-    private static func buildLauncherMappings() async -> [String: LauncherMapping] {
-        let collections = await RuleCollectionStore.shared.loadCollections()
+    private static func buildLauncherMappings(store: RuleCollectionStore = .shared) async -> [String: LauncherMapping] {
+        let collections = await store.loadCollections()
 
         guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
               let config = launcherCollection.configuration.launcherGridConfig
@@ -338,6 +342,7 @@ extension KeyboardVisualizationViewModel {
 
     /// Fire-and-forget prebuild of all layer mappings so first layer switches hit cache.
     func prebuildLayerMappingsInBackground() {
+        let generation = prebuildGeneration
         Task {
             let allCollections = await RuleCollectionStore.shared.loadCollections()
             let enabledCollections = allCollections.filter(\.isEnabled)
@@ -376,8 +381,14 @@ extension KeyboardVisualizationViewModel {
                     localCache[layer] = mapping
                 }
             }
-            await MainActor.run {
+            let installed = await MainActor.run {
+                guard generation == self.prebuildGeneration else { return false }
                 self.prebuiltLayerMappings = localCache
+                return true
+            }
+            guard installed else {
+                AppLogger.shared.info("🗺️ [KeyboardViz] Discarded a prebuild superseded by an invalidation")
+                return
             }
 
             AppLogger.shared.info("🗺️ [KeyboardViz] Background prebuild complete (\(localCache.count) layers cached)")
@@ -399,12 +410,10 @@ extension KeyboardVisualizationViewModel {
         alert.informativeText = "\(report.failureCount)/\(report.totalKeys) keys could not be resolved. Overlay icons may be missing.\n\nClick \"Copy Error\" and paste into Claude Code to debug."
         alert.addButton(withTitle: "Copy Error")
         alert.addButton(withTitle: "Dismiss")
-
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
+        NonModalAlertPresenter.present(alert, onFirstButton: { [copyableText = report.copyableText()] in
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(report.copyableText(), forType: .string)
-        }
+            NSPasteboard.general.setString(copyableText, forType: .string)
+        })
     }
 
     /// Invalidate cached mappings (call when config changes)
@@ -412,6 +421,10 @@ extension KeyboardVisualizationViewModel {
         AppLogger.shared.info("🔔 [KeyboardViz] invalidateLayerMappings called - will rebuild layer mapping for '\(currentLayerName)'")
         AppLogger.shared.info("🔔 [KeyboardViz] Current layerKeyMap has \(layerKeyMap.count) entries, keyCode 0 = '\(layerKeyMap[0]?.displayLabel ?? "nil")'")
         cachedLauncherMappings = nil
+        // Keyed by layer name only, so stale entries would show old labels (e.g. after a
+        // Key names switch) until the rebuild below finished.
+        prebuiltLayerMappings = [:]
+        prebuildGeneration += 1
         Task {
             await layerKeyMapper.invalidateCache()
             AppLogger.shared.info("🔔 [KeyboardViz] Cache invalidated, now calling rebuildLayerMapping()")

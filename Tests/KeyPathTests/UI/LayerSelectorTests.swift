@@ -243,7 +243,7 @@ extension LayerSelectorTests {
     }
 }
 
-private final class StubRuntimeCoordinator: RuntimeCoordinator {
+private final class StubRuntimeCoordinator: RuntimeCoordinator, @unchecked Sendable {
     var stubLayerNames: [String] = []
     var stubChangeLayerResult: Bool = false
 

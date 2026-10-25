@@ -13,11 +13,19 @@ struct SystemActionGridView: View {
     }
 
     var body: some View {
-        switch style {
-        case .iconTile:
-            iconTileContent
-        case let .labelPill(minWidth):
-            labelPillContent(minWidth: minWidth)
+        VStack(alignment: .leading, spacing: 8) {
+            if groups.contains(where: { $0.actions.contains(where: { !$0.isSupportedInDriverlessSession }) }) {
+                Text(SystemActionInfo.driverlessMediaUnavailableReason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+            }
+            switch style {
+            case .iconTile:
+                iconTileContent
+            case let .labelPill(minWidth):
+                labelPillContent(minWidth: minWidth)
+            }
         }
     }
 
@@ -51,6 +59,7 @@ struct SystemActionGridView: View {
     private func iconTileButton(_ action: SystemActionInfo) -> some View {
         let isSelected = selectedActionID == action.id
         Button {
+            guard action.isSupportedInDriverlessSession else { return }
             onSelect(action)
         } label: {
             VStack(spacing: 4) {
@@ -74,6 +83,9 @@ struct SystemActionGridView: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
+        .disabled(!action.isSupportedInDriverlessSession)
+        .help(action.isSupportedInDriverlessSession ? action.name : SystemActionInfo.driverlessMediaUnavailableReason)
+        .accessibilityHint(action.isSupportedInDriverlessSession ? "" : SystemActionInfo.driverlessMediaUnavailableReason)
         .accessibilityIdentifier("system-action-\(action.id)")
     }
 
@@ -98,6 +110,7 @@ struct SystemActionGridView: View {
     private func labelPillButton(_ action: SystemActionInfo) -> some View {
         let isSelected = selectedActionID == action.id
         Button {
+            guard action.isSupportedInDriverlessSession else { return }
             onSelect(action)
         } label: {
             HStack(spacing: 3) {
@@ -119,6 +132,9 @@ struct SystemActionGridView: View {
             )
         }
         .buttonStyle(.plain)
+        .disabled(!action.isSupportedInDriverlessSession)
+        .help(action.isSupportedInDriverlessSession ? action.name : SystemActionInfo.driverlessMediaUnavailableReason)
+        .accessibilityHint(action.isSupportedInDriverlessSession ? "" : SystemActionInfo.driverlessMediaUnavailableReason)
         .accessibilityIdentifier("system-action-\(action.id)")
     }
 }

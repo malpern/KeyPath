@@ -16,21 +16,24 @@ extension PackDetailView {
         toggleTask = Task { newValue ? await install() : await uninstall() }
     }
 
-    func install(skipFinalReload: Bool = false) async {
+    /// Install through admission (decision 4): one click when nothing the user
+    /// has would change; the preview sheet only when a verdict needs a choice or
+    /// blocks; automatic resolutions become a one-line note afterwards.
+    func install(skipFinalReload: Bool = false, admission: PackInstallAdmission = .checked) async {
         isWorking = true
         errorMessage = nil
         do {
             let manager = kanataManager.underlyingManager.ruleCollectionsManager
+            let summary = await PackInstaller.shared.admissionPreview(for: pack, manager: manager).summaryLines
             _ = try await PackInstaller.shared.install(
                 pack,
                 quickSettingValues: quickSettingValues,
                 manager: manager,
-                skipFinalReload: skipFinalReload
+                skipFinalReload: skipFinalReload,
+                admission: admission
             )
+            if let line = summary.first { showTemporaryNote(line) }
             kanataManager.underlyingManager.notifyStateChanged()
-            if pack.id == PackRegistry.keystrokeHistory.id {
-                KeystrokeHistoryService.shared.isRecording = true
-            }
             lastUndoSnapshot = .init(quickSettingValues: quickSettingValues)
             await refreshInstallState()
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
@@ -44,7 +47,9 @@ extension PackDetailView {
             }
         } catch let error as PackInstaller.InstallError {
             await refreshInstallState()
-            if case let .mutuallyExclusive(conflicts) = error {
+            if case let .needsReview(preview) = error {
+                installPreview = PackInstallPreviewState(pack: pack, preview: preview)
+            } else if case let .mutuallyExclusive(conflicts) = error {
                 packConflict = PackConflictState(
                     packToInstall: pack,
                     conflictingPacks: conflicts
@@ -66,10 +71,6 @@ extension PackDetailView {
             let manager = kanataManager.underlyingManager.ruleCollectionsManager
             try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
             kanataManager.underlyingManager.notifyStateChanged()
-            if pack.id == PackRegistry.keystrokeHistory.id {
-                KeystrokeHistoryService.shared.isRecording = false
-                KeystrokeHistoryService.shared.clearEvents()
-            }
             await refreshInstallState()
             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                 justUninstalled = true
@@ -166,12 +167,20 @@ extension PackDetailView {
     /// collection's `selectedOutput` is persisted via the same VM API the
     /// Rules tab uses.
     func applySingleKeyEdit(output: String) async {
-        singleKeySelection = output
         guard let collectionID = pack.associatedCollectionID else { return }
+        let editID = UUID()
+        singleKeyEditID = editID
+        singleKeySelection = output
         if !isInstalled {
             await install(skipFinalReload: true)
         }
-        await kanataManager.updateCollectionOutput(collectionID, output: output)
+        if isInstalled {
+            await kanataManager.updateCollectionOutput(collectionID, output: output)
+        }
+        let persistedSelection = await liveSingleKeySelection()
+        guard singleKeyEditID == editID else { return }
+        singleKeyEditID = nil
+        singleKeySelection = persistedSelection
     }
 
     /// Apply a Home Row Mods edit — analogous to the tap-hold `updateTapHold`
@@ -210,9 +219,6 @@ extension PackDetailView {
     /// Mirror of `applyHomeRowEdit` for Window Snapping's convention picker
     /// (Standard L/R/U/I/J/K vs Vim H/L/Y/U/B/N).
     func applyWindowConventionEdit(_ convention: WindowKeyConvention, collectionID: UUID) async {
-        if !isInstalled {
-            await install(skipFinalReload: true)
-        }
         await kanataManager.updateWindowKeyConvention(collectionID, convention: convention)
     }
 

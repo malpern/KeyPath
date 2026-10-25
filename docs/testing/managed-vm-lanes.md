@@ -85,7 +85,7 @@ The harness verifies its lane automatically before installing KeyPath:
 Create every lease with an explicit lane:
 
 ```bash
-Scripts/lab/keypath-lab create --macos 26 --lane managed-functional \
+vm-lab keypath create --macos 26 --lane managed-functional \
   --commit "$COMMIT" --installer dist/KeyPath.zip
 ```
 

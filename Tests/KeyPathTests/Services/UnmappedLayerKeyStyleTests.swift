@@ -37,7 +37,10 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
             scale: 1.0,
             currentLayerName: layer,
             layerKeyInfo: info,
-            zoneSubtitle: zoneSubtitle
+            zoneSubtitle: zoneSubtitle,
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
     }
 
@@ -55,7 +58,10 @@ final class UnmappedLayerKeyStyleTests: KeyPathTestCase {
             scale: 1.0,
             currentLayerName: layer,
             layerKeyInfo: info,
-            zoneSubtitle: zoneSubtitle
+            zoneSubtitle: zoneSubtitle,
+            // Inject the container rather than reading @Environment: this view is
+            // never installed in a hierarchy, and an uninstalled read warns.
+            servicesOverride: ServiceContainer()
         )
     }
 

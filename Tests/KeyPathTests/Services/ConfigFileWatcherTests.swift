@@ -55,19 +55,54 @@ struct ConfigFileWatcherTests {
         watcher.stopWatching()
     }
 
-    @Test("suppressEvents prevents callback during suppression window")
+    @Test("internal revision consumes only its matching write")
     @MainActor
-    func suppressionPreventsCallback() async throws {
+    func internalRevisionConsumesMatchingWrite() async throws {
         let (_, path) = try makeTempFile()
         let watcher = ConfigFileWatcher()
 
         var callbackCount = 0
         watcher.startWatching(path: path) { callbackCount += 1 }
-        watcher.suppressEvents(for: 5.0, reason: "test")
+        watcher.claimInternalContent("internal-write")
 
-        try "suppressed-write".write(toFile: path, atomically: true, encoding: .utf8)
-        await watcher.simulateFileEventForTesting()
+        try "internal-write".write(toFile: path, atomically: true, encoding: .utf8)
+        await watcher.reconcileFileChangeForTesting()
 
+        #expect(callbackCount == 0)
+        try "external-write".write(toFile: path, atomically: true, encoding: .utf8)
+        await watcher.reconcileFileChangeForTesting()
+        #expect(callbackCount == 1)
+        watcher.stopWatching()
+    }
+
+    @Test("same-mtime external rewrite is reconciled by content")
+    @MainActor
+    func sameMtimeRewriteTriggersCallback() async throws {
+        let (_, path) = try makeTempFile()
+        let watcher = ConfigFileWatcher()
+        var callbackCount = 0
+        watcher.startWatching(path: path) { callbackCount += 1 }
+        let originalDate = try FileManager.default.attributesOfItem(atPath: path)[.modificationDate] as? Date
+        try "changed".write(toFile: path, atomically: true, encoding: .utf8)
+        if let originalDate {
+            try FileManager.default.setAttributes([.modificationDate: originalDate], ofItemAtPath: path)
+        }
+        await watcher.reconcileFileChangeForTesting()
+        #expect(callbackCount == 1)
+        watcher.stopWatching()
+    }
+
+    @Test("spurious event retains the pending internal content claim")
+    @MainActor
+    func spuriousEventRetainsInternalClaim() async throws {
+        let (_, path) = try makeTempFile()
+        let watcher = ConfigFileWatcher()
+        var callbackCount = 0
+        watcher.startWatching(path: path) { callbackCount += 1 }
+        watcher.claimInternalContent("internal-write")
+        await watcher.reconcileFileChangeForTesting()
+        try "internal-write".write(toFile: path, atomically: true, encoding: .utf8)
+        await watcher.reconcileFileChangeForTesting()
         #expect(callbackCount == 0)
         watcher.stopWatching()
     }

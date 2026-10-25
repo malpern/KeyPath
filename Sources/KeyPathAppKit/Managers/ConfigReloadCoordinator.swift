@@ -9,17 +9,40 @@ import KeyPathPermissions
 /// its own focused type. `RuntimeCoordinator` delegates all reload calls here.
 @MainActor
 final class ConfigReloadCoordinator {
+    private static let runtimeIntentChangedMessage = "Runtime state changed; configuration remains saved"
+
     // MARK: - Dependencies
 
     private let engineClient: EngineClient
     private let reloadSafetyMonitor: ReloadSafetyMonitor
     private let healthStatusProvider: @MainActor @Sendable (Int) async -> ServiceHealthStatus
     private let processLifecycleManager: ProcessLifecycleManager
+    private let isRuntimeTransitioning: @MainActor @Sendable () -> Bool
+    private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
+    private let transitionRetryMaximumPolls: Int
+    private let transitionRetryWait: @MainActor @Sendable () async -> Void
+    private let automaticDeferredRetriesEnabled: Bool
+    private let runtimeWantsRunning: @MainActor @Sendable () -> Bool
+    private let runtimeIntentGeneration: @MainActor @Sendable () -> UInt64
+    private let currentManagedCaps: @MainActor @Sendable () -> Bool
+    private let currentCapsIntermediate: @MainActor @Sendable () -> UInt32?
+    /// The running session has Caps Lock rules paused (no usable keyboard).
+    private let currentCapsPaused: @MainActor @Sendable () -> Bool
+    /// Called after an in-place reload of a profile that no longer uses Caps Lock.
+    private let capsNoLongerNeeded: (@MainActor @Sendable () -> Void)?
+    private let restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)?
+    private let managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)?
+    private let sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))?
+    private let admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)?
 
     // MARK: - Callbacks (set by RuntimeCoordinator after init)
 
     /// Called to clear stale diagnostics after a successful reload.
     var onReloadSuccess: (() -> Void)?
+    var onDeferredReloadSuccess: (@MainActor @Sendable () async -> Void)?
+    var configurationOperationGate: ConfigurationOperationGate?
+
+    private let startRuntimeForExplicitApply: (@MainActor @Sendable () async -> Bool)?
 
     // MARK: - Init
 
@@ -27,39 +50,88 @@ final class ConfigReloadCoordinator {
         engineClient: EngineClient,
         reloadSafetyMonitor: ReloadSafetyMonitor,
         healthStatusProvider: @escaping @MainActor @Sendable (Int) async -> ServiceHealthStatus,
-        processLifecycleManager: ProcessLifecycleManager
+        processLifecycleManager: ProcessLifecycleManager,
+        isRuntimeTransitioning: @escaping @MainActor @Sendable () -> Bool = { false },
+        tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
+        transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
+        transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
+            try? await Task.sleep(for: .milliseconds(500))
+        },
+        automaticDeferredRetriesEnabled: Bool = true,
+        startRuntimeForExplicitApply: (@MainActor @Sendable () async -> Bool)? = nil,
+        runtimeWantsRunning: @escaping @MainActor @Sendable () -> Bool = { true },
+        runtimeIntentGeneration: @escaping @MainActor @Sendable () -> UInt64 = { 0 },
+        currentManagedCaps: @escaping @MainActor @Sendable () -> Bool = { false },
+        currentCapsIntermediate: @escaping @MainActor @Sendable () -> UInt32? = { nil },
+        currentCapsPaused: @escaping @MainActor @Sendable () -> Bool = { false },
+        capsNoLongerNeeded: (@MainActor @Sendable () -> Void)? = nil,
+        restartForManagedCapsChange: (@MainActor @Sendable () async -> Bool)? = nil,
+        managedCapsRestartFailureReason: (@MainActor @Sendable (UInt64) -> String?)? = nil,
+        sessionValidationOverride: (@MainActor @Sendable () -> (result: KanataHostBridgeValidationResult, managedCaps: Bool))? = nil,
+        admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil
     ) {
+        self.startRuntimeForExplicitApply = startRuntimeForExplicitApply
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
         self.healthStatusProvider = healthStatusProvider
         self.processLifecycleManager = processLifecycleManager
+        self.isRuntimeTransitioning = isRuntimeTransitioning
+        self.tcpReloadOverride = tcpReloadOverride
+        self.transitionRetryMaximumPolls = transitionRetryMaximumPolls
+        self.transitionRetryWait = transitionRetryWait
+        self.automaticDeferredRetriesEnabled = automaticDeferredRetriesEnabled
+        self.runtimeWantsRunning = runtimeWantsRunning
+        self.runtimeIntentGeneration = runtimeIntentGeneration
+        self.currentManagedCaps = currentManagedCaps
+        self.currentCapsIntermediate = currentCapsIntermediate
+        self.currentCapsPaused = currentCapsPaused
+        self.capsNoLongerNeeded = capsNoLongerNeeded
+        self.restartForManagedCapsChange = restartForManagedCapsChange
+        self.managedCapsRestartFailureReason = managedCapsRestartFailureReason
+        self.sessionValidationOverride = sessionValidationOverride
+        self.admittedIntermediateOverride = admittedIntermediateOverride
     }
 
     // MARK: - Reload Operations
 
     /// Main reload method using TCP protocol.
     /// Checks service health, permission gates, and delegates to TCP reload.
-    func triggerConfigReload() async -> ReloadResult {
-        // Use the manager refresh path instead of the unbounded synchronous
-        // currentManagementState cache; the underlying SMAppService provider
-        // still coalesces IPC with a short TTL.
-        let smState = await KanataDaemonManager.shared.refreshManagementStateInternal()
-        if smState == .smappservicePending {
-            AppLogger.shared.warn(
-                "⚠️ [Reload] Skipping TCP reload because SMAppService requires approval"
-            )
-            return ReloadResult(
-                success: false,
-                response: nil,
-                errorMessage: "Approve KeyPath in Login Items before reloading config",
-                protocol: nil,
-                disposition: .pending
-            )
-        }
-
+    func triggerConfigReload(
+        notifyOnFailure: Bool = true,
+        scheduleRetryOnPending: Bool = true,
+        recoverStoppedRuntime: Bool = false
+    ) async -> ReloadResult {
+        var expectedIntent = runtimeIntentGeneration()
+        let wasTransitioningBeforeHealth = isRuntimeTransitioning()
         // Skip reloads if Kanata service isn't healthy yet
-        let healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+        var healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+        guard expectedIntent == runtimeIntentGeneration() else { return changedRuntimeIntent() }
+        // Explicit onboarding Apply/Try Again may recover a stopped session. File
+        // watchers and ordinary reloads must never undo a user's manual Stop.
+        if !healthStatus.isHealthy, recoverStoppedRuntime, !isRuntimeTransitioning(),
+           let startRuntimeForExplicitApply
+        {
+            guard !Task.isCancelled else {
+                return ReloadResult(success: false, response: nil, errorMessage: "Apply cancelled", protocol: nil, disposition: .pending)
+            }
+            let started = await startRuntimeForExplicitApply()
+            expectedIntent = runtimeIntentGeneration()
+            healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+            guard started, healthStatus.isHealthy, !Task.isCancelled,
+                  expectedIntent == runtimeIntentGeneration()
+            else {
+                return ReloadResult(success: false, response: nil,
+                                    errorMessage: healthStatus.reason ?? "Session startup did not establish readiness",
+                                    protocol: nil, disposition: .pending)
+            }
+        }
         if !healthStatus.isHealthy {
+            // Startup may already have read the previous file. Preserve edits
+            // made before its first healthy report, just like a TCP disconnect
+            // during replacement. A manually stopped runtime stays stopped.
+            if scheduleRetryOnPending, runtimeWantsRunning(), wasTransitioningBeforeHealth || isRuntimeTransitioning() {
+                scheduleDeferredReloadAfterRuntimeTransition()
+            }
             AppLogger.shared.warnUnlessQuietTest(
                 "⚠️ [Reload] Skipping TCP reload because Kanata service is not healthy yet: \(healthStatus.reason ?? "unknown reason")"
             )
@@ -90,12 +162,13 @@ final class ConfigReloadCoordinator {
 
         // Try TCP reload
         AppLogger.shared.debug("📡 [Reload] Attempting TCP reload")
-        let tcpResult = await triggerTCPReload()
+        let runtimeWasTransitioning = isRuntimeTransitioning()
+        let tcpResult = await triggerTCPReload(expectedRuntimeIntent: expectedIntent)
         if tcpResult.isSuccess {
             // Successful reload -> clear stale diagnostics
             onReloadSuccess?()
             // Notify UI that we recovered from a previous reload failure.
-            NotificationCenter.default.post(name: .configReloadRecovered, object: nil)
+            NotificationCenter.default.post(name: .configReloadRecovered, object: self)
             return ReloadResult(
                 success: true,
                 response: tcpResult.response ?? "",
@@ -108,6 +181,25 @@ final class ConfigReloadCoordinator {
                 "📡 [Reload] TCP reload failed: \(tcpResult.errorMessage ?? "Unknown error")"
             )
             let errorMessage = tcpResult.errorMessage ?? "TCP reload failed"
+            if errorMessage == Self.runtimeIntentChangedMessage { return changedRuntimeIntent() }
+            if case .networkError = tcpResult,
+               runtimeWasTransitioning || isRuntimeTransitioning()
+            {
+                AppLogger.shared.log(
+                    "⏳ [Reload] Runtime transition closed the TCP reload connection; deferring until Kanata settles"
+                )
+                if scheduleRetryOnPending, runtimeWantsRunning() {
+                    scheduleDeferredReloadAfterRuntimeTransition()
+                }
+                return ReloadResult(
+                    success: false,
+                    response: tcpResult.response,
+                    errorMessage: "Kanata is restarting; reload will retry shortly",
+                    protocol: .tcp,
+                    disposition: .pending
+                )
+            }
+
             // Cooldown blocks are a deliberate throttle, not a real failure.
             // Schedule a deferred retry so the write we just persisted
             // actually reaches kanata, and suppress the user-facing toast/
@@ -115,11 +207,13 @@ final class ConfigReloadCoordinator {
             // expires. Real failures (validation, network, etc.) still
             // notify as before.
             if isCooldownBlockMessage(errorMessage) {
-                scheduleDeferredReloadAfterCooldown()
-            } else {
+                if scheduleRetryOnPending {
+                    scheduleDeferredReloadAfterCooldown()
+                }
+            } else if notifyOnFailure {
                 NotificationCenter.default.post(
                     name: .configReloadFailed,
-                    object: nil,
+                    object: self,
                     userInfo: [
                         "message": errorMessage,
                         "response": tcpResult.response ?? ""
@@ -134,6 +228,11 @@ final class ConfigReloadCoordinator {
                 disposition: disposition(for: tcpResult, message: errorMessage)
             )
         }
+    }
+
+    private func changedRuntimeIntent() -> ReloadResult {
+        ReloadResult(success: false, response: nil, errorMessage: Self.runtimeIntentChangedMessage,
+                     protocol: nil, disposition: .pending)
     }
 
     private func disposition(for tcpResult: TCPReloadResult, message: String) -> ReloadDisposition {
@@ -159,27 +258,209 @@ final class ConfigReloadCoordinator {
 
     /// When a reload is blocked by the cooldown, we still want it to actually
     /// happen so the config file we just wrote reaches kanata. Schedule a
-    /// deferred retry once the cooldown expires; de-duped via a single
-    /// outstanding task so rapid edits coalesce into one final reload.
+    /// deferred retry once the cooldown expires. Cooldown and runtime-transition
+    /// retries share one task so rapid edits and overlapping recovery states
+    /// coalesce into one final reload.
     private var deferredReloadTask: Task<Void, Never>?
+    private var deferredReloadGeneration: UInt = 0
+
+    private enum TransitionRetryAttempt {
+        case applied
+        case pending
+        case rejected
+    }
 
     private func scheduleDeferredReloadAfterCooldown() {
         deferredReloadTask?.cancel()
-        deferredReloadTask = Task { [weak self] in
-            // 3s cooldown + a little slop so the safety check passes.
-            try? await Task.sleep(nanoseconds: 3_200_000_000)
-            guard let self, !Task.isCancelled else { return }
-            AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
-            await triggerReload()
-            deferredReloadTask = nil
+        deferredReloadGeneration &+= 1
+        let generation = deferredReloadGeneration
+        deferredReloadTask = Task.detached { [weak self] in
+            guard let self else { return }
+            await runDeferredCooldown(generation: generation)
+        }
+    }
+
+    private func runDeferredCooldown(generation: UInt) async {
+        defer { clearDeferredReloadTask(ifGeneration: generation) }
+        try? await Task.sleep(nanoseconds: 3_200_000_000)
+        guard !Task.isCancelled else { return }
+        AppLogger.shared.log("🔁 [Reload] Firing deferred reload after cooldown expiry")
+        _ = await performDeferredReload(notifyOnFailure: true, scheduleRetryOnPending: true)
+    }
+
+    /// Wait for an intentional runtime replacement to finish, then deliver the
+    /// config that was persisted while the old TCP connection was disappearing.
+    /// Readiness is bounded by the same grace period used by user-facing startup UI.
+    private func scheduleDeferredReloadAfterRuntimeTransition() {
+        guard automaticDeferredRetriesEnabled else { return }
+
+        deferredReloadTask?.cancel()
+        deferredReloadGeneration &+= 1
+        let generation = deferredReloadGeneration
+        deferredReloadTask = Task.detached { [weak self] in
+            guard let self else { return }
+            await runDeferredTransition(generation: generation)
+        }
+    }
+
+    private func runDeferredTransition(generation: UInt) async {
+        defer { clearDeferredReloadTask(ifGeneration: generation) }
+        await retryAfterRuntimeTransition()
+    }
+
+    private func clearDeferredReloadTask(ifGeneration generation: UInt) {
+        guard deferredReloadGeneration == generation else { return }
+        deferredReloadTask = nil
+    }
+
+    /// Poll the intentional transition and retry once the replacement runtime is healthy.
+    /// The injected poll bound and wait operation keep the production grace period bounded
+    /// while allowing deterministic tests without sleeping.
+    @discardableResult
+    func retryAfterRuntimeTransition() async -> Bool {
+        for _ in 0 ..< transitionRetryMaximumPolls {
+            guard !Task.isCancelled, runtimeWantsRunning() else { return false }
+
+            switch await retryReloadIfRuntimeReady() {
+            case .applied:
+                return true
+            case .rejected:
+                return false
+            case .pending:
+                break
+            }
+
+            await transitionRetryWait()
+        }
+
+        guard !Task.isCancelled, runtimeWantsRunning() else { return false }
+        switch await retryReloadIfRuntimeReady() {
+        case .applied:
+            return true
+        case .rejected:
+            return false
+        case .pending:
+            break
+        }
+
+        let message = "Kanata did not become ready after restarting; config reload was not applied"
+        AppLogger.shared.warnUnlessQuietTest("⚠️ [Reload] \(message)")
+        NotificationCenter.default.post(
+            name: .configReloadFailed,
+            object: self,
+            userInfo: ["message": message, "response": ""]
+        )
+        return false
+    }
+
+    private func retryReloadIfRuntimeReady() async -> TransitionRetryAttempt {
+        guard !isRuntimeTransitioning() else { return .pending }
+
+        let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+        guard health.isHealthy else { return .pending }
+
+        AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")
+        let result = await performDeferredReload(notifyOnFailure: false, scheduleRetryOnPending: false)
+        switch result.disposition {
+        case .applied:
+            return .applied
+        case .pending, .failed:
+            return .pending
+        case .rejected:
+            let message = result.errorMessage ?? "Config reload was rejected"
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [Reload] Deferred config reload rejected: \(message)")
+            NotificationCenter.default.post(
+                name: .configReloadFailed,
+                object: self,
+                userInfo: [
+                    "message": message,
+                    "response": result.response ?? ""
+                ]
+            )
+            return .rejected
+        }
+    }
+
+    /// Deferred work starts independently of the original task and waits for
+    /// source settlement before reloading and reasserting current app context.
+    func performDeferredReload(notifyOnFailure: Bool = true, scheduleRetryOnPending: Bool = true) async -> ReloadResult {
+        let operation: @MainActor @Sendable () async -> ReloadResult = { [self] in
+            let result = await triggerConfigReload(notifyOnFailure: notifyOnFailure, scheduleRetryOnPending: scheduleRetryOnPending)
+            if result.disposition == .applied { await onDeferredReloadSuccess?() }
+            return result
+        }
+        guard let configurationOperationGate else { return await operation() }
+        do {
+            return try await configurationOperationGate.withOperation { _ in await operation() }
+        } catch {
+            return ReloadResult(success: false, response: nil, errorMessage: error.localizedDescription, protocol: nil, disposition: .failed)
         }
     }
 
     /// TCP-based config reload (no authentication required - see ADR-013)
-    func triggerTCPReload() async -> TCPReloadResult {
-        if TestEnvironment.isRunningTests {
+    func triggerTCPReload(expectedRuntimeIntent: UInt64? = nil) async -> TCPReloadResult {
+        let expectedIntent = expectedRuntimeIntent ?? runtimeIntentGeneration()
+        guard expectedIntent == runtimeIntentGeneration() else {
+            return .networkError(Self.runtimeIntentChangedMessage)
+        }
+        if let tcpReloadOverride, sessionValidationOverride == nil {
+            return await tcpReloadOverride()
+        }
+
+        if TestEnvironment.isRunningTests, sessionValidationOverride == nil {
             AppLogger.shared.debug("🧪 [TCP Reload] Skipping TCP reload in test environment")
             return .networkError("Test environment - TCP disabled")
+        }
+
+        let admission: SessionCapsRuntimeSupport.Admission? = sessionValidationOverride == nil
+            ? SessionCapsRuntimeSupport.admit(
+                // Admission must allow the first Caps rule before a selection exists.
+                // The lifecycle restart owns discovery and verifies the keyboard before
+                // launching; rejecting here would prevent that setup from ever running.
+                configPath: KeyPathConstants.Config.mainConfigPath, runtimeHost: .current(), requireSelection: false
+            ) : nil
+        let validation = sessionValidationOverride?() ?? (result: admission!.result, managedCaps: admission!.managedCaps)
+        guard case .valid = validation.result else {
+            return .failure(error: "This configuration is unsupported by the session runtime or contains an error", response: "")
+        }
+        // A rule that now uses the running intermediate key needs the session
+        // to restart on another one; a reload would hand that key to Caps.
+        let admitted = admission?.intermediateUsage ?? admittedIntermediateOverride?()
+        let intermediateMoved = validation.managedCaps
+            && admitted.map { admitted in currentCapsIntermediate().map { $0 != admitted } ?? false } == true
+
+        // A session already running with Caps Lock paused found no keyboard at
+        // its last start. Restarting it for every save would only interrupt
+        // the other rules; choosing a keyboard restarts it.
+        let staysPaused = validation.managedCaps && !currentManagedCaps() && currentCapsPaused()
+
+        if validation.managedCaps != currentManagedCaps() || intermediateMoved, !staysPaused {
+            guard runtimeWantsRunning(), expectedIntent == runtimeIntentGeneration() else {
+                return .networkError(Self.runtimeIntentChangedMessage)
+            }
+            guard let restartForManagedCapsChange else {
+                return .failure(error: "Changing the Caps runtime mode requires a session restart", response: "")
+            }
+            let restartGeneration = runtimeIntentGeneration() &+ 1
+            let restarted = await restartForManagedCapsChange()
+            guard runtimeWantsRunning() else { return .networkError(Self.runtimeIntentChangedMessage) }
+            // Restarting can also land paused: automatic setup found no keyboard.
+            guard restarted, currentManagedCaps() == validation.managedCaps
+                || validation.managedCaps && currentCapsPaused()
+            else {
+                return .failure(error: managedCapsRestartFailureReason?(restartGeneration)
+                    ?? "The session did not restart in the required Caps runtime mode", response: "")
+            }
+            return .success(response: "Session restarted for Caps runtime mode change")
+        }
+        // A profile without Caps rules has nothing paused once it is loaded.
+        let capsGone = !validation.managedCaps && admission?.capsPaused != true
+        func finished(_ result: TCPReloadResult) -> TCPReloadResult {
+            if result.isSuccess, capsGone { capsNoLongerNeeded?() }
+            return result
+        }
+        if let tcpReloadOverride {
+            return await finished(tcpReloadOverride())
         }
 
         // Check reload safety first
@@ -194,6 +475,12 @@ final class ConfigReloadCoordinator {
             return .networkError("Reload blocked: \(reason)")
         }
 
+        guard expectedIntent == runtimeIntentGeneration() else {
+            return .networkError(Self.runtimeIntentChangedMessage)
+        }
+        guard currentManagedCaps() == validation.managedCaps || staysPaused && currentCapsPaused() else {
+            return .failure(error: "The Caps runtime mode changed during reload; retry after the session settles", response: "")
+        }
         AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
         let res = await engineClient.reloadConfig()
         let mapped = mapEngineToTCP(res)
@@ -204,7 +491,7 @@ final class ConfigReloadCoordinator {
             daemonPID: currentPID.map { Int($0) }
         )
 
-        return mapped
+        return finished(mapped)
     }
 
     /// Main reload method that should be used by new code

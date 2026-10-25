@@ -34,8 +34,9 @@ final class HelpWindowController: NSObject, NSWindowDelegate {
         if !keepOverlayVisible {
             // Hide the overlay while help is open (restore on close)
             let overlay = LiveKeyboardOverlayController.shared
-            overlayWasVisible = overlay.isVisible
-            if overlayWasVisible {
+            // A layer-revealed overlay is temporary: hide it, but don't reopen it on close.
+            overlayWasVisible = overlay.isVisibleByChoice
+            if overlay.isVisible {
                 overlay.isVisible = false
             }
         }

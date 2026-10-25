@@ -376,7 +376,7 @@ struct HomeRowLayerTogglesModalView: View {
                             .frame(width: 40, height: 40)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(localConfig.enabledKeys.contains(key) ? .accentColor : Color(NSColor.controlBackgroundColor))
+                                    .fill(localConfig.enabledKeys.contains(key) ? .accentColor : SettingsDesign.chipFill)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
@@ -429,7 +429,7 @@ struct HomeRowLayerTogglesModalView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .fill(SettingsDesign.groupFill)
         )
     }
 
@@ -454,7 +454,7 @@ struct HomeRowLayerTogglesModalView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? .accentColor : Color(NSColor.controlBackgroundColor))
+                    .fill(isSelected ? .accentColor : SettingsDesign.chipFill)
             )
             .foregroundColor(isSelected ? .white : .primary)
             .overlay(

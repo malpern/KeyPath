@@ -7,22 +7,33 @@ import SwiftUI
 @MainActor
 final class LauncherStore {
     var mappings: [LauncherMapping] = []
-    private var knownMappingIds: Set<UUID> = []
+    private let manager: RuleCollectionsManager?
+    var saveError: String?
+    private var pendingMutationCount = 0
+    var isSaving: Bool {
+        pendingMutationCount > 0
+    }
 
-    init() {
+    private let ruleCollectionStore: RuleCollectionStore
+    private(set) var pendingSave: Task<Void, Never>?
+
+    init(manager: RuleCollectionsManager? = nil) {
+        self.manager = manager
+        ruleCollectionStore = manager?.ruleCollectionStore ?? .shared
         loadFromRuleCollections()
     }
 
     /// Testing init that accepts pre-populated mappings without hitting RuleCollectionStore.
-    init(testMappings: [LauncherMapping]) {
+    init(testMappings: [LauncherMapping], manager: RuleCollectionsManager? = nil) {
+        self.manager = manager
+        ruleCollectionStore = manager?.ruleCollectionStore ?? .shared
         mappings = testMappings
-        knownMappingIds = Set(testMappings.map(\.id))
     }
 
     /// Load mappings from the shared RuleCollectionStore (same source as keyboard view)
     func loadFromRuleCollections() {
         Task { @MainActor in
-            let collections = await RuleCollectionStore.shared.loadCollections()
+            let collections = await ruleCollectionStore.loadCollections()
 
             // Find the launcher collection and extract its mappings
             guard let launcherCollection = collections.first(where: { $0.id == RuleCollectionIdentifier.launcher }),
@@ -46,7 +57,6 @@ final class LauncherStore {
             }
 
             mappings = filteredMappings
-            knownMappingIds = Set(filteredMappings.map(\.id))
             AppLogger.shared.info("🚀 [LauncherStore] Loaded \(mappings.count) launcher mappings")
         }
     }
@@ -127,20 +137,25 @@ final class LauncherStore {
     }
 
     func addMapping(_ mapping: LauncherMapping) {
-        mappings.append(mapping)
-        persistMappings()
+        enqueueMutation { config in
+            if let index = config.mappings.firstIndex(where: { $0.id == mapping.id }) {
+                config.mappings[index] = mapping
+            } else {
+                config.mappings.append(mapping)
+            }
+        }
     }
 
     func updateMapping(_ mapping: LauncherMapping) {
-        if let index = mappings.firstIndex(where: { $0.id == mapping.id }) {
-            mappings[index] = mapping
+        enqueueMutation { config in
+            if let index = config.mappings.firstIndex(where: { $0.id == mapping.id }) {
+                config.mappings[index] = mapping
+            }
         }
-        persistMappings()
     }
 
     func deleteMapping(_ id: UUID) {
-        mappings.removeAll { $0.id == id }
-        persistMappings()
+        enqueueMutation { $0.mappings.removeAll { $0.id == id } }
     }
 
     private static var defaultMappings: [LauncherMapping] {
@@ -157,36 +172,30 @@ final class LauncherStore {
         AppIconResolver.icon(for: .launchApp(name: name, bundleId: bundleId))
     }
 
-    private func persistMappings() {
-        let currentMappings = mappings
-        let removedIds = knownMappingIds.subtracting(currentMappings.map(\.id))
-
-        Task { @MainActor in
-            var collections = await RuleCollectionStore.shared.loadCollections()
-            guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) else {
+    /// Merge each edit into the latest committed state after acquiring the
+    /// configuration lease. Never publish JSON ahead of its generated config.
+    private func enqueueMutation(
+        _ edit: @escaping @MainActor @Sendable (inout LauncherGridConfig) -> Void
+    ) {
+        let previous = pendingSave
+        pendingMutationCount += 1
+        pendingSave = Task { @MainActor in
+            await previous?.value
+            defer { pendingMutationCount -= 1 }
+            guard let manager else {
+                saveError = "The shortcut could not be saved. Reopen the launcher and try again."
                 return
             }
-            var collection = collections[index]
-            guard var config = collection.configuration.launcherGridConfig else { return }
-
-            var updatedMappings = config.mappings
-            updatedMappings.removeAll { removedIds.contains($0.id) }
-
-            for mapping in currentMappings {
-                if let existingIndex = updatedMappings.firstIndex(where: { $0.id == mapping.id }) {
-                    updatedMappings[existingIndex] = mapping
-                } else {
-                    updatedMappings.append(mapping)
+            let saved = await manager.editLauncherConfiguration(edit)
+            saveError = saved ? nil : "The shortcut could not be saved. Your previous shortcuts were kept."
+            if let config = manager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.launcher })?.configuration.launcherGridConfig {
+                mappings = config.mappings.filter { mapping in
+                    if case let .launchApp(name, bundleId) = mapping.action {
+                        return Self.isAppInstalled(name: name, bundleId: bundleId)
+                    }
+                    return true
                 }
             }
-
-            config.mappings = updatedMappings
-            collection.configuration = .launcherGrid(config)
-            collections[index] = collection
-            try? await RuleCollectionStore.shared.saveCollections(collections)
-            NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
-
-            knownMappingIds = Set(currentMappings.map(\.id))
         }
     }
 }

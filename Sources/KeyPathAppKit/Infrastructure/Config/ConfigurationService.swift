@@ -29,14 +29,60 @@ public final class ConfigurationService: FileConfigurationProviding {
     private var lastContentHash: String?
     private var fileWatcher: FileWatcher?
     private var observers: [UUID: @Sendable (Config) async -> Void] = [:]
+    @MainActor var onWillStageConfigurationWrite: ((String) -> Void)?
+
+    /// The admission engine's blocking sentences for the rules being written
+    /// (phase 4e), so a refused save names the rule. Wired by `RuntimeCoordinator`.
+    @MainActor var sessionRefusalAttribution: (() -> [String])?
 
     private let ruleCollectionStore: RuleCollectionStore
     private let customRulesStore: CustomRulesStore
+    let sessionValidationRuntimeHost: KanataRuntimeHost
+    private let deviceSelectionStore: DeviceSelectionStore
+    private let synchronizePreferences: @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool
+
+    @MainActor private var needsRecoveredRuntimeRefresh = false
+    @MainActor private var needsRecoveredDeviceRuntimeRestart = false
+    @MainActor private(set) var ruleRecoveryRevision: UInt64 = 0
+
+    let operationGate: ConfigurationOperationGate
 
     /// Perform blocking file I/O off the main actor
     private let ioQueue = DispatchQueue(label: "com.keypath.configservice.io", qos: .utility)
     /// Protect shared state when accessed from multiple threads
     private let stateLock = NSLock()
+
+    #if DEBUG
+        private static let sessionValidationTestLock = NSLock()
+        /// Lock protects this test-only fixture. Validation still runs the real
+        /// parser and eligibility checks; no result can be forced to succeed.
+        private nonisolated(unsafe) static var sessionValidationTestHost: KanataRuntimeHost?
+
+        static func setSessionValidationRuntimeHostForTesting(_ host: KanataRuntimeHost?) {
+            sessionValidationTestLock.withLock { sessionValidationTestHost = host }
+        }
+    #endif
+
+    private static func defaultSessionValidationRuntimeHost() -> KanataRuntimeHost {
+        #if DEBUG
+            if let fixture = sessionValidationTestLock.withLock({ sessionValidationTestHost }) {
+                return fixture
+            }
+            // Plain XCTestCase suites can construct services before the shared
+            // reset hook. Honor only an explicit bridge in an actual test host.
+            if TestEnvironment.isTestHostProcess,
+               let bridgePath = ProcessInfo.processInfo.environment["KEYPATH_SESSION_TEST_BRIDGE_PATH"]
+            {
+                let current = KanataRuntimeHost.current()
+                return KanataRuntimeHost(
+                    launcherPath: current.launcherPath, bridgeLibraryPath: bridgePath,
+                    bundledCorePath: current.bundledCorePath,
+                    kanataEngineBundlePath: current.kanataEngineBundlePath
+                )
+            }
+        #endif
+        return .current()
+    }
 
     // MARK: - Initialization
 
@@ -44,7 +90,8 @@ public final class ConfigurationService: FileConfigurationProviding {
         self.init(
             configDirectory: configDirectory,
             ruleCollectionStore: .shared,
-            customRulesStore: .shared
+            customRulesStore: .shared,
+            deviceSelectionStore: .shared
         )
     }
 
@@ -53,27 +100,38 @@ public final class ConfigurationService: FileConfigurationProviding {
     init(
         configDirectory: String?,
         ruleCollectionStore: RuleCollectionStore,
-        customRulesStore: CustomRulesStore
+        customRulesStore: CustomRulesStore,
+        deviceSelectionStore: DeviceSelectionStore = .shared,
+        sessionValidationRuntimeHost: KanataRuntimeHost? = nil,
+        synchronizePreferences: @escaping @Sendable (RecoverableRuleWrite.PreferenceDefaults) -> Bool = { $0.value.synchronize() }
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
+        self.deviceSelectionStore = deviceSelectionStore
+        self.sessionValidationRuntimeHost = sessionValidationRuntimeHost ?? Self.defaultSessionValidationRuntimeHost()
+        self.synchronizePreferences = synchronizePreferences
         if let customDirectory = configDirectory {
             self.configDirectory = customDirectory
         } else {
             self.configDirectory = KeyPathConstants.Config.directory
         }
         configurationPath = "\(self.configDirectory)/\(configFileName)"
+        operationGate = ConfigurationOperationGate(configurationDirectory: URL(fileURLWithPath: self.configDirectory, isDirectory: true))
     }
 
     // MARK: - ConfigurationProviding Protocol
 
     public func current() async -> KanataConfiguration {
+        await current(mutationPermit: nil)
+    }
+
+    func current(mutationPermit: ConfigurationOperationGate.Permit?) async -> KanataConfiguration {
         // Fast path: return cached config if available
         if let cached = withLockedCurrentConfig() { return cached }
 
         // Try to load existing configuration, fallback to empty if not found
         do {
-            return try await reload()
+            return try await reload(mutationPermit: mutationPermit)
         } catch {
             AppLogger.shared.log("⚠️ [ConfigService] Failed to load current config, using empty: \(error)")
             let emptyConfig = KanataConfiguration(
@@ -88,6 +146,10 @@ public final class ConfigurationService: FileConfigurationProviding {
     }
 
     public func reload() async throws -> KanataConfiguration {
+        try await reload(mutationPermit: nil)
+    }
+
+    func reload(mutationPermit: ConfigurationOperationGate.Permit?) async throws -> KanataConfiguration {
         var exists = await fileExistsAsync(path: configurationPath)
         // Same semantics as createInitialConfigIfNeeded: a truncated/empty
         // config is as unparseable as a missing one, so let the self-heal
@@ -103,7 +165,7 @@ public final class ConfigurationService: FileConfigurationProviding {
                 "⚠️ [ConfigService] Config missing or empty at \(configurationPath) – creating default before reload"
             )
             do {
-                try await createInitialConfigIfNeeded()
+                try await createInitialConfigIfNeeded(mutationPermit: mutationPermit)
                 exists = await fileExistsAsync(path: configurationPath)
             } catch {
                 AppLogger.shared.log(
@@ -223,49 +285,56 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Create the configuration directory and initial config if needed
     public func createInitialConfigIfNeeded() async throws {
-        // Create config directory if it doesn't exist (off-main)
-        try await createDirectoryAsync(path: configDirectory)
-        AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
+        try await createInitialConfigIfNeeded(mutationPermit: nil)
+    }
 
-        // Check if config file exists. A 0-byte/whitespace-only file counts as
-        // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
-        // (#929), which kanata can't parse and which blocked this path from ever
-        // writing the default template.
-        let exists = await fileExistsAsync(path: configurationPath)
-        let effectivelyEmpty: Bool = if exists {
-            await fileIsEffectivelyEmptyAsync(path: configurationPath)
-        } else {
-            false
-        }
-        if !exists || effectivelyEmpty {
-            if effectivelyEmpty {
+    func createInitialConfigIfNeeded(mutationPermit: ConfigurationOperationGate.Permit?) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            // Create config directory if it doesn't exist (off-main)
+            try await createDirectoryAsync(path: configDirectory)
+            AppLogger.shared.log("✅ [ConfigService] Config directory created at \(configDirectory)")
+
+            // Check if config file exists. A 0-byte/whitespace-only file counts as
+            // missing: legacy helper scaffolding used to `touch` an empty keypath.kbd
+            // (#929), which kanata can't parse and which blocked this path from ever
+            // writing the default template.
+            let exists = await fileExistsAsync(path: configurationPath)
+            let effectivelyEmpty: Bool = if exists {
+                await fileIsEffectivelyEmptyAsync(path: configurationPath)
+            } else {
+                false
+            }
+            if !exists || effectivelyEmpty {
+                if effectivelyEmpty {
+                    AppLogger.shared.log(
+                        "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                    )
+                } else {
+                    AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+                }
+
+                // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
+                let storedCollections = await ruleCollectionStore.loadCollections()
+                let storedCustomRules = await customRulesStore.loadRules()
+                let collectionsToSave = storedCollections.isEmpty
+                    ? RuleCollectionCatalog().defaultCollections()
+                    : storedCollections
+
                 AppLogger.shared.log(
-                    "⚠️ [ConfigService] Config at \(configurationPath) exists but is empty — rewriting default"
+                    "🆕 [ConfigService] Creating initial config from stores: \(collectionsToSave.count) collections, \(storedCustomRules.count) custom rules"
+                )
+
+                try await saveConfiguration(
+                    ruleCollections: collectionsToSave,
+                    customRules: storedCustomRules,
+                    mutationPermit: permit
+                )
+                AppLogger.shared.log(
+                    "✅ [ConfigService] Created initial configuration with \(collectionsToSave.count) collections"
                 )
             } else {
-                AppLogger.shared.log("⚠️ [ConfigService] No existing config found at \(configurationPath)")
+                AppLogger.shared.log("✅ [ConfigService] Existing config found at \(configurationPath)")
             }
-
-            // Rehydrate from persisted rule/custom stores so user state survives file deletion/reset
-            let storedCollections = await ruleCollectionStore.loadCollections()
-            let storedCustomRules = await customRulesStore.loadRules()
-            let collectionsToSave = storedCollections.isEmpty
-                ? RuleCollectionCatalog().defaultCollections()
-                : storedCollections
-
-            AppLogger.shared.log(
-                "🆕 [ConfigService] Creating initial config from stores: \(collectionsToSave.count) collections, \(storedCustomRules.count) custom rules"
-            )
-
-            try await saveConfiguration(
-                ruleCollections: collectionsToSave,
-                customRules: storedCustomRules
-            )
-            AppLogger.shared.log(
-                "✅ [ConfigService] Created initial configuration with \(collectionsToSave.count) collections"
-            )
-        } else {
-            AppLogger.shared.log("✅ [ConfigService] Existing config found at \(configurationPath)")
         }
     }
 
@@ -275,45 +344,744 @@ public final class ConfigurationService: FileConfigurationProviding {
         ruleCollections: [RuleCollection],
         customRules: [CustomRule] = []
     ) async throws {
-        let newConfig = try await generateConfiguration(
-            ruleCollections: ruleCollections,
-            customRules: customRules
-        )
+        try await saveConfiguration(ruleCollections: ruleCollections, customRules: customRules, mutationPermit: nil)
+    }
 
-        // VALIDATE BEFORE SAVING - prevent writing broken configs
-        AppLogger.shared.log("🔍 [ConfigService] Validating config before save...")
-        let validation = await validateConfiguration(newConfig.content)
-
-        if !validation.isValid {
-            AppLogger.shared.log(
-                "❌ [ConfigService] Config validation failed: \(validation.errors.joined(separator: ", "))"
+    func saveConfiguration(
+        ruleCollections: [RuleCollection],
+        customRules: [CustomRule] = [],
+        mutationPermit: ConfigurationOperationGate.Permit?
+    ) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(mutationPermit: permit)
+            let newConfig = try await preparedConfiguration(
+                ruleCollections: ruleCollections, customRules: customRules,
+                leaderKeyPreference: persistedLeaderPreference(in: PreferencesService.canonicalDefaults)
             )
+            try await writeFileAsync(string: newConfig.content, to: configurationPath)
+            await publishSavedConfiguration(newConfig)
+        }
+    }
+
+    /// CLI reconciliation retains the generated config and its canonical leader preference
+    /// in one raw-config journal without rewriting the source collection stores.
+    func saveConfiguration(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        leaderKeyPreference: LeaderKeyPreference,
+        preferenceDefaults: UserDefaults,
+        preferenceChanges: [RecoverableRuleWrite.PreferenceChange],
+        mutationPermit: ConfigurationOperationGate.Permit
+    ) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(mutationPermit: permit, preferenceDefaults: preferenceDefaults)
+            let newConfig = try await preparedConfiguration(
+                ruleCollections: ruleCollections,
+                customRules: customRules,
+                leaderKeyPreference: leaderKeyPreference
+            )
+            let files = ["config": URL(fileURLWithPath: configurationPath)]
+            let before = try await snapshotRuleFiles(files)
+            let sendablePreferences = RecoverableRuleWrite.PreferenceDefaults(preferenceDefaults)
+            let directory = URL(fileURLWithPath: configDirectory)
+            onWillStageConfigurationWrite?(newConfig.content)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(
+                    files: files, contents: ["config": Data(newConfig.content.utf8)],
+                    directory: directory, scope: .rawConfig, expectedBefore: before,
+                    preferences: sendablePreferences.value, preferenceChanges: preferenceChanges,
+                    synchronizePreferences: self.synchronizePreferences
+                )
+            }
+            do {
+                try await performRuleFileOperation { try RecoverableRuleWrite.commit(pending) }
+            } catch {
+                let cause = error
+                do { try await performRuleFileOperation { try RecoverableRuleWrite.rollback(pending) } }
+                catch { throw RecoverableRuleWrite.WriteFailure(cause: cause, recoveryError: error) }
+                throw cause
+            }
+            await publishSavedConfiguration(newConfig)
+        }
+    }
+
+    /// Persist the generated file and its two source stores as one recoverable
+    /// write set. The manager supplies its actual stores, which can differ from
+    /// this service's defaults in tests and isolated CLI workflows.
+    func saveRuleState(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        collectionStore: RuleCollectionStore, customStore: CustomRulesStore,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil
+    ) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            let write = try await stageRuleState(
+                ruleCollections: ruleCollections, customRules: customRules,
+                collectionStore: collectionStore, customStore: customStore, mutationPermit: permit
+            )
+            do {
+                try Task.checkCancellation()
+                try await settleRuleWrite(write, commit: true, mutationPermit: permit)
+            } catch {
+                let cause = error
+                do { try await settleRuleWrite(write, commit: false, mutationPermit: permit) }
+                catch { throw RecoverableRuleWrite.WriteFailure(cause: cause, recoveryError: error) }
+                throw cause
+            }
+        }
+    }
+
+    struct RuleWrite: Sendable {
+        let pending: RecoverableRuleWrite.PendingWrite
+        let configuration: KanataConfiguration
+        let packUpdate: InstalledPackTracker.PreparedRecordUpdate?
+        let deviceSelections: [DeviceSelection]?
+    }
+
+    /// Stage the generated configuration and both source stores without notifying
+    /// observers. The caller must retain admission through commit or recovery.
+    func stageRuleState(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        collectionStore: RuleCollectionStore, customStore: CustomRulesStore,
+        mutationPermit: ConfigurationOperationGate.Permit,
+        packRecord: InstalledPackTracker.RecordChange? = nil,
+        preferenceDefaults: UserDefaults? = PreferencesService.canonicalDefaults,
+        preferenceChanges: [RecoverableRuleWrite.PreferenceChange] = [],
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceSelections: [DeviceSelection]? = nil,
+        restoringBackupContent: String? = nil,
+        restoringManagedBackup: Bool = false
+    ) async throws -> RuleWrite {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            guard packRecord == nil || deviceSelections == nil else {
+                throw RecoverableRuleWrite.Failure.invalidJournal
+            }
+            try await recoverPendingRuleWrite(
+                collectionStore: collectionStore,
+                customStore: customStore,
+                mutationPermit: permit,
+                installedPackTracker: packRecord?.tracker,
+                preferenceDefaults: preferenceDefaults
+            )
+            try await recoverPendingAppKeymapWrite(mutationPermit: permit)
+            var targets = await ruleWriteFiles(collectionStore: collectionStore, customStore: customStore)
+            if deviceSelections != nil { targets["deviceSelection"] = await deviceSelectionStore.persistenceURL }
+            if let packRecord { targets["installedPacks"] = await packRecord.tracker.persistenceURL }
+            let files = targets
+            let before = try await snapshotRuleFiles(files)
+            let packUpdate: InstalledPackTracker.PreparedRecordUpdate?
+            if let packRecord {
+                packUpdate = try await packRecord.tracker.prepareUpdate(packRecord)
+                guard packUpdate?.before == before["installedPacks"] else { throw RecoverableRuleWrite.Failure.changedFile("installedPacks") }
+            } else { packUpdate = nil }
+            let persistedInputs = try await persistedGlobalRuleGenerationInputs(preferenceDefaults: preferenceDefaults)
+            let deviceGenerationInput: DeviceGenerationInput = if let deviceSelections {
+                await deviceSelectionStore.generationInput(for: deviceSelections)
+            } else {
+                persistedInputs.device
+            }
+            try await ensureExistingGlobalConfigurationIsReproducible(
+                collectionStore: collectionStore,
+                customStore: customStore,
+                preferenceDefaults: preferenceDefaults,
+                inputs: persistedInputs
+            )
+            let newConfig = try await preparedConfiguration(
+                ruleCollections: ruleCollections, customRules: customRules,
+                leaderKeyPreference: leaderKeyPreference ?? persistedLeaderPreference(in: preferenceDefaults),
+                shortcutListGenerationInput: shortcutListGenerationInput ?? persistedInputs.shortcut,
+                deviceGenerationInput: deviceGenerationInput
+            )
+            // A backup of KeyPath's own write is restored from its rules even if
+            // the generator has changed since; anything else must match exactly.
+            if let restoringBackupContent, !restoringManagedBackup,
+               !AppConfigGenerator.matchesManagedContent(restoringBackupContent, expected: newConfig.content)
+            {
+                throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+            }
+            // Capture a coherent source/config revision while holding the operation lease.
+            // A requested restore must have a safety backup before replacing current rules.
+            let backedUp = ConfigBackupManager(configPath: configurationPath).createPreEditBackup(
+                generationPreferences: RuleBackupPreferences(defaults: preferenceDefaults ?? PreferencesService.canonicalDefaults)
+            )
+            if restoringBackupContent != nil, !backedUp {
+                throw RuleBackupSnapshot.Failure.inconsistentSnapshot
+            }
+            var payload = try await [
+                "config": Data(newConfig.content.utf8),
+                "collections": collectionStore.encodedCollections(ruleCollections),
+                "customRules": customStore.encodedRules(customRules),
+                "deviceTargetingManifest": Data(deviceTargetingRegion(from: newConfig.content).utf8)
+            ]
+            if let packUpdate { payload["installedPacks"] = packUpdate.contents }
+            if let deviceSelections { payload["deviceSelection"] = try await deviceSelectionStore.encodedSelections(deviceSelections) }
+            let contents = payload
+            let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
+            try Task.checkCancellation()
+            let directory = URL(fileURLWithPath: configDirectory)
+            onWillStageConfigurationWrite?(newConfig.content)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory,
+                                               scope: deviceSelections != nil ? .deviceRules : (packUpdate == nil ? .rules : .packRules), expectedBefore: before,
+                                               preferences: sendablePreferences?.value, preferenceChanges: preferenceChanges,
+                                               synchronizePreferences: self.synchronizePreferences)
+                { data, url in
+                    if let packUpdate, url == packUpdate.fileURL { try packUpdate.writeFile(data, url) }
+                    else { try RecoverableRuleWrite.durableWrite(data, url) }
+                }
+            }
+            return RuleWrite(pending: pending, configuration: newConfig, packUpdate: packUpdate, deviceSelections: deviceSelections)
+        }
+    }
+
+    func settleRuleWrite(_ write: RuleWrite, commit: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await performRuleFileOperation {
+                if commit { try RecoverableRuleWrite.commit(write.pending) }
+                else { try RecoverableRuleWrite.rollback(write.pending) }
+            }
+            if commit {
+                await publishSavedConfiguration(write.configuration)
+                if let update = write.packUpdate { await update.tracker.publishCommittedUpdate(update) }
+                if let deviceSelections = write.deviceSelections { await deviceSelectionStore.publishSelectionsToCache(deviceSelections) }
+            } else {
+                stateLock.withLock { currentConfiguration = nil }
+                if let update = write.packUpdate { await update.tracker.restorePublishedUpdate(update) }
+                if write.deviceSelections != nil {
+                    try await deviceSelectionStore.publishSelectionsToCache(deviceSelectionStore.loadForMutation())
+                }
+            }
+        }
+    }
+
+    private func snapshotRuleFiles(_ files: [String: URL]) async throws -> [String: Data] {
+        try await performRuleFileOperation {
+            var snapshot: [String: Data] = [:]
+            for (role, url) in files {
+                do { snapshot[role] = try Data(contentsOf: url) }
+                catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {}
+            }
+            return snapshot
+        }
+    }
+
+    /// Run before loading source stores on startup. Refuse further rule writes
+    /// when recovery detects a corrupt journal or an unrelated external edit.
+    @discardableResult
+    func recoverPendingRuleWrite(
+        collectionStore: RuleCollectionStore? = nil,
+        customStore: CustomRulesStore? = nil,
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        installedPackTracker: InstalledPackTracker? = nil,
+        preferenceDefaults: UserDefaults? = PreferencesService.canonicalDefaults
+    ) async throws -> Bool {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            let files = await ruleWriteFiles(collectionStore: collectionStore ?? ruleCollectionStore, customStore: customStore ?? customRulesStore)
+            let directory = URL(fileURLWithPath: configDirectory)
+            var packTargets = files
+            if let installedPackTracker {
+                packTargets["installedPacks"] = await installedPackTracker.persistenceURL
+            } else {
+                packTargets["installedPacks"] = directory.appendingPathComponent("installed-packs.json")
+            }
+            let packFiles = packTargets
+            let rawFiles = ["config": URL(fileURLWithPath: configurationPath)]
+            let deviceFiles = await files.merging([
+                "deviceSelection": deviceSelectionStore.persistenceURL
+            ], uniquingKeysWith: { _, deviceSelectionURL in deviceSelectionURL })
+            let sendablePreferences = preferenceDefaults.map(RecoverableRuleWrite.PreferenceDefaults.init)
+            let recovered = try await performRuleFileOperation {
+                let rawRecovered = try RecoverableRuleWrite.recover(
+                    files: rawFiles, directory: directory, scope: .rawConfig,
+                    preferences: sendablePreferences?.value
+                )
+                let packRecovered = try RecoverableRuleWrite.recover(files: packFiles, directory: directory, scope: .packRules, preferences: sendablePreferences?.value)
+                let rulesRecovered = try RecoverableRuleWrite.recover(files: files, directory: directory, preferences: sendablePreferences?.value)
+                let deviceRecovered = try RecoverableRuleWrite.recover(files: deviceFiles, directory: directory, scope: .deviceRules, preferences: sendablePreferences?.value)
+                return (raw: rawRecovered, rules: packRecovered || rulesRecovered, device: deviceRecovered)
+            }
+            if recovered.raw || recovered.rules || recovered.device {
+                stateLock.withLock { currentConfiguration = nil }
+                needsRecoveredRuntimeRefresh = true
+            }
+            if recovered.rules { ruleRecoveryRevision &+= 1 }
+            if recovered.device {
+                try await deviceSelectionStore.publishSelectionsToCache(deviceSelectionStore.loadForMutation())
+                needsRecoveredDeviceRuntimeRestart = true
+            }
+            return recovered.rules || recovered.device
+        }
+    }
+
+    struct RawConfigurationWrite: Sendable {
+        let pending: RecoverableRuleWrite.PendingWrite
+    }
+
+    /// Raw editing owns only the main file. Sidecars and handwritten syntax are
+    /// preserved; the expected original detects edits during validation/preparation.
+    func stageRawConfiguration(content: String, expectedContent: String,
+                               mutationPermit: ConfigurationOperationGate.Permit) async throws -> RawConfigurationWrite
+    {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await requireSessionEligibleConfiguration(content)
+            let files = ["config": URL(fileURLWithPath: configurationPath)]
+            let directory = URL(fileURLWithPath: configDirectory)
+            try Task.checkCancellation()
+            onWillStageConfigurationWrite?(content)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(files: files, contents: ["config": Data(content.utf8)],
+                                               directory: directory, scope: .rawConfig,
+                                               expectedBefore: ["config": Data(expectedContent.utf8)])
+            }
+            return RawConfigurationWrite(pending: pending)
+        }
+    }
+
+    func settleRawConfiguration(_ write: RawConfigurationWrite, commit: Bool,
+                                requireRuntimeRecovery: Bool = false,
+                                mutationPermit: ConfigurationOperationGate.Permit) async throws
+    {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await performRuleFileOperation {
+                if commit { try RecoverableRuleWrite.commit(write.pending) }
+                else { try RecoverableRuleWrite.rollback(write.pending) }
+            }
+            stateLock.withLock { currentConfiguration = nil }
+            if commit { needsRecoveredRuntimeRefresh = false }
+            else if requireRuntimeRecovery { needsRecoveredRuntimeRefresh = true }
+        }
+    }
+
+    struct AppKeymapWrite: Sendable {
+        let pending: RecoverableRuleWrite.PendingWrite
+        let previousKeymaps: [AppKeymap]
+        let keymaps: [AppKeymap]
+        let configuration: KanataConfiguration
+        let store: AppKeymapStore
+    }
+
+    /// Called inside the existing save owner. No observers see the staged revision.
+    @MainActor
+    func stageAppKeymapChange(
+        store: AppKeymapStore,
+        mutationPermit: ConfigurationOperationGate.Permit,
+        mutate: @MainActor @Sendable (inout [AppKeymap]) throws -> Void
+    ) async throws -> AppKeymapWrite {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            try await recoverPendingRuleWrite(collectionStore: ruleCollectionStore, customStore: customRulesStore, mutationPermit: permit)
+            try await recoverPendingAppKeymapWrite(store: store, mutationPermit: permit)
+            let files = await appKeymapWriteFiles(store: store)
+            let before = try await snapshotRuleFiles(files)
+            let previous = try await store.loadForMutation()
+            var keymaps = previous
+            try mutate(&keymaps)
+            let duplicates = AppConfigGenerator.detectDuplicateKeys(in: keymaps)
+            guard duplicates.isEmpty else { throw AppConfigError.duplicateKeys(duplicates: duplicates) }
+            let appContent = AppConfigGenerator.generate(from: keymaps)
+            let appKeys = Set(keymaps.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
+            let collections = await ruleCollectionStore.loadCollectionsDetailed()
+            guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
+                throw AppConfigError.validationFailed(errors: ["Rule collections could not be read completely; repair them before saving app-specific rules"])
+            }
+            let rules = try await customRulesStore.loadForMutation()
+            let leaderKeyPreference = persistedLeaderPreference(in: PreferencesService.canonicalDefaults)
+            let persistedInputs = try await persistedGlobalRuleGenerationInputs(
+                preferenceDefaults: PreferencesService.canonicalDefaults
+            )
+            // Refuse a lossy regeneration, including manual edits to a generated file.
+            // A generated header alone does not prove that the visual editor owns it.
+            let previousKeys = Set(previous.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
+            let expected = try await generateConfiguration(
+                ruleCollections: collections.collections, customRules: rules,
+                appSpecificKeys: previousKeys, leaderKeyPreference: leaderKeyPreference,
+                shortcutListGenerationInput: persistedInputs.shortcut,
+                deviceGenerationInput: persistedInputs.device
+            )
+            for (name, content) in [("keypath.kbd", expected.content), ("keypath-apps.kbd", AppConfigGenerator.generate(from: previous))] {
+                let url = URL(fileURLWithPath: configDirectory).appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: url.path) {
+                    let existing = try String(contentsOf: url, encoding: .utf8)
+                    let matches = name == "keypath.kbd"
+                        ? matchesGlobalManagedContent(existing, expected: content)
+                        : AppConfigGenerator.matchesManagedContent(existing, expected: content)
+                    guard matches else {
+                        throw AppConfigError
+                            .validationFailed(
+                                errors: [
+                                    "Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."
+                                ]
+                            )
+                    }
+                }
+            }
+            let configuration = try await generateConfiguration(
+                ruleCollections: collections.collections, customRules: rules,
+                appSpecificKeys: appKeys, leaderKeyPreference: leaderKeyPreference,
+                shortcutListGenerationInput: persistedInputs.shortcut,
+                deviceGenerationInput: persistedInputs.device
+            )
+            // Validate the exact new include with the new main config before either
+            // replaces its committed file. The engine receives the normal include.
+            guard appKeys.isEmpty || configuration.content.contains("(include keypath-apps.kbd)") else {
+                throw AppConfigError.validationFailed(errors: ["Generated app-specific include is missing; no files were changed"])
+            }
+            let validationContent = configuration.content.replacingOccurrences(of: "(include keypath-apps.kbd)", with: appContent)
+            let validation = await validateConfiguration(validationContent)
+            guard validation.isValid else { throw AppConfigError.validationFailed(errors: validation.errors) }
+            let contents = try await ["config": Data(configuration.content.utf8),
+                                      "appKeymaps": store.encodedKeymaps(keymaps),
+                                      "appInclude": Data(appContent.utf8),
+                                      "deviceTargetingManifest": Data(deviceTargetingRegion(from: configuration.content).utf8)]
+            try Task.checkCancellation()
+            let directory = URL(fileURLWithPath: configDirectory)
+            onWillStageConfigurationWrite?(configuration.content)
+            let pending = try await performRuleFileOperation {
+                try RecoverableRuleWrite.stage(files: files, contents: contents, directory: directory, scope: .appKeymaps, expectedBefore: before)
+            }
+            return AppKeymapWrite(pending: pending, previousKeymaps: previous, keymaps: keymaps,
+                                  configuration: configuration, store: store)
+        }
+    }
+
+    func settleAppKeymapWrite(_ write: AppKeymapWrite, commit: Bool, mutationPermit: ConfigurationOperationGate.Permit) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await performRuleFileOperation {
+                if commit { try RecoverableRuleWrite.commit(write.pending) }
+                else { try RecoverableRuleWrite.rollback(write.pending) }
+            }
+            if commit {
+                await write.store.publishCommittedKeymaps(write.keymaps)
+                await publishSavedConfiguration(write.configuration)
+            } else {
+                stateLock.withLock { currentConfiguration = nil }
+                await write.store.publishCommittedKeymaps(write.previousKeymaps)
+            }
+        }
+    }
+
+    func recoverPendingAppKeymapWrite(store: AppKeymapStore? = nil, mutationPermit: ConfigurationOperationGate.Permit? = nil) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            let resolvedStore = store ?? AppKeymapStore(fileURL: URL(fileURLWithPath: configDirectory).appendingPathComponent("AppKeymaps.json"))
+            let files = await appKeymapWriteFiles(store: resolvedStore)
+            let directory = URL(fileURLWithPath: configDirectory)
+            let recovered = try await performRuleFileOperation {
+                try RecoverableRuleWrite.recover(files: files, directory: directory, scope: .appKeymaps)
+            }
+            if recovered {
+                stateLock.withLock { currentConfiguration = nil }
+                needsRecoveredRuntimeRefresh = true
+                await resolvedStore.invalidateCache()
+                if await AppKeymapStore.shared.persistenceURL.standardizedFileURL == resolvedStore.persistenceURL.standardizedFileURL {
+                    await AppKeymapStore.shared.invalidateCache()
+                }
+            }
+        }
+    }
+
+    /// Recovery can remove its journal before an editor rejects/cancels its next
+    /// candidate. Keep runtime recovery required until an existing reload owner
+    /// accepts or defers it. A later save owner can retry using this same service.
+    @MainActor
+    func applyRecoveredRuntimeIfNeeded(
+        mutationPermit: ConfigurationOperationGate.Permit,
+        reloadHandler: (() async -> ReloadResult)?
+    ) async throws -> ReloadResult? {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            guard needsRecoveredRuntimeRefresh, !needsRecoveredDeviceRuntimeRestart, let reloadHandler else { return nil }
+            let result = await Task { @MainActor in await reloadHandler() }.value
+            guard result.disposition == .applied || result.disposition == .pending else {
+                throw KeyPathError.configuration(.loadFailed(reason: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")"))
+            }
+            needsRecoveredRuntimeRefresh = false
+            return result
+        }
+    }
+
+    /// Device targeting changes require a daemon restart: a TCP config reload
+    /// does not replace the active device-grab set. The caller owns restart
+    /// sequencing, then clears this retained recovery obligation.
+    func applyRecoveredDeviceRuntimeRestartIfNeeded(
+        mutationPermit: ConfigurationOperationGate.Permit? = nil,
+        restartHandler: () async -> Bool
+    ) async throws -> Bool {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            guard needsRecoveredDeviceRuntimeRestart else { return false }
+            guard await restartHandler() else {
+                throw KeyPathError.configuration(.loadFailed(reason: "Recovered device targeting could not be restarted"))
+            }
+            needsRecoveredDeviceRuntimeRestart = false
+            needsRecoveredRuntimeRefresh = false
+            return true
+        }
+    }
+
+    private func appKeymapWriteFiles(store: AppKeymapStore) async -> [String: URL] {
+        await ["config": URL(fileURLWithPath: configurationPath),
+               "appKeymaps": store.persistenceURL,
+               "appInclude": URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-apps.kbd"),
+               "deviceTargetingManifest": deviceTargetingManifestURL]
+    }
+
+    private func ruleWriteFiles(collectionStore: RuleCollectionStore, customStore: CustomRulesStore) async -> [String: URL] {
+        await [
+            "config": URL(fileURLWithPath: configurationPath),
+            "collections": collectionStore.persistenceURL,
+            "customRules": customStore.persistenceURL,
+            "deviceTargetingManifest": deviceTargetingManifestURL
+        ]
+    }
+
+    private func performRuleFileOperation<T: Sendable>(_ operation: @escaping @Sendable () throws -> T) async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            ioQueue.async {
+                do { try continuation.resume(returning: operation()) }
+                catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
+
+    private func preparedConfiguration(
+        ruleCollections: [RuleCollection], customRules: [CustomRule],
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceGenerationInput: DeviceGenerationInput? = nil
+    ) async throws -> KanataConfiguration {
+        let newConfig = try await generateConfiguration(
+            ruleCollections: ruleCollections, customRules: customRules,
+            leaderKeyPreference: leaderKeyPreference,
+            shortcutListGenerationInput: shortcutListGenerationInput,
+            deviceGenerationInput: deviceGenerationInput
+        )
+        let validation = await validateConfiguration(newConfig.content)
+        guard validation.isValid else {
             throw KeyPathError.configuration(.validationFailed(errors: validation.errors))
         }
+        return newConfig
+    }
 
-        AppLogger.shared.log("✅ [ConfigService] Config validation passed")
+    /// Global edits regenerate the main file from collection-backed sources.
+    /// Refuse before staging any source or configuration file when the committed
+    /// main file cannot be reproduced from the previously committed inputs.
+    /// This gives collection, mapper, and standalone regeneration the same
+    /// handwritten-file preservation contract as app-specific editing.
+    private func ensureExistingGlobalConfigurationIsReproducible(
+        collectionStore: RuleCollectionStore,
+        customStore: CustomRulesStore,
+        preferenceDefaults: UserDefaults?,
+        inputs: GlobalRuleGenerationInputs
+    ) async throws {
+        let configURL = URL(fileURLWithPath: configurationPath)
+        guard FileManager.default.fileExists(atPath: configURL.path) else { return }
+        let existing = try String(contentsOf: configURL, encoding: .utf8)
+        // A cached read can contain handwritten content. Only committed
+        // generation inputs can establish managed ownership of an existing file.
+        // A missing collection store is the first-write/bootstrap migration
+        // case: there is no committed global input set to reproduce yet.
+        // Once collections exist, every global writer must preserve a main file
+        // it cannot reconstruct from that prior revision.
+        let collectionURL = await collectionStore.persistenceURL
+        guard FileManager.default.fileExists(atPath: collectionURL.path) else { return }
 
-        try await writeFileAsync(string: newConfig.content, to: configurationPath)
+        let persistedCollections = try await collectionStore.loadForMutation()
+        let persistedRules = try await customStore.loadForMutation()
+        let expected = try await generateConfiguration(
+            ruleCollections: persistedCollections,
+            customRules: persistedRules,
+            appSpecificKeys: inputs.appSpecificKeys,
+            leaderKeyPreference: persistedLeaderPreference(in: preferenceDefaults),
+            shortcutListGenerationInput: inputs.shortcut,
+            deviceGenerationInput: inputs.device
+        )
+        guard matchesGlobalManagedContent(existing, expected: expected.content) else {
+            throw AppConfigError
+                .validationFailed(errors: ["Your configuration was preserved. The visual editor cannot safely reproduce keypath.kbd. Convert it explicitly with a backup before editing global rules."])
+        }
+    }
 
+    /// Device enumeration is live runtime evidence, not a durable generation
+    /// input. A connect/disconnect can legitimately change the device-name
+    /// directives between app launches. We tolerate that only when the exact
+    /// existing directives equal the sidecar snapshot written with the prior
+    /// managed transaction; arbitrary handwritten directives are never erased.
+    private func matchesGlobalManagedContent(_ existing: String, expected: String) -> Bool {
+        if AppConfigGenerator.matchesManagedContent(existing, expected: expected) { return true }
+        if isUnchangedSinceManagedWrite(existing) { return true }
+        guard let manifest = try? String(contentsOf: deviceTargetingManifestURL, encoding: .utf8),
+              manifest == deviceTargetingRegion(from: existing)
+        else { return false }
+        return AppConfigGenerator.matchesManagedContent(
+            removingDynamicDeviceTargeting(from: existing),
+            expected: removingDynamicDeviceTargeting(from: expected)
+        )
+    }
+
+    // MARK: - Managed write fingerprint
+
+    /// A file KeyPath wrote itself stays reproducible across generator changes:
+    /// each committed managed write records a fingerprint of its content, and a
+    /// file that still matches it has not been edited by hand since. Without this,
+    /// any change to the generator's output made every upgrader's next global save
+    /// fail the byte-for-byte comparison against the new generator.
+    ///
+    /// Files written before fingerprints existed have none. Those that still open
+    /// with the generator's preamble are accepted once, as they were before this check
+    /// existed; the pre-edit backup taken before every rule write keeps a copy, and
+    /// the write records a fingerprint so later hand edits are protected. A file
+    /// without the preamble is never treated as managed.
+    private func isUnchangedSinceManagedWrite(_ existing: String) -> Bool {
+        if let recorded = try? String(contentsOf: managedConfigFingerprintURL, encoding: .utf8) {
+            return recorded == Self.managedFingerprint(existing)
+        }
+        return Self.hasGeneratedPreamble(existing)
+    }
+
+    /// The generator's opening lines: its header, then the enabled-rules summary
+    /// (written since May 2026). The header line alone is not enough: people
+    /// edit generated files and keep it.
+    static func hasGeneratedPreamble(_ content: String) -> Bool {
+        let lines = content.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: false)
+        return lines.count >= 2
+            && lines[0] + "\n" == KanataConfiguration.managedHeader
+            && lines[1].hasPrefix(";; Enabled: ")
+    }
+
+    nonisolated static func managedFingerprint(_ content: String) -> String {
+        let normalized = content.components(separatedBy: "\n")
+            .filter { !$0.hasPrefix(";; Generated: ") }
+            .joined(separator: "\n")
+        return SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func recordManagedConfigFingerprint(_ content: String) {
+        do {
+            try Data(Self.managedFingerprint(content).utf8).write(to: managedConfigFingerprintURL, options: .atomic)
+        } catch {
+            // Best effort: without it the next save falls back to regenerating and comparing.
+            AppLogger.shared.log("⚠️ [ConfigService] Could not record config fingerprint: \(error.localizedDescription)")
+        }
+    }
+
+    var managedConfigFingerprintURL: URL {
+        URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-config.fingerprint")
+    }
+
+    private var deviceTargetingManifestURL: URL {
+        URL(fileURLWithPath: configDirectory).appendingPathComponent("keypath-device-targeting.manifest")
+    }
+
+    /// Capture exactly the emitted device directive blocks. The durable
+    /// snapshot is proof that a changed runtime device list is ours to replace.
+    private func deviceTargetingRegion(from content: String) -> String {
+        var capturing = false
+        return content.components(separatedBy: "\n").compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("macos-dev-names-include (") || trimmed.hasPrefix("macos-dev-names-exclude (") {
+                capturing = true
+                return line
+            }
+            if capturing {
+                if trimmed == ")" { capturing = false }
+                return line
+            }
+            return nil
+        }.joined(separator: "\n")
+    }
+
+    private func removingDynamicDeviceTargeting(from content: String) -> String {
+        var skippingDeviceNames = false
+        return content.components(separatedBy: "\n").compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("macos-dev-names-include (") || trimmed.hasPrefix("macos-dev-names-exclude (") {
+                skippingDeviceNames = true
+                return nil
+            }
+            if skippingDeviceNames {
+                if trimmed == ")" { skippingDeviceNames = false }
+                return nil
+            }
+            if trimmed == ";; Only remap selected keyboards (user device selection)." ||
+                trimmed == ";; All keyboards disabled by user — remap nothing." ||
+                trimmed == ";; Avoid grabbing VirtualHID output keyboard(s); prevents feedback loops."
+            {
+                return nil
+            }
+            return line
+        }.joined(separator: "\n")
+    }
+
+    private struct GlobalRuleGenerationInputs {
+        let shortcut: ShortcutListGenerationInput
+        let device: DeviceGenerationInput
+        let appSpecificKeys: Set<String>
+    }
+
+    private func persistedGlobalRuleGenerationInputs(
+        preferenceDefaults: UserDefaults?
+    ) async throws -> GlobalRuleGenerationInputs {
+        let defaults = preferenceDefaults ?? PreferencesService.canonicalDefaults
+        let trigger = ContextHUDTriggerMode(
+            rawValue: defaults.string(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDTriggerMode.key) ?? ContextHUDTriggerMode.holdToShow.rawValue
+        ) ?? .holdToShow
+        let preset = ContextHUDHoldDelayPreset(
+            rawValue: defaults.string(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayPreset.key) ?? ContextHUDHoldDelayPreset.long.rawValue
+        ) ?? .long
+        let custom = defaults.object(forKey: RecoverableRuleWrite.PreferenceRole.contextHUDHoldDelayCustomMs.key) as? Int ?? 200
+        let selections = try await deviceSelectionStore.loadForMutation()
+        let appKeymapStore = AppKeymapStore(
+            fileURL: URL(fileURLWithPath: configDirectory).appendingPathComponent("AppKeymaps.json")
+        )
+        let appKeymaps = try await appKeymapStore.loadForMutation()
+        return await GlobalRuleGenerationInputs(
+            shortcut: ShortcutListGenerationInput(
+                triggerMode: trigger,
+                holdDelayPreset: preset,
+                customHoldDelayMs: custom
+            ),
+            device: deviceSelectionStore.generationInput(for: selections),
+            appSpecificKeys: Set(
+                appKeymaps
+                    .filter(\.mapping.isEnabled)
+                    .flatMap { $0.overrides.map { $0.inputKey.lowercased() } }
+            )
+        )
+    }
+
+    @MainActor
+    private func persistedLeaderPreference(in defaults: UserDefaults?) -> LeaderKeyPreference? {
+        guard let defaults else { return nil }
+        guard let data = defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey) else {
+            return .default
+        }
+        return (try? JSONDecoder().decode(LeaderKeyPreference.self, from: data)) ?? .default
+    }
+
+    private func publishSavedConfiguration(_ newConfig: KanataConfiguration) async {
         setCurrentConfiguration(newConfig)
-
-        // Notify observers on main actor
+        recordManagedConfigFingerprint(newConfig.content)
         let snapshot = observersSnapshot()
         let tasks = snapshot.map { observer in
             Task { @MainActor in await observer(newConfig) }
         }
-        for t in tasks {
-            await t.value
+        for task in tasks {
+            await task.value
         }
-
         AppLogger.shared.log("✅ [ConfigService] Configuration saved with \(newConfig.keyMappings.count) mappings")
     }
 
     /// Generate a Kanata configuration from rule stores without writing it.
-    public func generateConfiguration(
+    func generateConfiguration(
         ruleCollections: [RuleCollection],
-        customRules: [CustomRule] = []
+        customRules: [CustomRule] = [],
+        appSpecificKeys: Set<String>? = nil,
+        leaderKeyPreference: LeaderKeyPreference? = nil,
+        shortcutListGenerationInput: ShortcutListGenerationInput? = nil,
+        deviceGenerationInput: DeviceGenerationInput? = nil
     ) async throws -> KanataConfiguration {
+        let persistedInputs: GlobalRuleGenerationInputs? = if appSpecificKeys == nil || shortcutListGenerationInput == nil || deviceGenerationInput == nil {
+            try await persistedGlobalRuleGenerationInputs(preferenceDefaults: PreferencesService.canonicalDefaults)
+        } else {
+            nil
+        }
+
         // Custom rules come first so they take priority over preset collections
         let customRuleCollections = customRules.asRuleCollections()
         AppLogger.shared.log("🔧 [ConfigService] Converting \(customRules.count) custom rules to \(customRuleCollections.count) collections")
@@ -335,19 +1103,17 @@ public final class ConfigurationService: FileConfigurationProviding {
 
         // Get leader key preference and trigger mode from PreferencesService on MainActor.
         // Fetched before conflict detection so the leader key participates in it (#463).
-        let (leaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
+        let (storedLeaderKeyPref, triggerMode, holdDelayMs) = await MainActor.run {
             (PreferencesService.shared.leaderKeyPreference,
              PreferencesService.shared.contextHUDTriggerMode,
              PreferencesService.shared.contextHUDHoldDelayMs)
         }
+        let leaderKeyPref = leaderKeyPreference ?? storedLeaderKeyPref
+        let shortcutInput = shortcutListGenerationInput
 
-        // DETECT CONFLICTS BEFORE DEDUPLICATION
-        // This catches cases where multiple collections map the same key, and where
-        // a collection activator collides with the system leader key (#463).
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(
-            in: collectionsForConfig,
-            leaderKey: leaderKeyPref
-        )
+        // Admission before deduplication: two intentional claims on one slot are
+        // refused here, so `dedupe` below never resolves one in silence (ADR-039 §1).
+        let conflicts = AdmissionEngine.mappingConflicts(in: collectionsForConfig, leaderKey: leaderKeyPref)
         if !conflicts.isEmpty {
             AppLogger.shared.log(
                 "⚠️ [ConfigService] Mapping conflicts detected: \(conflicts.map(\.description).joined(separator: "; "))"
@@ -361,14 +1127,19 @@ public final class ConfigurationService: FileConfigurationProviding {
         let preservedChordGroups = loadPreservedChordGroups()
         let preservedSequences = loadPreservedSequences()
 
-        let configContent = KanataConfiguration.generateFromCollections(
-            combinedCollections,
+        let layoutID = UserDefaults.standard.string(forKey: LayoutPreferences.layoutIdKey)
+            ?? LayoutPreferences.defaultLayoutId
+        let inputs = KanataGenerationInputs(
             leaderKeyPreference: leaderKeyPref,
-            navActivationMode: triggerMode,
-            navHoldDelayMs: holdDelayMs,
+            navActivationMode: shortcutInput?.triggerMode ?? persistedInputs?.shortcut.triggerMode ?? triggerMode,
+            navHoldDelayMs: shortcutInput?.holdDelayMs ?? persistedInputs?.shortcut.holdDelayMs ?? holdDelayMs,
+            deviceGenerationInput: deviceGenerationInput ?? persistedInputs?.device ?? DeviceGenerationInput(selections: [], connectedDevices: []),
             chordGroups: preservedChordGroups,
-            sequences: preservedSequences
+            sequences: preservedSequences,
+            appSpecificKeys: appSpecificKeys ?? persistedInputs?.appSpecificKeys ?? [],
+            physicalLayout: PhysicalLayout.find(id: layoutID) ?? .macBookUS
         )
+        let configContent = KanataConfiguration.generateFromCollections(combinedCollections, inputs: inputs)
 
         return KanataConfiguration(
             content: configContent,
@@ -426,10 +1197,16 @@ public final class ConfigurationService: FileConfigurationProviding {
 
     /// Write raw configuration content to file (for restoration/repair)
     public func writeConfigurationContent(_ content: String) async throws {
-        try await writeFileAsync(string: content, to: configurationPath)
-        // Update current configuration
-        let newConfig = try validate(content: content)
-        setCurrentConfiguration(newConfig)
+        try await writeConfigurationContent(content, mutationPermit: nil)
+    }
+
+    func writeConfigurationContent(_ content: String, mutationPermit: ConfigurationOperationGate.Permit?) async throws {
+        try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
+            try await writeFileAsync(string: content, to: configurationPath)
+            // Update current configuration
+            let newConfig = try validate(content: content)
+            setCurrentConfiguration(newConfig)
+        }
     }
 
     // MARK: - Backup and Recovery
@@ -439,52 +1216,54 @@ public final class ConfigurationService: FileConfigurationProviding {
         async throws
         -> String
     {
-        AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
+        try await operationGate.withOperation { @MainActor [self] _ in
+            AppLogger.shared.log("🛡️ [Config] Backing up failed config and applying safe default")
 
-        // Create backup directory if it doesn't exist
-        let backupDir = "\(configDirectory)/backups"
-        let backupDirURL = URL(fileURLWithPath: backupDir)
-        try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+            // Create backup directory if it doesn't exist
+            let backupDir = "\(configDirectory)/backups"
+            let backupDirURL = URL(fileURLWithPath: backupDir)
+            try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
 
-        // Create timestamped backup filename
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = formatter.string(from: Date())
+            // Create timestamped backup filename
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+            let timestamp = formatter.string(from: Date())
 
-        let backupPath = "\(backupDir)/failed_config_\(timestamp).kbd"
-        let backupURL = URL(fileURLWithPath: backupPath)
+            let backupPath = "\(backupDir)/failed_config_\(timestamp).kbd"
+            let backupURL = URL(fileURLWithPath: backupPath)
 
-        // Write the failed config to backup
-        let backupContent = """
-        ;; FAILED CONFIG - AUTOMATICALLY BACKED UP
-        ;; Timestamp: \(timestamp)
-        ;; Errors: \(mappings.count) mapping(s) could not be applied
+            // Write the failed config to backup
+            let backupContent = """
+            ;; FAILED CONFIG - AUTOMATICALLY BACKED UP
+            ;; Timestamp: \(timestamp)
+            ;; Errors: \(mappings.count) mapping(s) could not be applied
 
-        \(failedConfig)
-        """
-        try await writeFileURLAsync(string: backupContent, to: backupURL)
+            \(failedConfig)
+            """
+            try await writeFileURLAsync(string: backupContent, to: backupURL)
 
-        AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
+            AppLogger.shared.log("💾 [Config] Failed config backed up to: \(backupPath)")
 
-        // Apply safe default config using the standard generator
-        let safeConfig = KanataConfiguration.generateFromMappings(mappings)
+            // Apply safe default config using the standard generator
+            let safeConfig = KanataConfiguration.generateFromMappings(mappings)
 
-        let configURL = URL(fileURLWithPath: configurationPath)
-        try await writeFileURLAsync(string: safeConfig, to: configURL)
+            let configURL = URL(fileURLWithPath: configurationPath)
+            try await writeFileURLAsync(string: safeConfig, to: configURL)
 
-        AppLogger.shared.log("✅ [Config] Safe default config applied")
+            AppLogger.shared.log("✅ [Config] Safe default config applied")
 
-        // Update current configuration
-        setCurrentConfiguration(
-            KanataConfiguration(
-                content: safeConfig,
-                keyMappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
-                lastModified: Date(),
-                path: configurationPath
+            // Update current configuration
+            setCurrentConfiguration(
+                KanataConfiguration(
+                    content: safeConfig,
+                    keyMappings: [KeyMapping(input: "caps", action: .keystroke(key: "escape"))],
+                    lastModified: Date(),
+                    path: configurationPath
+                )
             )
-        )
 
-        return backupPath
+            return backupPath
+        }
     }
 
     /// Repair configuration using rule-based strategies (keeps output Kanata-compatible).
@@ -533,35 +1312,37 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// Create a timestamped backup of the current config before AI repair
     /// Returns the backup file path for user reference
     public func backupConfigBeforeAIRepair() async throws -> String {
-        AppLogger.shared.log("📦 [Config] Creating pre-AI-repair backup")
+        try await operationGate.withOperation { @MainActor [self] _ in
+            AppLogger.shared.log("📦 [Config] Creating pre-AI-repair backup")
 
-        // Create backup directory if it doesn't exist
-        let backupDir = "\(configDirectory)/backups"
-        let backupDirURL = URL(fileURLWithPath: backupDir)
-        try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
+            // Create backup directory if it doesn't exist
+            let backupDir = "\(configDirectory)/backups"
+            let backupDirURL = URL(fileURLWithPath: backupDir)
+            try Foundation.FileManager().createDirectory(at: backupDirURL, withIntermediateDirectories: true)
 
-        // Create timestamped backup filename
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
-        let timestamp = formatter.string(from: Date())
+            // Create timestamped backup filename
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+            let timestamp = formatter.string(from: Date())
 
-        let backupPath = "\(backupDir)/pre-repair_\(timestamp).kbd"
-        let backupURL = URL(fileURLWithPath: backupPath)
+            let backupPath = "\(backupDir)/pre-repair_\(timestamp).kbd"
+            let backupURL = URL(fileURLWithPath: backupPath)
 
-        // Read current config and write to backup
-        let currentContent = try await readFileAsync(path: configurationPath)
-        let backupContent = """
-        ;; PRE-AI-REPAIR BACKUP
-        ;; Original config before AI repair attempt
-        ;; Timestamp: \(timestamp)
-        ;; Original path: \(configurationPath)
+            // Read current config and write to backup
+            let currentContent = try await readFileAsync(path: configurationPath)
+            let backupContent = """
+            ;; PRE-AI-REPAIR BACKUP
+            ;; Original config before AI repair attempt
+            ;; Timestamp: \(timestamp)
+            ;; Original path: \(configurationPath)
 
-        \(currentContent)
-        """
-        try await writeFileURLAsync(string: backupContent, to: backupURL)
+            \(currentContent)
+            """
+            try await writeFileURLAsync(string: backupContent, to: backupURL)
 
-        AppLogger.shared.log("💾 [Config] Pre-repair backup created: \(backupPath)")
-        return backupPath
+            AppLogger.shared.log("💾 [Config] Pre-repair backup created: \(backupPath)")
+            return backupPath
+        }
     }
 
     /// Save a repaired config (from AI repair)
@@ -575,22 +1356,24 @@ public final class ConfigurationService: FileConfigurationProviding {
     /// was removed with the policy. The repair prompt also instructs the model
     /// not to emit the header.
     public func saveRepairedConfig(_ repairedContent: String) async throws {
-        AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
+        try await operationGate.withOperation { @MainActor [self] _ in
+            AppLogger.shared.log("💾 [Config] Saving AI-repaired config")
 
-        let configURL = URL(fileURLWithPath: configurationPath)
-        try await writeFileURLAsync(string: repairedContent, to: configURL)
+            let configURL = URL(fileURLWithPath: configurationPath)
+            try await writeFileURLAsync(string: repairedContent, to: configURL)
 
-        // Update current configuration
-        setCurrentConfiguration(
-            KanataConfiguration(
-                content: repairedContent,
-                keyMappings: [], // Will be re-parsed on next reload
-                lastModified: Date(),
-                path: configurationPath
+            // Update current configuration
+            setCurrentConfiguration(
+                KanataConfiguration(
+                    content: repairedContent,
+                    keyMappings: [], // Will be re-parsed on next reload
+                    lastModified: Date(),
+                    path: configurationPath
+                )
             )
-        )
 
-        AppLogger.shared.log("✅ [Config] AI-repaired config saved")
+            AppLogger.shared.log("✅ [Config] AI-repaired config saved")
+        }
     }
 
     // MARK: - Private Methods
@@ -691,6 +1474,9 @@ extension ConfigurationService {
             }
         }
 
+        if URL(fileURLWithPath: path).standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
@@ -716,6 +1502,9 @@ extension ConfigurationService {
     }
 
     func writeFileURLAsync(string: String, to url: URL) async throws {
+        if url.standardizedFileURL == URL(fileURLWithPath: configurationPath).standardizedFileURL {
+            try await requireSessionEligibleConfiguration(string)
+        }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
@@ -995,11 +1784,13 @@ public enum KanataKeyConverter {
             return ""
         }
 
-        // Multiple whitespace-separated tokens (e.g., "cmd space") → chord/sequence
+        // Multiple whitespace-separated tokens are a sequence to type in order
+        // (a chord arrives as one token with modifier prefixes, "M-S-C-4"). A
+        // bare list "(mute M-S-C-4)" is not Kanata; a macro is.
         if tokens.count > 1 {
             // Use convertToKanataKeyForMacro to preserve uppercase modifier prefixes
             let kanataKeys = tokens.map { convertToKanataKeyForMacro($0) }
-            return "(\(kanataKeys.joined(separator: " ")))"
+            return "(macro \(kanataKeys.joined(separator: " ")))"
         }
 
         // Single token - check if it's a text sequence to type (e.g., "123", "hello")
@@ -1030,6 +1821,15 @@ public enum KanataKeyConverter {
             if regex.firstMatch(in: token, options: [], range: range) != nil {
                 return false
             }
+        }
+
+        // Kanata decides what is a key. A name it knows (`f21`, `calc`) is
+        // emitted as a key, so admission can refuse it with a reason if the
+        // backend cannot send it, rather than typing its letters. Only a word
+        // Kanata does not know is text to type. The list below is the fallback
+        // when no bridge is available to ask.
+        if let known = BackendCapabilityProfile.shared.knowsKey(token) {
+            return !known
         }
 
         // Known key names that shouldn't be split into macros

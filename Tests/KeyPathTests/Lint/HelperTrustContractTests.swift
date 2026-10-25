@@ -3,15 +3,15 @@ import Security
 @preconcurrency import XCTest
 
 final class HelperTrustContractTests: XCTestCase {
-    func testBundledCLIIdentifierMatchesHelperTrustRequirement() throws {
+    func testBundledCLIHasStableIdentityAfterHelperRemoval() throws {
         let root = repositoryRoot()
         let cliIdentifier = "com.keypath.KeyPath.CLI"
 
-        let helperMain = try contents(
-            of: root.appendingPathComponent("Sources/KeyPathHelper/main.swift")
-        )
         let buildAndSign = try contents(
             of: root.appendingPathComponent("Scripts/build-and-sign.sh")
+        )
+        let releaseContract = try contents(
+            of: root.appendingPathComponent("Scripts/verify-release-signing-contract.sh")
         )
         let quickDeploy = try contents(
             of: root.appendingPathComponent("Scripts/quick-deploy.sh")
@@ -21,12 +21,8 @@ final class HelperTrustContractTests: XCTestCase {
         )
 
         XCTAssertTrue(
-            helperMain.contains(#"identifier \"\#(cliIdentifier)\""#),
-            "The helper release trust requirement must accept the app-bundled CLI identifier."
-        )
-        XCTAssertTrue(
             buildAndSign.contains(#"--identifier "\#(cliIdentifier)""#),
-            "Release signing must stamp keypath-cli with the helper-trusted identifier."
+            "Release signing must stamp keypath-cli with its stable identifier."
         )
         XCTAssertTrue(
             quickDeploy.contains(#"--identifier "\#(cliIdentifier)""#),
@@ -36,17 +32,17 @@ final class HelperTrustContractTests: XCTestCase {
             verifyInstalledApp.contains(#"Identifier=com\.keypath\.KeyPath\.CLI"#),
             "Installed-app verification must fail if keypath-cli is signed with the wrong identifier."
         )
+        XCTAssertTrue(releaseContract.contains("CLI signing uses a stable identifier"))
+        XCTAssertFalse(buildAndSign.contains("KeyPathHelper"))
     }
 
-    func testHelperReleaseTrustRequirementParses() {
-        let releaseRequirement =
-            #"(identifier "com.keypath.KeyPath" or identifier "com.keypath.KeyPath.CLI") and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = X2RKZ5TG99"#
-
-        var requirement: SecRequirement?
-        let status = SecRequirementCreateWithString(releaseRequirement as CFString, [], &requirement)
-
-        XCTAssertEqual(status, errSecSuccess)
-        XCTAssertNotNil(requirement)
+    func testReleaseSigningContractDoesNotBuildPrivilegedHelper() throws {
+        let root = repositoryRoot()
+        let releaseContract = try contents(
+            of: root.appendingPathComponent("Scripts/verify-release-signing-contract.sh")
+        )
+        XCTAssertTrue(releaseContract.contains("release build does not build the privileged helper"))
+        XCTAssertTrue(releaseContract.contains("release build omits privileged helper and LaunchDaemon packaging"))
     }
 }
 

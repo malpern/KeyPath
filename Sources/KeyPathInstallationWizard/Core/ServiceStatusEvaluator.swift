@@ -15,6 +15,67 @@ public enum ServiceProcessStatus: Equatable {
 /// Single source of truth for service status evaluation across all wizard pages
 /// Pure function approach - no side effects, consistent results
 public enum ServiceStatusEvaluator {
+    /// A verified running worker supersedes an earlier instruction to start it.
+    /// Keep permission and actual runtime-failure issues intact.
+    public static func evaluateObservedRuntime(
+        runtimeStatus: WizardRuntimeStatus,
+        systemState: WizardSystemState,
+        issues: [WizardIssue]
+    ) -> ServiceProcessStatus {
+        let currentIssues = issues.filter { issue in
+            !(runtimeStatus.isRunning && systemState == .serviceNotRunning
+                && issue.identifier == .daemon && issue.autoFixAction == .restartCommServer)
+        }
+        return evaluate(
+            kanataIsRunning: runtimeStatus.isRunning,
+            systemState: systemState,
+            issues: currentIssues
+        )
+    }
+
+    /// The service page rechecks only while the runtime is genuinely in a
+    /// transient startup state. The cap prevents a stale lifecycle signal from
+    /// leaving the wizard in an endless spinner.
+    public static let transientRefreshAttemptLimit = 30
+
+    public static func shouldRetryTransientStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool,
+        completedAttempts: Int
+    ) -> Bool {
+        guard completedAttempts < transientRefreshAttemptLimit else { return false }
+        return isTransientStartupStatus(
+            runtimeStatus: runtimeStatus,
+            isInTransientStartupWindow: isInTransientStartupWindow
+        )
+    }
+
+    public static func didExhaustTransientStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool,
+        completedAttempts: Int
+    ) -> Bool {
+        guard completedAttempts >= transientRefreshAttemptLimit else { return false }
+        return isTransientStartupStatus(
+            runtimeStatus: runtimeStatus,
+            isInTransientStartupWindow: isInTransientStartupWindow
+        )
+    }
+
+    private static func isTransientStartupStatus(
+        runtimeStatus: WizardRuntimeStatus,
+        isInTransientStartupWindow: Bool
+    ) -> Bool {
+        switch runtimeStatus {
+        case .starting:
+            true
+        case .stopped:
+            isInTransientStartupWindow
+        case .running, .failed, .unknown:
+            false
+        }
+    }
+
     /// Evaluates a fresh runtime observation after an explicit lifecycle action.
     ///
     /// A successful lifecycle operation has already verified runtime readiness, so
@@ -88,11 +149,15 @@ public enum ServiceStatusEvaluator {
     /// - Returns: Human-readable blocking issue message or nil
     public static func blockingIssueMessage(from issues: [WizardIssue]) -> String? {
         for issue in issues {
-            // Only treat true failures as blocking. Warnings (e.g. "not verified" without FDA)
+            // Only treat true failures as blocking. Warnings from unavailable permission evidence
             // should not mark the service as failed.
             guard issue.severity == .critical || issue.severity == .error else { continue }
             if case let .permission(permission) = issue.identifier {
                 switch permission {
+                case .keyPathInputMonitoring:
+                    return "Enable Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                case .keyPathAccessibility:
+                    return "Enable Accessibility for KeyPath in System Settings, then quit and reopen KeyPath."
                 case .kanataInputMonitoring:
                     return "Input Monitoring permission required"
                 case .kanataAccessibility:

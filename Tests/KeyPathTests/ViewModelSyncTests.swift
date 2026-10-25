@@ -7,21 +7,19 @@ import Testing
 @MainActor
 @Suite("Window Snapping Activation Mode Tests")
 struct WindowSnappingActivationModeTests {
-    private func createManagerWithWindowSnapping() async -> RuleCollectionsManager {
+    private func createManagerWithWindowSnapping(supportedEntrance: Bool = true) async throws -> RuleCollectionsManager {
         TestEnvironment.forceTestMode = true
 
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("ws-mode-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
+        let collections = RuleCollectionStore.testStore(at: tempDir.appendingPathComponent("RuleCollections.json"))
+        let rules = CustomRulesStore.testStore(at: tempDir.appendingPathComponent("CustomRules.json"))
         let manager = RuleCollectionsManager(
-            ruleCollectionStore: RuleCollectionStore(
-                fileURL: tempDir.appendingPathComponent("RuleCollections.json")
-            ),
-            customRulesStore: CustomRulesStore(
-                fileURL: tempDir.appendingPathComponent("CustomRules.json")
-            ),
-            configurationService: ConfigurationService(configDirectory: tempDir.path),
+            ruleCollectionStore: collections,
+            customRulesStore: rules,
+            configurationService: ConfigurationService.sessionTestService(configDirectory: tempDir.path, ruleCollectionStore: collections, customRulesStore: rules),
             eventListener: KanataEventListener()
         )
 
@@ -29,20 +27,85 @@ struct WindowSnappingActivationModeTests {
         let catalog = RuleCollectionCatalog()
         manager.ruleCollections = catalog.defaultCollections()
 
+        // Mode changes need navigation content and an entrance, not just a
+        // target-layer mapping. Tab enters navigation; l and w stay free for
+        // the launcher/window entrances exercised by this fixture.
+        if supportedEntrance {
+            manager.ruleCollections.append(RuleCollection(
+                id: UUID(), name: "Test Navigation", summary: "", category: .custom,
+                mappings: [KeyMapping(input: "q", action: .keystroke(key: "esc"))],
+                isEnabled: true, targetLayer: .navigation,
+                momentaryActivator: MomentaryActivator(input: "tab", targetLayer: .navigation)
+            ))
+        }
+
         // Enable Window Snapping and Quick Launcher
         if let wsIdx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.windowSnapping }) {
             manager.ruleCollections[wsIdx].isEnabled = true
         }
         if let launcherIdx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
             manager.ruleCollections[launcherIdx].isEnabled = true
+            // Exercise mode wiring with a supported launcher entrance. The
+            // historical Hyper/Caps entrance has a separate refusal test.
+            if supportedEntrance {
+                manager.ruleCollections[launcherIdx].configuration = .launcherGrid(LauncherGridConfig(
+                    activationMode: .leaderSequence
+                ))
+            }
         }
 
+        if !supportedEntrance,
+           let capsIndex = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.capsLockRemap })
+        {
+            // Exercise the historical Caps entrance, now supported by generated
+            // explicit layer fallbacks.
+            manager.ruleCollections[capsIndex].isEnabled = true
+        }
+
+        manager.preferencesService.stageShortcutListGenerationInput(
+            ShortcutListGenerationInput(triggerMode: .holdToShow, holdDelayPreset: .long, customHoldDelayMs: 200)
+        )
+        try await collections.saveCollections(manager.ruleCollections)
+        try await rules.saveRules([])
+        manager.onError = { error in
+            Issue.record("Window activation generated profile refused: \(error)")
+        }
         return manager
     }
 
+    @Test("Unsupported output preserves activation state and sources")
+    func unsupportedOutputRefusesBeforeJournalOrReload() async throws {
+        let manager = try await createManagerWithWindowSnapping(supportedEntrance: false)
+        // Caps plus generated layers is supported. Retain rollback coverage with
+        // an actually unsupported output, not the old transparent-layer defect.
+        manager.ruleCollections.append(RuleCollection(
+            name: "Unsupported output", summary: "", category: .custom, // Fn: a key the session cannot emit
+            mappings: [KeyMapping(input: "f20", action: .keystroke(key: "fn"))], isEnabled: true
+        ))
+        try await manager.ruleCollectionStore.saveCollections(manager.ruleCollections)
+        let beforeCollections = manager.ruleCollections
+        #expect(beforeCollections.contains { $0.id == RuleCollectionIdentifier.capsLockRemap && $0.isEnabled })
+        let directory = URL(fileURLWithPath: manager.configurationService.configurationPath).deletingLastPathComponent()
+        let before = try Data(contentsOf: directory.appendingPathComponent("RuleCollections.json"))
+        var reloads = 0
+        var errors: [String] = []
+        manager.onError = { errors.append($0) }
+        manager.onRulesChanged = {
+            reloads += 1
+            return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied)
+        }
+        _ = await manager.updateWindowSnappingActivationMode(id: RuleCollectionIdentifier.windowSnapping, mode: .quickLauncher)
+        #expect(reloads == 0)
+        #expect(manager.ruleCollections == beforeCollections)
+        #expect(try Data(contentsOf: directory.appendingPathComponent("RuleCollections.json")) == before)
+        #expect(errors.contains { $0.contains("driverless session") })
+        #expect(!FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(directory).path))
+        #expect(!FileManager.default.fileExists(atPath: manager.configurationService.configurationPath))
+    }
+
     @Test("Activation mode is stored on collection")
-    func activationModeStored() async {
-        let manager = await createManagerWithWindowSnapping()
+    func activationModeStored() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         _ = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,
@@ -54,8 +117,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Activation mode updates momentary activator sourceLayer")
-    func activatorSourceLayer() async {
-        let manager = await createManagerWithWindowSnapping()
+    func activatorSourceLayer() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         let before = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
         #expect(before?.momentaryActivator?.sourceLayer == .navigation)
@@ -70,13 +133,17 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Quick Launcher mode auto-enables launcher collection")
-    func autoEnablesLauncher() async {
-        let manager = await createManagerWithWindowSnapping()
+    func autoEnablesLauncher() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
-        // Disable launcher
+        // Root edits refresh persisted sources, so the disabled premise must
+        // reach the store before asking the manager to enable its provider.
         if let idx = manager.ruleCollections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }) {
             manager.ruleCollections[idx].isEnabled = false
         }
+        try await manager.ruleCollectionStore.saveCollections(manager.ruleCollections)
+        let stored = try await manager.ruleCollectionStore.loadForMutation()
+        #expect(stored.first { $0.id == RuleCollectionIdentifier.launcher }?.isEnabled == false)
 
         let autoEnabled = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,
@@ -103,8 +170,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Activation mode updates activation hint")
-    func activationHint() async {
-        let manager = await createManagerWithWindowSnapping()
+    func activationHint() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         _ = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,
@@ -116,8 +183,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Switching back to leader restores navigation sourceLayer")
-    func switchBackToLeader() async {
-        let manager = await createManagerWithWindowSnapping()
+    func switchBackToLeader() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         _ = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,
@@ -134,8 +201,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Setting same mode twice is idempotent")
-    func settingSameModeTwiceIsIdempotent() async {
-        let manager = await createManagerWithWindowSnapping()
+    func settingSameModeTwiceIsIdempotent() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         _ = await manager.updateWindowSnappingActivationMode(
             id: RuleCollectionIdentifier.windowSnapping,
@@ -157,8 +224,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Launcher already enabled returns nil for auto-enable")
-    func launcherAlreadyEnabledReturnsNil() async {
-        let manager = await createManagerWithWindowSnapping()
+    func launcherAlreadyEnabledReturnsNil() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         // Launcher is already enabled by createManagerWithWindowSnapping()
         let launcher = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.launcher }
@@ -173,8 +240,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Activation hint for leader mode initially")
-    func activationHintForLeaderModeInitially() async {
-        let manager = await createManagerWithWindowSnapping()
+    func activationHintForLeaderModeInitially() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         // Before any mode change, the catalog default is leader mode
         let ws = manager.ruleCollections.first { $0.id == RuleCollectionIdentifier.windowSnapping }
@@ -182,8 +249,8 @@ struct WindowSnappingActivationModeTests {
     }
 
     @Test("Switching modes multiple times ends in correct state")
-    func switchingModesMultipleTimesEndsCorrectly() async {
-        let manager = await createManagerWithWindowSnapping()
+    func switchingModesMultipleTimesEndsCorrectly() async throws {
+        let manager = try await createManagerWithWindowSnapping()
 
         // leader → quickLauncher → leader → quickLauncher
         _ = await manager.updateWindowSnappingActivationMode(

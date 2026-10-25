@@ -42,6 +42,19 @@ final class RuleCollectionsCoordinator {
 
     // MARK: - Rule Collection Operations
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        ruleCollectionsManager.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        let result = await ruleCollectionsManager.applyCatalogUpdates(ids: ids)
+        if result.saveResult.success {
+            applyMappings(ruleCollectionsManager.enabledMappings())
+            notifyStateChanged()
+        }
+        return result
+    }
+
     /// Toggle a rule collection's enabled state
     /// - Returns: `true` if the toggle was applied successfully
     @discardableResult
@@ -62,10 +75,12 @@ final class RuleCollectionsCoordinator {
     }
 
     /// Add a new rule collection
-    func addRuleCollection(_ collection: RuleCollection) async {
-        await ruleCollectionsManager.addCollection(collection)
+    @discardableResult
+    func addRuleCollection(_ collection: RuleCollection) async -> Bool {
+        let saved = await ruleCollectionsManager.addCollection(collection)
         applyMappings(ruleCollectionsManager.enabledMappings())
         notifyStateChanged()
+        return saved
     }
 
     /// Replace all rule collections

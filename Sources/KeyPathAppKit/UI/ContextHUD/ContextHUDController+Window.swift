@@ -87,16 +87,6 @@ extension ContextHUDController {
         AppLogger.shared.debug("🎯 [ContextHUD] Dismissed")
     }
 
-    func scheduleDismiss() {
-        dismissTask?.cancel()
-        let timeout = PreferencesService.shared.contextHUDTimeout
-        dismissTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(timeout))
-            guard !Task.isCancelled else { return }
-            self?.dismiss()
-        }
-    }
-
     // MARK: - Launcher KeyMap from Collections
 
     func buildLauncherKeyMap(from collections: [RuleCollection]) -> [UInt16: LayerKeyInfo] {

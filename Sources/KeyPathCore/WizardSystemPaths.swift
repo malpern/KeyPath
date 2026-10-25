@@ -235,10 +235,6 @@ public enum WizardSystemPaths {
     public static let accessibilitySettings =
         "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 
-    /// Full Disk Access settings URL (needed to read TCC.db for kanata detection)
-    public static let fullDiskAccessSettings =
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
-
     /// Login Items settings URL (macOS 13+)
     public static let loginItemsSettings =
         "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
@@ -273,7 +269,7 @@ public enum WizardSystemPaths {
 
     /// The bundled VHID driver version - single source of truth
     /// Update this when bundling a new driver version
-    public static let bundledVHIDDriverVersion = "6.2.0"
+    public static let bundledVHIDDriverVersion = "8.0.0"
 
     /// The bundled VHID driver major version (for compatibility checks)
     public static var bundledVHIDDriverMajorVersion: Int {

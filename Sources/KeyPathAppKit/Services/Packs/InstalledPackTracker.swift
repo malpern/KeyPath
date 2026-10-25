@@ -17,17 +17,21 @@ public struct InstalledPackRecord: Codable, Equatable, Sendable {
     /// Current values of the pack's quick settings, keyed by `PackQuickSetting.id`.
     /// Only int values in M1 (sliders). M2 will widen.
     public var quickSettingValues: [String: Int]
+    /// Restore state participates in the same journal as the installed record.
+    public var managedCollectionSnapshot: PackCollectionSnapshot?
 
     public init(
         packID: String,
         version: String,
         installedAt: Date = Date(),
-        quickSettingValues: [String: Int] = [:]
+        quickSettingValues: [String: Int] = [:],
+        managedCollectionSnapshot: PackCollectionSnapshot? = nil
     ) {
         self.packID = packID
         self.version = version
         self.installedAt = installedAt
         self.quickSettingValues = quickSettingValues
+        self.managedCollectionSnapshot = managedCollectionSnapshot
     }
 }
 
@@ -36,8 +40,8 @@ public actor InstalledPackTracker {
     public static let shared = InstalledPackTracker()
 
     private let fileURL: URL
-    private var records: [String: InstalledPackRecord] = [:]
-    private var hasLoaded = false
+    private var writeFile: @Sendable (Data, URL) throws -> Void = { try RecoverableRuleWrite.durableWrite($0, $1) }
+    private var lastReadableRecords: [String: InstalledPackRecord] = [:]
 
     public init(fileURL: URL? = nil) {
         if let fileURL {
@@ -60,29 +64,95 @@ public actor InstalledPackTracker {
         }
     }
 
+    init(fileURL: URL, writeFile: @escaping @Sendable (Data, URL) throws -> Void) {
+        self.fileURL = fileURL
+        self.writeFile = writeFile
+    }
+
+    /// Mutating decisions cannot rely on the display-only fallback snapshot.
+    /// Call under configuration admission before staging source changes.
+    func validateForMutation() throws {
+        lastReadableRecords = try readRecords()
+    }
+
+    var persistenceURL: URL {
+        fileURL
+    }
+
+    struct RecordChange: Sendable {
+        let tracker: InstalledPackTracker
+        let packID: String
+        let record: InstalledPackRecord?
+
+        init(tracker: InstalledPackTracker, record: InstalledPackRecord) {
+            self.tracker = tracker
+            packID = record.packID
+            self.record = record
+        }
+
+        init(tracker: InstalledPackTracker, removing packID: String) {
+            self.tracker = tracker
+            self.packID = packID
+            record = nil
+        }
+    }
+
+    struct PreparedRecordUpdate: Sendable {
+        let tracker: InstalledPackTracker
+        let fileURL: URL
+        let before: Data?
+        let contents: Data
+        let previousRecords: [String: InstalledPackRecord]
+        let records: [String: InstalledPackRecord]
+        let writeFile: @Sendable (Data, URL) throws -> Void
+    }
+
+    /// Build a metadata revision without writing or notifying. The configuration
+    /// transaction compares this preimage before staging it with the rule files.
+    func prepareUpdate(_ change: RecordChange) throws -> PreparedRecordUpdate {
+        let before: Data?
+        do { before = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { before = nil }
+        let previous = try decodeRecords(before)
+        var updated = previous
+        updated[change.packID] = change.record
+        return try PreparedRecordUpdate(tracker: self, fileURL: fileURL, before: before,
+                                        contents: encodedRecords(updated), previousRecords: previous,
+                                        records: updated, writeFile: writeFile)
+    }
+
+    func publishCommittedUpdate(_ update: PreparedRecordUpdate) async {
+        lastReadableRecords = update.records
+        await postChangeNotification()
+    }
+
+    func restorePublishedUpdate(_ update: PreparedRecordUpdate) {
+        lastReadableRecords = update.previousRecords
+    }
+
     // MARK: - Public API
 
     /// Return a copy of every installed pack's record.
     public func allInstalled() async -> [InstalledPackRecord] {
-        await ensureLoaded()
+        let records = readSnapshot()
         return Array(records.values).sorted(by: { $0.installedAt > $1.installedAt })
     }
 
     /// Is this pack installed right now?
     public func isInstalled(packID: String) async -> Bool {
-        await ensureLoaded()
+        let records = readSnapshot()
         return records[packID] != nil
     }
 
     /// Return the record for a specific pack, or nil if not installed.
     public func record(for packID: String) async -> InstalledPackRecord? {
-        await ensureLoaded()
+        let records = readSnapshot()
         return records[packID]
     }
 
     /// Returns the installed pack that manages a given collection, or nil.
     public func packManagingCollection(_ collectionID: UUID) async -> (packID: String, packName: String)? {
-        await ensureLoaded()
+        let records = readSnapshot()
         // Prefer a pack that manages this collection WITHOUT it being the
         // pack's own associated collection (i.e. a parent pack like Vallack
         // managing Home Row Mods). Fall back to self-managing pack only if
@@ -103,17 +173,17 @@ public actor InstalledPackTracker {
 
     /// Mark a pack as installed (or update an existing record). Persists.
     public func upsert(_ record: InstalledPackRecord) async throws {
-        await ensureLoaded()
+        var records = try readRecords()
         records[record.packID] = record
-        try persist()
+        try persist(records)
         await postChangeNotification()
     }
 
     /// Remove an installed-pack record. Persists.
     public func remove(packID: String) async throws {
-        await ensureLoaded()
+        var records = try readRecords()
         records.removeValue(forKey: packID)
-        try persist()
+        try persist(records)
         await postChangeNotification()
     }
 
@@ -128,44 +198,55 @@ public actor InstalledPackTracker {
 
     // MARK: - Persistence
 
-    private func ensureLoaded() async {
-        guard !hasLoaded else { return }
-        hasLoaded = true
-
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return
-        }
-
+    /// Query APIs refresh every time. An unreadable file retains the last known
+    /// committed snapshot; a missing file or a readable replacement supersedes it.
+    private func readSnapshot() -> [String: InstalledPackRecord] {
         do {
-            let data = try Data(contentsOf: fileURL)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let decoded = try decoder.decode([String: InstalledPackRecord].self, from: data)
-            records = decoded
-            AppLogger.shared.log(
-                "📦 [PackTracker] Loaded \(records.count) installed pack record(s)"
-            )
+            let records = try readRecords()
+            lastReadableRecords = records
+            return records
         } catch {
-            AppLogger.shared.log(
-                "⚠️ [PackTracker] Failed to load installed-packs.json: \(error.localizedDescription). Starting fresh."
-            )
-            records = [:]
+            AppLogger.shared.log("⚠️ [PackTracker] Could not read installed-packs.json: \(error.localizedDescription)")
+            return lastReadableRecords
         }
     }
 
-    private func persist() throws {
+    /// Writes must fail closed on unreadable metadata. Treat only a missing file
+    /// as empty; malformed or inaccessible data must never be silently replaced.
+    private func readRecords() throws -> [String: InstalledPackRecord] {
+        let data: Data
+        do { data = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
+            return [:]
+        }
+        return try decodeRecords(data)
+    }
+
+    private func decodeRecords(_ data: Data?) throws -> [String: InstalledPackRecord] {
+        guard let data else { return [:] }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([String: InstalledPackRecord].self, from: data)
+    }
+
+    private func encodedRecords(_ records: [String: InstalledPackRecord]) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(records)
+    }
+
+    private func persist(_ records: [String: InstalledPackRecord]) throws {
         // Ensure parent directory exists. (First run creates ~/.config/keypath/.)
         let parent = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: parent, withIntermediateDirectories: true
         )
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(records)
+        let data = try encodedRecords(records)
 
-        try data.write(to: fileURL, options: [.atomic])
+        try writeFile(data, fileURL)
+        lastReadableRecords = records
         AppLogger.shared.log(
             "📦 [PackTracker] Persisted \(records.count) installed pack record(s)"
         )

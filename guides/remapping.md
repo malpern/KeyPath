@@ -154,7 +154,7 @@ keypath remap right_option delete
 
 The keyboard overlay shows you what every key does right now. Remapped keys are highlighted so you can always tell what's been changed.
 
-Click any key to see its current mapping. If you ever forget what you've changed, the overlay is your map.
+To see or change what a key does, right-click it and choose **Remap**. The settings drawer opens with that key selected, even if the drawer was closed. With the drawer already open, a plain click selects a key too. If you ever forget what you've changed, the overlay is your map.
 
 ---
 
@@ -163,7 +163,7 @@ Click any key to see its current mapping. If you ever forget what you've changed
 Changed your mind? Nothing is permanent:
 
 - **Pack Gallery** — click **Uninstall** on the pack
-- **Overlay** — click the key, set it back to its original output
+- **Overlay** — right-click the key and choose **Reset to Default** (shown for remaps you made on the current layer)
 - **CLI** — `keypath unmap caps_lock`
 
 Experiment freely.
@@ -216,3 +216,15 @@ keypath rule list                  # See all active rules
 | Right Control | `right_control` |
 | Right Command | `right_command` |
 | Backtick | `grave_accent` |
+
+## App-specific edits and hand-written configurations
+
+If KeyPath says your configuration was preserved, it could not safely reproduce
+your current configuration from the rules in the visual editor. The attempted
+app-specific edit has not been saved. Your configuration files remain unchanged.
+
+This can happen with hand-written configurations, manual changes to generated
+files, or stored rules that differ from the generated configuration. App-specific
+editing requires an explicit conversion with a backup first. KeyPath does not
+perform that conversion automatically. Keep using your existing configuration;
+this editing limit does not stop it from running.

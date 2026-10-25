@@ -27,7 +27,7 @@ enum KanataKeyCodeMap {
         "leftshift": 56, "lsft": 56, "capslock": 57, "caps": 57,
         "leftalt": 58, "lalt": 58, "leftctrl": 59, "lctl": 59,
         "rightshift": 60, "rsft": 60, "rightalt": 61, "ralt": 61,
-        "fn": 63,
+        "rightctrl": 62, "rctl": 62, "fn": 63,
         // Function keys
         "f5": 96, "f6": 97, "f7": 98, "f3": 99, "f8": 100, "f9": 101,
         "f11": 103, "f10": 109, "f12": 111, "f4": 118, "f2": 120, "f1": 122,
@@ -48,8 +48,6 @@ enum KanataKeyCodeMap {
         "f17": 64,
         "f18": 79,
         "f19": 80,
-        // Right Control
-        "rightctrl": 102, "rctl": 102,
         // ISO key (between Left Shift and Z on ISO keyboards)
         "intlbackslash": 10,
         // ABNT2 key (between slash and right shift on Brazilian keyboards)
@@ -134,6 +132,7 @@ enum KanataKeyCodeMap {
         case 59: "leftctrl"
         case 60: "rightshift"
         case 61: "rightalt"
+        case 62: "rightctrl"
         case 63: "fn"
         // Function keys
         case 96: "f5"
@@ -170,7 +169,6 @@ enum KanataKeyCodeMap {
         case 64: "f17"
         case 79: "f18"
         case 80: "f19"
-        case 102: "rightctrl"
         case 105: "f13"
         case 106: "f16"
         case 107: "f14"

@@ -1,0 +1,13 @@
+# Driverless settings cleanup — 2026-10-12
+
+Status previously showed duplicate process permission rows plus green System Conflicts and TCP Communication checks. The session snapshot provides conflicts.empty and tcpConfigured=true, so those rows did not demonstrate actual checks. Driverless Status now shows Accessibility, Input Monitoring and Keyboard remapping. Each permission combines app/runtime facts without hiding failure or uncertainty; independent runtime checks remain visible in Technical details. Runtime health still requires the session event tap and real TCP response through the existing validator. Legacy backend rows remain unchanged.
+
+Related settings cleanup: omit Karabiner/TCP configuration troubleshooting on the session backend, use KeyPath logs rather than daemon stderr, hide the legacy SMAppService registration experiment, and group manual Caps Lock controls under Advanced keyboard setup. Removed the blanket instruction to select a keyboard after every reboot; automatic selection is already attempted by runtime startup.
+
+Regression: DriverlessSettingsStatusTests initially failed because rows included conflicts/TCP. After fix, the targeted suite passes 4 tests without warnings, including permission failure/unknown aggregation and the existing validation-loop guard. Accessibility audit passed 380 files. No OS permissions, rules or runtime architecture changed.
+
+Follow-up found by source review: AdvancedSettingsTabView.restoreBackup invokes ConfigBackupManager.restoreFromBackup directly, which atomically replaces only keypath.kbd. It does not restore RuleCollections/CustomRules metadata or use the canonical configuration transaction. This can reproduce metadata/generated-config divergence; a separate regression and recovery-safe restore design are needed. Not exercised on the user's settings, and not claimed fixed here.
+
+Live verification on the Air: collapsed Status shows only Accessibility, Input Monitoring and Keyboard remapping, with Everything’s Working and 3 active rules. Expanded Technical details displays both independent runtime permission results and explanatory text without clipping. General shows Advanced keyboard setup collapsed and the revised automatic recovery guidance. Its accessibility tree contains no SMAppService registration toggle. Signing verification passed after installation; bundled companions and CLI were preserved from the prior Air build. Temporary mini deployment/signing jobs were unloaded.
+
+Installed executable SHA-256: `23c1f396e0df000ad5be08493962c04a903c7bc75eca36a09a1e1564077cd795`. Previous app retained at `outputs/settings/KeyPath-before-settings.app`.

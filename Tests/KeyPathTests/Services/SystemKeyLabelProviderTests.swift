@@ -147,6 +147,7 @@ final class SystemKeyLabelProviderTests: XCTestCase {
             let keymap = LogicalKeymap.system
             XCTAssertTrue(keymap.extraLabels.isEmpty, "System keymap should have no extra labels")
             XCTAssertEqual(keymap.coreLabels.count, 3, "All labels should be in coreLabels")
+            XCTAssertEqual(keymap.shiftLabels[18], "!")
         }
     }
 }

@@ -71,6 +71,13 @@ enum CompositionRoot {
             )
         }
 
+        UpdateService.shared.configureRuntimeStop { [weak manager] in
+            await manager?.stopKanata(reason: "Application update") ?? false
+        }
+        UpdateService.shared.configureUpdatePreparation { [weak manager] active in
+            manager?.serviceLifecycleCoordinator.setUpdatePreparationActive(active)
+        }
+
         // Ensure typing sounds manager is initialized so it can listen for key events
         _ = TypingSoundsManager.shared
 
@@ -85,6 +92,12 @@ enum CompositionRoot {
 
         // Prime the synchronous cache before any startup config regeneration can run.
         DeviceSelectionStore.primeSharedCacheFromDisk()
+
+        // Let `keypath status|start|stop|restart` reach this runtime (one-shot
+        // probes and session workers never serve it).
+        if !isOneShotProbeMode {
+            RuntimeControlServer.shared.start(handler: RuntimeControlHandler.make(for: manager))
+        }
 
         // Schedule deferred startup services
         if !isOneShotProbeMode {

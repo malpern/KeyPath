@@ -1,10 +1,11 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 @testable import KeyPathPermissions
 import KeyPathWizardCore
 @preconcurrency import XCTest
 
-/// Tests for Mode A (LaunchDaemon subprocess) runtime revert.
+/// Historical Mode A (LaunchDaemon subprocess) classifiers plus session evidence behavior.
 /// Validates that the feature flag correctly gates split runtime paths
 /// and that permission rejection detection works end-to-end.
 @MainActor
@@ -87,21 +88,19 @@ final class ModeARevertTests: XCTestCase {
     // MARK: - HealthStatus kanataPermissionRejected propagation
 
     func testHealthStatusPermissionRejectedDefaultsFalse() {
-        let health = HealthStatus(
-            kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
-        )
+        let health = HealthStatus(backend: .driverKit,
+                                  kanataRunning: false,
+                                  karabinerDaemonRunning: true,
+                                  vhidHealthy: true)
         XCTAssertFalse(health.kanataPermissionRejected)
     }
 
     func testHealthStatusPermissionRejectedPropagates() {
-        let health = HealthStatus(
-            kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            kanataPermissionRejected: true
-        )
+        let health = HealthStatus(backend: .driverKit,
+                                  kanataRunning: false,
+                                  karabinerDaemonRunning: true,
+                                  vhidHealthy: true,
+                                  kanataPermissionRejected: true)
         XCTAssertTrue(health.kanataPermissionRejected)
     }
 
@@ -139,6 +138,30 @@ final class ModeARevertTests: XCTestCase {
         XCTAssertFalse(serviceIssues.isEmpty, "blockingIssues must contain serviceNotRunning when no permission rejection")
     }
 
+    func testSessionStoppedWithLegacyRejectionUsesCurrentRuntimeEvidence() {
+        let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: true, backend: .session)
+        XCTAssertTrue(snapshot.blockingIssues.contains {
+            if case .componentUnhealthy(name: "Session keyboard runtime", autoFix: true) = $0 { return true }
+            return false
+        })
+        XCTAssertFalse(snapshot.blockingIssues.contains {
+            if case .permissionMissing = $0 { return true }
+            return false
+        }, "Historical daemon rejection must not override granted session capabilities")
+    }
+
+    func testSessionDeniedCapabilitiesReportKeyPathPermissionSubject() {
+        let snapshot = makeSnapshot(
+            kanataRunning: false, kanataPermissionRejected: false,
+            backend: .session, accessibility: .denied
+        )
+        XCTAssertFalse(snapshot.isReady)
+        XCTAssertTrue(snapshot.blockingIssues.contains {
+            if case let .permissionMissing(app, _, _) = $0 { return app == "KeyPath" }
+            return false
+        })
+    }
+
     // MARK: - Helpers
 
     private func makeContext(
@@ -165,14 +188,13 @@ final class ModeARevertTests: XCTestCase {
         )
 
         return SystemContext(
-            permissions: PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now),
-            services: HealthStatus(
-                kanataRunning: kanataRunning,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: true,
-                kanataPermissionRejected: kanataPermissionRejected
-            ),
+            permissions: PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit),
+            services: HealthStatus(backend: .driverKit,
+                                   kanataRunning: kanataRunning,
+                                   karabinerDaemonRunning: true,
+                                   vhidHealthy: true,
+                                   kanataInputCaptureReady: true,
+                                   kanataPermissionRejected: kanataPermissionRejected),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             components: ComponentStatus(
                 kanataBinaryInstalled: true,
@@ -191,18 +213,20 @@ final class ModeARevertTests: XCTestCase {
 
     private func makeSnapshot(
         kanataRunning: Bool,
-        kanataPermissionRejected: Bool
+        kanataPermissionRejected: Bool,
+        backend: KanataRuntimeBackend = .driverKit,
+        accessibility: PermissionOracle.Status = .granted
     ) -> SystemSnapshot {
         let now = Date()
         let keyPath = PermissionOracle.PermissionSet(
-            accessibility: .granted,
+            accessibility: accessibility,
             inputMonitoring: .granted,
             source: "test",
             confidence: .high,
             timestamp: now
         )
         let kanata = PermissionOracle.PermissionSet(
-            accessibility: .granted,
+            accessibility: accessibility,
             inputMonitoring: .granted,
             source: "test",
             confidence: .high,
@@ -210,7 +234,7 @@ final class ModeARevertTests: XCTestCase {
         )
 
         return SystemSnapshot(
-            permissions: PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now),
+            permissions: PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: backend),
             components: ComponentStatus(
                 kanataBinaryInstalled: true,
                 karabinerDriverInstalled: true,
@@ -221,13 +245,12 @@ final class ModeARevertTests: XCTestCase {
                 vhidVersionMismatch: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
-            health: HealthStatus(
-                kanataRunning: kanataRunning,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true,
-                kanataInputCaptureReady: true,
-                kanataPermissionRejected: kanataPermissionRejected
-            ),
+            health: HealthStatus(backend: backend,
+                                 kanataRunning: kanataRunning,
+                                 karabinerDaemonRunning: true,
+                                 vhidHealthy: true,
+                                 kanataInputCaptureReady: true,
+                                 kanataPermissionRejected: kanataPermissionRejected),
             helper: HelperStatus(isInstalled: true, version: nil, isWorking: true),
             compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
             timestamp: now

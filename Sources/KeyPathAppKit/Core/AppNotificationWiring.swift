@@ -15,7 +15,7 @@ enum AppNotificationWiring {
         registerValidationNotifications()
         registerFeedbackNotifications()
         registerServiceNotifications(on: delegate)
-        registerActionDispatcherCallbacks()
+        registerActionDispatcherCallbacks(on: delegate)
         DistributedNotificationBridge.start()
     }
 
@@ -42,6 +42,24 @@ enum AppNotificationWiring {
     // MARK: - Validation Notifications
 
     private static func registerValidationNotifications() {
+        // Permission edits do not necessarily change runtime process health.
+        // Refresh when leaving System Settings, even when returning to another
+        // app rather than KeyPath; the floating overlay must not stay stale.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didDeactivateApplicationNotification,
+            object: nil,
+            queue: NotificationObserverManager.mainOperationQueue
+        ) { notification in
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                as? NSRunningApplication,
+                app.bundleIdentifier == "com.apple.systempreferences"
+            else { return }
+            Task { @MainActor in
+                guard MainAppStateController.shared.isConfigured else { return }
+                await MainAppStateController.shared.revalidate()
+            }
+        }
+
         // Startup + post-wizard validation trigger.
         NotificationCenter.default.addObserver(
             forName: .kp_startupRevalidate, object: nil, queue: NotificationObserverManager.mainOperationQueue
@@ -122,10 +140,33 @@ enum AppNotificationWiring {
 
     // MARK: - Action Dispatcher Callbacks
 
-    private static func registerActionDispatcherCallbacks() {
+    private static func registerActionDispatcherCallbacks(on delegate: AppDelegate) {
         // Wire ActionDispatcher errors to user notifications (for deep link failures)
         ActionDispatcher.shared.onError = { message in
             UserNotificationService.shared.notifyActionError(message)
+        }
+
+        // Wire overlay actions (keypath://overlay/..., push-msg "overlay:toggle") to the overlay
+        ActionDispatcher.shared.onOverlayAction = { command in
+            let overlay = LiveKeyboardOverlayController.shared
+            switch command {
+            case .toggle:
+                overlay.toggle()
+            case .show:
+                if !overlay.isVisible { overlay.toggle() }
+            case .hide:
+                if overlay.isVisible { overlay.hideExplicitly() }
+            }
+        }
+
+        // keypath://runtime/{start|stop|restart} -> the same lifecycle path as the CLI
+        ActionDispatcher.shared.onRuntimeAction = { [weak delegate] command in
+            Task { @MainActor in
+                guard let manager = delegate?.kanataManager else { return }
+                let request = RuntimeControl.Request(operation: RuntimeControl.Operation(rawValue: command.rawValue) ?? .status,
+                                                     reason: "URL action")
+                _ = await RuntimeControlHandler.handle(request, manager: manager)
+            }
         }
 
         // Wire layer action to update the overlay and layer indicator

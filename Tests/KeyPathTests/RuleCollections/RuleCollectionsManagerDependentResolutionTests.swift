@@ -281,8 +281,8 @@ final class RuleCollectionsManagerDependentResolutionTests: XCTestCase {
         XCTAssertFalse(applied)
         XCTAssertEqual(
             regenerationCount,
-            2,
-            "The failed disable and rollback should each regenerate once"
+            1,
+            "Validation failure must not regenerate a rollback revision"
         )
         XCTAssertTrue(manager.ruleCollections[id: leader.id]?.isEnabled == true)
         XCTAssertEqual(

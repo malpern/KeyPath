@@ -47,17 +47,17 @@ enum TimingCopy {
     static let holdActivationDelayExplanation = "How long to hold this key before its hold action activates."
     static let leaderHoldDelay = LocalizedStringResource(
         "Leader hold delay",
-        bundle: #bundle,
+        bundle: KeyPathAppKitResources.bundle,
         comment: "Label for the setting that controls how long the Leader key must be held."
     )
     static let leaderHoldDelayExplanation = LocalizedStringResource(
         "How long to hold the Leader key before KeyPath shows the Shortcut List. Default is Long (300 ms). Medium (200 ms) matches previous behavior.",
-        bundle: #bundle,
+        bundle: KeyPathAppKitResources.bundle,
         comment: "Explains the Leader hold delay and its default and compatibility presets."
     )
     static let customLeaderHoldDelayAccessibilityLabel = LocalizedStringResource(
         "Custom Leader hold delay in milliseconds",
-        bundle: #bundle,
+        bundle: KeyPathAppKitResources.bundle,
         comment: "Accessibility label for the custom Leader hold delay field."
     )
     static let multiTapWindow = "Multi-tap window"

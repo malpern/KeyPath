@@ -233,4 +233,31 @@ final class RuleCollectionCatalogTests: XCTestCase {
             XCTAssertNotEqual(collection?.targetLayer, .base, "\(collection?.name ?? "?") should not target base layer")
         }
     }
+
+    // MARK: - Catalog update idempotence
+
+    /// Air, 2026-10-18: Window Snapping with a chosen key convention was offered
+    /// as a catalog update after every apply, because regenerated mappings got
+    /// fresh UUIDs and never compared equal to the saved ones.
+    func testWindowSnappingUpgradeIsStableAfterApplyingAndPersisting() throws {
+        let catalog = RuleCollectionCatalog()
+        for convention in WindowKeyConvention.allCases {
+            var saved = try XCTUnwrap(catalog.defaultCollections().first { $0.id == RuleCollectionIdentifier.windowSnapping })
+            saved.windowKeyConvention = convention
+            let applied = catalog.upgradedCollection(from: saved)
+            let persisted = try JSONDecoder().decode(RuleCollection.self, from: JSONEncoder().encode(applied))
+            XCTAssertEqual(catalog.upgradedCollection(from: persisted), persisted,
+                           "\(convention): an applied update must not be offered again")
+            XCTAssertEqual(persisted.mappings.map(\.input),
+                           RuleCollectionCatalog.windowMappings(for: convention).map(\.input))
+        }
+    }
+
+    func testEveryDefaultCollectionUpgradeIsIdempotent() {
+        let catalog = RuleCollectionCatalog()
+        for collection in catalog.defaultCollections() {
+            let once = catalog.upgradedCollection(from: collection)
+            XCTAssertEqual(catalog.upgradedCollection(from: once), once, collection.name)
+        }
+    }
 }

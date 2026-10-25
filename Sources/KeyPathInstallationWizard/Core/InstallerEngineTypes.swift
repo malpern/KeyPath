@@ -62,9 +62,11 @@ public struct Requirement: Sendable, Equatable {
 /// Snapshot of detected system state.
 /// Consolidates data from SystemValidator/SystemRequirements into a façade-friendly type.
 public struct SystemContext: Sendable {
+    /// Readiness from the canonical snapshot; never inferred from registration.
+    public let isReady: Bool
     /// Identity of the canonical snapshot projected into this context.
     public let snapshotID: UUID
-    /// Current permission status (Input Monitoring, Accessibility, Full Disk Access)
+    /// Current permission status (Input Monitoring, Accessibility)
     public let permissions: PermissionOracle.Snapshot
     /// Status of all services (Kanata, VHID daemon, VHID manager)
     public let services: HealthStatus
@@ -87,6 +89,7 @@ public struct SystemContext: Sendable {
     }
 
     public init(
+        isReady: Bool = false,
         snapshotID: UUID = UUID(),
         permissions: PermissionOracle.Snapshot,
         services: HealthStatus,
@@ -98,6 +101,7 @@ public struct SystemContext: Sendable {
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         timedOut: Bool = false
     ) {
+        self.isReady = isReady
         self.snapshotID = snapshotID
         self.permissions = permissions
         self.services = services
@@ -111,6 +115,7 @@ public struct SystemContext: Sendable {
 
     public init(snapshot: SystemSnapshot) {
         self.init(
+            isReady: snapshot.isReady,
             snapshotID: snapshot.id,
             permissions: snapshot.permissions,
             services: snapshot.health,
@@ -223,6 +228,8 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
     case vhidServicesHealthy = "vhid-services-healthy"
     case karabinerDaemonRunning = "karabiner-daemon-running"
     case helperReadyOrApprovalPending = "helper-ready-or-approval-pending"
+    case helperFreshOrApprovalPending = "helper-fresh-or-approval-pending"
+    case runtimeFreshOrApprovalPending = "runtime-fresh-or-approval-pending"
     case virtualHIDDriverInstalled = "virtualhid-driver-installed"
     case virtualHIDDeviceActivated = "virtualhid-device-activated"
     case conflictsResolved = "conflicts-resolved"
@@ -240,6 +247,13 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
             return context.services.karabinerDaemonRunning
         case .helperReadyOrApprovalPending:
             return context.helper.isReady || context.helper.requiresApproval
+        case .helperFreshOrApprovalPending:
+            return context.helper.freshness(
+                expectedVersion: WizardHelperConstants.expectedHelperVersion
+            ) == .fresh || context.helper.requiresApproval
+        case .runtimeFreshOrApprovalPending:
+            return context.services.kanataServiceFreshness == .fresh
+                || context.services.loginItemsApprovalRequired == true
         case .virtualHIDDriverInstalled:
             return context.components.karabinerDriverInstalled
         case .virtualHIDDeviceActivated:

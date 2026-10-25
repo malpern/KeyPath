@@ -1,0 +1,3 @@
+;; Memory-only driverless bridge packaging smoke test.
+(defsrc q)
+(deflayer base a)

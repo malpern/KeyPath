@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Foundation
 import IOKit.hid
@@ -11,6 +12,99 @@ import KeyPathCore
 /// It provides deterministic, hierarchical permission checking with clear source precedence.
 public actor PermissionOracle {
     public static let shared = PermissionOracle()
+
+    private var sessionCapabilityProvider: (@Sendable () async -> PermissionSet?)?
+
+    public func configureSessionCapabilityProvider(_ provider: @escaping @Sendable () async -> PermissionSet?) {
+        sessionCapabilityProvider = provider
+        invalidateCache()
+    }
+
+    /// Raw non-prompting AX and Input Monitoring facts for this process.
+    public nonisolated func currentProcessCapabilities() -> PermissionSet {
+        PermissionSet(
+            accessibility: Self.rawAccessibilityStatus(),
+            inputMonitoring: Self.checkKeyPathInputMonitoringStatus(),
+            source: "current-process.apple-api", confidence: .high, timestamp: Date()
+        )
+    }
+
+    /// Passive authorization checks for keyboard capture and synthesized output.
+    /// Posting authorization alone can yield a modifying tap containing only
+    /// flagsChanged, so it cannot establish keyboard input readiness.
+    public func currentProcessSessionCapabilities() -> PermissionSet {
+        Self.sessionPermissionSet(
+            accessibility: Self.checkKeyPathAccessibilityStatus(),
+            eventListening: Self.checkKeyPathInputMonitoringStatus(),
+            eventPosting: currentProcessEventPostingStatus(), timestamp: Date()
+        )
+    }
+
+    /// One passive sample supplies both effective policy and diagnostic raw facts.
+    /// No permission request API, runtime startup, or database inspection occurs here.
+    public func currentProcessSessionCapabilitySnapshot() -> SessionCapabilitySnapshot {
+        Self.sampleSessionCapabilities(
+            accessibility: Self.rawAccessibilityStatus,
+            eventListening: Self.checkKeyPathInputMonitoringStatus,
+            eventPosting: currentProcessEventPostingStatus,
+            verifyExternalAccess: Self.verifyExternalAccessibilityAccess
+        )
+    }
+
+    public struct SessionCapabilitySnapshot: Sendable {
+        public let effective: PermissionSet
+        public let rawPermissions: SessionRuntimeReport.RawPermissions
+    }
+
+    nonisolated static func sampleSessionCapabilities(
+        accessibility: () -> Status, eventListening: () -> Status,
+        eventPosting: () -> Status,
+        verifyExternalAccess: () -> Bool = { false }
+    ) -> SessionCapabilitySnapshot {
+        let accessibility = accessibility()
+        let eventListening = eventListening()
+        let eventPosting = eventPosting()
+        func raw(_ status: Status) -> SessionRuntimeReport.RawPermissions.Status {
+            switch status {
+            case .granted: .granted
+            case .denied: .denied
+            case .unknown: .unknown
+            case .error: .error
+            }
+        }
+        return SessionCapabilitySnapshot(
+            effective: sessionPermissionSet(
+                accessibility: accessibility == .denied
+                    ? resolveAccessibilityStatus(trusted: false, verifyExternalAccess: verifyExternalAccess)
+                    : accessibility,
+                eventListening: eventListening, eventPosting: eventPosting, timestamp: Date()
+            ),
+            rawPermissions: .init(
+                accessibility: raw(accessibility), eventListening: raw(eventListening),
+                eventPosting: raw(eventPosting)
+            )
+        )
+    }
+
+    /// Raw posting authorization, kept separate from combined session readiness.
+    public func currentProcessEventPostingStatus() -> Status {
+        switch IOHIDCheckAccess(kIOHIDRequestTypePostEvent) {
+        case kIOHIDAccessTypeGranted: .granted
+        case kIOHIDAccessTypeDenied: .denied
+        default: .unknown
+        }
+    }
+
+    nonisolated static func sessionPermissionSet(
+        accessibility: Status, eventListening: Status, eventPosting: Status, timestamp: Date
+    ) -> PermissionSet {
+        PermissionSet(
+            accessibility: accessibility,
+            inputMonitoring: eventListening.isReady ? eventPosting : eventListening,
+            source: "current-process.apple-api.listen-and-post-event",
+            confidence: .high, timestamp: timestamp
+        )
+    }
 
     // MARK: - Core Types
 
@@ -64,11 +158,13 @@ public actor PermissionOracle {
     }
 
     public struct Snapshot: Sendable {
+        public let backend: KanataRuntimeBackend
         public let keyPath: PermissionSet
         public let kanata: PermissionSet
         public let timestamp: Date
 
-        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date) {
+        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date, backend: KanataRuntimeBackend = .selected) {
+            self.backend = backend
             self.keyPath = keyPath
             self.kanata = kanata
             self.timestamp = timestamp
@@ -90,7 +186,7 @@ public actor PermissionOracle {
             // KeyPath's own Accessibility is required (event posting / overlay).
             if keyPath.accessibility.isBlocking {
                 return
-                    "KeyPath needs Accessibility permission - enable in System Settings > Privacy & Security > Accessibility"
+                    "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission - enable in \(AccessibilityPermissionPresentation.current.settingsPath)"
             }
 
             // NOTE: KeyPath's OWN Input Monitoring is intentionally NOT a blocking
@@ -106,6 +202,9 @@ public actor PermissionOracle {
 
             // Kanata's permissions ARE required for remapping.
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
+                if backend == .session {
+                    return "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                }
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant Accessibility and Input Monitoring"
             }
@@ -133,7 +232,7 @@ public actor PermissionOracle {
 
     public enum Confidence: Equatable, CustomStringConvertible, Sendable {
         case high // UDP API, Official Apple APIs
-        case low // Unknown/unavailable states (TCC fallback removed)
+        case low // Unknown or unavailable permission evidence
 
         public var description: String {
             switch self {
@@ -149,9 +248,24 @@ public actor PermissionOracle {
     private var lastSnapshotTime: Date?
 
     /// In-flight snapshot task for request coalescing.
-    /// Prevents concurrent callers from spawning duplicate sqlite3 processes,
-    /// which can exhaust the cooperative thread pool and cause deadlock.
+    /// Prevents concurrent callers from duplicating permission checks.
     private var inFlightSnapshot: Task<Snapshot, Never>?
+
+    /// Advanced by every invalidation. A computation that began before an
+    /// invalidation describes the old state: it is neither shared with later
+    /// callers nor written to the cache.
+    private var cacheGeneration: UInt64 = 0
+
+    #if DEBUG
+        /// Replaces the OS permission reads so tests can exercise caching and
+        /// coalescing, including a computation suspended across an invalidation.
+        private var testSnapshotGenerator: (@Sendable () async -> Snapshot)?
+
+        public func setTestSnapshotGenerator(_ generator: (@Sendable () async -> Snapshot)?) {
+            testSnapshotGenerator = generator
+            invalidateCache()
+        }
+    #endif
 
     /// Cache TTL for sub-2-second goal
     private let cacheTTL: TimeInterval = 1.5
@@ -165,8 +279,10 @@ public actor PermissionOracle {
     /// Force cache invalidation - useful after UDP configuration changes
     public func invalidateCache() {
         AppLogger.shared.log("🔮 [Oracle] Cache invalidated - next check will be fresh")
+        cacheGeneration &+= 1
         lastSnapshot = nil
         lastSnapshotTime = nil
+        inFlightSnapshot = nil
     }
 
     /// Synchronous, non-prompting Accessibility status for call sites that cannot
@@ -181,11 +297,10 @@ public actor PermissionOracle {
     /// No more direct PermissionService calls, no more guessing from logs.
     ///
     /// Concurrent callers are coalesced: if a snapshot is already being computed,
-    /// subsequent callers wait for the same result instead of spawning parallel
-    /// sqlite3 processes (which can exhaust the cooperative thread pool).
+    /// subsequent callers wait for the same result.
     public func currentSnapshot() async -> Snapshot {
         // Fast-path for unit tests: avoid heavy OS calls and network timeouts
-        if TestEnvironment.isRunningTests {
+        if TestEnvironment.isRunningTests, !hasTestSnapshotGenerator {
             // Honor cache semantics in tests to keep behavior deterministic
             if let cachedTime = lastSnapshotTime,
                let cached = lastSnapshot,
@@ -228,29 +343,53 @@ public actor PermissionOracle {
         }
 
         // Start new computation
-        let task = Task { await self.generateSnapshot() }
+        let generation = cacheGeneration
+        let task = Task { await self.generateSnapshot(generation: generation) }
         inFlightSnapshot = task
         let result = await task.value
-        inFlightSnapshot = nil
+        if generation == cacheGeneration { inFlightSnapshot = nil }
         return result
+    }
+
+    private var hasTestSnapshotGenerator: Bool {
+        #if DEBUG
+            testSnapshotGenerator != nil
+        #else
+            false
+        #endif
     }
 
     /// Generate a fresh permission snapshot. Called by `currentSnapshot()` when
     /// the cache is stale and no in-flight computation exists.
-    private func generateSnapshot() async -> Snapshot {
+    private func generateSnapshot(generation: UInt64) async -> Snapshot {
+        #if DEBUG
+            if let testSnapshotGenerator {
+                let snapshot = await testSnapshotGenerator()
+                cache(snapshot, generation: generation)
+                return snapshot
+            }
+        #endif
         AppLogger.shared.log("🔮 [Oracle] Generating fresh permission snapshot")
         let start = Date()
 
         // Get KeyPath permissions (local, always authoritative)
         let keyPathSet = await checkKeyPathPermissions()
 
-        // Get Kanata permissions (UDP primary, functional verification)
-        let kanataSet = await checkKanataPermissions()
+        // Use effective session-process facts, or retain legacy-process uncertainty.
+        let backend = KanataRuntimeBackend.selected
+        let kanataSet: PermissionSet = if backend == .session {
+            await sessionCapabilityProvider?() ?? PermissionSet(
+                accessibility: .unknown, inputMonitoring: .unknown,
+                source: "session-process-not-verified", confidence: .low, timestamp: Date()
+            )
+        } else {
+            await checkKanataPermissions()
+        }
 
         let snapshot = Snapshot(
             keyPath: keyPathSet,
             kanata: kanataSet,
-            timestamp: Date()
+            timestamp: Date(), backend: backend
         )
 
         let duration = Date().timeIntervalSince(start)
@@ -267,18 +406,23 @@ public actor PermissionOracle {
             logPermissionTransitions(from: previous, to: snapshot)
         }
 
-        // Cache the result
+        cache(snapshot, generation: generation)
+        return snapshot
+    }
+
+    private func cache(_ snapshot: Snapshot, generation: UInt64) {
+        guard generation == cacheGeneration else {
+            AppLogger.shared.log("🔮 [Oracle] Discarding snapshot computed before cache invalidation")
+            return
+        }
         lastSnapshot = snapshot
         lastSnapshotTime = snapshot.timestamp
-
-        return snapshot
     }
 
     /// Force refresh (bypass cache) - use after permission changes
     public func forceRefresh() async -> Snapshot {
         AppLogger.shared.log("🔮 [Oracle] Forcing permission refresh (cache invalidated)")
-        lastSnapshot = nil
-        lastSnapshotTime = nil
+        invalidateCache()
         return await currentSnapshot()
     }
 
@@ -292,38 +436,22 @@ public actor PermissionOracle {
     /// - `AXIsProcessTrusted()` for Accessibility
     /// - `IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)` for Input Monitoring
     ///
-    /// ADR-006 makes the Apple API authoritative and uses the TCC database only
-    /// as a fallback when the API returns `.unknown`. IOHIDCheckAccess reflects
-    /// the kernel's own record of KeyPath's grant, so it stays correct even when
-    /// the TCC database / Settings pane enumeration is unreliable — as on macOS
-    /// 26/27, where a grant can leave no readable TCC row and the app never
-    /// appears in the Input Monitoring list (the root cause of #931, which left
-    /// KeyPath's own IM stuck at `.unknown` forever).
+    /// Apple APIs are authoritative for this process. An inconclusive result
+    /// stays unknown; permission detection never reads protected databases.
     private func checkKeyPathPermissions() async -> PermissionSet {
         let start = Date()
 
         // Accessibility check via official Apple API (no prompt)
         let accessibility = Self.checkKeyPathAccessibilityStatus()
 
-        // Input Monitoring: IOHIDCheckAccess is authoritative and non-prompting
-        // for our own process (ADR-006). Only fall back to a passive TCC read
-        // when it returns .unknown (never granted or denied).
-        let apiIM = Self.checkKeyPathInputMonitoringStatus()
-        let tccIM: Status?
-        if Self.keyPathInputMonitoringNeedsTCCFallback(apiStatus: apiIM) {
-            let keyPathBundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
-            tccIM = await tccStatus(forBundleID: keyPathBundleID, service: .inputMonitoring)
-        } else {
-            tccIM = nil
-        }
-        let resolved = Self.resolveKeyPathInputMonitoring(apiStatus: apiIM, tccStatus: tccIM)
+        let resolved = Self.resolveKeyPathInputMonitoring(apiStatus: Self.checkKeyPathInputMonitoringStatus())
         let inputMonitoring = resolved.status
         let source = resolved.source
         let confidence = resolved.confidence
 
         let duration = Date().timeIntervalSince(start)
         AppLogger.shared.log(
-            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), IM: \(inputMonitoring) (source: \(source))"
+            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), raw AX trust: \(Self.rawAccessibilityStatus()), IM: \(inputMonitoring) (source: \(source))"
         )
 
         return PermissionSet(
@@ -335,8 +463,38 @@ public actor PermissionOracle {
         )
     }
 
-    private nonisolated static func checkKeyPathAccessibilityStatus() -> Status {
+    private nonisolated static func rawAccessibilityStatus() -> Status {
         AXIsProcessTrusted() ? .granted : .denied
+    }
+
+    private nonisolated static func checkKeyPathAccessibilityStatus() -> Status {
+        resolveAccessibilityStatus(
+            trusted: AXIsProcessTrusted(), verifyExternalAccess: verifyExternalAccessibilityAccess
+        )
+    }
+
+    /// A successful read from Finder proves cross-process AX access when macOS
+    /// retains a stale negative trust answer. Finder is independent of focus;
+    /// probing our own UI could succeed without permission. No user content is read.
+    private nonisolated static func verifyExternalAccessibilityAccess() -> Bool {
+        guard let finder = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.finder"
+        ).first, finder.processIdentifier != getpid() else { return false }
+        let application = AXUIElementCreateApplication(finder.processIdentifier)
+        AXUIElementSetMessagingTimeout(application, 0.2)
+        var role: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            application, kAXRoleAttribute as CFString, &role
+        ) == .success, let role, CFGetTypeID(role) == CFStringGetTypeID()
+        else { return false }
+        return (role as? String) == (kAXApplicationRole as String)
+    }
+
+    nonisolated static func resolveAccessibilityStatus(
+        trusted: Bool, verifyExternalAccess: () -> Bool
+    ) -> Status {
+        if trusted { return .granted }
+        return verifyExternalAccess() ? .granted : .denied
     }
 
     /// Input Monitoring status for KeyPath's own process via IOHIDCheckAccess.
@@ -344,7 +502,7 @@ public actor PermissionOracle {
     /// This is a non-prompting query (it returns the current access level; only
     /// `IOHIDRequestAccess()` shows the system dialog) and it is scoped to the
     /// calling process, so it is authoritative only for KeyPath.app — never for
-    /// the kanata-launcher, whose IM state must still come from the TCC database.
+    /// another process such as the legacy kanata-launcher.
     private nonisolated static func checkKeyPathInputMonitoringStatus() -> Status {
         switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
         case kIOHIDAccessTypeGranted: .granted
@@ -353,163 +511,29 @@ public actor PermissionOracle {
         }
     }
 
-    /// True when the Apple-API Input Monitoring result is inconclusive and a TCC
-    /// read should be attempted (ADR-006: TCC is a fallback for `.unknown` only).
-    nonisolated static func keyPathInputMonitoringNeedsTCCFallback(apiStatus: Status) -> Bool {
-        switch apiStatus {
-        case .granted, .denied: false
-        case .unknown, .error: true
-        }
-    }
-
-    /// ADR-006 precedence for KeyPath's own Input Monitoring: the Apple-API
-    /// result (`IOHIDCheckAccess`) is authoritative when it is granted/denied;
-    /// otherwise fall back to the TCC read, and finally to `.unknown`.
+    /// A passive Apple-API fact never implies a grant for another process.
     nonisolated static func resolveKeyPathInputMonitoring(
-        apiStatus: Status, tccStatus: Status?
+        apiStatus: Status
     ) -> (status: Status, source: String, confidence: Confidence) {
         switch apiStatus {
         case .granted, .denied:
-            return (apiStatus, "keypath.ax-api+im-api", .high)
+            (apiStatus, "keypath.ax-api+im-api", .high)
         case .unknown, .error:
-            if let tccStatus {
-                return (tccStatus, "keypath.ax-api+tcc-im", .high)
-            }
-            return (.unknown, "keypath.ax-api-only", .low)
+            (.unknown, "keypath.ax-api-only", .low)
         }
     }
 
-    // MARK: - Kanata Permission Detection (ADR-016: TCC Database Reading)
+    /// The legacy daemon cannot be checked through this process's Apple APIs.
+    /// Retain uncertainty rather than infer a grant from files or runtime state.
+    nonisolated static func legacyKanataPermissions(timestamp: Date) -> PermissionSet {
+        PermissionSet(
+            accessibility: .unknown, inputMonitoring: .unknown,
+            source: "kanata.unknown", confidence: .low, timestamp: timestamp
+        )
+    }
 
-    //
-    // WHY TCC DATABASE READING IS NECESSARY:
-    // The wizard needs to guide users through Accessibility and Input Monitoring
-    // permissions sequentially (one at a time). Without pre-flight detection:
-    // - Starting Kanata triggers BOTH system permission dialogs simultaneously
-    // - Users get confused by two overlapping prompts
-    // - If they dismiss one, they don't know which permission is missing
-    //
-    // WHY ALTERNATIVES DON'T WORK:
-    // - IOHIDCheckAccess() only works for the CALLING process (KeyPath), not Kanata
-    // - PR #1759 to Kanata proved daemon-level checking fails (false negatives for root)
-    // - Kanata maintainer has no macOS devices; upstream changes unlikely
-    //
-    // THIS IS ACCEPTABLE BECAUSE:
-    // - Read-only operation (Apple's concern is TCC WRITES/bypasses)
-    // - Graceful degradation: Falls back to .unknown if TCC read fails
-    // - GUI context: Runs in user session, not daemon
-    // - UX requirement: Sequential prompts are essential for comprehension
-
-    /// NOTE: ADR-016 documents an approved exception to AGENTS.md’s
-    /// “never read TCC directly” rule. We must read the TCC DB *read‑only*
-    /// to know Kanata’s AX/IM state without launching the root-managed
-    /// daemon (which cannot report its own TCC reliably). This keeps the
-    /// wizard’s sequential permission flow predictable. Do not remove
-    /// without revisiting ADR-016.
     private func checkKanataPermissions() async -> PermissionSet {
-        let kanataPath = resolveKanataExecutablePath()
-
-        // See ADR-016 for why TCC database reading is the correct approach here
-        AppLogger.shared.log("🔮 [Oracle] Checking TCC database for Kanata (AX + IM) - see ADR-016")
-        let (tccAX, tccIM) = await checkTCCForKanata(executablePath: kanataPath)
-
-        let accessibility: Status = tccAX ?? .unknown
-        let inputMonitoring: Status = tccIM ?? .unknown
-
-        var sourceParts: [String] = []
-        var confidence: Confidence = .high
-
-        switch accessibility {
-        case .granted, .denied:
-            sourceParts.append("tcc-ax")
-        default:
-            break
-        }
-        switch inputMonitoring {
-        case .granted, .denied:
-            sourceParts.append("tcc-im")
-        default:
-            break
-        }
-
-        if sourceParts.isEmpty {
-            sourceParts = ["unknown"]
-            confidence = .low
-        }
-
-        let source = "kanata.\(sourceParts.joined(separator: "+"))"
-        AppLogger.shared.log(
-            "🔮 [Oracle] Kanata permissions (TCC): AX=\(accessibility), IM=\(inputMonitoring) via \(source)"
-        )
-
-        return PermissionSet(
-            accessibility: accessibility,
-            inputMonitoring: inputMonitoring,
-            source: source,
-            confidence: confidence,
-            timestamp: Date()
-        )
-    }
-
-    /// Functional verification disabled in TCP-only mode
-    /// TCP connectivity check would require protocol implementation
-    private func checkKanataFunctionalStatus() async -> Status {
-        AppLogger.shared.log("🔮 [Oracle] Functional status check disabled (TCP-only mode)")
-        return .unknown
-    }
-
-    /// Additional timeout wrapper to prevent hanging
-    private func withTimeout<T: Sendable>(
-        seconds: Double, operation: @Sendable @escaping () async -> T
-    ) async throws -> T {
-        try await withThrowingTaskGroup(of: T.self) { group in
-            group.addTask {
-                await operation()
-            }
-
-            group.addTask {
-                try await Task.sleep(for: .seconds(seconds))
-                throw KeyPathError.permission(
-                    .privilegedOperationFailed(operation: "permission check", reason: "Operation timed out")
-                )
-            }
-
-            guard let result = try await group.next() else {
-                throw KeyPathError.permission(
-                    .privilegedOperationFailed(operation: "permission check", reason: "Operation timed out")
-                )
-            }
-
-            group.cancelAll()
-            return result
-        }
-    }
-
-    // MARK: - Utilities
-
-    /// Resolve the canonical Kanata executable path for TCC queries.
-    ///
-    /// IMPORTANT:
-    /// - TCC entries for CLI binaries are keyed by *executable path* (client_type=1).
-    /// - Kanata Engine.app entries are keyed by *bundle ID* (client_type=0).
-    /// - If the daemon executes a different path than the wizard instructs users to add,
-    ///   we can get false positives/negatives (green UI while remapping fails).
-    /// - The bundled path is now canonical — no system binary install step.
-    private func resolveKanataExecutablePath() -> String {
-        let bundled = WizardSystemPaths.bundledKanataPath
-        if FileManager.default.fileExists(atPath: bundled) {
-            return bundled
-        }
-
-        // Migration fallback: check legacy system path for users who still have TCC entries there
-        let legacySystem = "/Library/KeyPath/bin/kanata"
-        if FileManager.default.fileExists(atPath: legacySystem) {
-            AppLogger.shared.log("⚠️ [Oracle] Bundled binary missing at expected path; falling back to legacy system binary for TCC lookup")
-            return legacySystem
-        }
-
-        // Last resort: whatever path helper returns (should be stable in tests)
-        return WizardSystemPaths.kanataActiveBinary
+        Self.legacyKanataPermissions(timestamp: Date())
     }
 
     /// Log granular permission transitions for observability
@@ -552,213 +576,6 @@ public actor PermissionOracle {
             AppLogger.shared.log(
                 "🔁 [Oracle] System readiness changed: \(old.isSystemReady) → \(new.isSystemReady)"
             )
-        }
-    }
-
-    // MARK: - TCC Database Fallback (Necessary to break chicken-and-egg problem)
-
-    /// TCC service names across macOS versions
-    private enum TCCServiceName: String {
-        case accessibility = "kTCCServiceAccessibility"
-        case inputMonitoring = "kTCCServiceListenEvent"
-    }
-
-    /// Attempt to determine TCC status for Kanata (best-effort).
-    /// Tries bundle-ID query (client_type=0) first for Kanata Engine.app, then falls
-    /// back to path-based query (client_type=1) for migration from raw binary.
-    /// Returns (.granted/.denied) if determinable, or nil if inconclusive/unreadable.
-    /// NOTE: This direct TCC access was previously removed as "bad practice" but is
-    /// necessary here to resolve the chicken-and-egg problem between permission verification
-    /// and service startup. This is a legitimate fallback when functional verification fails.
-    private func checkTCCForKanata(executablePath _: String) async -> (ax: Status?, im: Status?) {
-        let launcherPath = normalizePathForTCC(WizardSystemPaths.bundledKanataLauncherPath)
-        AppLogger.shared.log("🔍 [Oracle] Checking TCC for kanata-launcher: \(launcherPath)")
-        let ax = await tccStatus(forExecutable: launcherPath, service: .accessibility)
-        let im = await tccStatus(forExecutable: launcherPath, service: .inputMonitoring)
-        AppLogger.shared.log("🔍 [Oracle] TCC result: AX=\(String(describing: ax)), IM=\(String(describing: im))")
-        return (ax, im)
-    }
-
-    /// Normalize paths for TCC queries - convert development builds to installed paths
-    /// Development builds use paths like /Volumes/.../build/KeyPath.app/...
-    /// But TCC database has the installed path /Applications/KeyPath.app/...
-    private func normalizePathForTCC(_ path: String) -> String {
-        // If this is a development build path, convert to installed path
-        if path.contains("/build/KeyPath.app/") || path.contains("/.build") {
-            // Extract the relative path after KeyPath.app/
-            if let range = path.range(of: "/KeyPath.app/") {
-                let relativePath = String(path[range.upperBound...])
-                let canonicalPath = "/Applications/KeyPath.app/\(relativePath)"
-                AppLogger.shared.log("🔮 [Oracle] Normalized TCC path: \(path) → \(canonicalPath)")
-                return canonicalPath
-            }
-        }
-        return path
-    }
-
-    /// Query TCC DB for a specific executable path and service (client_type=1, path-based)
-    /// Note: Requires Full Disk Access to read user's TCC.db; gracefully degrades to nil otherwise.
-    /// This is similar to how other system utilities (e.g., tccutil, privacy management tools) work.
-    private func tccStatus(forExecutable execPath: String, service: TCCServiceName) async -> Status? {
-        let dbPaths = tccDatabaseCandidates()
-        for db in dbPaths where FileManager.default.fileExists(atPath: db) {
-            if let val = await queryTCCDatabase(
-                dbPath: db, service: service.rawValue, client: execPath, clientType: 1
-            ) {
-                return interpretTCCValue(val)
-            }
-        }
-        // Inconclusive (no readable DB, no rows found, or unexpected schema) => nil
-        return nil
-    }
-
-    /// Query TCC DB for a bundle identifier and service (client_type=0, bundle-ID based)
-    /// Used for Kanata Engine.app which is wrapped in an .app bundle with a CFBundleIdentifier.
-    private func tccStatus(forBundleID bundleID: String, service: TCCServiceName) async -> Status? {
-        let dbPaths = tccDatabaseCandidates()
-        for db in dbPaths where FileManager.default.fileExists(atPath: db) {
-            if let val = await queryTCCDatabase(
-                dbPath: db, service: service.rawValue, client: bundleID, clientType: 0
-            ) {
-                return interpretTCCValue(val)
-            }
-        }
-        return nil
-    }
-
-    /// Interpret a TCC auth_value/allowed integer into a Status.
-    private func interpretTCCValue(_ val: Int) -> Status? {
-        // - Newer macOS: auth_value (2=Allow, 0=Deny or Prompt depending on auth_reason)
-        // - Older macOS: allowed (1=Allow, 0=Not allowed)
-        if val >= 2 || val == 1 {
-            return .granted
-        } else if val == 0 {
-            return .denied
-        }
-        return nil
-    }
-
-    /// TCC DB locations to try (user first, then system)
-    /// Most permission grants are stored in the user's TCC database
-    private func tccDatabaseCandidates() -> [String] {
-        let user = "\(NSHomeDirectory())/Library/Application Support/com.apple.TCC/TCC.db"
-        let system = "/Library/Application Support/com.apple.TCC/TCC.db"
-        return [user, system]
-    }
-
-    /// Run a minimal sqlite query with a short timeout.
-    /// Returns an integer meaning of auth_value/allowed, or nil if not determinable.
-    /// Uses sqlite3 CLI tool which is available on all macOS systems.
-    /// Approved read-only TCC lookup (see ADR-016). This must remain
-    /// best-effort, side-effect free, and resilient to failure (no FDA).
-    ///
-    /// - Parameters:
-    ///   - dbPath: Path to the TCC.db file
-    ///   - service: TCC service name (e.g. kTCCServiceAccessibility)
-    ///   - client: Either an executable path (clientType=1) or bundle ID (clientType=0)
-    ///   - clientType: 0 for bundle ID, 1 for executable path
-    private func queryTCCDatabase(dbPath: String, service: String, client: String, clientType: Int) async
-        -> Int?
-    {
-        // The 'access' table schema varies. We try auth_value first, then allowed.
-        let escService = escapeSQLiteLiteral(service)
-        let escClient = escapeSQLiteLiteral(client)
-
-        AppLogger.shared.log("🔍 [Oracle] Querying TCC database: \(dbPath)")
-        AppLogger.shared.log("🔍 [Oracle] Looking for: service=\(service), client=\(client), client_type=\(clientType)")
-
-        let queries = [
-            "SELECT auth_value FROM access WHERE service='\(escService)' AND client='\(escClient)' AND client_type=\(clientType) ORDER BY auth_value DESC LIMIT 1;",
-            "SELECT allowed FROM access WHERE service='\(escService)' AND client='\(escClient)' AND client_type=\(clientType) ORDER BY allowed DESC LIMIT 1;"
-        ]
-
-        for (index, sql) in queries.enumerated() {
-            AppLogger.shared.log("🔍 [Oracle] Trying query #\(index + 1)")
-            if let out = await runSQLiteQuery(dbPath: dbPath, sql: sql, timeout: 0.4) {
-                let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
-                AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned: '\(trimmed)'")
-
-                // Check for empty result (valid query, but no rows found)
-                if trimmed.isEmpty {
-                    // If we got an empty result for the primary query (auth_value),
-                    // it means the table/column exists but there's no entry for this app.
-                    // We should STOP here and not try legacy queries that might fail on new macOS versions.
-                    if index == 0 {
-                        AppLogger.shared.log("🔍 [Oracle] Query #1 returned empty result - stopping (no entry found)")
-                        return nil
-                    }
-                }
-
-                if let val = Int(trimmed) {
-                    AppLogger.shared.log(
-                        "🔍 [Oracle] TCC '\(service)' for \(client) (type=\(clientType)) via \(dbPath): \(val)"
-                    )
-                    return val
-                }
-            } else {
-                AppLogger.shared.log("🔍 [Oracle] Query #\(index + 1) returned nil (timeout or empty)")
-            }
-        }
-        AppLogger.shared.log("🔍 [Oracle] TCC query failed for \(client) (type=\(clientType)) - no results found")
-        return nil
-    }
-
-    /// Escape single quotes in SQL string literals to prevent injection
-    private func escapeSQLiteLiteral(_ s: String) -> String {
-        s.replacingOccurrences(of: "'", with: "''")
-    }
-
-    /// Execute sqlite3 query with timeout protection.
-    /// Uses Process.terminationHandler to avoid blocking cooperative threads.
-    private func runSQLiteQuery(dbPath: String, sql: String, timeout: Double) async -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-        task.arguments = [dbPath, sql]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = pipe
-
-        do {
-            try task.run()
-        } catch {
-            AppLogger.shared.log("❌ [Oracle] sqlite3 query failed: \(error)")
-            return nil
-        }
-
-        // Use a class to safely bridge the continuation across @Sendable boundaries.
-        // Both the terminationHandler and the timeout closure race to resume it exactly once.
-        final class OnceResumer: @unchecked Sendable {
-            private let lock = NSLock()
-            private var continuation: CheckedContinuation<String?, Never>?
-
-            init(_ continuation: CheckedContinuation<String?, Never>) {
-                self.continuation = continuation
-            }
-
-            func resume(with value: String?) {
-                lock.lock()
-                let cont = continuation
-                continuation = nil
-                lock.unlock()
-                cont?.resume(returning: value)
-            }
-        }
-
-        return await withCheckedContinuation { continuation in
-            let resumer = OnceResumer(continuation)
-
-            task.terminationHandler = { _ in
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                resumer.resume(with: String(data: data, encoding: .utf8))
-            }
-
-            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-                if task.isRunning {
-                    task.terminate()
-                }
-                resumer.resume(with: nil)
-            }
         }
     }
 }

@@ -6,7 +6,7 @@ import KeyPathCLISupport
 struct SystemInspect: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "inspect",
-        abstract: "Inspect system state without making changes"
+        abstract: "Read local diagnostics; check live session readiness in KeyPath.app"
     )
 
     @OptionGroup var globals: GlobalOptions
@@ -28,6 +28,7 @@ struct SystemInspect: AsyncParsableCommand {
         CLIOutput.write(result, context: ctx) {
             var lines = [
                 "=== System Inspection ===",
+                "This CLI inspection does not verify the running app's owned session.",
                 "macOS Version: \(result.macOSVersion)",
                 "Driver Compatible: \(result.driverCompatible ? "Yes" : "No")",
                 "",

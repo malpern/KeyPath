@@ -5,6 +5,14 @@ import KeyPathRulesCore
 extension RuntimeCoordinator {
     // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
 
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        ruleCollectionsCoordinator.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        await ruleCollectionsCoordinator.applyCatalogUpdates(ids: ids)
+    }
+
     func replaceRuleCollections(_ collections: [RuleCollection]) async {
         await ruleCollectionsCoordinator.replaceRuleCollections(collections)
     }
@@ -31,7 +39,8 @@ extension RuntimeCoordinator {
         await ruleCollectionsCoordinator.batchEnableCollections(ids: ids)
     }
 
-    func addRuleCollection(_ collection: RuleCollection) async {
+    @discardableResult
+    func addRuleCollection(_ collection: RuleCollection) async -> Bool {
         await ruleCollectionsCoordinator.addRuleCollection(collection)
     }
 
@@ -100,6 +109,29 @@ extension RuntimeCoordinator {
 
     func updateLeaderKey(_ newKey: String) async {
         await ruleCollectionsCoordinator.updateLeaderKey(newKey)
+    }
+
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await ruleCollectionsManager.applyShortcutListGenerationInput(input)
+    }
+
+    @discardableResult
+    func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
+        await ruleCollectionsManager.applyDeviceSelections(selections) { [weak self] in
+            guard let self else { return false }
+            return await restartKanata(reason: "Device selection changed")
+        }
+    }
+
+    /// What admission says about saving `rule`, before anything is written.
+    func reviewAdmission(forProposed rule: CustomRule) -> AdmissionReview {
+        ruleCollectionsManager.reviewAdmission(forProposed: rule)
+    }
+
+    /// What admission says about turning `collection` on.
+    func reviewAdmission(forEnabling collection: RuleCollection) -> AdmissionReview {
+        ruleCollectionsManager.reviewAdmission(forEnabling: collection)
     }
 
     @discardableResult

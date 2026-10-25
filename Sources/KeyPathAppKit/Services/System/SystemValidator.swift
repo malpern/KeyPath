@@ -238,6 +238,9 @@ public class SystemValidator {
     private func performValidationBody(
         progressCallback: @escaping @Sendable (Double) -> Void = { _ in }
     ) async -> SystemSnapshot {
+        if KanataRuntimeBackend.selected == .session {
+            return await captureSessionSnapshot(progressCallback: progressCallback)
+        }
         // If cancelled before we start, return a minimal snapshot without mutating counters
         if Task.isCancelled {
             return Self.makeCancelledSnapshot()
@@ -246,7 +249,9 @@ public class SystemValidator {
         defer { Self.activeValidations -= 1 }
 
         // Respect cancellation before counting
-        if Task.isCancelled { return Self.makeCancelledSnapshot() }
+        if Task.isCancelled {
+            return Self.makeCancelledSnapshot()
+        }
         // Only count owner in tests to avoid cross-test interference
         if !TestEnvironment.isRunningTests || Self.countingOwner == ObjectIdentifier(self) {
             Self.validationCount += 1
@@ -467,12 +472,53 @@ public class SystemValidator {
         return snapshot
     }
 
+    private func captureSessionSnapshot(progressCallback: @escaping @Sendable (Double) -> Void) async -> SystemSnapshot {
+        let permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
+        let report = kanataManager?.serviceLifecycleCoordinator.currentSessionReport()
+        let running = report?.state == .running && report?.tapActive == true
+        let responding = running ? await SystemStateProvider.shared.isTCPPortResponding(port: 37001, timeoutMs: 300) : false
+        let host = KanataRuntimeHost.current()
+        let payload = FileManager.default.fileExists(atPath: host.bridgeLibraryPath)
+            && FileManager.default.fileExists(atPath: Bundle.main.executablePath ?? "")
+        progressCallback(1)
+        return SystemSnapshot(
+            permissions: permissions,
+            components: ComponentStatus(
+                kanataBinaryInstalled: payload, requiredRuntimePayloadPresent: payload,
+                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
+                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
+                vhidServicesHealthy: false, vhidVersionMismatch: false
+            ),
+            conflicts: .empty,
+            health: HealthStatus(
+                backend: .session,
+                kanataProcessRunning: running, kanataTCPResponding: responding,
+                kanataTCPConfigured: true, kanataRunning: running && responding,
+                karabinerDaemonRunning: false, vhidHealthy: false,
+                kanataInputCaptureReady: running,
+                activeRuntimePathTitle: "Driverless session runtime",
+                activeRuntimePathDetail: "Current user · KeyPath app identity · session event tap"
+            ),
+            helper: .empty,
+            compatibility: SystemCompatibilityStatus(
+                macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString, driverCompatible: false
+            ),
+            timestamp: Date()
+        )
+    }
+
     static func combinedCaptureStatus(
         _ statuses: [SystemSnapshotCaptureStatus]
     ) -> SystemSnapshotCaptureStatus {
-        if statuses.contains(.failed) { return .failed }
-        if statuses.contains(.cancelled) { return .cancelled }
-        if statuses.contains(.timedOut) { return .timedOut }
+        if statuses.contains(.failed) {
+            return .failed
+        }
+        if statuses.contains(.cancelled) {
+            return .cancelled
+        }
+        if statuses.contains(.timedOut) {
+            return .timedOut
+        }
         return .complete
     }
 
@@ -859,7 +905,9 @@ public class SystemValidator {
     }
 
     private func checkTCPConfiguration() -> Bool {
-        if TestEnvironment.isRunningTests { return true }
+        if TestEnvironment.isRunningTests {
+            return true
+        }
 
         let plistPath = KanataDaemonManager.getActivePlistPath()
         guard let plistData = FileManager.default.contents(atPath: plistPath) else {
@@ -981,7 +1029,9 @@ private final class SystemCaptureCompletionState: @unchecked Sendable {
 
     func setContinuation(_ continuation: CheckedContinuation<SystemSnapshot, Never>) {
         let completedResult = state.withLock { state -> SystemSnapshot? in
-            if let result = state.result { return result }
+            if let result = state.result {
+                return result
+            }
             state.continuation = continuation
             return nil
         }
@@ -995,7 +1045,9 @@ private final class SystemCaptureCompletionState: @unchecked Sendable {
             state.operationTask = task
             return state.result != nil
         }
-        if alreadyCompleted { task.cancel() }
+        if alreadyCompleted {
+            task.cancel()
+        }
     }
 
     func setTimeoutTask(_ task: Task<Void, Never>) {
@@ -1003,7 +1055,9 @@ private final class SystemCaptureCompletionState: @unchecked Sendable {
             state.timeoutTask = task
             return state.result != nil
         }
-        if alreadyCompleted { task.cancel() }
+        if alreadyCompleted {
+            task.cancel()
+        }
     }
 
     func complete(with result: SystemSnapshot) -> Bool {
@@ -1025,3 +1079,11 @@ private final class SystemCaptureCompletionState: @unchecked Sendable {
         return true
     }
 }
+
+/// Sendable is already required of this type: the wizard protocol it conforms to
+/// in WizardProtocolConformances.swift inherits Sendable, so the conformance has
+/// been in force all along. Swift 6 requires it to be declared alongside the
+/// class rather than in the conformance file, so state it here. This records the
+/// existing guarantee where the compiler wants it; it is not a new claim about
+/// this type's thread safety.
+extension SystemValidator: @unchecked Sendable {}

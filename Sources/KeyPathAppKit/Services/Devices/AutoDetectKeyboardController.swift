@@ -382,6 +382,14 @@ final class AutoDetectKeyboardController {
         isKeyboardSearchPresented = false
     }
 
+    /// Choose a layout from the Settings dropdown: show it now and remember it
+    /// for the active keyboard, exactly as choosing it in keyboard search does.
+    func selectLayout(_ layoutId: String) {
+        guard PhysicalLayout.find(id: layoutId) != nil else { return }
+        UserDefaults.standard.set(layoutId, forKey: LayoutPreferences.layoutIdKey)
+        rememberCurrentLayoutSelection(layoutId: layoutId)
+    }
+
     func rememberCurrentLayoutSelection(layoutId: String) {
         guard let keyboard = activeKeyboard else { return }
 
@@ -396,7 +404,7 @@ final class AutoDetectKeyboardController {
             do {
                 try await bindingStore.saveBinding(binding)
             } catch {
-                AppLogger.shared.warn("🔌 [AutoDetect] Failed to save binding for \(keyboard.keyboardName): \(error.localizedDescription)")
+                AppLogger.shared.warnUnlessQuietTest("🔌 [AutoDetect] Failed to save binding for \(keyboard.keyboardName): \(error.localizedDescription)")
             }
         }
 

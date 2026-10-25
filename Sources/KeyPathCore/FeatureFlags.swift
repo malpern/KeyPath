@@ -129,6 +129,7 @@ public extension FeatureFlags {
     private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
     private static let learningTipsModeKey = "LEARNING_TIPS_MODE"
     private static let contextHUDListEnabledKey = "CONTEXT_HUD_LIST_ENABLED"
+    private static let keyboardStageRendererKey = "KEYBOARD_STAGE_RENDERER"
 
     // MARK: - Active Feature Flags
 
@@ -211,6 +212,23 @@ public extension FeatureFlags {
         setBoolFlag(enabled, forKey: contextHUDListEnabledKey)
     }
 
+    /// First-success keyboard hero renderer.
+    ///
+    /// Automatic is the production default: prefer Metal when the renderer is
+    /// healthy, while retaining the native SwiftUI accessibility fallback.
+    static var keyboardStageRendererPreference: KeyboardStageRendererPreference {
+        guard let rawValue = stringFlag(forKey: keyboardStageRendererKey),
+              let preference = KeyboardStageRendererPreference(rawValue: rawValue)
+        else {
+            return .automatic
+        }
+        return preference
+    }
+
+    static func setKeyboardStageRendererPreference(_ preference: KeyboardStageRendererPreference) {
+        setStringFlag(preference.rawValue, forKey: keyboardStageRendererKey)
+    }
+
     // MARK: - Future Implementation (not yet built)
 
     /// Phase 2: Just-in-time permission requests (NOT YET IMPLEMENTED)
@@ -254,4 +272,11 @@ public enum LearningTipsMode: String, CaseIterable {
         case .off: "Off"
         }
     }
+}
+
+/// Runtime selection for the first-success keyboard hero.
+public enum KeyboardStageRendererPreference: String, CaseIterable, Equatable, Sendable {
+    case automatic
+    case metal
+    case swiftUI = "swiftui"
 }

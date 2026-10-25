@@ -198,7 +198,7 @@ struct KeyRepeatControlView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(
                         "Repeat start delay is how long you hold a key before it begins repeating. Repeat speed is how quickly it continues.",
-                        bundle: #bundle
+                        bundle: KeyPathAppKitResources.bundle
                     )
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -509,14 +509,14 @@ private struct KeyRepeatTimingSummary: View {
         VStack(alignment: .trailing, spacing: 1) {
             Text(
                 "\(repeatsPerSecond, format: repeatSpeedFormat(repeatsPerSecond)) repeats/sec",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Primary summary of a keyboard key's automatic repeat speed."
             )
             .font(.caption.monospaced().weight(.medium))
 
             Text(
                 "\(delayMs) ms start · \(intervalMs) ms interval",
-                bundle: #bundle,
+                bundle: KeyPathAppKitResources.bundle,
                 comment: "Secondary technical summary: repeat start delay followed by the interval between repeats."
             )
             .font(.caption2.monospaced())
@@ -536,7 +536,7 @@ private struct RepeatStartDelaySliderRow: View {
             HStack {
                 Text(
                     "Repeat start delay",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Label for how long a key must be held before automatic repetition begins."
                 )
                 .font(.caption)
@@ -544,7 +544,7 @@ private struct RepeatStartDelaySliderRow: View {
                 Spacer()
                 Text(
                     "\(delayMs) ms",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Current keyboard repeat start delay in milliseconds."
                 )
                 .font(.caption.monospaced().weight(.medium))
@@ -556,13 +556,13 @@ private struct RepeatStartDelaySliderRow: View {
             )
             .controlSize(.small)
             .accessibilityIdentifier(accessibilityID)
-            .accessibilityLabel(Text("Repeat start delay", bundle: #bundle))
-            .accessibilityValue(Text("\(delayMs) milliseconds", bundle: #bundle))
+            .accessibilityLabel(Text("Repeat start delay", bundle: KeyPathAppKitResources.bundle))
+            .accessibilityValue(Text("\(delayMs) milliseconds", bundle: KeyPathAppKitResources.bundle))
 
             HStack {
-                Text("Starts sooner", bundle: #bundle)
+                Text("Starts sooner", bundle: KeyPathAppKitResources.bundle)
                 Spacer()
-                Text("Starts later", bundle: #bundle)
+                Text("Starts later", bundle: KeyPathAppKitResources.bundle)
             }
             .font(.caption2)
             .foregroundStyle(.tertiary)
@@ -584,7 +584,7 @@ private struct RepeatSpeedSliderRow: View {
             HStack {
                 Text(
                     "Repeat speed",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Label for how quickly a held key repeats after its start delay."
                 )
                 .font(.caption)
@@ -593,13 +593,13 @@ private struct RepeatSpeedSliderRow: View {
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(
                         "\(repeatsPerSecond, format: repeatSpeedFormat(repeatsPerSecond)) repeats/sec",
-                        bundle: #bundle,
+                        bundle: KeyPathAppKitResources.bundle,
                         comment: "Primary value for a keyboard key's automatic repeat speed."
                     )
                     .font(.caption.monospaced().weight(.medium))
                     Text(
                         "\(intervalMs) ms interval",
-                        bundle: #bundle,
+                        bundle: KeyPathAppKitResources.bundle,
                         comment: "Secondary technical value for the interval between keyboard repeats."
                     )
                     .font(.caption2.monospaced())
@@ -613,25 +613,25 @@ private struct RepeatSpeedSliderRow: View {
             )
             .controlSize(.small)
             .accessibilityIdentifier(accessibilityID)
-            .accessibilityLabel(Text("Repeat speed", bundle: #bundle))
+            .accessibilityLabel(Text("Repeat speed", bundle: KeyPathAppKitResources.bundle))
             .accessibilityValue(
                 Text(
                     "\(repeatsPerSecond, format: repeatSpeedFormat(repeatsPerSecond)) repeats per second",
-                    bundle: #bundle,
+                    bundle: KeyPathAppKitResources.bundle,
                     comment: "Accessibility value for a keyboard key's automatic repeat speed."
                 )
             )
             .accessibilityHint(
                 Text(
                     "The equivalent interval is \(intervalMs) milliseconds. Moving right repeats faster.",
-                    bundle: #bundle
+                    bundle: KeyPathAppKitResources.bundle
                 )
             )
 
             HStack {
-                Text("Slower", bundle: #bundle)
+                Text("Slower", bundle: KeyPathAppKitResources.bundle)
                 Spacer()
-                Text("Faster", bundle: #bundle)
+                Text("Faster", bundle: KeyPathAppKitResources.bundle)
             }
             .font(.caption2)
             .foregroundStyle(.tertiary)

@@ -1,0 +1,11 @@
+# Timeout test artifact checkpoint — October 4, 2026
+
+Source4111b0de3 adds a compile-gated timeout experiment. OFF/ON AppKit builds and full ON debug product compiled with the unchanged signed88 cached shader. This does not prove new Metal compilation. Host product deployment and notarization remain outside this experiment.
+
+Initial assembly reused signed88 resources and bundled Sparkle but copied the debug executable without adding the packaged framework rpath. Deep strict signing passed, yet actual guest launch aborted with DYLD Library missing: @rpath/Sparkle.framework/Versions/B/Sparkle. This is a timeout-artifact packaging defect, not runtime permission evidence. Keep the failed7b4 artifact and original attempts; successful signing does not prove runnable dependencies.
+
+Correction is a new artifact, preserving the old: add @executable_path/../Frameworks to the same debug executable, re-sign the outer app with the same DeveloperID/runtime and three original entitlement values, verify deep strict TeamID and unchanged Sparkle/resource content, then archive. Corrected main82a8d104093b8080daa97d02f26e004dd257b784f57247ca224797885bc7a6d2; zip0714ca3f820a3ea163ad6a9ab666a05b28fefaf932cd6709d0fc0045c95043d1. Assemblymanifest `/private/tmp/keypath-timeout-rpath-corrected-4111/executor-artifact-manifest.json`, SHA006d7e16ddcac86d1becf8d953b841176b839f9ebadc26d4d9fb2fc0ce2da964. No product source modification accompanies this assembly correction.
+
+Guest-only normal installation preserves failed7b4 and previous88 apps. Independent installed main/signature match. Actual headless parent27838 and worker27947 reached canonical ready on the corrected artifact; initial and first two no-input readiness samples passed. Third sample refused when debug chatter evicted the exact startup line from the collector's last128lines. Bounded last65536bytes retained the exact tuple once, with187 later lines; do not infer product readiness failure. Correcting this read-only collector is underway. No physical timeout input has been released and actual OS timeout remainsunproven.
+
+Future artifact admission should verify packaged dynamic dependencies/rpaths before transfer and perform a no-input guest launch before HID input. Preserve normal signing, source, binary, resource and generation guards. Compile-gated hooks must remain absent in normal builds.

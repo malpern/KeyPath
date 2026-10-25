@@ -271,14 +271,21 @@ struct WizardKarabinerImportPage: View {
         var errors: [String] = []
 
         for collection in result.collections where selectedCollectionIds.contains(collection.id) {
-            await kanataManager.addRuleCollection(collection)
+            if await !(kanataManager.addRuleCollection(collection)) {
+                errors.append("Collection '\(collection.name)' was not imported.")
+            }
         }
 
-        for keymap in result.appKeymaps where selectedAppKeymapIds.contains(keymap.id) {
+        let appKeymaps = result.appKeymaps.filter { selectedAppKeymapIds.contains($0.id) }
+        if !appKeymaps.isEmpty {
             do {
-                try await AppKeymapStore.shared.upsertKeymap(keymap)
+                try await kanataManager.underlyingManager.mutateAppKeymaps(store: .shared) { current in
+                    for keymap in appKeymaps {
+                        AppKeymapStore.upsert(keymap, in: &current)
+                    }
+                }
             } catch {
-                errors.append("App keymap '\(keymap.mapping.displayName)': \(error.localizedDescription)")
+                errors.append("App keymaps: \(error.localizedDescription)")
             }
         }
 

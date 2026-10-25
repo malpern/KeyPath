@@ -180,6 +180,11 @@ struct OverlayDragHeader: View {
     @State var hoveredLayer: String?
     /// When the health indicator dismissed — used to suppress "No TCP" briefly at startup
     @State private var healthDismissedAt: Date?
+    @State private var headerAppearedAt: Date
+    @State private var hasSeenKanataConnection: Bool
+    @State private var tcpStartupGraceExpired = false
+    @State private var tcpRecoveryGrace = OverlayTCPRecoveryGrace()
+    @State private var tcpRecoveryGraceExpired = false
 
     /// Tracks whether the KindaVim Mode Display pack is installed, so the
     /// header can render its mode badge without polling on every redraw.
@@ -223,6 +228,8 @@ struct OverlayDragHeader: View {
         self.currentLayerName = currentLayerName
         self.isLauncherMode = isLauncherMode
         self.isKanataConnected = isKanataConnected
+        _headerAppearedAt = State(initialValue: Date())
+        _hasSeenKanataConnection = State(initialValue: isKanataConnected)
         self.healthIndicatorState = healthIndicatorState
         self.drawerButtonHighlighted = drawerButtonHighlighted
         self.layoutHasDrawerButtons = layoutHasDrawerButtons
@@ -299,11 +306,14 @@ struct OverlayDragHeader: View {
                         Image(systemName: isInspectorOpen ? "xmark.circle" : "sidebar.right")
                             .font(.system(size: buttonSize * 0.72, weight: .semibold))
                             .foregroundStyle(drawerButtonHighlighted ? Color.accentColor : headerIconColor)
-                            .frame(width: automationHitSize, height: automationHitSize)
+                            .frame(width: 24, height: max(10, height - 2))
+                            .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                            .frame(width: automationHitSize, height: height)
+                            .contentShape(Rectangle())
                             .scaleEffect(drawerButtonHighlighted ? 1.2 : 1.0)
                             .animation(.easeInOut(duration: 0.1), value: drawerButtonHighlighted)
                     }
-                    .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                    .buttonStyle(.plain)
                     .onHover { isHoveringButton = $0 }
                     .windowTooltip(isInspectorOpen ? "Close Settings" : "Open Settings", id: "drawer")
                     .accessibilityIdentifier("overlay-drawer-toggle")
@@ -322,6 +332,9 @@ struct OverlayDragHeader: View {
         .onAppear {
             refreshAvailableLayers()
             Task { await refreshKindaVimPackInstalled() }
+            if isKanataConnected {
+                hasSeenKanataConnection = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ruleCollectionsChanged)) { _ in
             refreshAvailableLayers()
@@ -338,6 +351,28 @@ struct OverlayDragHeader: View {
             if newValue == .dismissed {
                 healthDismissedAt = Date()
             }
+        }
+        .onChange(of: isKanataConnected) { _, connected in
+            if connected {
+                hasSeenKanataConnection = true
+            }
+        }
+        .onChange(of: isKanataConnected, initial: true) { _, _ in
+            updateTCPRecoveryGrace()
+        }
+        .onChange(of: MainAppStateController.shared.validationState == .checking) { _, _ in
+            updateTCPRecoveryGrace()
+        }
+        .task(id: tcpRecoveryGrace.deadline) {
+            guard let deadline = tcpRecoveryGrace.deadline else { return }
+            do {
+                try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow)))
+            } catch { return }
+            guard !Task.isCancelled else { return }
+            tcpRecoveryGraceExpired = true
+        }
+        .task(id: healthDismissedAt) {
+            await scheduleTCPStartupGraceExpiration()
         }
     }
 
@@ -391,11 +426,42 @@ struct OverlayDragHeader: View {
         Color.white.opacity(isDark ? 0.7 : 0.6)
     }
 
-    /// Whether the "No TCP" pill should be suppressed (grace period after health dismissal).
-    /// The EventListener takes a moment to connect after startup; avoid a brief flash of "No TCP".
-    private var isTcpGracePeriodActive: Bool {
-        guard let dismissedAt = healthDismissedAt else { return false }
-        return Date().timeIntervalSince(dismissedAt) < 5.0
+    private var tcpStatusPresentation: OverlayTCPStatusPresentation {
+        .resolve(
+            isConnected: isKanataConnected,
+            hasSeenConnection: hasSeenKanataConnection,
+            isWithinStartupGrace: !tcpStartupGraceExpired
+                || (!tcpRecoveryGraceExpired && tcpRecoveryGrace.isActive(at: Date())),
+            isCheckingHealth: MainAppStateController.shared.validationState == .checking
+        )
+    }
+
+    private func updateTCPRecoveryGrace() {
+        tcpRecoveryGrace.update(
+            isConnected: isKanataConnected,
+            isCheckingHealth: MainAppStateController.shared.validationState == .checking,
+            now: Date()
+        )
+        tcpRecoveryGraceExpired = !tcpRecoveryGrace.isActive(at: Date())
+    }
+
+    private func scheduleTCPStartupGraceExpiration() async {
+        tcpStartupGraceExpired = false
+        let reference = healthDismissedAt ?? headerAppearedAt
+        let deadline = reference.addingTimeInterval(RuntimeStartupTiming.uiGracePeriod)
+        let remaining = deadline.timeIntervalSinceNow
+        guard remaining > 0 else {
+            tcpStartupGraceExpired = true
+            return
+        }
+
+        do {
+            try await Task.sleep(for: .seconds(remaining))
+        } catch {
+            return
+        }
+        guard !Task.isCancelled else { return }
+        tcpStartupGraceExpired = true
     }
 
     private func statusSlot(indicatorCornerRadius: CGFloat, buttonSize: CGFloat) -> some View {
@@ -409,7 +475,22 @@ struct OverlayDragHeader: View {
                 )
             } else {
                 HStack(spacing: 6) {
-                    if !isKanataConnected, !isTcpGracePeriodActive {
+                    switch tcpStatusPresentation {
+                    case .hidden:
+                        EmptyView()
+                    case .starting:
+                        kanataTransitionPill(
+                            "Starting…",
+                            helpText: "Kanata is starting",
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
+                    case .restarting:
+                        kanataTransitionPill(
+                            "Restarting…",
+                            helpText: "Kanata is restarting",
+                            indicatorCornerRadius: indicatorCornerRadius
+                        )
+                    case .disconnected:
                         kanataDisconnectedPill(indicatorCornerRadius: indicatorCornerRadius)
                     }
 
@@ -496,14 +577,16 @@ struct OverlayDragHeader: View {
                             .opacity(0.7)
                     }
                     .foregroundStyle(headerIconColor)
-                    .frame(minWidth: automationHitSize, minHeight: automationHitSize)
+                    .frame(minWidth: automationHitSize)
+                    .frame(height: max(10, height - 2))
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
                     .modifier(OverlayGlassEffectModifier(
                         isEnabled: !reduceTransparency,
                         cornerRadius: indicatorCornerRadius,
                         fallbackFill: Color.white.opacity(layerPillBackgroundOpacity)
                     ))
+                    .frame(height: height)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("overlay-layer-picker-toggle")
@@ -515,9 +598,12 @@ struct OverlayDragHeader: View {
                     Image(systemName: iconName)
                         .font(.system(size: buttonSize * 0.72, weight: .semibold))
                         .foregroundStyle(headerIconColor)
-                        .frame(width: automationHitSize, height: automationHitSize)
+                        .frame(width: 24, height: max(10, height - 2))
+                        .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                        .frame(width: automationHitSize, height: height)
+                        .contentShape(Rectangle())
                 }
-                .modifier(OverlayGlassButtonStyleModifier(reduceTransparency: reduceTransparency))
+                .buttonStyle(.plain)
                 .accessibilityIdentifier("overlay-layer-picker-toggle")
             }
         }

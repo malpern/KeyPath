@@ -100,6 +100,9 @@ public struct Pack: Identifiable, Equatable, Sendable {
 
     /// Dependencies on other packs (requires + suggests).
     public let dependencies: [PackDependency]
+    /// Environment needs that cannot be inferred from the pack's rules, such as
+    /// an app that must be installed. Inferable needs are never declared here.
+    public let requires: [RuleEnvironmentNeed]
 
     /// Collections this pack manages atomically on install/uninstall.
     /// Non-empty → system pack: the installer snapshots, applies defaults,
@@ -128,6 +131,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         visualOnly: Bool = false,
         suggestedForKeys: [String] = [],
         dependencies: [PackDependency] = [],
+        requires: [RuleEnvironmentNeed] = [],
         managedDefaults: [ManagedCollectionDefault] = []
     ) {
         self.id = id
@@ -145,6 +149,7 @@ public struct Pack: Identifiable, Equatable, Sendable {
         self.associatedCollectionID = associatedCollectionID
         self.visualOnly = visualOnly
         self.dependencies = dependencies
+        self.requires = requires
         self.managedDefaults = managedDefaults
         self.suggestedForKeys = suggestedForKeys
     }

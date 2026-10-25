@@ -21,20 +21,15 @@ extension RulesTabView {
                 isPackEnabled: isKindaVimInstalled,
                 onToggle: { newValue in
                     isKindaVimInstalled = newValue
+                    let requestID = UUID()
+                    kindaVimMutationID = requestID
                     Task {
                         do {
-                            if newValue {
-                                let record = InstalledPackRecord(
-                                    packID: pack.id,
-                                    version: pack.version,
-                                    installedAt: Date(),
-                                    quickSettingValues: [:]
-                                )
-                                try await InstalledPackTracker.shared.upsert(record)
-                            } else {
-                                try await InstalledPackTracker.shared.remove(packID: pack.id)
-                            }
+                            try await PackInstaller.shared.setVisualPackEnabled(
+                                pack, enabled: newValue, manager: kanataManager.underlyingManager.ruleCollectionsManager
+                            )
                         } catch {
+                            guard kindaVimMutationID == requestID else { return }
                             AppLogger.shared.log("⚠️ [Rules] KindaVim toggle failed: \(error.localizedDescription)")
                             isKindaVimInstalled = !newValue
                             settingsToastManager.showError("Failed to \(newValue ? "enable" : "disable") KindaVim")
@@ -59,23 +54,15 @@ extension RulesTabView {
                 isPackEnabled: isKeystrokeHistoryInstalled,
                 onToggle: { newValue in
                     isKeystrokeHistoryInstalled = newValue
+                    let requestID = UUID()
+                    keystrokeHistoryMutationID = requestID
                     Task {
                         do {
-                            if newValue {
-                                let record = InstalledPackRecord(
-                                    packID: pack.id,
-                                    version: pack.version,
-                                    installedAt: Date(),
-                                    quickSettingValues: [:]
-                                )
-                                try await InstalledPackTracker.shared.upsert(record)
-                                KeystrokeHistoryService.shared.isRecording = true
-                            } else {
-                                try await InstalledPackTracker.shared.remove(packID: pack.id)
-                                KeystrokeHistoryService.shared.isRecording = false
-                                KeystrokeHistoryService.shared.clearEvents()
-                            }
+                            try await PackInstaller.shared.setVisualPackEnabled(
+                                pack, enabled: newValue, manager: kanataManager.underlyingManager.ruleCollectionsManager
+                            )
                         } catch {
+                            guard keystrokeHistoryMutationID == requestID else { return }
                             AppLogger.shared.log("⚠️ [Rules] Keystroke History toggle failed: \(error.localizedDescription)")
                             isKeystrokeHistoryInstalled = !newValue
                         }
@@ -101,19 +88,12 @@ extension RulesTabView {
 
     func deleteAppRule(keymap: AppKeymap, override: AppKeyOverride) {
         Task {
-            var updatedKeymap = keymap
-            updatedKeymap.overrides.removeAll { $0.id == override.id }
-
             do {
-                if updatedKeymap.overrides.isEmpty {
-                    try await services.appKeymapStore.removeKeymap(bundleIdentifier: keymap.mapping.bundleIdentifier)
-                } else {
-                    try await services.appKeymapStore.upsertKeymap(updatedKeymap)
-                }
-
-                try await AppConfigGenerator.regenerateFromStore()
-                await AppContextService.shared.reloadMappings()
-                _ = await kanataManager.underlyingManager.restartKanata(reason: "App rule deleted from Settings")
+                try await kanataManager.underlyingManager.removeAppRule(
+                    bundleIdentifier: keymap.mapping.bundleIdentifier,
+                    overrideID: override.id,
+                    store: services.appKeymapStore
+                )
             } catch {
                 AppLogger.shared.log("⚠️ [RulesTabView] Failed to delete app rule: \(error)")
                 settingsToastManager.showError("Failed to delete rule: \(error.localizedDescription)")

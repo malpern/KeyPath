@@ -30,7 +30,9 @@ End-to-end process for shepherding code from initial request through to a clean 
 
 6b. **Run `./Scripts/review-gate.sh`** — before creating the PR, run the
 review gate against the branch diff. If local review tooling is available, the
-script runs it and returns 0 only when it passes. If local review tooling is
+script runs it over the branch's commits, uncommitted changes and untracked
+files, and returns 0 only when the review's `REVIEW-VERDICT` line says PASS
+(a CONFIRMED finding, a failed run or a missing verdict is exit 1). If local review tooling is
 unavailable, exit 2 is the expected remote-review path: record `remote review
 gate selected` in the PR and do not merge until the GitHub `claude-review`
 check passes. Do not report missing local review tools as a PR issue; that is

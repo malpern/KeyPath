@@ -316,8 +316,7 @@ extension MapperViewModel {
                     viewModel.shiftedOutputSequence = sequence
                     viewModel.shiftedOutputLabel = sequence.displayString
                 } else {
-                    viewModel.outputSequence = sequence
-                    viewModel.outputLabel = sequence.displayString
+                    viewModel.applyCapturedOutput(sequence)
                 }
 
                 // Reset finalize timer - wait for more keys
@@ -423,6 +422,22 @@ extension MapperViewModel {
         }
     }
 
+    /// A captured output. A lone media key (volume, brightness, play/pause…)
+    /// is the system action it names, so the tile shows that action's symbol
+    /// from the first moment and the save goes the system-action way; any
+    /// other capture is a key sequence.
+    func applyCapturedOutput(_ sequence: KeySequence) {
+        if sequence.keys.count == 1, let press = sequence.keys.first, press.keyCode >= 1000,
+           let action = SystemActionInfo.find(byOutput: KeyMappingFormatter.toKanataFormat(sequence)),
+           action.isSupportedInDriverlessSession
+        {
+            selectSystemAction(action)
+            return
+        }
+        outputSequence = sequence
+        outputLabel = sequence.displayString
+    }
+
     func finalizeCapture() {
         finalizeTimer?.invalidate()
         finalizeTimer = nil
@@ -436,27 +451,42 @@ extension MapperViewModel {
 
         AppLogger.shared.log("🎯 [MapperViewModel] finalizeCapture: canSave=\(canSave) selectedApp=\(selectedApp?.name ?? "nil") inputSeq=\(inputSequence?.displayString ?? "nil")")
 
-        // Auto-save when input is captured and we have either output or app/system action/URL/folder/script
-        if canSave, let manager = kanataManager {
-            Task {
-                if selectedURL != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
-                    await saveURLMapping(kanataManager: manager)
-                } else if selectedApp != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
-                    await saveAppLaunchMapping(kanataManager: manager)
-                } else if selectedSystemAction != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
-                    await saveSystemActionMapping(kanataManager: manager)
-                } else if selectedFolder != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveFolderMapping")
-                    await saveFolderMapping(kanataManager: manager)
-                } else if selectedScript != nil {
-                    AppLogger.shared.log("🎯 [MapperViewModel] Calling saveScriptMapping")
-                    await saveScriptMapping(kanataManager: manager)
-                } else {
-                    await save(kanataManager: manager)
-                }
+        autosaveCapturedMapping()
+    }
+
+    /// Auto-save when input is captured and we have either output or app/system action/URL/folder/script.
+    /// Every way this can decline to save says so: the overlay has no Save button,
+    /// so a silent return here looks to the user like a mapping that vanished.
+    private func autosaveCapturedMapping() {
+        guard canSave else {
+            AppLogger.shared.log("🎯 [MapperViewModel] Autosave skipped: nothing saveable yet (canSave=false)")
+            return
+        }
+        guard let manager = kanataManager else {
+            AppLogger.shared.errorUnlessQuietTest("❌ [MapperViewModel] Autosave skipped: no runtime coordinator configured")
+            statusMessage = "Couldn't save: the Mapper isn't connected to the runtime. Reopen the overlay."
+            statusIsError = true
+            return
+        }
+        Task {
+            if selectedURL != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveURLMapping")
+                await saveURLMapping(kanataManager: manager)
+            } else if selectedApp != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveAppLaunchMapping")
+                await saveAppLaunchMapping(kanataManager: manager)
+            } else if selectedSystemAction != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveSystemActionMapping")
+                await saveSystemActionMapping(kanataManager: manager)
+            } else if selectedFolder != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveFolderMapping")
+                await saveFolderMapping(kanataManager: manager)
+            } else if selectedScript != nil {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling saveScriptMapping")
+                await saveScriptMapping(kanataManager: manager)
+            } else {
+                AppLogger.shared.log("🎯 [MapperViewModel] Calling save (keystroke mapping)")
+                await save(kanataManager: manager)
             }
         }
     }
@@ -469,6 +499,10 @@ extension MapperViewModel {
         let wasRecordingOutput = isRecordingOutput
         let wasRecordingShiftedOutput = isRecordingShiftedOutput
         let wasRecordingMacro = isRecordingMacro
+        // Recording clears the sequence first, so one present now was captured
+        // in this session; ending early (before the 0.8s finalize) must keep it.
+        let capturedOutput = (wasRecordingOutput && outputSequence != nil)
+            || (wasRecordingShiftedOutput && shiftedOutputSequence != nil)
         isRecordingInput = false
         isRecordingOutput = false
         isRecordingShiftedOutput = false
@@ -515,6 +549,7 @@ extension MapperViewModel {
         }
 
         statusMessage = nil
+        if capturedOutput { autosaveCapturedMapping() }
     }
 
     func stopKeyCapture() {

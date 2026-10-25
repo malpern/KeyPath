@@ -10,41 +10,75 @@ import KeyPathWizardCore
 public struct SystemFacade: Sendable {
     typealias RuntimeSnapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot
 
-    private let subprocessRunner: any SubprocessRunning
+    private let startServiceOperation: @Sendable () async throws -> Void
+    private let stopServiceOperation: @Sendable () async throws -> Void
+    private let restartServiceOperation: @Sendable () async throws -> Void
+    private let runtimeCacheInvalidator: @Sendable () async -> Void
     private let runtimeSnapshotProvider: @Sendable () async -> RuntimeSnapshot
     private let runtimeTransitionTimeoutSeconds: TimeInterval
     private let pollDelayNanoseconds: UInt64
-    private let restartDelayNanoseconds: UInt64
 
     public init() {
         self.init(
-            subprocessRunner: SubprocessRunner.shared,
+            startServiceOperation: {
+                try await KanataDaemonService.shared.start()
+            },
+            stopServiceOperation: {
+                try await KanataDaemonService.shared.stop()
+            },
+            restartServiceOperation: {
+                try await KanataDaemonService.shared.restart()
+            },
+            runtimeCacheInvalidator: {
+                await MainActor.run {
+                    ServiceHealthChecker.shared.invalidateHealthCache()
+                }
+            },
             runtimeSnapshotProvider: {
-                await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot()
+                await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshotFresh()
             }
         )
     }
 
     init(
-        subprocessRunner: any SubprocessRunning,
+        startServiceOperation: @escaping @Sendable () async throws -> Void = {
+            try await HelperManager.shared.startKanataService()
+        },
+        stopServiceOperation: @escaping @Sendable () async throws -> Void = {
+            try await HelperManager.shared.stopKanataService()
+        },
+        restartServiceOperation: @escaping @Sendable () async throws -> Void = {
+            try await HelperManager.shared.restartKanataService()
+        },
+        runtimeCacheInvalidator: @escaping @Sendable () async -> Void = {
+            await MainActor.run {
+                ServiceHealthChecker.shared.invalidateHealthCache()
+            }
+        },
         runtimeSnapshotProvider: @escaping @Sendable () async -> RuntimeSnapshot,
-        runtimeTransitionTimeoutSeconds: TimeInterval = 5,
-        pollDelayNanoseconds: UInt64 = 200_000_000,
-        restartDelayNanoseconds: UInt64 = 500_000_000
+        // The Kanata LaunchDaemon has a 10-second ThrottleInterval. A restart
+        // can legitimately remain stopped for that long before launchd starts it.
+        runtimeTransitionTimeoutSeconds: TimeInterval = 20,
+        pollDelayNanoseconds: UInt64 = 200_000_000
     ) {
-        self.subprocessRunner = subprocessRunner
+        self.startServiceOperation = startServiceOperation
+        self.stopServiceOperation = stopServiceOperation
+        self.restartServiceOperation = restartServiceOperation
+        self.runtimeCacheInvalidator = runtimeCacheInvalidator
         self.runtimeSnapshotProvider = runtimeSnapshotProvider
         self.runtimeTransitionTimeoutSeconds = runtimeTransitionTimeoutSeconds
         self.pollDelayNanoseconds = pollDelayNanoseconds
-        self.restartDelayNanoseconds = restartDelayNanoseconds
     }
 
     // MARK: - Service Lifecycle
 
     public func startService() async -> Bool {
+        await MainActor.run {
+            CLIRuntimeBootstrap.ensureConfigured()
+        }
         do {
-            let result = try await subprocessRunner.launchctl("kickstart", ["system/com.keypath.kanata"])
-            guard result.exitCode == 0 else { return false }
+            try await startServiceOperation()
+            await runtimeCacheInvalidator()
             return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
                 snapshot.isRunning && snapshot.isResponding
             }
@@ -54,9 +88,12 @@ public struct SystemFacade: Sendable {
     }
 
     public func stopService() async -> Bool {
+        await MainActor.run {
+            CLIRuntimeBootstrap.ensureConfigured()
+        }
         do {
-            let result = try await subprocessRunner.launchctl("kill", ["SIGTERM", "system/com.keypath.kanata"])
-            guard result.exitCode == 0 else { return false }
+            try await stopServiceOperation()
+            await runtimeCacheInvalidator()
             return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
                 !snapshot.isRunning && !snapshot.isResponding
             }
@@ -66,11 +103,21 @@ public struct SystemFacade: Sendable {
     }
 
     public func restartService() async -> Bool {
-        guard await stopService() else { return false }
-        if restartDelayNanoseconds > 0 {
-            try? await Task.sleep(nanoseconds: restartDelayNanoseconds)
+        await MainActor.run {
+            CLIRuntimeBootstrap.ensureConfigured()
         }
-        return await startService()
+        do {
+            try await restartServiceOperation()
+            await runtimeCacheInvalidator()
+
+            // The lifecycle operation verifies registration plus process/TCP
+            // readiness. Independently verify the facade's final runtime view.
+            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
+                snapshot.isRunning && snapshot.isResponding
+            }
+        } catch {
+            return false
+        }
     }
 
     private func waitForRuntime(
@@ -278,9 +325,10 @@ public struct SystemFacade: Sendable {
     }
 
     static func isOperational(_ context: SystemContext) -> Bool {
-        !context.permissions.keyPath.accessibility.isBlocking
-            && !context.permissions.kanata.accessibility.isBlocking
-            && !context.permissions.kanata.inputMonitoring.isBlocking
+        if context.permissions.backend == .session { return context.isReady }
+        return context.permissions.keyPath.accessibility.isReady
+            && context.permissions.kanata.accessibility.isReady
+            && context.permissions.kanata.inputMonitoring.isReady
             && context.helper.isReady
             && context.components.hasAllRequired
             && context.services.isHealthy
@@ -289,13 +337,15 @@ public struct SystemFacade: Sendable {
 
     fileprivate static func systemRepairBundleIssue() -> CLISystemIssue? {
         let bundlePath = Bundle.main.bundlePath
-        let requiredPaths = [
-            "\(bundlePath)/Contents/MacOS/keypath-cli",
-            "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.kanata.plist",
-            "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper",
-            WizardSystemPaths.bundledKanataPath,
-            WizardSystemPaths.bundledKanataLauncherPath,
-        ]
+        let requiredPaths = KanataRuntimeBackend.selected == .session
+            ? sessionRepairRequiredPaths(bundlePath: bundlePath)
+            : [
+                "\(bundlePath)/Contents/MacOS/keypath-cli",
+                "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.kanata.plist",
+                "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper",
+                WizardSystemPaths.bundledKanataPath,
+                WizardSystemPaths.bundledKanataLauncherPath,
+            ]
         if requiredPaths.allSatisfy({ FileManager.default.fileExists(atPath: $0) }) {
             return nil
         }
@@ -308,7 +358,13 @@ public struct SystemFacade: Sendable {
         )
     }
 
-    static func issues(from context: SystemContext) -> [CLISystemIssue] {
+    static func sessionRepairRequiredPaths(bundlePath: String) -> [String] {
+        let host = KanataRuntimeHost.current(bundlePath: bundlePath)
+        return ["\(bundlePath)/Contents/MacOS/keypath-cli", host.bridgeLibraryPath, host.bundledCorePath]
+    }
+
+    static func issues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation = .current) -> [CLISystemIssue] {
+        if context.permissions.backend == .session { return sessionIssues(from: context, accessibility: accessibility) }
         var issues: [CLISystemIssue] = []
 
         if !context.helper.isInstalled {
@@ -327,7 +383,7 @@ public struct SystemFacade: Sendable {
             ))
         }
 
-        appendPermissionIssues(from: context, to: &issues)
+        appendPermissionIssues(from: context, accessibility: accessibility, to: &issues)
 
         for conflict in context.conflicts.conflicts {
             issues.append(.init(
@@ -410,12 +466,71 @@ public struct SystemFacade: Sendable {
         return issues
     }
 
-    private static func appendPermissionIssues(from context: SystemContext, to issues: inout [CLISystemIssue]) {
+    private static func sessionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation) -> [CLISystemIssue] {
+        var issues: [CLISystemIssue] = []
+        let appAX = context.permissions.keyPath.accessibility
+        appendPermissionIssue(
+            status: appAX.isReady ? context.permissions.kanata.accessibility : appAX,
+            subject: "KeyPath", permission: accessibility.name,
+            deniedAction: accessibility.grantInstruction,
+            remediationURL: WizardSystemPaths.accessibilitySettings, to: &issues
+        )
+        // This status is effective input access from the process that owns the
+        // session tap. A denied GUI-only IM check must not add another grant.
+        appendPermissionIssue(
+            status: context.permissions.kanata.inputMonitoring,
+            subject: "KeyPath session", permission: "Input Monitoring",
+            deniedAction: "Open KeyPath.app and verify session input access; grant Input Monitoring only if macOS requires it",
+            remediationURL: WizardSystemPaths.inputMonitoringSettings, to: &issues
+        )
+        for conflict in context.conflicts.conflicts {
+            issues.append(.init(
+                title: conflictTitle(conflict), category: "conflict",
+                action: "Quit the conflicting remapper manually, then retry KeyPath",
+                canAutoFix: false
+            ))
+        }
+        if !context.components.requiredRuntimePayloadPresent || !context.components.kanataBinaryInstalled {
+            issues.append(.init(
+                title: "KeyPath session runtime payload is missing", category: "component",
+                action: "Reinstall KeyPath to restore its bundled runtime", canAutoFix: false
+            ))
+        }
+        if let configError = context.services.configParseError {
+            issues.append(.init(
+                title: "Configuration error prevents remapping", category: "configuration",
+                action: configError, canAutoFix: false,
+                remediationURL: KeyPathConstants.URLs.configurationTroubleshooting
+            ))
+        } else if !context.services.kanataRuntimeReadiness.isReady {
+            let readiness = context.services.kanataRuntimeReadiness
+            issues.append(.init(
+                title: !readiness.isRunning ? "KeyPath session is not running"
+                    : !readiness.isResponding ? "KeyPath session is not responding"
+                    : "KeyPath session cannot capture keyboard input",
+                category: "service",
+                action: context.services.kanataPermissionRejected
+                    ? "Open KeyPath.app to verify current-session Accessibility permission"
+                    : context.services.kanataInputCaptureIssue
+                    ?? "Open KeyPath.app to verify permissions and restart the session",
+                canAutoFix: false
+            ))
+        }
+        if !context.captureStatus.isComplete {
+            issues.append(.init(
+                title: "KeyPath session readiness is not verified", category: "service",
+                action: "Open KeyPath.app and retry the system check", canAutoFix: false
+            ))
+        }
+        return issues
+    }
+
+    private static func appendPermissionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation, to issues: inout [CLISystemIssue]) {
         appendPermissionIssue(
             status: context.permissions.keyPath.accessibility,
             subject: "KeyPath",
-            permission: "Accessibility",
-            deniedAction: "Open KeyPath.app and grant Accessibility in System Settings > Privacy & Security > Accessibility",
+            permission: accessibility.name,
+            deniedAction: accessibility.grantInstruction,
             remediationURL: WizardSystemPaths.accessibilitySettings,
             to: &issues
         )
@@ -431,8 +546,8 @@ public struct SystemFacade: Sendable {
         appendPermissionIssue(
             status: context.permissions.kanata.accessibility,
             subject: "Kanata",
-            permission: "Accessibility",
-            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine Accessibility",
+            permission: accessibility.name,
+            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine \(accessibility.name)",
             remediationURL: WizardSystemPaths.accessibilitySettings,
             to: &issues
         )
@@ -488,9 +603,9 @@ public struct SystemFacade: Sendable {
             issues.append(.init(
                 title: "\(subject) \(permission) permission not verified",
                 category: "permissions",
-                action: "Grant Full Disk Access to KeyPath to verify this permission",
+                action: "Open KeyPath.app to verify this permission in the active session",
                 canAutoFix: false,
-                remediationURL: WizardSystemPaths.fullDiskAccessSettings,
+                remediationURL: remediationURL,
                 severity: .warning
             ))
         }

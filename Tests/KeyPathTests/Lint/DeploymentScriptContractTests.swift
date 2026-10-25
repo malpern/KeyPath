@@ -2,26 +2,15 @@ import Foundation
 import XCTest
 
 final class DeploymentScriptContractTests: XCTestCase {
-    func testUninstallerPathsTrackAppResources() throws {
+    func testDriverlessExperimentOmitsBundledUninstaller() throws {
         let root = repositoryRoot()
         let entryPoint = root.appendingPathComponent("Scripts/uninstall.sh")
-        let expectedDestination = "../Sources/KeyPathApp/Resources/uninstall.sh"
-        let coordinator = try contents(
-            of: root.appendingPathComponent("Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift")
-        )
+        let uninstallResource = root.appendingPathComponent("Sources/KeyPathApp/Resources/uninstall.sh")
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
 
-        XCTAssertEqual(
-            try FileManager.default.destinationOfSymbolicLink(atPath: entryPoint.path),
-            expectedDestination,
-            "Scripts/uninstall.sh must remain a relative link to the current app resource."
-        )
-        XCTAssertTrue(
-            FileManager.default.isExecutableFile(atPath: entryPoint.path),
-            "Scripts/uninstall.sh must resolve to an executable file."
-        )
-        XCTAssertTrue(coordinator.contains("Sources/KeyPathApp/Resources/uninstall.sh"))
-        XCTAssertFalse(coordinator.contains("Sources/KeyPath/Resources/uninstall.sh"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: uninstallResource.path))
+        XCTAssertThrowsError(try FileManager.default.destinationOfSymbolicLink(atPath: entryPoint.path))
+        XCTAssertTrue(buildAndSign.contains("--payload-only \"$APP_BUNDLE\""))
         XCTAssertTrue(buildAndSign.contains("Sources/KeyPathApp/Resources directory not found"))
         XCTAssertFalse(buildAndSign.contains("Sources/KeyPath/Resources directory not found"))
     }
@@ -36,12 +25,13 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Scripts/release-doctor.sh",
         ]
 
-        XCTAssertTrue(xcodeContract.contains("Xcode-26.6.0.app/Contents/Developer"))
-        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-26.6}""#))
+        XCTAssertTrue(xcodeContract.contains("Xcode-27.app/Contents/Developer"))
+        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-27.0}""#))
         XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
         XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
         XCTAssertTrue(xcodeContract.contains("keypath_use_stable_xcode"))
+        XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
 
         for relativePath in consumers {
             let script = try contents(of: root.appendingPathComponent(relativePath))
@@ -92,6 +82,37 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    func testBuildAndSignSupportsNonDeployingCandidateBuilds() throws {
+        let root = repositoryRoot()
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
+        let guardText = #"if [ "${SKIP_DEPLOY:-0}" = "1" ]; then"#
+
+        guard let guardRange = buildAndSign.range(of: guardText),
+              let deployCallRange = buildAndSign.range(of: "kp_deploy_bundle_to_applications")
+        else {
+            return XCTFail("build-and-sign must expose SKIP_DEPLOY before touching the installed runtime")
+        }
+
+        XCTAssertLessThan(
+            buildAndSign.distance(from: buildAndSign.startIndex, to: guardRange.lowerBound),
+            buildAndSign.distance(from: buildAndSign.startIndex, to: deployCallRange.lowerBound),
+            "SKIP_DEPLOY must exit before stopping or replacing the installed app."
+        )
+        XCTAssertTrue(buildAndSign.contains("Candidate retained at: $APP_BUNDLE"))
+
+        // The runtime stop/replace sequence lives in the shared deploy lib that
+        // runs only after the SKIP_DEPLOY guard.
+        let deployLib = try contents(of: root.appendingPathComponent("Scripts/lib/deploy-app.sh"))
+        XCTAssertTrue(
+            deployLib.contains(#"pgrep -x "$app_name""#),
+            "deploy lib must stop the running app before replacing the bundle."
+        )
+        XCTAssertFalse(
+            deployLib.contains("codesign"),
+            "deploy lib must never re-sign; that detaches the app from its notarization ticket."
+        )
+    }
+
     func testReleaseBuildReadsVersionMetadataFromPlistPaths() throws {
         let root = repositoryRoot()
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
@@ -104,6 +125,18 @@ final class DeploymentScriptContractTests: XCTestCase {
             buildAndSign.contains(#"defaults read "$CONTENTS/Info""#),
             "A relative path passed to defaults is interpreted as a preferences domain and falls back to build 0."
         )
+    }
+
+    func testInstalledAppVerifierRequiresPackagedSwiftPMResources() throws {
+        let verifier = try contents(
+            of: repositoryRoot().appendingPathComponent("Scripts/verify-installed-app.sh")
+        )
+
+        XCTAssertTrue(verifier.contains("KeyPath_KeyPath.bundle"))
+        XCTAssertTrue(verifier.contains("KeyPath_KeyPathAppKit.bundle"))
+        XCTAssertTrue(verifier.contains("KeyPath_KeyPathInstallationWizard.bundle"))
+        XCTAssertTrue(verifier.contains("Contents/Resources/$resource_bundle"))
+        XCTAssertTrue(verifier.contains("default.metallib"))
     }
 
     func testQuickDeployPreservesBuildFailureDiagnostics() throws {

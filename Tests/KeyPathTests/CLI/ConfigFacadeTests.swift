@@ -18,7 +18,7 @@ final class ConfigFacadeTests: XCTestCase {
         tempRoot = nil
     }
 
-    func testBackupConfigSnapshotsResolvedSymlinkDirectory() throws {
+    func testBackupConfigSnapshotsResolvedSymlinkDirectory() async throws {
         let liveTarget = tempRoot.appendingPathComponent("dotfiles-keypath", isDirectory: true)
         let configLink = tempRoot.appendingPathComponent(".config/keypath", isDirectory: true)
         let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
@@ -27,7 +27,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "original".write(to: liveTarget.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configLink.path)
-        let result = try facade.backupConfig(outputPath: backup.path)
+        let result = try await facade.backupConfig(outputPath: backup.path)
 
         XCTAssertEqual(result.sourcePath, configLink.path)
         XCTAssertEqual(result.backupPath, backup.path)
@@ -48,7 +48,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "original".write(to: liveTarget.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configLink.path)
-        _ = try facade.backupConfig(outputPath: backup.path)
+        _ = try await facade.backupConfig(outputPath: backup.path)
 
         try "mutated".write(to: liveTarget.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
         _ = try await facade.restoreConfig(from: backup.path, reload: false)
@@ -69,7 +69,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "kbd".write(to: configDir.appendingPathComponent("keypath.kbd"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configDir.path)
-        _ = try facade.backupConfig(outputPath: backup.path)
+        _ = try await facade.backupConfig(outputPath: backup.path)
 
         // Post-backup drift: one mutation, one new file that isn't in the backup.
         try "mutated".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
@@ -94,7 +94,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "rules".write(to: configDir.appendingPathComponent("RuleCollections.json"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configDir.path)
-        _ = try facade.backupConfig(outputPath: backup.path)
+        _ = try await facade.backupConfig(outputPath: backup.path)
 
         // The #881 trigger: a transient validation temp file appears in the
         // config dir before restore. The restore must neither fail on it nor
@@ -112,7 +112,7 @@ final class ConfigFacadeTests: XCTestCase {
         )
     }
 
-    func testBackupConfigSkipsTransientValidationArtifacts() throws {
+    func testBackupConfigSkipsTransientValidationArtifacts() async throws {
         let configDir = tempRoot.appendingPathComponent("config", isDirectory: true)
         let backup = tempRoot.appendingPathComponent("backup", isDirectory: true)
         try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
@@ -121,7 +121,7 @@ final class ConfigFacadeTests: XCTestCase {
         try "tmp".write(to: configDir.appendingPathComponent("temp_validation_AB12.kbd"), atomically: true, encoding: .utf8)
 
         let facade = ConfigFacade(configDirectory: configDir.path)
-        let result = try facade.backupConfig(outputPath: backup.path)
+        let result = try await facade.backupConfig(outputPath: backup.path)
 
         XCTAssertEqual(result.copiedItems, ["RuleCollections.json"], "Backups should not capture transient validation temp files")
     }
@@ -163,8 +163,70 @@ final class ConfigFacadeTests: XCTestCase {
         XCTAssertEqual(reloadCount, 0)
         XCTAssertEqual(try String(contentsOf: configFile, encoding: .utf8), "original config")
 
-        let activeItems = try FileManager.default.contentsOfDirectory(atPath: configDirectory.path)
-        XCTAssertEqual(activeItems, ["keypath.kbd"])
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: RecoverableRuleWrite.journalURL(configDirectory, scope: .rawConfig).path
+        ))
+    }
+
+    @MainActor
+    func testDryRunPreservesInterruptedRawConfiguration() async throws {
+        try await assertDryRunPreservesInterruptedWrite(includePreference: false)
+    }
+
+    @MainActor
+    func testDryRunPreservesInterruptedLeaderPreference() async throws {
+        try await assertDryRunPreservesInterruptedWrite(includePreference: true)
+    }
+
+    @MainActor
+    private func assertDryRunPreservesInterruptedWrite(includePreference: Bool) async throws {
+        let directory = tempRoot.appendingPathComponent("config", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let config = directory.appendingPathComponent("keypath.kbd")
+        let before = Data("before-config".utf8)
+        let interrupted = Data("interrupted-config".utf8)
+        try RecoverableRuleWrite.durableWrite(before, config)
+        let defaults = PreferencesService.canonicalDefaults
+        let key = PreferencesService.leaderKeyPreferenceKey
+        let originalPreference = defaults.object(forKey: key)
+        defer {
+            if let originalPreference { defaults.set(originalPreference, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+            PreferencesService.shared.reloadLeaderKeyPreference()
+        }
+        let priorPreference = try JSONEncoder().encode(LeaderKeyPreference.default)
+        let attemptedPreference = try JSONEncoder().encode(
+            LeaderKeyPreference(key: "tab", targetLayer: .navigation, enabled: true)
+        )
+        defaults.set(priorPreference, forKey: key)
+        _ = try RecoverableRuleWrite.stage(
+            files: ["config": config], contents: ["config": interrupted],
+            directory: directory, scope: .rawConfig,
+            preferences: includePreference ? defaults : nil,
+            preferenceChanges: includePreference
+                ? [.leader(before: priorPreference, after: attemptedPreference)] : []
+        )
+        let journal = RecoverableRuleWrite.journalURL(directory, scope: .rawConfig)
+        let journalBefore = try Data(contentsOf: journal)
+        let preferenceBefore = defaults.data(forKey: key)
+        let probe = ReloadProbe()
+        let facade = ConfigFacade(
+            configDirectory: directory.path,
+            ruleCollectionLoader: { [] }, customRuleLoader: { [] },
+            reloadHandler: { await probe.reload() }
+        )
+
+        do {
+            _ = try await facade.applyConfiguration(dryRun: true)
+            XCTFail("Preview must refuse while recovery is pending")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("recovery"))
+        }
+        XCTAssertEqual(try Data(contentsOf: config), interrupted)
+        XCTAssertEqual(try? Data(contentsOf: journal), journalBefore)
+        XCTAssertEqual(defaults.data(forKey: key), preferenceBefore)
+        let reloadCount = await probe.count
+        XCTAssertEqual(reloadCount, 0)
     }
 
     // MARK: - #889: CLI apply must honor the Leader Key collection's selectedOutput
@@ -261,6 +323,89 @@ final class ConfigFacadeTests: XCTestCase {
             FileManager.default.fileExists(atPath: configDirectory.appendingPathComponent("keypath.kbd").path),
             "Dry run must not write the active config file"
         )
+    }
+
+    @MainActor
+    func testFailedApplyDoesNotPersistReconciledLeaderKey() async throws {
+        let blockedDirectory = tempRoot.appendingPathComponent("blocked")
+        try Data("not-a-directory".utf8).write(to: blockedDirectory)
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = leaderKeyCollections(selectedOutput: "tab")
+        let facade = ConfigFacade(
+            configDirectory: blockedDirectory.path,
+            ruleCollectionLoader: { collections },
+            customRuleLoader: { [] },
+            reloadHandler: { true }
+        )
+
+        do {
+            _ = try await facade.applyConfiguration(dryRun: false)
+            XCTFail("Expected CLI apply to fail before committing its retained transaction")
+        } catch {}
+
+        XCTAssertEqual(PreferencesService.shared.leaderKeyPreference, .default)
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: RecoverableRuleWrite.journalURL(blockedDirectory, scope: .rawConfig).path)
+        )
+    }
+
+    @MainActor
+    func testApplyRecoversInterruptedRawLeaderTransactionBeforeReconciling() async throws {
+        let configDirectory = tempRoot.appendingPathComponent("config", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+        let config = configDirectory.appendingPathComponent("keypath.kbd")
+        try RecoverableRuleWrite.durableWrite(Data("before-config".utf8), config)
+        PreferencesService.shared.leaderKeyPreference = .default
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+        let beforeData = try XCTUnwrap(
+            PreferencesService.canonicalDefaults.data(forKey: PreferencesService.leaderKeyPreferenceKey)
+        )
+        let attempted = LeaderKeyPreference(key: "tab", targetLayer: .navigation, enabled: true)
+        _ = try RecoverableRuleWrite.stage(
+            files: ["config": config], contents: ["config": Data("interrupted-config".utf8)],
+            directory: configDirectory, scope: .rawConfig,
+            preferences: PreferencesService.canonicalDefaults,
+            preferenceChanges: [.leader(before: beforeData, after: JSONEncoder().encode(attempted))]
+        )
+
+        let collections = leaderKeyCollections(selectedOutput: "tab")
+        let reloadProbe = ReloadProbe()
+        let facade = ConfigFacade(
+            configDirectory: configDirectory.path,
+            ruleCollectionLoader: { collections }, customRuleLoader: { [] },
+            reloadHandler: { await reloadProbe.reload() }
+        )
+        _ = try await facade.applyConfiguration()
+
+        let reloadCount = await reloadProbe.count
+        XCTAssertEqual(reloadCount, 2)
+        XCTAssertEqual(PreferencesService.shared.leaderKeyPreference, attempted)
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: RecoverableRuleWrite.journalURL(configDirectory, scope: .rawConfig).path
+        ))
+        XCTAssertTrue(try String(contentsOf: config, encoding: .utf8).contains(";; Input: tab"))
+    }
+
+    @MainActor
+    func testApplyReconcilesMalformedStoredLeaderFromDefaultFallback() async throws {
+        let configDirectory = tempRoot.appendingPathComponent("config", isDirectory: true)
+        try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+        PreferencesService.canonicalDefaults.set(
+            Data("malformed".utf8), forKey: PreferencesService.leaderKeyPreferenceKey
+        )
+        PreferencesService.shared.reloadLeaderKeyPreference()
+        defer { PreferencesService.shared.leaderKeyPreference = .default }
+
+        let collections = leaderKeyCollections(selectedOutput: "tab")
+        let facade = ConfigFacade(
+            configDirectory: configDirectory.path,
+            ruleCollectionLoader: { collections }, customRuleLoader: { [] }, reloadHandler: { true }
+        )
+        _ = try await facade.applyConfiguration()
+
+        XCTAssertEqual(PreferencesService.shared.leaderKeyPreference.key, "tab")
     }
 
     private func createSymlinkedConfig(link: URL, target: URL) throws {

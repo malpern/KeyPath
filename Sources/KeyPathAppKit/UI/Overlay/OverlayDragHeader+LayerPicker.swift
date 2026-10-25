@@ -264,4 +264,27 @@ extension OverlayDragHeader {
         .accessibilityIdentifier("overlay-kanata-disconnected-indicator")
         .accessibilityLabel("Not connected to Kanata TCP server")
     }
+
+    func kanataTransitionPill(
+        _ label: String,
+        helpText: String,
+        indicatorCornerRadius: CGFloat
+    ) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                .font(.caption2.weight(.medium))
+            Text(label)
+                .font(.caption2.weight(.semibold))
+        }
+        .foregroundStyle(Color.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(
+            RoundedRectangle(cornerRadius: indicatorCornerRadius)
+                .fill(Color.secondary.opacity(isDark ? 0.12 : 0.1))
+        )
+        .help(helpText)
+        .accessibilityIdentifier("overlay-kanata-transition-indicator")
+        .accessibilityLabel(label)
+    }
 }

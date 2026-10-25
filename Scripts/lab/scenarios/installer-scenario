@@ -3,8 +3,8 @@ set -euo pipefail
 
 name=${1:-}
 lane=${2:-}
-installer_dir="$PWD/.keypath-lab/installer"
-artifact_dir="$PWD/.keypath-lab/scenario-output/$name"
+installer_dir="$PWD/.vm-lab/installer"
+artifact_dir="$PWD/.vm-lab/scenario-output/$name"
 mkdir -p "$artifact_dir"
 result_tool="$PWD/Scripts/lab/scenario-result"
 
@@ -90,7 +90,7 @@ case "$name" in
     mkdir -p "$artifact_dir/logs"
     cp -R "$HOME/Library/Logs/KeyPath/." "$artifact_dir/logs/" 2>/dev/null || true
     "$installed_cli" system inspect --json > "$artifact_dir/system-inspect.json" 2>/dev/null || true
-    print "Scenario artifacts written to $artifact_dir; follow with keypath-lab artifacts <lease-id>."
+    print "Scenario artifacts written to $artifact_dir; follow with vm-lab keypath artifacts <lease-id>."
     ;;
   macos-27-regression)
     require_installed_cli

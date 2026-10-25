@@ -274,6 +274,47 @@ final class KindaVimTelemetryStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: tempFileURL.path))
     }
 
+    @MainActor func testUninstallDrainsPendingCountersAndPreventsSettingsRecreation() throws {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = KindaVimTelemetryStore(fileURL: tempFileURL, userDefaults: defaults, flushInterval: 60)
+        store.recordCommand("h")
+        store.suspendForUninstall()
+
+        // The backup reads disk, so pending counters must be present already.
+        XCTAssertEqual(makeStore().loadSnapshot().commandFrequency["h"], 1)
+        try FileManager.default.removeItem(at: tempFileURL)
+        store.recordCommand("j")
+        store.recordNonVimNavigation("left")
+        store.recordModeDwell("normal", duration: 1)
+        store.recordStrategySample("accessibility")
+        store.recordOperatorPendingExit(completed: true)
+        store.flushNow() // Same entry point as timer and application termination.
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tempFileURL.path))
+        let snapshot = store.loadSnapshot()
+        XCTAssertNil(snapshot.commandFrequency["j"])
+        XCTAssertTrue(snapshot.nonVimNavigationFrequency.isEmpty)
+        XCTAssertTrue(snapshot.modeDwellSeconds.isEmpty)
+        XCTAssertTrue(snapshot.strategySamples.isEmpty)
+        XCTAssertEqual(snapshot.operatorPendingCompleted, 0)
+        XCTAssertTrue(defaults.bool(forKey: KindaVimTelemetryStore.optInKey))
+    }
+
+    @MainActor func testFailedUninstallResumesRecordingWithoutChangingOptIn() {
+        defaults.set(true, forKey: KindaVimTelemetryStore.optInKey)
+        let store = makeStore()
+        store.recordCommand("h")
+        store.suspendForUninstall()
+        store.resumeAfterFailedUninstall()
+        store.recordCommand("j")
+        store.flushNow()
+
+        let persisted = makeStore().loadSnapshot()
+        XCTAssertEqual(persisted.commandFrequency["h"], 1)
+        XCTAssertEqual(persisted.commandFrequency["j"], 1)
+        XCTAssertTrue(defaults.bool(forKey: KindaVimTelemetryStore.optInKey))
+    }
+
     // MARK: - Missing file is harmless
 
     @MainActor func testLoadSnapshotWithNoFileReturnsEmpty() {

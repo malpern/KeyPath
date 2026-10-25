@@ -20,8 +20,12 @@ public final class ActivityLogger {
 
     // MARK: - Private Properties
 
-    private let storage = ActivityLogStorage.shared
+    private let storage: ActivityLogStorage
+    private let automaticallyCaptureEvents: Bool
     private var buffer: [ActivityEvent] = []
+    private var unpersistedEventIDs: Set<UUID> = []
+    private var historyLoadEvents: Set<UUID>?
+    private var lifecycleGeneration = 0
     private let maxBufferSize = 50
     private let flushInterval: TimeInterval = 30.0
 
@@ -30,10 +34,14 @@ public final class ActivityLogger {
 
     // MARK: - Initialization
 
-    private init() {
-        Task { @MainActor in
-            eventCount = await storage.totalEventCount()
-        }
+    private convenience init() {
+        self.init(storage: .shared, automaticallyCaptureEvents: true)
+    }
+
+    /// Isolated storage and explicit capture control keep tests off workspace observers and timers.
+    init(storage: ActivityLogStorage, automaticallyCaptureEvents: Bool) {
+        self.storage = storage
+        self.automaticallyCaptureEvents = automaticallyCaptureEvents
     }
 
     // MARK: - Public Interface
@@ -42,11 +50,21 @@ public final class ActivityLogger {
     public func enable() async {
         guard !isEnabled else { return }
 
+        lifecycleGeneration += 1
+        let generation = lifecycleGeneration
+        historyLoadEvents = unpersistedEventIDs
         isEnabled = true
-        startObservers()
-        startFlushTimer()
+        if automaticallyCaptureEvents {
+            startObservers()
+            startFlushTimer()
+        }
 
-        eventCount = await storage.totalEventCount()
+        let storedEvents = await (try? storage.readAllEvents()) ?? []
+        guard isEnabled, lifecycleGeneration == generation else { return }
+        // Capture continues during the read. Deduplicate events that were also
+        // flushed while it was suspended; adding a counter delta can double-count.
+        eventCount = Set(storedEvents.map(\.id)).union(historyLoadEvents ?? []).count
+        historyLoadEvents = nil
 
         AppLogger.shared.log("📊 [ActivityLogger] Activity logging enabled")
     }
@@ -55,13 +73,19 @@ public final class ActivityLogger {
     public func disable() async {
         guard isEnabled else { return }
 
-        stopObservers()
-        stopFlushTimer()
+        // Revoke capture before flush suspends: queued observer callbacks and
+        // direct action events may arrive while storage awaits encryption.
+        isEnabled = false
+        lifecycleGeneration += 1
+        historyLoadEvents = nil
+
+        if automaticallyCaptureEvents {
+            stopObservers()
+            stopFlushTimer()
+        }
 
         // Flush remaining buffer
         await flush()
-
-        isEnabled = false
 
         AppLogger.shared.log("📊 [ActivityLogger] Activity logging disabled")
     }
@@ -70,9 +94,14 @@ public final class ActivityLogger {
     public func resetData() async throws {
         await disable()
         try await storage.clearAll()
+        // A newer enable may have begun reading old history while reset awaited
+        // its final flush. Discard that snapshot without undoing its enable request.
+        lifecycleGeneration += 1
+        historyLoadEvents = nil
         eventCount = 0
         lastEventTime = nil
         buffer.removeAll()
+        unpersistedEventIDs.removeAll()
 
         AppLogger.shared.log("📊 [ActivityLogger] Activity data reset")
     }
@@ -86,6 +115,7 @@ public final class ActivityLogger {
 
         do {
             try await storage.append(eventsToWrite)
+            unpersistedEventIDs.subtract(eventsToWrite.map(\.id))
             AppLogger.shared.log("📊 [ActivityLogger] Flushed \(eventsToWrite.count) events to storage")
         } catch {
             // Re-add to buffer on failure
@@ -145,6 +175,8 @@ public final class ActivityLogger {
 
     private func appendEvent(_ event: ActivityEvent) {
         buffer.append(event)
+        unpersistedEventIDs.insert(event.id)
+        historyLoadEvents?.insert(event.id)
         eventCount += 1
         lastEventTime = event.timestamp
 

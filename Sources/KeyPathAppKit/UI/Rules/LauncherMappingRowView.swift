@@ -75,7 +75,7 @@ struct LauncherMappingRowView: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color(NSColor.controlBackgroundColor))
+                .fill(SettingsDesign.groupFill)
         )
         .contentShape(Rectangle())
         .if(onEdit != nil && onDelete != nil) { view in

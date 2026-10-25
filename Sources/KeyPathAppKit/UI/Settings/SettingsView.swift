@@ -17,8 +17,15 @@ struct StatusSettingsTabView: View {
     @State var systemContext: SystemContext?
     @State var wizardSystemState: WizardSystemState = .initializing
     @State var wizardIssues: [WizardIssue] = []
+    var isDriverless: Bool {
+        (permissionSnapshot?.backend ?? KanataRuntimeBackend.selected) == .session
+    }
+
     @State var tcpConfigured: Bool?
     @State var duplicateAppCopies: [String] = []
+    @State private var capsManaged = false
+    @State private var lastDuplicateScan: Date?
+    @State private var launchAtLogin = LaunchAtLoginController.shared
     @State private var settingsToastManager = WizardToastManager()
     @State var showingPermissionAlert = false
     @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
@@ -45,10 +52,6 @@ struct StatusSettingsTabView: View {
             + kanataManager.customRules.filter(\.isEnabled).count
     }
 
-    var hasFullDiskAccess: Bool {
-        FullDiskAccessChecker.shared.hasFullDiskAccess()
-    }
-
     private var isSystemHealthy: Bool {
         overallHealthLevel == .success
     }
@@ -64,13 +67,6 @@ struct StatusSettingsTabView: View {
         userDisabledService && !effectiveServiceRunning
     }
 
-    /// True when the only permission issue is unverified kanata (no FDA to check)
-    private var isOnlyKanataUnverified: Bool {
-        guard let snapshot = permissionSnapshot, !hasFullDiskAccess else { return false }
-        let evaluation = permissionGaps(in: snapshot)
-        return evaluation.missingOrDenied.isEmpty && !evaluation.unknown.isEmpty
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -78,12 +74,13 @@ struct StatusSettingsTabView: View {
                     SetupBanner {
                         wizardInitialPage = .summary
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, SettingsDesign.pageInset)
                     .padding(.top, 20)
                 }
 
-                // System Status Hero Section
-                HStack(alignment: .top, spacing: 40) {
+                // System Status Hero Section: centred against the status list so
+                // the summary stays balanced as rows are added or removed.
+                HStack(alignment: .center, spacing: 40) {
                     // Large status indicator with centered toggle
                     VStack(spacing: 16) {
                         VStack(spacing: 12) {
@@ -134,27 +131,15 @@ struct StatusSettingsTabView: View {
                         // user has intentionally turned the service off — nothing is
                         // broken, so there's nothing to fix.
                         if !isSystemHealthy, !isIntentionallyDisabled {
-                            if isOnlyKanataUnverified {
-                                // Only issue is unverified kanata — lead with FDA
-                                Button(action: { SystemDiagnostics.open(.fullDiskAccess) }) {
-                                    Label("Enable Enhanced Diagnostics", systemImage: "checkmark.shield")
-                                        .font(.body.weight(.semibold))
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .tint(.blue)
-                                .accessibilityIdentifier("status-enable-fda-button")
-                            } else {
-                                Button(action: { wizardInitialPage = .summary }) {
-                                    Label("Fix it", systemImage: "wand.and.stars")
-                                        .font(.body.weight(.semibold))
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.large)
-                                .tint(overallHealthLevel == .critical ? .red : .orange)
-                                .accessibilityIdentifier("status-fix-it-button")
-                                .accessibilityLabel("Fix system issues")
+                            Button(action: { wizardInitialPage = .summary }) {
+                                Label("Fix it", systemImage: "wand.and.stars")
+                                    .font(.body.weight(.semibold))
                             }
+                            .settingsPrimaryAction()
+                            .controlSize(.large)
+                            .tint(overallHealthLevel == .critical ? .red : .orange)
+                            .accessibilityIdentifier("status-fix-it-button")
+                            .accessibilityLabel("Fix system issues")
                         }
 
                         // Centered toggle
@@ -192,7 +177,7 @@ struct StatusSettingsTabView: View {
                                 .foregroundColor(effectiveServiceRunning ? .green : .secondary)
                         }
 
-                        if let runtimePathTitle = kanataManager.activeRuntimePathTitle {
+                        if !isDriverless, let runtimePathTitle = kanataManager.activeRuntimePathTitle {
                             VStack(spacing: 4) {
                                 Text(runtimePathTitle)
                                     .font(.footnote.weight(.semibold))
@@ -215,60 +200,36 @@ struct StatusSettingsTabView: View {
                     }
                     .frame(minWidth: 220)
 
-                    // Permissions grid
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Permissions")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
+                    // Right column: one flat status list, then the connected keyboard.
+                    VStack(alignment: .leading, spacing: 28) {
                         VStack(alignment: .leading, spacing: 8) {
                             PermissionStatusRow(
-                                title: "KeyPath Accessibility",
+                                title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
                                 icon: "checkmark.shield",
-                                status: permissionSnapshot?.keyPath.accessibility,
+                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
+                                    .keyPath.accessibility,
                                 isKanata: false,
-                                hasFullDiskAccess: hasFullDiskAccess,
-                                onTap: { wizardInitialPage = .accessibility }
+                                onTap: { wizardInitialPage = .accessibility },
+                                identifier: isDriverless ? "settings-status-action-button-accessibility"
+                                    : "settings-status-action-button-keypath-accessibility"
                             )
 
                             PermissionStatusRow(
-                                title: "KeyPath Input Monitoring",
+                                title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
                                 icon: "keyboard",
-                                // No Apple API to query KeyPath IM — always .unknown.
-                                // Kanata's IM grant is what matters. Show green to avoid
-                                // a permanent unresolvable "?" in Settings.
-                                status: .granted,
+                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
+                                    .keyPath.inputMonitoring,
                                 isKanata: false,
-                                hasFullDiskAccess: hasFullDiskAccess,
                                 onTap: { wizardInitialPage = .inputMonitoring }
                             )
 
-                            PermissionStatusRow(
-                                title: "Kanata Accessibility",
-                                icon: "checkmark.shield",
-                                status: permissionSnapshot?.kanata.accessibility,
-                                isKanata: true,
-                                hasFullDiskAccess: hasFullDiskAccess,
-                                onTap: { wizardInitialPage = .accessibility }
-                            )
+                            // In driverless mode these match the two rows above; only the
+                            // legacy backend's separate runtime has its own permissions.
+                            if !isDriverless {
+                                runtimePermissionRows
+                            }
 
-                            PermissionStatusRow(
-                                title: "Kanata Input Monitoring",
-                                icon: "keyboard",
-                                status: permissionSnapshot?.kanata.inputMonitoring,
-                                isKanata: true,
-                                hasFullDiskAccess: hasFullDiskAccess,
-                                onTap: { wizardInitialPage = .inputMonitoring }
-                            )
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("System Status")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                                .padding(.top, 10)
-
-                            ForEach(systemStatusRows) { row in
+                            ForEach(systemStatusRows + summaryRows) { row in
                                 SettingsSystemStatusRow(
                                     id: row.id,
                                     title: row.title,
@@ -277,21 +238,25 @@ struct StatusSettingsTabView: View {
                                     message: row.message,
                                     onTap: row.targetPage.map { page in
                                         { wizardInitialPage = page }
+                                    } ?? row.settingsDestination.map { destination in
+                                        { NotificationCenter.default.post(name: destination, object: nil) }
                                     }
                                 )
                             }
                         }
+                        .padding(SettingsDesign.cardInset)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .settingsGroupBackground()
+                        .accessibilityIdentifier("settings-status-list")
+
+                        keyboardDetailsSection
                     }
 
                     Spacer()
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, SettingsDesign.pageInset)
                 .padding(.top, 24)
-
-                keyboardDetailsSection
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
-                    .padding(.bottom, 20)
+                .padding(.bottom, 20)
             }
         }
         .settingsBackground()
@@ -338,140 +303,132 @@ struct StatusSettingsTabView: View {
         }
     }
 
-    @State private var showKeyboardDetails = false
-
     private var keyboardDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Connected Keyboard")
-                .font(.headline)
-                .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: SettingsDesign.sectionContentGap) {
+            SettingsSectionHeader(title: "Connected Keyboard")
 
             if let activeKeyboard = autoDetectController.activeKeyboard {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Hero: icon + name + status
-                    HStack(spacing: 14) {
-                        Image(systemName: "keyboard.fill")
-                            .font(.largeTitle)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "keyboard")
                             .foregroundStyle(.secondary)
-                            .frame(width: 44, height: 44)
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 1) {
                             Text(activeKeyboard.keyboardName)
-                                .font(.body.weight(.semibold))
-
-                            if let manufacturer = activeKeyboard.manufacturer {
-                                Text(manufacturer)
-                                    .font(.callout)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        Spacer()
-
-                        HStack(spacing: 5) {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 7, height: 7)
-                            Text(activeKeyboard.status == .remembered ? "Remembered" : "Connected")
-                                .font(.caption.weight(.medium))
+                                .font(.body.weight(.medium))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text([activeKeyboard.manufacturer,
+                                  activeKeyboard.status == .remembered ? "Remembered" : "Connected"]
+                                    .compactMap(\.self).joined(separator: " · "))
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                    }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Divider()
-
-                    // Layout picker row
-                    HStack {
-                        Text("Layout")
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        Button {
-                            autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
-                            LiveKeyboardOverlayController.shared.showForQuickLaunch()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Not selected")
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundColor(.secondary)
-                            }
+                        Button("Forget", role: .destructive) {
+                            autoDetectController.forgetKeyboard(activeKeyboard.id)
                         }
                         .buttonStyle(.plain)
-                        .foregroundColor(.primary)
-                        .accessibilityIdentifier("status-search-keyboard-layouts-button")
+                        .font(.callout)
+                        .foregroundColor(.red)
+                        .help("Forget This Keyboard")
+                        .accessibilityLabel("Forget This Keyboard")
+                        .accessibilityIdentifier("status-forget-keyboard-button")
                     }
 
-                    // Technical details disclosure
-                    DisclosureGroup("Details", isExpanded: $showKeyboardDetails) {
-                        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
-                            keyboardInfoRow(title: "VID:PID", value: activeKeyboard.vidPidKey)
-                            keyboardInfoRow(title: "Source", value: activeKeyboard.source?.rawValue.capitalized ?? "Manual")
-                            keyboardInfoRow(title: "Match", value: activeKeyboard.matchType?.rawValue ?? "None")
-                            keyboardInfoRow(title: "Confidence", value: activeKeyboard.confidence?.rawValue.capitalized ?? "Unknown")
-                        }
-                        .padding(.top, 6)
-                    }
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-
-                    // Destructive action
-                    Button(role: .destructive) {
-                        autoDetectController.forgetKeyboard(activeKeyboard.id)
-                    } label: {
-                        Text("Forget This Keyboard")
+                    HStack(spacing: 10) {
+                        Text("Layout")
                             .font(.callout)
+                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        Menu {
+                            ForEach(PhysicalLayout.layoutsByCategory(), id: \.category) { group in
+                                if !group.layouts.isEmpty {
+                                    Section(group.category.displayName) {
+                                        ForEach(group.layouts) { layout in
+                                            Button {
+                                                autoDetectController.selectLayout(layout.id)
+                                            } label: {
+                                                if layout.id == activeKeyboard.layoutId {
+                                                    Label(layout.name, systemImage: "checkmark")
+                                                } else {
+                                                    Text(layout.name)
+                                                }
+                                            }
+                                            .accessibilityIdentifier("status-layout-option-\(layout.id)")
+                                        }
+                                    }
+                                }
+                            }
+                            Divider()
+                            Button("Search All Keyboards\u{2026}") {
+                                autoDetectController.presentKeyboardSearch(for: activeKeyboard.id)
+                                LiveKeyboardOverlayController.shared.showForQuickLaunch()
+                            }
+                            .accessibilityIdentifier("status-search-keyboard-layouts-button")
+                        } label: {
+                            // One Text keeps the chevron trailing; a menu label lays out
+                            // an HStack's image before its text.
+                            Text("\(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout") ")
+                                + Text(Image(systemName: "chevron.up.chevron.down"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(.secondary)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .lineLimit(1)
+                        .accessibilityLabel("Keyboard layout")
+                        .accessibilityIdentifier("status-keyboard-layout-menu")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.red)
-                    .accessibilityIdentifier("status-forget-keyboard-button")
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                )
+                .padding(.horizontal, SettingsDesign.cardInset)
+                .padding(.vertical, 10)
+                .settingsGroupBackground()
+                // Diagnostics stay reachable without taking space.
+                .help("""
+                VID:PID \(activeKeyboard.vidPidKey) · \(activeKeyboard.source?.rawValue.capitalized ?? "Manual") · \
+                match \(activeKeyboard.matchType?.rawValue ?? "none") · \
+                \(activeKeyboard.confidence?.rawValue ?? "unknown") confidence
+                """)
                 .accessibilityIdentifier("status-connected-keyboard-panel")
             } else {
-                HStack(spacing: 14) {
+                HStack(spacing: 10) {
                     Image(systemName: "keyboard")
-                        .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                        .frame(width: 44, height: 44)
-
-                    Text("No keyboard connected")
+                    Text(permissionSnapshot?.keyPath.inputMonitoring.isReady == true
+                        ? "No keyboard detected"
+                        : "Keyboard discovery unavailable until Input Monitoring is enabled for KeyPath.")
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }
-                .padding(16)
+                .padding(.horizontal, SettingsDesign.cardInset)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(NSColor.separatorColor), lineWidth: 1)
-                )
+                .settingsGroupBackground()
                 .accessibilityIdentifier("status-no-connected-keyboard-panel")
             }
         }
     }
 
-    private func keyboardInfoRow(title: String, value: String) -> some View {
-        GridRow {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.callout)
-                .textSelection(.enabled)
+    private var runtimePermissionRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PermissionStatusRow(
+                title: permissionSnapshot?.backend == .session
+                    ? "KeyPath Runtime Accessibility" : "Kanata Accessibility",
+                icon: "checkmark.shield",
+                status: permissionSnapshot?.kanata.accessibility,
+                isKanata: true,
+                onTap: { wizardInitialPage = .accessibility }
+            )
+
+            PermissionStatusRow(
+                title: permissionSnapshot?.backend == .session
+                    ? "KeyPath Runtime Input Monitoring" : "Kanata Input Monitoring",
+                icon: "keyboard",
+                status: permissionSnapshot?.kanata.inputMonitoring,
+                isKanata: true,
+                onTap: { wizardInitialPage = .inputMonitoring }
+            )
         }
     }
 
@@ -493,7 +450,7 @@ struct StatusSettingsTabView: View {
         let controller = MainAppStateController.shared
 
         let context = controller.lastValidatedSystemContext ?? .empty
-        let duplicates = HelperMaintenance.shared.detectDuplicateAppCopies()
+        let duplicates = duplicateAppCopies
 
         permissionSnapshot = context.permissions
         systemContext = context
@@ -501,9 +458,26 @@ struct StatusSettingsTabView: View {
         wizardIssues = controller.issues
         tcpConfigured = controller.lastTCPConfigured
         showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
-            || duplicates.count > 1
             || (context.services.kanataRunning && controller.lastTCPConfigured == false)
         duplicateAppCopies = duplicates
+        capsManaged = kanataManager.underlyingManager.serviceLifecycleCoordinator.sessionManagedCapsActive
+        Task { await launchAtLogin.refresh() }
+        refreshDuplicateAppCopies()
+    }
+
+    /// Spotlight can stall, so the duplicate-app scan never runs inline on the main
+    /// actor: publish status immediately, then fold the scan result in when it lands.
+    /// Until the first scan lands (at most `duplicateScanTimeout`), a genuine duplicate
+    /// install is not yet reflected; that brief warm-up is intended. Validation
+    /// publishes roughly every minute, so rescans are throttled to match.
+    private func refreshDuplicateAppCopies() {
+        if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 { return }
+        lastDuplicateScan = Date()
+        Task { @MainActor in
+            let duplicates = await HelperMaintenance.shared.detectDuplicateAppCopies()
+            guard duplicates != duplicateAppCopies else { return }
+            duplicateAppCopies = duplicates
+        }
     }
 
     private func startViaInstallerEngine() async {
@@ -537,13 +511,23 @@ struct StatusSettingsTabView: View {
         }
     }
 
+    private var summaryRows: [SettingsSystemStatusRowModel] {
+        SettingsStatusSummaryRows.rows(
+            runtimeRunning: effectiveServiceRunning,
+            capsManaged: capsManaged,
+            launchAtLogin: launchAtLogin.hasLoaded ? launchAtLogin.status : nil,
+            appCopies: duplicateAppCopies.count
+        )
+    }
+
     private var systemStatusRows: [SettingsSystemStatusRowModel] {
         SettingsSystemStatusRowsBuilder.rows(
             wizardSystemState: wizardSystemState,
             wizardIssues: wizardIssues,
             systemContext: systemContext,
             tcpConfigured: tcpConfigured,
-            hasFullDiskAccess: hasFullDiskAccess
+            driverless: isDriverless,
+            intentionallyOff: isIntentionallyDisabled
         )
     }
 

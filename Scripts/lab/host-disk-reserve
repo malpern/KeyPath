@@ -2,7 +2,7 @@
 set -euo pipefail
 
 path=${KEYPATH_DISK_RESERVE_PATH:-/System/Volumes/Data}
-minimum_gib=${KEYPATH_MIN_FREE_DISK_GIB:-100}
+minimum_gib=${KEYPATH_MIN_FREE_DISK_GIB:-90}
 
 [[ "$minimum_gib" =~ ^[0-9]+$ && "$minimum_gib" -gt 0 ]] || {
   echo "host-disk-reserve: KEYPATH_MIN_FREE_DISK_GIB must be a positive integer" >&2

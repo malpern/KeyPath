@@ -8,6 +8,27 @@ struct LogicalKeymap: Identifiable {
     let iconFilename: String // SVG filename in Resources/Keymaps (without extension)
     let coreLabels: [UInt16: String] // 30-key letter block (always applied)
     let extraLabels: [UInt16: String] // Number row + outer punctuation (toggle)
+    let shiftLabels: [UInt16: String] // Shifted legends when the keymap defines them
+
+    init(
+        id: String,
+        name: String,
+        description: String,
+        learnMoreURL: URL,
+        iconFilename: String,
+        coreLabels: [UInt16: String],
+        extraLabels: [UInt16: String],
+        shiftLabels: [UInt16: String] = [:]
+    ) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.learnMoreURL = learnMoreURL
+        self.iconFilename = iconFilename
+        self.coreLabels = coreLabels
+        self.extraLabels = extraLabels
+        self.shiftLabels = shiftLabels
+    }
 
     func label(for keyCode: UInt16, includeExtraKeys: Bool) -> String? {
         if let label = coreLabels[keyCode] {
@@ -93,7 +114,8 @@ struct LogicalKeymap: Identifiable {
             learnMoreURL: URL(string: "https://support.apple.com/guide/mac-help/change-input-sources-mchlp1406/mac")!,
             iconFilename: "QWERTY", // Fallback icon; UI uses globe SF Symbol instead
             coreLabels: labels,
-            extraLabels: [:]
+            extraLabels: [:],
+            shiftLabels: provider.currentShiftLabels
         )
     }
 
@@ -108,7 +130,22 @@ struct LogicalKeymap: Identifiable {
             home: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"],
             bottom: ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"]
         ),
-        extraLabels: [:]
+        extraLabels: [:],
+        shiftLabels: [
+            KeyCode.grave: "~",
+            KeyCode.one: "!",
+            KeyCode.two: "@",
+            KeyCode.three: "#",
+            KeyCode.four: "$",
+            KeyCode.five: "%",
+            KeyCode.six: "^",
+            KeyCode.seven: "&",
+            KeyCode.eight: "*",
+            KeyCode.nine: "(",
+            KeyCode.zero: ")",
+            KeyCode.minus: "_",
+            KeyCode.equal: "+",
+        ]
     )
 
     /// AZERTY - French keyboard layout
@@ -278,6 +315,16 @@ struct LogicalKeymap: Identifiable {
 
     private enum KeyCode {
         static let grave: UInt16 = 50
+        static let one: UInt16 = 18
+        static let two: UInt16 = 19
+        static let three: UInt16 = 20
+        static let four: UInt16 = 21
+        static let five: UInt16 = 23
+        static let six: UInt16 = 22
+        static let seven: UInt16 = 26
+        static let eight: UInt16 = 28
+        static let nine: UInt16 = 25
+        static let zero: UInt16 = 29
         static let minus: UInt16 = 27
         static let equal: UInt16 = 24
         static let leftBracket: UInt16 = 33
@@ -311,6 +358,28 @@ enum KeymapPreferences {
         var map = decodeIncludeMap(from: store)
         map[keymapId] = includePunctuation
         return encodeIncludeMap(map)
+    }
+
+    static func restoreFailedSelection(
+        attemptedID: String, attemptedPunctuation: Bool,
+        previousID: String, previousPunctuation: Bool,
+        userDefaults: UserDefaults
+    ) {
+        guard includePunctuation(for: attemptedID, userDefaults: userDefaults) == attemptedPunctuation
+        else { return }
+        // Keep remembered settings for all other layouts. A layout switch does
+        // not itself edit the destination layout's punctuation preference.
+        if attemptedID == previousID {
+            let store = userDefaults.string(forKey: includePunctuationStoreKey) ?? "{}"
+            userDefaults.set(updatedIncludePunctuationStore(
+                from: store, keymapId: previousID, includePunctuation: previousPunctuation
+            ), forKey: includePunctuationStoreKey)
+        }
+        // A failed punctuation edit still belongs to its original layout even
+        // if another layout has since been selected. Preserve that newer choice.
+        if userDefaults.string(forKey: keymapIdKey) == attemptedID {
+            userDefaults.set(previousID, forKey: keymapIdKey)
+        }
     }
 
     private static func decodeIncludeMap(from store: String) -> [String: Bool] {

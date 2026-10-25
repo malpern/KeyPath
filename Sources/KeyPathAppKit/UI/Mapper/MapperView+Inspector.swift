@@ -413,8 +413,13 @@ struct MapperInspectorPanel: View {
                     ) {
                         viewModel.selectSystemAction(action)
                     }
+                    .disabled(!action.isSupportedInDriverlessSession)
+                    .help(action.isSupportedInDriverlessSession ? action.name : SystemActionInfo.driverlessMediaUnavailableReason)
                 }
             }
+            Text(SystemActionInfo.driverlessMediaUnavailableReason)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

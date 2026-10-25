@@ -1,0 +1,13 @@
+# Preserve completed Caps recovery refusal in runtime status
+
+The signed `1c856d3fe` fresh-parent retained-marker trial safely refused recovery but initially displayed a startup spinner. See `/private/tmp/keypath-marker-fresh-parent-live-02`: `startup-log01-result.json`, `restart-log01-result.json`, and `refusal-ui01-result.json`. The explicit Restart completion eventually showed the correct refusal. No mapping safety failure occurred.
+
+The coordinator sent the restoration error through its callback but did not retain it in runtime status. With valid configuration and no worker report, status returned stopped while the startup grace window remained active. The main startup gate and initial wizard status poll therefore continued waiting. The earlier wizard completion fix covered explicit completed actions, not every status consumer.
+
+The existing lifecycle owner now retains the completed recovery refusal, returns failed when no worker report exists, and excludes that refusal from startup grace. The main gate publishes the failure without permission/health polling; it also rechecks after an awaited health result so stale ready evidence cannot win. A current owned running tap retains precedence. Only successful admitted recovery clears the refusal. The HID recovery implementation, journal policy, operation admission and timeouts are unchanged.
+
+Focused tests cover no-worker Start/Restart through the real lifecycle route with injected recovery failure, persistent failed status and state notification, successful recovery clearing the refusal, and failure arriving during a health await that returns stale ready evidence. The injection is DEBUG-only and instance-local, so tests never touch host HID state.
+
+The separate menu-Quit observation remains unproven. Application termination source has no intentional cancellation; do not infer its cause from this status defect. Live acceptance of this status change is pending a newly signed candidate. Bundle that verification with compatible remaining product cases instead of creating a guest only for this UI check.
+
+Validation: 30 XCTest cases plus 35 Swift Testing cases passed on the final sources (`/private/tmp/keypath-recovery-status-tests-final.log`); no compiler warnings. Seven expected application-error log lines come from negative validation fixtures and are not test failures. Accessibility checked 380 files; whitespace checks passed. Independent source review caught and verified the stale-ready correction. This is source/test validation of completed refusal publication, not a measured elimination of every initial-launch delay.

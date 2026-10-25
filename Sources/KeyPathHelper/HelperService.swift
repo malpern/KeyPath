@@ -13,6 +13,7 @@ class HelperService: NSObject, HelperProtocol {
 
     /// Helper version shared with the app and wizard for compatibility checks.
     private static let version = KeyPathHelperContract.version
+    private static let kanataServiceTarget = "system/com.keypath.kanata"
     private static let vhidRootOnlyDirectory = "/Library/Application Support/org.pqrs/tmp/rootonly"
     private let logger = Logger(subsystem: "com.keypath.helper", category: "service")
 
@@ -130,6 +131,131 @@ class HelperService: NSObject, HelperProtocol {
             operation: {
                 NSLog("[KeyPathHelper] Kanata is SMAppService-managed by KeyPath.app; repairing VHID services only")
                 try Self.installOrRepairVHIDServices()
+            },
+            reply: reply
+        )
+    }
+
+    func startKanataService(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] startKanataService requested")
+        executePrivilegedOperation(
+            name: "startKanataService",
+            operation: {
+                let enableResult = Self.run(
+                    "/bin/launchctl",
+                    ["enable", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard enableResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to enable KeyPath Kanata service: \(enableResult.out)"
+                    )
+                }
+                let result = Self.run(
+                    "/bin/launchctl",
+                    ["kickstart", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard result.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to start KeyPath Kanata service: \(result.out)"
+                    )
+                }
+            },
+            reply: reply
+        )
+    }
+
+    func stopKanataService(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] stopKanataService requested")
+        executePrivilegedOperation(
+            name: "stopKanataService",
+            operation: {
+                // Capture the live process before disabling the service. Once a
+                // launchd job is disabled, `launchctl kill system/<label>` can no
+                // longer resolve the target even though its existing process is
+                // still alive. Signalling the captured PID closes that gap while
+                // keeping the disable-before-signal ordering that prevents a
+                // KeepAlive respawn.
+                let processID = Self.serviceProcessID(Self.kanataServiceID)
+                // com.keypath.kanata is KeepAlive. Disable it before signaling the
+                // process so launchd does not immediately respawn it while the CLI
+                // is waiting for the stopped postcondition.
+                let disableResult = Self.run(
+                    "/bin/launchctl",
+                    ["disable", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard disableResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to disable KeyPath Kanata service: \(disableResult.out)"
+                    )
+                }
+                guard let processID else {
+                    if !Self.isServiceHealthy(Self.kanataServiceID) {
+                        // The registered KeepAlive job is already stopped or
+                        // waiting for launchd's throttle window. Stop is
+                        // idempotently complete.
+                        return
+                    }
+                    _ = Self.run(
+                        "/bin/launchctl",
+                        ["enable", Self.kanataServiceTarget],
+                        timeout: 15
+                    )
+                    throw HelperError.operationFailed(
+                        "Failed to identify the KeyPath Kanata service process"
+                    )
+                }
+                let result = Self.run("/bin/kill", ["-TERM", processID], timeout: 15)
+                if result.status != 0, !Self.isServiceHealthy(Self.kanataServiceID) {
+                    // The process exited between inspection and signaling. The
+                    // service remains disabled, so the stopped postcondition is
+                    // already satisfied.
+                    return
+                }
+                guard result.status == 0 else {
+                    // Preserve the caller's pre-stop enabled state when the
+                    // signal itself fails for an unexpected reason.
+                    _ = Self.run(
+                        "/bin/launchctl",
+                        ["enable", Self.kanataServiceTarget],
+                        timeout: 15
+                    )
+                    throw HelperError.operationFailed(
+                        "Failed to stop KeyPath Kanata service: \(result.out)"
+                    )
+                }
+            },
+            reply: reply
+        )
+    }
+
+    func restartKanataService(reply: @escaping (Bool, String?) -> Void) {
+        NSLog("[KeyPathHelper] restartKanataService requested")
+        executePrivilegedOperation(
+            name: "restartKanataService",
+            operation: {
+                let enableResult = Self.run(
+                    "/bin/launchctl",
+                    ["enable", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard enableResult.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to enable KeyPath Kanata service: \(enableResult.out)"
+                    )
+                }
+                let result = Self.run(
+                    "/bin/launchctl",
+                    ["kickstart", "-k", Self.kanataServiceTarget],
+                    timeout: 15
+                )
+                guard result.status == 0 else {
+                    throw HelperError.operationFailed(
+                        "Failed to restart KeyPath Kanata service: \(result.out)"
+                    )
+                }
             },
             reply: reply
         )
@@ -795,6 +921,13 @@ extension HelperService {
         return r.status == 0
     }
 
+    static func serviceProcessID(_ serviceID: String) -> String? {
+        let result = run("/bin/launchctl", ["print", "system/\(serviceID)"])
+        guard result.status == 0 else { return nil }
+        return firstMatch(#"\bpid\s*=\s*([0-9]+)"#, in: result.out)
+            ?? firstMatch(#""PID"\s*=\s*([0-9]+)"#, in: result.out)
+    }
+
     static func isServiceHealthy(_ serviceID: String) -> Bool {
         let r = run("/bin/launchctl", ["print", "system/\(serviceID)"])
         guard r.status == 0 else { return false }
@@ -861,7 +994,7 @@ extension HelperService {
     // IMPORTANT: Keep in sync with WizardSystemPaths.bundledVHIDDriverVersion in KeyPathCore
     // The helper doesn't have access to KeyPathCore, so we maintain a copy here
     // This is only used for the deprecated download fallback path
-    private static let requiredVHIDVersion = "6.2.0"
+    private static let requiredVHIDVersion = "8.0.0"
 
     private static func consoleUserInfo() -> (name: String, home: String)? {
         var uid: uid_t = 0

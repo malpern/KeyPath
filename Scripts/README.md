@@ -10,8 +10,9 @@
 - `./Scripts/release-doctor.sh` — Read-only preflight for signed/notarized release-candidate or public ship builds.
 - `./Scripts/release-candidate.sh` — Signed/notarized post-merge manual-testing build; skips snapshots, Sparkle, and website publishing by default.
 - `./build.sh` — Canonical build & sign entry (root). Use `SKIP_CODESIGN=1` to bypass signing for local dev.
-  - Release builds now fail if Sparkle EdDSA signing cannot be produced for the update archive.
-  - For local-only testing, set `ALLOW_UNSIGNED_SPARKLE=1` to continue without an EdDSA signature.
+  - Sparkle-enabled builds use Sparkle's `generate_appcast` to sign both the
+    update archive and complete feed with the dedicated `keypath` identity.
+  - `dist/sparkle/appcast.xml` is verified before the build may continue.
 - `./Scripts/release.sh <version>` — Public distribution release flow. Run `./Scripts/release-doctor.sh --ship` first.
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
 - `./test.sh` — Run the full test suite (root)
@@ -37,6 +38,11 @@
   current documentation or automation; see
   `docs/process/script-surface-audit.md` for the retention audit.
 - `lib/signing.sh` - Thin wrappers around codesign/notarytool/stapler with `KP_SIGN_DRY_RUN=1` for safe local runs; CI overrides hook into this.
+- `lib/sparkle.sh` - Resolves the pinned Sparkle tools, verifies the `keypath`
+  Keychain identity against `SUPublicEDKey`, and keeps private-key environment
+  input on stdin rather than argv. On the release machine it can read
+  `KEYPATH_SPARKLE_PRIVATE_KEY` from the sops-encrypted personal secrets file;
+  the value is never exported to unrelated build subprocesses.
 - `lib/deploy-lock.sh` - Shared cross-worktree lock for scripts that mutate `/Applications/KeyPath.app`.
 - `lib/submodules.sh` - Initializes required submodules for build paths. Kanata
   is hydrated automatically by release/Rust build scripts so ordinary worktrees

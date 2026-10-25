@@ -102,17 +102,16 @@ extension MapperViewModel {
             configuration: .list
         )
 
-        // Persist via rulesManager
+        // Select only a committed layer, and preserve navigation made while saving.
         if let rulesManager {
+            let previousLayer = currentLayer
             Task {
-                await rulesManager.addCollection(collection)
+                guard await rulesManager.addCollection(collection) else { return }
                 AppLogger.shared.log("📚 [MapperViewModel] Created new layer: \(sanitizedName) (Leader → \(activatorKey.uppercased()))")
                 await refreshAvailableLayers()
+                if currentLayer == previousLayer { setLayer(sanitizedName) }
             }
         }
-
-        // Switch to the new layer
-        setLayer(sanitizedName)
     }
 
     /// Delete a layer and all associated rules (only non-system layers)
@@ -191,6 +190,11 @@ extension MapperViewModel {
 
     /// Select a system action for the output
     func selectSystemAction(_ action: SystemActionInfo) {
+        guard action.isSupportedInDriverlessSession else {
+            statusMessage = SystemActionInfo.driverlessMediaUnavailableReason
+            statusIsError = true
+            return
+        }
         selectedSystemAction = action
         selectedApp = nil
         selectedURL = nil
@@ -217,6 +221,12 @@ extension MapperViewModel {
 
         guard let inputSeq = inputSequence, let action = selectedSystemAction else {
             statusMessage = "Set input key first"
+            statusIsError = true
+            return
+        }
+
+        guard action.isSupportedInDriverlessSession else {
+            statusMessage = SystemActionInfo.driverlessMediaUnavailableReason
             statusIsError = true
             return
         }

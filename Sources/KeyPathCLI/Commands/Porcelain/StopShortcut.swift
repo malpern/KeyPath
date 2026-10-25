@@ -5,7 +5,7 @@ import KeyPathAppKit
 struct StopShortcut: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "stop",
-        abstract: "Stop the Kanata service (shortcut for 'service stop')",
+        abstract: "Stop remapping (shortcut for 'service stop')",
         shouldDisplay: false
     )
 

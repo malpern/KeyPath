@@ -10,7 +10,14 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parent
-PEEKABOO = pathlib.Path(os.environ.get("KEYPATH_SELECTOR_PEEKABOO", ROOT / "peekaboo-ui"))
+# peekaboo-ui moved to the shared lab. Keep the override so a caller can
+# still point at a checkout elsewhere.
+PEEKABOO = pathlib.Path(
+    os.environ.get(
+        "KEYPATH_SELECTOR_PEEKABOO",
+        pathlib.Path(os.environ.get("VM_LAB_HOME", pathlib.Path.home() / "local-code" / "vm-lab")) / "lib" / "peekaboo-ui",
+    )
+)
 RESULT = pathlib.Path(os.environ.get("KEYPATH_SELECTOR_RESULT", ROOT / "scenario-result"))
 
 

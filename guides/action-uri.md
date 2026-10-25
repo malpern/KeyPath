@@ -183,14 +183,9 @@ Tap the leader key, then type `L` to activate the launcher layer. This keeps Cap
 
 ---
 
-## Smart suggestions
+## Adding your own shortcuts
 
-KeyPath can suggest apps and websites to bind based on what you actually use:
-
-- **Browser history** — Suggests your most-visited websites as URL bindings
-- **Recent apps** — Shows apps you use frequently but haven't bound yet
-
-Open the inspector panel and click **Suggestions** to see personalized recommendations. One click to add any suggestion as a binding.
+Add apps and enter website URLs manually in the launcher inspector. Existing saved shortcuts remain available. KeyPath does not scan browser history or suggest sites from it.
 
 ---
 

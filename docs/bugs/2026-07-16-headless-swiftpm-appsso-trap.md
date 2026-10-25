@@ -62,3 +62,20 @@ On a newer macOS seed, run a cold probe that removes only the probe's disposable
 scratch directory and materializes Sparkle from `Package.resolved`. Re-enable
 the label only after that probe passes repeatedly without an AppSSO crash
 report. Preserve the crash reports for an Apple Feedback Assistant report.
+
+## Update 2026-10-19: the swiftpm-safe runner is now a LaunchDaemon
+
+`keypath-mini-2` was a LaunchAgent in a logged-in `clawd` GUI session. That
+session has not existed since about 2026-10-15, so the agent never loaded and the
+runner was offline until it was converted to the system LaunchDaemon
+`com.keypath.ci-runner-2` (headless, `UserName=clawd`, `ProcessType=Standard`).
+The containment above therefore no longer holds: both runners are headless.
+
+Observed since: several cold builds on the daemon materialized Sparkle and
+compiled without an AppSSO crash. The only `swift-package` reports on the Mini
+were disk-write resource reports, not `_xpc_api_misuse` traps. That does
+not yet meet the re-enable criteria above (a repeated cold probe). To reduce
+exposure, `ci.yml` now keeps SwiftPM scratch per runner across jobs, so binary
+artifacts are fetched only when that scratch is cold. If exit 133 / SIGTRAP in
+`swift-package` returns, check `/Library/Logs/DiagnosticReports/swift-package*`
+first; the fallback is restoring a logged-in `clawd` session for runner 2.

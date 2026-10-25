@@ -21,6 +21,7 @@ enum KeyboardTypeDetector {
     ///   permission prompt if not already granted. Callers must check permissions
     ///   before calling this method (e.g. via `PermissionOracle`).
     static func detect() -> KeyboardType {
+        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted else { return .unknown }
         // Create HID manager to find keyboard devices
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
 

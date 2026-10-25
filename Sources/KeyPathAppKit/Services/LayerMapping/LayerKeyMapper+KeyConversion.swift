@@ -5,7 +5,7 @@ extension LayerKeyMapper {
 
     /// Convert TCP key name (from OverlayKeyboardView.keyCodeToKanataName) to simulator-compatible name
     /// The simulator uses abbreviated names like "min" instead of "minus"
-    func toSimulatorKeyName(_ tcpName: String) -> String {
+    nonisolated func toSimulatorKeyName(_ tcpName: String) -> String {
         switch tcpName.lowercased() {
         // Punctuation keys use abbreviated names in simulator
         case "minus": "min"
@@ -16,9 +16,18 @@ extension LayerKeyMapper {
         case "rightbrace": "rbrc"
         case "semicolon": "scln"
         case "apostrophe": "apos"
-        case "comma": "comm"
+        case "comma", ",": "comm"
         case "dot": "."
         case "slash": "/"
+        // Typed characters, as rule inputs store them (Mission Control's ",")
+        case "-": "min"
+        case "=": "eql"
+        case "`": "grv"
+        case "\\": "bksl"
+        case "[": "lbrc"
+        case "]": "rbrc"
+        case ";": "scln"
+        case "'": "apos"
         // Modifiers
         case "leftshift": "lsft"
         case "rightshift": "rsft"

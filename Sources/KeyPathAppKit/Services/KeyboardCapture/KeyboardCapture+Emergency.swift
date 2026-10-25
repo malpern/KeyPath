@@ -8,6 +8,7 @@ extension KeyboardCapture {
 
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
         guard !isMonitoringEmergency else { return }
+        guard CGPreflightListenEventAccess() else { return }
 
         // Avoid event taps in test/CI to prevent hangs
         if TestEnvironment.isRunningTests {

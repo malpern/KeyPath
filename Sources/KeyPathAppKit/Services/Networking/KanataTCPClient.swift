@@ -161,7 +161,7 @@ actor KanataTCPClient {
 
 // MARK: - Result Types
 
-enum TCPReloadResult {
+enum TCPReloadResult: Sendable {
     case success(response: String)
     case failure(error: String, response: String)
     case networkError(String)

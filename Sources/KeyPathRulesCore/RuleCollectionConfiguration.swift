@@ -717,7 +717,7 @@ public struct LauncherGridConfig: Codable, Equatable, Sendable {
     }
 
     /// Default app and website mappings
-    /// Minimal set — additional suggestions come from activity tracking and browser history
+    /// Minimal set; remaining keys are available for manual customization.
     public static var defaultMappings: [LauncherMapping] {
         let homeRowMappings: [LauncherMapping] = [
             LauncherMapping(key: "a", action: .launchApp(name: "Calendar", bundleId: "com.apple.iCal")),

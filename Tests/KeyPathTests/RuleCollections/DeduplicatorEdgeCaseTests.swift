@@ -65,7 +65,7 @@ final class DeduplicatorEdgeCaseTests: XCTestCase {
             KeyMapping(input: "f", action: .keystroke(key: "g")),
         ])
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection1, collection2])
         XCTAssertFalse(conflicts.isEmpty, "Should detect conflict on key 'a'")
     }
 
@@ -77,7 +77,7 @@ final class DeduplicatorEdgeCaseTests: XCTestCase {
             KeyMapping(input: "s", action: .keystroke(key: "d")),
         ])
 
-        let conflicts = RuleCollectionDeduplicator.detectConflicts(in: [collection1, collection2])
+        let conflicts = AdmissionEngine.mappingConflicts(in: [collection1, collection2])
         XCTAssertTrue(conflicts.isEmpty, "No conflict when keys don't overlap")
     }
 

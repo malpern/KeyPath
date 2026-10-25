@@ -1,7 +1,9 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
+import KeyPathPermissions
 @testable import KeyPathWizardCore
 import Testing
 
@@ -406,6 +408,7 @@ struct MainAppStateControllerBehaviorTests {
         let controller = MainAppStateController()
         #if DEBUG
             controller.configureStartupGateTestingState(
+                permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
                 healthOverride: {
                     KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
@@ -528,6 +531,30 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.validationState == .success)
     }
 
+    @Test("Explicit refresh during validation performs a fresh follow-up check")
+    func explicitRefreshDuringValidationRunsAgain() async {
+        let context = SystemContextBuilder(
+            servicesHealthy: true,
+            kanataTCPConfigured: true,
+            componentsInstalled: true
+        ).build()
+        let validator = GatedCountingValidator(context: context)
+        let controller = configuredController(validator: validator)
+        let first = Task { await controller.refreshValidation() }
+        while validator.checkCount == 0 {
+            await Task.yield()
+        }
+        let refresh = Task { await controller.revalidate() }
+        while validator.invalidationCount == 0 {
+            await Task.yield()
+        }
+        validator.open()
+        await first.value
+        await refresh.value
+        #expect(validator.checkCount == 2)
+        #expect(controller.validationState == .success)
+    }
+
     @Test("startup gate with immediately-healthy service reports ready")
     func startupGateWithImmediatelyHealthyServiceReportsReady() async {
         let controller = MainAppStateController()
@@ -550,6 +577,241 @@ struct MainAppStateControllerBehaviorTests {
         #expect(ready == true)
     }
 
+    @Test("Definitive permission failures bypass startup grace only for the session backend")
+    func sessionPermissionFailurePolicy() {
+        for backend in [KanataRuntimeBackend.session, .driverKit] {
+            for status in [PermissionOracle.Status.granted, .unknown, .denied, .error("probe failed")] {
+                let requiredFailures = [
+                    sessionPermissions(inputMonitoring: status, backend: backend),
+                    sessionPermissions(inputMonitoring: .granted, workerAX: status, backend: backend),
+                    sessionPermissions(inputMonitoring: .granted, parentAX: status, backend: backend),
+                ]
+                for permissions in requiredFailures {
+                    #expect(MainAppStateController.hasDefinitiveSessionPermissionFailure(permissions) ==
+                        (backend == .session && status.isBlocking))
+                }
+                let overlayOnly = sessionPermissions(inputMonitoring: .granted, parentIM: status, backend: backend)
+                #expect(!MainAppStateController.hasDefinitiveSessionPermissionFailure(overlayOnly))
+            }
+        }
+    }
+
+    @Test("Granted and unknown session permissions retain transient startup polling")
+    func inconclusiveOrGrantedSessionPermissionsKeepPolling() async {
+        for status in [PermissionOracle.Status.granted, .unknown] {
+            let controller = MainAppStateController()
+            var healthProbes = 0
+            var now = Date(timeIntervalSince1970: 1000)
+            controller.configureStartupGateTestingState(
+                nowOverride: { now },
+                permissionsOverride: { sessionPermissions(inputMonitoring: status) },
+                healthOverride: {
+                    healthProbes += 1
+                    // First cross the definitive deadline, then the transient
+                    // deadline. Executor scheduling cannot consume this clock.
+                    now.addTimeInterval(healthProbes == 1 ? 0.02 : 0.04)
+                    return KanataRuntimeReadiness(isRunning: false, isResponding: false)
+                },
+                transientWindowOverride: { true },
+                timingOverride: (definitiveGrace: 0.01, transientGrace: 0.05, checkInterval: 0)
+            )
+            let ready = await controller.evaluateKanataStartupGateForTesting()
+            #expect(!ready)
+            #expect(healthProbes == 2)
+            controller.resetStartupGateTestingState()
+        }
+    }
+
+    @Test("Initial unknown or denied listening publishes actionable failure during startup grace")
+    func deniedSessionPermissionPublishesDuringStartupGrace() async {
+        for initialStatus in [PermissionOracle.Status.unknown, .denied] {
+            let permissions = sessionPermissions(inputMonitoring: .denied)
+            let context = SystemContextBuilder(componentsInstalled: true).build()
+            let snapshot = SystemSnapshot(
+                id: context.snapshotID, permissions: permissions, components: context.components,
+                conflicts: context.conflicts, health: context.services, helper: context.helper,
+                compatibility: SystemCompatibilityStatus(macOSVersion: "26.0", driverCompatible: true),
+                timestamp: Date(), captureStatus: .complete
+            )
+            let controller = MainAppStateController()
+            let manager = RuntimeCoordinator()
+            // Exercise permission failure during a real pending session start,
+            // not the removed process-age grace period.
+            manager.serviceLifecycleCoordinator.isStartingKanata = true
+            defer { manager.serviceLifecycleCoordinator.isStartingKanata = false }
+            controller.configure(serviceLifecycle: manager.serviceLifecycleCoordinator, onSystemHealthy: {})
+            controller.setValidator(StubSystemValidator(snapshot: snapshot))
+            var permissionProbes = 0
+            var healthProbes = 0
+            controller.configureStartupGateTestingState(
+                permissionsOverride: {
+                    permissionProbes += 1
+                    return permissionProbes == 1 ? sessionPermissions(inputMonitoring: initialStatus) : permissions
+                },
+                healthOverride: {
+                    healthProbes += 1
+                    return KanataRuntimeReadiness(isRunning: false, isResponding: false)
+                },
+                timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
+            )
+            defer { controller.resetStartupGateTestingState() }
+            #expect(await controller.isInRuntimeStartupWindow())
+            await controller.revalidate()
+            #expect(healthProbes == (initialStatus == .unknown ? 1 : 0))
+            #expect(permissionProbes == (initialStatus == .unknown ? 2 : 1))
+            #expect(controller.validationState?.hasCriticalIssues == true)
+            #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
+            #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
+                "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
+            #expect(controller.issues.contains {
+                $0.identifier == .permission(.keyPathInputMonitoring) &&
+                    $0.description.contains("quit and reopen KeyPath") &&
+                    $0.userAction?.contains("quit and reopen KeyPath") == true
+            })
+        }
+    }
+
+    @Test("Unsupported config without a start request bypasses grace and permission worker polling")
+    func unsupportedSessionConfigPublishesBeforeStartupPolling() async {
+        let controller = MainAppStateController()
+        let manager = RuntimeCoordinator()
+        let lifecycle = manager.serviceLifecycleCoordinator
+        var validations = 0, permissionProbes = 0, healthProbes = 0
+        lifecycle.testSessionConfigurationValidation = {
+            validations += 1
+            return .invalid(reason: "Caps Lock remapping requires the advanced driver backend")
+        }
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+        controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { permissionProbes += 1; return sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { healthProbes += 1; return KanataRuntimeReadiness(isRunning: false, isResponding: false) },
+            transientWindowOverride: { true },
+            timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
+        )
+        defer { controller.resetStartupGateTestingState() }
+        await controller.revalidate()
+        #expect(validations == 1)
+        #expect(permissionProbes == 0)
+        #expect(healthProbes == 0)
+        #expect(controller.validationState?.hasCriticalIssues == true)
+        #expect(controller.issues.count == 1)
+        #expect(controller.issues.first?.description.contains("Caps Lock remapping") == true)
+        #expect(controller.issues.first?.autoFixAction == nil)
+        #expect(controller.issues.first?.userAction?.contains("Edit the configuration") == true)
+        #expect(await lifecycle.isInTransientRuntimeStartupWindow() == false)
+
+        lifecycle.testSessionConfigurationValidation = { .valid }
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { KanataRuntimeReadiness(isRunning: true, isResponding: true, inputCaptureReady: true) },
+            transientWindowOverride: { true }
+        )
+        #expect(await controller.evaluateKanataStartupGateForTesting())
+        #expect(lifecycle.sessionConfigurationRefusal == nil)
+    }
+
+    @Test("Completed recovery refusal bypasses polling, including one arriving during health check")
+    func recoveryRefusalPublishesWithoutWaitingForGrace() async {
+        for duringHealth in [false, true] {
+            let controller = MainAppStateController()
+            let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
+            lifecycle.testSessionConfigurationValidation = { .valid }
+            lifecycle.testSessionCapsRecovery = { throw SessionCapsMappingLease.Refusal.mutationUncertain }
+            if !duringHealth { #expect(await lifecycle.restoreSessionCaps(for: nil) == false) }
+            controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+            controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
+            var healthChecks = 0, permissionChecks = 0
+            controller.configureStartupGateTestingState(
+                permissionsOverride: { permissionChecks += 1; return sessionPermissions(inputMonitoring: .granted) },
+                healthOverride: {
+                    healthChecks += 1
+                    #expect(await lifecycle.restoreSessionCaps(for: nil) == false)
+                    return KanataRuntimeReadiness(isRunning: true, isResponding: true, inputCaptureReady: true)
+                },
+                transientWindowOverride: { true },
+                timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.001)
+            )
+            defer { controller.resetStartupGateTestingState() }
+            await controller.revalidate()
+            #expect(healthChecks == (duringHealth ? 1 : 0))
+            #expect(permissionChecks == (duringHealth ? 1 : 0))
+            #expect(controller.validationState?.hasCriticalIssues == true)
+            #expect(controller.issues.count == 1)
+            #expect(controller.issues.first?.description.contains("recovery record was retained") == true)
+            #expect(controller.issues.first?.autoFixAction == nil)
+            #expect(controller.issues.first?.userAction?.contains("Do not clear") == true)
+        }
+    }
+
+    @Test("Recovery completion refreshes validation even if runtime remains stopped")
+    func failedRecoveryRefreshesUnchangedHealth() {
+        let controller = MainAppStateController()
+        #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1))
+        #expect(!controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1))
+        #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 2))
+    }
+
+    @Test("Recovery finishing during capture discards the retired runtime snapshot")
+    func wakeRecoveryDuringSnapshotRevalidates() async {
+        let controller = MainAppStateController()
+        let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+        let validator = SequenceSystemValidator(contexts: [
+            SystemContextBuilder(servicesHealthy: false, kanataTCPConfigured: true, componentsInstalled: true).build(),
+            SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()
+        ])
+        validator.beforeCheck = { [weak validator] in
+            if validator?.checkCount == 1 { lifecycle.sessionWakeRecoveryRevision &+= 2 }
+        }
+        controller.setValidator(validator)
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { .init(isRunning: true, isResponding: true, inputCaptureReady: true) }
+        )
+        defer { controller.resetStartupGateTestingState() }
+        await controller.revalidate()
+        #expect(validator.checkCount == 2)
+        #expect(controller.validationState == .success)
+    }
+
+    @Test("Restoration refusal during snapshot cannot publish stale success")
+    func recoveryRefusalDuringSnapshotWins() async {
+        let controller = MainAppStateController()
+        let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
+        lifecycle.testSessionCapsRecovery = { throw SessionCapsMappingLease.Refusal.mutationUncertain }
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
+        let validator = SequenceSystemValidator(contexts: [SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()])
+        validator.beforeCheck = { _ = await lifecycle.restoreSessionCaps(for: nil) }
+        controller.setValidator(validator)
+        controller.configureStartupGateTestingState(
+            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            healthOverride: { .init(isRunning: true, isResponding: true, inputCaptureReady: true) }
+        )
+        defer { controller.resetStartupGateTestingState() }
+        await controller.revalidate()
+        #expect(controller.validationState?.hasCriticalIssues == true)
+        #expect(controller.issues.first?.description.contains("recovery record was retained") == true)
+    }
+
+    private func sessionPermissions(
+        inputMonitoring: PermissionOracle.Status,
+        workerAX: PermissionOracle.Status = .granted,
+        parentAX: PermissionOracle.Status = .granted,
+        parentIM: PermissionOracle.Status = .granted,
+        backend: KanataRuntimeBackend = .session
+    ) -> PermissionOracle.Snapshot {
+        let parent = PermissionOracle.PermissionSet(
+            accessibility: parentAX, inputMonitoring: parentIM,
+            source: "test.parent", confidence: .high, timestamp: Date()
+        )
+        let worker = PermissionOracle.PermissionSet(
+            accessibility: workerAX, inputMonitoring: inputMonitoring,
+            source: "test.listen-and-post-event", confidence: .high, timestamp: Date()
+        )
+        return PermissionOracle.Snapshot(keyPath: parent, kanata: worker, timestamp: Date(), backend: backend)
+    }
+
     private func configuredController(validator: any WizardSystemValidating) -> MainAppStateController {
         let controller = MainAppStateController()
         controller.setValidator(validator)
@@ -570,6 +832,11 @@ private final class GatedCountingValidator: WizardSystemValidating {
     private let snapshot: SystemSnapshot
     private var isOpen = false
     private(set) var checkCount = 0
+    private(set) var invalidationCount = 0
+
+    func invalidateCaches() {
+        invalidationCount += 1
+    }
 
     init(context: SystemContext) {
         snapshot = SystemSnapshot(
@@ -603,6 +870,7 @@ private final class GatedCountingValidator: WizardSystemValidating {
 
 @MainActor
 private final class SequenceSystemValidator: WizardSystemValidating {
+    var beforeCheck: (() async -> Void)?
     private var snapshots: [SystemSnapshot]
     private(set) var checkCount = 0
 
@@ -627,6 +895,7 @@ private final class SequenceSystemValidator: WizardSystemValidating {
 
     func checkSystem() async -> SystemSnapshot {
         checkCount += 1
+        await beforeCheck?()
         if snapshots.count > 1 {
             return snapshots.removeFirst()
         }

@@ -175,8 +175,8 @@ final class KeyboardVisualizationViewModelTCPCapitalizationTests: XCTestCase {
             ("leftalt", 58),
             ("lsft", 56),
             ("leftshift", 56),
-            ("rctl", 102),
-            ("rightctrl", 102)
+            ("rctl", 62),
+            ("rightctrl", 62)
         ]
 
         for (key, expectedKeyCode) in modifierTests {

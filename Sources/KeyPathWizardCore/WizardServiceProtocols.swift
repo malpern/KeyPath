@@ -30,7 +30,7 @@ public extension WizardSystemValidating {
 
 @MainActor
 public protocol WizardHelperMaintaining: AnyObject, Sendable {
-    func detectDuplicateAppCopies() -> [String]
+    func detectDuplicateAppCopies() async -> [String]
     func installOrRefresh() async -> Bool
     func runCleanupAndRepair(useAppleScriptFallback: Bool) async -> Bool
     func runCleanupAndRepair(useAppleScriptFallback: Bool, forceFullRepair: Bool) async -> Bool
@@ -87,13 +87,6 @@ public protocol WizardUninstalling: Sendable {
         removeVirtualHID: Bool,
         allowAdminFallback: Bool
     ) async -> WizardUninstallResult
-}
-
-// MARK: - FullDiskAccessChecker Protocol
-
-public protocol WizardFullDiskAccessChecking: AnyObject, Sendable {
-    func hasFullDiskAccess() -> Bool
-    func updateCachedValue(_ value: Bool)
 }
 
 // MARK: - PermissionRequestService Protocol

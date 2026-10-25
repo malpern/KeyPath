@@ -17,13 +17,31 @@ public extension InstallationWizardView {
         dismissAndRefreshMainScreen()
     }
 
+    @MainActor
     func dismissAndRefreshMainScreen() {
         stopLoginItemsApprovalPolling()
 
-        Task { @MainActor in
-            NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
-            dismiss()
+        let shouldShowFirstSuccess = if onFirstSuccess == nil {
+            false
+        } else {
+            FirstSuccessOnboardingGate.isEligible(
+                didShowWelcomePage: didShowWelcomePage,
+                wizardState: stateMachine.wizardState,
+                issues: stateMachine.wizardIssues
+            )
         }
+
+        NotificationCenter.default.post(name: .wizardStartupRevalidate, object: nil)
+        // Queue window handoffs before closing so synchronous dismissal cannot
+        // consume the close completion before it has been registered.
+        if shouldShowFirstSuccess {
+            onFirstSuccess?()
+        } else if stateMachine.wizardState == .active, stateMachine.wizardIssues.isEmpty,
+                  let onOpenKeyboard
+        {
+            onOpenKeyboard()
+        }
+        performDismiss()
     }
 
     func performBackgroundCleanup() {}
@@ -38,6 +56,17 @@ public extension InstallationWizardView {
 
         refreshTask?.cancel()
         stopLoginItemsApprovalPolling()
-        dismiss()
+        performDismiss()
+    }
+
+    /// Dismiss through the injected handler when one is present, so a view that
+    /// was never installed never reads the dismiss action out of the environment.
+    @MainActor
+    internal func performDismiss() {
+        if let dismissHandler {
+            dismissHandler()
+        } else {
+            dismiss()
+        }
     }
 }

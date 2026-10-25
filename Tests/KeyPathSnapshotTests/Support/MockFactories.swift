@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathRulesCore
@@ -15,9 +16,12 @@ enum MockFactories {
         action: KeyAction = .launchApp(name: "Safari", bundleId: "com.apple.Safari"),
         isEnabled: Bool = true
     ) -> LauncherMapping {
-        LauncherMapping(
-            id: UUID(uuidString: "00000000-0000-0000-0000-00000000000\(key.hashValue % 10)")
-                ?? UUID(),
+        // Swift hashes change between processes and modulo 10 collides,
+        // causing ForEach to omit cards. Fixture identities must be stable and unique.
+        let bytes = Array(SHA256.hash(data: Data(key.utf8)).prefix(16))
+        let id = bytes.withUnsafeBytes { UUID(uuid: $0.load(as: uuid_t.self)) }
+        return LauncherMapping(
+            id: id,
             key: key,
             action: action,
             isEnabled: isEnabled

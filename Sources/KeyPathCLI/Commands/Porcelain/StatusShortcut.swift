@@ -5,7 +5,7 @@ import KeyPathAppKit
 struct StatusShortcut: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "status",
-        abstract: "Check system status (shortcut for 'service status')",
+        abstract: "Show remapping status (shortcut for 'service status')",
         shouldDisplay: false
     )
 

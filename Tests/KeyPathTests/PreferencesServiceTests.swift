@@ -3,6 +3,16 @@ import XCTest
 
 @MainActor
 final class PreferencesServiceTests: XCTestCase {
+    func testCanonicalDefaultsFallsBackToStandardWhenSuiteIsUnavailable() {
+        let key = "PreferencesServiceTests.canonicalDefaultsFallback"
+        let defaults = PreferencesService.canonicalDefaults(using: nil)
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+
+        defaults.set(true, forKey: key)
+
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: key))
+    }
+
     // MARK: - Port Validation
 
     func testIsValidPort_AcceptsUserPorts() {
@@ -74,9 +84,9 @@ final class PreferencesServiceTests: XCTestCase {
 
     func testResetCommunicationSettings_RestoresDefaults() {
         let prefs = PreferencesService()
-        prefs.tcpServerPort = 9999
         prefs.resetCommunicationSettings()
         XCTAssertEqual(prefs.communicationProtocol, .tcp)
+        XCTAssertEqual(prefs.tcpServerPort, 37001)
     }
 
     // MARK: - Enum Display Names

@@ -22,6 +22,22 @@ final class AppContextServiceTests: XCTestCase {
         store = nil
     }
 
+    @MainActor
+    func testRuntimeReloadRepressesTheUnchangedCurrentAppVirtualKey() async throws {
+        let keymap = AppKeymap(bundleIdentifier: "test.app", displayName: "Test App", overrides: [])
+        try await store.saveKeymaps([keymap])
+        var actions: [String] = []
+        let service = AppContextService(appKeymapStore: store) { name, action in
+            actions.append("\(action.rawValue) \(name)")
+        }
+        await service.reloadMappings()
+        await service.simulateAppActivation(bundleIdentifier: "test.app")
+        await service.reloadMappings()
+        XCTAssertEqual(actions, ["Press \(keymap.mapping.virtualKeyName)"])
+        await service.reloadMappings(afterRuntimeReload: true)
+        XCTAssertEqual(actions, ["Press \(keymap.mapping.virtualKeyName)", "Press \(keymap.mapping.virtualKeyName)"])
+    }
+
     // MARK: - Bundle to VK Lookup Tests
 
     func testBundleToVKLookup_FindsMatchingApp() async throws {

@@ -82,13 +82,19 @@ let package = Package(
     ],
     dependencies: [
         // Sparkle for automatic updates
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
         // Snapshot testing for visual regression tests
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0"),
         // ArgumentParser for CLI
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
     ],
     targets: [
+        // Public C APIs/macros not exposed by the Swift Darwin/IOKit importer.
+        .target(
+            name: "KeyPathSessionNative",
+            path: "Sources/KeyPathSessionNative",
+            publicHeadersPath: "include"
+        ),
         // Core library with shared types/utilities
         .target(
             name: "KeyPathSystemProbes",
@@ -157,6 +163,17 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
+        // Foundation-only CLI argument and presentation contracts.
+        .target(
+            name: "KeyPathCLICommon",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Sources/KeyPathCLICommon",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
         // Installation wizard (extracted from KeyPathAppKit for incremental compilation)
         .target(
             name: "KeyPathInstallationWizard",
@@ -173,6 +190,7 @@ let package = Package(
         .target(
             name: "KeyPathAppKit",
             dependencies: [
+                "KeyPathSessionNative",
                 "KeyPathCore",
                 "KeyPathPermissions",
                 "KeyPathDaemonLifecycle",
@@ -185,7 +203,9 @@ let package = Package(
             ],
             path: "Sources/KeyPathAppKit",
             exclude: [
-                "InstallationWizard/README.md"
+                "InstallationWizard/README.md",
+                // Compiled into default.metallib by CompileKeyboardStageMetal.
+                "UI/KeyboardStage/Metal/KeyboardStage.metal"
             ],
             resources: [
                 .process("Resources")
@@ -194,7 +214,12 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ],
             linkerSettings: [
-                .linkedFramework("IOKit")
+                .linkedFramework("IOKit"),
+                .linkedFramework("Metal"),
+                .linkedFramework("MetalKit")
+            ],
+            plugins: [
+                .plugin(name: "CompileKeyboardStageMetal")
             ]
         ),
         // Main executable entry point
@@ -205,11 +230,11 @@ let package = Package(
             ],
             path: "Sources/KeyPathApp",
             exclude: [
-                "Info.plist"
+                "Info.plist",
+                "com.keypath.kanata.plist"
             ],
             resources: [
-                .process("Resources"),
-                .copy("com.keypath.kanata.plist")
+                .process("Resources")
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
@@ -283,14 +308,29 @@ let package = Package(
         ),
         // CLI library (testable)
         .target(
+            name: "KeyPathCLIHelp",
+            dependencies: [
+                "KeyPathCLICommon",
+                "KeyPathRulesCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Sources/KeyPathCLI/Commands/Help",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .target(
             name: "KeyPathCLI",
             dependencies: [
                 "KeyPathCLISupport",
+                "KeyPathCLICommon",
+                "KeyPathCLIHelp",
                 "KeyPathAppKit",
                 "KeyPathRulesCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "Sources/KeyPathCLI",
+            exclude: ["Commands/Help"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
@@ -318,6 +358,11 @@ let package = Package(
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
+        ),
+        .plugin(
+            name: "CompileKeyboardStageMetal",
+            capability: .buildTool(),
+            path: "Plugins/CompileKeyboardStageMetal"
         ),
         // Tests
         .testTarget(
@@ -373,6 +418,17 @@ let package = Package(
                 "KeyPathCore"
             ],
             path: "Tests/KeyPathRulesCoreTests",
+            swiftSettings: [
+                .swiftLanguageMode(.v6)
+            ]
+        ),
+        .testTarget(
+            name: "KeyPathCLIHelpTests",
+            dependencies: [
+                "KeyPathCLIHelp",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Tests/KeyPathCLIHelpTests",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

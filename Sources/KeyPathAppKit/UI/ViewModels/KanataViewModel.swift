@@ -35,6 +35,8 @@ class KanataViewModel {
     var lastConfigUpdate: Date = .init()
     var activeRuntimePathTitle: String?
     var activeRuntimePathDetail: String?
+    /// Why the running session leaves Caps Lock rules inactive, if it does.
+    var capsPausedMessage: String?
 
     // Validation-specific UI state
     var showingValidationAlert = false
@@ -62,6 +64,7 @@ class KanataViewModel {
     var pendingMappingConflict: MappingConflictContext?
 
     // Enable/save prerequisite resolution (#869)
+    var pendingRuleSetup: RuleSetupSession?
     var showPrerequisiteResolutionDialog = false
     var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
 
@@ -132,6 +135,7 @@ class KanataViewModel {
         lastConfigUpdate = state.lastConfigUpdate
         activeRuntimePathTitle = state.activeRuntimePathTitle
         activeRuntimePathDetail = state.activeRuntimePathDetail
+        capsPausedMessage = state.capsPausedMessage
         saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
 
@@ -154,6 +158,7 @@ class KanataViewModel {
         pendingMappingConflict = state.pendingMappingConflict
         showMappingConflictDialog = state.pendingMappingConflict != nil
 
+        pendingRuleSetup = manager.pendingRuleSetup
         pendingPrerequisiteResolution = state.pendingPrerequisiteResolution
         showPrerequisiteResolutionDialog = state.pendingPrerequisiteResolution != nil
 
@@ -226,6 +231,14 @@ class KanataViewModel {
     // MARK: - Action Delegation to RuntimeCoordinator
 
     // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
+
+    func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
+        manager.catalogUpdatePreviews()
+    }
+
+    func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
+        await manager.applyCatalogUpdates(ids: ids)
+    }
 
     func batchEnableCollections(_ ids: [UUID]) async {
         await manager.batchEnableCollections(ids: ids)
@@ -337,7 +350,8 @@ class KanataViewModel {
         }
     }
 
-    func addRuleCollection(_ collection: RuleCollection) async {
+    @discardableResult
+    func addRuleCollection(_ collection: RuleCollection) async -> Bool {
         await manager.addRuleCollection(collection)
     }
 
@@ -462,6 +476,16 @@ class KanataViewModel {
         await manager.updateLeaderKey(newKey)
     }
 
+    @discardableResult
+    func applyShortcutListGenerationInput(_ input: ShortcutListGenerationInput) async -> Bool {
+        await manager.applyShortcutListGenerationInput(input)
+    }
+
+    @discardableResult
+    func applyDeviceSelections(_ selections: [DeviceSelection]) async -> Bool {
+        await manager.applyDeviceSelections(selections)
+    }
+
     func isCompletelyInstalled() -> Bool {
         manager.isCompletelyInstalled()
     }
@@ -558,6 +582,17 @@ class KanataViewModel {
 
     func restartKanata(reason: String = "User action") async -> Bool {
         await manager.restartKanata(reason: reason)
+    }
+
+    func setCapsSelection(_ selection: SessionCapsSelection?, automaticSetupDisabled: Bool? = nil,
+                          selectedKeyboardOnly: Bool? = nil) async -> Bool
+    {
+        await manager.setCapsSelection(selection, automaticSetupDisabled: automaticSetupDisabled,
+                                       selectedKeyboardOnly: selectedKeyboardOnly)
+    }
+
+    func setCapsExcludedKeyboardIDs(_ ids: Set<String>) async -> Bool {
+        await manager.setCapsExcludedKeyboardIDs(ids)
     }
 
     func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {

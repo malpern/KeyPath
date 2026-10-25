@@ -138,9 +138,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full contributor setup.
 ## Requirements
 
 - **macOS 15.0 (Sequoia)** or later
-- **Apple Silicon or Intel**
+- **Apple Silicon (M-series) Mac** — Intel Macs are not supported
 
-Dependencies (Kanata engine + Karabiner VirtualHID driver) are bundled and installed automatically.
+The Kanata engine is bundled. This driverless version does not install a Karabiner VirtualHID driver.
 
 ---
 

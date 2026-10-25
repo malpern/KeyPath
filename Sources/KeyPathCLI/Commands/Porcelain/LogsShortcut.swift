@@ -5,7 +5,7 @@ import KeyPathAppKit
 struct LogsShortcut: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "logs",
-        abstract: "Show service logs (shortcut for 'service logs')",
+        abstract: "Show app logs (shortcut for 'service logs')",
         shouldDisplay: false
     )
 

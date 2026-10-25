@@ -359,7 +359,7 @@ struct HomeRowLayerTogglesCollectionView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.3))
+                .fill(SettingsDesign.groupFill)
         )
     }
 
@@ -388,7 +388,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                             .frame(width: 40, height: 40)
                             .background(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(config.enabledKeys.contains(key) ? .accentColor : Color(NSColor.controlBackgroundColor))
+                                    .fill(config.enabledKeys.contains(key) ? .accentColor : SettingsDesign.chipFill)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
@@ -442,7 +442,7 @@ struct HomeRowLayerTogglesCollectionView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                .fill(SettingsDesign.groupFill)
         )
     }
 
@@ -467,7 +467,7 @@ struct HomeRowLayerTogglesCollectionView: View {
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? .accentColor : Color(NSColor.controlBackgroundColor))
+                    .fill(isSelected ? .accentColor : SettingsDesign.chipFill)
             )
             .foregroundColor(isSelected ? .white : .primary)
             .overlay(

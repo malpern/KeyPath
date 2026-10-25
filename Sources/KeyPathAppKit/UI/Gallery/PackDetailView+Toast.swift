@@ -14,6 +14,15 @@ extension PackDetailView {
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .padding(.bottom, 72)
+        } else if let note = noteMessage {
+            toastView(
+                icon: "info.circle.fill",
+                iconColor: .blue,
+                message: note,
+                action: nil
+            )
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .padding(.bottom, 72)
         } else if justInstalled {
             toastView(
                 icon: "checkmark.circle.fill",
@@ -74,6 +83,17 @@ extension PackDetailView {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5)
         )
+    }
+
+    /// A one-line note after an install that resolved something automatically.
+    func showTemporaryNote(_ message: String) {
+        withAnimation { noteMessage = message }
+        Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.3)) { noteMessage = nil }
+            }
+        }
     }
 
     func showTemporaryError(_ message: String) {

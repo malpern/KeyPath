@@ -13,7 +13,7 @@ import XCTest
 /// 3. The KeyboardVisualizationViewModel picks up the change and updates its label map
 final class PackInstallIntegrationTests: XCTestCase {
     @MainActor
-    func testCapsLockPackInstall_GeneratesConfigAndUpdatesLabels() async throws {
+    func testHomeRowModsPackInstall_GeneratesConfigAndUpdatesLabels() async throws {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
@@ -29,7 +29,7 @@ final class PackInstallIntegrationTests: XCTestCase {
         let customStore = CustomRulesStore(
             fileURL: tempDir.appendingPathComponent("CustomRules.json")
         )
-        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let configService = ConfigurationService.sessionTestService(configDirectory: tempDir.path, ruleCollectionStore: collectionStore, customRulesStore: customStore)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
             customRulesStore: customStore,
@@ -37,10 +37,10 @@ final class PackInstallIntegrationTests: XCTestCase {
             eventListener: KanataEventListener()
         )
 
-        // --- Act: enable the Caps Lock Remap collection (same as pack install) ---
-        let capsCollectionID = RuleCollectionIdentifier.capsLockRemap
+        // --- Act: enable the Home Row Mods collection (same as pack install) ---
+        let collectionID = RuleCollectionIdentifier.homeRowMods
         let success = await manager.toggleCollection(
-            id: capsCollectionID,
+            id: collectionID,
             isEnabled: true,
             autoResolveConflicts: true,
             bypassOwnershipCheck: true
@@ -49,9 +49,9 @@ final class PackInstallIntegrationTests: XCTestCase {
 
         // --- Assert 1: Collection is enabled in the store ---
         let collections = await collectionStore.loadCollections()
-        let capsCollection = collections.first { $0.id == capsCollectionID }
-        XCTAssertNotNil(capsCollection, "Caps Lock collection should exist in store")
-        XCTAssertTrue(capsCollection?.isEnabled ?? false, "Collection should be enabled")
+        let collection = collections.first { $0.id == collectionID }
+        XCTAssertNotNil(collection, "Home Row Mods collection should exist in store")
+        XCTAssertTrue(collection?.isEnabled ?? false, "Collection should be enabled")
 
         // --- Assert 2: Config file was generated ---
         let configPath = tempDir.appendingPathComponent("keypath.kbd")
@@ -63,24 +63,10 @@ final class PackInstallIntegrationTests: XCTestCase {
         let configContent = try String(contentsOf: configPath, encoding: .utf8)
         XCTAssertFalse(configContent.isEmpty, "Config should not be empty")
 
-        // The caps lock remap is a tap-hold: tap=esc, hold=lctl (default)
-        // Config should contain tap-hold-press or similar kanata syntax for caps
-        XCTAssertTrue(
-            configContent.contains("caps") || configContent.contains("capslock"),
-            "Config should reference caps lock key"
-        )
-
-        // --- Assert 3: tapHoldIdleLabels update ---
+        XCTAssertTrue(configContent.contains("tap-hold"), "Home-row pack should generate tap/hold actions")
         let vm = KeyboardVisualizationViewModel()
         vm.updateTapHoldIdleLabels(from: collections)
-
-        let capsKeyCode: UInt16 = 57
-        if case let .tapHoldPicker(config) = capsCollection?.configuration {
-            if config.selectedTapOutput != nil || config.tapOptions.first?.output != nil {
-                let label = vm.tapHoldIdleLabels[capsKeyCode]
-                XCTAssertNotNil(label, "Should have tap-hold idle label for caps after pack install")
-            }
-        }
+        XCTAssertNotNil(vm.tapHoldIdleLabels[0], "A should have an idle tap label after install")
     }
 
     @MainActor
@@ -99,7 +85,7 @@ final class PackInstallIntegrationTests: XCTestCase {
         let customStore = CustomRulesStore(
             fileURL: tempDir.appendingPathComponent("CustomRules.json")
         )
-        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let configService = ConfigurationService.sessionTestService(configDirectory: tempDir.path, ruleCollectionStore: collectionStore, customRulesStore: customStore)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
             customRulesStore: customStore,
@@ -110,9 +96,9 @@ final class PackInstallIntegrationTests: XCTestCase {
         // Listen for the notification
         let expectation = expectation(forNotification: .ruleCollectionsChanged, object: nil)
 
-        let capsCollectionID = RuleCollectionIdentifier.capsLockRemap
+        let collectionID = RuleCollectionIdentifier.homeRowMods
         let success = await manager.toggleCollection(
-            id: capsCollectionID,
+            id: collectionID,
             isEnabled: true,
             autoResolveConflicts: true,
             bypassOwnershipCheck: true
@@ -138,7 +124,7 @@ final class PackInstallIntegrationTests: XCTestCase {
         let customStore = CustomRulesStore(
             fileURL: tempDir.appendingPathComponent("CustomRules.json")
         )
-        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let configService = ConfigurationService.sessionTestService(configDirectory: tempDir.path, ruleCollectionStore: collectionStore, customRulesStore: customStore)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
             customRulesStore: customStore,
@@ -193,7 +179,7 @@ final class PackInstallIntegrationTests: XCTestCase {
         let customStore = CustomRulesStore(
             fileURL: tempDir.appendingPathComponent("CustomRules.json")
         )
-        let configService = ConfigurationService(configDirectory: tempDir.path)
+        let configService = ConfigurationService.sessionTestService(configDirectory: tempDir.path, ruleCollectionStore: collectionStore, customRulesStore: customStore)
         let manager = RuleCollectionsManager(
             ruleCollectionStore: collectionStore,
             customRulesStore: customStore,
@@ -201,11 +187,11 @@ final class PackInstallIntegrationTests: XCTestCase {
             eventListener: KanataEventListener()
         )
 
-        let capsCollectionID = RuleCollectionIdentifier.capsLockRemap
+        let collectionID = RuleCollectionIdentifier.homeRowMods
 
         // Install
         let installed = await manager.toggleCollection(
-            id: capsCollectionID,
+            id: collectionID,
             isEnabled: true,
             autoResolveConflicts: true,
             bypassOwnershipCheck: true
@@ -214,7 +200,7 @@ final class PackInstallIntegrationTests: XCTestCase {
 
         // Uninstall
         let uninstalled = await manager.toggleCollection(
-            id: capsCollectionID,
+            id: collectionID,
             isEnabled: false,
             autoResolveConflicts: true,
             bypassOwnershipCheck: true

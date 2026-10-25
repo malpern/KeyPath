@@ -55,6 +55,29 @@ actor AppKeymapStore {
         self.decoder = decoder
     }
 
+    var persistenceURL: URL {
+        fileURL
+    }
+
+    /// Transaction reads must not use a stale cache or replace malformed data.
+    func loadForMutation() throws -> [AppKeymap] {
+        let data: Data
+        do { data = try Data(contentsOf: fileURL) }
+        catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
+            return []
+        }
+        return try decoder.decode([AppKeymap].self, from: data)
+    }
+
+    func encodedKeymaps(_ keymaps: [AppKeymap]) throws -> Data {
+        try encoder.encode(keymaps)
+    }
+
+    func publishCommittedKeymaps(_ keymaps: [AppKeymap]) {
+        cachedKeymaps = keymaps
+        postChangeNotification()
+    }
+
     // MARK: - CRUD Operations
 
     /// Load all app keymaps from disk
@@ -106,7 +129,12 @@ actor AppKeymapStore {
     /// Add or update an app keymap
     func upsertKeymap(_ keymap: AppKeymap) throws {
         var keymaps = loadKeymaps()
+        Self.upsert(keymap, in: &keymaps)
+        try saveKeymaps(keymaps)
+        postChangeNotification()
+    }
 
+    nonisolated static func upsert(_ keymap: AppKeymap, in keymaps: inout [AppKeymap]) {
         if let index = keymaps.firstIndex(where: { $0.mapping.bundleIdentifier == keymap.mapping.bundleIdentifier }) {
             keymaps[index] = keymap
             AppLogger.shared.log("📝 [AppKeymapStore] Updated keymap for \(keymap.mapping.displayName)")
@@ -139,9 +167,6 @@ actor AppKeymapStore {
             keymaps.append(finalKeymap)
             AppLogger.shared.log("➕ [AppKeymapStore] Added keymap for \(finalKeymap.mapping.displayName)")
         }
-
-        try saveKeymaps(keymaps)
-        postChangeNotification()
     }
 
     /// Remove an app keymap by bundle identifier

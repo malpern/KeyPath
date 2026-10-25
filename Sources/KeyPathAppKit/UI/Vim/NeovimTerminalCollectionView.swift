@@ -25,6 +25,9 @@ struct NeovimTerminalCollectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             terminalScopeSection
+            VimKeyNameStylePicker(collectionId: RuleCollectionIdentifier.neovimTerminal)
+                .padding(12)
+                .settingsGroupBackground()
             topicsChecklist
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,6 +115,9 @@ struct NeovimTerminalCollectionView: View {
         VStack(alignment: .leading, spacing: 8) {
             topicsChecklistHeader
             topicsChecklistGrid
+            Text("Point at a shortcut to see what it does.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -144,9 +150,10 @@ struct NeovimTerminalCollectionView: View {
     private var topicsChecklistGrid: some View {
         LazyVGrid(
             columns: [
-                GridItem(.flexible(minimum: 280), spacing: 12),
-                GridItem(.flexible(minimum: 280), spacing: 12),
+                GridItem(.flexible(minimum: 280), spacing: 12, alignment: .top),
+                GridItem(.flexible(minimum: 280), spacing: 12, alignment: .top),
             ],
+            alignment: .leading,
             spacing: 12
         ) {
             ForEach(NeovimTerminalCategory.allCases) { category in
@@ -167,19 +174,17 @@ struct NeovimTerminalCollectionView: View {
                     topicMappings(category)
                     topicDetail(category)
                 }
-                .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(NSColor.controlBackgroundColor).opacity(isHovered ? 0.9 : 0.6))
+                    RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius)
+                        .fill(isHovered ? SettingsDesign.hoverFill : SettingsDesign.groupFill)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(category.accentColor.opacity(isHovered ? 0.5 : 0.2), lineWidth: isHovered ? 2 : 1)
+                    RoundedRectangle(cornerRadius: SettingsDesign.cornerRadius)
+                        .strokeBorder(isHovered ? category.accentColor.opacity(0.5) : SettingsDesign.groupStroke, lineWidth: 1)
                 )
-                .shadow(color: category.accentColor.opacity(isHovered ? 0.2 : 0), radius: 8, x: 0, y: 4)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
 
                 Image(systemName: selectedTopics.contains(category.rawValue) ? "checkmark.square.fill" : "square")
                     .font(.title2.weight(.semibold))
@@ -240,17 +245,22 @@ struct NeovimTerminalCollectionView: View {
             }
         }
         .padding(.leading, 46)
-        .frame(maxWidth: .infinity, minHeight: 156, maxHeight: 156, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
+    /// What the chip under the pointer does. Shown only on that card, so the grid isn't
+    /// padded with the same placeholder line in every topic.
+    @ViewBuilder
     private func topicDetail(_ category: NeovimTerminalCategory) -> some View {
-        Text(hoveredCommandMeaningByTopic[category.rawValue] ?? "Hover a shortcut chip to preview what it does.")
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .lineLimit(2)
-            .truncationMode(.tail)
-            .padding(.leading, 46)
-            .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36, alignment: .topLeading)
+        if let meaning = hoveredCommandMeaningByTopic[category.rawValue] {
+            Text(meaning)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(2)
+                .truncationMode(.tail)
+                .padding(.leading, 46)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
     }
 
     private func commandRows(for commands: [CommandChip]) -> [[CommandChip]] {

@@ -1,6 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
+import KeyPathRulesCore
 import Testing
 
 // MARK: - KeyPathActionURI Parsing Tests
@@ -479,13 +480,19 @@ struct ActionDispatcherSystemWindowTests {
         }
     }
 
-    @Test("Dispatches repair helper action")
+    @Test("Rejects retired helper repair actions")
     @MainActor
-    func dispatchesRepairHelperAction() throws {
-        let uri = try #require(KeyPathActionURI(string: "keypath://system/repair-helper?applescript=0"))
-        let result = ActionDispatcher.shared.dispatch(uri)
-
-        #expect(result == .success)
+    func rejectsRepairHelperAction() throws {
+        for suffix in ["", "?applescript=0", "?applescript=1"] {
+            let uri = try #require(KeyPathActionURI(string: "keypath://system/repair-helper\(suffix)"))
+            let result = ActionDispatcher.shared.dispatch(uri)
+            if case let .failed(action, error) = result {
+                #expect(action == "system")
+                #expect(error.localizedDescription.contains("unavailable in the driverless build"))
+            } else {
+                Issue.record("Retired helper repair must fail")
+            }
+        }
     }
 
     @Test("Returns missingTarget for window without action")
@@ -750,5 +757,103 @@ extension ActionDispatchResult: Equatable {
         default:
             false
         }
+    }
+}
+
+@Suite("Action payload round trips", .serialized)
+struct ActionPayloadRoundTripTests {
+    @Test("Full folder URI opens the absolute path, decoding exactly once")
+    @MainActor
+    func absoluteFolderURI() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("KeyPath-%20-folder-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var components = URLComponents()
+        components.scheme = "keypath"
+        components.host = "folder"
+        components.path = directory.path
+        let text = try #require(components.string)
+        let uri = try #require(KeyPathActionURI(string: text))
+        #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+    }
+
+    @Test("Shorthand folder paths preserve literal punctuation")
+    @MainActor
+    func shorthandFolderPunctuation() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("KeyPath-%20-what?:name-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let uri = try #require(KeyPathActionURI(string: "folder:\(directory.path)"))
+        #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+    }
+
+    @Test("Generated notification payload is parsed with exact text")
+    func notificationRoundTrip() throws {
+        let title = "Done & ready? \"quoted\""
+        let body = "100% complete #1 & next=yes"
+        let output = KeyAction.notify(title: title, body: body, sound: true).kanataOutput
+        let prefix = "(push-msg \""
+        #expect(output.hasPrefix(prefix))
+        let message = String(output.dropFirst(prefix.count).dropLast(2))
+        let uri = try #require(KeyPathActionURI(string: message))
+        #expect(uri.action == "notify")
+        #expect(uri.queryItems["title"] == title)
+        #expect(uri.queryItems["body"] == body)
+        #expect(uri.queryItems["sound"] == "1")
+        #expect(KanataBehaviorRenderer.parseActionString(output) == .notify(title: title, body: body, sound: true))
+    }
+}
+
+@Suite("ActionDispatcher Overlay Actions", .serialized)
+struct ActionDispatcherOverlayTests {
+    @Test("Routes overlay URIs and push-msg shorthand to the overlay callback")
+    @MainActor
+    func routesOverlayCommands() throws {
+        var received: [OverlayCommand] = []
+        ActionDispatcher.shared.onOverlayAction = { received.append($0) }
+        defer { ActionDispatcher.shared.onOverlayAction = nil }
+
+        for raw in ["keypath://overlay/toggle", "keypath://overlay/show", "overlay:hide", "keypath://overlay/TOGGLE"] {
+            let uri = try #require(KeyPathActionURI(string: raw))
+            #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+        }
+        #expect(received == [.toggle, .show, .hide, .toggle])
+    }
+
+    @Test("Rejects unknown or missing overlay commands without calling the overlay")
+    @MainActor
+    func rejectsUnknownOverlayCommands() throws {
+        var called = false
+        ActionDispatcher.shared.onOverlayAction = { _ in called = true }
+        defer { ActionDispatcher.shared.onOverlayAction = nil }
+
+        let unknown = try #require(KeyPathActionURI(string: "keypath://overlay/flip"))
+        #expect(ActionDispatcher.shared.dispatch(unknown) == .unknownAction("overlay/flip"))
+        let missing = try #require(KeyPathActionURI(string: "keypath://overlay"))
+        #expect(ActionDispatcher.shared.dispatch(missing) == .missingTarget("overlay"))
+        #expect(!called)
+    }
+}
+
+@Suite("ActionDispatcher Runtime Actions", .serialized)
+struct ActionDispatcherRuntimeTests {
+    @Test("Routes runtime URIs to the runtime callback and rejects unknown ones")
+    @MainActor
+    func routesRuntimeCommands() throws {
+        var received: [RuntimeCommand] = []
+        ActionDispatcher.shared.onRuntimeAction = { received.append($0) }
+        defer { ActionDispatcher.shared.onRuntimeAction = nil }
+
+        for raw in ["keypath://runtime/start", "keypath://runtime/STOP", "keypath://runtime/restart"] {
+            let uri = try #require(KeyPathActionURI(string: raw))
+            #expect(ActionDispatcher.shared.dispatch(uri) == .success)
+        }
+        #expect(received == [.start, .stop, .restart])
+
+        let unknown = try #require(KeyPathActionURI(string: "keypath://runtime/pause"))
+        #expect(ActionDispatcher.shared.dispatch(unknown) == .unknownAction("runtime/pause"))
+        let missing = try #require(KeyPathActionURI(string: "keypath://runtime"))
+        #expect(ActionDispatcher.shared.dispatch(missing) == .missingTarget("runtime"))
+        #expect(received.count == 3)
     }
 }

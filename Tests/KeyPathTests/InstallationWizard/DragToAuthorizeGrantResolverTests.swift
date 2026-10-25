@@ -4,8 +4,7 @@ import KeyPathPermissions
 
 /// Covers the pure target×subject → grant mapping used by the drag-to-authorize
 /// overlay (#933). The overlay must poll the correct app's correct permission:
-/// `.keyPath` reads `snapshot.keyPath`, `.kanata` reads `snapshot.kanata`, and
-/// Full Disk Access comes from the separate FDA signal, not the snapshot.
+/// `.keyPath` reads `snapshot.keyPath` and `.kanata` reads `snapshot.kanata`.
 final class DragToAuthorizeGrantResolverTests: XCTestCase {
     private typealias Target = DragToAuthorizeController.PermissionTarget
     private typealias Subject = DragToAuthorizeController.PermissionSubject
@@ -33,10 +32,10 @@ final class DragToAuthorizeGrantResolverTests: XCTestCase {
 
     private func resolve(
         _ target: Target, _ subject: Subject,
-        _ snapshot: PermissionOracle.Snapshot, fda: Bool = false
+        _ snapshot: PermissionOracle.Snapshot
     ) -> Bool {
         DragToAuthorizeController.grantResolved(
-            target: target, subject: subject, snapshot: snapshot, fullDiskAccessGranted: fda
+            target: target, subject: subject, snapshot: snapshot
         )
     }
 
@@ -64,12 +63,5 @@ final class DragToAuthorizeGrantResolverTests: XCTestCase {
             let snap = snapshot(keyPathAX: status)
             XCTAssertFalse(resolve(.accessibility, .keyPath, snap), "\(status) must not count as granted")
         }
-    }
-
-    func testFullDiskAccessUsesTheSeparateSignalNotTheSnapshot() {
-        // Snapshot rows are all denied; FDA is driven solely by the passed-in flag.
-        let snap = snapshot()
-        XCTAssertTrue(resolve(.fullDiskAccess, .keyPath, snap, fda: true))
-        XCTAssertFalse(resolve(.fullDiskAccess, .keyPath, snap, fda: false))
     }
 }

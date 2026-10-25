@@ -1,6 +1,7 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
 @testable import KeyPathInstallationWizard
+import KeyPathPermissions
 @testable import KeyPathWizardCore
 @preconcurrency import XCTest
 
@@ -32,93 +33,499 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
-    // MARK: - Start gating
-
-    func testStartFailsWhenVHIDDaemonNotRunning() async {
-        coordinator.isVirtualHIDDaemonHealthy = { false }
-
-        let result = await coordinator.startKanata(reason: "test")
-
-        XCTAssertFalse(result, "Start should fail when VHID daemon is not running")
-        XCTAssertEqual(capturedErrors.count, 1)
-        XCTAssertTrue(capturedErrors.first??.contains("VirtualHID") ?? false)
-        XCTAssertGreaterThan(stateChangeCount, 0, "Should notify state change on failure")
+    func testSessionShutdownNeverSignalsBroadcastOrProcessGroupTargets() {
+        for signal in [SIGTERM, SIGKILL] {
+            var sent: [Int32] = []
+            for invalidPID: Int32 in [-1, 0, -42] {
+                let accepted = ServiceLifecycleCoordinator.signalSessionProcess(
+                    pid: invalidPID, signal: signal,
+                    send: { pid, _ in sent.append(pid); return 0 }
+                )
+                XCTAssertFalse(accepted)
+            }
+            XCTAssertTrue(sent.isEmpty)
+            XCTAssertTrue(ServiceLifecycleCoordinator.signalSessionProcess(
+                pid: 12345, signal: signal,
+                send: { pid, actualSignal in
+                    sent.append(pid)
+                    XCTAssertEqual(actualSignal, signal)
+                    return 0
+                }
+            ))
+            XCTAssertEqual(sent, [12345])
+        }
     }
 
-    func testStartSetsIsStartingFlag() async {
-        coordinator.isVirtualHIDDaemonHealthy = { true }
+    func testCapsSelectionChangeRestartsARuntimeThatWasRunning() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { true }
+        defer {
+            ServiceLifecycleCoordinator.testSessionStart = nil
+            ServiceLifecycleCoordinator.testSessionStop = nil
+        }
+        _ = await coordinator.startKanata()
+        XCTAssertTrue(coordinator.sessionWantsRunning)
+        let launchesBefore = launches
 
-        // isStartingKanata should be false before and after (defer resets it)
+        for verify in [{}, { throw SessionCapsRuntimeSupport.Refusal.selection }] as [@Sendable () async throws -> Void] {
+            let wasRunning = coordinator.sessionWantsRunning
+            _ = await coordinator.changeCapsSelection(verify: verify, commit: {})
+            XCTAssertFalse(coordinator.sessionWantsRunning, "The change releases the Caps lease first")
+            await coordinator.resumeAfterCapsSelectionChange(wasRunning: wasRunning)
+            XCTAssertTrue(coordinator.sessionWantsRunning, "Committed or refused, remapping comes back")
+        }
+        XCTAssertEqual(launches, launchesBefore + 2)
+
+        // A runtime that was stopped stays stopped.
+        _ = await coordinator.stopKanata()
+        _ = await coordinator.changeCapsSelection(verify: {}, commit: {})
+        await coordinator.resumeAfterCapsSelectionChange(wasRunning: false)
+        XCTAssertFalse(coordinator.sessionWantsRunning)
+    }
+
+    func testCapsSelectionRefusalPreservesConsentAndRequiresSuccessfulCleanup() async {
+        var commits = 0
+        var verifications = 0
+        ServiceLifecycleCoordinator.testSessionStop = { false }
+        defer { ServiceLifecycleCoordinator.testSessionStop = nil }
+        let stopped = await coordinator.changeCapsSelection(verify: {}, commit: { commits += 1 })
+        XCTAssertFalse(stopped)
+        XCTAssertEqual(commits, 0)
+        ServiceLifecycleCoordinator.testSessionStop = { true }
+        let refused = await coordinator.changeCapsSelection(verify: { throw SessionCapsRuntimeSupport.Refusal.selection }, commit: { commits += 1 })
+        XCTAssertFalse(refused)
+        XCTAssertEqual(commits, 0)
+        let changed = await coordinator.changeCapsSelection(verify: {}, commit: { commits += 1; verifications += 1 })
+        XCTAssertTrue(changed)
+        XCTAssertEqual(commits, 1)
+        XCTAssertEqual(verifications, 1)
+        XCTAssertFalse(coordinator.sessionWantsRunning)
+        coordinator.setUpdatePreparationActive(true)
+        let updating = await coordinator.changeCapsSelection(verify: {}, commit: { commits += 1 })
+        XCTAssertFalse(updating)
+        XCTAssertEqual(commits, 1)
+    }
+
+    func testUpdatePreparationRefusesQueuedAndNewStartsUntilReleased() async throws {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        defer { ServiceLifecycleCoordinator.testSessionStart = nil }
+        let coordinator = coordinator!
+        let generation = coordinator.sessionIntentGeneration
+        let blocker = Task { @MainActor in
+            try await coordinator.sessionOperationGate.withOperation { _ in
+                let start = Task { @MainActor in await coordinator.startKanata() }
+                while await coordinator.sessionIntentGeneration == generation {
+                    await Task.yield()
+                }
+                await coordinator.setUpdatePreparationActive(true)
+                return start
+            }
+        }
+        let queued = try await blocker.value
+        let queuedResult = await queued.value
+        XCTAssertFalse(queuedResult)
+        let started = await coordinator.startKanata()
+        let restarted = await coordinator.restartKanata()
+        let resumed = await coordinator.resumeSessionRuntime(expectedGeneration: coordinator.sessionIntentGeneration)
+        XCTAssertFalse(started)
+        XCTAssertFalse(restarted)
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(launches, 0)
+        coordinator.setUpdatePreparationActive(false)
+        let retry = await coordinator.startKanata()
+        XCTAssertTrue(retry)
+        XCTAssertEqual(launches, 1)
+    }
+
+    func testTerminationPreparationSurvivesUpdateAbortAndRefusesQueuedStartsButAllowsStop() async throws {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0, stops = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        defer {
+            ServiceLifecycleCoordinator.testSessionStart = nil
+            ServiceLifecycleCoordinator.testSessionStop = nil
+        }
+        let coordinator = coordinator!
+        let generation = coordinator.sessionIntentGeneration
+        let blocker = Task { @MainActor in
+            try await coordinator.sessionOperationGate.withOperation { _ in
+                let start = Task { @MainActor in await coordinator.startKanata() }
+                while await coordinator.sessionIntentGeneration == generation {
+                    await Task.yield()
+                }
+                await coordinator.setTerminationPreparationActive(true)
+                let heldGeneration = await coordinator.sessionIntentGeneration
+                await coordinator.setTerminationPreparationActive(true)
+                let repeatedGeneration = await coordinator.sessionIntentGeneration
+                XCTAssertEqual(heldGeneration, repeatedGeneration)
+                await coordinator.setUpdatePreparationActive(true)
+                await coordinator.setUpdatePreparationActive(false)
+                return start
+            }
+        }
+        let queued = try await blocker.value
+        let queuedResult = await queued.value
+        XCTAssertFalse(queuedResult)
+        let started = await coordinator.startKanata()
+        let restarted = await coordinator.restartKanata()
+        let resumed = await coordinator.resumeSessionRuntime(expectedGeneration: coordinator.sessionIntentGeneration)
+        XCTAssertFalse(started)
+        XCTAssertFalse(restarted)
+        XCTAssertFalse(resumed)
+        XCTAssertEqual(launches, 0)
+        let stopped = await coordinator.stopKanata(reason: "Termination cleanup")
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(stops, 1)
+        coordinator.setTerminationPreparationActive(false)
+        let retry = await coordinator.startKanata()
+        XCTAssertTrue(retry)
+        XCTAssertEqual(launches, 1)
+    }
+
+    func testUpdateHoldSurvivesCancelledTermination() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        defer { ServiceLifecycleCoordinator.testSessionStart = nil }
+        coordinator.setUpdatePreparationActive(true)
+        coordinator.setTerminationPreparationActive(true)
+        coordinator.setTerminationPreparationActive(false)
+        let blocked = await coordinator.startKanata()
+        XCTAssertFalse(blocked)
+        XCTAssertEqual(launches, 0)
+        coordinator.setUpdatePreparationActive(false)
+        let started = await coordinator.startKanata()
+        XCTAssertTrue(started)
+        XCTAssertEqual(launches, 1)
+    }
+
+    func testRecoveryRefusalSurvivesNoWorkerStartAndRestartThenClearsOnRecovery() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        ServiceLifecycleCoordinator.testSessionStop = nil
+        var recoveries = 0
+        coordinator.testSessionCapsRecovery = {
+            recoveries += 1
+            throw SessionCapsMappingLease.Refusal.mutationUncertain
+        }
+        let started = await coordinator.startKanata(reason: "retained marker")
+        XCTAssertFalse(started)
+        let restarted = await coordinator.restartKanata(reason: "retained marker retry")
+        XCTAssertFalse(restarted)
+        XCTAssertEqual(recoveries, 2)
+        XCTAssertNil(coordinator.currentSessionReport())
         XCTAssertFalse(coordinator.isStartingKanata)
-        _ = await coordinator.startKanata(reason: "test")
-        XCTAssertFalse(coordinator.isStartingKanata, "isStartingKanata should be reset after start completes")
+        let grace = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(grace)
+        let status = await coordinator.currentRuntimeStatus()
+        guard case let .failed(reason) = status else { return XCTFail("Recovery failure became stopped") }
+        XCTAssertTrue(reason.contains("recovery record was retained"))
+        XCTAssertEqual(capturedErrors.compactMap { $0 }.last, reason)
+        XCTAssertGreaterThanOrEqual(stateChangeCount, 2)
+
+        coordinator.testSessionCapsRecovery = {}
+        let recovered = await coordinator.restoreSessionCaps(for: nil)
+        XCTAssertTrue(recovered)
+        XCTAssertNil(coordinator.recoveryRefusalForStartup)
+        let cleared = await coordinator.currentRuntimeStatus()
+        XCTAssertEqual(cleared, .stopped)
     }
 
-    func testStartTerminatesRunningKanataWhenBinaryDoesNotMatchBundledRuntime() async {
-        coordinator.isVirtualHIDDaemonHealthy = { true }
-
+    func testUnsupportedConfigurationRefusesBeforeLaunchAndPersistsFailure() async {
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged
-
-        ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = {
-            ServiceLifecycleCoordinator.RunningKanataIdentity(
-                pid: 4242,
-                executablePath: "/opt/homebrew/bin/kanata",
-                startedAt: Date()
-            )
+        var launches = 0
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "Caps Lock remapping requires the advanced driver backend") }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        let admissionResult1 = await coordinator.startKanata(reason: "unsupported config")
+        XCTAssertFalse(admissionResult1)
+        XCTAssertEqual(launches, 0)
+        XCTAssertTrue(privileged.calls.isEmpty)
+        XCTAssertFalse(coordinator.isStartingKanata)
+        let admissionResult2 = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(admissionResult2)
+        guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else {
+            return XCTFail("The refusal must survive absence of a worker report")
         }
-
-        _ = await coordinator.startKanata(reason: "test stale binary")
-
-        XCTAssertTrue(
-            privileged.calls.contains("killAllKanataProcesses"),
-            "A confirmed running/bundled Kanata mismatch must route through InstallerEngine privileged termination before startup continues"
-        )
+        XCTAssertTrue(reason.contains("Caps Lock remapping requires the advanced driver backend"))
+        XCTAssertTrue(reason.contains("Edit the configuration"))
+        XCTAssertTrue(reason.contains("existing rules were preserved"))
     }
 
-    func testStartTerminatesRunningKanataWhenSamePathButProcessPredatesBundledBinary() async throws {
-        coordinator.isVirtualHIDDaemonHealthy = { true }
+    /// Phase 4e: the refusal names the rule the engine blames, in front of
+    /// the validator's reason, everywhere the coordinator renders it.
+    func testRefusalIsAttributedToTheRuleTheEngineBlames() async {
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported output key volu") }
+        coordinator.admissionAttribution = { ["Louder sends volu, which the current backend can't send."] }
+        var surfaced: String?
+        coordinator.onError = { surfaced = $0 }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in XCTFail("must not launch"); return true }
+        let started = await coordinator.startKanata(reason: "unsupported config")
+        XCTAssertFalse(started)
+        let expected = "This configuration cannot run in the driverless session. Louder sends volu, which the current backend can't send. "
+            + "Turn that rule off or change it, then retry; existing rules were preserved. (Validator: unsupported output key volu.)"
+        XCTAssertEqual(surfaced, expected)
+        XCTAssertEqual(coordinator.sessionConfigurationRefusal, expected)
+        guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else { return XCTFail("expected failed") }
+        XCTAssertEqual(reason, expected)
+    }
 
+    func testValidRetryClearsConfigurationRefusal() async {
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported action") }
+        let admissionResult3 = await coordinator.startKanata()
+        XCTAssertFalse(admissionResult3)
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        let admissionResult4 = await coordinator.startKanata(reason: "corrected config")
+        XCTAssertTrue(admissionResult4)
+        XCTAssertEqual(launches, 1)
+        XCTAssertNil(coordinator.sessionConfigurationRefusal)
+        XCTAssertEqual(coordinator.sessionConfigurationAdmission, .valid)
+    }
+
+    func testUnavailableValidationIsNotUnsupportedConfiguration() async {
+        coordinator.testSessionConfigurationValidation = { .unavailable(reason: "bridge library missing") }
+        var launches = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
+        let admissionResult5 = await coordinator.startKanata()
+        XCTAssertFalse(admissionResult5)
+        XCTAssertEqual(launches, 0)
+        XCTAssertNil(coordinator.sessionConfigurationRefusal)
+        let admissionResult6 = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(admissionResult6, "Completed validation refusal has no pending session start")
+        guard case let .failed(reason) = await coordinator.currentRuntimeStatus() else {
+            return XCTFail("Validation coverage failure must remain visible")
+        }
+        XCTAssertTrue(reason.contains("validation is unavailable"))
+        XCTAssertFalse(reason.contains("cannot run"))
+    }
+
+    func testInvalidRestartPreservesOwnedRunningTapUntilExplicitStop() async {
+        let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                          tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+        coordinator.testSessionCurrentReport = { report }
+        var validations = 0, stops = 0
+        coordinator.testSessionConfigurationValidation = { validations += 1; return .invalid(reason: "edited config unsupported") }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        let admissionResult7 = await coordinator.restartKanata(reason: "invalid edit")
+        XCTAssertFalse(admissionResult7)
+        XCTAssertEqual(stops, 0)
+        let liveStatus = await coordinator.currentRuntimeStatus()
+        XCTAssertEqual(liveStatus, .running(pid: 100))
+        XCTAssertNil(coordinator.configurationRefusalForStartup())
+        XCTAssertEqual(validations, 1, "Readiness must use the owned live tap rather than reparsing edited input")
+        let admissionResult8 = await coordinator.stopKanata(reason: "explicit stop")
+        XCTAssertTrue(admissionResult8)
+        XCTAssertEqual(stops, 1, "Refusal must not bypass owned stop/restore admission")
+    }
+
+    func testRejectedStartAndRestartTransferRetainedTapSupervisionToLatestIntent() async {
+        let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                          tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+        coordinator.testSessionCurrentReport = { report }
+        coordinator.testSessionConfigurationValidation = { .valid }
+        coordinator.testSessionRunningReadiness = { true }
+        var supervised: [UInt64] = []
+        coordinator.testSessionSupervisionStarted = { supervised.append($0) }
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        let adopted = await coordinator.startKanata(reason: "adopt existing tap")
+        XCTAssertTrue(adopted)
+        XCTAssertEqual(supervised, [1])
+
+        var starts = 0, stops = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "edited config unsupported") }
+        let refusedStart = await coordinator.startKanata(reason: "invalid edited start")
+        let refusedRestart = await coordinator.restartKanata(reason: "invalid edited restart")
+        XCTAssertFalse(refusedStart)
+        XCTAssertFalse(refusedRestart)
+        XCTAssertEqual(starts, 0)
+        XCTAssertEqual(stops, 0)
+        XCTAssertEqual(supervised, [1, 2, 3], "Each rejected intent must retain supervision of the owned tap")
+        XCTAssertEqual(supervised.last, coordinator.sessionIntentGeneration)
+        XCTAssertFalse(coordinator.sessionStartIsCurrent(1), "Never roll back a rejected intent")
+        XCTAssertTrue(coordinator.sessionStartIsCurrent(3))
+
+        let stopped = await coordinator.stopKanata(reason: "explicit stop supersedes refusal")
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(stops, 1)
+        XCTAssertFalse(coordinator.sessionStartIsCurrent(3))
+        XCTAssertEqual(supervised, [1, 2, 3], "A stop must not rebind running supervision")
+    }
+
+    func testRejectedConfigurationRetainsSupervisionWithoutCurrentHeartbeat() async {
+        // The supervisor seam observes transfer before production checks the
+        // retained application/nonce. A missing report must not suppress it.
+        coordinator.testSessionCurrentReport = { nil }
+        coordinator.testSessionConfigurationValidation = { .valid }
+        coordinator.testSessionRunningReadiness = { true }
+        var supervised: [UInt64] = []
+        coordinator.testSessionSupervisionStarted = { supervised.append($0) }
+        ServiceLifecycleCoordinator.testSessionStart = nil
+        let adopted = await coordinator.startKanata(reason: "adopt retained ownership")
+        XCTAssertTrue(adopted)
+
+        var starts = 0, stops = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in starts += 1; return true }
+        ServiceLifecycleCoordinator.testSessionStop = { stops += 1; return true }
+        coordinator.testSessionConfigurationValidation = { .invalid(reason: "unsupported edit") }
+        let refusedStart = await coordinator.startKanata()
+        let refusedRestart = await coordinator.restartKanata()
+        XCTAssertFalse(refusedStart)
+        XCTAssertFalse(refusedRestart)
+        XCTAssertEqual(supervised, [1, 2, 3], "Stale or terminal workers still need cleanup under current intent")
+        XCTAssertEqual(supervised.last, coordinator.sessionIntentGeneration)
+        XCTAssertEqual(starts, 0)
+        XCTAssertEqual(stops, 0)
+    }
+
+    func testOwnedRuntimeEvidenceWinsWhenCapabilityProbeFinishesLater() async {
+        let deniedProbe = PermissionOracle.PermissionSet(
+            accessibility: .denied, inputMonitoring: .denied,
+            source: "earlier-capability-probe", confidence: .high, timestamp: Date()
+        )
+        for probeResult: PermissionOracle.PermissionSet? in [nil, deniedProbe] {
+            var ownedReport: SessionRuntimeReport?
+            var probes = 0
+            coordinator.testSessionCurrentReport = { ownedReport }
+            coordinator.testSessionCapabilityProbe = {
+                probes += 1
+                await Task.yield()
+                ownedReport = SessionRuntimeReport(
+                    nonce: "owned-after-probe-start", pid: 100, uid: 501, state: .running,
+                    accessibility: true, effectiveInputAccess: true, tapActive: true,
+                    tcpPort: 37001, inputCount: 0, outputCount: 0, timestamp: Date()
+                )
+                return probeResult
+            }
+            let permissions = await coordinator.sessionCapabilities()
+            XCTAssertEqual(probes, 1)
+            XCTAssertEqual(permissions?.accessibility, .granted)
+            XCTAssertEqual(permissions?.inputMonitoring, .granted)
+            XCTAssertNotEqual(permissions?.source, deniedProbe.source)
+        }
+    }
+
+    func testShutdownAndUpdateSuppressCapabilityLaunchesUntilBothHoldsEnd() async {
+        var probes = 0
+        coordinator.testSessionCapabilityProbe = { probes += 1; return nil }
+        coordinator.setTerminationPreparationActive(true)
+        coordinator.setUpdatePreparationActive(true)
+        _ = await coordinator.sessionCapabilities()
+        coordinator.setUpdatePreparationActive(false)
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(probes, 0)
+        coordinator.setTerminationPreparationActive(false)
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(probes, 1)
+    }
+
+    func testUninstallStopDrainsExistingCapabilityProbeAndBlocksLaterProbes() async {
+        let coordinator = coordinator!
+        let entered = AsyncStream<Void>.makeStream()
+        let release = AsyncStream<Void>.makeStream()
+        var events: [String] = []
+        coordinator.testSessionCapabilityProbe = {
+            events.append("probe-start")
+            entered.continuation.yield(())
+            for await _ in release.stream {
+                break
+            }
+            events.append("probe-end")
+            return nil
+        }
+        ServiceLifecycleCoordinator.testSessionStop = { events.append("stop"); return true }
+        defer { ServiceLifecycleCoordinator.testSessionStop = nil }
+        let probe = Task { await coordinator.sessionCapabilities() }
+        for await _ in entered.stream {
+            break
+        }
+        coordinator.setTerminationPreparationActive(true)
+        let stop = Task { await coordinator.stopKanata(reason: "Uninstall KeyPath") }
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(events, ["probe-start"])
+        release.continuation.yield(())
+        _ = await probe.value
+        let stopped = await stop.value
+        XCTAssertTrue(stopped)
+        XCTAssertEqual(events, ["probe-start", "probe-end", "stop"])
+        _ = await coordinator.sessionCapabilities()
+        XCTAssertEqual(events, ["probe-start", "probe-end", "stop"])
+    }
+
+    func testMissingOwnedEvidenceDoesNotUpgradeCapabilityProbeResult() async {
+        coordinator.testSessionCurrentReport = { nil }
+        coordinator.testSessionCapabilityProbe = { await Task.yield(); return nil }
+        let unavailable = await coordinator.sessionCapabilities()
+        XCTAssertNil(unavailable)
+
+        let deniedProbe = PermissionOracle.PermissionSet(
+            accessibility: .denied, inputMonitoring: .denied,
+            source: "current-capability-probe", confidence: .high, timestamp: Date()
+        )
+        coordinator.testSessionCapabilityProbe = { await Task.yield(); return deniedProbe }
+        let denied = await coordinator.sessionCapabilities()
+        XCTAssertEqual(denied?.accessibility, .denied)
+        XCTAssertEqual(denied?.inputMonitoring, .denied)
+        XCTAssertEqual(denied?.source, deniedProbe.source)
+    }
+
+    // MARK: - Session lifecycle routing
+
+    func testStartUsesSessionOwnerWithoutPrivilegedFallbackOnFailure() async {
         let privileged = StubPrivilegedOperationsCoordinator()
         WizardDependencies.privilegedOperations = privileged
-
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("keypath-kanata-identity-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-
-        let bundledKanata = tempDir.appendingPathComponent("kanata")
-        FileManager.default.createFile(atPath: bundledKanata.path, contents: Data())
-        let bundledModifiedAt = Date()
-        try FileManager.default.setAttributes(
-            [.modificationDate: bundledModifiedAt],
-            ofItemAtPath: bundledKanata.path
-        )
-        WizardSystemPaths.setBundledKanataPathOverride(bundledKanata.path)
-        defer { WizardSystemPaths.setBundledKanataPathOverride(nil) }
-
-        ServiceLifecycleCoordinator.testRunningKanataIdentityProvider = {
-            ServiceLifecycleCoordinator.RunningKanataIdentity(
-                pid: 4242,
-                executablePath: bundledKanata.path,
-                startedAt: bundledModifiedAt.addingTimeInterval(-60)
-            )
+        var reasons: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { reason in
+            reasons.append(reason)
+            XCTAssertTrue(self.coordinator.isStartingKanata)
+            return false
         }
+        let started = await coordinator.startKanata(reason: "session failure")
+        XCTAssertFalse(started)
+        XCTAssertEqual(reasons, ["session failure"])
+        XCTAssertTrue(privileged.calls.isEmpty)
+        XCTAssertFalse(coordinator.isStartingKanata)
+    }
 
-        _ = await coordinator.startKanata(reason: "test stale same-path binary")
+    func testValidationUsesSessionStart() async {
+        var reasons: [String] = []
+        ServiceLifecycleCoordinator.testSessionStart = { reason in
+            reasons.append(reason)
+            return false
+        }
+        await coordinator.startKanataWithValidation()
+        XCTAssertEqual(reasons, ["Session validation start"])
+    }
 
-        XCTAssertTrue(
-            privileged.calls.contains("killAllKanataProcesses"),
-            "A running Kanata process started before the bundled binary was replaced is stale even when proc_pidpath returns the same path"
-        )
+    func testStopUsesOnlySessionOwner() async {
+        let privileged = StubPrivilegedOperationsCoordinator()
+        WizardDependencies.privilegedOperations = privileged
+        ServiceLifecycleCoordinator.testSessionStop = {
+            self.coordinator.onStateChanged?()
+            return true
+        }
+        let stopped = await coordinator.stopKanata(reason: "test")
+        XCTAssertTrue(stopped)
+        XCTAssertTrue(privileged.calls.isEmpty)
+        XCTAssertGreaterThan(stateChangeCount, 0)
     }
 
     // MARK: - Stop
 
     func testStopNotifiesStateChange() async {
+        ServiceLifecycleCoordinator.testSessionStop = { self.coordinator.onStateChanged?(); return true }
         let result = await coordinator.stopKanata(reason: "test")
 
-        // Should succeed (stopIfRunning returns false if not running, which is fine)
         XCTAssertTrue(result)
         XCTAssertGreaterThan(stateChangeCount, 0)
     }
@@ -142,6 +549,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
             }
         }
 
+        ServiceLifecycleCoordinator.testSessionStop = { self.coordinator.onStateChanged?(); return true }
         _ = await coordinator.stopKanata(reason: "test")
 
         XCTAssertEqual(seenDuringStop, true, "Transition gate must be closed during the stop")
@@ -161,7 +569,6 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         // The stop-grace exists only to swallow the OLD process's last gasp. Once a new
         // start begins (e.g. the start phase of a restart), the grace must end so a
         // genuine `active=false` from the freshly started kanata is NOT masked as benign.
-        coordinator.isVirtualHIDDaemonHealthy = { true }
         _ = await coordinator.stopKanata(reason: "stop for restart")
         XCTAssertTrue(coordinator.isIntentionalTransitionInProgress, "Grace armed after stop")
 
@@ -193,15 +600,22 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     // MARK: - Restart
 
-    func testRestartCallsStopThenStart() async {
-        coordinator.isVirtualHIDDaemonHealthy = { true }
+    func testRestartCallsSessionStopThenStart() async {
+        var operations: [String] = []
+        ServiceLifecycleCoordinator.testSessionStop = { operations.append("stop"); return true }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in operations.append("start"); return true }
+        let restarted = await coordinator.restartKanata(reason: "test restart")
+        XCTAssertTrue(restarted)
+        XCTAssertEqual(operations, ["stop", "start"])
+    }
 
-        // Restart should call stop then start
-        let result = await coordinator.restartKanata(reason: "test restart")
-
-        // Result depends on whether daemon registration succeeds (likely fails in test env)
-        // But the flow should complete without crashing
-        XCTAssertNotNil(result)
+    func testRestartRefusesStartAfterSessionStopFailure() async {
+        var startCalls = 0
+        ServiceLifecycleCoordinator.testSessionStop = { false }
+        ServiceLifecycleCoordinator.testSessionStart = { _ in startCalls += 1; return true }
+        let restarted = await coordinator.restartKanata(reason: "test restart")
+        XCTAssertFalse(restarted)
+        XCTAssertEqual(startCalls, 0)
     }
 
     // MARK: - Runtime Status
@@ -233,172 +647,52 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         XCTAssertTrue(inWindow, "Should be in startup window while start is in progress")
     }
 
+    func testCompletedPermissionRefusalExposesStoppedStateUntilExplicitRetry() async {
+        coordinator.testSessionConfigurationValidation = { .valid }
+        var starts = 0
+        ServiceLifecycleCoordinator.testSessionStart = { _ in
+            starts += 1
+            let transient = await self.coordinator.isInTransientRuntimeStartupWindow()
+            let status = await self.coordinator.currentRuntimeStatus()
+            XCTAssertTrue(transient, "An admitted start is transient while its result is pending")
+            XCTAssertEqual(status, .starting)
+            return false
+        }
+        defer { ServiceLifecycleCoordinator.testSessionStart = nil }
+
+        let denied = await coordinator.startKanata(reason: "Automatic start before permission grant")
+        XCTAssertFalse(denied)
+        let status = await coordinator.currentRuntimeStatus()
+        let transient = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertEqual(status, .stopped)
+        XCTAssertFalse(transient, "A completed refusal cannot hide the wizard's Start action")
+        XCTAssertFalse(ServiceStatusEvaluator.shouldRetryTransientStatus(
+            runtimeStatus: .stopped, isInTransientStartupWindow: transient, completedAttempts: 1
+        ))
+        XCTAssertFalse(ServiceStatusEvaluator.didExhaustTransientStatus(
+            runtimeStatus: .stopped, isInTransientStartupWindow: transient, completedAttempts: 30
+        ))
+        XCTAssertEqual(starts, 1, "Permission grant alone does not request another start")
+
+        // Model the newly granted permission without mutating a captured value.
+        ServiceLifecycleCoordinator.testSessionStart = { _ in
+            starts += 1
+            let transient = await self.coordinator.isInTransientRuntimeStartupWindow()
+            XCTAssertTrue(transient)
+            return true
+        }
+        let retried = await coordinator.startKanata(reason: "Wizard explicit Start after permission grant")
+        XCTAssertTrue(retried)
+        XCTAssertEqual(starts, 2)
+        let afterRetry = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(afterRetry)
+    }
+
     func testNotInStartupWindowWhenIdle() async {
         coordinator.isStartingKanata = false
 
         let inWindow = await coordinator.isInTransientRuntimeStartupWindow()
 
-        // May or may not be in window depending on SMAppService state,
-        // but should not crash
-        XCTAssertNotNil(inWindow)
-    }
-
-    // MARK: - Wait-for-exit before start (#625 part-1)
-
-    //
-    // These drive `waitForKanataExitBeforeStart()` directly (it runs after the VHID
-    // gates in `startKanata`, which short-circuit in the test environment). All timing
-    // is deterministic: pgrep/liveness/signal/TCP/sleep are injected via DEBUG seams, so
-    // no real subprocess, signal, port, or wall-clock sleep is involved. Seams are reset
-    // to safe defaults in TestSingletonReset.resetAll() between tests.
-
-    func testWaitForExit_noOrphans_fastPath() async {
-        var sleeps = 0
-        var tcpProbes = 0
-        ServiceLifecycleCoordinator.testPgrepProvider = { _ in [] }
-        ServiceLifecycleCoordinator.testSleep = { _ in sleeps += 1 }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in tcpProbes += 1; return false }
-
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(sleeps, 0, "No orphans → no polling sleeps")
-        XCTAssertEqual(tcpProbes, 0, "No orphans → port-release poll is skipped (zero added latency)")
-    }
-
-    func testWaitForExit_processGoneImmediately() async {
-        var signals: [Int32] = []
-        var tcpProbes = 0
-        var sleeps = 0
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // already gone
-        ServiceLifecycleCoordinator.testSignal = { _, sig in signals.append(sig) }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in tcpProbes += 1; return false } // port free
-        ServiceLifecycleCoordinator.testSleep = { _ in sleeps += 1 }
-
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(signals, [SIGTERM], "Only SIGTERM; no SIGKILL escalation when the process exits immediately")
-        XCTAssertEqual(sleeps, 0, "Gone on first probe and port free on first probe → no sleeps")
-        XCTAssertEqual(tcpProbes, 1, "Port checked once and found free")
-    }
-
-    func testWaitForExit_processLingersThenExits() async {
-        var livenessProbes = 0
-        var signals: [Int32] = []
-        var sleeps = 0
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in
-            livenessProbes += 1
-            return livenessProbes <= 2 // alive for two probes, then gone
-        }
-        ServiceLifecycleCoordinator.testSignal = { _, sig in signals.append(sig) }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false } // port free immediately
-        ServiceLifecycleCoordinator.testSleep = { _ in sleeps += 1 }
-
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(signals, [SIGTERM], "Exited within the grace window → no SIGKILL")
-        XCTAssertEqual(livenessProbes, 3, "Polled liveness until the process disappeared")
-        XCTAssertEqual(sleeps, 2, "Two polling sleeps before exit; port was free immediately")
-    }
-
-    func testWaitForExit_processNeverExits_timeoutEscalatesToKillThenProceeds() async {
-        var signals: [Int32] = []
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in true } // never exits
-        ServiceLifecycleCoordinator.testSignal = { _, sig in signals.append(sig) }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false }
-        ServiceLifecycleCoordinator.testSleep = { _ in }
-
-        // Must return (proceed), not hang, even though the process never dies.
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(signals.first, SIGTERM, "SIGTERM must precede SIGKILL")
-        XCTAssertEqual(signals.filter { $0 == SIGKILL }.count, 1, "Exactly one SIGKILL after the grace window")
-    }
-
-    func testWaitForExit_portBusyThenFrees() async {
-        var tcpProbes = 0
-        var sleeps = 0
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // process gone immediately
-        ServiceLifecycleCoordinator.testSignal = { _, _ in }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in
-            tcpProbes += 1
-            return tcpProbes <= 3 // busy for three probes, then released
-        }
-        ServiceLifecycleCoordinator.testSleep = { _ in sleeps += 1 }
-
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(tcpProbes, 4, "Polled the port until it was released")
-        XCTAssertEqual(sleeps, 3, "Slept between port probes while the port was busy")
-    }
-
-    func testWaitForExit_portNeverFrees_timeoutProceedsWithWarning() async {
-        var tcpProbes = 0
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false }
-        ServiceLifecycleCoordinator.testSignal = { _, _ in }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in tcpProbes += 1; return true } // always busy
-        ServiceLifecycleCoordinator.testSleep = { _ in }
-
-        // Must return despite the port never freeing.
-        await coordinator.waitForKanataExitBeforeStart()
-
-        let expectedProbes = ServiceLifecycleCoordinator.WaitForExitTiming.pollCount(
-            forMs: ServiceLifecycleCoordinator.WaitForExitTiming.portReleaseTimeoutMs
-        )
-        XCTAssertEqual(tcpProbes, expectedProbes, "Port poll bounded to portReleaseTimeout / pollInterval")
-    }
-
-    func testWaitForExit_bothProcessNamesHaveOrphans() async {
-        // Both `kanata-launcher` and `kanata` can have live instances; each family must be
-        // terminated, not just the first one found.
-        var terminated: Set<pid_t> = []
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242] : [5252] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // exit immediately
-        ServiceLifecycleCoordinator.testSignal = { pid, sig in if sig == SIGTERM { terminated.insert(pid) } }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false }
-        ServiceLifecycleCoordinator.testSleep = { _ in }
-
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(terminated, [4242, 5252], "Both process families are terminated")
-    }
-
-    func testWaitForExit_multiplePidsPerName() async {
-        // A single process family can have multiple orphans; every PID must be SIGTERMed.
-        var terminated: Set<pid_t> = []
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? [4242, 4243, 4244] : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // all exit immediately
-        ServiceLifecycleCoordinator.testSignal = { pid, sig in if sig == SIGTERM { terminated.insert(pid) } }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false }
-        ServiceLifecycleCoordinator.testSleep = { _ in }
-
-        await coordinator.waitForKanataExitBeforeStart()
-
-        XCTAssertEqual(terminated, [4242, 4243, 4244], "Every orphan PID for the name is terminated")
-    }
-
-    func testWaitForExit_safeToCallRepeatedlyAcrossRestarts() async {
-        // A restart calls this on every start. Re-invoking after the orphan is gone must be
-        // a clean no-op (no signals, no port wait), not a crash or a redundant kill.
-        var pids: [pid_t] = [4242]
-        var signals: [Int32] = []
-        ServiceLifecycleCoordinator.testPgrepProvider = { name in name == "kanata-launcher" ? pids : [] }
-        ServiceLifecycleCoordinator.testLivenessProbe = { _ in false } // exits on first probe
-        ServiceLifecycleCoordinator.testSignal = { _, sig in signals.append(sig) }
-        ServiceLifecycleCoordinator.testTCPProbe = { _, _ in false }
-        ServiceLifecycleCoordinator.testSleep = { _ in }
-
-        await coordinator.waitForKanataExitBeforeStart()
-        XCTAssertEqual(signals, [SIGTERM], "First call terminates the orphan")
-
-        // Orphan is now gone — a second invocation must be a clean no-op.
-        pids = []
-        signals = []
-        await coordinator.waitForKanataExitBeforeStart()
-        XCTAssertEqual(signals, [], "Second call with no orphans signals nothing")
+        XCTAssertFalse(inWindow, "A newly created idle session has no pending start")
     }
 }

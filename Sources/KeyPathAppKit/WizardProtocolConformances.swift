@@ -65,6 +65,21 @@ extension KanataDaemonManager: WizardDaemonManaging {
         await WizardServiceManagementState(refreshManagementStateInternal())
     }
 
+    public func activeRuntimeFreshness() async -> RuntimeFreshness {
+        let snapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshotFresh()
+        let actualIdentity = snapshot.activeProgramIdentity.map {
+            RuntimeIdentity(
+                programIdentifier: $0.programIdentifier,
+                parentBundleIdentifier: $0.parentBundleIdentifier,
+                parentBundleVersion: $0.parentBundleVersion
+            )
+        }
+        return RuntimeFreshness.classify(
+            actual: actualIdentity,
+            expected: RuntimeIdentity.expectedKeyPathKanata()
+        )
+    }
+
     public nonisolated var kanataServiceID: String {
         Self.kanataServiceID
     }
@@ -93,10 +108,6 @@ extension SystemValidator: WizardSystemValidating {
 // MARK: - HelperMaintenance + WizardHelperMaintaining
 
 extension HelperMaintenance: WizardHelperMaintaining {}
-
-// MARK: - FullDiskAccessChecker + WizardFullDiskAccessChecking
-
-extension FullDiskAccessChecker: WizardFullDiskAccessChecking {}
 
 // MARK: - PermissionRequestService + WizardPermissionRequesting
 
@@ -133,7 +144,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     // This ensures inProgressValidation dedup spans all callers.
     MainAppStateController.shared.setValidator(sharedValidator)
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
-    WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
@@ -141,7 +151,19 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         HelperManager.shared.helperNeedsLoginItemsApproval()
     }
     WizardDependencies.createUninstallCoordinator = {
-        UninstallCoordinator()
+        SessionUninstallCoordinator(prepare: {
+            runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
+            guard await runtimeCoordinator.stopKanata(reason: "Uninstall KeyPath") else { return false }
+            runtimeCoordinator.stopConfigFileWatching()
+            await runtimeCoordinator.configurationService.operationGate.suspendForUninstall()
+            return true
+        }, resume: {
+            await runtimeCoordinator.configurationService.operationGate.resumeAfterFailedUninstall()
+            runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(false)
+            runtimeCoordinator.startConfigFileWatching()
+        }, removeLoginItem: {
+            try await LaunchAtLoginController.shared.setEnabled(false)
+        })
     }
     WizardDependencies.executePrivilegedBatch = { batch in
         let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
@@ -196,16 +218,14 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
 
     MainAppStateController.shared.setValidator(systemValidator)
     WizardDependencies.helperMaintenance = HelperMaintenance.shared
-    WizardDependencies.fullDiskAccessChecker = FullDiskAccessChecker.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
     WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
     WizardDependencies.helperNeedsApproval = {
         HelperManager.shared.helperNeedsLoginItemsApproval()
     }
-    WizardDependencies.createUninstallCoordinator = {
-        UninstallCoordinator()
-    }
+    // CLI must not remove a GUI installation through the legacy system helper.
+    WizardDependencies.createUninstallCoordinator = nil
     WizardDependencies.executePrivilegedBatch = { batch in
         let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
         return (exitCode: result.exitCode, output: result.output)

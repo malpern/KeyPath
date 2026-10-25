@@ -361,6 +361,118 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stdout.contains("persist submission evidence to /tmp/KeyPath.notary-submission.json"))
     }
 
+    func testNotaryWrapperUsesAPIKeyAuthWhenConfigured() throws {
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
+        let keyFile = fixture.archive.deletingLastPathComponent().appendingPathComponent("AuthKey_TESTKEY.p8")
+        try Data("test key".utf8).write(to: keyFile)
+
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        KP_NOTARY_KEY_PATH="\(keyFile.path)"
+        KP_NOTARY_KEY_ID="TESTKEY"
+        KP_NOTARY_ISSUER="00000000-0000-0000-0000-000000000000"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertTrue(invocations.contains("--key \(keyFile.path) --key-id TESTKEY --issuer 00000000-0000-0000-0000-000000000000"))
+        XCTAssertFalse(invocations.contains("--keychain-profile"))
+        let state = try notaryState(at: fixture.state)
+        XCTAssertEqual(state["status"] as? String, "accepted")
+    }
+
+    func testNotaryWrapperRejectsIncompleteAPIKeyConfiguration() throws {
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        KP_NOTARY_KEY_PATH="/tmp/AuthKey_MISSINGBITS.p8"
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertNotEqual(result.code, 0)
+        XCTAssertTrue(result.stderr.contains("KP_NOTARY_KEY_ID or KP_NOTARY_ISSUER"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.log.path), "no notarytool call should be made with incomplete key auth")
+    }
+
+    func testNotaryAwaitSubmissionResumesRecordedSubmission() throws {
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        kp_notary_await_submission "\(submissionID)" "KeyPath-Profile" "\(fixture.state.path)" "\(fixture.archive.path)" "0000000000000000000000000000000000000000000000000000000000000000"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("Apple notarization accepted submission \(submissionID)"))
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertTrue(invocations.contains("wait \(submissionID) --keychain-profile KeyPath-Profile"))
+        XCTAssertFalse(invocations.contains("submit "), "resume must not re-upload the archive")
+        let state = try notaryState(at: fixture.state)
+        XCTAssertEqual(state["status"] as? String, "accepted")
+        XCTAssertEqual(state["submissionId"] as? String, submissionID)
+    }
+
+    func testNotaryForcedKeychainProfileBeatsPopulatedKeyPath() throws {
+        let fixture = try makeNotaryFixture(waitExit: 0, waitStatus: "Accepted", infoStatus: nil)
+        let keyFile = fixture.archive.deletingLastPathComponent().appendingPathComponent("AuthKey_STALE.p8")
+        try Data("stale key".utf8).write(to: keyFile)
+
+        let script = """
+        unset KP_SIGN_DRY_RUN
+        source \(signingLibPath)
+        KP_NOTARY_CMD="\(fixture.stub.path)"
+        KP_NOTARY_STATE_FILE="\(fixture.state.path)"
+        KP_NOTARY_KEY_PATH="\(keyFile.path)"
+        KP_NOTARY_KEY_ID="STALE"
+        KP_NOTARY_ISSUER="00000000-0000-0000-0000-000000000000"
+        KP_NOTARY_AUTH=keychain-profile
+        kp_notarize_zip "\(fixture.archive.path)" "KeyPath-Profile"
+        """
+        let result = runScript(script, env: ["KP_NOTARY_TEST_LOG": fixture.log.path])
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        let invocations = try String(contentsOf: fixture.log, encoding: .utf8)
+        XCTAssertTrue(invocations.contains("--keychain-profile KeyPath-Profile"))
+        XCTAssertFalse(invocations.contains("--key "), "forced keychain-profile auth must ignore a populated key path")
+    }
+
+    func testNotaryDefaultAuthPrefersApiKeyFileAndRespectsOptOut() throws {
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let keyFile = directory.appendingPathComponent("AuthKey_DEFAULT.p8")
+        try Data("test key".utf8).write(to: keyFile)
+
+        let script = """
+        source \(signingLibPath)
+        unset KP_NOTARY_KEY_PATH KP_NOTARY_AUTH
+        KP_NOTARY_DEFAULT_KEY_PATH="\(keyFile.path)"
+        kp_notary_default_auth_from_environment
+        echo "auto:${KP_NOTARY_KEY_PATH:-none}"
+        unset KP_NOTARY_KEY_PATH
+        KP_NOTARY_AUTH=keychain-profile
+        kp_notary_default_auth_from_environment
+        echo "forced:${KP_NOTARY_KEY_PATH:-none}"
+        """
+        let result = runScript(script)
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("auto:\(keyFile.path)"))
+        XCTAssertTrue(result.stdout.contains("forced:none"))
+    }
+
     func testPinnedNotarytoolSupportsExplicitNoWait() {
         let script = """
         source Scripts/lib/xcode.sh

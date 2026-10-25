@@ -1,18 +1,20 @@
 import ArgumentParser
 import Foundation
+import KeyPathCLICommon
 
-struct HelpExamples: AsyncParsableCommand {
-    static let configuration = CommandConfiguration(
+public struct HelpExamples: AsyncParsableCommand {
+    public init() {}
+    public static let configuration = CommandConfiguration(
         commandName: "examples",
         abstract: "Curated workflow examples for each command noun"
     )
 
-    @OptionGroup var globals: GlobalOptions
+    @OptionGroup public var globals: GlobalOptions
 
     @Argument(help: "Noun to show examples for (rule, collection, layer, service, config, system)")
-    var noun: String?
+    public var noun: String?
 
-    mutating func run() async throws {
+    public mutating func run() async throws {
         let ctx = globals.outputContext
 
         if let noun {
@@ -163,24 +165,20 @@ struct HelpExamples: AsyncParsableCommand {
 
     private static let serviceExamples: [ExampleEntry] = [
         ExampleEntry(
-            description: "Check if Kanata is running",
-            commands: ["keypath service status"]
+            description: "Check whether remapping is running (exit 0 running, 1 not, 6 app not running)",
+            commands: ["keypath status --json"]
         ),
         ExampleEntry(
-            description: "Restart after config changes",
-            commands: ["keypath service restart"]
+            description: "Turn remapping off and back on",
+            commands: ["keypath stop", "keypath start"]
+        ),
+        ExampleEntry(
+            description: "Reload configuration while KeyPath is remapping",
+            commands: ["keypath service reload"]
         ),
         ExampleEntry(
             description: "View recent logs",
             commands: ["keypath service logs --lines 50"]
-        ),
-        ExampleEntry(
-            description: "Full restart cycle",
-            commands: [
-                "keypath service stop",
-                "keypath config apply",
-                "keypath service start",
-            ]
         ),
     ]
 
@@ -205,24 +203,8 @@ struct HelpExamples: AsyncParsableCommand {
 
     private static let systemExamples: [ExampleEntry] = [
         ExampleEntry(
-            description: "Check system health before installing",
+            description: "Inspect local permission and configuration diagnostics (not live app-session health)",
             commands: ["keypath system inspect --json"]
-        ),
-        ExampleEntry(
-            description: "Full install flow",
-            commands: [
-                "keypath system inspect",
-                "keypath system install",
-                "keypath service status",
-            ]
-        ),
-        ExampleEntry(
-            description: "Repair a broken installation",
-            commands: ["keypath system repair"]
-        ),
-        ExampleEntry(
-            description: "Clean uninstall (keeps config files)",
-            commands: ["keypath system uninstall"]
         ),
     ]
 }

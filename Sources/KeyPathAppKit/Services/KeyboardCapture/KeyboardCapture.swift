@@ -544,35 +544,31 @@ public class KeyboardCapture {
 
     /// Handle media key events (volume, brightness, play/pause, etc.)
     /// These come through NSEvent.systemDefined, not regular keyDown events.
-    private func handleMediaKeyEvent(_ event: NSEvent) {
-        guard isCapturing else { return }
-        guard event.subtype.rawValue == 8 else { return } // 8 = media key subtype
-
-        // Media key data is encoded in data1:
-        // - bits 16-23: key code (NX_KEYTYPE_*)
-        // - bit 8: key state (0 = down, 1 = up)
-        // - bits 0-7: repeat count
+    /// The key press a system-defined (subtype 8) media event captures, or nil
+    /// for a key-up or a key KeyPath does not name. Pure, so the capture → save
+    /// path can be tested from a synthesized event.
+    ///
+    /// data1 carries the `NX_KEYTYPE_*` code in bits 16–23, the key state in
+    /// bit 8 (0 down, 1 up) and the repeat count in bits 0–7. The key code is
+    /// offset by 1000 so it cannot collide with a keyboard key code.
+    static func mediaKeyPress(from event: NSEvent, at now: Date = Date()) -> KeyPress? {
+        guard event.subtype.rawValue == 8 else { return nil }
         let data1 = event.data1
         let mediaKeyCode = (data1 & 0x00FF_0000) >> 16
-        let keyState = (data1 & 0x0000_0100) >> 8
-        let isKeyDown = keyState == 0
+        guard (data1 & 0x0000_0100) >> 8 == 0 else { return nil }
+        guard let keyName = mediaKeyCodeToString(Int(mediaKeyCode)) else { return nil }
+        return KeyPress(baseKey: keyName, modifiers: [], timestamp: now, keyCode: Int64(mediaKeyCode) + 1000)
+    }
 
-        guard isKeyDown else { return } // Only capture key down events
-
-        guard let keyName = mediaKeyCodeToString(Int(mediaKeyCode)) else { return }
-
+    private func handleMediaKeyEvent(_ event: NSEvent) {
+        guard isCapturing else { return }
         let now = Date()
-        AppLogger.shared.log("🎹 [KeyboardCapture] mediaKey: \(keyName) code=\(mediaKeyCode)")
+        guard let keyPress = Self.mediaKeyPress(from: event, at: now) else { return }
+        let keyName = keyPress.baseKey
+        AppLogger.shared.log("🎹 [KeyboardCapture] mediaKey: \(keyName) code=\(keyPress.keyCode - 1000)")
         anyEventSeen = true
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
-
-        let keyPress = KeyPress(
-            baseKey: keyName,
-            modifiers: [],
-            timestamp: now,
-            keyCode: Int64(mediaKeyCode) + 1000 // Offset to avoid collision with regular keyCodes
-        )
 
         // De-dup identical events
         if let last = lastCapturedKey, let lastAt = lastCaptureAt {
@@ -600,7 +596,7 @@ public class KeyboardCapture {
     }
 
     /// Convert NX_KEYTYPE media key code to a string name
-    private func mediaKeyCodeToString(_ keyCode: Int) -> String? {
+    static func mediaKeyCodeToString(_ keyCode: Int) -> String? {
         // NX_KEYTYPE values from IOKit/hidsystem/ev_keymap.h
         let mediaKeyMap: [Int: String] = [
             0: "volumeup", // NX_KEYTYPE_SOUND_UP

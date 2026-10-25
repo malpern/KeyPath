@@ -18,7 +18,19 @@ public enum KeyMappingFormatter {
         "enter": "ret",
         "escape": "esc",
         "backspace": "bspc",
-        "delete": "del"
+        "delete": "del",
+        // Media keys as `KeyboardCapture.mediaKeyCodeToString` names them, to
+        // the Kanata names the session can post (phase 6). Fast-forward,
+        // rewind and keyboard backlight have no Kanata name and stay as is.
+        "volumeup": "volu",
+        "volumedown": "vold",
+        "mute": "mute",
+        "brightnessup": "brup",
+        "brightnessdown": "brdn",
+        "playpause": "pp",
+        "next": "next",
+        "previous": "prev",
+        "eject": "eject"
     ]
 
     /// Convert KeySequence to kanata format string

@@ -43,6 +43,14 @@ public struct KeyPathActionURI: Sendable, Equatable {
         pathComponents.first
     }
 
+    /// File actions carry filesystem paths, not routing segments. Foundation
+    /// already decodes full-URI paths; shorthand paths are literal user input.
+    var fileActionPath: String {
+        if isShorthand { return pathComponents.joined(separator: "/") }
+        let path = url.path
+        return path.hasPrefix("/~") ? String(path.dropFirst()) : path
+    }
+
     /// First path component converted to Title Case (for display)
     /// e.g., "obsidian" → "Obsidian", "visual studio code" → "Visual Studio Code"
     public var targetTitleCase: String? {
@@ -145,6 +153,22 @@ public struct KeyPathActionURI: Sendable, Equatable {
     /// - `layer:nav:activate` → action="layer", path=["nav", "activate"]
     /// - `notify:?title=Hello` → action="notify", path=[], query=["title": "Hello"]
     private static func parseShorthand(_ string: String) -> KeyPathActionURI? {
+        // A filesystem path can contain colons, question marks and percent
+        // sequences. None are routing/query syntax for folder/script shorthand.
+        if let separator = string.firstIndex(of: ":") {
+            let action = String(string[..<separator])
+            if action == "folder" || action == "script" {
+                let path = String(string[string.index(after: separator)...])
+                var components = URLComponents()
+                components.scheme = scheme
+                components.host = action
+                components.path = path.hasPrefix("/") ? path : "/" + path
+                guard let url = components.url else { return nil }
+                return KeyPathActionURI(action: action, pathComponents: path.isEmpty ? [] : [path],
+                                        queryItems: [:], url: url, isShorthand: true)
+            }
+        }
+
         // Split query params first
         let parts = string.split(separator: "?", maxSplits: 1)
         let mainPart = String(parts[0])
@@ -166,9 +190,8 @@ public struct KeyPathActionURI: Sendable, Equatable {
         var queryItems: [String: String] = [:]
         if let queryString {
             // Use URLComponents to parse query string
-            var components = URLComponents()
-            components.query = queryString
-            if let items = components.queryItems {
+            let components = URLComponents(string: "keypath://query?\(queryString)")
+            if let items = components?.queryItems {
                 for item in items {
                     queryItems[item.name] = item.value ?? ""
                 }
@@ -748,7 +771,7 @@ actor KanataEventListener {
 
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("hold-activated") {
-                AppLogger.shared.log("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
+                AppLogger.shared.debug("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
                 let activation = KanataHoldActivation(
                     key: key,
                     action: action,
@@ -805,7 +828,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("oneshot-activated") {
-                AppLogger.shared.log("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
+                AppLogger.shared.debug("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
                 let activation = KanataOneShotActivation(
                     key: key,
                     modifiers: modifiers,
@@ -831,7 +854,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("chord-resolved") {
-                AppLogger.shared.log("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
+                AppLogger.shared.debug("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
                 let resolution = KanataChordResolution(
                     keys: keys,
                     action: action,
@@ -858,7 +881,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("tap-dance-resolved") {
-                AppLogger.shared.log("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
+                AppLogger.shared.debug("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
                 let resolution = KanataTapDanceResolution(
                     key: key,
                     tapCount: tapCount,

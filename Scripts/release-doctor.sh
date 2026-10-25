@@ -4,6 +4,9 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
+source "$SCRIPT_DIR/lib/signing.sh"
+source "$SCRIPT_DIR/lib/sparkle.sh"
+export KEYPATH_PROJECT_DIR="$PROJECT_DIR"
 keypath_use_stable_xcode
 
 MODE="release-candidate"
@@ -29,8 +32,13 @@ Environment checked:
   CODESIGN_IDENTITY    Developer ID Application identity override.
   NOTARY_PROFILE       notarytool keychain profile override.
   KP_NOTARY_KEYCHAIN   Optional notarytool keychain override.
+  KP_NOTARY_KEY_PATH / KP_NOTARY_KEY_ID / KP_NOTARY_ISSUER
+                       App Store Connect API key for notarytool (defaults to
+                       the AuthKey under ~/.appstoreconnect when present).
   SKIP_SPARKLE         If 1, skip Sparkle checks.
   SKIP_WEBSITE         If 1, skip gh-pages website checks.
+  APP_PATH             Installed app to inspect (default /Applications/KeyPath.app).
+  KEYPATH_VERIFY_PYTHON Python 3 executable for owned-session inspection.
 EOF
 }
 
@@ -102,35 +110,6 @@ notarytool() {
     xcrun notarytool "$@"
 }
 
-resolve_sign_update() {
-    if [[ -n "${KP_SPARKLE_SIGN_CMD:-}" && -x "${KP_SPARKLE_SIGN_CMD:-}" ]]; then
-        echo "$KP_SPARKLE_SIGN_CMD"
-        return 0
-    fi
-
-    if command -v sign_update >/dev/null 2>&1; then
-        command -v sign_update
-        return 0
-    fi
-
-    local cask_version=""
-    cask_version="$(brew list --cask --versions sparkle 2>/dev/null | awk '{print $2}')" || cask_version=""
-    local cask_root candidate
-    for cask_root in /opt/homebrew/Caskroom/sparkle /usr/local/Caskroom/sparkle; do
-        if [[ -n "$cask_version" && -x "$cask_root/$cask_version/bin/sign_update" ]]; then
-            echo "$cask_root/$cask_version/bin/sign_update"
-            return 0
-        fi
-        candidate="$(ls -1dt "$cask_root"/*/bin/sign_update 2>/dev/null | head -n1 || true)"
-        if [[ -n "$candidate" && -x "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-
-    return 1
-}
-
 find_worktree_for_branch() {
     local branch_name=$1
     git worktree list --porcelain | awk -v target="refs/heads/${branch_name}" '
@@ -161,7 +140,8 @@ if [[ "$MODE" == "ship" ]]; then
 else
     check_optional_command gh
 fi
-check_command nc
+check_command "${KEYPATH_VERIFY_PYTHON:-python3}"
+check_command lsof
 
 print_section "Disk Space"
 available_kb=$(df -Pk "$PROJECT_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
@@ -217,16 +197,26 @@ else
     echo "   Set CODESIGN_IDENTITY or install the Developer ID Application certificate."
 fi
 
-notary_args=(history --keychain-profile "$notary_profile" --output-format json)
-if [[ -n "${KP_NOTARY_KEYCHAIN:-}" ]]; then
-    notary_args+=(--keychain "$KP_NOTARY_KEYCHAIN")
-fi
-
-if notarytool "${notary_args[@]}" >/dev/null 2>&1; then
-    pass "notarytool profile validated: $notary_profile"
+# Validate the same auth path build-and-sign.sh will use. The API key is
+# preferred because keychain profiles become unreadable if the session locks
+# mid-build (data-protection keychain).
+kp_notary_default_auth_from_environment
+if ! kp_notary_resolve_auth "$notary_profile"; then
+    fail "notarytool auth configuration is invalid (KP_NOTARY_KEY_* incomplete or key file missing)"
+elif notarytool history "${KP_NOTARY_AUTH_ARGS[@]}" --output-format json >/dev/null 2>&1; then
+    if [[ -n "${KP_NOTARY_KEY_PATH:-}" ]]; then
+        pass "notarytool App Store Connect API key validated: ${KP_NOTARY_KEY_ID:-?} (no keychain dependency)"
+    else
+        pass "notarytool profile validated: $notary_profile"
+        echo "   Note: keychain-profile auth fails if the session locks mid-build; prefer an App Store Connect API key (KP_NOTARY_KEY_PATH)."
+    fi
 else
-    fail "notarytool profile failed validation: $notary_profile"
-    echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
+    if [[ -n "${KP_NOTARY_KEY_PATH:-}" ]]; then
+        fail "notarytool App Store Connect API key failed validation: $KP_NOTARY_KEY_PATH"
+    else
+        fail "notarytool profile failed validation: $notary_profile"
+        echo "   Set NOTARY_PROFILE or run: xcrun notarytool store-credentials"
+    fi
 fi
 
 print_section "Identity Contract"
@@ -254,12 +244,35 @@ fi
 if [[ "$effective_skip_sparkle" == "1" ]]; then
     pass "Sparkle archive checks skipped (SKIP_SPARKLE=1)"
 else
-    if sign_update_path=$(resolve_sign_update); then
+    keypath_load_sparkle_private_key || true
+    if sign_update_path=$(keypath_resolve_sparkle_tool sign_update); then
         pass "Sparkle sign_update found: $sign_update_path"
-    elif [[ "${ALLOW_UNSIGNED_SPARKLE:-0}" == "1" ]]; then
-        warn "Sparkle sign_update missing, but ALLOW_UNSIGNED_SPARKLE=1"
     else
         fail "Sparkle sign_update not found; public Sparkle archive signing would fail"
+    fi
+
+    if generate_appcast_path=$(keypath_resolve_sparkle_tool generate_appcast); then
+        pass "Sparkle generate_appcast found: $generate_appcast_path"
+    else
+        fail "Sparkle generate_appcast not found; public appcast generation would fail"
+    fi
+
+    if generate_keys_path=$(keypath_resolve_sparkle_tool generate_keys); then
+        pass "Sparkle generate_keys found: $generate_keys_path"
+    else
+        fail "Sparkle generate_keys not found; signing identity cannot be verified"
+    fi
+
+    if keypath_verify_sparkle_signing_identity "$PROJECT_DIR/Sources/KeyPathApp/Info.plist"; then
+        pass "Sparkle signing identity '$KEYPATH_SPARKLE_ACCOUNT' matches SUPublicEDKey"
+    else
+        fail "Sparkle signing identity '$KEYPATH_SPARKLE_ACCOUNT' does not match SUPublicEDKey"
+    fi
+
+    if keypath_verify_sparkle_feed "$PROJECT_DIR/appcast.xml" >/dev/null 2>&1; then
+        pass "Committed Sparkle appcast signature verified"
+    else
+        fail "Committed Sparkle appcast is unsigned or has an invalid signature"
     fi
 
     if command -v create-dmg >/dev/null 2>&1; then
@@ -291,22 +304,11 @@ else
 fi
 
 print_section "Installed Runtime"
-if pgrep -x KeyPath >/dev/null; then
-    pass "KeyPath is currently running"
+if "${KEYPATH_VERIFY_PYTHON:-python3}" "$SCRIPT_DIR/verify-session-runtime.py" \
+    --app "${APP_PATH:-/Applications/KeyPath.app}" --port "${KEYPATH_TCP_PORT:-37001}" --timeout 0; then
+    pass "Installed KeyPath has an exact owned driverless session and TCP readiness"
 else
-    warn "KeyPath is not currently running"
-fi
-
-if launchctl print system/com.keypath.kanata >/dev/null 2>&1; then
-    pass "Kanata launchd job is registered"
-else
-    warn "Kanata launchd job is not registered"
-fi
-
-if nc -z -w 1 127.0.0.1 37001 >/dev/null 2>&1; then
-    pass "Kanata TCP endpoint is responding on 127.0.0.1:37001"
-else
-    warn "Kanata TCP endpoint is not responding on 127.0.0.1:37001"
+    warn "Installed driverless session is not verified; signed deployment must pass verify-installed-app.sh with runtime checks enabled"
 fi
 
 print_section "Background Watchers"

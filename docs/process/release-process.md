@@ -60,6 +60,16 @@ Then it delegates to `build-and-sign.sh` with fast release-candidate defaults:
 It deploys to `/Applications/KeyPath.app` and runs
 `./Scripts/verify-installed-app.sh` after the build.
 
+To assemble and sign a local candidate without stopping or replacing the
+installed KeyPath runtime, use:
+
+```bash
+SKIP_NOTARIZE=1 SKIP_SPARKLE=1 SKIP_SNAPSHOTS=1 SKIP_DEPLOY=1 ./Scripts/build-and-sign.sh
+```
+
+The candidate remains at `dist/KeyPath.app`. This is the safe build-only path
+for integration work that is not yet ready to control the active keyboard.
+
 Release-candidate and public release builds hold the shared deploy lock for the
 whole build/sign/notarize/deploy flow. Update old worktrees before running
 `quick-deploy.sh`; older scripts that do not use this lock can still overwrite
@@ -84,6 +94,29 @@ archive still has the recorded checksum and submit that exact archive once with
 when Apple still reports `In Progress`, reserving a distinct transient result
 for automation even though the current release entry points stop on any
 nonzero result. Permanent statuses such as `Invalid` return exit 1.
+
+To finish an interrupted run without rebuilding, use the resume path:
+
+```bash
+./Scripts/release-candidate.sh --resume-notarization
+```
+
+It re-reads the recovery state, verifies `dist/KeyPath.zip` still has the
+recorded checksum, waits on the recorded submission (or resubmits that exact
+archive when nothing reached Apple; set `KP_NOTARY_SUBMISSION_ID` to pick one
+of several recorded candidates), staples `dist/KeyPath.app`, and deploys that
+stapled bundle verbatim. Deploys never re-sign: a post-notarization re-sign
+changes the cdhash and permanently detaches the installed app from its ticket.
+`build-and-sign.sh` also refuses to deploy a bundle without a stapled ticket
+whenever notarization was requested.
+
+Notarization credentials: the scripts prefer the file-based App Store Connect
+API key (`~/.appstoreconnect/private_keys/AuthKey_62KY64SQQB.p8`, overridable
+via `KP_NOTARY_KEY_PATH`/`KP_NOTARY_KEY_ID`/`KP_NOTARY_ISSUER`) over the
+`KeyPath-Profile` keychain profile. notarytool stores profiles in the
+data-protection keychain, which becomes unreadable when the login session
+locks mid-build; the API key file has no lock-state dependency. Set
+`KP_NOTARY_AUTH=keychain-profile` to force profile auth.
 
 Opt into slower work only when needed:
 
@@ -145,6 +178,11 @@ Use `--dry-run` before an unfamiliar release:
 ./Scripts/release.sh --dry-run 1.0.0
 ```
 
+The release script keeps `CFBundleVersion` as a monotonically increasing numeric
+Sparkle build number, including for versions such as `1.0.1-beta1`. It normally
+increments the current build automatically; set `KEYPATH_RELEASE_BUILD_NUMBER`
+only when an explicit higher build number is required.
+
 The public release path may:
 
 1. bump `CFBundleVersion` and `CFBundleShortVersionString`
@@ -175,6 +213,9 @@ the expensive build starts:
 - Developer ID signing identity
 - notarytool keychain profile
 - Sparkle `sign_update` when Sparkle artifacts are enabled
+- Sparkle `generate_appcast` and `generate_keys` when Sparkle artifacts are enabled
+- the dedicated `keypath` signing identity matches the app's `SUPublicEDKey`
+- the committed `appcast.xml` has a valid signed-feed signature
 - `gh-pages` worktree state when website publishing is enabled
 - currently installed KeyPath/Kanata runtime state
 - whether Poltergeist is running
@@ -212,9 +253,17 @@ If another worktree owns `master`, do the pull and deploy from that worktree.
 
 ## Sparkle Notes
 
-Sparkle auto-update artifacts require an EdDSA signature. Public release builds
-fail if `sign_update` cannot produce a signature, unless
-`ALLOW_UNSIGNED_SPARKLE=1` is set for local-only testing.
+Sparkle auto-update artifacts and the appcast feed require EdDSA signatures.
+Public release builds use Sparkle's `generate_appcast` with the dedicated
+`keypath` Keychain identity, verify the complete feed, and publish that generated
+file without hand-editing it. Stable releases use a one-day phased rollout;
+pre-release versions are assigned to the `beta` channel.
+
+For unattended signing, pass `KEYPATH_SPARKLE_PRIVATE_KEY` through the process
+environment. On the release machine, the helper can also load that key from the
+sops-encrypted `~/dotfiles/secrets.env`. It derives and verifies the public key,
+then pipes the private key to Sparkle on stdin; the key is never placed in argv,
+source files, or logs.
 
 Existing users get update notifications from `appcast.xml`. Release notes linked
 from the appcast should remain readable in dark mode.

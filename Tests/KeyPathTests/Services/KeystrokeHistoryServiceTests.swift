@@ -27,6 +27,20 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         service.flushPendingEventsForTesting()
     }
 
+    func testDisablingPackStopsRecordingAndClearsHistory() async {
+        let center = NotificationCenter()
+        let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
+        postKeyInput(center, key: "a")
+        await flushNotificationsAndBatch(service)
+        XCTAssertEqual(service.eventCount, 1)
+        service.applyPackState(false)
+        XCTAssertFalse(service.isRecording)
+        XCTAssertEqual(service.eventCount, 0)
+        postKeyInput(center, key: "b")
+        await flushNotificationsAndBatch(service)
+        XCTAssertEqual(service.eventCount, 0)
+    }
+
     // MARK: - Event Ingestion
 
     func testKeyInputCreatesEvent() async {

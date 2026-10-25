@@ -32,7 +32,7 @@ struct OverlayLaunchersSection: View {
         self.onMappingHover = onMappingHover
         self.onCustomize = onCustomize
         self.kanataViewModel = kanataViewModel
-        _store = State(initialValue: LauncherStore())
+        _store = State(initialValue: LauncherStore(manager: kanataViewModel?.underlyingManager.rulesManager))
     }
 
     /// Testing init that accepts pre-populated mappings instead of loading from RuleCollectionStore.
@@ -60,6 +60,12 @@ struct OverlayLaunchersSection: View {
                 }
             }
 
+            if let error = store.saveError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("overlay-launcher-save-error")
+            }
             Spacer(minLength: 0)
 
             // Bottom controls: Add/Edit (left) and Settings (right)
@@ -104,6 +110,7 @@ struct OverlayLaunchersSection: View {
             }
             .padding(.top, 6)
         }
+        .disabled(store.isSaving)
         .onReceive(NotificationCenter.default.publisher(for: .launcherSelectKey)) { notification in
             guard let key = notification.userInfo?["key"] as? String else { return }
             editOrCreateMapping(forKey: key)
@@ -139,21 +146,7 @@ struct OverlayLaunchersSection: View {
     }
 
     private func saveOrAddLauncherMapping(_ mapping: LauncherMapping) {
-        Task { @MainActor in
-            var collections = await RuleCollectionStore.shared.loadCollections()
-            guard let index = collections.firstIndex(where: { $0.id == RuleCollectionIdentifier.launcher }),
-                  var config = collections[index].configuration.launcherGridConfig
-            else { return }
-            if let mappingIndex = config.mappings.firstIndex(where: { $0.id == mapping.id }) {
-                config.mappings[mappingIndex] = mapping
-            } else {
-                config.mappings.append(mapping)
-            }
-            collections[index].configuration = .launcherGrid(config)
-            try? await RuleCollectionStore.shared.saveCollections(collections)
-            NotificationCenter.default.post(name: .ruleCollectionsChanged, object: nil)
-            store.reloadFromCollections()
-        }
+        store.addMapping(mapping)
     }
 
     private func editOrCreateMapping(forKey key: String) {

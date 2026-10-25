@@ -1,0 +1,629 @@
+import Darwin
+import Foundation
+import KeyPathCore
+
+@main
+struct SessionCapsMappingLeaseRunner {
+    typealias Lease = SessionCapsMappingLease
+    typealias Policy = SessionCapsMappingPolicy
+    enum Failure: Error { case simulated }
+    static let device = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 0x303A, productID: 0x4002,
+                                              serialNumber: "fixture", locationID: 123)
+    static let owner = Policy.Owner(uid: getuid(), parentPID: 100, workerPID: 101, nonce: "nonce",
+                                    generation: "one", bootSessionUUID: "A7B944DF-471A-4C22-B9F3-A4EE5522F775")
+    static let digest = String(repeating: "a", count: 64)
+    static let original = [Policy.Mapping(source: 0x7_0000_0004, destination: 0xC_0000_00E9)]
+    final class Fake {
+        var mappings = original
+        var devices = [device]
+        var failWrite = false
+        var failRead = false
+        var registryPresent = true
+        var failRegistryLookup = false
+        var beforeWrite: (() throws -> Void)?
+        var afterRead: (() throws -> Void)?
+        var afterWrite: (() throws -> Void)?
+        var writes = 0
+        var backend: Lease.Backend {
+            .init(enumerate: { self.devices }, read: { identity in
+                if self.failRead { throw Failure.simulated }
+                try self.afterRead?()
+                return .init(device: identity, mappings: self.mappings)
+            }, write: { _, value in
+                self.writes += 1
+                try self.beforeWrite?()
+                if self.failWrite { throw Failure.simulated }
+                self.mappings = value
+                try self.afterWrite?()
+            }, registryEntryExists: { _ in
+                if self.failRegistryLookup { throw Failure.simulated }
+                return self.registryPresent
+            })
+        }
+    }
+
+    static func check(_ value: @autoclosure () throws -> Bool) throws {
+        let result = try value()
+        precondition(result)
+    }
+
+    static func refused(_ body: () throws -> Void) {
+        do { try body(); fatalError("expected refusal") } catch {}
+    }
+
+    static func uncertain(_ body: () throws -> Void) {
+        do { try body(); fatalError("expected mutationUncertain") }
+        catch { precondition(error as? Lease.Refusal == .mutationUncertain) }
+    }
+
+    static func temporary() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        return url
+    }
+
+    static func scenario(_ body: (URL, Fake, Lease) throws -> Void) throws {
+        let root = try temporary()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fake = Fake()
+        try body(root, fake, Lease(directory: root, backend: fake.backend))
+    }
+
+    static func acquire(_ lease: Lease) throws -> Policy.Record {
+        try lease.acquire(owner: owner, configSHA256: digest, device: device)
+    }
+
+    static func restore(_ lease: Lease) throws {
+        try lease.restore(expectedOwner: owner, bootSessionUUID: owner.bootSessionUUID)
+    }
+
+    static func main() throws {
+        #if DEBUG
+            let fixture = Policy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16400,
+                                                serialNumber: nil, locationID: 123)
+            let worker = Policy.Owner(uid: 502, parentPID: 100, workerPID: 101, nonce: "nonce",
+                                      generation: "one", bootSessionUUID: owner.bootSessionUUID)
+            let record = try Policy.acquire(original: original, device: fixture, devices: [fixture],
+                                            owner: worker, effectiveConfigSHA256: digest)
+            let optIn = "KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_AFTER_JOINED_APPLY"
+            let selection = "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_DEVICE"
+            let reserve = "KEYPATH_EXPERIMENTAL_MANAGED_CAPS_RESERVE_F18"
+            let environment = try [optIn: "42", selection: String(data: JSONEncoder().encode(fixture), encoding: .utf8)!, reserve: "1"]
+            func admitted(_ env: [String: String], uid: UInt32 = 502, pid: Int32 = 101,
+                          mappings: [Policy.Mapping]? = nil) -> Bool
+            {
+                Lease.terminateAfterJoinedApply(record: record, mappings: mappings ?? record.applied,
+                                                environment: env, uid: uid, pid: pid)
+            }
+            try check(admitted(environment))
+            let queuedOptIn = "KEYPATH_EXPERIMENTAL_CAPS_TERMINATE_WITH_QUEUED_WRITER"
+            var queuedEnvironment = environment
+            queuedEnvironment.removeValue(forKey: optIn)
+            queuedEnvironment[queuedOptIn] = "42"
+            func queued(_ env: [String: String], uid: UInt32 = 502, pid: Int32 = 101,
+                        initialApply: Bool = true, mappings: [Policy.Mapping]? = nil) -> Bool
+            {
+                Lease.terminateWithQueuedWriter(record: record, mappings: mappings ?? record.applied,
+                                                initialApply: initialApply, environment: env, uid: uid, pid: pid)
+            }
+            try check(queued(queuedEnvironment))
+            try check(!queued(environment) && !queued(queuedEnvironment, uid: 501))
+            try check(!queued(queuedEnvironment, pid: 100) && !queued(queuedEnvironment, pid: 102))
+            try check(!queued(queuedEnvironment, initialApply: false, mappings: record.applied))
+            try check(!queued(queuedEnvironment, mappings: original))
+            for key in [queuedOptIn, selection, reserve] {
+                var missing = queuedEnvironment; missing.removeValue(forKey: key)
+                try check(!queued(missing))
+                for value in ["", "1", "042", "42 ", "invalid"] {
+                    if key == reserve, value == "1" { continue }
+                    var invalid = queuedEnvironment; invalid[key] = value
+                    try check(!queued(invalid))
+                }
+            }
+            var foreignQueued = queuedEnvironment
+            foreignQueued[selection] = try String(data: JSONEncoder().encode(device), encoding: .utf8)!
+            try check(!queued(foreignQueued))
+
+            try check(!admitted(environment, uid: getuid() == 502 ? 501 : getuid()))
+            try check(!admitted(environment, pid: 100) && !admitted(environment, pid: 102))
+            try check(!admitted(environment, mappings: original))
+            for key in [optIn, selection, reserve] {
+                var missing = environment; missing.removeValue(forKey: key)
+                try check(!admitted(missing))
+                for value in ["", "1", "042", "42 ", "invalid"] {
+                    var invalid = environment; invalid[key] = value
+                    if key == reserve, value == "1" { continue }
+                    try check(!admitted(invalid))
+                }
+            }
+            var changed = environment
+            changed[selection] = try String(data: JSONEncoder().encode(device), encoding: .utf8)!
+            try check(!admitted(changed))
+            for foreign in [device, Policy.DeviceIdentity(registryEntryID: 42, vendorID: 51966, productID: 16401,
+                                                          serialNumber: nil, locationID: 123)]
+            {
+                let foreignRecord = try Policy.acquire(original: original, device: foreign, devices: [foreign],
+                                                       owner: worker, effectiveConfigSHA256: digest)
+                var foreignEnv = environment
+                foreignEnv[selection] = try String(data: JSONEncoder().encode(foreign), encoding: .utf8)!
+                try check(!Lease.terminateAfterJoinedApply(record: foreignRecord, mappings: foreignRecord.applied,
+                                                           environment: foreignEnv, uid: 502, pid: 101))
+            }
+        #endif
+        try scenario { _, fake, lease in
+            let record = try acquire(lease)
+            try check(record.original == original && fake.mappings == record.applied)
+            refused { _ = try acquire(lease) }
+            try check(fake.writes == 1)
+            try restore(lease)
+            try check(fake.mappings == original && (lease.pendingRecord()) == nil)
+        }
+        // A disconnected event service cannot retain its per-service mapping.
+        // Replugging the same keyboard creates a new registry entry; never read
+        // or restore the old mapping onto that replacement.
+        try scenario { _, fake, lease in
+            _ = try acquire(lease)
+            fake.devices = [.init(registryEntryID: 43, vendorID: device.vendorID, productID: device.productID,
+                                  serialNumber: device.serialNumber, locationID: device.locationID)]
+            fake.registryPresent = false
+            fake.failRead = true
+            try restore(lease)
+            try check(lease.pendingRecord() == nil && fake.writes == 1)
+        }
+        try scenario { _, fake, lease in
+            _ = try acquire(lease)
+            fake.devices = []
+            fake.registryPresent = false
+            fake.failRead = true
+            try restore(lease)
+            try check(lease.pendingRecord() == nil && fake.writes == 1)
+        }
+        try scenario { _, fake, lease in
+            let record = try acquire(lease)
+            fake.registryPresent = false
+            let foreign = Policy.Owner(uid: owner.uid, parentPID: 100, workerPID: 102, nonce: "other",
+                                       generation: "one", bootSessionUUID: owner.bootSessionUUID)
+            refused { try lease.restore(expectedOwner: foreign, bootSessionUUID: owner.bootSessionUUID) }
+            refused { try lease.restore(expectedOwner: owner, bootSessionUUID: UUID().uuidString) }
+            fake.failRegistryLookup = true
+            refused { try restore(lease) }
+            try check(lease.pendingRecord() == record && fake.writes == 1)
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            fake.registryPresent = false
+            let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+            try JSONEncoder().encode(owner).write(to: marker)
+            chmod(marker.path, 0o600)
+            uncertain { try restore(lease) }
+            try check(lease.pendingRecord() == record && fake.writes == 1)
+        }
+        try scenario { _, fake, lease in
+            let record = try acquire(lease)
+            fake.mappings.append(.init(source: 0x7_0000_0005, destination: 0x7_0000_0006))
+            let changed = fake.mappings
+            refused { try restore(lease) }
+            try check(fake.mappings == changed && (lease.pendingRecord()) == record)
+        }
+        try scenario { root, fake, lease in
+            fake.failWrite = true
+            refused { _ = try acquire(lease) }
+            try check(lease.pendingRecord() != nil)
+            fake.failWrite = false
+            try restore(Lease(directory: root, backend: fake.backend))
+            try check(lease.pendingRecord() == nil)
+        }
+        try scenario { root, fake, lease in
+            fake.afterWrite = { fake.failRead = true }
+            refused { _ = try acquire(lease) }
+            fake.failRead = false
+            fake.afterWrite = nil
+            try check(lease.pendingRecord() != nil)
+            try restore(Lease(directory: root, backend: fake.backend))
+            try check(fake.mappings == original)
+        }
+        try scenario { _, fake, lease in
+            let record = try acquire(lease)
+            let foreign = Policy.Owner(uid: owner.uid, parentPID: 100, workerPID: 102, nonce: "other",
+                                       generation: "one", bootSessionUUID: owner.bootSessionUUID)
+            refused { try lease.restore(expectedOwner: foreign, bootSessionUUID: owner.bootSessionUUID) }
+            refused { try lease.restore(expectedOwner: owner, bootSessionUUID: UUID().uuidString) }
+            fake.devices = [.init(registryEntryID: 43, vendorID: device.vendorID, productID: device.productID,
+                                  serialNumber: device.serialNumber, locationID: device.locationID)]
+            refused { try restore(lease) }
+            try check(lease.pendingRecord() == record)
+        }
+        try scenario { root, _, lease in
+            let target = root.appendingPathComponent("target")
+            try Data("test".utf8).write(to: target)
+            let journal = root.appendingPathComponent("caps-mapping-intent.json")
+            try FileManager.default.createSymbolicLink(at: journal, withDestinationURL: target)
+            refused { _ = try acquire(lease) }
+            try check(Data(contentsOf: target) == Data("test".utf8))
+            try FileManager.default.removeItem(at: journal)
+            _ = try acquire(lease)
+            chmod(journal.path, 0o644)
+            refused { try restore(lease) }
+            try check(FileManager.default.fileExists(atPath: journal.path))
+        }
+        try scenario { root, fake, lease in
+            let other = Lease(directory: root, backend: fake.backend)
+            fake.afterWrite = { refused { _ = try other.pendingRecord() } }
+            _ = try acquire(lease)
+            fake.afterWrite = nil
+            chmod(root.path, 0o755)
+            refused { _ = try lease.pendingRecord() }
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            fake.afterWrite = { fake.failRead = true }
+            refused { try restore(lease) }
+            fake.failRead = false
+            fake.afterWrite = nil
+            try check(lease.pendingRecord() == record)
+            // Crash after restore write but before its verified readback: next
+            // launch sees exact original and clears intent without writing.
+            try restore(Lease(directory: root, backend: fake.backend))
+            try check(lease.pendingRecord() == nil && fake.writes == 2)
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            let path = root.appendingPathComponent("caps-mapping-intent.json")
+            var json = try JSONSerialization.jsonObject(with: Data(contentsOf: path)) as! [String: Any]
+            var changedOwner = json["owner"] as! [String: Any]
+            changedOwner["uid"] = owner.uid + 1
+            json["owner"] = changedOwner
+            try JSONSerialization.data(withJSONObject: json).write(to: path)
+            let foreign = try lease.pendingRecord()!
+            refused { try lease.restore(expectedOwner: foreign.owner, bootSessionUUID: owner.bootSessionUUID) }
+            try check(fake.mappings == record.applied && fake.writes == 1)
+        }
+        try scenario { root, _, lease in
+            let target = root.appendingPathComponent("lock-target")
+            try Data().write(to: target)
+            try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("caps-mapping.lock"), withDestinationURL: target)
+            refused { _ = try lease.pendingRecord() }
+        }
+        try scenario { root, _, lease in
+            let fifo = root.appendingPathComponent("caps-mapping-intent.json")
+            try check(mkfifo(fifo.path, 0o600) == 0)
+            let started = Date()
+            refused { _ = try lease.pendingRecord() }
+            try check(Date().timeIntervalSince(started) < 1)
+        }
+        try scenario { root, fake, lease in
+            _ = try acquire(lease)
+            let journal = root.appendingPathComponent("caps-mapping-intent.json")
+            let replacement = root.appendingPathComponent("replacement.json")
+            let bytes = try Data(contentsOf: journal)
+            fake.afterWrite = {
+                try! bytes.write(to: replacement)
+                chmod(replacement.path, 0o600)
+                try! FileManager.default.removeItem(at: journal)
+                try! FileManager.default.moveItem(at: replacement, to: journal)
+            }
+            refused { try restore(lease) }
+            try check(FileManager.default.fileExists(atPath: journal.path))
+            try check(Data(contentsOf: journal) == bytes)
+        }
+        for removeBeforeWrite in [true, false] {
+            try scenario { root, fake, lease in
+                let journal = root.appendingPathComponent("caps-mapping-intent.json")
+                let remove = {
+                    if FileManager.default.fileExists(atPath: journal.path) {
+                        try FileManager.default.removeItem(at: journal)
+                    }
+                }
+                if removeBeforeWrite { fake.afterRead = remove } else { fake.afterWrite = remove }
+                refused { _ = try acquire(lease) }
+                try check(fake.writes == (removeBeforeWrite ? 0 : 1))
+            }
+        }
+        let nextBoot = "B7B944DF-471A-4C22-B9F3-A4EE5522F775"
+        let inertBackend = Lease.Backend(enumerate: { fatalError("retirement enumerated HID") },
+                                         read: { _ in fatalError("retirement read HID") },
+                                         write: { _, _ in fatalError("retirement wrote HID") })
+        for markerPresent in [false, true] {
+            try scenario { root, fake, lease in
+                _ = try acquire(lease)
+                if markerPresent {
+                    let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+                    try JSONEncoder().encode(owner).write(to: marker)
+                    chmod(marker.path, 0o600)
+                }
+                let retired = Lease(directory: root, backend: inertBackend)
+                try check(retired.retirePreviousBoot(bootSessionUUID: nextBoot))
+                try check(retired.pendingRecord() == nil && fake.writes == 1)
+                try check(!FileManager.default.fileExists(atPath: root.appendingPathComponent("caps-mapping-mutation-in-flight.json").path))
+                // An intent-only record also represents interrupted marker-first retirement.
+                try check(!retired.retirePreviousBoot(bootSessionUUID: nextBoot))
+            }
+        }
+        for invalidMarker in ["orphan", "malformed", "unknown-field", "foreign", "symlink", "fifo", "mode", "hardlink", "oversize"] {
+            try scenario { root, _, lease in
+                if invalidMarker != "orphan" { _ = try acquire(lease) }
+                let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+                let other = root.appendingPathComponent("other")
+                switch invalidMarker {
+                case "symlink":
+                    try JSONEncoder().encode(owner).write(to: other)
+                    chmod(other.path, 0o600)
+                    try FileManager.default.createSymbolicLink(at: marker, withDestinationURL: other)
+                case "fifo": try check(mkfifo(marker.path, 0o600) == 0)
+                case "unknown-field":
+                    var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(owner)) as! [String: Any]
+                    object["foreign-schema"] = true
+                    try JSONSerialization.data(withJSONObject: object).write(to: marker)
+                    chmod(marker.path, 0o600)
+                case "foreign":
+                    let foreign = Policy.Owner(uid: owner.uid, parentPID: 200, workerPID: 201, nonce: "other",
+                                               generation: "two", bootSessionUUID: owner.bootSessionUUID)
+                    try JSONEncoder().encode(foreign).write(to: marker)
+                    chmod(marker.path, 0o600)
+                default:
+                    let bytes = invalidMarker == "malformed" ? Data("{}".utf8)
+                        : invalidMarker == "oversize" ? Data(repeating: 65, count: 65537)
+                        : try JSONEncoder().encode(owner)
+                    try bytes.write(to: marker)
+                    chmod(marker.path, invalidMarker == "mode" ? 0o644 : 0o600)
+                    if invalidMarker == "hardlink" { try check(link(marker.path, other.path) == 0) }
+                }
+                let intent = root.appendingPathComponent("caps-mapping-intent.json")
+                let before = try? Data(contentsOf: intent)
+                let markerBefore = invalidMarker == "unknown-field" ? try Data(contentsOf: marker) : nil
+                refused { _ = try Lease(directory: root, backend: inertBackend).retirePreviousBoot(bootSessionUUID: nextBoot) }
+                var metadata = stat()
+                try check(lstat(marker.path, &metadata) == 0)
+                try check((try? Data(contentsOf: intent)) == before)
+                if let markerBefore { try check(Data(contentsOf: marker) == markerBefore) }
+            }
+        }
+        try scenario { root, _, lease in
+            _ = try acquire(lease)
+            let retired = Lease(directory: root, backend: inertBackend)
+            try check(!retired.retirePreviousBoot(bootSessionUUID: owner.bootSessionUUID.lowercased()))
+            refused { _ = try retired.retirePreviousBoot(bootSessionUUID: "unavailable") }
+            let marker = root.appendingPathComponent("caps-mapping-mutation-in-flight.json")
+            try JSONEncoder().encode(owner).write(to: marker)
+            chmod(marker.path, 0o600)
+            uncertain { _ = try retired.retirePreviousBoot(bootSessionUUID: owner.bootSessionUUID) }
+            try check(retired.pendingRecord() != nil)
+            let lock = open(root.appendingPathComponent("caps-mapping.lock").path, O_RDWR)
+            try check(lock >= 0 && flock(lock, LOCK_EX | LOCK_NB) == 0)
+            defer { flock(lock, LOCK_UN); close(lock) }
+            refused { _ = try retired.retirePreviousBoot(bootSessionUUID: nextBoot) }
+            try check(FileManager.default.fileExists(atPath: marker.path))
+        }
+        for invalidJournal in ["malformed", "mode", "foreign"] {
+            try scenario { root, _, lease in
+                let record = try acquire(lease)
+                let journal = root.appendingPathComponent("caps-mapping-intent.json")
+                if invalidJournal == "malformed" { try Data("{}".utf8).write(to: journal) }
+                if invalidJournal == "foreign" {
+                    let foreign = Policy.Owner(uid: getuid() + 1, parentPID: 100, workerPID: 101, nonce: "nonce",
+                                               generation: "one", bootSessionUUID: owner.bootSessionUUID)
+                    let record = try Policy.acquire(original: record.original, device: device, devices: [device],
+                                                    owner: foreign, effectiveConfigSHA256: digest)
+                    try JSONEncoder().encode(record).write(to: journal)
+                }
+                chmod(journal.path, invalidJournal == "mode" ? 0o644 : 0o600)
+                let before = try Data(contentsOf: journal)
+                refused { _ = try Lease(directory: root, backend: inertBackend).retirePreviousBoot(bootSessionUUID: nextBoot) }
+                try check(Data(contentsOf: journal) == before)
+            }
+        }
+        let markerName = "caps-mapping-mutation-in-flight.json"
+        try scenario { root, fake, lease in
+            let marker = root.appendingPathComponent(markerName)
+            fake.beforeWrite = {
+                try check(FileManager.default.fileExists(atPath: marker.path))
+                let expectedOwner = try JSONDecoder().decode(Policy.Owner.self, from: Data(contentsOf: marker))
+                try check(expectedOwner == owner)
+                var metadata = stat()
+                try check(lstat(marker.path, &metadata) == 0 && metadata.st_uid == getuid() && metadata.st_mode & 0o7777 == 0o600)
+            }
+            _ = try acquire(lease)
+            try check(!FileManager.default.fileExists(atPath: marker.path))
+            try restore(lease)
+            try check(fake.writes == 2 && !FileManager.default.fileExists(atPath: marker.path))
+        }
+        try scenario { root, fake, lease in
+            let marker = root.appendingPathComponent(markerName)
+            fake.beforeWrite = { try check(FileManager.default.fileExists(atPath: marker.path)) }
+            fake.failWrite = true
+            refused { _ = try acquire(lease) }
+            try check(lease.pendingRecord() != nil && !FileManager.default.fileExists(atPath: marker.path))
+            fake.failWrite = false
+            try restore(lease)
+            try check(lease.pendingRecord() == nil)
+            _ = try acquire(lease)
+            fake.failWrite = true
+            refused { try restore(lease) }
+            try check(lease.pendingRecord() != nil && !FileManager.default.fileExists(atPath: marker.path))
+        }
+        for pending in [false, true] {
+            try scenario { root, fake, lease in
+                if pending { _ = try acquire(lease) }
+                let before = try lease.pendingRecord()
+                let marker = root.appendingPathComponent(markerName)
+                try JSONEncoder().encode(owner).write(to: marker)
+                chmod(marker.path, 0o600)
+                let writes = fake.writes
+                // Simulated process-death artifact. Current maps being exactly
+                // original does not prove an orphan child cannot write later.
+                fake.mappings = original
+                uncertain { _ = try acquire(lease) }
+                uncertain { try restore(lease) }
+                try check(lease.pendingRecord() == before && fake.writes == writes)
+                try check(FileManager.default.fileExists(atPath: marker.path))
+                uncertain { try restore(Lease(directory: root, backend: fake.backend)) }
+            }
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            let marker = root.appendingPathComponent(markerName)
+            try JSONEncoder().encode(owner).write(to: marker)
+            chmod(marker.path, 0o600)
+            let markerBytes = try Data(contentsOf: marker)
+            let intent = root.appendingPathComponent("caps-mapping-intent.json")
+            let intentBytes = try Data(contentsOf: intent)
+            let writes = fake.writes
+            fake.mappings = original
+            uncertain { try restore(lease) }
+            // A queued orphan may apply later; mapping readback cannot release uncertainty.
+            fake.mappings = record.applied
+            uncertain { try restore(Lease(directory: root, backend: fake.backend)) }
+            try check(fake.writes == writes && Data(contentsOf: marker) == markerBytes
+                && Data(contentsOf: intent) == intentBytes)
+        }
+        try scenario { root, fake, lease in
+            let record = try acquire(lease)
+            fake.mappings = original
+            let marker = root.appendingPathComponent(markerName)
+            fake.afterRead = {
+                try JSONEncoder().encode(owner).write(to: marker)
+                chmod(marker.path, 0o600)
+            }
+            uncertain { try restore(lease) }
+            try check(lease.pendingRecord() == record && FileManager.default.fileExists(atPath: marker.path))
+        }
+        for acquiring in [false, true] {
+            try scenario { root, fake, lease in
+                if !acquiring { _ = try acquire(lease) }
+                let marker = root.appendingPathComponent(markerName)
+                fake.afterWrite = {
+                    let replacement = root.appendingPathComponent("replacement-marker")
+                    try Data("foreign replacement".utf8).write(to: replacement)
+                    chmod(replacement.path, 0o600)
+                    try FileManager.default.removeItem(at: marker)
+                    try FileManager.default.moveItem(at: replacement, to: marker)
+                }
+                if acquiring { uncertain { _ = try acquire(lease) } }
+                else { uncertain { try restore(lease) } }
+                try check(lease.pendingRecord() != nil && Data(contentsOf: marker) == Data("foreign replacement".utf8))
+                fake.afterWrite = nil
+                uncertain { try restore(lease) }
+            }
+        }
+        try scenario { root, fake, lease in
+            let target = root.appendingPathComponent("marker-target")
+            try Data("unchanged".utf8).write(to: target)
+            try FileManager.default.createSymbolicLink(at: root.appendingPathComponent(markerName), withDestinationURL: target)
+            uncertain { _ = try acquire(lease) }
+            uncertain { try restore(lease) }
+            try check(fake.writes == 0 && Data(contentsOf: target) == Data("unchanged".utf8))
+        }
+        let header = "RegistryID  Key                   Value\n2a   UserKeyMapping   "
+        let row = "{ HIDKeyboardModifierMappingDst = 30064771181; HIDKeyboardModifierMappingSrc = 30064771129; }"
+        try check(SessionCapsHIDUtilTransport.parseProperty(header + "(\n)", device: device).mappings == [])
+        try check(SessionCapsHIDUtilTransport.parseProperty(header + "(" + row + ")", device: device).mappings == [.init(source: Policy.caps, destination: Policy.f18)])
+        for bad in ["", header + "(null, {})", header + "(" + row + ") trailing",
+                    header + "(" + row + ")\n2a UserKeyMapping ()",
+                    header + "({ HIDKeyboardModifierMappingSrc = 30064771129; HIDKeyboardModifierMappingSrc = 30064771129; })",
+                    header + "({ Unknown = 1; HIDKeyboardModifierMappingSrc = 30064771129; })",
+                    header.replacingOccurrences(of: "2a", with: "2b") + "()"]
+        {
+            refused { _ = try SessionCapsHIDUtilTransport.parseProperty(bad, device: device) }
+        }
+        let args = try SessionCapsHIDUtilTransport.readArguments(device)
+        try check(args.count == 5 && args[0] == "property" && args[4] == "UserKeyMapping")
+        let match = try JSONSerialization.jsonObject(with: Data(args[2].utf8)) as! [String: Any]
+        try check(match["SerialNumber"] == nil && (match["IOPropertyMatch"] as? [String: String])?["SerialNumber"] == "fixture")
+        let liveDevice = Policy.DeviceIdentity(registryEntryID: 4_294_968_825, vendorID: 51966, productID: 16400,
+                                               serialNumber: nil, locationID: 261_095_424)
+        // Exact output from the public-UID 502 owned guest qualification.
+        let service = #"{"Product":"KeyPath Physical HID Fixture","VendorID":51966,"IOUserClass":"AppleUserHIDEventDriver","IOClass":"AppleUserHIDEventService","type":"service","PrimaryUsage":6,"PrimaryUsagePage":1,"IORegistryEntryID":4294968825,"Transport":"USB","LocationID":261095424,"ProductID":16400}"#
+        let virtual = #"{"Product":"Virtual Keyboard","VendorID":1452,"Built-In":true,"type":"service","PrimaryUsage":6,"PrimaryUsagePage":1,"IORegistryEntryID":3530398491475969,"Transport":"AppleVirtualPlatformHIDBridge","LocationID":0,"ProductID":1}"#
+        try check(SessionCapsHIDUtilTransport.parseServices(virtual + "\n" + service) == [liveDevice])
+        let deviceRow = #"{"IOClass":"AppleUserHIDDevice","VendorID":51966,"Product":"KeyPath Physical HID Fixture","type":"device","PrimaryUsage":6,"LocationID":261095424,"IORegistryEntryID":4294968819,"ProductID":16400,"Transport":"USB","Manufacturer":"KeyPath Lab","PrimaryUsagePage":1,"IOUserClass":"AppleUserUSBHostHIDDevice"}"#
+        let liveNull = "RegistryID  Key                   Value\n1000005f9   UserKeyMapping   (null)\n"
+        try check(SessionCapsHIDUtilTransport.parseServices(service + "\n" + deviceRow + "\n") == [liveDevice])
+        try check(SessionCapsHIDUtilTransport.parseProperty(liveNull, device: liveDevice).mappings == [])
+        for malformed in ["{", "[]", service + "\n{}",
+                          service.replacingOccurrences(of: "51966", with: "true"),
+                          service.replacingOccurrences(of: "51966", with: "51966.0"),
+                          service.replacingOccurrences(of: "51966", with: "65536"),
+                          service.replacingOccurrences(of: "261095424", with: "4294967296"),
+                          service.replacingOccurrences(of: "4294968825", with: "18446744073709551616")]
+        {
+            refused { _ = try SessionCapsHIDUtilTransport.parseServices(malformed) }
+        }
+        // Well-formed services that cannot be targeted are skipped, not admitted,
+        // and an ambiguous locator withholds every sharer rather than picking one.
+        // Two interfaces of one board (same locator, distinct IDs) are one keyboard.
+        try check(SessionCapsHIDUtilTransport.parseInventory(service.replacingOccurrences(of: "4294968825", with: "4294968826") + "\n" + service)
+            == .init(devices: [liveDevice], withheld: 0))
+        for (untargetable, withheld) in [(service + "\n" + service, 1),
+                                         (service.replacingOccurrences(of: "261095424", with: "0"), 0),
+                                         (service.replacingOccurrences(of: "AppleUserHIDEventService", with: "AppleUserHIDDevice"), 1)]
+        {
+            try check(SessionCapsHIDUtilTransport.parseInventory(untargetable) == .init(devices: [], withheld: withheld))
+        }
+        let mouse = service.replacingOccurrences(of: "\"PrimaryUsage\":6", with: "\"PrimaryUsage\":2")
+        try check(SessionCapsHIDUtilTransport.parseServices(mouse) == [])
+        var commands: [[String]] = []
+        let backend = SessionCapsHIDUtilTransport.backend(run: { arguments in
+            commands.append(arguments)
+            if arguments[0] == "list" { return service + "\n" + deviceRow }
+            if arguments.contains("--get") { return liveNull }
+            return "RegistryID  Key                   Value\n1000005f9 UserKeyMapping (" + row + ")"
+        })
+        try check(backend.enumerate() == [liveDevice])
+        try check(backend.read(liveDevice).mappings == [])
+        try backend.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)])
+        // enumerate; read = list the board's services + one get per interface
+        // pair; write = list again + one set per pair.
+        try check(commands.count == 5 && commands[0] == ["list", "--ndjson", "--matching", "keyboard"])
+        try check(commands[1].prefix(3) == ["list", "--ndjson", "--matching"] && commands[2].last == "UserKeyMapping")
+        let selector = try JSONSerialization.jsonObject(with: Data(commands[2][2].utf8)) as! [String: Any]
+        try check((selector["LocationID"] as? NSNumber)?.uint32Value == 261_095_424 && selector["IOPropertyMatch"] == nil
+            && (selector["PrimaryUsage"] as? NSNumber)?.intValue == 6)
+        try check(commands[4][3] == "--set")
+        let falseWrite = SessionCapsHIDUtilTransport.backend(run: { _ in liveNull })
+        refused { try falseWrite.write(liveDevice, [.init(source: Policy.caps, destination: Policy.f18)]) }
+        let overLimit = SessionCapsHIDUtilTransport.backend(run: { _ in String(repeating: "x", count: 65537) })
+        refused { _ = try overLimit.enumerate() }
+        refused { _ = try overLimit.read(liveDevice) }
+        let failed = SessionCapsHIDUtilTransport.backend(run: { _ in throw Failure.simulated })
+        refused { _ = try failed.enumerate() }
+        refused { _ = try failed.read(liveDevice) }
+        refused { try failed.write(liveDevice, []) }
+        // A chosen intermediate is journaled and restored like F18.
+        let f19 = Policy.packed(110)
+        try scenario { root, fake, lease in
+            fake.mappings = original + [.init(source: Policy.f18, destination: 0x7_0000_0004)]
+            let before = fake.mappings
+            let record = try lease.acquire(owner: owner, configSHA256: digest, device: device, intermediate: f19)
+            try check(record.intermediate == f19 && fake.mappings == before + [.init(source: Policy.caps, destination: f19)])
+            let journal = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("caps-mapping-intent.json"))) as? [String: Any]
+            try check((journal?["intermediate"] as? NSNumber)?.uint64Value == f19 && journal?["version"] as? Int == 2)
+            try check(lease.pendingRecord() == record)
+            try restore(lease)
+            try check(fake.mappings == before)
+        }
+        try scenario { _, fake, lease in
+            fake.mappings = original + [.init(source: 0x7_0000_0004, destination: f19)]
+            refused { _ = try lease.acquire(owner: owner, configSHA256: digest, device: device, intermediate: f19) }
+            try check(fake.writes == 0)
+        }
+        // A version-1 journal from before the choice still restores, as F18.
+        try scenario { root, fake, lease in
+            _ = try acquire(lease)
+            let url = root.appendingPathComponent("caps-mapping-intent.json")
+            var object = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+            object["version"] = 1
+            object.removeValue(forKey: "intermediate")
+            let handle = try FileHandle(forWritingTo: url)
+            try handle.truncate(atOffset: 0)
+            try handle.write(contentsOf: JSONSerialization.data(withJSONObject: object))
+            try handle.synchronize()
+            try handle.close()
+            let legacy = try lease.pendingRecord()
+            try check(legacy?.version == 1 && legacy?.intermediate == Policy.f18)
+            try restore(lease)
+            try check(fake.mappings == original)
+        }
+        print("PASS: durable Caps lease fake transport scenarios")
+    }
+}

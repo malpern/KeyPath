@@ -80,3 +80,13 @@ final class AppPathsTestSandboxTests: XCTestCase {
         XCTAssertEqual(dir.lastPathComponent, "stuck-key-incidents")
     }
 }
+
+/// The debug log is diagnostics too: tests must not append to the real one.
+final class AppLoggerTestSandboxTests: XCTestCase {
+    func testDebugLogLivesInTestSandbox() {
+        let path = AppLogger.shared.currentLogDirectory()
+        XCTAssertTrue(path.hasPrefix(AppPaths.testSandboxDirectory.path) || ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"] != nil
+            || ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"] != nil,
+            "Debug log \(path) must not be the real ~/Library/Logs/KeyPath during tests")
+    }
+}

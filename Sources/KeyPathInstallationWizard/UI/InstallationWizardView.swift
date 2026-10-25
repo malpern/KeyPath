@@ -34,6 +34,13 @@ public struct InstallationWizardView: View {
 
     /// Optional initial page to navigate to
     public var initialPage: WizardPage?
+    /// Called once after a first-run wizard closes in a verified healthy state.
+    public var onFirstSuccess: (() -> Void)?
+    /// Optional handoff after verified driverless setup, queued before dismissal.
+    public var onOpenKeyboard: (() -> Void)?
+    /// Test seam for the authoritative post-start state inspection. Production
+    /// uses `WizardStateMachine.detectCurrentState()` directly.
+    var postStartStateDetector: (@MainActor () async -> SystemStateResult)?
 
     // New architecture components
     @State public var stateMachine = WizardStateMachine()
@@ -64,6 +71,9 @@ public struct InstallationWizardView: View {
     @State public var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
     @State public var statusBannerMessage: String?
     @State public var statusBannerTimestamp: Date?
+    /// Kept in-memory so existing users are never offered first-run education
+    /// merely because they revisit the setup wizard after an update.
+    @State public var didShowWelcomePage = false
 
     /// Focus management for reliable ESC key handling
     @FocusState private var hasKeyboardFocus: Bool
@@ -72,13 +82,45 @@ public struct InstallationWizardView: View {
     /// Used to suppress the global operation overlay to avoid duplicate progress treatments.
     @State private var hasInlineProgressIndicator: Bool = false
 
-    public init(initialPage: WizardPage? = nil) {
+    /// Stands in for the SwiftUI dismiss action when this view is exercised
+    /// outside a rendered hierarchy. Reading `@Environment(\.dismiss)` on a view
+    /// that was never installed produces a SwiftUI runtime warning, so callers
+    /// that drive the dismissal path directly supply this instead of letting the
+    /// environment be touched. Nil in the app, where the environment is real.
+    let dismissHandler: (@MainActor () -> Void)?
+
+    public init(initialPage: WizardPage? = nil, onFirstSuccess: (() -> Void)? = nil, onOpenKeyboard: (() -> Void)? = nil) {
         self.initialPage = initialPage
+        self.onFirstSuccess = onFirstSuccess
+        self.onOpenKeyboard = onOpenKeyboard
+        postStartStateDetector = nil
+        dismissHandler = nil
+    }
+
+    init(
+        initialPage: WizardPage? = nil,
+        onFirstSuccess: (() -> Void)? = nil,
+        onOpenKeyboard: (() -> Void)? = nil,
+        didShowWelcomePage: Bool = false,
+        postStartStateDetector: @escaping @MainActor () async -> SystemStateResult,
+        dismissHandler: (@MainActor () -> Void)? = nil
+    ) {
+        self.initialPage = initialPage
+        self.onFirstSuccess = onFirstSuccess
+        self.onOpenKeyboard = onOpenKeyboard
+        _didShowWelcomePage = State(initialValue: didShowWelcomePage)
+        self.postStartStateDetector = postStartStateDetector
+        self.dismissHandler = dismissHandler
     }
 
     public var currentFixDescriptionForUI: String? {
         guard let currentFixAction else { return nil }
         return describeAutoFixActionForUI(currentFixAction)
+    }
+
+    var shouldCompleteHealthySetup: Bool {
+        onOpenKeyboard != nil && !isValidating && stateMachine.currentPage == .summary
+            && stateMachine.wizardState == .active && stateMachine.wizardIssues.isEmpty
     }
 
     public var body: some View {
@@ -92,6 +134,10 @@ public struct InstallationWizardView: View {
         .environment(stateMachine)
         .focused($hasKeyboardFocus)
         .onChange(of: isValidating, handleValidationChange)
+        .task(id: shouldCompleteHealthySetup) {
+            guard shouldCompleteHealthySetup, !isForceClosing else { return }
+            dismissAndRefreshMainScreen()
+        }
         .overlay(alignment: .top) { navigationOverlay }
         .onAppear {
             hasKeyboardFocus = true
@@ -103,7 +149,9 @@ public struct InstallationWizardView: View {
             }
         }
         .onChange(of: isOperationRunning) { _, newValue in
-            if !newValue { hasKeyboardFocus = true }
+            if !newValue {
+                hasKeyboardFocus = true
+            }
         }
         .onChange(of: showAllSummaryItems) { _, showAll in
             stateMachine.customSequence = showAll ? nil : navSequence
@@ -112,10 +160,14 @@ public struct InstallationWizardView: View {
             handlePageChange(from: oldPage, to: newPage)
         }
         .onChange(of: navSequence) { _, newSeq in
-            if !showAllSummaryItems { stateMachine.customSequence = newSeq }
+            if !showAllSummaryItems {
+                stateMachine.customSequence = newSeq
+            }
         }
         .onChange(of: showingCloseConfirmation) { _, newValue in
-            if !newValue { hasKeyboardFocus = true }
+            if !newValue {
+                hasKeyboardFocus = true
+            }
         }
         .modifier(
             KeyboardNavigationModifier(
@@ -129,6 +181,17 @@ public struct InstallationWizardView: View {
         .onReceive(NotificationCenter.default.publisher(for: .wizardSmAppServiceApprovalRequired)) { _ in
             showingBackgroundApprovalPrompt = true
         }
+        .alert("Couldn't check setup", isPresented: Binding(
+            get: { asyncOperationManager.lastError?.operation == "System State Detection" },
+            set: { if !$0 { asyncOperationManager.lastError = nil } }
+        )) {
+            Button("Retry") { refreshSystemState(showSpinner: true) }
+                .accessibilityIdentifier("wizard-check-retry")
+            Button("Cancel", role: .cancel) {}
+                .accessibilityIdentifier("wizard-check-cancel")
+        } message: {
+            Text(asyncOperationManager.lastError?.localizedDescription ?? "Please try again.")
+        }
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
             closeConfirmationButtons
         } message: {
@@ -140,7 +203,9 @@ public struct InstallationWizardView: View {
             Text("Login Items will open. Find KeyPath under Background Items and flip the switch to enable it.")
         }
         .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
-            if isShowing { startLoginItemsApprovalPolling() }
+            if isShowing {
+                startLoginItemsApprovalPolling()
+            }
         }
     }
 
@@ -187,7 +252,7 @@ public struct InstallationWizardView: View {
                     hasInlineProgressIndicator = newValue
                 }
                 .overlay {
-                    if isOperationRunning, !isValidating, !hasInlineProgressIndicator {
+                    if fixInFlight, !hasInlineProgressIndicator {
                         operationProgressOverlay()
                             .allowsHitTesting(false)
                     }
@@ -206,11 +271,12 @@ public struct InstallationWizardView: View {
         // Hidden on summary (its own layout) and welcome (clean first impression)
         if stateMachine.currentPage != .summary, stateMachine.currentPage != .welcome {
             HStack {
-                WizardNavigationControl()
+                Color.clear.frame(width: 72, height: 1)
+                    .accessibilityHidden(true)
                 Spacer()
                 WizardStepIndicator()
                 Spacer()
-                CloseButton()
+                WizardNavigationControl()
             }
             .environment(stateMachine)
             .padding(.top, 12)

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import KeyPathCore
 import KeyPathInstallationWizard
@@ -13,14 +14,66 @@ public enum UpdateChannel: String, CaseIterable, Identifiable {
     }
 }
 
-/// Manages application updates via Sparkle framework
-///
-/// This service handles:
-/// - Automatic update checks (every 24 hours)
-/// - Manual "Check for Updates" menu action
-/// - Pre/post-install hooks to properly stop/restart KeyPath services
-///
-/// Per AGENTS.md, all service stop/restart operations go through InstallerEngine.
+/// Sparkle supplies its continuation as an Objective-C block without Sendable
+/// annotations. The updater invokes it exactly once on the main actor after
+/// runtime preparation, so this narrow wrapper documents that ownership
+/// transfer for Swift 6 concurrency checking.
+private final class SparkleInstallHandler: @unchecked Sendable {
+    private let block: () -> Void
+
+    init(_ block: @escaping () -> Void) {
+        self.block = block
+    }
+
+    func invoke() {
+        block()
+    }
+}
+
+/// Records delegate evidence inline, before an asynchronous main-actor hop can
+/// lose a race with AppKit termination. Sparkle may finish a successful check
+/// while its external installer remains staged for Quit.
+final class UpdateTerminationExpectation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var expected = false
+    private var staged = false
+
+    var isExpected: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return expected
+    }
+
+    func willExtract() {
+        lock.lock()
+        defer { lock.unlock() }
+        expected = true
+    }
+
+    func willInstall() {
+        lock.lock()
+        defer { lock.unlock() }
+        expected = true
+        staged = true
+    }
+
+    func didFinishCycle(errorOccurred: Bool) {
+        // Successful cycle completion is not installer cancellation.
+        if errorOccurred { didAbort() }
+    }
+
+    func didAbort() {
+        lock.lock()
+        defer { lock.unlock() }
+        // An error during a later update check does not prove that a previously
+        // staged external installer has gone away. Keep that evidence.
+        if !staged { expected = false }
+    }
+}
+
+/// Session releases open manual downloads. The retained Sparkle integration is
+/// inactive for that backend pending qualification of previous-process installers.
+/// Runtime shutdown uses the existing admitted lifecycle owner.
 @Observable
 @MainActor
 public final class UpdateService: NSObject {
@@ -30,12 +83,35 @@ public final class UpdateService: NSObject {
 
     // MARK: - Properties
 
+    @ObservationIgnored private nonisolated let terminationExpectation = UpdateTerminationExpectation()
+
+    var isUpdateTerminationExpected: Bool {
+        terminationExpectation.isExpected
+    }
+
+    /// Session releases use manual replacement until updater shutdown is qualified.
+    public var usesManualDownloads: Bool {
+        KanataRuntimeBackend.selected == .session
+    }
+
+    @ObservationIgnored var openDownloadPage: @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    private static let downloadURL = URL(string: "https://github.com/malpern/KeyPath/releases/latest")!
+
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
     @ObservationIgnored private let channelDefaultsKey = "keypath.update.channel"
+
+    @ObservationIgnored private var stopRuntime: (@MainActor () async -> Bool)?
+    @ObservationIgnored private var setUpdatePreparation: (@MainActor (Bool) -> Void)?
+    @ObservationIgnored private var pendingInstallHandler: SparkleInstallHandler?
+    @ObservationIgnored private var pendingInstallVersion: String?
+    @ObservationIgnored private var isPreparingInstallation = false
+    public private(set) var preparationError: String?
 
     public private(set) var canCheckForUpdates = false
     public private(set) var lastUpdateCheckDate: Date?
     public private(set) var automaticallyChecksForUpdates = true
+    public private(set) var automaticallyDownloadsUpdates = true
+    public private(set) var allowsAutomaticUpdates = true
     public private(set) var updateChannel: UpdateChannel = .stable
     public private(set) var currentFeedURL: String?
 
@@ -47,9 +123,27 @@ public final class UpdateService: NSObject {
 
     // MARK: - Public API
 
+    func configureRuntimeStop(_ stop: @escaping @MainActor () async -> Bool) {
+        stopRuntime = stop
+    }
+
+    func configureUpdatePreparation(_ setPreparation: @escaping @MainActor (Bool) -> Void) {
+        setUpdatePreparation = setPreparation
+    }
+
     /// Initialize the updater. Call once at app startup.
     public func initialize() {
         guard updaterController == nil else { return }
+
+        // Do not construct Sparkle: even a manual check can resume an installer
+        // staged by an earlier process, independently of automatic preferences.
+        if usesManualDownloads {
+            canCheckForUpdates = true
+            automaticallyChecksForUpdates = false
+            automaticallyDownloadsUpdates = false
+            allowsAutomaticUpdates = false
+            return
+        }
 
         // Skip initialization in test environment
         if TestEnvironment.isRunningTests {
@@ -72,26 +166,57 @@ public final class UpdateService: NSObject {
             canCheckForUpdates = updater.canCheckForUpdates
             lastUpdateCheckDate = updater.lastUpdateCheckDate
             automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
+            automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
+            allowsAutomaticUpdates = updater.allowsAutomaticUpdates
             let persistedChannel = loadPersistedChannel()
             setUpdateChannel(persistedChannel)
 
             AppLogger.shared.log(
-                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), channel: \(updateChannel.rawValue)"
+                "✅ [UpdateService] Sparkle initialized - autoCheck: \(automaticallyChecksForUpdates), autoInstall: \(automaticallyDownloadsUpdates), channel: \(updateChannel.rawValue)"
             )
         }
     }
 
-    /// Manually trigger an update check (called from menu item)
+    /// Open manual downloads, or trigger a check for a backend with a qualified updater.
     public func checkForUpdates() {
+        if usesManualDownloads {
+            preparationError = openDownloadPage(Self.downloadURL)
+                ? nil : "Couldn't open the downloads page. Visit github.com/malpern/KeyPath/releases."
+            return
+        }
         AppLogger.shared.log("🔍 [UpdateService] Manual update check requested")
-        updaterController?.checkForUpdates(nil)
+        if pendingInstallHandler != nil {
+            Task { @MainActor in await resumePreparedUpdate() }
+        } else {
+            updaterController?.checkForUpdates(nil)
+        }
     }
 
     /// Enable or disable automatic update checks
     public func setAutomaticChecks(enabled: Bool) {
+        guard !usesManualDownloads else { return }
         updaterController?.updater.automaticallyChecksForUpdates = enabled
         automaticallyChecksForUpdates = enabled
+        allowsAutomaticUpdates = updaterController?.updater.allowsAutomaticUpdates ?? false
+        automaticallyDownloadsUpdates = updaterController?.updater.automaticallyDownloadsUpdates ?? false
         AppLogger.shared.log("⚙️ [UpdateService] Automatic checks set to: \(enabled)")
+    }
+
+    /// Enable or disable Sparkle's automatic background download/install path.
+    /// This is a user preference; Info.plist supplies only the initial default.
+    public func setAutomaticDownloads(enabled: Bool) {
+        guard !usesManualDownloads else { return }
+        guard let updater = updaterController?.updater, updater.allowsAutomaticUpdates else {
+            AppLogger.shared.warn("⚠️ [UpdateService] Automatic updates are unavailable while automatic checks are disabled")
+            automaticallyDownloadsUpdates = false
+            allowsAutomaticUpdates = false
+            return
+        }
+
+        updater.automaticallyDownloadsUpdates = enabled
+        automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
+        allowsAutomaticUpdates = updater.allowsAutomaticUpdates
+        AppLogger.shared.log("⚙️ [UpdateService] Automatic download/install set to: \(automaticallyDownloadsUpdates)")
     }
 
     public func setUpdateChannel(_ channel: UpdateChannel) {
@@ -131,32 +256,57 @@ extension UpdateService: SPUUpdaterDelegate {
         return channel == .beta ? ["beta"] : []
     }
 
-    /// Called before an update is about to be installed
-    /// We use this to stop kanata and helper services before Sparkle replaces the app bundle
+    /// Observed synchronously before Sparkle launches its installer for the
+    /// downloaded archive. This is evidence, not a universal postponement hook.
+    public nonisolated func updater(_: SPUUpdater, willExtractUpdate _: SUAppcastItem) {
+        terminationExpectation.willExtract()
+    }
+
+    public nonisolated func updater(
+        _: SPUUpdater,
+        willInstallUpdateOnQuit _: SUAppcastItem,
+        immediateInstallationBlock _: @escaping () -> Void
+    ) -> Bool {
+        terminationExpectation.willInstall()
+        // Sparkle always attempts installation on termination, with either
+        // return value. Observe it without taking over its scheduler.
+        return false
+    }
+
+    /// Notification only: Sparkle does not await asynchronous work here, and
+    /// its relaunch postponement callback is not guaranteed on every path.
     public nonisolated func updater(
         _: SPUUpdater,
         willInstallUpdate item: SUAppcastItem
     ) {
-        // Extract version string before crossing isolation boundary
+        terminationExpectation.willInstall()
         let version = item.displayVersionString
         Task { @MainActor in
-            await prepareForUpdate(version: version)
+            AppLogger.shared.log("📦 [UpdateService] Installing KeyPath update v\(version)")
         }
     }
 
-    /// Provide custom appcast item comparison if needed
+    /// Delay Sparkle's relaunch until owned runtime and Caps cleanup succeeds.
+    /// Failure remains paused; an explicit Check for Updates retries preparation.
     public nonisolated func updater(
         _: SPUUpdater,
-        shouldPostponeRelaunchForUpdate _: SUAppcastItem,
-        untilInvokingBlock _: @escaping () -> Void
+        shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+        untilInvokingBlock installHandler: @escaping () -> Void
     ) -> Bool {
-        // Don't postpone - let Sparkle handle the relaunch timing
-        false
+        terminationExpectation.willInstall()
+        let version = item.displayVersionString
+        let handler = SparkleInstallHandler(installHandler)
+        Task { @MainActor in
+            await postponeInstallation(version: version, handler: handler)
+        }
+        return true
     }
 
     public nonisolated func updater(_: SPUUpdater, didAbortWithError error: Error) {
+        terminationExpectation.didAbort()
         let nsError = error as NSError
         Task { @MainActor in
+            cancelPreparedUpdate()
             let feedURL = updaterController?.updater.feedURL?.absoluteString
                 ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
             if Self.isCosmeticSparkleOutcome(nsError) {
@@ -177,6 +327,9 @@ extension UpdateService: SPUUpdaterDelegate {
         error: (any Error)?
     ) {
         let nsError = (error as NSError?)
+        // A nil-error completion can leave the external installer staged for
+        // Quit. It must not clear the synchronously observed expectation.
+        terminationExpectation.didFinishCycle(errorOccurred: nsError != nil)
         Task { @MainActor in
             let feedURL = updaterController?.updater.feedURL?.absoluteString
                 ?? (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String ?? "(missing)")
@@ -218,13 +371,6 @@ extension UpdateService: SPUUpdaterDelegate {
 // MARK: - Post-Relaunch Handler (separate extension to silence spurious warning)
 
 extension UpdateService {
-    enum UpdateRepairDecision: Equatable {
-        case silentContinue(reason: String)
-        case automaticRepairAllowed(reason: String)
-        case userRepairRequired(reason: String)
-        case manualAttentionRequired(reason: String)
-    }
-
     /// Called after the app relaunches following an update.
     /// Post-update detection must be passive: surface degraded state through
     /// the normal status/wizard path and let the user start repair explicitly.
@@ -236,92 +382,85 @@ extension UpdateService {
 
     // MARK: - Update Lifecycle
 
-    @MainActor
-    private func prepareForUpdate(version: String) async {
-        AppLogger.shared.log("⏸️ [UpdateService] Preparing for update to v\(version) - stopping services")
-
-        let engine = InstallerEngine()
-        let broker = PrivilegeBroker()
-
-        let context = await engine.inspectSystem()
-        AppLogger.shared.log(
-            "📊 [UpdateService] Current state - kanata: \(context.services.kanataRunning), helper: \(context.helper.isInstalled)"
-        )
-
-        switch Self.preUpdateDecision(for: context) {
-        case let .silentContinue(reason):
-            AppLogger.shared.log("✅ [UpdateService] Pre-update: no preparation needed (\(reason))")
-        case let .automaticRepairAllowed(reason):
-            AppLogger.shared.log("🔧 [UpdateService] Pre-update: running repair (\(reason))")
-            let report = await engine.run(intent: .repair, using: broker)
-            AppLogger.shared.log(
-                "✅ [UpdateService] Services prepared for update - success: \(report.success)"
-            )
-        case let .userRepairRequired(reason), let .manualAttentionRequired(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Pre-update repair not allowed for decision \(reason); continuing without mutation"
-            )
+    #if DEBUG
+        static func testService() -> UpdateService {
+            UpdateService()
         }
+    #endif
+
+    private func postponeInstallation(version: String, handler: SparkleInstallHandler) async {
+        pendingInstallHandler = handler
+        pendingInstallVersion = version
+        if isPreparingInstallation { setUpdatePreparation?(true) }
+        await resumePreparedUpdate()
+    }
+
+    func postponeInstallation(version: String, install: @escaping () -> Void) async {
+        await postponeInstallation(version: version, handler: SparkleInstallHandler(install))
+    }
+
+    func cancelPreparedUpdate() {
+        pendingInstallHandler = nil
+        pendingInstallVersion = nil
+        preparationError = nil
+        setUpdatePreparation?(false)
+    }
+
+    @MainActor
+    private func resumePreparedUpdate() async {
+        guard !isPreparingInstallation, let handler = pendingInstallHandler,
+              let version = pendingInstallVersion else { return }
+        isPreparingInstallation = true
+        setUpdatePreparation?(true)
+        defer {
+            isPreparingInstallation = false
+            if let next = pendingInstallHandler, next !== handler {
+                Task { @MainActor in await resumePreparedUpdate() }
+            }
+        }
+        let prepared = await Self.continueAfterRuntimeCleanup(
+            stop: { [self] in await prepareForUpdate(version: version) },
+            install: { [self] in
+                guard pendingInstallHandler === handler else { return }
+                pendingInstallHandler = nil
+                pendingInstallVersion = nil
+                preparationError = nil
+                handler.invoke()
+            }
+        )
+        if !prepared, pendingInstallHandler === handler {
+            setUpdatePreparation?(false)
+        }
+        if !prepared, pendingInstallHandler === handler {
+            let reason = "Update paused because keyboard cleanup could not be verified. Resolve the runtime issue in Settings, then choose Check for Updates to retry."
+            preparationError = reason
+            canCheckForUpdates = true
+            AppLogger.shared.error("⚠️ [UpdateService] \(reason)")
+            UserNotificationService.shared.notifyConfigEvent("Update paused", body: reason, key: "update.runtime-cleanup")
+        }
+    }
+
+    /// One continuation after successful admitted cleanup; refusal does not install.
+    @MainActor
+    static func continueAfterRuntimeCleanup(stop: () async -> Bool, install: () -> Void) async -> Bool {
+        guard await stop() else { return false }
+        install()
+        return true
+    }
+
+    @MainActor
+    private func prepareForUpdate(version: String) async -> Bool {
+        AppLogger.shared.log("⏸️ [UpdateService] Stopping owned runtime before update to v\(version)")
+        // Always run cleanup, including a retained Caps journal with no live worker.
+        guard let stopRuntime else { return false }
+        return await stopRuntime()
     }
 
     @MainActor
     private func finalizeUpdate() async {
-        let engine = InstallerEngine()
-        let context = await engine.inspectSystem()
-
-        switch Self.postUpdateDecision(for: context) {
-        case let .silentContinue(reason):
-            AppLogger.shared.log("✅ [UpdateService] Post-update: system healthy, skipping repair (\(reason))")
-        case let .userRepairRequired(reason):
-            AppLogger.shared.warn(
-                "⚠️ [UpdateService] Post-update repair required (\(reason)); surfacing status for user-initiated repair"
-            )
-            MainAppStateController.shared.invalidateValidationCooldown()
-            await MainAppStateController.shared.revalidate()
-        case let .manualAttentionRequired(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Post-update requires manual attention (\(reason)); surfacing status and skipping automatic repair"
-            )
-            MainAppStateController.shared.invalidateValidationCooldown()
-            await MainAppStateController.shared.revalidate()
-        case let .automaticRepairAllowed(reason):
-            AppLogger.shared.error(
-                "⚠️ [UpdateService] Post-update automatic repair is disallowed by Phase 1 W3 (\(reason)); surfacing status instead"
-            )
-            MainAppStateController.shared.invalidateValidationCooldown()
-            await MainAppStateController.shared.revalidate()
-        }
-    }
-
-    nonisolated static func preUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
-        if context.services.kanataRunning || context.services.karabinerDaemonRunning || context.helper.isInstalled {
-            return .automaticRepairAllowed(reason: "reason_code=services_or_helper_present")
-        }
-        return .silentContinue(reason: "reason_code=nothing_running")
-    }
-
-    nonisolated static func postUpdateDecision(for context: SystemContext) -> UpdateRepairDecision {
-        // KeyPath's own Input Monitoring is soft (overlay/record only, not
-        // remapping — see PermissionOracle.blockingIssue / isSystemReady), so it
-        // must not force a hard post-update repair now that IOHIDCheckAccess makes
-        // it authoritatively .denied (#931). KeyPath's Accessibility is required.
-        if context.permissions.keyPath.accessibility.isBlocking {
-            return .manualAttentionRequired(reason: "reason_code=keypath_permissions_blocking")
-        }
-        if context.permissions.kanata.inputMonitoring.isBlocking || context.permissions.kanata.accessibility.isBlocking {
-            return .manualAttentionRequired(reason: "reason_code=kanata_permissions_blocking")
-        }
-
-        if !context.helper.isReady {
-            return .userRepairRequired(reason: "reason_code=helper_not_ready")
-        }
-        if !context.components.hasAllRequired {
-            return .userRepairRequired(reason: "reason_code=components_not_ready")
-        }
-        if !context.services.backgroundServicesHealthy || !context.services.kanataRunning {
-            return .userRepairRequired(reason: "reason_code=services_not_ready")
-        }
-
-        return .silentContinue(reason: "reason_code=healthy")
+        // Use the same driverless readiness path as normal launch. No obsolete
+        // driver/helper requirements or automatic installer repair after update.
+        MainAppStateController.shared.invalidateValidationCooldown()
+        await MainAppStateController.shared.revalidate()
     }
 }

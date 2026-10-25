@@ -1,7 +1,7 @@
 import Foundation
 import KeyPathCore
 
-/// Writer for managing simple modifications sentinel blocks
+/// Renders simple modifications sentinel blocks without writing files.
 public final class SimpleModsWriter: Sendable {
     private let configPath: String
 
@@ -9,21 +9,13 @@ public final class SimpleModsWriter: Sendable {
         self.configPath = configPath
     }
 
-    /// Write or update the sentinel block with the given mappings
-    public func writeBlock(mappings: [SimpleMapping]) throws {
-        // Read current content
-        let content: String =
-            if Foundation.FileManager().fileExists(atPath: configPath) {
-                try String(contentsOfFile: configPath, encoding: .utf8)
-            } else {
-                ""
-            }
-
+    /// Render a proposed revision. Persistence belongs to SaveCoordinator.
+    public func renderBlock(mappings: [SimpleMapping], in content: String) throws -> String {
         let lines = content.components(separatedBy: .newlines)
 
         // Find existing block
         let parser = SimpleModsParser(configPath: configPath)
-        let (existingBlock, _, _) = try parser.parse()
+        let (existingBlock, _, _) = try parser.parse(content: content)
 
         let blockId = existingBlock?.id ?? UUID().uuidString
         let blockVersion = existingBlock?.version ?? 1
@@ -45,7 +37,7 @@ public final class SimpleModsWriter: Sendable {
                 mappingLines.append("  \(mapping.fromKey) \(mapping.toKey)")
             } else {
                 // Commented-out disabled line; still tracked by our parser
-                mappingLines.append("  ; \(mapping.fromKey) \(mapping.toKey)  ; KP:DISABLED")
+                mappingLines.append("  ;; \(mapping.fromKey) \(mapping.toKey)  ;; KP:DISABLED")
             }
         }
 
@@ -72,11 +64,14 @@ public final class SimpleModsWriter: Sendable {
                     throw KeyPathError.configuration(.invalidFormat(reason: "Cannot write empty or invalid configuration"))
                 }
 
-                try newContent.write(toFile: configPath, atomically: true, encoding: .utf8)
-                return
+                // A config still needs a layer when its final mapping is removed.
+                // Keep an empty managed base layer unless another layer survives.
+                if newContent.range(of: #"(?m)^\s*\(deflayer(?:map)?\s"#, options: .regularExpression) != nil {
+                    return newContent
+                }
             } else {
                 // Nothing to do if there is no block
-                return
+                return content
             }
         }
 
@@ -113,9 +108,7 @@ public final class SimpleModsWriter: Sendable {
             newLines.append(contentsOf: blockContent.components(separatedBy: .newlines))
         }
 
-        // Write back
-        let newContent = newLines.joined(separator: "\n")
-        try newContent.write(toFile: configPath, atomically: true, encoding: .utf8)
+        return newLines.joined(separator: "\n")
     }
 
     /// Generate effective config content (source config with disabled lines filtered out)

@@ -20,6 +20,9 @@ public struct KeyPathApp: App {
     private let isOneShotProbeMode: Bool
 
     public init() {
+        // Read the existing wrapper storage before bootstrap touches AppKit.
+        // The wrapped property getter requires all other fields initialized first.
+        let delegate = _appDelegate.wrappedValue
         let result = CompositionRoot.bootstrap()
         kanataManager = result.kanataManager
         viewModel = result.viewModel
@@ -27,10 +30,7 @@ public struct KeyPathApp: App {
         isHeadlessMode = result.isHeadlessMode
         isOneShotProbeMode = result.isOneShotProbeMode
 
-        appDelegate.kanataManager = result.kanataManager
-        appDelegate.viewModel = result.viewModel
-        appDelegate.serviceContainer = result.serviceContainer
-        appDelegate.isHeadlessMode = result.isHeadlessMode
+        delegate.configureForLaunch(result)
     }
 
     public var body: some Scene {
@@ -133,46 +133,112 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var suppressLaunchSplashAutoHide = false
+    private var runtimeStartupTask: Task<Void, Never>?
     private var keyboardCapture: KeyboardCapture?
+    private var launchGate = ApplicationLaunchGate()
+    private let terminationCoordinator = ApplicationTerminationCoordinator()
+
+    override init() {
+        super.init()
+        // The adaptor creates its delegate before KeyPathApp bootstraps services.
+        // Capture the real launch event even before SwiftUI installs the delegate.
+        AppLogger.shared.info("[LaunchTrace] delegate init instance=\(ObjectIdentifier(self))")
+        observeApplicationLaunch()
+    }
+
+    private func observeApplicationLaunch() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(observedApplicationDidFinishLaunching(_:)),
+            name: NSApplication.didFinishLaunchingNotification,
+            object: nil
+        )
+    }
+
+    func configureForLaunch(_ result: CompositionRootResult) {
+        AppLogger.shared.info("[LaunchTrace] configure instance=\(ObjectIdentifier(self)) headless=\(result.isHeadlessMode)")
+        kanataManager = result.kanataManager
+        viewModel = result.viewModel
+        serviceContainer = result.serviceContainer
+        isHeadlessMode = result.isHeadlessMode
+        if terminationCoordinator.isPending {
+            kanataManager?.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
+        }
+        if launchGate.didConfigure() {
+            finishApplicationLaunch()
+        }
+    }
+
+    @objc private func observedApplicationDidFinishLaunching(_: Notification) {
+        AppLogger.shared.info("[LaunchTrace] notification instance=\(ObjectIdentifier(self))")
+        recordApplicationLaunch()
+    }
+
+    private func recordApplicationLaunch() {
+        if launchGate.didFinishLaunching() {
+            finishApplicationLaunch()
+        }
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         AppLogger.shared.log("🔍 [AppDelegate] applicationShouldTerminate called")
-        // Close wizard and all windows so nothing blocks the quit
+        // Uninstall has already drained keyboard cleanup and configuration writes.
+        // Its write gate stays closed, so do not start another asynchronous quit
+        // from the removed bundle or flush plugins into settings being removed.
+        if kanataManager?.uninstallCleanupCompleted == true {
+            return .terminateNow
+        }
+        terminationCoordinator.request(
+            suppressStarts: { [self] active in
+                kanataManager?.serviceLifecycleCoordinator.setTerminationPreparationActive(active)
+            },
+            stop: { [self] in
+                if kanataManager?.uninstallCleanupCompleted == true { return true }
+                return await viewModel?.stopKanata(reason: "Application termination") ?? false
+            },
+            updateExpected: { UpdateService.shared.isUpdateTerminationExpected },
+            cleanupRefused: { cancel in
+                if cancel {
+                    AppLogger.shared.error("⚠️ [AppDelegate] Update termination cancelled: keyboard cleanup could not be verified; windows and recovery evidence retained")
+                } else {
+                    AppLogger.shared.error("⚠️ [AppDelegate] Keyboard cleanup could not be verified; ordinary Quit continues with recovery evidence retained")
+                }
+            },
+            finish: { [self] in await finishGracefulTermination() },
+            reply: { sender.reply(toApplicationShouldTerminate: $0) }
+        )
+        return .terminateLater
+    }
+
+    private func finishGracefulTermination() async {
+        // Only close the UI after the cleanup decision; a cancelled update must
+        // preserve its windows and plugins so the user can resolve the refusal.
         WizardWindowController.shared.closeWindow()
         for window in NSApp.windows {
             window.close()
         }
+        guard !PluginManager.shared.plugins.isEmpty else { return }
 
-        // Give loaded plugins (e.g. Insights) a chance to flush buffered state
-        // before the process exits. Plugin cleanup is async, so defer the quit
-        // and reply once it completes — bounded by a short timeout so a stuck
-        // flush can never block the user from quitting.
-        guard !PluginManager.shared.plugins.isEmpty else {
-            return .terminateNow
-        }
-
-        var didReply = false
-        let reply: @MainActor () -> Void = {
-            guard !didReply else { return }
-            didReply = true
-            sender.reply(toApplicationShouldTerminate: true)
-        }
-
-        PluginManager.shared.prepareForTerminationAll {
-            AppLogger.shared.info("🚪 [AppDelegate] Plugin termination flush complete")
-            reply()
-        }
-
-        // Safety timeout: never let a slow plugin hold up termination.
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
-            if !didReply {
-                AppLogger.shared.log("⚠️ [AppDelegate] Plugin termination flush timed out; quitting anyway")
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var didFinish = false
+            let finish: @MainActor () -> Void = {
+                guard !didFinish else { return }
+                didFinish = true
+                continuation.resume()
             }
-            reply()
+            PluginManager.shared.prepareForTerminationAll {
+                AppLogger.shared.info("🚪 [AppDelegate] Plugin termination flush complete")
+                finish()
+            }
+            // This bounds plugin flushing only, never admitted keyboard cleanup.
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(2))
+                if !didFinish {
+                    AppLogger.shared.log("⚠️ [AppDelegate] Plugin termination flush timed out; quitting anyway")
+                }
+                finish()
+            }
         }
-
-        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
@@ -197,6 +263,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        AppLogger.shared.info("[LaunchTrace] delegate callback instance=\(ObjectIdentifier(self))")
+        recordApplicationLaunch()
+    }
+
+    private func finishApplicationLaunch() {
+        NotificationCenter.default.removeObserver(
+            self, name: NSApplication.didFinishLaunchingNotification, object: nil
+        )
         AppLogger.shared.info("🔍 [AppDelegate] applicationDidFinishLaunching called")
 
         #if DEBUG
@@ -239,13 +313,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !isHeadlessMode {
             setupMenuBarController()
-            SplashView.PosterCache.warmIfNeeded()
+            SplashView.EmblemCache.warmIfNeeded()
             NSApp.activate(ignoringOtherApps: true)
-        }
-
-        // Check for pending service bounce (skip on fresh install)
-        Task { @MainActor in
-            await handleServiceBounceIfNeeded()
         }
 
         if isHeadlessMode {
@@ -269,12 +338,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // (e.g., launched at login while another app has focus)
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(3))
+                await self.runtimeStartupTask?.value
                 if !self.initialMainWindowShown {
                     AppLogger.shared.info("🪟 [AppDelegate] Splash fallback auto-hide (app never activated)")
                     self.initialMainWindowShown = true
                     if await self.hasCompletedInitialWizard() {
                         LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-                        self.mainWindowController?.window?.orderOut(nil)
+                        self.mainWindowController?.hideSplash()
                     } else {
                         AppLogger.shared.info("🪟 [AppDelegate] Splash fallback kept visible — initial wizard incomplete")
                         self.mainWindowController?.show(focus: false)
@@ -305,13 +375,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.shared.info(
             "🚪 [AppDelegate] Application will terminate - performing synchronous cleanup"
         )
-        // Don't broadcast "stopped" here — the LaunchDaemon keeps running
-        // after the UI app quits. Only ServiceLifecycleCoordinator.stopKanata()
-        // should broadcast service state changes.
+        // Admitted runtime cleanup already returned in applicationShouldTerminate;
+        // ordinary Quit may retain evidence when cleanup refuses.
+        // Only ServiceLifecycleCoordinator should broadcast service state changes.
         DistributedNotificationBridge.stop()
         // Flush pending KindaVim telemetry so counters aren't lost on quit (up to one
         // ~5s flush interval would otherwise be dropped — see #690). No-op when disabled.
-        KindaVimTelemetryStore.shared.flushNow()
+        if kanataManager?.uninstallCleanupCompleted != true {
+            KindaVimTelemetryStore.shared.flushNow()
+        }
         kanataManager?.cleanupSync()
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
     }
@@ -347,14 +419,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Present the right surface for a user-initiated "open KeyPath" action
     /// (Dock/Raycast/Spotlight reopen or menu-bar "Show KeyPath").
+    /// A runtime waiting for Secure Input, held keys or wake readiness resumes by
+    /// itself. Setup is complete; treating it as incomplete stranded the launch
+    /// splash once the wizard was correctly suppressed during that wait.
+    static func initialSetupComplete(runtimeReady: Bool, runtimeRecoveryPending: Bool) -> Bool {
+        runtimeReady || runtimeRecoveryPending
+    }
+
     private func hasCompletedInitialWizard() async -> Bool {
-        guard hasExistingConfig else {
+        // A reinstall can retain macOS grants and regenerate a valid config.
+        // Runtime health alone must not bypass the fresh-install Welcome page.
+        guard hasExistingConfig,
+              !WizardWelcomeGate.shouldShowWelcome(helperInstalled: false),
+              !FirstSuccessOnboardingGate.isPending()
+        else {
             LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)
             return false
         }
         let health = await ServiceHealthChecker.shared.checkKanataServiceHealth()
-        let completed = health.isReady
-        LiveKeyboardOverlayController.shared.setOnboardingCompleted(completed)
+        let recovering = await kanataManager?.serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow() == true
+        let completed = Self.initialSetupComplete(runtimeReady: health.isReady, runtimeRecoveryPending: recovering)
+        // Runtime readiness does not release the overlay while the tour owns focus.
+        LiveKeyboardOverlayController.shared.setOnboardingCompleted(
+            completed && !FirstSuccessOnboardingWindowController.isPresented
+        )
         return completed
     }
 
@@ -362,6 +450,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         unhideAndActivate()
 
         let completedInitialWizard = await hasCompletedInitialWizard()
+        // Recheck after the health await: the tour can appear during validation.
+        if FirstSuccessOnboardingWindowController.bringPresentedTourToFront() {
+            mainWindowController?.hideSplash()
+            return
+        }
         let surface = ReopenPolicy.surface(
             hasExistingConfig: hasExistingConfig,
             hasCompletedInitialWizard: completedInitialWizard,
@@ -378,9 +471,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             initialMainWindowShown = true
             // If the launch splash is somehow still up (reopen racing the launch
             // auto-hide), dismiss it — a configured app must never strand it.
-            mainWindowController?.window?.orderOut(nil)
+            mainWindowController?.hideSplash()
             LiveKeyboardOverlayController.shared.clearExplicitHideFlag()
-            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true, userRequested: true)
 
         case .showSplash:
             AppLogger.shared.info("🪟 [AppDelegate] \(trigger): setup incomplete — showing wizard")
@@ -390,7 +483,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Show the splash/main window and keep it up (no auto-hide). Only valid as the
     /// first-run onboarding surface or as a host for menu-action sheets.
-    private func showSplashWindow() {
+    private func showSplashWindow(preparing: Bool = false) {
         if mainWindowController == nil {
             if NSApplication.shared.activationPolicy() != .regular {
                 NSApplication.shared.setActivationPolicy(.regular)
@@ -412,13 +505,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         suppressLaunchSplashAutoHide = true
+        mainWindowController?.splashPresentation.isPreparing = preparing
         mainWindowController?.show(focus: true)
         initialMainWindowShown = true
     }
 
     private var launchSplashDelayMs: Int {
         #if DEBUG
-            Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "") ?? 650
+            Int(ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DELAY_MS"] ?? "") ?? 1200
         #else
             1200
         #endif
@@ -435,11 +529,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Preserve the branded launch beat, then hand off to the actionable wizard.
     /// Reopen/subsequent activation paths intentionally skip this delay.
     private func showSetupWizardAfterLaunchSplash(targetPage: WizardPage? = nil) async {
-        showSplashWindow()
+        showSplashWindow(preparing: true)
         let splashDelayMs = launchSplashDelayMs
         AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
         try? await Task.sleep(for: .milliseconds(splashDelayMs))
-        showWizard(targetPage: targetPage)
+        guard !Task.isCancelled else { return }
+        if targetPage == nil, await hasCompletedInitialWizard() {
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+            mainWindowController?.hideSplash()
+        } else {
+            showWizard(targetPage: targetPage)
+        }
     }
 
     // MARK: - Public Window Access
@@ -487,6 +587,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if hasExistingConfig {
             Task { @MainActor in
+                await runtimeStartupTask?.value
                 if await hasCompletedInitialWizard() {
                     AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
                     LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
@@ -510,7 +611,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.shared.info("🪟 [AppDelegate] First activation - overlay shown")
 
                 if !self.suppressLaunchSplashAutoHide {
-                    self.mainWindowController?.window?.orderOut(nil)
+                    self.mainWindowController?.hideSplash()
                     AppLogger.shared.info("🪟 [AppDelegate] Auto-hid launch splash window")
                 } else {
                     AppLogger.shared.info("🪟 [AppDelegate] Splash auto-hide suppressed (user re-opened during launch)")
@@ -541,37 +642,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay hidden by user, not auto-showing")
         } else {
             AppLogger.shared.debug("🪟 [AppDelegate] Subsequent activation - overlay already visible")
-        }
-    }
-
-    // MARK: - Private: Service Bounce
-
-    private func handleServiceBounceIfNeeded() async {
-        let isFreshInstall = await Self.checkIsFreshInstall()
-        if isFreshInstall {
-            AppLogger.shared.info("🆕 [AppDelegate] Fresh install detected - skipping service bounce")
-            PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-            return
-        }
-
-        let (shouldBounce, timeSince) = PermissionGrantCoordinator.shared.checkServiceBounceNeeded()
-
-        if shouldBounce {
-            if let timeSince {
-                AppLogger.shared.info(
-                    "🔄 [AppDelegate] Service bounce requested \(Int(timeSince))s ago - performing bounce"
-                )
-            } else {
-                AppLogger.shared.info("🔄 [AppDelegate] Service bounce requested - performing bounce")
-            }
-
-            let bounceSuccess = await PermissionGrantCoordinator.shared.performServiceBounce()
-            if bounceSuccess {
-                AppLogger.shared.info("✅ [AppDelegate] Service bounce completed successfully")
-                PermissionGrantCoordinator.shared.clearServiceBounceFlag()
-            } else {
-                AppLogger.shared.warn("❌ [AppDelegate] Service bounce failed - flag remains for retry")
-            }
         }
     }
 
@@ -634,14 +704,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // stop when it's off.
         KindaVimPackController.shared.start()
 
-        // Sequential startup: regenerate config, auto-launch, validate, auto-wizard
-        Task { @MainActor in
+        // Automatic launch surfaces await this existing startup sequence.
+        runtimeStartupTask = Task { @MainActor in
             do {
-                try await AppConfigGenerator.regenerateFromStore()
-                AppLogger.shared.log("✅ [AppDelegate] App-specific config regenerated")
+                try await AppConfigGenerator.ensureIncludeFromStore()
+                AppLogger.shared.log("✅ [AppDelegate] App-specific config verified")
             } catch {
                 AppLogger.shared.error(
-                    "❌ [AppDelegate] Failed to regenerate app-specific config: \(error)"
+                    "❌ [AppDelegate] Could not verify app-specific config: \(error)"
                 )
             }
 
@@ -680,12 +750,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             NotificationCenter.default.post(name: .kp_startupRevalidate, object: nil)
 
-            let helperFunctional = await HelperManager.shared.testHelperFunctionality()
-            AppLogger.shared.info("🆕 [AppDelegate] Helper functional check: \(helperFunctional)")
-            if !helperFunctional {
-                AppLogger.shared.info("🆕 [AppDelegate] Helper not functional - auto-launching wizard")
+            let setupReady = await InstallerEngine().inspectSystem().isReady
+            AppLogger.shared.info("🆕 [AppDelegate] Backend setup ready: \(setupReady)")
+            if !setupReady, let refusal = self.kanataManager?.serviceLifecycleCoordinator.configurationRefusalForStartup() {
+                AppLogger.shared.warn("Automatic setup cannot repair the current configuration: \(refusal)")
+                NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+            } else if !setupReady {
+                AppLogger.shared.info("🆕 [AppDelegate] Backend setup incomplete - auto-launching wizard")
                 try? await Task.sleep(for: .seconds(1))
-                NotificationCenter.default.post(name: .showWizard, object: nil)
+                guard !Task.isCancelled else { return }
+                // Startup waiting for Secure Input or held keys to end resumes
+                // by itself; setup is not incomplete, so do not replay it.
+                if await self.kanataManager?.serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow() == true {
+                    AppLogger.shared.info("🆕 [AppDelegate] Runtime recovery in progress - wizard not shown")
+                } else if await !(InstallerEngine().inspectSystem().isReady) {
+                    NotificationCenter.default.post(name: .showWizard, object: nil)
+                }
             }
         }
     }
@@ -693,30 +773,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Fresh Install Check
 
     private static func checkIsFreshInstall() async -> Bool {
-        // Route SMAppService.status through SystemStateProvider (issue #853):
-        // these two reads used to be direct synchronous IPC on the MainActor during
-        // app init, which could stall the UI for up to 30s under load.
-        let helperStatus = await SystemStateProvider.shared.freshSMAppServiceStatus(
-            for: HelperManager.helperPlistName
-        )
-        let daemonStatus = await SystemStateProvider.shared.freshSMAppServiceStatus(
-            for: KanataDaemonManager.kanataPlistName
-        )
-
-        // SMAppService status persists across uninstall/reinstall, so .notRegistered
-        // is only true on a truly virgin system. Also check if the daemon plist
-        // actually exists — if not, there's nothing to auto-launch.
-        let daemonPlistExists = Foundation.FileManager.default.fileExists(
-            atPath: KanataDaemonManager.getActivePlistPath()
-        )
-
-        let isFresh = (helperStatus == .notRegistered && daemonStatus == .notRegistered)
-            || !daemonPlistExists
-
-        AppLogger.shared.log(
-            "🔍 [AppDelegate] Fresh install check: helper=\(helperStatus), daemon=\(daemonStatus), plistExists=\(daemonPlistExists), isFresh=\(isFresh)"
-        )
-        return isFresh
+        false // Session startup has no helper/daemon registration step to defer.
     }
 
     // MARK: - Private: Menu Bar
@@ -735,15 +792,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 )
             },
             openSettingsHandler: {
-                NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+                openPreferencesTab(.openSettingsGeneral)
             },
             openSettingsRulesHandler: {
-                NotificationCenter.default.post(name: .openSettingsRules, object: nil)
+                openPreferencesTab(.openSettingsRules)
             },
             quitHandler: {
-                for window in NSApplication.shared.windows {
-                    window.close()
-                }
                 NSApplication.shared.terminate(nil)
             }
         )
@@ -774,7 +828,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let initialPage = targetPage ?? resolveWizardInitialPage()
+        // The one-time welcome gate has a QA override. Use an explicit welcome
+        // target so the wizard's health-summary routing cannot bypass it.
+        let initialPage = UserDefaults.standard.bool(forKey: WizardWelcomeGate.forceWelcomeKey)
+            ? .welcome
+            : targetPage ?? resolveWizardInitialPage()
         WizardWindowController.shared.showWindow(
             initialPage: initialPage,
             kanataViewModel: vm,
@@ -785,6 +843,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         )
+        // The wizard owns a separate window. Retire the launch splash at handoff
+        // instead of relying on its setup-suppressed automatic dismissal.
+        mainWindowController?.hideSplash()
+        suppressLaunchSplashAutoHide = false
+        AppLogger.shared.info("[AppDelegate] Launch splash dismissed after wizard handoff")
     }
 
     @MainActor

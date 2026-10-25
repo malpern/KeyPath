@@ -5,27 +5,13 @@ import KeyPathAppKit
 struct ServiceStart: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "start",
-        abstract: "Start the Kanata service"
+        abstract: "Start remapping (launches KeyPath.app if needed)",
+        discussion: "Waits until KeyPath.app has finished. Exit codes: 0 done, 1 the runtime refused or failed, 6 KeyPath.app is not running or did not answer."
     )
 
     @OptionGroup var globals: GlobalOptions
 
     mutating func run() async throws {
-        let ctx = globals.outputContext
-        let facade = SystemFacade()
-
-        let success = await facade.startService()
-        if success {
-            CLIOutput.write(["started": true], context: ctx) {
-                "Kanata service started."
-            }
-        } else {
-            let error = CLIError.serviceControlFailed(
-                action: "start",
-                hint: "Run 'keypath service status --json' to inspect runtime health. If macOS blocks system service control, use KeyPath's repair UI."
-            )
-            CLIOutput.writeError(error, context: ctx)
-            throw error.code.exitCode
-        }
+        try RuntimeControlClient.run(.start, globals: globals, launch: true)
     }
 }

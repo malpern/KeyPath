@@ -11,12 +11,21 @@ struct RuleConflictInfo {
     enum Source {
         case collection(RuleCollection)
         case customRule(CustomRule)
+        /// A party the admission engine names but no stored rule owns (the leader
+        /// key, a chord group). It can be shown, not disabled from here.
+        case named(String)
 
         var name: String {
             switch self {
             case let .collection(collection): collection.name
             case let .customRule(rule): rule.displayTitle
+            case let .named(name): name
             }
+        }
+
+        var canBeDisabled: Bool {
+            if case .named = self { return false }
+            return true
         }
     }
 
@@ -26,6 +35,46 @@ struct RuleConflictInfo {
     var displayName: String {
         source.name
     }
+}
+
+/// Collection persistence and runtime application are separate stages until the
+/// multi-store transaction migration. A failed stage may have partially written
+/// files; this result does not promise rollback.
+enum RulePersistenceResult {
+    case persisted(reloadResult: ReloadResult?)
+    case failed(Error)
+
+    var didPersist: Bool {
+        if case .persisted = self { return true }
+        return false
+    }
+}
+
+/// A user-visible catalog update candidate. Catalog changes never apply merely
+/// because they were discovered at load time: the user either keeps their local
+/// version or explicitly applies this candidate after reviewing its impact.
+struct CatalogUpdatePreview: Identifiable, Equatable {
+    let existing: RuleCollection
+    let proposed: RuleCollection
+    let affectedKeys: [String]
+    let affectedLayers: [String]
+    let conflictDescription: String?
+    let isPackManaged: Bool
+
+    var id: UUID {
+        existing.id
+    }
+
+    var canApply: Bool {
+        !isPackManaged && conflictDescription == nil
+    }
+}
+
+/// The durable outcome of applying one or more approved catalog updates.
+struct CatalogUpdateApplicationResult {
+    let saveResult: SaveResult
+    let backupPath: String?
+    let appliedCollectionIDs: Set<UUID>
 }
 
 // MARK: - RuleCollectionsManager
@@ -44,6 +93,12 @@ final class RuleCollectionsManager {
 
     var ruleCollections: [RuleCollection] = []
     var customRules: [CustomRule] = []
+    /// Remains set when recovered files cannot yet be read completely.
+    var needsRecoveredRuleStateRefresh = false
+    var observedRuleRecoveryRevision: UInt64 = 0
+    /// Source state is refreshed once for each newly admitted root operation.
+    /// Trusted nested calls retain their candidate state instead of reloading it.
+    var lastRuleStateRefreshOperationID: UUID?
     var currentLayerName: String = RuleCollectionLayer.base.displayName
 
     /// Active keymap layout ID (e.g., "colemak-dh", "dvorak")
@@ -63,9 +118,24 @@ final class RuleCollectionsManager {
     let customRulesStore: CustomRulesStore
     let configurationService: ConfigurationService
     let eventListener: KanataEventListener
+    let keymapPreferences: UserDefaults
+    let preferencesService: PreferencesService
+    var pendingLeaderKeyPreference: LeaderKeyPreference?
 
-    /// Callback invoked when rules change (for config regeneration)
-    var onRulesChanged: (() async -> Void)?
+    struct LeaderPreferenceSnapshot: Sendable {
+        let value: LeaderKeyPreference
+        let data: Data?
+    }
+
+    func snapshotLeaderPreference() -> LeaderPreferenceSnapshot {
+        LeaderPreferenceSnapshot(
+            value: preferencesService.leaderKeyPreference,
+            data: preferencesService.persistenceDefaults.data(forKey: PreferencesService.leaderKeyPreferenceKey)
+        )
+    }
+
+    /// Apply already-persisted rules and retain the runtime disposition.
+    var onRulesChanged: (() async -> ReloadResult)?
 
     /// Callback invoked when layer changes (for UI updates)
     var onLayerChanged: ((String) -> Void)?
@@ -90,10 +160,18 @@ final class RuleCollectionsManager {
     /// Returns the id of the collection to disable, or nil if cancelled.
     var onMappingConflictResolution: ((MappingConflictContext) async -> UUID?)?
 
+    /// What the session runtime learned about Caps Lock at its last start
+    /// (phase 4d). Set by `RuntimeCoordinator` from the lifecycle coordinator;
+    /// `.unknown` until the first start. See `AdmissionEngine.Environment`.
+    var admissionEnvironment: AdmissionEngine.Environment = .unknown
+
     /// Callback for resolving newly introduced rule prerequisites.
     /// Returns the user's confirmed apply choice, or nil if cancelled.
     var onPrerequisiteResolution:
         ((RulePrerequisiteResolutionContext) async -> RulePrerequisiteResolutionChoice?)?
+
+    /// Interactive setup owns the sheet until its atomic save has succeeded.
+    var onPrerequisiteSetup: ((RulePrerequisiteResolutionContext, @escaping RuleSetupApply) async -> SaveResult)?
 
     /// Callback for confirming a disable that would orphan enabled dependents.
     /// Returns `.disableAnyway`, or nil to keep the provider enabled.
@@ -109,12 +187,16 @@ final class RuleCollectionsManager {
         ruleCollectionStore: RuleCollectionStore = .shared,
         customRulesStore: CustomRulesStore = .shared,
         configurationService: ConfigurationService,
-        eventListener: KanataEventListener = KanataEventListener()
+        eventListener: KanataEventListener = KanataEventListener(),
+        keymapPreferences: UserDefaults = .standard,
+        preferencesService: PreferencesService? = nil
     ) {
         self.ruleCollectionStore = ruleCollectionStore
         self.customRulesStore = customRulesStore
         self.configurationService = configurationService
         self.eventListener = eventListener
+        self.keymapPreferences = keymapPreferences
+        self.preferencesService = preferencesService ?? PreferencesService.shared
     }
 
     deinit {

@@ -1,8 +1,10 @@
+import Darwin
 import Foundation
 import KeyPathCore
 import KeyPathRulesCore
 
 public struct ConfigFacade: Sendable {
+    private var operation: CLIConfigurationOperation?
     private let configDirectory: String
     private let ruleCollectionLoader: @Sendable () async -> [RuleCollection]
     private let customRuleLoader: @Sendable () async -> [CustomRule]
@@ -10,8 +12,11 @@ public struct ConfigFacade: Sendable {
 
     public init(configDirectory: String = KeyPathConstants.Config.directory) {
         self.configDirectory = configDirectory
-        ruleCollectionLoader = { await RuleCollectionStore.shared.loadCollections() }
-        customRuleLoader = { await CustomRulesStore.shared.loadRules() }
+        let directory = URL(fileURLWithPath: configDirectory, isDirectory: true)
+        let collectionStore = RuleCollectionStore(fileURL: directory.appendingPathComponent("RuleCollections.json"))
+        let customStore = CustomRulesStore(fileURL: directory.appendingPathComponent("CustomRules.json"))
+        ruleCollectionLoader = { await collectionStore.loadCollections() }
+        customRuleLoader = { await customStore.loadRules() }
         reloadHandler = nil
     }
 
@@ -25,6 +30,11 @@ public struct ConfigFacade: Sendable {
         self.ruleCollectionLoader = ruleCollectionLoader
         self.customRuleLoader = customRuleLoader
         self.reloadHandler = reloadHandler
+    }
+
+    init(operation: CLIConfigurationOperation) {
+        self.init(configDirectory: operation.directory)
+        self.operation = operation
     }
 
     // MARK: - Configuration
@@ -55,6 +65,33 @@ public struct ConfigFacade: Sendable {
     // MARK: - Apply
 
     public func applyConfiguration(dryRun: Bool = false) async throws -> CLIApplyResult {
+        let service: ConfigurationService = if let operation { operation.service }
+        else { await MainActor.run { ConfigurationService(configDirectory: configDirectory) } }
+        return try await service.operationGate.withOperation(using: operation?.permit) { permit in
+            try await applyConfiguration(dryRun: dryRun, service: service, permit: permit)
+        }
+    }
+
+    private func applyConfiguration(
+        dryRun: Bool, service: ConfigurationService, permit: ConfigurationOperationGate.Permit
+    ) async throws -> CLIApplyResult {
+        if dryRun {
+            // Recovery can restore files and defaults and reload the running engine.
+            // Refuse an ambiguous preview instead of doing those writes under --dry-run.
+            try requireNoPendingRecoveryForPreview()
+        } else {
+            try await service.recoverPendingRuleWrite(
+                mutationPermit: permit,
+                preferenceDefaults: PreferencesService.canonicalDefaults
+            )
+            _ = try await service.applyRecoveredRuntimeIfNeeded(
+                mutationPermit: permit,
+                reloadHandler: { await reloadResult() }
+            )
+        }
+        await MainActor.run {
+            PreferencesService.shared.reloadLeaderKeyPreference()
+        }
         let collections = await ruleCollectionLoader()
         let customRules = await customRuleLoader()
         let enabledCount = collections.filter(\.isEnabled).count
@@ -66,7 +103,7 @@ public struct ConfigFacade: Sendable {
         // neither in sync with the collection, so `keypath collection`/JSON edits to
         // `selectedOutput` were silently ignored by `keypath apply`. Reconcile both, mirroring
         // the in-process reconcile the app does on load (RuleCollectionsManager). See #889.
-        let reconcile = await applyReconciledLeaderKeyPreference(from: collections)
+        let reconcile = await reconciledLeaderKeyPreference(from: collections)
         let reconciledCollections = reconcile.map { r in
             LeaderKeyPreference.reconcileLeaderActivators(
                 in: collections,
@@ -74,26 +111,14 @@ public struct ConfigFacade: Sendable {
                 targetLayer: r.reconciled.targetLayer
             )
         } ?? collections
-        let leaderSnapshot = reconcile?.previous
-
-        let service = await MainActor.run { ConfigurationService(configDirectory: configDirectory) }
 
         if dryRun {
-            // A dry run must not persist the reconciled preference. Generation reads the live
-            // shared preference, so we generate/validate against the reconciled value and then
-            // always restore the original — including when generation/validation throws
-            // (e.g. a mapping conflict) so a failed preview never leaves the store mutated.
-            do {
-                let previewConfig = try await service.generateConfiguration(
-                    ruleCollections: reconciledCollections,
-                    customRules: customRules
-                )
-                try await validateDryRunConfig(previewConfig.content)
-            } catch {
-                await restoreLeaderKeyPreference(leaderSnapshot)
-                throw error
-            }
-            await restoreLeaderKeyPreference(leaderSnapshot)
+            let previewConfig = try await service.generateConfiguration(
+                ruleCollections: reconciledCollections,
+                customRules: customRules,
+                leaderKeyPreference: reconcile?.reconciled
+            )
+            try await validateDryRunConfig(previewConfig.content)
 
             return CLIApplyResult(
                 collectionsCount: collections.count,
@@ -105,16 +130,31 @@ public struct ConfigFacade: Sendable {
             )
         }
 
-        try await service.saveConfiguration(
-            ruleCollections: reconciledCollections,
-            customRules: customRules
-        )
-
-        let reloadSuccess = if let reloadHandler {
-            await reloadHandler()
+        if let reconcile {
+            let preferenceChange = try RecoverableRuleWrite.PreferenceChange.leader(
+                before: reconcile.previousData,
+                after: JSONEncoder().encode(reconcile.reconciled)
+            )
+            try await service.saveConfiguration(
+                ruleCollections: reconciledCollections,
+                customRules: customRules,
+                leaderKeyPreference: reconcile.reconciled,
+                preferenceDefaults: PreferencesService.canonicalDefaults,
+                preferenceChanges: [preferenceChange],
+                mutationPermit: permit
+            )
+            await MainActor.run {
+                PreferencesService.shared.reloadLeaderKeyPreference()
+            }
         } else {
-            await tcpReload()
+            try await service.saveConfiguration(
+                ruleCollections: reconciledCollections,
+                customRules: customRules,
+                mutationPermit: permit
+            )
         }
+
+        let reloadSuccess = await reloadRuntime()
 
         return CLIApplyResult(
             collectionsCount: collections.count,
@@ -125,40 +165,58 @@ public struct ConfigFacade: Sendable {
         )
     }
 
-    private struct LeaderReconcile {
-        let reconciled: LeaderKeyPreference
-        let previous: LeaderKeyPreference
+    private func reloadResult() async -> ReloadResult {
+        let success = await reloadRuntime()
+        return ReloadResult(
+            success: success, response: nil,
+            errorMessage: success ? nil : "CLI reload failed",
+            protocol: nil, disposition: success ? .applied : .failed
+        )
     }
 
-    /// Sync `PreferencesService.leaderKeyPreference` from the enabled Leader Key collection's
-    /// explicit `selectedOutput` (see `LeaderKeyPreference.reconciled`), returning both the
-    /// reconciled value (so the caller can rewrite the matching leader activators without
-    /// re-reading shared state) and the pre-reconcile `previous` (so a dry run can restore it).
-    /// On a real apply the caller keeps the reconciled value in place so it drives the generated
-    /// config and future reads, matching what the app does on load. Returns `nil` when nothing
-    /// changed.
+    private func reloadRuntime() async -> Bool {
+        if let reloadHandler { return await reloadHandler() }
+        return await tcpReload()
+    }
+
+    private struct LeaderReconcile {
+        let reconciled: LeaderKeyPreference
+        let previousData: Data?
+    }
+
+    /// Prepare a leader preference candidate without changing shared defaults. A real apply
+    /// journals this exact preimage with the generated config; a dry run uses only the candidate.
     @MainActor
-    private func applyReconciledLeaderKeyPreference(from collections: [RuleCollection]) -> LeaderReconcile? {
-        let current = PreferencesService.shared.leaderKeyPreference
+    private func reconciledLeaderKeyPreference(from collections: [RuleCollection]) -> LeaderReconcile? {
+        let defaults = PreferencesService.canonicalDefaults
+        let previousData = defaults.data(forKey: PreferencesService.leaderKeyPreferenceKey)
+        let current: LeaderKeyPreference = if let previousData {
+            (try? JSONDecoder().decode(LeaderKeyPreference.self, from: previousData)) ?? .default
+        } else {
+            .default
+        }
         guard let reconciled = LeaderKeyPreference.reconciled(from: collections, current: current) else {
             return nil
         }
         AppLogger.shared.log(
             "🔑 [ConfigFacade] Reconciling leader key from collection selectedOutput: '\(reconciled.key)' (was '\(current.key)')"
         )
-        PreferencesService.shared.leaderKeyPreference = reconciled
-        return LeaderReconcile(reconciled: reconciled, previous: current)
-    }
-
-    @MainActor
-    private func restoreLeaderKeyPreference(_ snapshot: LeaderKeyPreference?) {
-        guard let snapshot else { return }
-        PreferencesService.shared.leaderKeyPreference = snapshot
+        return LeaderReconcile(
+            reconciled: reconciled,
+            previousData: previousData
+        )
     }
 
     // MARK: - Backup / Restore
 
-    public func backupConfig(outputPath: String? = nil) throws -> CLIConfigBackupResult {
+    public func backupConfig(outputPath: String? = nil) async throws -> CLIConfigBackupResult {
+        let gate = ConfigurationOperationGate(configurationDirectory: URL(fileURLWithPath: configDirectory, isDirectory: true))
+        return try await gate.withOperation { _ in
+            try copyConfigBackup(outputPath: outputPath)
+        }
+    }
+
+    private func copyConfigBackup(outputPath: String?) throws -> CLIConfigBackupResult {
         let fileManager = FileManager.default
         let sourceURL = URL(fileURLWithPath: configDirectory, isDirectory: true)
         let sourceCopyURL = try resolvedExistingDirectory(sourceURL, fileManager: fileManager)
@@ -189,6 +247,13 @@ public struct ConfigFacade: Sendable {
     }
 
     public func restoreConfig(from backupPath: String, reload: Bool) async throws -> CLIConfigRestoreResult {
+        let gate = ConfigurationOperationGate(configurationDirectory: URL(fileURLWithPath: configDirectory, isDirectory: true))
+        return try await gate.withOperation { _ in
+            try await restoreConfigContents(from: backupPath, reload: reload)
+        }
+    }
+
+    private func restoreConfigContents(from backupPath: String, reload: Bool) async throws -> CLIConfigRestoreResult {
         let fileManager = FileManager.default
         let sourceURL = URL(fileURLWithPath: (backupPath as NSString).expandingTildeInPath, isDirectory: true)
         var isDirectory: ObjCBool = false
@@ -421,6 +486,20 @@ public struct ConfigFacade: Sendable {
 
     private func copiedItemNames(in directory: URL) throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: directory.path).sorted()
+    }
+
+    private func requireNoPendingRecoveryForPreview() throws {
+        let directory = URL(fileURLWithPath: configDirectory, isDirectory: true)
+        let scopes: [RecoverableRuleWrite.Scope] = [.rules, .appKeymaps, .packRules, .rawConfig, .deviceRules]
+        for scope in scopes {
+            let journal = RecoverableRuleWrite.journalURL(directory, scope: scope)
+            var metadata = stat()
+            // lstat also catches dangling journal symlinks. An unreadable path must
+            // not be interpreted as proof that no recovery is pending.
+            if lstat(journal.path, &metadata) == 0 || errno != ENOENT {
+                throw Self.error("Configuration recovery is pending. Run a normal apply before previewing; dry run left existing files and settings unchanged.")
+            }
+        }
     }
 
     private static func error(_ message: String) -> NSError {

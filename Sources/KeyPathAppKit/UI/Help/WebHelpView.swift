@@ -21,7 +21,7 @@ enum HelpLoadError: Equatable {
     var message: String {
         switch self {
         case .offline:
-            "KeyPath help lives online. Check your internet connection and try again."
+            "The saved guide could not be opened. Try again, or open the online version when connected."
         case .notFound:
             "This guide may have moved or isn't published yet. Try opening it in your browser, or report it so we can fix the link."
         case .generic:
@@ -30,35 +30,53 @@ enum HelpLoadError: Equatable {
     }
 }
 
-/// Loads a help article from the KeyPath website, with an offline/404 fallback.
+/// Shows a bundled or previously downloaded guide, with quiet background content updates.
 struct WebHelpView: View {
     /// Issues URL for the "Report a broken link" fallback (degenerate file:// fallback avoids a force-unwrap).
     private static let reportIssueURL: URL = .init(string: "https://github.com/malpern/KeyPath/issues")
         ?? URL(fileURLWithPath: "/")
 
     let url: URL
+    var contentStore: OfflineHelpStore = .shared
     var onHelpLinkClicked: ((String) -> Void)?
 
+    @State private var article: LocalHelpArticle?
+    @State private var didResolve = false
     @State private var loadError: HelpLoadError?
     /// Bumped to ask the underlying web view to reload the current URL.
     @State private var reloadToken = 0
 
     var body: some View {
         ZStack {
-            WebHelpWebView(
-                url: url,
-                reloadToken: reloadToken,
-                onHelpLinkClicked: onHelpLinkClicked,
-                onLoadError: { loadError = $0 },
-                onLoadSucceeded: { loadError = nil }
-            )
+            if let article {
+                WebHelpWebView(
+                    url: article.url,
+                    readAccessRoot: article.root,
+                    reloadToken: reloadToken,
+                    onHelpLinkClicked: onHelpLinkClicked,
+                    onLoadError: { loadError = $0 },
+                    onLoadSucceeded: { loadError = nil }
+                )
+            } else if !didResolve {
+                ProgressView().accessibilityIdentifier("help-local-loading")
+            }
 
             if let loadError {
                 fallbackView(loadError)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Reset the error when navigating to a different article.
-        .onChange(of: url) { _, _ in loadError = nil }
+        .task(id: "\(url.absoluteString)-\(reloadToken)") {
+            loadError = nil
+            didResolve = false
+            let resolved = await contentStore.article(for: url)
+            guard !Task.isCancelled else { return }
+            article = resolved
+            didResolve = true
+            if article == nil { loadError = .notFound }
+            Task { await contentStore.refreshIfNeeded() }
+        }
     }
 
     private func fallbackView(_ error: HelpLoadError) -> some View {
@@ -114,6 +132,7 @@ struct WebHelpView: View {
 /// HTTP statuses so the parent can render a fallback instead of a blank page.
 private struct WebHelpWebView: NSViewRepresentable {
     let url: URL
+    let readAccessRoot: URL
     let reloadToken: Int
     var onHelpLinkClicked: ((String) -> Void)?
     var onLoadError: ((HelpLoadError) -> Void)?
@@ -130,11 +149,12 @@ private struct WebHelpWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.underPageBackgroundColor = .clear
         webView.setValue(false, forKey: "drawsBackground")
-        webView.load(URLRequest(url: url))
+        webView.loadFileURL(url, allowingReadAccessTo: readAccessRoot)
         context.coordinator.currentURL = url
         context.coordinator.lastReloadToken = reloadToken
         return webView
@@ -147,10 +167,10 @@ private struct WebHelpWebView: NSViewRepresentable {
 
         if context.coordinator.currentURL != url {
             context.coordinator.currentURL = url
-            webView.load(URLRequest(url: url))
+            webView.loadFileURL(url, allowingReadAccessTo: readAccessRoot)
         } else if context.coordinator.lastReloadToken != reloadToken {
             context.coordinator.lastReloadToken = reloadToken
-            webView.load(URLRequest(url: url))
+            webView.loadFileURL(url, allowingReadAccessTo: readAccessRoot)
         }
     }
 
@@ -184,14 +204,14 @@ private struct WebHelpWebView: NSViewRepresentable {
             }
 
             // Internal help cross-links: help:resource-name or /guides/resource-name/
-            if url.scheme == "help", let resource = url.host {
+            if url.scheme == "help", let resource = url.host ?? url.path.split(separator: "/").first.map(String.init) {
                 onHelpLinkClicked?(resource)
                 decisionHandler(.cancel)
                 return
             }
 
             if let host = url.host,
-               host.contains("malpern.github.io"),
+               host == "malpern.github.io",
                url.path.hasPrefix("/KeyPath/guides/")
             {
                 let resource = url.path
@@ -204,6 +224,10 @@ private struct WebHelpWebView: NSViewRepresentable {
                 }
             }
 
+            if url.isFileURL {
+                decisionHandler(url.path == currentURL?.path ? .allow : .cancel)
+                return
+            }
             NSWorkspace.shared.open(url)
             decisionHandler(.cancel)
         }

@@ -133,9 +133,15 @@ extension OverlayKeycapView {
         else if isLayerMode {
             KeyPathColors.keycapDark
         }
-        // Inline layer: mapped keys get a subtle accent tint, unmapped keys stay normal
+        // Inline layer: unmapped keys stay normal; mapped keys take their rule's color
+        // (Home Row Arrows is navigation green, like Vim). A faint accent wash read as
+        // disabled, so it is only the fallback for keys no rule owns.
         else if isInlineLayer, hasLayerMapping {
-            Color.accentColor.opacity(0.15)
+            if let collectionId = layerKeyInfo?.collectionId {
+                KeycapSymbols.collectionColor(for: collectionId)
+            } else {
+                Color.accentColor.opacity(0.15)
+            }
         } else if services.preferences.unmappedLayerKeyStyle == .baseLayer,
                   currentLayerName.lowercased() != "base",
                   isVisuallyUnmappedLayerKey
