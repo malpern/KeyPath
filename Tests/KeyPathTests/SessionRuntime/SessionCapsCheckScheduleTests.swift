@@ -29,7 +29,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(0.01), lastStart: start, lastEnd: start))
     }
 
-    func testAnUnrecognisedOrVirtualArrivalEarnsOneCheckButNoFastWindow() {
+    func testAnUnrecognisedOrVirtualArrivalEarnsOneCheckButNoFastChecks() {
         for keyboards in [[], [SessionCapsArrivedService(registryEntryID: 7, locationID: 0)]] {
             var schedule = SessionCapsCheckSchedule()
             schedule.keyboardArrived(at: start, keyboards: keyboards)
@@ -41,23 +41,37 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         }
     }
 
-    func testAKeyboardHidutilHasNotListedYetKeepsChecksFast() {
+    func testAKeyboardHidutilHasNotListedYetGetsFastChecks() {
         var schedule = SessionCapsCheckSchedule()
         schedule.keyboardArrived(at: start, keyboards: [usb])
         XCTAssertEqual(schedule.checkStarted(), [usb])
         // The first listing does not include the new service yet.
         let firstEnd = start.addingTimeInterval(0.1)
-        schedule.checkFinished(at: firstEnd, resolved: [], waiting: 0)
+        schedule.checkFinished(resolved: [])
         XCTAssertFalse(schedule.isDue(now: firstEnd.addingTimeInterval(0.2), lastStart: start, lastEnd: firstEnd))
         XCTAssertTrue(schedule.isDue(now: firstEnd.addingTimeInterval(0.25), lastStart: start, lastEnd: firstEnd))
 
-        // The next listing includes it and the keyboard is mapped: back to the backstop.
+        // The next listing includes it: back to the backstop.
         let second = firstEnd.addingTimeInterval(0.25)
         XCTAssertEqual(schedule.checkStarted(), [usb])
-        schedule.checkFinished(at: second.addingTimeInterval(0.1), resolved: [usb], waiting: 0)
+        schedule.checkFinished(resolved: [usb])
         XCTAssertFalse(schedule.isDue(now: second.addingTimeInterval(1), lastStart: second,
                                       lastEnd: second.addingTimeInterval(0.1)))
-        XCTAssertNil(schedule.arrivedAt)
+    }
+
+    func testFastChecksAreCappedByCountForAServiceHidutilNeverLists() {
+        var schedule = SessionCapsCheckSchedule()
+        schedule.keyboardArrived(at: start, keyboards: [usb])
+        var now = start
+        var checks = 0
+        while schedule.isDue(now: now, lastStart: now, lastEnd: now.addingTimeInterval(-1)), checks < 100 {
+            _ = schedule.checkStarted()
+            schedule.checkFinished(resolved: [])
+            checks += 1
+            now = now.addingTimeInterval(0.3)
+        }
+        XCTAssertEqual(checks, SessionCapsCheckSchedule.fastChecks)
+        XCTAssertTrue(schedule.unlisted.isEmpty)
     }
 
     func testAWakeThatReRegistersListedKeyboardsCostsOneCheck() {
@@ -68,7 +82,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         let resolved = SessionCapsCheckSchedule.resolved(
             arrived, listed: [row(9, location: 0x0200_0000), row(42, location: 0x0110_0000)], exists: { _ in true }
         )
-        schedule.checkFinished(at: start.addingTimeInterval(0.3), resolved: resolved, waiting: 0)
+        schedule.checkFinished(resolved: resolved)
 
         XCTAssertFalse(schedule.isDue(now: start.addingTimeInterval(1), lastStart: start,
                                       lastEnd: start.addingTimeInterval(0.3)))
@@ -79,35 +93,10 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         schedule.keyboardArrived(at: start, keyboards: [usb])
         _ = schedule.checkStarted()
         let lastEnd = start.addingTimeInterval(0.4)
-        schedule.checkFinished(at: lastEnd, resolved: [], waiting: 0)
+        schedule.checkFinished(resolved: [])
 
         XCTAssertFalse(schedule.isDue(now: start.addingTimeInterval(0.6), lastStart: start, lastEnd: lastEnd))
         XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(0.65), lastStart: start, lastEnd: lastEnd))
-    }
-
-    func testAWaitingKeyboardKeepsChecksFastUntilTheWaitLimit() {
-        var schedule = SessionCapsCheckSchedule()
-        schedule.keyboardArrived(at: start, keyboards: [usb])
-        _ = schedule.checkStarted()
-        // Keys held at plug-in: listed, but not admitted yet.
-        let late = start.addingTimeInterval(10)
-        schedule.checkFinished(at: late, resolved: [usb], waiting: 1)
-        XCTAssertTrue(schedule.isDue(now: late.addingTimeInterval(0.25), lastStart: late, lastEnd: late))
-
-        let expired = start.addingTimeInterval(SessionCapsCheckSchedule.waitLimit)
-        schedule.checkFinished(at: expired, resolved: [], waiting: 1)
-        XCTAssertFalse(schedule.isDue(now: expired.addingTimeInterval(0.5), lastStart: expired, lastEnd: expired))
-    }
-
-    func testAStaleArrivalDoesNotShortenANewOnesWindow() {
-        var schedule = SessionCapsCheckSchedule()
-        // No check succeeded after this arrival (hidutil unavailable).
-        schedule.keyboardArrived(at: start, keyboards: [SessionCapsArrivedService(registryEntryID: 5, locationID: 1)])
-        let later = start.addingTimeInterval(120)
-        schedule.keyboardArrived(at: later, keyboards: [usb])
-
-        XCTAssertEqual(schedule.arrivedAt, later)
-        XCTAssertEqual(schedule.unlisted, [usb])
     }
 
     func testAFailedCheckHandsOverToTheBackstop() {
@@ -120,6 +109,16 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
                                       lastEnd: start.addingTimeInterval(0.1)))
         XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(2), lastStart: start,
                                      lastEnd: start.addingTimeInterval(0.1)))
+    }
+
+    @MainActor
+    func testABackoffIsDroppedOnlyOnceItsKeyboardIsGone() {
+        // 1 is listed, 2 is missing from this listing but still registered, 3 is gone,
+        // 4's existence can't be read.
+        let departed = SessionRuntimeWorker.departedBackoffs(
+            [1, 2, 3, 4], listed: [1], exists: { id in id == 3 ? false : (id == 4 ? nil : true) }
+        )
+        XCTAssertEqual(departed, [3])
     }
 
     @MainActor
@@ -153,7 +152,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         // A second keyboard arrives while the first check is still in flight.
         let second = SessionCapsArrivedService(registryEntryID: 43, locationID: 0x0120_0000)
         schedule.keyboardArrived(at: start.addingTimeInterval(0.05), keyboards: [second])
-        schedule.checkFinished(at: start.addingTimeInterval(0.1), resolved: [usb], waiting: 0)
+        schedule.checkFinished(resolved: [usb])
 
         XCTAssertTrue(schedule.arrivalPending)
         XCTAssertEqual(schedule.unlisted, [second])
@@ -213,6 +212,9 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
     /// The live predicate on this Mac's own event services: at least one connected
     /// keyboard must read as one, or the monitor would never report arrivals.
     func testTheLeasePredicateRecognisesAConnectedKeyboardService() throws {
+        // Reads this Mac's hardware, so it is opt-in like the fleet's live test.
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["KEYPATH_LIVE_CAPS_FLEET"] == "1",
+                          "set KEYPATH_LIVE_CAPS_FLEET=1 to check attached keyboards")
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOHIDEventService"), &iterator)
             == KERN_SUCCESS else { throw XCTSkip("IOKit service listing unavailable") }

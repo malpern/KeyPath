@@ -200,14 +200,14 @@ registrations (first-match notifications; services present at startup are ignore
 and classifies each with the lease's own `serviceEmitsKeyboardUsages`, so a board's
 shared NKRO interface counts. Every arrival earns one immediate check: an
 unreadable capability counts too, since an extra inventory read is cheap and a missed
-arrival is not. A recognised, non-virtual keyboard also opens a fast window
-(`SessionCapsCheckSchedule`): checks run 0.25 s after the previous one finishes until
-hidutil lists the arrived service (under its own registry ID, or as another interface
-at the same LocationID) or the service is gone, because hidutil can list a new service
-a moment after IOKit reports it. Checks also stay fast while an eligible keyboard is
-waiting to be mapped (for example, keys held at plug-in). Either way the window closes
-30 s after the arrival, and a check that fails hands over to the backstop rather than
-retrying hidutil quickly. Classification runs off the event tap's run loop. A wake re-registers services hidutil already lists, so it costs
+arrival is not. If that check's listing doesn't show a recognised, non-virtual arrived
+service yet (under its own registry ID, or as another interface at the same
+LocationID), up to six fast checks follow, each 0.25 s after the previous one
+finishes, because hidutil can list a new service a moment after IOKit reports it.
+The cap is a count because each check spawns several hidutil processes. A keyboard
+plugged in with keys held, or one still not listed, is left to the backstop, and a
+check that fails hands over to the backstop at once. Classification runs off the
+event tap's run loop. A wake re-registers services hidutil already lists, so it costs
 one check. A press immediately after plugging in can still come before the keyboard is
 mapped; the `arrival mapped in N ms` log measures that window.
 The two-second backstop is measured between check starts, so a slow check doesn't

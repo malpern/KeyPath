@@ -69,8 +69,7 @@ KeyPath starts setting up a keyboard when you plug it in, rather than waiting
 for its next periodic check. It waits until no keys are held, and a Caps Lock
 press in the first moment can still arrive before macOS finishes presenting the
 device. If Caps Lock behaves normally then, release all keys and try again. If it
-still doesn't, **Settings → General** lists the keyboard as not covered, with the
-reason.
+still doesn't, **Settings → General** lists the keyboards that aren't covered.
 
 Protected password fields and Secure Input still
 prevent dynamic remapping.

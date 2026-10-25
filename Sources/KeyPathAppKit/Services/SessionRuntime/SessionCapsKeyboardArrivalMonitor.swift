@@ -9,50 +9,41 @@ struct SessionCapsArrivedService: Hashable, Sendable {
 }
 
 /// When the worker next reconciles its Caps fleet. An arrival pulls one check
-/// forward. Checks then stay fast while an arrived keyboard is not yet listed by
-/// hidutil, or an eligible keyboard is waiting to be mapped, so a wake that
-/// re-registers already-listed keyboards costs a single check.
+/// forward. If that check's listing doesn't show the arrived keyboard yet, a few
+/// more follow quickly, then the backstop takes over. A wake that re-registers
+/// already-listed keyboards costs a single check.
 struct SessionCapsCheckSchedule: Equatable {
     /// The steady backstop, measured between check starts.
     static let backstop: TimeInterval = 2
     /// The pause after each fast check finishes. hidutil can list a new event
     /// service a moment after IOKit reports it.
     static let afterArrival: TimeInterval = 0.25
-    /// The longest an arrival keeps checks fast, for example while keys held at
-    /// plug-in block admission.
-    static let waitLimit: TimeInterval = 30
+    /// Fast checks an arrival may use while its keyboard is unlisted. Each check
+    /// spawns several hidutil processes, so this is a count, not a duration.
+    static let fastChecks = 6
 
     private(set) var arrivalPending = false
     /// Arrived keyboards hidutil has not listed yet.
     private(set) var unlisted: Set<SessionCapsArrivedService> = []
-    private(set) var keyboardWaiting = false
-    private(set) var arrivedAt: Date?
+    private(set) var fastChecksLeft = 0
 
     /// Every arrival gets an immediate check. Only a service that reads as a
-    /// keyboard and is not virtual can keep checks fast until hidutil lists it.
+    /// keyboard and is not virtual can earn fast checks until hidutil lists it.
     /// Returns whether the arrival is tracked, which is what may be timed.
     @discardableResult
-    mutating func keyboardArrived(at now: Date, keyboards: [SessionCapsArrivedService]) -> Bool {
+    mutating func keyboardArrived(at _: Date, keyboards: [SessionCapsArrivedService]) -> Bool {
         arrivalPending = true
         let real = keyboards.filter { $0.locationID != 0 }
         guard !real.isEmpty else { return false }
-        if let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) {} else {
-            reset()
-            arrivedAt = now
-        }
         unlisted.formUnion(real)
+        fastChecksLeft = Self.fastChecks
         return true
     }
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
         if arrivalPending { return true }
-        if isFast(now: now) { return now.timeIntervalSince(lastEnd) >= Self.afterArrival }
+        if !unlisted.isEmpty, fastChecksLeft > 0 { return now.timeIntervalSince(lastEnd) >= Self.afterArrival }
         return now.timeIntervalSince(lastStart) >= Self.backstop
-    }
-
-    private func isFast(now: Date) -> Bool {
-        guard let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) else { return false }
-        return !unlisted.isEmpty || keyboardWaiting
     }
 
     /// A check is starting; it covers every arrival reported so far. Returns the
@@ -63,24 +54,17 @@ struct SessionCapsCheckSchedule: Equatable {
     }
 
     /// `resolved`: arrived keyboards the check found listed, or found gone.
-    /// `waiting`: eligible keyboards it left unmapped that may still be admitted
-    /// (not backing off after a failed write).
-    mutating func checkFinished(at now: Date, resolved: Set<SessionCapsArrivedService>, waiting: Int) {
+    mutating func checkFinished(resolved: Set<SessionCapsArrivedService>) {
         unlisted.subtract(resolved)
-        keyboardWaiting = waiting > 0
-        if !isFast(now: now) { reset() }
+        fastChecksLeft = max(0, fastChecksLeft - 1)
+        if fastChecksLeft == 0 { unlisted = [] }
     }
 
     /// A check that produced no answer neither confirms nor refutes an arrival.
     /// Fast retries would only spawn hidutil again, so the backstop takes over.
     mutating func checkFailed() {
-        reset()
-    }
-
-    private mutating func reset() {
         unlisted = []
-        keyboardWaiting = false
-        arrivedAt = nil
+        fastChecksLeft = 0
     }
 
     /// The arrived keyboards a listing accounts for: listed under their own ID or
