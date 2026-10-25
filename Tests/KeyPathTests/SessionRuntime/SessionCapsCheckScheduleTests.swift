@@ -110,6 +110,42 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         XCTAssertEqual(schedule.unlisted, [usb])
     }
 
+    func testAFailedCheckHandsOverToTheBackstop() {
+        var schedule = SessionCapsCheckSchedule()
+        schedule.keyboardArrived(at: start, keyboards: [usb])
+        _ = schedule.checkStarted()
+        schedule.checkFailed()
+
+        XCTAssertFalse(schedule.isDue(now: start.addingTimeInterval(1), lastStart: start,
+                                      lastEnd: start.addingTimeInterval(0.1)))
+        XCTAssertTrue(schedule.isDue(now: start.addingTimeInterval(2), lastStart: start,
+                                     lastEnd: start.addingTimeInterval(0.1)))
+    }
+
+    @MainActor
+    func testOnlyATrackedArrivalStartsTheMappingClock() {
+        var schedule = SessionCapsCheckSchedule()
+        let virtual = SessionCapsArrivedService(registryEntryID: 7, locationID: 0)
+        // A virtual keyboard (Karabiner, a VM's platform keyboard) is not timed.
+        let afterVirtual = SessionRuntimeWorker.arrivalStamp(
+            current: nil, now: start, tracked: schedule.keyboardArrived(at: start, keyboards: [virtual])
+        )
+        XCTAssertNil(afterVirtual)
+
+        let plugged = start.addingTimeInterval(5)
+        let afterUSB = SessionRuntimeWorker.arrivalStamp(
+            current: afterVirtual, now: plugged, tracked: schedule.keyboardArrived(at: plugged, keyboards: [usb])
+        )
+        XCTAssertEqual(afterUSB, plugged)
+
+        // A second keyboard during the same window keeps the first arrival's clock.
+        let next = plugged.addingTimeInterval(1)
+        XCTAssertEqual(SessionRuntimeWorker.arrivalStamp(current: afterUSB, now: next, tracked: true), plugged)
+        // A stale stamp, never followed by a successful check, is replaced.
+        let much = plugged.addingTimeInterval(SessionRuntimeWorker.arrivalAttributionLimit)
+        XCTAssertEqual(SessionRuntimeWorker.arrivalStamp(current: afterUSB, now: much, tracked: true), much)
+    }
+
     func testAnArrivalDuringACheckIsNotLostWhenThatCheckStarted() {
         var schedule = SessionCapsCheckSchedule()
         schedule.keyboardArrived(at: start, keyboards: [usb])

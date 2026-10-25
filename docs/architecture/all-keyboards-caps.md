@@ -1,8 +1,10 @@
 # Caps Lock rules on every keyboard
 
 **Status:** deployed on the mini and Air, 2026-10-24. The worker applies one
-crash-recoverable mapping per eligible keyboard. Since 2026-10-25 it reacts to a
-keyboard arriving (an IOKit notification) instead of waiting for its two-second check. Settings reports uncovered keyboards and offers per-keyboard exclusions.
+crash-recoverable mapping per eligible keyboard. Settings reports uncovered keyboards
+and offers per-keyboard exclusions. Reacting to a keyboard arriving (an IOKit
+notification) instead of waiting for the two-second check is in review and not yet
+deployed (see Hot-plug below).
 The original spike and remaining questions below remain the qualification record;
 the opt-in `SessionCapsMappingFleetTests/testLiveAttachedKeyboardsAcquireAndRestore`
 passed on three attached USB keyboard services, including the physical HID
@@ -204,7 +206,8 @@ hidutil lists the arrived service (under its own registry ID, or as another inte
 at the same LocationID) or the service is gone, because hidutil can list a new service
 a moment after IOKit reports it. Checks also stay fast while an eligible keyboard is
 waiting to be mapped (for example, keys held at plug-in). Either way the window closes
-30 s after the arrival. A wake re-registers services hidutil already lists, so it costs
+30 s after the arrival, and a check that fails hands over to the backstop rather than
+retrying hidutil quickly. Classification runs off the event tap's run loop. A wake re-registers services hidutil already lists, so it costs
 one check. A press immediately after plugging in can still come before the keyboard is
 mapped; the `arrival mapped in N ms` log measures that window.
 The two-second backstop is measured between check starts, so a slow check doesn't

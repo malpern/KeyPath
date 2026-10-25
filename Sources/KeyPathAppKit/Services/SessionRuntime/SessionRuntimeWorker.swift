@@ -629,6 +629,15 @@ public final class SessionRuntimeWorker {
     /// plugged in with keys held to be mapped once they are released.
     static let arrivalAttributionLimit = SessionCapsCheckSchedule.waitLimit
 
+    /// The arrival a later mapping is timed from. Only an arrival the schedule
+    /// tracks starts the clock (a virtual keyboard does not), and a stale one,
+    /// never followed by a successful check, does not time a new one.
+    static func arrivalStamp(current: Date?, now: Date, tracked: Bool) -> Date? {
+        guard tracked else { return current }
+        guard let current, now < current.addingTimeInterval(arrivalAttributionLimit) else { return now }
+        return current
+    }
+
     /// Attributes newly covered keyboards to the pending arrival. A keyboard that
     /// was backing off after a failed write is recovering, not arriving.
     static func arrivalOutcome(arrivedAt: Date?, now: Date, added: Set<UInt64>,
@@ -650,11 +659,8 @@ public final class SessionRuntimeWorker {
         let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
             guard let self, !self.finished else { return }
             let now = Date()
-            capsCheckSchedule.keyboardArrived(at: now, keyboards: keyboards)
-            // A stale arrival (no check succeeded since) must not time a new one.
-            if !keyboards.isEmpty, capsArrivalAt.map({ now >= $0.addingTimeInterval(Self.arrivalAttributionLimit) }) ?? true {
-                capsArrivalAt = now
-            }
+            let tracked = capsCheckSchedule.keyboardArrived(at: now, keyboards: keyboards)
+            capsArrivalAt = Self.arrivalStamp(current: capsArrivalAt, now: now, tracked: tracked)
         }
         if monitor.start() {
             capsArrivalMonitor = monitor
@@ -807,6 +813,7 @@ public final class SessionRuntimeWorker {
                         if let line = arrival.log { AppLogger.shared.log(line) }
                         if !arrival.keepPending { self.capsArrivalAt = nil }
                     case let .failure(error):
+                        self.capsCheckSchedule.checkFailed()
                         if case SessionCapsMappingLease.Refusal.busy = error { return }
                         if error is CapsInventoryFailure {
                             self.capsFleetReadFailures += 1

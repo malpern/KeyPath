@@ -2,7 +2,7 @@ import Foundation
 import IOKit
 
 /// A keyboard event service IOKit has just registered.
-struct SessionCapsArrivedService: Hashable {
+struct SessionCapsArrivedService: Hashable, Sendable {
     let registryEntryID: UInt64
     /// Nil when unreadable. A LocationID of 0 marks a virtual keyboard.
     let locationID: UInt32?
@@ -30,15 +30,18 @@ struct SessionCapsCheckSchedule: Equatable {
 
     /// Every arrival gets an immediate check. Only a service that reads as a
     /// keyboard and is not virtual can keep checks fast until hidutil lists it.
-    mutating func keyboardArrived(at now: Date, keyboards: [SessionCapsArrivedService]) {
+    /// Returns whether the arrival is tracked, which is what may be timed.
+    @discardableResult
+    mutating func keyboardArrived(at now: Date, keyboards: [SessionCapsArrivedService]) -> Bool {
         arrivalPending = true
         let real = keyboards.filter { $0.locationID != 0 }
-        guard !real.isEmpty else { return }
+        guard !real.isEmpty else { return false }
         if let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) {} else {
             reset()
             arrivedAt = now
         }
         unlisted.formUnion(real)
+        return true
     }
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
@@ -66,6 +69,12 @@ struct SessionCapsCheckSchedule: Equatable {
         unlisted.subtract(resolved)
         keyboardWaiting = waiting > 0
         if !isFast(now: now) { reset() }
+    }
+
+    /// A check that produced no answer neither confirms nor refutes an arrival.
+    /// Fast retries would only spawn hidutil again, so the backstop takes over.
+    mutating func checkFailed() {
+        reset()
     }
 
     private mutating func reset() {
@@ -96,14 +105,14 @@ struct SessionCapsCheckSchedule: Equatable {
 @MainActor
 final class SessionCapsKeyboardArrivalMonitor {
     private let onArrival: (_ keyboards: [SessionCapsArrivedService]) -> Void
-    private let emitsKeyboardUsages: (UInt64) -> Bool?
+    private let emitsKeyboardUsages: @Sendable (UInt64) -> Bool?
     private var port: IONotificationPortRef?
     private var iterator: io_iterator_t = 0
     private var source: CFRunLoopSource?
 
     /// `emitsKeyboardUsages` is the same predicate the lease uses to group a
     /// keyboard's interfaces; injectable for tests.
-    init(emitsKeyboardUsages: @escaping (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages,
+    init(emitsKeyboardUsages: @escaping @Sendable (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages,
          onArrival: @escaping (_ keyboards: [SessionCapsArrivedService]) -> Void)
     {
         self.emitsKeyboardUsages = emitsKeyboardUsages
@@ -162,14 +171,37 @@ final class SessionCapsKeyboardArrivalMonitor {
             services.append(.init(registryEntryID: readable ? id : 0,
                                   locationID: location.flatMap { UInt32(exactly: $0.uint64Value) }))
         }
-        if report { reportArrivals(services) }
+        guard report, !services.isEmpty else { return }
+        // Classifying can walk the registry and parse report descriptors, once per
+        // service in a batch. Keep that off the run loop the event tap shares.
+        let classify = emitsKeyboardUsages
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let answers = Self.classify(services, with: classify)
+            CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, self.port != nil else { return }
+                    self.deliver(services, answers)
+                }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
+    }
+
+    private nonisolated static func classify(_ services: [SessionCapsArrivedService],
+                                             with emitsKeyboardUsages: (UInt64) -> Bool?) -> [Bool?]
+    {
+        services.map { $0.registryEntryID == 0 ? nil : emitsKeyboardUsages($0.registryEntryID) }
+    }
+
+    /// Classifies on the caller's thread; for tests.
+    func reportArrivals(_ services: [SessionCapsArrivedService]) {
+        deliver(services, Self.classify(services, with: emitsKeyboardUsages))
     }
 
     /// Fails open: a service whose keyboard capability can't be read yet still
     /// earns one pulled-forward check, so the keyboard isn't left for the backstop.
     /// Only services that read as keyboards are passed on, to be looked for.
-    func reportArrivals(_ services: [SessionCapsArrivedService]) {
-        let answers = services.map { $0.registryEntryID == 0 ? nil : emitsKeyboardUsages($0.registryEntryID) }
+    private func deliver(_ services: [SessionCapsArrivedService], _ answers: [Bool?]) {
         guard answers.contains(where: { $0 != false }) else { return }
         onArrival(zip(services, answers).filter { $0.1 == true }.map(\.0))
     }
