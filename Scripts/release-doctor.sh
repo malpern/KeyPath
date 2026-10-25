@@ -128,6 +128,21 @@ cd "$PROJECT_DIR"
 print_section "Release Doctor"
 echo "Mode: $MODE"
 
+print_section "Xcode"
+selected_xcode_version="$(keypath_xcode_version "$DEVELOPER_DIR" || true)"
+selected_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
+echo "Selected Xcode: ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) at $DEVELOPER_DIR"
+# No version pin: refuse a beta Xcode for public artifacts, warn for candidates.
+if [[ "$DEVELOPER_DIR" == *[Bb]eta* || "$selected_xcode_version" == *[Bb]eta* ]]; then
+    if [[ "$MODE" == "ship" ]]; then
+        fail "Selected Xcode looks like a beta; select a released Xcode before shipping"
+    else
+        warn "Selected Xcode looks like a beta; builds will record it in BuildInfo.plist"
+    fi
+else
+    pass "Selected Xcode is not a beta by path or version"
+fi
+
 print_section "Required Tools"
 check_command swift
 check_command xcrun

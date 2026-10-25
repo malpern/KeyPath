@@ -12,6 +12,14 @@ keypath_xcode_version() {
     "$developer_dir/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Xcode //p' | head -n 1
 }
 
+keypath_xcode_build() {
+    local developer_dir="$1"
+    if [[ ! -x "$developer_dir/usr/bin/xcodebuild" ]]; then
+        return 1
+    fi
+    "$developer_dir/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Build version //p' | head -n 1
+}
+
 keypath_use_selected_xcode() {
     if [[ -n "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ]]; then
         export DEVELOPER_DIR="$KEYPATH_DEV_XCODE_DEVELOPER_DIR"

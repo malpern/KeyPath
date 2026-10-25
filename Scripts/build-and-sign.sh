@@ -338,8 +338,8 @@ BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 CFVER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS/Info.plist" 2>/dev/null || echo "1.0.0")
 CFBUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist" 2>/dev/null || echo "0")
 # There is no Xcode pin, so record which Xcode produced this build.
-XCODE_VERSION=$("$DEVELOPER_DIR/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Xcode //p' | head -n 1)
-XCODE_BUILD=$("$DEVELOPER_DIR/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Build version //p' | head -n 1)
+XCODE_VERSION=$(keypath_xcode_version "$DEVELOPER_DIR" || true)
+XCODE_BUILD=$(keypath_xcode_build "$DEVELOPER_DIR" || true)
 cat > "$RESOURCES/BuildInfo.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

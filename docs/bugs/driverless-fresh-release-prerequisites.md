@@ -13,8 +13,8 @@ submodule update, build, notarization, deployment, VM or physical-input action.
 At the time, the canonical selector in `Scripts/lib/xcode.sh` chose Xcode 27.0 at
 `/Applications/Xcode-27.app/Contents/Developer` (installed build `27A266a`).
 `xcrun -sdk macosx metal -v` still fails because Metal Toolchain is missing.
-The older 26.6 path in AGENTS.md was stale; at the time the advice was not to change global `xcode-select`
-to follow it. Apple's [component installation documentation](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components)
+(Historical: the 26.6 path then in AGENTS.md was stale, and this note advised against changing global `xcode-select`
+to follow it. Builds now use the selected Xcode; see AGENTS.md.) Apple's [component installation documentation](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components)
 documents downloading the Metal component. The repository already supplies
 the selected-Xcode installer and a compiler reprobe:
 

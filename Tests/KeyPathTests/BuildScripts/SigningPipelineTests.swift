@@ -473,14 +473,38 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stdout.contains("forced:none"))
     }
 
-    func testXcodeSelectionRefusesCommandLineTools() {
+    func testXcodeSelectionRefusesADirectoryWithoutXcodebuild() throws {
+        // Stands in for Command Line Tools: a developer directory with no xcodebuild.
+        let notXcode = FileManager.default.temporaryDirectory.appendingPathComponent("keypath-not-xcode-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: notXcode, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: notXcode) }
         let result = runScript(
             "source Scripts/lib/xcode.sh && keypath_use_selected_xcode",
-            env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": "/Library/Developer/CommandLineTools"]
+            env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": notXcode.path]
         )
 
         XCTAssertNotEqual(result.code, 0)
         XCTAssertTrue(result.stderr.contains("is not a full Xcode developer directory"), result.stderr)
+    }
+
+    func testXcodeSelectionDefaultsToXcodeSelectWithoutOverride() throws {
+        let selected = runScript("/usr/bin/xcode-select -p").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
+                          "needs a full Xcode selected on this machine")
+        // `xcode-select -p` reports an exported DEVELOPER_DIR, so it drives the default branch here.
+        let notXcode = FileManager.default.temporaryDirectory.appendingPathComponent("keypath-not-xcode-\(UUID().uuidString)")
+        let chosen = runScript(
+            #"unset KEYPATH_DEV_XCODE_DEVELOPER_DIR; source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR""#,
+            env: ["DEVELOPER_DIR": selected]
+        )
+        let refused = runScript(
+            "unset KEYPATH_DEV_XCODE_DEVELOPER_DIR; source Scripts/lib/xcode.sh && keypath_use_selected_xcode",
+            env: ["DEVELOPER_DIR": notXcode.path]
+        )
+
+        XCTAssertEqual(chosen.code, 0, chosen.stderr)
+        XCTAssertTrue(chosen.stdout.contains("dev=\(selected)"), chosen.stdout)
+        XCTAssertNotEqual(refused.code, 0)
     }
 
     func testXcodeSelectionHonorsOverrideAndExportsMatchingSDK() throws {
