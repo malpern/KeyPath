@@ -34,10 +34,12 @@ struct SessionCapsCheckSchedule: Equatable {
     private(set) var unlisted: Set<SessionCapsArrivedService> = []
     private(set) var fastChecksLeft = 0
     private(set) var earlyStarts: [Date] = []
-    /// The latest arrival. No check runs within `afterArrival` of it: a key held
-    /// on a new keyboard is known only once its first report has been processed,
-    /// and the all-keys-up gate must not read it before then.
-    private(set) var lastArrivalAt: Date?
+    /// The first arrival since the last check started. No check runs within
+    /// `afterArrival` of it: a key held on a new keyboard is known only once its
+    /// first report has been processed, and the all-keys-up gate must not read
+    /// it before then. Timing from the first arrival, not the latest, means a
+    /// device that keeps re-registering delays a check by one pause at most.
+    private(set) var settlingSince: Date?
     /// Bumped by each tracked arrival, so a check knows whether one landed while
     /// it ran (that arrival's fast checks start after it, not with it).
     private var arrivalGeneration = 0
@@ -52,7 +54,7 @@ struct SessionCapsCheckSchedule: Equatable {
     @discardableResult
     mutating func keyboardArrived(keyboards: [SessionCapsArrivedService], at now: Date) -> [SessionCapsArrivedService] {
         arrivalPending = true
-        lastArrivalAt = now
+        if settlingSince == nil { settlingSince = now }
         // Unlike the rest of this subsystem, an unreadable (nil) LocationID counts
         // as real here: failing open costs a few checks, failing closed a keyboard.
         let real = keyboards.filter { $0.locationID != 0 }
@@ -65,7 +67,7 @@ struct SessionCapsCheckSchedule: Equatable {
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
         // No check, backstop included, in the settling pause after an arrival.
-        if let lastArrivalAt, now.timeIntervalSince(lastArrivalAt) < Self.afterArrival { return false }
+        if let settlingSince, now.timeIntervalSince(settlingSince) < Self.afterArrival { return false }
         let wantsEarly = arrivalPending || (!unlisted.isEmpty && fastChecksLeft > 0)
         if wantsEarly, earlyStarts.count(where: { now.timeIntervalSince($0) < Self.budgetWindow }) < Self.earlyBudget,
            now.timeIntervalSince(lastEnd) >= Self.afterArrival
@@ -80,6 +82,7 @@ struct SessionCapsCheckSchedule: Equatable {
     /// previous check's start, which tells an early check from a backstop one.
     mutating func checkStarted(at now: Date, lastStart: Date) -> Set<SessionCapsArrivedService> {
         arrivalPending = false
+        settlingSince = nil
         earlyStarts.removeAll { now.timeIntervalSince($0) >= Self.budgetWindow }
         if now.timeIntervalSince(lastStart) < Self.backstop { earlyStarts.append(now) }
         generationAtStart = arrivalGeneration
@@ -105,6 +108,8 @@ struct SessionCapsCheckSchedule: Equatable {
     /// Fast retries would only spawn hidutil again, so the backstop takes over.
     mutating func checkFailed() {
         busyStreak = 0
+        // An arrival that landed while the check ran keeps its fast checks.
+        guard arrivalGeneration == generationAtStart else { return }
         unlisted = []
         fastChecksLeft = 0
     }

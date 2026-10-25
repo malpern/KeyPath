@@ -144,7 +144,7 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         var early = 0
         // A flapping device re-registers every 0.3 s, and every listing shows it.
         for _ in 0 ..< 30 {
-            schedule.keyboardArrived(keyboards: [usb], at: earlier)
+            schedule.keyboardArrived(keyboards: [usb], at: now.addingTimeInterval(-0.25))
             if schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)),
                now.timeIntervalSince(lastStart) < SessionCapsCheckSchedule.backstop || lastStart == .distantPast
             {
@@ -209,6 +209,50 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         // A keyboard registers while the backstop check is in flight.
         schedule.keyboardArrived(keyboards: [usb], at: earlier)
         schedule.checkFinished(resolved: [])
+        XCTAssertEqual(schedule.fastChecksLeft, SessionCapsCheckSchedule.fastChecks)
+    }
+
+    func testADeviceReRegisteringFasterThanThePauseStillGetsChecked() {
+        var schedule = SessionCapsCheckSchedule()
+        var lastStart = start.addingTimeInterval(-5)
+        var lastEnd = lastStart
+        var starts: [Date] = []
+        // Re-registers every 0.2 s for 20 s, on a 5 ms tick; each check takes 50 ms.
+        var nextArrival = start
+        var inFlightUntil: Date?
+        var now = start
+        while now < start.addingTimeInterval(20) {
+            if now >= nextArrival {
+                schedule.keyboardArrived(keyboards: [usb], at: now)
+                nextArrival = now.addingTimeInterval(0.2)
+            }
+            if let done = inFlightUntil, now >= done {
+                schedule.checkFinished(resolved: [usb])
+                lastEnd = now
+                inFlightUntil = nil
+            }
+            if inFlightUntil == nil, schedule.isDue(now: now, lastStart: lastStart, lastEnd: lastEnd) {
+                _ = schedule.checkStarted(at: now, lastStart: lastStart)
+                starts.append(now)
+                lastStart = now
+                inFlightUntil = now.addingTimeInterval(0.05)
+            }
+            now = now.addingTimeInterval(0.005)
+        }
+        let gaps = zip(starts.dropFirst(), starts).map { $0.timeIntervalSince($1) }
+        XCTAssertFalse(starts.isEmpty)
+        XCTAssertLessThanOrEqual(gaps.max() ?? 0, SessionCapsCheckSchedule.backstop + SessionCapsCheckSchedule.afterArrival + 0.01,
+                                 "the backstop is delayed by one pause at most")
+        // Early checks stay within the shared budget: at most 12 per 10 s plus one backstop per 2 s.
+        XCTAssertLessThanOrEqual(starts.count, 2 * SessionCapsCheckSchedule.earlyBudget + 10 + 1)
+    }
+
+    func testAnArrivalDuringAFailedCheckKeepsItsFastChecks() {
+        var schedule = SessionCapsCheckSchedule()
+        _ = schedule.checkStarted(at: start, lastStart: .distantPast)
+        schedule.keyboardArrived(keyboards: [usb], at: start.addingTimeInterval(0.01))
+        schedule.checkFailed()
+        XCTAssertEqual(schedule.unlisted, [usb])
         XCTAssertEqual(schedule.fastChecksLeft, SessionCapsCheckSchedule.fastChecks)
     }
 
