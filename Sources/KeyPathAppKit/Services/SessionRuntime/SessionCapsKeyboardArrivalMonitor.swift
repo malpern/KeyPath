@@ -7,8 +7,8 @@ import IOKit
 struct SessionCapsCheckSchedule: Equatable {
     /// The steady backstop while every keyboard's mapping stays verified.
     static let backstop: TimeInterval = 2
-    /// How often to re-read inventory right after an arrival. hidutil can list a
-    /// new event service a moment after IOKit reports it.
+    /// The pause after each check right after an arrival. hidutil can list a new
+    /// event service a moment after IOKit reports it.
     static let afterArrival: TimeInterval = 0.25
     /// How long arrival checks stay fast.
     static let arrivalWindow: TimeInterval = 3
@@ -21,7 +21,8 @@ struct SessionCapsCheckSchedule: Equatable {
         fastUntil = now.addingTimeInterval(Self.arrivalWindow)
     }
 
-    /// Whether a fleet check should start now, given the last one's start time.
+    /// Whether a fleet check should start now. `lastCheck` is when the previous
+    /// check finished, so fast checks still leave the HID queue idle between them.
     func isDue(now: Date, lastCheck: Date) -> Bool {
         if arrivalPending { return true }
         let interval = now < fastUntil ? Self.afterArrival : Self.backstop
@@ -40,19 +41,27 @@ struct SessionCapsCheckSchedule: Equatable {
 @MainActor
 final class SessionCapsKeyboardArrivalMonitor {
     private let onArrival: () -> Void
+    private let emitsKeyboardUsages: (UInt64) -> Bool?
     private var port: IONotificationPortRef?
     private var iterator: io_iterator_t = 0
     private var source: CFRunLoopSource?
 
-    init(onArrival: @escaping () -> Void) {
+    /// `emitsKeyboardUsages` is the same predicate the lease uses to group a
+    /// keyboard's interfaces; injectable for tests.
+    init(emitsKeyboardUsages: @escaping (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages,
+         onArrival: @escaping () -> Void)
+    {
+        self.emitsKeyboardUsages = emitsKeyboardUsages
         self.onArrival = onArrival
     }
 
     func start() -> Bool {
-        guard port == nil, let port = IONotificationPortCreate(kIOMainPortDefault),
-              let source = IONotificationPortGetRunLoopSource(port)?.takeUnretainedValue()
-        else { return false }
+        guard port == nil, let port = IONotificationPortCreate(kIOMainPortDefault) else { return false }
         self.port = port
+        guard let source = IONotificationPortGetRunLoopSource(port)?.takeUnretainedValue() else {
+            stop()
+            return false
+        }
         self.source = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         let status = IOServiceAddMatchingNotification(
@@ -86,22 +95,22 @@ final class SessionCapsKeyboardArrivalMonitor {
     }
 
     private func drain(_ iterator: io_iterator_t, report: Bool) {
-        var arrived = false
+        var registryIDs: [UInt64] = []
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
-            if report, Self.emitsKeyboardUsages(service) { arrived = true }
+            var id: UInt64 = 0
+            // An unreadable ID still counts: the arrival is reported, and the
+            // reconcile decides whether there is anything to map.
+            registryIDs.append(IORegistryEntryGetRegistryEntryID(service, &id) == KERN_SUCCESS ? id : 0)
         }
-        if arrived { onArrival() }
+        if report { reportArrivals(registryIDs) }
     }
 
-    /// Any interface that can carry keyboard reports, including a board's shared
-    /// N-key-rollover interface whose primary usage is not keyboard.
-    private static func emitsKeyboardUsages(_ service: io_service_t) -> Bool {
-        guard let pairs = IORegistryEntryCreateCFProperty(service, "DeviceUsagePairs" as CFString,
-                                                          kCFAllocatorDefault, 0)?
-            .takeRetainedValue() as? [[String: Any]] else { return false }
-        return pairs.contains {
-            ($0["DeviceUsagePage"] as? NSNumber)?.intValue == 1 && ($0["DeviceUsage"] as? NSNumber)?.intValue == 6
-        }
+    /// Fails open: a service whose keyboard capability can't be read yet is still
+    /// an arrival, because one extra inventory read is cheap and a missed one
+    /// leaves the keyboard unmapped until the backstop.
+    func reportArrivals(_ registryIDs: [UInt64]) {
+        let arrived = registryIDs.contains { id in id == 0 || emitsKeyboardUsages(id) != false }
+        if arrived { onArrival() }
     }
 }

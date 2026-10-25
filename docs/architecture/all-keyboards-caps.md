@@ -195,12 +195,17 @@ single-keyboard record remains readable for recovery.
 
 **Hot-plug.** `SessionCapsKeyboardArrivalMonitor` listens for `IOHIDEventService`
 registrations (first-match notifications; services present at startup are ignored)
-whose `DeviceUsagePairs` include keyboard, which also catches a board's shared NKRO
-interface. An arrival makes the next fleet check due at once, then checks run every
-0.25 s for three seconds, because hidutil can list a new service a moment after IOKit
+and classifies each with the lease's own `serviceEmitsKeyboardUsages`, so a board's
+shared NKRO interface counts. An unreadable capability still counts as an arrival:
+an extra inventory read is cheap, a missed arrival is not. An arrival makes the next
+fleet check due at once; for three seconds after it, checks then run 0.25 s after the
+previous one finishes, because hidutil can list a new service a moment after IOKit
 reports it (`SessionCapsCheckSchedule`). The two-second check remains as a backstop,
 and covers everything if the notification cannot be registered. The worker logs
-`[SessionCaps] Keyboard arrival mapped in N ms`. It admits a new keyboard under the same eligibility and all-keys-up checks as at
+`[SessionCaps] Keyboard covered` for every newly covered keyboard, and
+`[SessionCaps] Keyboard arrival mapped in N ms` when the newly covered keyboard
+follows an arrival within 30 s (a keyboard recovering from its failure backoff is not
+counted as the arrival). It admits a new keyboard under the same eligibility and all-keys-up checks as at
 startup, and retires records for a removed service. A failed device is left
 uncovered and retried with backoff; an unavailable inventory leaves existing
 coverage intact and reports that it cannot be verified.

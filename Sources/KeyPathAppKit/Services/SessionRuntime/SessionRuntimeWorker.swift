@@ -623,13 +623,33 @@ public final class SessionRuntimeWorker {
         finish(.failed, reason: "output-queue-overrun")
     }
 
+    /// How long an arrival waits to be attributed. Long enough for a keyboard
+    /// plugged in with keys held to be mapped once they are released.
+    static let arrivalAttributionLimit: TimeInterval = 30
+
+    /// Attributes newly covered keyboards to the pending arrival. A keyboard that
+    /// was backing off after a failed write is recovering, not arriving.
+    static func arrivalOutcome(arrivedAt: Date?, now: Date, added: Set<UInt64>,
+                               recovering: Set<UInt64>) -> (log: String?, keepPending: Bool)
+    {
+        guard let arrivedAt else { return (nil, false) }
+        let arrived = added.subtracting(recovering)
+        if !arrived.isEmpty {
+            let elapsed = Int((now.timeIntervalSince(arrivedAt) * 1000).rounded())
+            return ("[SessionCaps] Keyboard arrival mapped in \(elapsed) ms: \(arrived.sorted())", false)
+        }
+        // Not every arrival is a new eligible keyboard: an excluded or withheld
+        // one, or an interface that re-registered (for example after wake).
+        return (nil, now < arrivedAt.addingTimeInterval(arrivalAttributionLimit))
+    }
+
     /// Without the monitor the backstop check still finds arrivals, only later.
     private func startCapsArrivalMonitor() {
         let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] in
             guard let self, !self.finished else { return }
             let now = Date()
-            self.capsCheckSchedule.keyboardArrived(at: now)
-            if self.capsArrivalAt == nil { self.capsArrivalAt = now }
+            capsCheckSchedule.keyboardArrived(at: now)
+            if capsArrivalAt == nil { capsArrivalAt = now }
         }
         if monitor.start() {
             capsArrivalMonitor = monitor
@@ -719,6 +739,8 @@ public final class SessionRuntimeWorker {
                 MainActor.assumeIsolated {
                     guard let self, !self.finished, self.capsOwner == owner else { return }
                     self.capsCheckInFlight = false
+                    // Spacing runs from completion, so fast arrival checks leave the HID queue idle.
+                    self.lastCapsCheck = Date()
                     guard digest == nil || digest == admittedDigest else {
                         self.finish(.failed, reason: SessionCapsRuntimeSupport.profileChangedReason)
                     }
@@ -747,18 +769,14 @@ public final class SessionRuntimeWorker {
                         for (id, reason) in coverage.failures where !previous.contains(id) {
                             AppLogger.shared.warn("[SessionCaps] Keyboard \(id) left uncovered: \(reason)")
                         }
-                        if let arrivedAt = self.capsArrivalAt {
-                            let added = current.subtracting(previous)
-                            if !added.isEmpty {
-                                let elapsed = Int(Date().timeIntervalSince(arrivedAt) * 1000)
-                                AppLogger.shared.log("[SessionCaps] Keyboard arrival mapped in \(elapsed) ms: \(added.sorted())")
-                                self.capsArrivalAt = nil
-                            } else if Date() >= arrivedAt.addingTimeInterval(SessionCapsCheckSchedule.arrivalWindow) {
-                                // Not every arrival is a new eligible keyboard (an excluded or
-                                // withheld one, or a re-enumerated interface).
-                                self.capsArrivalAt = nil
-                            }
+                        let added = current.subtracting(previous)
+                        if !added.isEmpty {
+                            AppLogger.shared.log("[SessionCaps] Keyboard covered: \(added.sorted())")
                         }
+                        let arrival = Self.arrivalOutcome(arrivedAt: self.capsArrivalAt, now: Date(), added: added,
+                                                          recovering: Set(retryAfter.keys))
+                        if let line = arrival.log { AppLogger.shared.log(line) }
+                        if !arrival.keepPending { self.capsArrivalAt = nil }
                     case let .failure(error):
                         if case SessionCapsMappingLease.Refusal.busy = error { return }
                         if error is CapsInventoryFailure {
