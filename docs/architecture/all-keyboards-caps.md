@@ -196,14 +196,17 @@ single-keyboard record remains readable for recovery.
 **Hot-plug.** `SessionCapsKeyboardArrivalMonitor` listens for `IOHIDEventService`
 registrations (first-match notifications; services present at startup are ignored)
 and classifies each with the lease's own `serviceEmitsKeyboardUsages`, so a board's
-shared NKRO interface counts. An unreadable capability still earns one immediate
-check: an extra inventory read is cheap, a missed arrival is not. Only a recognised
-keyboard opens a fast window (`SessionCapsCheckSchedule`): checks then run 0.25 s
-after the previous one finishes, because hidutil can list a new service a moment
-after IOKit reports it. The window ends as soon as a check finds no eligible keyboard
-waiting to be mapped. While one is waiting (for example, keys held at plug-in), it
-continues for up to 30 s after the arrival. A wake re-registers every keyboard's
-service, so it costs one check, and nothing more if every keyboard is still covered.
+shared NKRO interface counts. Every arrival earns one immediate check: an
+unreadable capability counts too, since an extra inventory read is cheap and a missed
+arrival is not. A recognised, non-virtual keyboard also opens a fast window
+(`SessionCapsCheckSchedule`): checks run 0.25 s after the previous one finishes until
+hidutil lists the arrived service (under its own registry ID, or as another interface
+at the same LocationID) or the service is gone, because hidutil can list a new service
+a moment after IOKit reports it. Checks also stay fast while an eligible keyboard is
+waiting to be mapped (for example, keys held at plug-in). Either way the window closes
+30 s after the arrival. A wake re-registers services hidutil already lists, so it costs
+one check. A press immediately after plugging in can still come before the keyboard is
+mapped; the `arrival mapped in N ms` log measures that window.
 The two-second backstop is measured between check starts, so a slow check doesn't
 stretch it, and covers everything if the notification cannot be registered. The worker logs
 `[SessionCaps] Keyboard covered` for every newly covered keyboard, and

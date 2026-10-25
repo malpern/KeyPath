@@ -1,59 +1,92 @@
 import Foundation
 import IOKit
 
+/// A keyboard event service IOKit has just registered.
+struct SessionCapsArrivedService: Hashable {
+    let registryEntryID: UInt64
+    /// Nil when unreadable. A LocationID of 0 marks a virtual keyboard.
+    let locationID: UInt32?
+}
+
 /// When the worker next reconciles its Caps fleet. An arrival pulls one check
-/// forward. Checks then stay fast only while a keyboard is waiting to be mapped,
-/// so a wake that re-registers already-covered keyboards costs a single check.
+/// forward. Checks then stay fast while an arrived keyboard is not yet listed by
+/// hidutil, or an eligible keyboard is waiting to be mapped, so a wake that
+/// re-registers already-listed keyboards costs a single check.
 struct SessionCapsCheckSchedule: Equatable {
     /// The steady backstop, measured between check starts.
     static let backstop: TimeInterval = 2
     /// The pause after each fast check finishes. hidutil can list a new event
     /// service a moment after IOKit reports it.
     static let afterArrival: TimeInterval = 0.25
-    /// Fast checks after a recognised keyboard arrives, before any check reports.
-    static let arrivalWindow: TimeInterval = 3
-    /// The longest a waiting keyboard keeps checks fast, for example while keys
-    /// held at plug-in block admission.
+    /// The longest an arrival keeps checks fast, for example while keys held at
+    /// plug-in block admission.
     static let waitLimit: TimeInterval = 30
 
     private(set) var arrivalPending = false
-    private(set) var fastUntil: Date = .distantPast
+    /// Arrived keyboards hidutil has not listed yet.
+    private(set) var unlisted: Set<SessionCapsArrivedService> = []
+    private(set) var keyboardWaiting = false
     private(set) var arrivedAt: Date?
 
-    /// `recognised`: the service reads as a keyboard. An unreadable one still gets
-    /// its immediate check, but cannot open a fast window by itself.
-    mutating func keyboardArrived(at now: Date, recognised: Bool) {
+    /// Every arrival gets an immediate check. Only a service that reads as a
+    /// keyboard and is not virtual can keep checks fast until hidutil lists it.
+    mutating func keyboardArrived(at now: Date, keyboards: [SessionCapsArrivedService]) {
         arrivalPending = true
-        guard recognised else { return }
-        if arrivedAt == nil { arrivedAt = now }
-        fastUntil = max(fastUntil, now.addingTimeInterval(Self.arrivalWindow))
+        let real = keyboards.filter { $0.locationID != 0 }
+        guard !real.isEmpty else { return }
+        if let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) {} else {
+            reset()
+            arrivedAt = now
+        }
+        unlisted.formUnion(real)
     }
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
         if arrivalPending { return true }
-        if now < fastUntil { return now.timeIntervalSince(lastEnd) >= Self.afterArrival }
+        if isFast(now: now) { return now.timeIntervalSince(lastEnd) >= Self.afterArrival }
         return now.timeIntervalSince(lastStart) >= Self.backstop
     }
 
-    /// A check is starting; it covers every arrival reported so far.
-    mutating func checkStarted() {
-        arrivalPending = false
+    private func isFast(now: Date) -> Bool {
+        guard let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) else { return false }
+        return !unlisted.isEmpty || keyboardWaiting
     }
 
-    /// `waiting`: eligible keyboards the check left unmapped that may still be
-    /// admitted (not backing off after a failed write).
-    mutating func checkFinished(at now: Date, waiting: Int) {
-        guard waiting > 0 else {
-            fastUntil = .distantPast
-            arrivedAt = nil
-            return
+    /// A check is starting; it covers every arrival reported so far. Returns the
+    /// arrived keyboards it should look for in its listing.
+    mutating func checkStarted() -> Set<SessionCapsArrivedService> {
+        arrivalPending = false
+        return unlisted
+    }
+
+    /// `resolved`: arrived keyboards the check found listed, or found gone.
+    /// `waiting`: eligible keyboards it left unmapped that may still be admitted
+    /// (not backing off after a failed write).
+    mutating func checkFinished(at now: Date, resolved: Set<SessionCapsArrivedService>, waiting: Int) {
+        unlisted.subtract(resolved)
+        keyboardWaiting = waiting > 0
+        if !isFast(now: now) { reset() }
+    }
+
+    private mutating func reset() {
+        unlisted = []
+        keyboardWaiting = false
+        arrivedAt = nil
+    }
+
+    /// The arrived keyboards a listing accounts for: listed under their own ID or
+    /// as another interface at their LocationID, or no longer registered.
+    static func resolved(_ arrived: Set<SessionCapsArrivedService>,
+                         listed: [SessionCapsHIDUtilTransport.ServiceRow],
+                         exists: (UInt64) -> Bool?) -> Set<SessionCapsArrivedService>
+    {
+        let ids = Set(listed.map(\.registryEntryID))
+        let locations = Set(listed.compactMap(\.locationID).filter { $0 != 0 })
+        return arrived.filter { service in
+            if ids.contains(service.registryEntryID) { return true }
+            if let location = service.locationID, locations.contains(location) { return true }
+            return exists(service.registryEntryID) == false
         }
-        guard let arrivedAt, now < arrivedAt.addingTimeInterval(Self.waitLimit) else {
-            fastUntil = .distantPast
-            arrivedAt = nil
-            return
-        }
-        fastUntil = max(fastUntil, now.addingTimeInterval(Self.afterArrival + Self.backstop))
     }
 }
 
@@ -62,7 +95,7 @@ struct SessionCapsCheckSchedule: Equatable {
 /// decided by the fleet reconcile, exactly as for the backstop check.
 @MainActor
 final class SessionCapsKeyboardArrivalMonitor {
-    private let onArrival: (_ recognised: Bool) -> Void
+    private let onArrival: (_ keyboards: [SessionCapsArrivedService]) -> Void
     private let emitsKeyboardUsages: (UInt64) -> Bool?
     private var port: IONotificationPortRef?
     private var iterator: io_iterator_t = 0
@@ -71,7 +104,7 @@ final class SessionCapsKeyboardArrivalMonitor {
     /// `emitsKeyboardUsages` is the same predicate the lease uses to group a
     /// keyboard's interfaces; injectable for tests.
     init(emitsKeyboardUsages: @escaping (UInt64) -> Bool? = SessionCapsHIDUtilTransport.serviceEmitsKeyboardUsages,
-         onArrival: @escaping (_ recognised: Bool) -> Void)
+         onArrival: @escaping (_ keyboards: [SessionCapsArrivedService]) -> Void)
     {
         self.emitsKeyboardUsages = emitsKeyboardUsages
         self.onArrival = onArrival
@@ -117,22 +150,31 @@ final class SessionCapsKeyboardArrivalMonitor {
     }
 
     private func drain(_ iterator: io_iterator_t, report: Bool) {
-        var registryIDs: [UInt64] = []
+        var services: [SessionCapsArrivedService] = []
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
             var id: UInt64 = 0
             // An unreadable ID still counts: the arrival is reported, and the
             // reconcile decides whether there is anything to map.
-            registryIDs.append(IORegistryEntryGetRegistryEntryID(service, &id) == KERN_SUCCESS ? id : 0)
+            let readable = IORegistryEntryGetRegistryEntryID(service, &id) == KERN_SUCCESS
+            let location = IORegistryEntryCreateCFProperty(service, "LocationID" as CFString, kCFAllocatorDefault, 0)?
+                .takeRetainedValue() as? NSNumber
+            services.append(.init(registryEntryID: readable ? id : 0,
+                                  locationID: location.flatMap { UInt32(exactly: $0.uint64Value) }))
         }
-        if report { reportArrivals(registryIDs) }
+        if report { reportArrivals(services) }
     }
 
     /// Fails open: a service whose keyboard capability can't be read yet still
     /// earns one pulled-forward check, so the keyboard isn't left for the backstop.
-    func reportArrivals(_ registryIDs: [UInt64]) {
-        let answers = registryIDs.map { $0 == 0 ? nil : emitsKeyboardUsages($0) }
+    /// Only services that read as keyboards are passed on, to be looked for.
+    func reportArrivals(_ services: [SessionCapsArrivedService]) {
+        let answers = services.map { $0.registryEntryID == 0 ? nil : emitsKeyboardUsages($0.registryEntryID) }
         guard answers.contains(where: { $0 != false }) else { return }
-        onArrival(answers.contains(true))
+        onArrival(zip(services, answers).filter { $0.1 == true }.map(\.0))
+    }
+
+    isolated deinit {
+        stop()
     }
 }

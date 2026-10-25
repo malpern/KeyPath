@@ -647,11 +647,14 @@ public final class SessionRuntimeWorker {
 
     /// Without the monitor the backstop check still finds arrivals, only later.
     private func startCapsArrivalMonitor() {
-        let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] recognised in
+        let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
             guard let self, !self.finished else { return }
             let now = Date()
-            capsCheckSchedule.keyboardArrived(at: now, recognised: recognised)
-            if capsArrivalAt == nil { capsArrivalAt = now }
+            capsCheckSchedule.keyboardArrived(at: now, keyboards: keyboards)
+            // A stale arrival (no check succeeded since) must not time a new one.
+            if !keyboards.isEmpty, capsArrivalAt.map({ now >= $0.addingTimeInterval(Self.arrivalAttributionLimit) }) ?? true {
+                capsArrivalAt = now
+            }
         }
         if monitor.start() {
             capsArrivalMonitor = monitor
@@ -700,7 +703,7 @@ public final class SessionRuntimeWorker {
 
     private func checkCapsFleetIfNeeded() {
         // Before the guard: a pending arrival must not keep the check due every tick.
-        capsCheckSchedule.checkStarted()
+        let arrived = capsCheckSchedule.checkStarted()
         guard let owner = capsOwner, let directory = capsDirectory,
               let configPath = capsConfigPath, let admittedDigest = capsAdmittedDigest else { return }
         capsCheckInFlight = true
@@ -711,15 +714,21 @@ public final class SessionRuntimeWorker {
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let digest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
             let result: Result<(records: [SessionCapsMappingPolicy.Record], failures: [UInt64: String],
-                                eligible: Int, withheld: Int, present: Set<UInt64>, waiting: Int), Error>
+                                eligible: Int, withheld: Int, departed: Set<UInt64>, waiting: Int,
+                                resolved: Set<SessionCapsArrivedService>), Error>
             do {
                 guard digest == nil || digest == admittedDigest else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity
                 }
                 let excluded = SessionCapsRuntimeSupport.excludedKeyboardIDs()
                 let inventory: (keyboards: [SessionCapsHIDUtilTransport.Keyboard], withheld: Int)
-                do { inventory = try SessionCapsHIDUtilTransport.keyboards() }
-                catch { throw CapsInventoryFailure.unavailable }
+                var listing = ""
+                do {
+                    inventory = try SessionCapsHIDUtilTransport.keyboards(run: {
+                        listing = try SessionCapsHIDUtilTransport.runHIDUtil($0)
+                        return listing
+                    })
+                } catch { throw CapsInventoryFailure.unavailable }
                 let devices = inventory.keyboards.map(\.device)
                     .filter { !excluded.contains(SessionCapsRuntimeSupport.preferenceID($0)) }
                 let now = Date()
@@ -737,8 +746,16 @@ public final class SessionRuntimeWorker {
                 // Eligible keyboards still unmapped that a later check may admit.
                 let mapped = Set(coverage.records.map(\.device.registryEntryID))
                 let waiting = retryable.count { !mapped.contains($0.registryEntryID) && coverage.failures[$0.registryEntryID] == nil }
+                let exists = { (id: UInt64) in try? SessionCapsHIDUtilTransport.registryEntryExists(id) }
+                let resolved = SessionCapsCheckSchedule.resolved(
+                    arrived, listed: (try? SessionCapsHIDUtilTransport.parseServiceRows(listing)) ?? [], exists: exists
+                )
+                // A backoff is dropped only once its keyboard is gone, not when one
+                // listing happens to miss it.
+                let listed = Set(inventory.keyboards.map(\.device.registryEntryID))
+                let departed = Set(retryAfter.keys.filter { !listed.contains($0) && exists($0) == false })
                 result = .success((coverage.records, coverage.failures, devices.count, inventory.withheld,
-                                   Set(devices.map(\.registryEntryID)), waiting))
+                                   departed, waiting, resolved))
             } catch {
                 result = .failure(error)
             }
@@ -767,8 +784,11 @@ public final class SessionRuntimeWorker {
                             self.capsFleetRetryAfter[id] = Date().addingTimeInterval(30)
                         }
                         // A departed keyboard's backoff would otherwise linger forever.
-                        self.capsFleetRetryAfter = self.capsFleetRetryAfter.filter { coverage.present.contains($0.key) }
-                        self.capsCheckSchedule.checkFinished(at: Date(), waiting: coverage.waiting)
+                        for id in coverage.departed where coverage.failures[id] == nil {
+                            self.capsFleetRetryAfter.removeValue(forKey: id)
+                        }
+                        self.capsCheckSchedule.checkFinished(at: Date(), resolved: coverage.resolved,
+                                                             waiting: coverage.waiting)
                         let nextCoverage = SessionRuntimeReport.CapsCoverage(
                             eligible: coverage.eligible, covered: coverage.records.count, withheld: coverage.withheld
                         )
