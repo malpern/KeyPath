@@ -18,7 +18,7 @@ PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/build-cache.sh"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"

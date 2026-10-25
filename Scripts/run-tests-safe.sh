@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/build-cache.sh"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 source "$SCRIPT_DIR/lib/test-bridge.sh"
 keypath_prepare_test_bridge "$PROJECT_DIR"
 TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-240}

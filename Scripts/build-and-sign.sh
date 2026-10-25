@@ -15,7 +15,7 @@ source "$SCRIPT_DIR/lib/deploy-app.sh"
 source "$SCRIPT_DIR/lib/submodules.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$SCRIPT_DIR/.."
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 command -v pandoc >/dev/null || { echo "Offline help requires pandoc (brew install pandoc)." >&2; exit 2; }
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT

@@ -26,7 +26,7 @@ source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/deploy-app.sh"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 keypath_acquire_deploy_lock "notarize-resume ($PROJECT_DIR)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
 

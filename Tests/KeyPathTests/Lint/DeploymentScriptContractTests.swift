@@ -15,7 +15,7 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertFalse(buildAndSign.contains("Sources/KeyPath/Resources directory not found"))
     }
 
-    func testCanonicalBuildScriptsUseStableXcodeContract() throws {
+    func testCanonicalBuildScriptsUseSelectedXcodeContract() throws {
         let root = repositoryRoot()
         let xcodeContract = try contents(of: root.appendingPathComponent("Scripts/lib/xcode.sh"))
         let consumers = [
@@ -25,23 +25,24 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Scripts/release-doctor.sh",
         ]
 
-        XCTAssertTrue(xcodeContract.contains("Xcode-27.app/Contents/Developer"))
-        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-27.0}""#))
-        XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
+        // No version pin: the selected Xcode is used, unless the override names another.
+        XCTAssertFalse(xcodeContract.contains("KEYPATH_STABLE_XCODE_VERSION"))
+        XCTAssertTrue(xcodeContract.contains("/usr/bin/xcode-select -p"))
+        XCTAssertTrue(xcodeContract.contains(#"[[ ! -x "$DEVELOPER_DIR/usr/bin/xcodebuild" ]]"#))
         XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
-        XCTAssertTrue(xcodeContract.contains("keypath_use_stable_xcode"))
+        XCTAssertTrue(xcodeContract.contains("keypath_use_selected_xcode"))
         XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
 
         for relativePath in consumers {
             let script = try contents(of: root.appendingPathComponent(relativePath))
             XCTAssertTrue(
                 script.contains(#"source "$SCRIPT_DIR/lib/xcode.sh""#),
-                "\(relativePath) must source the stable Xcode contract."
+                "\(relativePath) must source the Xcode selection contract."
             )
             XCTAssertTrue(
-                script.contains("keypath_use_stable_xcode"),
-                "\(relativePath) must select stable Xcode before invoking developer tools."
+                script.contains("keypath_use_selected_xcode"),
+                "\(relativePath) must select Xcode before invoking developer tools."
             )
         }
     }

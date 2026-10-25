@@ -1,10 +1,8 @@
 #!/bin/bash
 
 # Canonical local Xcode selection for KeyPath build, test, deploy, and release scripts.
-# Set KEYPATH_DEV_XCODE_DEVELOPER_DIR only when intentionally validating another toolchain.
-
-KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-27.0}"
-KEYPATH_STABLE_XCODE_DEVELOPER_DIR="${KEYPATH_STABLE_XCODE_DEVELOPER_DIR:-/Applications/Xcode-27.app/Contents/Developer}"
+# Uses the Xcode that `xcode-select` points at. Set KEYPATH_DEV_XCODE_DEVELOPER_DIR to
+# build with a different Xcode without changing the machine-wide selection.
 
 keypath_xcode_version() {
     local developer_dir="$1"
@@ -14,37 +12,26 @@ keypath_xcode_version() {
     "$developer_dir/usr/bin/xcodebuild" -version 2>/dev/null | sed -n 's/^Xcode //p' | head -n 1
 }
 
-keypath_use_stable_xcode() {
+keypath_use_selected_xcode() {
     if [[ -n "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ]]; then
         export DEVELOPER_DIR="$KEYPATH_DEV_XCODE_DEVELOPER_DIR"
     else
-        local candidate
-        local candidate_version
-        local stable_developer_dir=""
-        for candidate in \
-            "$KEYPATH_STABLE_XCODE_DEVELOPER_DIR" \
-            /Applications/Xcode.app/Contents/Developer \
-            /Applications/Xcode-*.app/Contents/Developer
-        do
-            candidate_version="$(keypath_xcode_version "$candidate" || true)"
-            if [[ "$candidate_version" == "$KEYPATH_STABLE_XCODE_VERSION" ]]; then
-                stable_developer_dir="$candidate"
-                break
-            fi
-        done
-
-        if [[ -z "$stable_developer_dir" ]]; then
-            echo "❌ Xcode $KEYPATH_STABLE_XCODE_VERSION is not installed under /Applications." >&2
-            echo "   Install it or set KEYPATH_DEV_XCODE_DEVELOPER_DIR for an intentional override." >&2
+        local selected
+        selected="$(/usr/bin/xcode-select -p 2>/dev/null || true)"
+        if [[ -z "$selected" ]]; then
+            echo "❌ No Xcode is selected. Run: sudo xcode-select -s /Applications/Xcode.app" >&2
             return 1
         fi
-        export DEVELOPER_DIR="$stable_developer_dir"
+        export DEVELOPER_DIR="$selected"
     fi
 
+    # Command Line Tools have no xcodebuild and no Metal compiler; KeyPath needs a full Xcode.
     if [[ ! -x "$DEVELOPER_DIR/usr/bin/xcodebuild" ]]; then
-        echo "❌ Invalid Xcode developer directory: $DEVELOPER_DIR" >&2
+        echo "❌ $DEVELOPER_DIR is not a full Xcode developer directory." >&2
+        echo "   Select an Xcode with xcode-select, or set KEYPATH_DEV_XCODE_DEVELOPER_DIR." >&2
         return 1
     fi
+    echo "🛠  Using Xcode $(keypath_xcode_version "$DEVELOPER_DIR" || echo unknown) at $DEVELOPER_DIR" >&2
 
     # Rust invokes the system compiler through `cc`; without an explicit SDK it
     # can resolve Command Line Tools even when DEVELOPER_DIR points at Xcode.

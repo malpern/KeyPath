@@ -10,7 +10,7 @@ submodule update, build, notarization, deployment, VM or physical-input action.
 
 ## 1. Enable fresh Metal compilation
 
-The canonical selector in `Scripts/lib/xcode.sh` chooses Xcode 27.0 at
+At the time, the canonical selector in `Scripts/lib/xcode.sh` chose Xcode 27.0 at
 `/Applications/Xcode-27.app/Contents/Developer` (installed build `27A266a`).
 `xcrun -sdk macosx metal -v` still fails because Metal Toolchain is missing.
 The older 26.6 path in AGENTS.md is stale; do not change global `xcode-select`
@@ -32,7 +32,7 @@ component metadata or the previously copied metallib:
 ```bash
 bash -euc '
 source Scripts/lib/xcode.sh
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 probe_dir=$(mktemp -d /private/tmp/keypath-metal-probe.XXXXXX)
 xcrun -sdk macosx metal \
   Sources/KeyPathAppKit/UI/KeyboardStage/Metal/KeyboardStage.metal \

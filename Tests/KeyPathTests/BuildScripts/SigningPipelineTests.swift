@@ -476,7 +476,7 @@ final class SigningPipelineTests: XCTestCase {
     func testPinnedNotarytoolSupportsExplicitNoWait() {
         let script = """
         source Scripts/lib/xcode.sh
-        keypath_use_stable_xcode
+        keypath_use_selected_xcode
         xcrun notarytool submit --help
         """
         let result = runScript(script)

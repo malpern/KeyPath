@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$PROJECT_DIR"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 
 MODE="release-candidate"
 STRICT=0

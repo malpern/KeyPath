@@ -53,16 +53,13 @@ Notes:
   restarts KeyPath only if it was running. Its default scope is app-only; set
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
   deploy that refreshes companion binaries.
-- Canonical build, test, deploy, and release scripts select the stable Xcode at
-  `/Applications/Xcode-26.6.0.app/Contents/Developer`, even when the machine-wide
-  `xcode-select` points at a beta. Override with `KEYPATH_DEV_XCODE_DEVELOPER_DIR`
-  only when intentionally testing another toolchain.
-- To advance the stable Xcode pin: (1) install and verify the intended stable
-  Xcode, (2) update both `KEYPATH_STABLE_XCODE_VERSION` and
-  `KEYPATH_STABLE_XCODE_DEVELOPER_DIR` in `Scripts/lib/xcode.sh`, (3) update the
-  matching literals in `DeploymentScriptContractTests`, and (4) run that test
-  plus one canonical build/deploy script without an override. Point releases
-  are intentional pin changes; an installed 26.6.1 does not satisfy `26.6`.
+- Canonical build, test, deploy, and release scripts use the Xcode that
+  `xcode-select` points at (`Scripts/lib/xcode.sh`); there is no version pin.
+  They refuse Command Line Tools: KeyPath needs a full Xcode with the Metal
+  toolchain (`Scripts/ensure-metal-toolchain.sh`). Set
+  `KEYPATH_DEV_XCODE_DEVELOPER_DIR` to build with another Xcode without
+  changing the machine-wide selection. Keep each build machine's `xcode-select`
+  on the Xcode you want builds and CI to use, not a beta.
 - It intentionally does **not** redeploy the privileged helper unless
   `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
