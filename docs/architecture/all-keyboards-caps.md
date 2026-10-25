@@ -198,9 +198,11 @@ single-keyboard record remains readable for recovery.
 **Hot-plug.** `SessionCapsKeyboardArrivalMonitor` listens for `IOHIDEventService`
 registrations (first-match notifications; services present at startup are ignored)
 and classifies each with the lease's own `serviceEmitsKeyboardUsages`, so a board's
-shared NKRO interface counts. Every arrival earns one immediate check: an
-unreadable capability counts too, since an extra inventory read is cheap and a missed
-arrival is not. If that check's listing doesn't show a recognised, non-virtual arrived
+shared NKRO interface counts. Every arrival earns one immediate check: a
+service whose capability can't be read yet counts too, since an extra inventory read
+is cheap and a missed arrival is not. One that reads as definitely not a keyboard
+(including a keyboard whose properties are only partly published) is left to the
+backstop. If that check's listing doesn't show a recognised, non-virtual arrived
 service yet (under its own registry ID, or as another interface at the same
 LocationID), up to five more follow, each 0.25 s after the previous one finishes,
 because hidutil can list a new service a moment after IOKit reports it. Each check
@@ -208,8 +210,8 @@ spawns several hidutil processes, so every check ahead of the backstop draws on 
 shared budget of twelve per 10 s (two keyboards' worth), however many arrivals there are: a device that keeps
 re-registering gets the backstop, not a continuous loop. A keyboard
 plugged in with keys held, or one still not listed, is left to the backstop, and a
-check that fails hands over to the backstop at once (lease contention, which clears in
-moments, keeps the arrival's fast checks). Classification runs off the
+check that fails hands over to the backstop at once (lease contention, which usually clears
+in moments, keeps the fast checks for up to three busy results). Classification runs off the
 event tap's run loop. A wake re-registers services hidutil already lists, so it costs
 one check. A press immediately after plugging in can still come before the keyboard is
 mapped; the `arrival mapped in N ms` log measures that window.

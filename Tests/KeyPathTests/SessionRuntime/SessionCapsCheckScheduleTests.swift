@@ -55,7 +55,8 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
         // The next listing includes it: back to the backstop.
         let second = firstEnd.addingTimeInterval(0.25)
-        XCTAssertEqual(schedule.checkStarted(at: start, lastStart: .distantPast), [usb])
+        XCTAssertEqual(schedule.checkStarted(at: second, lastStart: start), [usb])
+        XCTAssertEqual(schedule.earlyStarts, [second], "a check 0.35 s after the last one is early")
         schedule.checkFinished(resolved: [usb])
         XCTAssertFalse(schedule.isDue(now: second.addingTimeInterval(1), lastStart: second,
                                       lastEnd: second.addingTimeInterval(0.1)))
@@ -218,7 +219,9 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
 
         try XCTSkipUnless(monitor.start(), "IOKit notifications unavailable on this host")
         XCTAssertFalse(monitor.start(), "a started monitor refuses a second start")
-        // Every service counts as a keyboard here, so a zero is the startup drain at work.
+        // Every service counts as a keyboard here, so a zero is the startup drain at
+        // work. Delivery is asynchronous, so give a wrongly reported batch time to land.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
         XCTAssertEqual(arrivals, 0, "services present at start are inventory, not arrivals")
     }
 
@@ -254,6 +257,20 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         monitor.stop()
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
         XCTAssertEqual(delivered, 0)
+    }
+
+    /// A LocationID with the high bit set, stored by IOKit as a signed CFNumber,
+    /// must match the unsigned value hidutil prints.
+    func testAHighBitLocationIDReadsTheSameFromIOKitAndHidutil() throws {
+        let signed = NSNumber(value: Int32(bitPattern: 0xF010_0000))
+        XCTAssertEqual(SessionCapsKeyboardArrivalMonitor.locationID(from: signed), 0xF010_0000)
+        let rows = try SessionCapsHIDUtilTransport.parseServiceRows(
+            #"{"type":"service","IORegistryEntryID":42,"VendorID":4660,"ProductID":1,"LocationID":4027580416,"PrimaryUsagePage":1,"PrimaryUsage":6}"#
+        )
+        XCTAssertEqual(rows.first?.locationID, 0xF010_0000)
+        let arrived = SessionCapsArrivedService(registryEntryID: 50,
+                                                locationID: SessionCapsKeyboardArrivalMonitor.locationID(from: signed))
+        XCTAssertEqual(SessionCapsCheckSchedule.resolved([arrived], listed: rows, exists: { _ in true }), [arrived])
     }
 
     /// The arrival side reads LocationID from IOKit, the listing side from hidutil's
@@ -341,6 +358,22 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
             "[SessionCaps] Keyboard arrival mapped in 400 ms: [49]",
         ])
         XCTAssertTrue(result.remaining.isEmpty)
+    }
+
+    @MainActor
+    func testAReplugAtTheSamePortReplacesTheEarlierArrival() {
+        let first = SessionCapsArrivedService(registryEntryID: 42, locationID: 0x0110_0000)
+        let replug = SessionCapsArrivedService(registryEntryID: 77, locationID: 0x0110_0000)
+        let later = start.addingTimeInterval(10)
+        // The same service re-reported keeps its original arrival.
+        XCTAssertEqual(SessionRuntimeWorker.recordArrivals([first], at: start.addingTimeInterval(5), into: [first: start]),
+                       [first: start])
+        // The first plug-in was never mapped (keys held); it was replugged 10 s later.
+        let timed = SessionRuntimeWorker.recordArrivals([replug], at: later, into: [first: start])
+        XCTAssertEqual(timed, [replug: later])
+        let log = SessionRuntimeWorker.arrivalLog(timed, now: later.addingTimeInterval(0.3),
+                                                  covered: [(id: 77, location: 0x0110_0000)])
+        XCTAssertEqual(log.lines, ["[SessionCaps] Keyboard arrival mapped in 300 ms: [77]"])
     }
 
     @MainActor

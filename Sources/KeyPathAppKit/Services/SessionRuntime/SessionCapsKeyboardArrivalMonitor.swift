@@ -177,9 +177,12 @@ final class SessionCapsKeyboardArrivalMonitor {
     /// stored as a signed CFNumber, so take the low 32 bits rather than refusing
     /// a value with the high bit set.
     nonisolated static func locationID(of service: io_service_t) -> UInt32? {
-        let value = IORegistryEntryCreateCFProperty(service, "LocationID" as CFString, kCFAllocatorDefault, 0)?
-            .takeRetainedValue() as? NSNumber
-        return value.map { UInt32(truncatingIfNeeded: $0.int64Value) }
+        locationID(from: IORegistryEntryCreateCFProperty(service, "LocationID" as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? NSNumber)
+    }
+
+    nonisolated static func locationID(from value: NSNumber?) -> UInt32? {
+        value.map { UInt32(truncatingIfNeeded: $0.int64Value) }
     }
 
     /// Classifying can walk the registry and parse report descriptors, once per
@@ -213,6 +216,8 @@ final class SessionCapsKeyboardArrivalMonitor {
 
     /// Fails open: a service whose keyboard capability can't be read yet still
     /// earns one pulled-forward check, so the keyboard isn't left for the backstop.
+    /// One that reads as definitely not a keyboard (a mouse, or a keyboard whose
+    /// properties are only partly published) is left to the backstop.
     /// Only services that read as keyboards are passed on, to be looked for.
     private func deliver(_ services: [SessionCapsArrivedService], _ answers: [Bool?]) {
         guard answers.contains(where: { $0 != false }) else { return }

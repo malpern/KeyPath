@@ -36,6 +36,7 @@ public final class SessionRuntimeWorker {
     private var capsFleetCoverage: SessionRuntimeReport.CapsCoverage?
     private var capsFleetRetryAfter: [UInt64: Date] = [:]
     private var capsFleetReadFailures = 0
+    private var capsFleetBusyStreak = 0
     private var capsCheckSchedule = SessionCapsCheckSchedule()
     private var capsArrivalMonitor: SessionCapsKeyboardArrivalMonitor?
     /// Tracked arrivals not yet mapped, each with when it arrived.
@@ -628,6 +629,8 @@ public final class SessionRuntimeWorker {
     /// How long an arrival waits to be attributed. Long enough for a keyboard
     /// plugged in with keys held to be mapped once they are released.
     static let arrivalAttributionLimit: TimeInterval = 30
+    /// Busy results an arrival's fast checks survive before the backstop takes over.
+    static let busyRetries = 3
 
     /// Keyboards whose failure backoff can be dropped: gone from the registry,
     /// not merely missing from one listing.
@@ -661,16 +664,29 @@ public final class SessionRuntimeWorker {
         return (lines, remaining)
     }
 
+    /// Records when each tracked service arrived. A service re-reported within the
+    /// attribution limit keeps its first arrival; a new service at the same
+    /// LocationID (a replug) replaces an earlier arrival that was never mapped.
+    static func recordArrivals(_ services: [SessionCapsArrivedService], at now: Date,
+                               into timed: [SessionCapsArrivedService: Date]) -> [SessionCapsArrivedService: Date]
+    {
+        var timed = timed
+        for service in services {
+            if let at = timed[service], now.timeIntervalSince(at) < arrivalAttributionLimit { continue }
+            if let location = service.locationID {
+                timed = timed.filter { $0.key == service || $0.key.locationID != location }
+            }
+            timed[service] = now
+        }
+        return timed
+    }
+
     /// Without the monitor the backstop check still finds arrivals, only later.
     private func startCapsArrivalMonitor() {
         let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
             guard let self, !self.finished else { return }
-            let now = Date()
-            for service in capsCheckSchedule.keyboardArrived(keyboards: keyboards)
-                where capsTimedArrivals[service].map({ now.timeIntervalSince($0) >= Self.arrivalAttributionLimit }) ?? true
-            {
-                capsTimedArrivals[service] = now
-            }
+            capsTimedArrivals = Self.recordArrivals(capsCheckSchedule.keyboardArrived(keyboards: keyboards),
+                                                    at: Date(), into: capsTimedArrivals)
         }
         if monitor.start() {
             capsArrivalMonitor = monitor
@@ -798,6 +814,7 @@ public final class SessionRuntimeWorker {
                     switch result {
                     case let .success(coverage):
                         self.capsFleetReadFailures = 0
+                        self.capsFleetBusyStreak = 0
                         let current = Set(coverage.records.map(\.device.registryEntryID))
                         if previous.isEmpty, !current.isEmpty {
                             self.capsInput.activate(generation: owner.generation, intermediateUsage: usage)
@@ -840,8 +857,14 @@ public final class SessionRuntimeWorker {
                         self.capsTimedArrivals = self.capsTimedArrivals.filter {
                             Date().timeIntervalSince($0.value) < Self.arrivalAttributionLimit
                         }
-                        // Lease contention clears in moments; keep the arrival's fast checks.
-                        if case SessionCapsMappingLease.Refusal.busy = error { return }
+                        // Lease contention usually clears in moments, so an arrival keeps
+                        // its fast checks for a few busy results, not indefinitely.
+                        if case SessionCapsMappingLease.Refusal.busy = error {
+                            self.capsFleetBusyStreak += 1
+                            if self.capsFleetBusyStreak >= Self.busyRetries { self.capsCheckSchedule.checkFailed() }
+                            return
+                        }
+                        self.capsFleetBusyStreak = 0
                         self.capsCheckSchedule.checkFailed()
                         if error is CapsInventoryFailure {
                             self.capsFleetReadFailures += 1
