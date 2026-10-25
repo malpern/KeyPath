@@ -92,6 +92,23 @@ CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString"
 CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "0")
 echo "📌 Current version: $CURRENT_VERSION (build $CURRENT_BUILD)"
 
+# Before anything changes the tree (the version bump below). A dry run changes
+# nothing, so it does not need the confirmation. The doctor can be skipped for
+# script debugging; these checks cannot.
+if [ "$DRY_RUN" = false ]; then
+    keypath_use_selected_xcode
+    release_xcode_version="$(keypath_xcode_version "$DEVELOPER_DIR" || true)"
+    release_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
+    if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$release_xcode_version"; then
+        echo "❌ Selected Xcode looks like a beta; select a released Xcode before shipping" >&2
+        exit 1
+    fi
+    if ! keypath_xcode_confirmed "$release_xcode_build"; then
+        echo "❌ Confirm Xcode ${release_xcode_version:-unknown} (${release_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${release_xcode_build:-<build>}" >&2
+        exit 1
+    fi
+fi
+
 # Bump version if specified
 if [ -n "$NEW_VERSION" ]; then
     RELEASE_BUILD_NUMBER="${KEYPATH_RELEASE_BUILD_NUMBER:-}"
@@ -197,19 +214,6 @@ fi
 if [ "$RUN_DOCTOR" = true ] && [ "${SKIP_RELEASE_DOCTOR:-0}" != "1" ]; then
     echo "🩺 Running release preflight..."
     ./Scripts/release-doctor.sh --ship
-fi
-
-# The doctor can be skipped for script debugging; the Xcode checks cannot.
-keypath_use_selected_xcode
-release_xcode_version="$(keypath_xcode_version "$DEVELOPER_DIR" || true)"
-release_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
-if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$release_xcode_version"; then
-    echo "❌ Selected Xcode looks like a beta; select a released Xcode before shipping" >&2
-    exit 1
-fi
-if ! keypath_xcode_confirmed "$release_xcode_build"; then
-    echo "❌ Confirm Xcode ${release_xcode_version:-unknown} (${release_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${release_xcode_build:-<build>}" >&2
-    exit 1
 fi
 
 if [ "$REFRESH_KEYBOARD_DATA" = true ]; then

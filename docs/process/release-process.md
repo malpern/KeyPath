@@ -180,7 +180,8 @@ not a beta. `release-doctor.sh --ship` prints it, for example
 usually reports a plain version such as 27.1 from an ordinary path, so only a
 person can tell. Shipping fails without it or when it names a different build,
 and an Xcode whose path or version does say "beta" fails outright. `release.sh`
-repeats both checks, so skipping the doctor skips neither. The
+repeats both checks before it bumps the version, so skipping the doctor skips
+neither and a refused release changes nothing. `--dry-run` needs no confirmation. The
 build is also recorded as `XcodeVersion`/`XcodeBuild` in the app's
 `BuildInfo.plist`.
 

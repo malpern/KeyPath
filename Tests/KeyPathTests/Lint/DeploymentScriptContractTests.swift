@@ -46,10 +46,12 @@ final class DeploymentScriptContractTests: XCTestCase {
         let release = try contents(of: root.appendingPathComponent("Scripts/release.sh"))
         XCTAssertTrue(release.contains(#"if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$release_xcode_version"; then"#))
         XCTAssertTrue(release.contains(#"if ! keypath_xcode_confirmed "$release_xcode_build"; then"#))
-        let doctorCall = try XCTUnwrap(release.range(of: "./Scripts/release-doctor.sh --ship"))
+        // The checks refuse before the version bump writes Info.plist, so a refused
+        // release leaves the tree untouched.
         let confirmation = try XCTUnwrap(release.range(of: "keypath_xcode_confirmed"))
+        let bump = try XCTUnwrap(release.range(of: "PlistBuddy -c \"Set :CFBundleShortVersionString"))
         let build = try XCTUnwrap(release.range(of: "SKIP_NOTARIZE=1 ./build.sh"))
-        XCTAssertTrue(doctorCall.lowerBound < confirmation.lowerBound && confirmation.lowerBound < build.lowerBound)
+        XCTAssertTrue(confirmation.lowerBound < bump.lowerBound && bump.lowerBound < build.lowerBound)
 
         // Without a pin, every signed build records the Xcode that produced it.
         let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
