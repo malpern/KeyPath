@@ -39,7 +39,8 @@ public final class SessionRuntimeWorker {
     private var capsCheckSchedule = SessionCapsCheckSchedule()
     private var capsArrivalMonitor: SessionCapsKeyboardArrivalMonitor?
     /// First unanswered arrival, for the arrival-to-mapped log line.
-    private var capsArrivalAt: Date?
+    /// Tracked arrivals not yet mapped, each with when it arrived.
+    private var capsTimedArrivals: [SessionCapsArrivedService: Date] = [:]
     private var capsOwner: SessionCapsMappingPolicy.Owner?
     private var capsDirectory: URL?
     private var capsInput = SessionCapsInputState()
@@ -637,29 +638,28 @@ public final class SessionRuntimeWorker {
         backingOff.filter { !listed.contains($0) && exists($0) == false }
     }
 
-    /// The arrival a later mapping is timed from. Only an arrival the schedule
-    /// tracks starts the clock (a virtual keyboard does not), and a stale one,
-    /// never followed by a successful check, does not time a new one.
-    static func arrivalStamp(current: Date?, now: Date, tracked: Bool) -> Date? {
-        guard tracked else { return current }
-        guard let current, now < current.addingTimeInterval(arrivalAttributionLimit) else { return now }
-        return current
-    }
-
-    /// Attributes newly covered keyboards to the pending arrival. A keyboard that
-    /// was backing off after a failed write is recovering, not arriving.
-    static func arrivalOutcome(arrivedAt: Date?, now: Date, added: Set<UInt64>,
-                               recovering: Set<UInt64>) -> (log: String?, keepPending: Bool)
+    /// Times each newly covered keyboard from the arrival of its own service (by
+    /// registry ID, or another interface at its LocationID). A keyboard covered
+    /// for any other reason, such as an exclusion removed, is not an arrival.
+    static func arrivalLog(_ timed: [SessionCapsArrivedService: Date], now: Date,
+                           covered: [(id: UInt64, location: UInt32?)])
+        -> (lines: [String], remaining: [SessionCapsArrivedService: Date])
     {
-        guard let arrivedAt else { return (nil, false) }
-        let arrived = added.subtracting(recovering)
-        if !arrived.isEmpty {
+        var remaining = timed.filter { now.timeIntervalSince($0.value) < arrivalAttributionLimit }
+        var lines: [String] = []
+        for keyboard in covered.sorted(by: { $0.id < $1.id }) {
+            let matches = remaining.filter { service, _ in
+                service.registryEntryID == keyboard.id
+                    || (service.locationID != nil && service.locationID == keyboard.location)
+            }
+            guard let arrivedAt = matches.values.min() else { continue }
             let elapsed = Int((now.timeIntervalSince(arrivedAt) * 1000).rounded())
-            return ("[SessionCaps] Keyboard arrival mapped in \(elapsed) ms: \(arrived.sorted())", false)
+            lines.append("[SessionCaps] Keyboard arrival mapped in \(elapsed) ms: [\(keyboard.id)]")
+            for service in matches.keys {
+                remaining.removeValue(forKey: service)
+            }
         }
-        // Not every arrival is a new eligible keyboard: an excluded or withheld
-        // one, or an interface that re-registered (for example after wake).
-        return (nil, now < arrivedAt.addingTimeInterval(arrivalAttributionLimit))
+        return (lines, remaining)
     }
 
     /// Without the monitor the backstop check still finds arrivals, only later.
@@ -667,8 +667,11 @@ public final class SessionRuntimeWorker {
         let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
             guard let self, !self.finished else { return }
             let now = Date()
-            let tracked = capsCheckSchedule.keyboardArrived(at: now, keyboards: keyboards)
-            capsArrivalAt = Self.arrivalStamp(current: capsArrivalAt, now: now, tracked: tracked)
+            for service in capsCheckSchedule.keyboardArrived(keyboards: keyboards)
+                where capsTimedArrivals[service].map({ now.timeIntervalSince($0) >= Self.arrivalAttributionLimit }) ?? true
+            {
+                capsTimedArrivals[service] = now
+            }
         }
         if monitor.start() {
             capsArrivalMonitor = monitor
@@ -716,12 +719,19 @@ public final class SessionRuntimeWorker {
     }
 
     private func checkCapsFleetIfNeeded() {
-        // Before the guard: a pending arrival must not keep the check due every tick.
-        let arrived = capsCheckSchedule.checkStarted()
+        let now = Date()
+        let arrived = capsCheckSchedule.checkStarted(at: now, lastStart: lastCapsCheck)
+        lastCapsCheck = now
         guard let owner = capsOwner, let directory = capsDirectory,
-              let configPath = capsConfigPath, let admittedDigest = capsAdmittedDigest else { return }
+              let configPath = capsConfigPath, let admittedDigest = capsAdmittedDigest
+        else {
+            // Unreachable today (all four are set before the tick timer starts).
+            // Counted as a failed check so a pending arrival can't spin the tick.
+            lastCapsCheckEnd = now
+            capsCheckSchedule.checkFailed()
+            return
+        }
         capsCheckInFlight = true
-        lastCapsCheck = Date()
         let previous = Set(capsFleetRecords.map(\.device.registryEntryID))
         let retryAfter = capsFleetRetryAfter
         let usage = SessionCapsRuntimeSupport.preferredIntermediate()
@@ -757,7 +767,14 @@ public final class SessionRuntimeWorker {
                     bootSessionUUID: owner.bootSessionUUID,
                     allowNewDevices: SessionCapsRuntimeSupport.heldKeys().isEmpty
                 )
-                let exists = { (id: UInt64) in try? SessionCapsHIDUtilTransport.registryEntryExists(id) }
+                // A registry walk can be slow; ask once per keyboard per check.
+                var existence: [UInt64: Bool?] = [:]
+                let exists = { (id: UInt64) -> Bool? in
+                    if let known = existence[id] { return known }
+                    let answer = try? SessionCapsHIDUtilTransport.registryEntryExists(id)
+                    existence[id] = answer
+                    return answer
+                }
                 let resolved = SessionCapsCheckSchedule.resolved(
                     arrived, listed: (try? SessionCapsHIDUtilTransport.parseServiceRows(listing)) ?? [], exists: exists
                 )
@@ -813,10 +830,13 @@ public final class SessionRuntimeWorker {
                         if !added.isEmpty {
                             AppLogger.shared.log("[SessionCaps] Keyboard covered: \(added.sorted())")
                         }
-                        let arrival = Self.arrivalOutcome(arrivedAt: self.capsArrivalAt, now: Date(), added: added,
-                                                          recovering: Set(retryAfter.keys))
-                        if let line = arrival.log { AppLogger.shared.log(line) }
-                        if !arrival.keepPending { self.capsArrivalAt = nil }
+                        let arrival = Self.arrivalLog(
+                            self.capsTimedArrivals, now: Date(),
+                            covered: coverage.records.filter { added.contains($0.device.registryEntryID) }
+                                .map { ($0.device.registryEntryID, $0.device.locationID) }
+                        )
+                        arrival.lines.forEach { AppLogger.shared.log($0) }
+                        self.capsTimedArrivals = arrival.remaining
                     case let .failure(error):
                         self.capsCheckSchedule.checkFailed()
                         if case SessionCapsMappingLease.Refusal.busy = error { return }

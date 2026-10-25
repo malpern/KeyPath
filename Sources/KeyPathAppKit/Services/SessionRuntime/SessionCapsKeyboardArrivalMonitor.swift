@@ -15,41 +15,54 @@ struct SessionCapsArrivedService: Hashable, Sendable {
 struct SessionCapsCheckSchedule: Equatable {
     /// The steady backstop, measured between check starts.
     static let backstop: TimeInterval = 2
-    /// The pause after each fast check finishes. hidutil can list a new event
+    /// The pause after each early check finishes. hidutil can list a new event
     /// service a moment after IOKit reports it.
     static let afterArrival: TimeInterval = 0.25
-    /// Fast checks an arrival may use while its keyboard is unlisted. Each check
-    /// spawns several hidutil processes, so this is a count, not a duration.
+    /// Fast checks an arrival may use while its keyboard is unlisted, the
+    /// immediate one included.
     static let fastChecks = 6
+    /// Each check spawns several hidutil processes, so checks ahead of the
+    /// backstop share one budget however many arrivals there are: a device that
+    /// re-registers over and over gets the backstop, not a continuous loop.
+    static let earlyBudget = 6
+    static let budgetWindow: TimeInterval = 10
 
     private(set) var arrivalPending = false
     /// Arrived keyboards hidutil has not listed yet.
     private(set) var unlisted: Set<SessionCapsArrivedService> = []
     private(set) var fastChecksLeft = 0
+    private(set) var earlyStarts: [Date] = []
 
-    /// Every arrival gets an immediate check. Only a service that reads as a
+    /// Every arrival asks for an immediate check. Only a service that reads as a
     /// keyboard and is not virtual can earn fast checks until hidutil lists it.
-    /// Returns whether the arrival is tracked, which is what may be timed.
+    /// Returns those tracked services, which are what may be timed.
     @discardableResult
-    mutating func keyboardArrived(at _: Date, keyboards: [SessionCapsArrivedService]) -> Bool {
+    mutating func keyboardArrived(keyboards: [SessionCapsArrivedService]) -> [SessionCapsArrivedService] {
         arrivalPending = true
         let real = keyboards.filter { $0.locationID != 0 }
-        guard !real.isEmpty else { return false }
+        guard !real.isEmpty else { return [] }
         unlisted.formUnion(real)
         fastChecksLeft = Self.fastChecks
-        return true
+        return real
     }
 
     func isDue(now: Date, lastStart: Date, lastEnd: Date) -> Bool {
-        if arrivalPending { return true }
-        if !unlisted.isEmpty, fastChecksLeft > 0 { return now.timeIntervalSince(lastEnd) >= Self.afterArrival }
+        let wantsEarly = arrivalPending || (!unlisted.isEmpty && fastChecksLeft > 0)
+        if wantsEarly, earlyStarts.count(where: { now.timeIntervalSince($0) < Self.budgetWindow }) < Self.earlyBudget,
+           now.timeIntervalSince(lastEnd) >= Self.afterArrival
+        {
+            return true
+        }
         return now.timeIntervalSince(lastStart) >= Self.backstop
     }
 
     /// A check is starting; it covers every arrival reported so far. Returns the
-    /// arrived keyboards it should look for in its listing.
-    mutating func checkStarted() -> Set<SessionCapsArrivedService> {
+    /// arrived keyboards it should look for in its listing. `lastStart` is the
+    /// previous check's start, which tells an early check from a backstop one.
+    mutating func checkStarted(at now: Date, lastStart: Date) -> Set<SessionCapsArrivedService> {
         arrivalPending = false
+        earlyStarts.removeAll { now.timeIntervalSince($0) >= Self.budgetWindow }
+        if now.timeIntervalSince(lastStart) < Self.backstop { earlyStarts.append(now) }
         return unlisted
     }
 

@@ -202,9 +202,11 @@ shared NKRO interface counts. Every arrival earns one immediate check: an
 unreadable capability counts too, since an extra inventory read is cheap and a missed
 arrival is not. If that check's listing doesn't show a recognised, non-virtual arrived
 service yet (under its own registry ID, or as another interface at the same
-LocationID), up to six fast checks follow, each 0.25 s after the previous one
-finishes, because hidutil can list a new service a moment after IOKit reports it.
-The cap is a count because each check spawns several hidutil processes. A keyboard
+LocationID), up to five more follow, each 0.25 s after the previous one finishes,
+because hidutil can list a new service a moment after IOKit reports it. Each check
+spawns several hidutil processes, so every check ahead of the backstop draws on one
+shared budget of six per 10 s, however many arrivals there are: a device that keeps
+re-registering gets the backstop, not a continuous loop. A keyboard
 plugged in with keys held, or one still not listed, is left to the backstop, and a
 check that fails hands over to the backstop at once. Classification runs off the
 event tap's run loop. A wake re-registers services hidutil already lists, so it costs
@@ -213,9 +215,9 @@ mapped; the `arrival mapped in N ms` log measures that window.
 The two-second backstop is measured between check starts, so a slow check doesn't
 stretch it, and covers everything if the notification cannot be registered. The worker logs
 `[SessionCaps] Keyboard covered` for every newly covered keyboard, and
-`[SessionCaps] Keyboard arrival mapped in N ms` when the newly covered keyboard
-follows an arrival within 30 s (a keyboard recovering from its failure backoff is not
-counted as the arrival). It admits a new keyboard under the same eligibility and all-keys-up checks as at
+`[SessionCaps] Keyboard arrival mapped in N ms` when the newly covered keyboard's own
+service (by registry ID, or another interface at its LocationID) arrived within the
+last 30 s; a keyboard covered for another reason is not timed. It admits a new keyboard under the same eligibility and all-keys-up checks as at
 startup, and retires records for a removed service. A failed device is left
 uncovered and retried with backoff; an unavailable inventory leaves existing
 coverage intact and reports that it cannot be verified.

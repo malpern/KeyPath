@@ -65,8 +65,8 @@ If it cannot determine the covered interfaces safely, that keyboard is left
 uncovered rather than guessing. Virtual keyboards are not physical Caps Lock
 targets.
 
-KeyPath starts setting up a keyboard when you plug it in, rather than waiting
-for its next periodic check. It waits until no keys are held, and a Caps Lock
+KeyPath normally starts setting up a keyboard as soon as you plug it in, and
+otherwise within a couple of seconds. It waits until no keys are held, and a Caps Lock
 press in the first moment can still arrive before macOS finishes presenting the
 device. If Caps Lock behaves normally then, release all keys and try again. If it
 still doesn't, **Settings → General** lists the keyboards that aren't covered.
