@@ -36,7 +36,6 @@ public final class SessionRuntimeWorker {
     private var capsFleetCoverage: SessionRuntimeReport.CapsCoverage?
     private var capsFleetRetryAfter: [UInt64: Date] = [:]
     private var capsFleetReadFailures = 0
-    private var capsFleetBusyStreak = 0
     private var capsCheckSchedule = SessionCapsCheckSchedule()
     private var capsArrivalMonitor: SessionCapsKeyboardArrivalMonitor?
     /// Tracked arrivals not yet mapped, each with when it arrived.
@@ -629,8 +628,6 @@ public final class SessionRuntimeWorker {
     /// How long an arrival waits to be attributed. Long enough for a keyboard
     /// plugged in with keys held to be mapped once they are released.
     static let arrivalAttributionLimit: TimeInterval = 30
-    /// Busy results an arrival's fast checks survive before the backstop takes over.
-    static let busyRetries = 3
 
     /// Keyboards whose failure backoff can be dropped: gone from the registry,
     /// not merely missing from one listing.
@@ -664,9 +661,22 @@ public final class SessionRuntimeWorker {
         return (lines, remaining)
     }
 
+    /// An arrival reaches both the schedule (an early check) and the timing map.
+    static func noteArrival(_ keyboards: [SessionCapsArrivedService], at now: Date,
+                            schedule: inout SessionCapsCheckSchedule,
+                            timed: inout [SessionCapsArrivedService: Date])
+    {
+        timed = recordArrivals(schedule.keyboardArrived(keyboards: keyboards), at: now, into: timed)
+    }
+
+    /// Interfaces of one keyboard register within moments of each other; a new
+    /// service at the same LocationID this much later is a replug.
+    static let replugGap: TimeInterval = 2
+
     /// Records when each tracked service arrived. A service re-reported within the
-    /// attribution limit keeps its first arrival; a new service at the same
-    /// LocationID (a replug) replaces an earlier arrival that was never mapped.
+    /// attribution limit keeps its first arrival. A new service at the same
+    /// LocationID replaces an earlier, never-mapped arrival there only when it
+    /// comes `replugGap` later (a replug); a sibling interface keeps the first.
     static func recordArrivals(_ services: [SessionCapsArrivedService], at now: Date,
                                into timed: [SessionCapsArrivedService: Date]) -> [SessionCapsArrivedService: Date]
     {
@@ -674,7 +684,9 @@ public final class SessionRuntimeWorker {
         for service in services {
             if let at = timed[service], now.timeIntervalSince(at) < arrivalAttributionLimit { continue }
             if let location = service.locationID {
-                timed = timed.filter { $0.key == service || $0.key.locationID != location }
+                timed = timed.filter { other, at in
+                    other == service || other.locationID != location || now.timeIntervalSince(at) < replugGap
+                }
             }
             timed[service] = now
         }
@@ -685,8 +697,7 @@ public final class SessionRuntimeWorker {
     private func startCapsArrivalMonitor() {
         let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
             guard let self, !self.finished else { return }
-            capsTimedArrivals = Self.recordArrivals(capsCheckSchedule.keyboardArrived(keyboards: keyboards),
-                                                    at: Date(), into: capsTimedArrivals)
+            Self.noteArrival(keyboards, at: Date(), schedule: &capsCheckSchedule, timed: &capsTimedArrivals)
         }
         if monitor.start() {
             capsArrivalMonitor = monitor
@@ -814,7 +825,6 @@ public final class SessionRuntimeWorker {
                     switch result {
                     case let .success(coverage):
                         self.capsFleetReadFailures = 0
-                        self.capsFleetBusyStreak = 0
                         let current = Set(coverage.records.map(\.device.registryEntryID))
                         if previous.isEmpty, !current.isEmpty {
                             self.capsInput.activate(generation: owner.generation, intermediateUsage: usage)
@@ -857,14 +867,10 @@ public final class SessionRuntimeWorker {
                         self.capsTimedArrivals = self.capsTimedArrivals.filter {
                             Date().timeIntervalSince($0.value) < Self.arrivalAttributionLimit
                         }
-                        // Lease contention usually clears in moments, so an arrival keeps
-                        // its fast checks for a few busy results, not indefinitely.
                         if case SessionCapsMappingLease.Refusal.busy = error {
-                            self.capsFleetBusyStreak += 1
-                            if self.capsFleetBusyStreak >= Self.busyRetries { self.capsCheckSchedule.checkFailed() }
+                            self.capsCheckSchedule.checkBusy()
                             return
                         }
-                        self.capsFleetBusyStreak = 0
                         self.capsCheckSchedule.checkFailed()
                         if error is CapsInventoryFailure {
                             self.capsFleetReadFailures += 1

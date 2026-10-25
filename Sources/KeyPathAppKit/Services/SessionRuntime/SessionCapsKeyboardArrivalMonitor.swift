@@ -34,6 +34,13 @@ struct SessionCapsCheckSchedule: Equatable {
     private(set) var unlisted: Set<SessionCapsArrivedService> = []
     private(set) var fastChecksLeft = 0
     private(set) var earlyStarts: [Date] = []
+    /// Bumped by each tracked arrival, so a check knows whether one landed while
+    /// it ran (that arrival's fast checks start after it, not with it).
+    private var arrivalGeneration = 0
+    private var generationAtStart = 0
+    /// Busy results an arrival's fast checks survive; the next one hands over.
+    static let busyRetries = 2
+    private(set) var busyStreak = 0
 
     /// Every arrival asks for an immediate check. Only a service that reads as a
     /// keyboard and is not virtual can earn fast checks until hidutil lists it.
@@ -47,6 +54,7 @@ struct SessionCapsCheckSchedule: Equatable {
         guard !real.isEmpty else { return [] }
         unlisted.formUnion(real)
         fastChecksLeft = Self.fastChecks
+        arrivalGeneration += 1
         return real
     }
 
@@ -67,19 +75,29 @@ struct SessionCapsCheckSchedule: Equatable {
         arrivalPending = false
         earlyStarts.removeAll { now.timeIntervalSince($0) >= Self.budgetWindow }
         if now.timeIntervalSince(lastStart) < Self.backstop { earlyStarts.append(now) }
+        generationAtStart = arrivalGeneration
         return unlisted
     }
 
     /// `resolved`: arrived keyboards the check found listed, or found gone.
     mutating func checkFinished(resolved: Set<SessionCapsArrivedService>) {
+        busyStreak = 0
         unlisted.subtract(resolved)
-        fastChecksLeft = max(0, fastChecksLeft - 1)
+        if arrivalGeneration == generationAtStart { fastChecksLeft = max(0, fastChecksLeft - 1) }
         if fastChecksLeft == 0 { unlisted = [] }
+    }
+
+    /// Lease contention usually clears in moments, so an arrival keeps its fast
+    /// checks through a couple of busy results, not indefinitely.
+    mutating func checkBusy() {
+        busyStreak += 1
+        if busyStreak > Self.busyRetries { checkFailed() }
     }
 
     /// A check that produced no answer neither confirms nor refutes an arrival.
     /// Fast retries would only spawn hidutil again, so the backstop takes over.
     mutating func checkFailed() {
+        busyStreak = 0
         unlisted = []
         fastChecksLeft = 0
     }

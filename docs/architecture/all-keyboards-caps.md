@@ -211,7 +211,7 @@ shared budget of twelve per 10 s (two keyboards' worth), however many arrivals t
 re-registering gets the backstop, not a continuous loop. A keyboard
 plugged in with keys held, or one still not listed, is left to the backstop, and a
 check that fails hands over to the backstop at once (lease contention, which usually clears
-in moments, keeps the fast checks for up to three busy results). Classification runs off the
+in moments, keeps the fast checks through two busy results; a third hands over). Classification runs off the
 event tap's run loop. A wake re-registers services hidutil already lists, so it costs
 one check. A press immediately after plugging in can still come before the keyboard is
 mapped; the `arrival mapped in N ms` log measures that window.

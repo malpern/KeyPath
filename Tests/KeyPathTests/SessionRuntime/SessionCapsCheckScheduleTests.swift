@@ -176,6 +176,37 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         XCTAssertTrue(schedule.isDue(now: now, lastStart: lastStart, lastEnd: now.addingTimeInterval(-0.3)))
     }
 
+    func testBusyResultsKeepFastChecksBrieflyThenHandOver() {
+        var schedule = SessionCapsCheckSchedule()
+        schedule.keyboardArrived(keyboards: [usb])
+        let due = { schedule.isDue(now: self.start, lastStart: self.start, lastEnd: self.start.addingTimeInterval(-1)) }
+        for _ in 0 ..< SessionCapsCheckSchedule.busyRetries {
+            _ = schedule.checkStarted(at: start, lastStart: start)
+            schedule.checkBusy()
+            XCTAssertTrue(due(), "fast checks survive a busy result")
+        }
+        _ = schedule.checkStarted(at: start, lastStart: start)
+        schedule.checkBusy()
+        XCTAssertFalse(due(), "the next busy result hands over to the backstop")
+
+        // A finished check resets the streak.
+        schedule.keyboardArrived(keyboards: [usb])
+        _ = schedule.checkStarted(at: start, lastStart: start)
+        schedule.checkBusy()
+        _ = schedule.checkStarted(at: start, lastStart: start)
+        schedule.checkFinished(resolved: [])
+        XCTAssertEqual(schedule.busyStreak, 0)
+    }
+
+    func testAnArrivalDuringACheckKeepsAllItsFastChecks() {
+        var schedule = SessionCapsCheckSchedule()
+        _ = schedule.checkStarted(at: start, lastStart: .distantPast)
+        // A keyboard registers while the backstop check is in flight.
+        schedule.keyboardArrived(keyboards: [usb])
+        schedule.checkFinished(resolved: [])
+        XCTAssertEqual(schedule.fastChecksLeft, SessionCapsCheckSchedule.fastChecks)
+    }
+
     func testAnEarlyCheckWaitsForThePauseAfterTheLastOneFinished() {
         var schedule = SessionCapsCheckSchedule()
         schedule.keyboardArrived(keyboards: [usb])
@@ -374,6 +405,28 @@ final class SessionCapsCheckScheduleTests: XCTestCase {
         let log = SessionRuntimeWorker.arrivalLog(timed, now: later.addingTimeInterval(0.3),
                                                   covered: [(id: 77, location: 0x0110_0000)])
         XCTAssertEqual(log.lines, ["[SessionCaps] Keyboard arrival mapped in 300 ms: [77]"])
+    }
+
+    @MainActor
+    func testASiblingInterfaceKeepsTheKeyboardsFirstArrival() {
+        let sibling = SessionCapsArrivedService(registryEntryID: 43, locationID: 0x0110_0000)
+        // A second interface of the same keyboard registers 0.4 s later, in its own batch.
+        let timed = SessionRuntimeWorker.recordArrivals([sibling], at: start.addingTimeInterval(0.4), into: [usb: start])
+        let log = SessionRuntimeWorker.arrivalLog(timed, now: start.addingTimeInterval(0.45),
+                                                  covered: [(id: 42, location: 0x0110_0000)])
+        XCTAssertEqual(log.lines, ["[SessionCaps] Keyboard arrival mapped in 450 ms: [42]"])
+    }
+
+    @MainActor
+    func testAnArrivalReachesBothTheScheduleAndTheTimingMap() {
+        var schedule = SessionCapsCheckSchedule()
+        var timed: [SessionCapsArrivedService: Date] = [:]
+        let virtual = SessionCapsArrivedService(registryEntryID: 7, locationID: 0)
+        SessionRuntimeWorker.noteArrival([virtual, usb], at: start, schedule: &schedule, timed: &timed)
+
+        XCTAssertTrue(schedule.arrivalPending)
+        XCTAssertEqual(schedule.unlisted, [usb])
+        XCTAssertEqual(timed, [usb: start], "only tracked keyboards are timed")
     }
 
     @MainActor
