@@ -142,6 +142,10 @@ jobs:
         kanata --version
         kanata-simulator --version
 
+    - name: Install ripgrep (hosted runner)
+      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      run: brew install ripgrep
+
     - name: Lint WizardAutoFixer for forbidden subprocess usage
       run: |
         chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
@@ -313,7 +317,7 @@ jobs:
       # it hasn't been told to trust, which would skip the SwiftFormat pin.
       if: vars.KEYPATH_CI_RUNNER == 'hosted'
       run: |
-        brew install mise swiftlint
+        brew install mise swiftlint ripgrep
         mise trust mise.toml
 
     - name: Install pinned SwiftFormat

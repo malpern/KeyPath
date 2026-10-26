@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# A missing rg exits 127, which the if below would read as "no hits".
+command -v rg >/dev/null || { echo "❌ ripgrep (rg) is required" >&2; exit 1; }
+
 ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 
 # Disallow Task.sleep in wizard code and Swift tests.
