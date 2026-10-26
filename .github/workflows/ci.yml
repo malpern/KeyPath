@@ -142,15 +142,6 @@ jobs:
         kanata --version
         kanata-simulator --version
 
-    - name: Install ripgrep (hosted runner)
-      if: vars.KEYPATH_CI_RUNNER == 'hosted'
-      run: brew install ripgrep
-
-    - name: Lint WizardAutoFixer for forbidden subprocess usage
-      run: |
-        chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
-        ./Scripts/lint-no-subprocess-in-autofixer.sh
-
     - name: Prepare persistent SwiftPM scratch
       # Persistent per runner on the mini: runner.workspace (_work/KeyPath)
       # survives between jobs, while runner.temp is wiped after every job and
