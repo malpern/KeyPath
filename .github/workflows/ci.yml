@@ -70,14 +70,21 @@ jobs:
       if: vars.KEYPATH_CI_RUNNER == 'hosted'
       run: |
         xcode=/Applications/Xcode_27.app/Contents/Developer
-        "$xcode/usr/bin/xcodebuild" -version
+        version=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Xcode //p' | head -1)
+        if [[ "$version" != "27.0" ]]; then
+          echo "::error::$xcode is Xcode '$version', not 27.0; the image changed"
+          exit 1
+        fi
         echo "KEYPATH_STABLE_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
         echo "DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        # cargo reaches the compiler through cc, which needs the SDK named.
+        echo "SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
 
     - name: Verify runner disk reserve
       env:
-        # A hosted VM has far less disk than the mini; fail clearly if a cold
-        # Kanata and SwiftPM build won't fit, rather than partway through.
+        # A hosted VM has far less disk than the mini. 12 GiB is a floor, not a
+        # measurement of what a cold run uses; raise it once a hosted run has
+        # shown the real number.
         KEYPATH_MIN_FREE_DISK_GIB: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '12' || '40' }}
       run: ./Scripts/lab/host-disk-reserve
 
@@ -141,11 +148,12 @@ jobs:
         ./Scripts/lint-no-subprocess-in-autofixer.sh
 
     - name: Prepare persistent SwiftPM scratch
-      # Persistent per runner: runner.workspace (_work/KeyPath) survives between
-      # jobs, while runner.temp is wiped after every job and made each build cold.
-      # One runner runs one job at a time, so jobs never share this directory
-      # concurrently. It is cleared when the toolchain changes or it grows past
-      # the cap; the 40 GiB host disk reserve above still applies.
+      # Persistent per runner on the mini: runner.workspace (_work/KeyPath)
+      # survives between jobs, while runner.temp is wiped after every job and
+      # made each build cold. One runner runs one job at a time, so jobs never
+      # share this directory concurrently. It is cleared when the toolchain
+      # changes or it grows past the cap. A hosted VM starts empty every time,
+      # so there it is always cold.
       env:
         KEYPATH_SCRATCH_CAP_GIB: "30"
       run: |
@@ -290,9 +298,15 @@ jobs:
       if: vars.KEYPATH_CI_RUNNER == 'hosted'
       run: |
         xcode=/Applications/Xcode_27.app/Contents/Developer
-        "$xcode/usr/bin/xcodebuild" -version
+        version=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Xcode //p' | head -1)
+        if [[ "$version" != "27.0" ]]; then
+          echo "::error::$xcode is Xcode '$version', not 27.0; the image changed"
+          exit 1
+        fi
         echo "KEYPATH_STABLE_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
         echo "DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        # cargo reaches the compiler through cc, which needs the SDK named.
+        echo "SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
 
     - name: Install mise and SwiftLint (hosted runner)
       # The mini has both; GitHub's image has neither. mise ignores a repo config

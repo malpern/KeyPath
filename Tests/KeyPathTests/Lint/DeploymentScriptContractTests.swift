@@ -260,6 +260,8 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
         XCTAssertEqual(ci.components(separatedBy: #"vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"'"#).count - 1, 2,
                        "Both required jobs move to the hosted image together.")
+        XCTAssertFalse(ci.contains(safeRunner),
+                       "A literal safe-runner job in ci.yml would bypass the single-job check above.")
         XCTAssertTrue(cacheWarm.contains(safeRunner))
         XCTAssertEqual(
             coverage.components(separatedBy: safeRunner).count - 1,
