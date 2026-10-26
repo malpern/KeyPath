@@ -256,10 +256,10 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertEqual(
             ci.components(separatedBy: safeRunnerChoice).count - 1,
             1,
-            "Only build-and-test should require the SwiftPM-safe interactive runner in ci.yml."
+            "Only build-and-test should require the SwiftPM-safe interactive runner in ci.yml, written as \(safeRunnerChoice) inside its runs-on expression."
         )
         XCTAssertEqual(ci.components(separatedBy: #"vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"'"#).count - 1, 2,
-                       "Both required jobs move to the hosted image together.")
+                       #"Both required jobs move to the hosted image together; each runs-on should start with fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || …)."#)
         XCTAssertFalse(ci.contains(safeRunner),
                        "A literal safe-runner job in ci.yml would bypass the single-job check above.")
         XCTAssertTrue(cacheWarm.contains(safeRunner))
