@@ -250,11 +250,16 @@ final class DeploymentScriptContractTests: XCTestCase {
         let installer = try contents(of: root.appendingPathComponent("Scripts/install-ci-runner-service.sh"))
         let safeRunner = "runs-on: [self-hosted, macOS, keypath, swiftpm-safe]"
 
+        // ci.yml selects its runner with an expression so a repo variable can move
+        // it to GitHub-hosted runners; the self-hosted branch keeps the safe label.
+        let safeRunnerChoice = #"'["self-hosted", "macOS", "keypath", "swiftpm-safe"]'"#
         XCTAssertEqual(
-            ci.components(separatedBy: safeRunner).count - 1,
+            ci.components(separatedBy: safeRunnerChoice).count - 1,
             1,
             "Only build-and-test should require the SwiftPM-safe interactive runner in ci.yml."
         )
+        XCTAssertEqual(ci.components(separatedBy: #"vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"'"#).count - 1, 2,
+                       "Both required jobs move to the hosted image together.")
         XCTAssertTrue(cacheWarm.contains(safeRunner))
         XCTAssertEqual(
             coverage.components(separatedBy: safeRunner).count - 1,
