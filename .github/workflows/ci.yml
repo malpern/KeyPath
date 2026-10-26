@@ -17,6 +17,17 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Hosted fallback for while the mini's runners are unavailable: set the repo
+# variable KEYPATH_CI_RUNNER=hosted and both jobs run on GitHub's macOS 27 /
+# Xcode 27 image (`xcode-27`) instead. Delete the variable to return to the
+# mini. Job names, and so the required checks, are the same either way.
+#   gh variable set KEYPATH_CI_RUNNER --repo malpern/KeyPath --body hosted
+#   gh variable delete KEYPATH_CI_RUNNER --repo malpern/KeyPath
+env:
+  # The hosted image's Xcode 27.0 is build 27A266a, the same build the Macs use.
+  # Empty on the mini, where the scripts select Xcode as usual.
+  KEYPATH_DEV_XCODE_DEVELOPER_DIR: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '/Applications/Xcode_27.app/Contents/Developer' || '' }}
+
 jobs:
   build-and-test:
     # macOS 27 AppSSO trapped SwiftPM binary-artifact requests from a headless
@@ -24,11 +35,12 @@ jobs:
     # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
     # session; the persistent scratch below means Sparkle is fetched only on a
     # cold scratch, not on every job.
-    runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
+    runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath", "swiftpm-safe"]') }}
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
-    timeout-minutes: 25
+    # Every hosted run is cold, on a smaller machine.
+    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 25 }}
     # Separate from the workflow-level concurrency group above (which cancels
     # stale runs of the *same* PR): this queues jobs from *different* PRs onto
     # the single physical runner instead of letting them execute in parallel.
@@ -37,7 +49,7 @@ jobs:
     # CLIPackCRUDTests "could not enable associated rule collection" failures
     # when two PRs' CI happened to overlap.
     concurrency:
-      group: keypath-self-hosted-runner
+      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -53,6 +65,8 @@ jobs:
         persist-credentials: false
 
     - name: Verify runner disk reserve
+      # Guards the mini's shared disk; a hosted runner is a fresh VM per job.
+      if: vars.KEYPATH_CI_RUNNER != 'hosted'
       env:
         KEYPATH_MIN_FREE_DISK_GIB: "40"
       run: ./Scripts/lab/host-disk-reserve
@@ -233,13 +247,13 @@ jobs:
         echo "- Narrow coverage enforcement moved to the scheduled/manual \`KeyPath Coverage\` workflow." >> $GITHUB_STEP_SUMMARY
 
   code-quality:
-    runs-on: [self-hosted, macOS, keypath]
+    runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
     timeout-minutes: 15
     # This job does not share test state, but it does share the only physical
     # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
     # before its fixed per-rule safety timeout.
     concurrency:
-      group: keypath-self-hosted-runner
+      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -256,6 +270,11 @@ jobs:
 
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
+    - name: Install mise and SwiftLint (hosted runner)
+      # The mini has both; GitHub's image has neither.
+      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      run: brew install mise swiftlint
 
     - name: Install pinned SwiftFormat
       run: mise install swiftformat
