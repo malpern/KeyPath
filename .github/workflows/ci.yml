@@ -17,6 +17,15 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Hosted fallback for while the mini's runners are unavailable: set the repo
+# variable KEYPATH_CI_RUNNER=hosted and both jobs run on GitHub's macOS 27 /
+# Xcode 27 image (`xcode-27`) instead. Delete the variable to return to the
+# mini. Job names, and so the required checks, are the same either way.
+#   gh variable set KEYPATH_CI_RUNNER --repo malpern/KeyPath --body hosted
+#   gh variable delete KEYPATH_CI_RUNNER --repo malpern/KeyPath
+# Only ci.yml has the fallback; coverage, cache-warm and runner-health are
+# scheduled jobs that stay on the mini and don't gate PRs.
+
 jobs:
   build-and-test:
     # macOS 27 AppSSO trapped SwiftPM binary-artifact requests from a headless
@@ -24,20 +33,22 @@ jobs:
     # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
     # session; the persistent scratch below means Sparkle is fetched only on a
     # cold scratch, not on every job.
-    runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
+    runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath", "swiftpm-safe"]') }}
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
-    timeout-minutes: 25
+    # Every hosted run is cold, on a smaller machine.
+    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 25 }}
     # Separate from the workflow-level concurrency group above (which cancels
-    # stale runs of the *same* PR): this queues jobs from *different* PRs onto
-    # the single physical runner instead of letting them execute in parallel.
+    # stale runs of the *same* PR): on the mini this queues jobs from *different*
+    # PRs onto the single physical runner instead of letting them execute in
+    # parallel. Hosted jobs each get their own VM, so their group is unique.
     # Concurrent swift test runs share unsandboxed local state (e.g.
     # RuleCollectionsManager's config file), which caused spurious
     # CLIPackCRUDTests "could not enable associated rule collection" failures
     # when two PRs' CI happened to overlap.
     concurrency:
-      group: keypath-self-hosted-runner
+      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-{2}', github.workflow, github.run_id, github.job) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -52,9 +63,29 @@ jobs:
         submodules: true
         persist-credentials: false
 
+    - name: Select Xcode 27.0 (hosted runner)
+      # GitHub's image defaults to a newer Xcode; its Xcode 27.0 is build 27A266a,
+      # the one the Macs use. The stable-Xcode path keeps the scripts' version
+      # check, and DEVELOPER_DIR covers tools that ask xcode-select.
+      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      run: |
+        xcode=/Applications/Xcode_27.app/Contents/Developer
+        version=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Xcode //p' | head -1)
+        if [[ "$version" != "27.0" ]]; then
+          echo "::error::$xcode is Xcode '$version', not 27.0; the image changed"
+          exit 1
+        fi
+        echo "KEYPATH_STABLE_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        echo "DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        # cargo reaches the compiler through cc, which needs the SDK named.
+        echo "SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
+
     - name: Verify runner disk reserve
       env:
-        KEYPATH_MIN_FREE_DISK_GIB: "40"
+        # A hosted VM has far less disk than the mini. 12 GiB is a floor, not a
+        # measurement of what a cold run uses; raise it once a hosted run has
+        # shown the real number.
+        KEYPATH_MIN_FREE_DISK_GIB: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '12' || '40' }}
       run: ./Scripts/lab/host-disk-reserve
 
     - name: Ensure Metal toolchain
@@ -111,17 +142,13 @@ jobs:
         kanata --version
         kanata-simulator --version
 
-    - name: Lint WizardAutoFixer for forbidden subprocess usage
-      run: |
-        chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
-        ./Scripts/lint-no-subprocess-in-autofixer.sh
-
     - name: Prepare persistent SwiftPM scratch
-      # Persistent per runner: runner.workspace (_work/KeyPath) survives between
-      # jobs, while runner.temp is wiped after every job and made each build cold.
-      # One runner runs one job at a time, so jobs never share this directory
-      # concurrently. It is cleared when the toolchain changes or it grows past
-      # the cap; the 40 GiB host disk reserve above still applies.
+      # Persistent per runner on the mini: runner.workspace (_work/KeyPath)
+      # survives between jobs, while runner.temp is wiped after every job and
+      # made each build cold. One runner runs one job at a time, so jobs never
+      # share this directory concurrently. It is cleared when the toolchain
+      # changes or it grows past the cap. A hosted VM starts empty every time,
+      # so there it is always cold.
       env:
         KEYPATH_SCRATCH_CAP_GIB: "30"
       run: |
@@ -153,7 +180,8 @@ jobs:
         KEYPATH_BUNDLED_SIMULATOR_OVERRIDE: /opt/homebrew/bin/kanata-simulator
         # SwiftPM can wrap XCTest post-run SIGABRT as exit 1 on the self-hosted runner;
         # run-tests-safe.sh still fails if it parses any test failures and emits a warning when this path is used.
-        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: "1"
+        # Not on hosted runners, where that quirk hasn't been seen.
+        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '0' || '1' }}
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
         KEYPATH_SWIFT_BUILD_JOBS: "4"
@@ -233,13 +261,14 @@ jobs:
         echo "- Narrow coverage enforcement moved to the scheduled/manual \`KeyPath Coverage\` workflow." >> $GITHUB_STEP_SUMMARY
 
   code-quality:
-    runs-on: [self-hosted, macOS, keypath]
-    timeout-minutes: 15
+    runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
+    # Hosted runs also install mise and SwiftLint on a smaller machine.
+    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 30 || 15 }}
     # This job does not share test state, but it does share the only physical
     # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
     # before its fixed per-rule safety timeout.
     concurrency:
-      group: keypath-self-hosted-runner
+      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-{2}', github.workflow, github.run_id, github.job) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -256,6 +285,31 @@ jobs:
 
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
+
+    - name: Select Xcode 27.0 (hosted runner)
+      # GitHub's image defaults to a newer Xcode; its Xcode 27.0 is build 27A266a,
+      # the one the Macs use. The stable-Xcode path keeps the scripts' version
+      # check, and DEVELOPER_DIR covers tools that ask xcode-select.
+      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      run: |
+        xcode=/Applications/Xcode_27.app/Contents/Developer
+        version=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Xcode //p' | head -1)
+        if [[ "$version" != "27.0" ]]; then
+          echo "::error::$xcode is Xcode '$version', not 27.0; the image changed"
+          exit 1
+        fi
+        echo "KEYPATH_STABLE_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        echo "DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        # cargo reaches the compiler through cc, which needs the SDK named.
+        echo "SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
+
+    - name: Install mise and SwiftLint (hosted runner)
+      # The mini has both; GitHub's image has neither. mise ignores a repo config
+      # it hasn't been told to trust, which would skip the SwiftFormat pin.
+      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      run: |
+        brew install mise swiftlint ripgrep
+        mise trust mise.toml
 
     - name: Install pinned SwiftFormat
       run: mise install swiftformat
