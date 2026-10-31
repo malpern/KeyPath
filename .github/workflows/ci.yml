@@ -48,7 +48,7 @@ jobs:
     # CLIPackCRUDTests "could not enable associated rule collection" failures
     # when two PRs' CI happened to overlap.
     concurrency:
-      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-{2}', github.workflow, github.run_id, github.job) || 'keypath-self-hosted-runner' }}
+      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-build-and-test', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -268,7 +268,7 @@ jobs:
     # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
     # before its fixed per-rule safety timeout.
     concurrency:
-      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-{2}', github.workflow, github.run_id, github.job) || 'keypath-self-hosted-runner' }}
+      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-code-quality', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
