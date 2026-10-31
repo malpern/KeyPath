@@ -362,7 +362,7 @@ echo "🏗️  Test prebuild: $TEST_PREBUILD | disable XCTest: $TEST_DISABLE_XCT
 echo "🧪 SWIFT_TEST=$SWIFT_TEST | SKIP_EVENT_TAP_TESTS=$SKIP_EVENT_TAP_TESTS"
 echo "🪵 KEYPATH_LOG_LEVEL=$KEYPATH_LOG_LEVEL | KEYPATH_TEST_VERBOSE_LOGS=${KEYPATH_TEST_VERBOSE_LOGS:-0}"
 if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ]; then
-    echo "⚠️  KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS=1 (signal crashes can pass only with zero parsed failures)"
+    echo "⚠️  KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS=1 (signal crashes after every test bundle finished can pass with zero parsed failures)"
 fi
 if [ "$ALLOW_NONZERO_TEST_SUCCESS" = "1" ]; then
     echo "⚠️  KEYPATH_ALLOW_NONZERO_TEST_SUCCESS=1 (non-zero exits with parsed passes can pass)"
@@ -387,6 +387,60 @@ append_runner_crash_summary() {
     fi
 }
 
+# A crash after every test bundle finished is the teardown crash the allowance
+# exists for. A crash in the middle of a bundle silently skips every test after
+# it, so it must fail. Prints the interrupted test or bundle; returns 0 if any.
+crash_interrupted_run() {
+    local in_flight unfinished_bundles
+    in_flight=$(awk '
+        /Test Case .* started/ { match($0, /-\[[^]]+\]/); open[substr($0, RSTART, RLENGTH)] = 1 }
+        /Test Case .* (passed|failed|skipped) \(/ { match($0, /-\[[^]]+\]/); delete open[substr($0, RSTART, RLENGTH)] }
+        END { for (t in open) print t }
+    ' "$LOG")
+    unfinished_bundles=$(awk '
+        /Test Suite .*\.xctest. started/ { match($0, /[A-Za-z0-9_]+\.xctest/); open[substr($0, RSTART, RLENGTH)] = 1 }
+        /Test Suite .*\.xctest. (passed|failed)/ { match($0, /[A-Za-z0-9_]+\.xctest/); delete open[substr($0, RSTART, RLENGTH)] }
+        END { for (b in open) print b }
+    ' "$LOG")
+    if [ -n "$in_flight" ] || [ -n "$unfinished_bundles" ]; then
+        [ -z "$in_flight" ] || echo "   Interrupted test: $in_flight"
+        [ -z "$unfinished_bundles" ] || echo "   Unfinished test bundle(s): $(echo "$unfinished_bundles" | tr '\n' ' ')"
+        echo "   Every test after this point in the bundle did not run."
+        return 0
+    fi
+    return 1
+}
+
+# Show where the test runner crashed, from the newest xctest crash report.
+print_crash_report_excerpt() {
+    # A runner started as a LaunchDaemon may report to /Library instead of the user's folder.
+    local dirs=("${ORIGINAL_HOME:-$HOME}/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports) report
+    report=$(find "${dirs[@]}" -maxdepth 1 -name 'xctest*.ips' -newermt "@$TEST_START_SECONDS" 2>/dev/null | sort | tail -n 1)
+    if [ -z "$report" ]; then
+        echo "   No xctest crash report found in ${dirs[*]}"
+        return
+    fi
+    echo "   Crash report: $report"
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$report" <<'PY' || true
+import json, sys
+text = open(sys.argv[1]).read()
+body = json.loads(text[text.index("\n") + 1:])
+exc = body.get("exception", {})
+print(f"   Exception: {exc.get('type')} {exc.get('signal')} {body.get('termination', {}).get('indicator', '')}")
+images = body.get("usedImages", [])
+for thread in body.get("threads", []):
+    if not thread.get("triggered"):
+        continue
+    for frame in thread.get("frames", [])[:25]:
+        image = images[frame["imageIndex"]].get("name", "?") if frame.get("imageIndex", -1) < len(images) else "?"
+        print(f"     {image}  {frame.get('symbol', hex(frame.get('imageOffset', 0)))}")
+PY
+    else
+        head -c 4000 "$report"
+    fi
+}
+
 # 0) Worktree-local build/test dir and isolated HOME.
 # One thread owns one worktree and one `.build`, so local tests reuse the app
 # build graph instead of compiling a duplicate `.build-ci` graph. CI also uses
@@ -398,6 +452,8 @@ if [ "${CI_ENVIRONMENT}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
 else
     SCRATCH_PATH=${SCRATCH_PATH:-"$PROJECT_DIR/.build"}
 fi
+# ReportCrash writes to the real user's DiagnosticReports, not the test HOME.
+ORIGINAL_HOME="$HOME"
 export HOME=${TEST_HOME:-$(mktemp -d 2>/dev/null || mktemp -d -t keypath-tests)}
 SCRATCH_PATH="$(absolute_dir "$SCRATCH_PATH")"
 MODULE_CACHE="$SCRATCH_PATH/ModuleCache.noindex"
@@ -576,7 +632,11 @@ if [ "$IS_SIGNAL_CRASH" = true ]; then
   echo "⚠️  Test runner crashed with signal $SIGNAL_NUM (exit $EXIT_CODE)"
   echo "   Passed: $PASS_COUNT | Failed: $FAIL_COUNT"
 
-  if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$FAIL_COUNT" -eq 0 ] && [ "$PASS_COUNT" -gt 0 ]; then
+  print_crash_report_excerpt
+  INTERRUPTED=false
+  if crash_interrupted_run; then INTERRUPTED=true; fi
+
+  if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$INTERRUPTED" = false ] && [ "$FAIL_COUNT" -eq 0 ] && [ "$PASS_COUNT" -gt 0 ]; then
     if [ -n "${GITHUB_ACTIONS:-}" ]; then
       echo "::warning::Allowed test runner signal crash after $PASS_COUNT parsed passes and 0 parsed failures"
     fi
@@ -598,7 +658,11 @@ if [ "$LOG_SIGNAL_CRASH" = true ]; then
   echo "⚠️  Test runner reported a signal crash: $LOG_SIGNAL_CRASH_LINE"
   echo "   Exit: $EXIT_CODE | Passed: $PASS_COUNT | Failed: $FAIL_COUNT"
 
-  if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$FAIL_COUNT" -eq 0 ] && [ "$PASS_COUNT" -gt 0 ]; then
+  print_crash_report_excerpt
+  INTERRUPTED=false
+  if crash_interrupted_run; then INTERRUPTED=true; fi
+
+  if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$INTERRUPTED" = false ] && [ "$FAIL_COUNT" -eq 0 ] && [ "$PASS_COUNT" -gt 0 ]; then
     if [ -n "${GITHUB_ACTIONS:-}" ]; then
       echo "::warning::Allowed SwiftPM-wrapped test runner signal crash after $PASS_COUNT parsed passes and 0 parsed failures"
     fi

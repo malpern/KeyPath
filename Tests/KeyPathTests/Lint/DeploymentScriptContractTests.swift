@@ -253,6 +253,26 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    func testRunnerCrashAllowanceNeverHidesSkippedTests() throws {
+        let root = repositoryRoot()
+        let safeTests = try contents(of: root.appendingPathComponent("Scripts/run-tests-safe.sh"))
+
+        // A crash mid-bundle once let CI pass for days while every suite after the
+        // crashing test (including new ones) silently never ran.
+        XCTAssertEqual(
+            safeTests.components(
+                separatedBy: #"[ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ] && [ "$INTERRUPTED" = false ]"#
+            ).count - 1,
+            2,
+            "Both signal-crash allowances must refuse a crash that interrupted a test or bundle."
+        )
+        XCTAssertEqual(
+            safeTests.components(separatedBy: "if crash_interrupted_run; then INTERRUPTED=true; fi").count - 1,
+            2
+        )
+        XCTAssertEqual(safeTests.components(separatedBy: "  print_crash_report_excerpt\n").count - 1, 2)
+    }
+
     func testCIRunnerInstallerReadsGitHubJSONRegistration() throws {
         let root = repositoryRoot()
         let installer = try contents(of: root.appendingPathComponent("Scripts/install-ci-runner-service.sh"))
