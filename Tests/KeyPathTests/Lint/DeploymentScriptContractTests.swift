@@ -287,6 +287,27 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    /// GitHub counts a skipped check as passing, so a second source of these names
+    /// can satisfy branch protection before the real job reports (#1344).
+    func testRequiredChecksComeFromOneWorkflowAndFailTowardsRunning() throws {
+        let workflows = repositoryRoot().appendingPathComponent(".github/workflows")
+        let files = try FileManager.default.contentsOfDirectory(at: workflows, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "yml" }
+        XCTAssertFalse(files.isEmpty)
+        for file in files {
+            let text = try contents(of: file)
+            for job in ["  build-and-test:\n", "  code-quality:\n"] where text.contains(job) {
+                XCTAssertEqual(file.lastPathComponent, "ci.yml", "\(job) must only be defined in ci.yml")
+            }
+        }
+
+        let ci = try contents(of: workflows.appendingPathComponent("ci.yml"))
+        XCTAssertFalse(ci.contains("paths-ignore"), "ci.yml must run on every PR so its checks always report")
+        let gate = #"if: ${{ !cancelled() && needs.classify-docs-only.outputs.docs_only != 'true' }}"#
+        XCTAssertEqual(ci.components(separatedBy: gate).count - 1, 2,
+                       "Both required jobs skip only on an explicit docs-only result, so a failed classifier still runs them.")
+    }
+
     func testSwiftPMWorkflowsRequireInteractiveSafeRunner() throws {
         let root = repositoryRoot()
         let ci = try contents(of: root.appendingPathComponent(".github/workflows/ci.yml"))
