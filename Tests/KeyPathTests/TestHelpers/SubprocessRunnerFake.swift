@@ -49,7 +49,10 @@ actor SubprocessRunnerFake: SubprocessRunning {
 
     // MARK: - Initialization
 
-    private init() {}
+    /// Tests that inject the fake (through `systemProbeClient()`) should create
+    /// their own: suites run in parallel, and another suite's `reset()` on
+    /// `shared` clears `executedCommands` mid-test.
+    init() {}
 
     // MARK: - Reset
 
