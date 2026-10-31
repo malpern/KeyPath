@@ -4,14 +4,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ main, master ]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.github/workflows/claude.yml'
-      - '.github/workflows/claude-code-review.yml'
-      - 'Sources/KeyPathAppKit/Resources/*.md'
-      - 'Sources/KeyPathAppKit/Resources/*.css'
-      - 'Sources/KeyPathAppKit/Resources/*.png'
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -26,8 +18,43 @@ concurrency:
 # Only ci.yml has the fallback; coverage, cache-warm and runner-health are
 # scheduled jobs that stay on the mini and don't gate PRs.
 
+# GitHub counts a skipped check as passing, so the required checks must never be
+# skipped. `build-and-test` and `code-quality` at the bottom of this file always run
+# and always report a real result: they pass only if the matching full job succeeded,
+# or the classifier succeeded and said docs-only. A cancelled run or a failed
+# classifier can't pass them. Report these two names from this workflow only: a
+# skipped job of the same name elsewhere satisfied branch protection before the real
+# job had reported, which merged #1344 early.
 jobs:
-  build-and-test:
+  classify-docs-only:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check whether all changed files are docs-only
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # master's copy of the script: a PR must not decide its own CI by changing it.
+        run: |
+          script=$(mktemp)
+          if git show "$BASE_SHA:.github/scripts/classify-docs-only.sh" > "$script"; then
+            result=$(bash "$script" "$BASE_SHA")
+          else
+            result="docs_only=false" # The base has no classifier yet; run everything.
+          fi
+          echo "$result"
+          echo "$result" >> "$GITHUB_OUTPUT"
+
+  test-full:
+    needs: classify-docs-only
+    if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}
     # macOS 27 AppSSO trapped SwiftPM binary-artifact requests from a headless
     # LaunchDaemon (docs: 2026-07-16-headless-swiftpm-appsso-trap.md). Since
     # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
@@ -260,7 +287,9 @@ jobs:
         echo "### Coverage" >> $GITHUB_STEP_SUMMARY
         echo "- Narrow coverage enforcement moved to the scheduled/manual \`KeyPath Coverage\` workflow." >> $GITHUB_STEP_SUMMARY
 
-  code-quality:
+  quality-full:
+    needs: classify-docs-only
+    if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}
     runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
     # Hosted runs also install mise and SwiftLint on a smaller machine.
     timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 30 || 15 }}
@@ -451,3 +480,32 @@ jobs:
         if [ "$SMELLS_FOUND" = "0" ] && [ "${CRITICAL_ISSUES:-unknown}" = "none" ]; then
           echo "- No code smells detected" >> $GITHUB_STEP_SUMMARY
         fi
+
+  # The required checks. See the note above `jobs:`.
+  build-and-test:
+    needs: [classify-docs-only, test-full]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the full job, unless the PR is docs-only
+        env:
+          CLASSIFIER: ${{ needs.classify-docs-only.result }}
+          DOCS_ONLY: ${{ needs.classify-docs-only.outputs.docs_only }}
+          FULL: ${{ needs.test-full.result }}
+        run: |
+          echo "classifier=$CLASSIFIER docs_only=$DOCS_ONLY full=$FULL"
+          [[ "$FULL" == success ]] || [[ "$CLASSIFIER" == success && "$DOCS_ONLY" == true ]]
+
+  code-quality:
+    needs: [classify-docs-only, quality-full]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the full job, unless the PR is docs-only
+        env:
+          CLASSIFIER: ${{ needs.classify-docs-only.result }}
+          DOCS_ONLY: ${{ needs.classify-docs-only.outputs.docs_only }}
+          FULL: ${{ needs.quality-full.result }}
+        run: |
+          echo "classifier=$CLASSIFIER docs_only=$DOCS_ONLY full=$FULL"
+          [[ "$FULL" == success ]] || [[ "$CLASSIFIER" == success && "$DOCS_ONLY" == true ]]
