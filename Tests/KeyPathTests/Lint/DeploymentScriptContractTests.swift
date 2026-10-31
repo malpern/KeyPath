@@ -309,9 +309,12 @@ final class DeploymentScriptContractTests: XCTestCase {
 
         let ci = try contents(of: workflows.appendingPathComponent("ci.yml"))
         XCTAssertFalse(ci.contains("paths-ignore"), "ci.yml must run on every PR so its checks always report")
-        let gate = #"if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}"#
-        XCTAssertEqual(ci.components(separatedBy: gate).count - 1, 2,
-                       "A failed classifier must run the required jobs; a cancelled run must not skip them.")
+        // Skipping counts as passing, so the required jobs must always run.
+        XCTAssertEqual(ci.components(separatedBy: "if: always()\n    runs-on: ubuntu-latest").count - 1, 2)
+        XCTAssertEqual(ci.components(separatedBy: #"[[ "$FULL" == success ]] || [[ "$CLASSIFIER" == success && "$DOCS_ONLY" == true ]]"#).count - 1, 2,
+                       "A required job passes only on a full success or a confirmed docs-only result.")
+        // A PR must not decide its own CI by changing the classifier.
+        XCTAssertTrue(ci.contains(#"git show "$BASE_SHA:.github/scripts/classify-docs-only.sh""#))
     }
 
     private func runClassifier(changing paths: [String], base: String? = nil) throws -> (code: Int32, output: String) {
@@ -343,6 +346,13 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertEqual(try runClassifier(changing: ["docs/a.md", "README.md"]).output, "docs_only=true\n")
         XCTAssertEqual(try runClassifier(changing: ["Sources/KeyPathAppKit/Resources/a.css"]).output, "docs_only=true\n")
         XCTAssertEqual(try runClassifier(changing: ["docs/a.md", "Sources/A.swift"]).output, "docs_only=false\n")
+    }
+
+    /// CI skipped only root-level markdown before, and tests read these other files.
+    func testDocsOnlyClassifierRunsTestsForMarkdownElsewhere() throws {
+        for path in ["guides/a.md", "Tests/README.md", "Sources/KeyPathAppKit/Resources/Sounds/README.md"] {
+            XCTAssertEqual(try runClassifier(changing: [path]).output, "docs_only=false\n", path)
+        }
     }
 
     /// Skipping counts as passing, so doubt must never read as docs-only.

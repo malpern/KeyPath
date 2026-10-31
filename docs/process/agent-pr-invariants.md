@@ -42,7 +42,7 @@ What must be true at each phase boundary. The agent's job is to make these true 
 
 ## Required Status Checks
 
-`master` requires both **`build-and-test`** and **`code-quality`** (strict — branch must be up to date). `code-quality` enforces the swiftformat version pin and is gating (#649/#652). `ci.yml` runs on every PR. Its `classify-docs-only` job skips both required jobs when every changed file is docs or resources, and GitHub counts a skipped check as passing (#650). Never report these check names from a second workflow: a skipped duplicate satisfies branch protection before the real job has reported, which lets a PR merge without its tests (#1344).
+`master` requires both **`build-and-test`** and **`code-quality`** (strict — branch must be up to date). `code-quality` enforces the swiftformat version pin and is gating (#649/#652). `ci.yml` runs on every PR, and those two jobs always run and report a real result. They pass only if the matching full job (`test-full`, `quality-full`) succeeded, or `classify-docs-only` succeeded and said docs-only (#650). GitHub counts a skipped check as passing, so never let a job with either name be skipped, and never report those names from a second workflow: that merged #1344 before its tests ran.
 
 ## After Babysitting
 
