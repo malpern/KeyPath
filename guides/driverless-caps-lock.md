@@ -65,10 +65,13 @@ If it cannot determine the covered interfaces safely, that keyboard is left
 uncovered rather than guessing. Virtual keyboards are not physical Caps Lock
 targets.
 
-The first Caps Lock press immediately after plugging in a keyboard can arrive
-before macOS finishes presenting the device for setup. If Caps Lock behaves
-normally at that moment, release all keys and try again after KeyPath reports
-the keyboard as active. Protected password fields and Secure Input still
+KeyPath normally starts setting up a keyboard as soon as you plug it in, and
+otherwise within a couple of seconds. It waits until no keys are held, and a Caps Lock
+press in the first moment can still arrive before macOS finishes presenting the
+device. If Caps Lock behaves normally then, release all keys and try again. If it
+still doesn't, **Settings → General** lists the keyboards that aren't covered.
+
+Protected password fields and Secure Input still
 prevent dynamic remapping.
 
 ## Can a rule turn Caps Lock on?
