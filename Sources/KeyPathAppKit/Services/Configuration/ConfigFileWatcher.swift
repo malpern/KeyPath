@@ -438,7 +438,8 @@ class ConfigFileWatcher: @unchecked Sendable {
             // Retry after a brief delay
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(1)) // 1s
-                self?.setupFileMonitoring()
+                // A retry reattaches like a rebind, so an existing baseline stays.
+                self?.setupFileMonitoring(keepBaseline: self?.lastContentFingerprint != nil)
             }
         } else {
             AppLogger.shared.log(

@@ -86,12 +86,28 @@ struct ConfigFileWatcherTests {
         // The rebind runs about 50 ms after the rename, before the 500 ms debounce.
         try "external-write".write(toFile: path, atomically: true, encoding: .utf8)
         await watcher.rebindForTesting()
-        #expect(callbackCount == 0, "the rebind only schedules; the reconcile decides")
 
         await watcher.reconcileFileChangeForTesting()
         #expect(callbackCount == 1)
         await watcher.reconcileFileChangeForTesting()
         #expect(callbackCount == 1, "one change reloads once")
+        watcher.stopWatching()
+    }
+
+    @Test("rebinding after the app's own atomic save does not reload")
+    @MainActor
+    func rebindKeepsInternalSaveQuiet() async throws {
+        let (_, path) = try makeTempFile()
+        let watcher = ConfigFileWatcher()
+        var callbackCount = 0
+        watcher.startWatching(path: path) { callbackCount += 1 }
+        watcher.claimInternalContent("internal-write")
+
+        try "internal-write".write(toFile: path, atomically: true, encoding: .utf8)
+        await watcher.rebindForTesting()
+        await watcher.reconcileFileChangeForTesting()
+
+        #expect(callbackCount == 0)
         watcher.stopWatching()
     }
 
