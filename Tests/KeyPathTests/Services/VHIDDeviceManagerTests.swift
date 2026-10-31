@@ -88,8 +88,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
     func testDetectRunningUsesInjectedSystemStateProviderForProcessDiscovery() async {
         KeyPathCore.FeatureFlags.testStartupMode = false
         VHIDDeviceManager.testPIDProvider = nil
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [12345] : []
         }
@@ -109,8 +108,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
     func testGetDaemonPIDsUsesInjectedSystemStateProviderForProcessDiscovery() async {
         KeyPathCore.FeatureFlags.testStartupMode = false
         VHIDDeviceManager.testPIDProvider = nil
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [12345, 67890] : []
         }
@@ -128,8 +126,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
     }
 
     func testCheckLaunchctlHealthUsesInjectedSystemStateProvider() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { subcommand, args in
             if subcommand == "print", args == ["system/com.keypath.karabiner-vhiddaemon"] {
                 return ProcessResult(
@@ -160,8 +157,7 @@ final class VHIDDeviceManagerTests: XCTestCase {
     func testDuplicateProcessRaceUsesInjectedLaunchctlEvidence() async {
         KeyPathCore.FeatureFlags.testStartupMode = false
         VHIDDeviceManager.testPIDProvider = nil
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "Karabiner-VirtualHIDDevice-Daemon" ? [111, 222] : []
         }

@@ -79,8 +79,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             func unregister() async throws {}
         }
 
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { subcommand, args in
             if subcommand == "print", args == ["system/\(KanataDaemonManager.kanataServiceID)"] {
                 return ProcessResult(
@@ -252,8 +251,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             func unregister() async throws {}
         }
 
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { _, _ in
             ProcessResult(exitCode: 113, stdout: "", stderr: "service not found", duration: 0.01)
         }
@@ -287,8 +285,7 @@ final class KanataDaemonManagerTests: XCTestCase {
             func unregister() async throws {}
         }
 
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { _, _ in
             ProcessResult(exitCode: 113, stdout: "", stderr: "service not found", duration: 0.01)
         }

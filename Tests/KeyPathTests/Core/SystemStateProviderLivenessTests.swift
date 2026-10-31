@@ -55,8 +55,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
     }
 
     func testProcessDiscoveryDelegatesToInjectedSubprocessRunner() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "kanata.*--cfg" ? [1234, 5678] : []
         }
@@ -68,8 +67,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
     }
 
     func testProcessDiscoveryRejectsBlankPatterns() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { _ in
             XCTFail("Blank process-discovery patterns must not invoke pgrep")
             return [9999]
@@ -82,8 +80,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
     }
 
     func testProcessMatchDiscoveryDelegatesToInjectedSubprocessRunner() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureRunResult { executable, args in
             if executable == "/usr/bin/pgrep", args == ["-fl", "kanata"] {
                 return ProcessResult(
@@ -119,8 +116,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
     }
 
     func testProcessMatchDiscoveryRejectsBlankPatterns() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureRunResult { _, _ in
             XCTFail("Blank process-match patterns must not invoke pgrep")
             return ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0.01)
@@ -133,8 +129,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
     }
 
     func testLaunchctlPrintDelegatesToInjectedSubprocessRunner() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { subcommand, args in
             if subcommand == "print", args == ["system/com.keypath.karabiner-vhiddaemon"] {
                 return ProcessResult(
@@ -164,8 +159,7 @@ final class SystemStateProviderLivenessTests: XCTestCase {
     }
 
     func testLaunchctlPrintRejectsBlankTargets() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { _, _ in
             XCTFail("Blank launchctl print targets must not invoke launchctl")
             return ProcessResult(exitCode: 0, stdout: "", stderr: "", duration: 0.01)

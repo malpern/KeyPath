@@ -153,8 +153,7 @@ final class DiagnosticsServiceTests: XCTestCase {
     }
 
     func testKarabinerGrabberDetectionUsesInjectedSystemStateProvider() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "karabiner_grabber" ? [1234] : []
         }
@@ -176,8 +175,7 @@ final class DiagnosticsServiceTests: XCTestCase {
     }
 
     func testKarabinerDaemonDetectionUsesInjectedSystemStateProvider() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "Karabiner-VirtualHIDDevice" ? [5678] : []
         }

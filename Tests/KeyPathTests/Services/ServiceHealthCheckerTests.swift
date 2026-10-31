@@ -173,7 +173,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
         let provider = SystemStateProvider(probes: probes)
         return await MainActor.run {
             ServiceHealthChecker(
-                subprocessRunner: SubprocessRunnerFake.shared,
+                subprocessRunner: SubprocessRunnerFake(),
                 systemStateProvider: provider
             )
         }
@@ -224,8 +224,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
     func testIsServiceLoadedDelegatesLaunchctlPrintToSystemStateProvider() async {
         TestEnvironment.allowAdminOperationsInTests = true
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { subcommand, args in
             if subcommand == "print", args == ["system/\(ServiceHealthChecker.vhidManagerServiceID)"] {
                 return ProcessResult(exitCode: 0, stdout: "state = running", stderr: "", duration: 0.01)
@@ -257,8 +256,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
 
     func testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider() async {
         TestEnvironment.allowAdminOperationsInTests = true
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { subcommand, args in
             if subcommand == "print", args == ["system/\(ServiceHealthChecker.vhidManagerServiceID)"] {
                 return ProcessResult(
@@ -423,8 +421,7 @@ final class ServiceHealthCheckerTests: XCTestCase {
             ServiceHealthChecker.recentlyRestartedOverride = { _, _ in false }
         #endif
 
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureLaunchctlResult { subcommand, args in
             if subcommand == "print", args == ["system/\(ServiceHealthChecker.kanataServiceID)"] {
                 return ProcessResult(

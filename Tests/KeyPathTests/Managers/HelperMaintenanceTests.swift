@@ -46,8 +46,7 @@ final class HelperMaintenanceTests: XCTestCase {
     }
 
     func testDetectDuplicateAppCopiesUsesBoundedSpotlightScan() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureRunResult { _, _ in
             ProcessResult(
                 exitCode: 0,
@@ -69,8 +68,7 @@ final class HelperMaintenanceTests: XCTestCase {
     }
 
     func testDetectDuplicateAppCopiesFallsBackWhenSpotlightTimesOut() async {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.setShouldTimeout(true)
         HelperMaintenance.testDuplicateScanRunner = runner
 
@@ -80,7 +78,6 @@ final class HelperMaintenanceTests: XCTestCase {
         // never report a location that does not exist (which read as a phantom duplicate).
         XCTAssertTrue(copies.allSatisfy { $0.hasSuffix("/KeyPath.app") })
         XCTAssertTrue(copies.allSatisfy { FileManager.default.fileExists(atPath: $0) })
-        await runner.reset()
         HelperMaintenance.testDuplicateScanRunner = nil
     }
 
