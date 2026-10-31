@@ -287,6 +287,91 @@ final class DeploymentScriptContractTests: XCTestCase {
         )
     }
 
+    /// GitHub counts a skipped check as passing, so a second source of these names
+    /// can satisfy branch protection before the real job reports (#1344).
+    func testRequiredChecksComeFromOneWorkflow() throws {
+        let workflows = repositoryRoot().appendingPathComponent(".github/workflows")
+        let files = try FileManager.default.contentsOfDirectory(at: workflows, includingPropertiesForKeys: nil)
+            .filter { ["yml", "yaml"].contains($0.pathExtension) }
+        XCTAssertFalse(files.isEmpty)
+        for file in files where file.lastPathComponent != "ci.yml" {
+            let lines = try contents(of: file).components(separatedBy: .newlines)
+            for check in ["build-and-test", "code-quality"] {
+                // A job key, or a job's `name:`, which is what branch protection matches.
+                let names = lines.filter {
+                    let line = $0.trimmingCharacters(in: .whitespaces)
+                    return line == "\(check):" || line == "name: \(check)"
+                        || line == "name: \"\(check)\"" || line == "name: '\(check)'"
+                }
+                XCTAssertEqual(names, [], "\(file.lastPathComponent) must not report the required check \(check)")
+            }
+        }
+
+        let ci = try contents(of: workflows.appendingPathComponent("ci.yml"))
+        XCTAssertFalse(ci.contains("paths-ignore"), "ci.yml must run on every PR so its checks always report")
+        // Skipping counts as passing, so the required jobs must always run.
+        XCTAssertEqual(ci.components(separatedBy: "if: always()\n    runs-on: ubuntu-latest").count - 1, 2)
+        XCTAssertEqual(ci.components(separatedBy: #"[[ "$FULL" == success ]] || [[ "$CLASSIFIER" == success && "$DOCS_ONLY" == true ]]"#).count - 1, 2,
+                       "A required job passes only on a full success or a confirmed docs-only result.")
+        // A PR must not decide its own CI by changing the classifier.
+        XCTAssertTrue(ci.contains(#"git show "$BASE_SHA:.github/scripts/classify-docs-only.sh""#))
+    }
+
+    private func runClassifier(changing paths: [String], base: String? = nil) throws -> (code: Int32, output: String) {
+        let repo = FileManager.default.temporaryDirectory.appendingPathComponent("classify-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: repo) }
+        let writes = paths.map { #"mkdir -p "$(dirname '\#($0)')"; echo x > '\#($0)'; git add -A"# }.joined(separator: "; ")
+        let setup = """
+        export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+        git init -q; git config user.email t@t; git config user.name t
+        git commit -q --allow-empty -m base; git tag start
+        \(writes)
+        git commit -q --allow-empty -m change
+        """
+        let script = repositoryRoot().appendingPathComponent(".github/scripts/classify-docs-only.sh").path
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-c", "\(setup)\n'\(script)' \(base ?? "start")"]
+        process.currentDirectoryURL = repo
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        try process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return (process.terminationStatus, String(decoding: data, as: UTF8.self))
+    }
+
+    func testDocsOnlyClassifierSkipsOnlyForDocsAndResources() throws {
+        XCTAssertEqual(try runClassifier(changing: ["docs/a.md", "README.md"]).output, "docs_only=true\n")
+        XCTAssertEqual(try runClassifier(changing: ["Sources/KeyPathAppKit/Resources/a.css"]).output, "docs_only=true\n")
+        XCTAssertEqual(try runClassifier(changing: ["docs/a.md", "Sources/A.swift"]).output, "docs_only=false\n")
+    }
+
+    /// Tests read these files, and workflow changes must run the tests that guard them.
+    func testDocsOnlyClassifierRunsTestsForMarkdownElsewhere() throws {
+        for path in [
+            "guides/a.md", "Tests/README.md", "Sources/KeyPathAppKit/Resources/Sounds/README.md",
+            ".github/workflows/claude.yml",
+        ] {
+            XCTAssertEqual(try runClassifier(changing: [path]).output, "docs_only=false\n", path)
+        }
+    }
+
+    /// Skipping counts as passing, so doubt must never read as docs-only.
+    func testDocsOnlyClassifierFailsTowardsRunningTests() throws {
+        XCTAssertEqual(try runClassifier(changing: []).output, "docs_only=false\n", "an empty diff proves nothing")
+
+        let unknownBase = try runClassifier(changing: ["docs/a.md"], base: "0000000000000000000000000000000000000001")
+        XCTAssertNotEqual(unknownBase.code, 0)
+        XCTAssertFalse(unknownBase.output.contains("docs_only=true"))
+
+        let noBase = try runClassifier(changing: ["docs/a.md"], base: "\"\"")
+        XCTAssertNotEqual(noBase.code, 0)
+        XCTAssertFalse(noBase.output.contains("docs_only=true"))
+    }
+
     func testSwiftPMWorkflowsRequireInteractiveSafeRunner() throws {
         let root = repositoryRoot()
         let ci = try contents(of: root.appendingPathComponent(".github/workflows/ci.yml"))
