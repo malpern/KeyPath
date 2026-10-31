@@ -64,8 +64,7 @@ final class ProcessLifecycleManagerTests: XCTestCase {
     }
 
     func testDetectKanataProcessesUsesInjectedSystemStateProvider() async throws {
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configureRunResult { executable, args in
             if executable == "/usr/bin/pgrep", args == ["-fl", "kanata"] {
                 return ProcessResult(

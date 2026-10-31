@@ -83,8 +83,7 @@ struct SystemValidatorTests {
     func karabinerGrabberPIDUsesInjectedSystemStateProvider() async {
         await setupTest()
 
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "karabiner_grabber" ? [9876] : []
         }

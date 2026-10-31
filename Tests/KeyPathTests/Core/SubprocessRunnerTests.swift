@@ -9,8 +9,7 @@ final class SubprocessRunnerTests: XCTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        fakeRunner = SubprocessRunnerFake.shared
-        await fakeRunner.reset()
+        fakeRunner = SubprocessRunnerFake()
     }
 
     override func tearDown() async throws {

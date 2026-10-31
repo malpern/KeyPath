@@ -6,8 +6,6 @@ import Foundation
 /// Allows tests to control subprocess execution without actually spawning processes.
 /// Supports success, failure, timeout, and custom result scenarios.
 actor SubprocessRunnerFake: SubprocessRunning {
-    static let shared = SubprocessRunnerFake()
-
     // MARK: - Configuration
 
     /// Custom result provider for run() calls
@@ -49,9 +47,8 @@ actor SubprocessRunnerFake: SubprocessRunning {
 
     // MARK: - Initialization
 
-    /// Tests that inject the fake (through `systemProbeClient()`) should create
-    /// their own: suites run in parallel, and another suite's `reset()` on
-    /// `shared` clears `executedCommands` mid-test.
+    /// Each test creates its own. Suites run in parallel, so a shared instance
+    /// lets one suite's `reset()` clear another's `executedCommands` mid-test.
     init() {}
 
     // MARK: - Reset
