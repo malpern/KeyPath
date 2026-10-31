@@ -632,7 +632,7 @@ public final class SessionRuntimeWorker {
     /// Keyboards whose failure backoff can be dropped: gone from the registry,
     /// not merely missing from one listing.
     nonisolated static func departedBackoffs(_ backingOff: Set<UInt64>, listed: Set<UInt64>,
-                                 exists: (UInt64) -> Bool?) -> Set<UInt64>
+                                             exists: (UInt64) -> Bool?) -> Set<UInt64>
     {
         backingOff.filter { !listed.contains($0) && exists($0) == false }
     }
