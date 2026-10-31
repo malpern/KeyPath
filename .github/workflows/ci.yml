@@ -23,7 +23,8 @@ concurrency:
 # `build-and-test` can satisfy branch protection before the real job has reported
 # (it merged #1344 early). Here, neither required check exists until the classifier
 # finishes, and they skip only when every changed file is docs or resources.
-# If the classifier fails, its output is empty and the full jobs run.
+# If the classifier fails, its output is empty and the full jobs run. A cancelled
+# run stays cancelled, which doesn't satisfy the required checks.
 jobs:
   classify-docs-only:
     runs-on: ubuntu-latest
@@ -38,30 +39,16 @@ jobs:
 
       - name: Check whether all changed files are docs-only
         id: classify
-        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          set -euo pipefail
-
-          base="${{ github.event.pull_request.base.sha }}"
-          docs_only=true
-
-          while IFS= read -r path; do
-            [ -n "$path" ] || continue
-            case "$path" in
-              docs/*|*.md|.github/workflows/claude.yml|.github/workflows/claude-code-review.yml|Sources/KeyPathAppKit/Resources/*.md|Sources/KeyPathAppKit/Resources/*.css|Sources/KeyPathAppKit/Resources/*.png)
-                ;;
-              *)
-                docs_only=false
-                ;;
-            esac
-          done < <(git diff --name-only "$base"...HEAD)
-
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
-          echo "docs_only=$docs_only"
+          result=$(./.github/scripts/classify-docs-only.sh "$BASE_SHA")
+          echo "$result"
+          echo "$result" >> "$GITHUB_OUTPUT"
 
   build-and-test:
     needs: classify-docs-only
-    if: ${{ !cancelled() && needs.classify-docs-only.outputs.docs_only != 'true' }}
+    if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}
     # macOS 27 AppSSO trapped SwiftPM binary-artifact requests from a headless
     # LaunchDaemon (docs: 2026-07-16-headless-swiftpm-appsso-trap.md). Since
     # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
@@ -296,7 +283,7 @@ jobs:
 
   code-quality:
     needs: classify-docs-only
-    if: ${{ !cancelled() && needs.classify-docs-only.outputs.docs_only != 'true' }}
+    if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}
     runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
     # Hosted runs also install mise and SwiftLint on a smaller machine.
     timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 30 || 15 }}
