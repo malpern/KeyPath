@@ -79,11 +79,11 @@ kp_dev_signing_identity() {
     local preferred=$1
     local identities
     identities=$(${KP_FIND_IDENTITY_CMD:-security find-identity -v -p codesigning}) || identities=""
-    if printf '%s\n' "$identities" | grep -Fq "$preferred"; then
+    if printf '%s\n' "$identities" | grep -F -- "$preferred" >/dev/null; then
         printf '%s\n' "$preferred"
         return 0
     fi
-    printf '%s\n' "$identities" | awk '/"Apple Development: Micah Alpern \(/ { print $2; exit }'
+    printf '%s\n' "$identities" | awk '/"Apple Development: / { print $2; exit }'
 }
 
 kp_run() {

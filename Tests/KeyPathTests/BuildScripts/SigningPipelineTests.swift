@@ -48,7 +48,8 @@ final class SigningPipelineTests: XCTestCase {
         KP_FIND_IDENTITY_CMD="cat \(listingFile.path)" kp_dev_signing_identity "\(preferred)"
         """)
         XCTAssertEqual(result.code, 0, result.stderr)
-        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        // `bash -l` may print profile output first; the identity is the last line.
+        return result.stdout.split(separator: "\n").last.map(String.init) ?? ""
     }
 
     func testDevSigningPrefersDeveloperIDWhenPresent() throws {
@@ -69,10 +70,19 @@ final class SigningPipelineTests: XCTestCase {
 
     func testDevSigningIsEmptyWithoutAUsableIdentity() throws {
         let identity = try devSigningIdentity(listing: """
-          1) CCCC "Apple Development: Someone Else (ZZZZZZZZZZ)"
+          1) CCCC "Apple Distribution: Micah Alpern (X2RKZ5TG99)"
              1 valid identities found
         """)
-        XCTAssertEqual(identity, "", "An unrelated certificate must fall through to ad-hoc signing.")
+        XCTAssertEqual(identity, "", "A certificate that cannot sign development builds means ad-hoc.")
+    }
+
+    func testDevSigningTakesOneHashWhenARenewedCertificateSharesTheName() throws {
+        let identity = try devSigningIdentity(listing: """
+          1) AAAA "Apple Development: Micah Alpern (3YFH89N33S)"
+          2) BBBB "Apple Development: Micah Alpern (3YFH89N33S)"
+             2 valid identities found
+        """)
+        XCTAssertEqual(identity, "AAAA")
     }
 
     func testCodesignWrapperRespectsDryRun() {
