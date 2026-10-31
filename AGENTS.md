@@ -52,7 +52,10 @@ Notes:
 - `quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
   restarts KeyPath only if it was running. Its default scope is app-only; set
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
-  deploy that refreshes companion binaries.
+  deploy that refreshes companion binaries. It signs with Developer ID when
+  available, otherwise Apple Development, so macOS keeps permissions across
+  deploys. Switching identity needs one re-grant (`tccutil reset` then add the
+  app again); only a machine with neither certificate falls back to ad-hoc.
 - Canonical build, test, deploy, and release scripts use the Xcode that
   `xcode-select` points at (`Scripts/lib/xcode.sh`); there is no version pin.
   They refuse Command Line Tools: KeyPath needs a full Xcode with the Metal

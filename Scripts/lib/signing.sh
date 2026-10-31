@@ -68,6 +68,24 @@ kp_notary_resolve_auth() {
     KP_NOTARY_AUTH_DISPLAY=${KP_NOTARY_AUTH_ARGS[*]}
 }
 
+# Pick the identity for a local development deploy and print it, or print
+# nothing when only ad-hoc signing is possible. $1 (the preferred identity) wins
+# when it is in the keychain. Otherwise this falls back to the Apple Development
+# certificate, printed by hash so a renewed certificate of the same name cannot
+# make codesign fail as ambiguous. macOS ties TCC grants to the signing identity,
+# and an ad-hoc build has none, so ad-hoc deploys lose Accessibility and Input
+# Monitoring every time.
+kp_dev_signing_identity() {
+    local preferred=$1
+    local identities
+    identities=$(${KP_FIND_IDENTITY_CMD:-security find-identity -v -p codesigning}) || identities=""
+    if printf '%s\n' "$identities" | grep -Fq "$preferred"; then
+        printf '%s\n' "$preferred"
+        return 0
+    fi
+    printf '%s\n' "$identities" | awk '/"Apple Development: Micah Alpern \(/ { print $2; exit }'
+}
+
 kp_run() {
     if [ "$KP_SIGN_DRY_RUN" = "1" ]; then
         echo "[DRY RUN] $*"

@@ -37,6 +37,44 @@ final class SigningPipelineTests: XCTestCase {
         )
     }
 
+    private func devSigningIdentity(listing: String, preferred: String = "Developer ID Application: Micah Alpern (X2RKZ5TG99)") throws -> String {
+        let listingFile = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try listing.write(to: listingFile, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: listingFile) }
+
+        let result = runScript("""
+        set -euo pipefail
+        source \(signingLibPath)
+        KP_FIND_IDENTITY_CMD="cat \(listingFile.path)" kp_dev_signing_identity "\(preferred)"
+        """)
+        XCTAssertEqual(result.code, 0, result.stderr)
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func testDevSigningPrefersDeveloperIDWhenPresent() throws {
+        let identity = try devSigningIdentity(listing: """
+          1) AAAA "Apple Development: Micah Alpern (3YFH89N33S)"
+          2) BBBB "Developer ID Application: Micah Alpern (X2RKZ5TG99)"
+        """)
+        XCTAssertEqual(identity, "Developer ID Application: Micah Alpern (X2RKZ5TG99)")
+    }
+
+    func testDevSigningFallsBackToAppleDevelopmentByHash() throws {
+        let identity = try devSigningIdentity(listing: """
+          1) AAAA "Apple Development: Micah Alpern (3YFH89N33S)"
+             1 valid identities found
+        """)
+        XCTAssertEqual(identity, "AAAA")
+    }
+
+    func testDevSigningIsEmptyWithoutAUsableIdentity() throws {
+        let identity = try devSigningIdentity(listing: """
+          1) CCCC "Apple Development: Someone Else (ZZZZZZZZZZ)"
+             1 valid identities found
+        """)
+        XCTAssertEqual(identity, "", "An unrelated certificate must fall through to ad-hoc signing.")
+    }
+
     func testCodesignWrapperRespectsDryRun() {
         let tempFile = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).appendingPathComponent(UUID().uuidString)
         FileManager.default.createFile(atPath: tempFile.path, contents: Data())
