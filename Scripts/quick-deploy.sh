@@ -18,6 +18,7 @@ PROJECT_DIR=$(cd "$SCRIPT_DIR/.." >/dev/null && pwd -P)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/build-cache.sh"
+source "$SCRIPT_DIR/lib/signing.sh"
 keypath_use_selected_xcode
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
@@ -488,14 +489,16 @@ if [[ -f "$INSIGHTS_DYLIB" ]]; then
     cp "$PROJECT_DIR/Sources/KeyPathInsights/Info.plist" "$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/Info.plist"
 fi
 
-# Re-sign with entitlements (prefer Developer ID if available).
+# Re-sign with entitlements (prefer Developer ID, then Apple Development, which
+# keeps permission grants across deploys on a machine without Developer ID).
 # NOTE: "Kanata Engine.app" and inner binaries are signed here WITHOUT entitlements
 # (just --options=runtime). This produces a dev-only ad-hoc-equivalent signature
 # sufficient for local testing, but NOT equivalent to the distribution signature
 # from build-and-sign.sh which applies proper entitlements and a notarizable
 # Developer ID identity to every artifact.
 echo "✍️  Signing..."
-SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+PREFERRED_SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+SIGNING_IDENTITY="$(kp_dev_signing_identity "$PREFERRED_SIGNING_IDENTITY")"
 HELPER_EXEC="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
 HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlements"
 CLI_EXEC="$APP_BUNDLE/Contents/MacOS/keypath-cli"
@@ -530,7 +533,11 @@ resign_nested_identifiers() {
     codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$sign_id" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 }
 
-if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
+if [[ -n "$SIGNING_IDENTITY" ]]; then
+    if [[ "$SIGNING_IDENTITY" != "$PREFERRED_SIGNING_IDENTITY" ]]; then
+        echo "ℹ️  $PREFERRED_SIGNING_IDENTITY not found; signing with Apple Development ($SIGNING_IDENTITY)."
+        echo "   Permissions persist across deploys, but the privileged helper rejects this build."
+    fi
     if [[ -f "$HELPER_EXEC" ]]; then
         codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" "$HELPER_EXEC" 2>/dev/null || true
     fi
@@ -550,7 +557,8 @@ if security find-identity -v -p codesigning | grep -Fq "$SIGNING_IDENTITY"; then
     codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
     resign_nested_identifiers "$SIGNING_IDENTITY"
 else
-    echo "⚠️  Developer ID identity not found; using ad-hoc signing (helper may reject this build)."
+    echo "⚠️  No Developer ID or Apple Development identity found; using ad-hoc signing."
+    echo "   macOS will drop Accessibility and Input Monitoring on every deploy, and the helper may reject this build."
     codesign --force "${LOCAL_CODESIGN_FLAGS[@]}" --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
     resign_nested_identifiers "-"
 fi
