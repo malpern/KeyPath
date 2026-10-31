@@ -473,10 +473,97 @@ final class SigningPipelineTests: XCTestCase {
         XCTAssertTrue(result.stdout.contains("forced:none"))
     }
 
+    func testXcodeSelectionRefusesADirectoryWithoutXcodebuild() throws {
+        // Stands in for Command Line Tools: a developer directory with no xcodebuild.
+        let notXcode = FileManager.default.temporaryDirectory.appendingPathComponent("keypath-not-xcode-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: notXcode, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: notXcode) }
+        let result = runScript(
+            "source Scripts/lib/xcode.sh && keypath_use_selected_xcode",
+            env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": notXcode.path]
+        )
+
+        XCTAssertNotEqual(result.code, 0)
+        XCTAssertTrue(result.stderr.contains("is not a full Xcode developer directory"), result.stderr)
+    }
+
+    func testBetaGuardMatchesBetaPathsAndVersionsButNotReleaseBuildNumbers() {
+        let result = runScript("""
+        source Scripts/lib/xcode.sh
+        check() { if keypath_xcode_looks_beta "$1" "$2"; then echo "$1|$2=beta"; else echo "$1|$2=release"; fi; }
+        check /Applications/Xcode-beta.app/Contents/Developer 27.1
+        check /Applications/Xcode.app/Contents/Developer "27.1 beta 2"
+        check /Applications/Xcode.app/Contents/Developer 16.0
+        check /Applications/Xcode-27.app/Contents/Developer 27.0
+        """)
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("Xcode-beta.app/Contents/Developer|27.1=beta"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("Xcode.app/Contents/Developer|27.1 beta 2=beta"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("Xcode.app/Contents/Developer|16.0=release"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("Xcode-27.app/Contents/Developer|27.0=release"), result.stdout)
+    }
+
+    func testShippingConfirmationMatchesOnlyTheExactNonEmptyBuild() {
+        let result = runScript("""
+        source Scripts/lib/xcode.sh
+        check() { if keypath_xcode_confirmed "$1"; then echo "$2=confirmed"; else echo "$2=refused"; fi; }
+        unset KEYPATH_CONFIRM_XCODE
+        check "" empty-build-unset
+        check 27A266a unset
+        KEYPATH_CONFIRM_XCODE="" check "" empty-build-empty
+        KEYPATH_CONFIRM_XCODE=27A266a check 27A266b mismatch
+        KEYPATH_CONFIRM_XCODE=27A266a check 27A266a match
+        """)
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        for refused in ["empty-build-unset", "unset", "empty-build-empty", "mismatch"] {
+            XCTAssertTrue(result.stdout.contains("\(refused)=refused"), result.stdout)
+        }
+        XCTAssertTrue(result.stdout.contains("match=confirmed"), result.stdout)
+    }
+
+    func testXcodeSelectionDefaultsToXcodeSelectWithoutOverride() throws {
+        let selected = runScript("/usr/bin/xcode-select -p").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
+                          "needs a full Xcode selected on this machine")
+        // `xcode-select -p` reports an exported DEVELOPER_DIR, so it drives the default branch here.
+        let notXcode = FileManager.default.temporaryDirectory.appendingPathComponent("keypath-not-xcode-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: notXcode, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: notXcode) }
+        let chosen = runScript(
+            #"unset KEYPATH_DEV_XCODE_DEVELOPER_DIR; source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR""#,
+            env: ["DEVELOPER_DIR": selected]
+        )
+        let refused = runScript(
+            "unset KEYPATH_DEV_XCODE_DEVELOPER_DIR; source Scripts/lib/xcode.sh && keypath_use_selected_xcode",
+            env: ["DEVELOPER_DIR": notXcode.path]
+        )
+
+        XCTAssertEqual(chosen.code, 0, chosen.stderr)
+        XCTAssertTrue(chosen.stdout.contains("dev=\(selected)"), chosen.stdout)
+        XCTAssertNotEqual(refused.code, 0)
+        XCTAssertTrue(refused.stderr.contains("is not a full Xcode developer directory"), refused.stderr)
+    }
+
+    func testXcodeSelectionHonorsOverrideAndExportsMatchingSDK() throws {
+        let selected = runScript("/usr/bin/xcode-select -p").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
+                          "needs a full Xcode selected on this machine")
+        let result = runScript(
+            #"source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR" && echo "sdk=$SDKROOT""#,
+            env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": selected]
+        )
+
+        XCTAssertEqual(result.code, 0, result.stderr)
+        XCTAssertTrue(result.stdout.contains("dev=\(selected)"), result.stdout)
+        XCTAssertTrue(result.stdout.contains("sdk=\(selected)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"), result.stdout)
+    }
+
     func testPinnedNotarytoolSupportsExplicitNoWait() {
         let script = """
         source Scripts/lib/xcode.sh
-        keypath_use_stable_xcode
+        keypath_use_selected_xcode
         xcrun notarytool submit --help
         """
         let result = runScript(script)

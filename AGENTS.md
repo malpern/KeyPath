@@ -53,16 +53,16 @@ Notes:
   restarts KeyPath only if it was running. Its default scope is app-only; set
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
   deploy that refreshes companion binaries.
-- Canonical build, test, deploy, and release scripts select the stable Xcode at
-  `/Applications/Xcode-26.6.0.app/Contents/Developer`, even when the machine-wide
-  `xcode-select` points at a beta. Override with `KEYPATH_DEV_XCODE_DEVELOPER_DIR`
-  only when intentionally testing another toolchain.
-- To advance the stable Xcode pin: (1) install and verify the intended stable
-  Xcode, (2) update both `KEYPATH_STABLE_XCODE_VERSION` and
-  `KEYPATH_STABLE_XCODE_DEVELOPER_DIR` in `Scripts/lib/xcode.sh`, (3) update the
-  matching literals in `DeploymentScriptContractTests`, and (4) run that test
-  plus one canonical build/deploy script without an override. Point releases
-  are intentional pin changes; an installed 26.6.1 does not satisfy `26.6`.
+- Canonical build, test, deploy, and release scripts use the Xcode that
+  `xcode-select` points at (`Scripts/lib/xcode.sh`); there is no version pin.
+  They refuse Command Line Tools: KeyPath needs a full Xcode with the Metal
+  toolchain (`Scripts/ensure-metal-toolchain.sh`). Set
+  `KEYPATH_DEV_XCODE_DEVELOPER_DIR` to build with another Xcode without
+  changing the machine-wide selection. An exported `DEVELOPER_DIR` also wins,
+  because `xcode-select -p` reports it; the scripts print the Xcode they chose.
+  Keep each build machine's `xcode-select` on the Xcode you want builds and CI
+  to use, not a beta. Signed builds record `XcodeVersion` and `XcodeBuild` in
+  `BuildInfo.plist`.
 - It intentionally does **not** redeploy the privileged helper unless
   `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
@@ -214,8 +214,14 @@ If local worktrees/builds are consuming disk, inspect generated artifacts with
 Use the public release script only when producing public distribution artifacts:
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh <version>
+KEYPATH_CONFIRM_XCODE=<build> ./Scripts/release.sh <version>
 ```
+
+Shipping requires `KEYPATH_CONFIRM_XCODE` to equal the selected Xcode's build,
+which `release-doctor` prints. Set it per invocation, never in a shell profile.
+Only the person releasing sets it, after checking
+that the Xcode is a released version; agents must not set it on Micah's behalf.
+See `docs/process/release-process.md`.
 
 This path may bump versions, regenerate screenshots, create Sparkle artifacts,
 notarize, staple, deploy, tag, create a GitHub release, and publish website help

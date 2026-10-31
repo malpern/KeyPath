@@ -15,7 +15,7 @@ source "$SCRIPT_DIR/lib/deploy-app.sh"
 source "$SCRIPT_DIR/lib/submodules.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$SCRIPT_DIR/.."
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 command -v pandoc >/dev/null || { echo "Offline help requires pandoc (brew install pandoc)." >&2; exit 2; }
 keypath_acquire_deploy_lock "build-and-sign ($SCRIPT_DIR/..)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
@@ -337,6 +337,9 @@ GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 CFVER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$CONTENTS/Info.plist" 2>/dev/null || echo "1.0.0")
 CFBUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$CONTENTS/Info.plist" 2>/dev/null || echo "0")
+# There is no Xcode pin, so record which Xcode produced this build.
+XCODE_VERSION=$(keypath_xcode_version "$DEVELOPER_DIR" || true)
+XCODE_BUILD=$(keypath_xcode_build "$DEVELOPER_DIR" || true)
 cat > "$RESOURCES/BuildInfo.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -350,6 +353,10 @@ cat > "$RESOURCES/BuildInfo.plist" <<EOF
   <string>${GIT_HASH}</string>
   <key>BuildDate</key>
   <string>${BUILD_DATE}</string>
+  <key>XcodeVersion</key>
+  <string>${XCODE_VERSION:-unknown}</string>
+  <key>XcodeBuild</key>
+  <string>${XCODE_BUILD:-unknown}</string>
 </dict>
 </plist>
 EOF

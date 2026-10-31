@@ -14,6 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 REPO_ROOT="${SCRIPT_DIR%/Scripts}"
+source "$SCRIPT_DIR/lib/xcode.sh"
 INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
 
 DRY_RUN=false
@@ -90,6 +91,23 @@ fi
 CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "0.0.0")
 CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "0")
 echo "📌 Current version: $CURRENT_VERSION (build $CURRENT_BUILD)"
+
+# Before anything changes the tree (the version bump below). A dry run changes
+# nothing, so it does not need the confirmation. The doctor can be skipped for
+# script debugging; these checks cannot.
+if [ "$DRY_RUN" = false ]; then
+    keypath_use_selected_xcode
+    release_xcode_version="$(keypath_xcode_version "$DEVELOPER_DIR" || true)"
+    release_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
+    if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$release_xcode_version"; then
+        echo "❌ Selected Xcode looks like a beta; select a released Xcode before shipping" >&2
+        exit 1
+    fi
+    if ! keypath_xcode_confirmed "$release_xcode_build"; then
+        echo "❌ Confirm Xcode ${release_xcode_version:-unknown} (${release_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${release_xcode_build:-<build>}" >&2
+        exit 1
+    fi
+fi
 
 # Bump version if specified
 if [ -n "$NEW_VERSION" ]; then

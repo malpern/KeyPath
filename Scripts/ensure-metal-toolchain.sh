@@ -4,14 +4,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/xcode.sh"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 
 if xcrun -sdk macosx metal -v >/dev/null 2>&1; then
     echo "✅ Metal toolchain is installed"
     exit 0
 fi
 
-echo "⬇️  Installing the Metal toolchain for Xcode $KEYPATH_STABLE_XCODE_VERSION..."
+echo "⬇️  Installing the Metal toolchain for Xcode $(keypath_xcode_version "$DEVELOPER_DIR" || echo "at $DEVELOPER_DIR")..."
 "$DEVELOPER_DIR/usr/bin/xcodebuild" -downloadComponent MetalToolchain
 
 if ! xcrun -sdk macosx metal -v >/dev/null 2>&1; then
