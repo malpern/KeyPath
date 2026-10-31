@@ -36,6 +36,10 @@ public final class SessionRuntimeWorker {
     private var capsFleetCoverage: SessionRuntimeReport.CapsCoverage?
     private var capsFleetRetryAfter: [UInt64: Date] = [:]
     private var capsFleetReadFailures = 0
+    private var capsCheckSchedule = SessionCapsCheckSchedule()
+    private var capsArrivalMonitor: SessionCapsKeyboardArrivalMonitor?
+    /// Tracked arrivals not yet mapped, each with when it arrived.
+    private var capsTimedArrivals: [SessionCapsArrivedService: Date] = [:]
     private var capsOwner: SessionCapsMappingPolicy.Owner?
     private var capsDirectory: URL?
     private var capsInput = SessionCapsInputState()
@@ -45,6 +49,8 @@ public final class SessionRuntimeWorker {
     private var capsConfigPath: String?
     private var capsAdmittedDigest: String?
     private var lastCapsCheck = Date.distantPast
+    /// When the last fleet check finished; fast arrival checks are spaced from it.
+    private var lastCapsCheckEnd = Date.distantPast
     private var inputCount: UInt64 = 0
     private var outputCount: UInt64 = 0
     private var lastReport = Date.distantPast
@@ -262,6 +268,7 @@ public final class SessionRuntimeWorker {
                         return (coverage, devices.count, inventory.withheld)
                     }
                     capsFleetEnabled = true
+                    startCapsArrivalMonitor()
                     capsFleetRecords = result.0.records
                     capsRecord = result.0.records.first
                     capsFleetCoverage = .init(eligible: result.1, covered: result.0.records.count, withheld: result.2)
@@ -618,13 +625,97 @@ public final class SessionRuntimeWorker {
         finish(.failed, reason: "output-queue-overrun")
     }
 
+    /// How long an arrival waits to be attributed. Long enough for a keyboard
+    /// plugged in with keys held to be mapped once they are released.
+    static let arrivalAttributionLimit: TimeInterval = 30
+
+    /// Keyboards whose failure backoff can be dropped: gone from the registry,
+    /// not merely missing from one listing.
+    nonisolated static func departedBackoffs(_ backingOff: Set<UInt64>, listed: Set<UInt64>,
+                                             exists: (UInt64) -> Bool?) -> Set<UInt64>
+    {
+        backingOff.filter { !listed.contains($0) && exists($0) == false }
+    }
+
+    /// Times each newly covered keyboard from the arrival of its own service (by
+    /// registry ID, or another interface at its LocationID). A keyboard covered
+    /// for any other reason, such as an exclusion removed, is not an arrival.
+    static func arrivalLog(_ timed: [SessionCapsArrivedService: Date], now: Date,
+                           covered: [(id: UInt64, location: UInt32?)])
+        -> (lines: [String], remaining: [SessionCapsArrivedService: Date])
+    {
+        var remaining = timed.filter { now.timeIntervalSince($0.value) < arrivalAttributionLimit }
+        var lines: [String] = []
+        for keyboard in covered.sorted(by: { $0.id < $1.id }) {
+            let matches = remaining.filter { service, _ in
+                service.registryEntryID == keyboard.id
+                    || (service.locationID != nil && service.locationID == keyboard.location)
+            }
+            guard let arrivedAt = matches.values.min() else { continue }
+            let elapsed = Int((now.timeIntervalSince(arrivedAt) * 1000).rounded())
+            lines.append("[SessionCaps] Keyboard arrival mapped in \(elapsed) ms: [\(keyboard.id)]")
+            for service in matches.keys {
+                remaining.removeValue(forKey: service)
+            }
+        }
+        return (lines, remaining)
+    }
+
+    /// An arrival reaches both the schedule (an early check) and the timing map.
+    static func noteArrival(_ keyboards: [SessionCapsArrivedService], at now: Date,
+                            schedule: inout SessionCapsCheckSchedule,
+                            timed: inout [SessionCapsArrivedService: Date])
+    {
+        timed = recordArrivals(schedule.keyboardArrived(keyboards: keyboards, at: now), at: now, into: timed)
+    }
+
+    /// Interfaces of one keyboard register within moments of each other; a new
+    /// service at the same LocationID this much later is a replug.
+    static let replugGap: TimeInterval = 2
+
+    /// Records when each tracked service arrived. A service re-reported within the
+    /// attribution limit keeps its first arrival. A new service at the same
+    /// LocationID replaces an earlier, never-mapped arrival there only when it
+    /// comes `replugGap` later (a replug); a sibling interface keeps the first.
+    static func recordArrivals(_ services: [SessionCapsArrivedService], at now: Date,
+                               into timed: [SessionCapsArrivedService: Date]) -> [SessionCapsArrivedService: Date]
+    {
+        var timed = timed
+        for service in services {
+            if let at = timed[service], now.timeIntervalSince(at) < arrivalAttributionLimit { continue }
+            if let location = service.locationID {
+                timed = timed.filter { other, at in
+                    other == service || other.locationID != location || now.timeIntervalSince(at) < replugGap
+                }
+            }
+            timed[service] = now
+        }
+        return timed
+    }
+
+    /// Without the monitor the backstop check still finds arrivals, only later.
+    private func startCapsArrivalMonitor() {
+        // Once per session: a second monitor would report every arrival twice.
+        guard capsArrivalMonitor == nil else { return }
+        let monitor = SessionCapsKeyboardArrivalMonitor { [weak self] keyboards in
+            guard let self, !self.finished else { return }
+            Self.noteArrival(keyboards, at: Date(), schedule: &capsCheckSchedule, timed: &capsTimedArrivals)
+        }
+        if monitor.start() {
+            capsArrivalMonitor = monitor
+        } else {
+            AppLogger.shared.warn("[SessionCaps] Keyboard arrival notifications unavailable; relying on the 2 s check")
+        }
+    }
+
     private func checkCapsOwnershipIfNeeded() {
-        guard !capsCheckInFlight,
-              Date().timeIntervalSince(lastCapsCheck) >= (capsFleetEnabled ? 2 : 0.5) else { return }
+        guard !capsCheckInFlight else { return }
         if capsFleetEnabled {
+            guard capsCheckSchedule.isDue(now: Date(), lastStart: lastCapsCheck, lastEnd: lastCapsCheckEnd) else { return }
             checkCapsFleetIfNeeded()
             return
         }
+        guard Date().timeIntervalSince(lastCapsCheck) >= 0.5 else { return }
         guard let record = capsRecord else { return }
         capsCheckInFlight = true
         lastCapsCheck = Date()
@@ -656,25 +747,40 @@ public final class SessionRuntimeWorker {
     }
 
     private func checkCapsFleetIfNeeded() {
+        let now = Date()
+        let arrived = capsCheckSchedule.checkStarted(at: now, lastStart: lastCapsCheck)
+        lastCapsCheck = now
         guard let owner = capsOwner, let directory = capsDirectory,
-              let configPath = capsConfigPath, let admittedDigest = capsAdmittedDigest else { return }
+              let configPath = capsConfigPath, let admittedDigest = capsAdmittedDigest
+        else {
+            // Unreachable today (all four are set before the tick timer starts).
+            // Counted as a failed check so a pending arrival can't spin the tick.
+            lastCapsCheckEnd = now
+            capsCheckSchedule.checkFailed()
+            return
+        }
         capsCheckInFlight = true
-        lastCapsCheck = Date()
         let previous = Set(capsFleetRecords.map(\.device.registryEntryID))
         let retryAfter = capsFleetRetryAfter
         let usage = SessionCapsRuntimeSupport.preferredIntermediate()
         DispatchQueue.global(qos: .utility).async { [weak self] in
             let digest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
             let result: Result<(records: [SessionCapsMappingPolicy.Record], failures: [UInt64: String],
-                                eligible: Int, withheld: Int), Error>
+                                eligible: Int, withheld: Int, departed: Set<UInt64>,
+                                resolved: Set<SessionCapsArrivedService>), Error>
             do {
                 guard digest == nil || digest == admittedDigest else {
                     throw SessionCapsRuntimeSupport.Refusal.configIdentity
                 }
                 let excluded = SessionCapsRuntimeSupport.excludedKeyboardIDs()
                 let inventory: (keyboards: [SessionCapsHIDUtilTransport.Keyboard], withheld: Int)
-                do { inventory = try SessionCapsHIDUtilTransport.keyboards() }
-                catch { throw CapsInventoryFailure.unavailable }
+                var listing = ""
+                do {
+                    inventory = try SessionCapsHIDUtilTransport.keyboards(run: {
+                        listing = try SessionCapsHIDUtilTransport.runHIDUtil($0)
+                        return listing
+                    })
+                } catch { throw CapsInventoryFailure.unavailable }
                 let devices = inventory.keyboards.map(\.device)
                     .filter { !excluded.contains(SessionCapsRuntimeSupport.preferenceID($0)) }
                 let now = Date()
@@ -689,7 +795,24 @@ public final class SessionRuntimeWorker {
                     bootSessionUUID: owner.bootSessionUUID,
                     allowNewDevices: SessionCapsRuntimeSupport.heldKeys().isEmpty
                 )
-                result = .success((coverage.records, coverage.failures, devices.count, inventory.withheld))
+                // A registry walk can be slow; ask once per keyboard per check.
+                var existence: [UInt64: Bool?] = [:]
+                let exists = { (id: UInt64) -> Bool? in
+                    if let known = existence[id] { return known }
+                    let answer = try? SessionCapsHIDUtilTransport.registryEntryExists(id)
+                    existence[id] = answer
+                    return answer
+                }
+                let resolved = SessionCapsCheckSchedule.resolved(
+                    arrived, listed: (try? SessionCapsHIDUtilTransport.parseServiceRows(listing)) ?? [], exists: exists
+                )
+                // A backoff is dropped only once its keyboard is gone, not when one
+                // listing happens to miss it.
+                let departed = Self.departedBackoffs(
+                    Set(retryAfter.keys), listed: Set(inventory.keyboards.map(\.device.registryEntryID)), exists: exists
+                )
+                result = .success((coverage.records, coverage.failures, devices.count, inventory.withheld,
+                                   departed, resolved))
             } catch {
                 result = .failure(error)
             }
@@ -697,6 +820,7 @@ public final class SessionRuntimeWorker {
                 MainActor.assumeIsolated {
                     guard let self, !self.finished, self.capsOwner == owner else { return }
                     self.capsCheckInFlight = false
+                    self.lastCapsCheckEnd = Date()
                     guard digest == nil || digest == admittedDigest else {
                         self.finish(.failed, reason: SessionCapsRuntimeSupport.profileChangedReason)
                     }
@@ -716,6 +840,11 @@ public final class SessionRuntimeWorker {
                         for id in coverage.failures.keys {
                             self.capsFleetRetryAfter[id] = Date().addingTimeInterval(30)
                         }
+                        // A departed keyboard's backoff would otherwise linger forever.
+                        for id in coverage.departed where coverage.failures[id] == nil {
+                            self.capsFleetRetryAfter.removeValue(forKey: id)
+                        }
+                        self.capsCheckSchedule.checkFinished(resolved: coverage.resolved)
                         let nextCoverage = SessionRuntimeReport.CapsCoverage(
                             eligible: coverage.eligible, covered: coverage.records.count, withheld: coverage.withheld
                         )
@@ -725,8 +854,26 @@ public final class SessionRuntimeWorker {
                         for (id, reason) in coverage.failures where !previous.contains(id) {
                             AppLogger.shared.warn("[SessionCaps] Keyboard \(id) left uncovered: \(reason)")
                         }
+                        let added = current.subtracting(previous)
+                        if !added.isEmpty {
+                            AppLogger.shared.log("[SessionCaps] Keyboard covered: \(added.sorted())")
+                        }
+                        let arrival = Self.arrivalLog(
+                            self.capsTimedArrivals, now: Date(),
+                            covered: coverage.records.filter { added.contains($0.device.registryEntryID) }
+                                .map { ($0.device.registryEntryID, $0.device.locationID) }
+                        )
+                        arrival.lines.forEach { AppLogger.shared.log($0) }
+                        self.capsTimedArrivals = arrival.remaining
                     case let .failure(error):
-                        if case SessionCapsMappingLease.Refusal.busy = error { return }
+                        self.capsTimedArrivals = self.capsTimedArrivals.filter {
+                            Date().timeIntervalSince($0.value) < Self.arrivalAttributionLimit
+                        }
+                        if case SessionCapsMappingLease.Refusal.busy = error {
+                            self.capsCheckSchedule.checkBusy()
+                            return
+                        }
+                        self.capsCheckSchedule.checkFailed()
                         if error is CapsInventoryFailure {
                             self.capsFleetReadFailures += 1
                             if self.capsFleetReadFailures == 3 {
@@ -957,6 +1104,8 @@ public final class SessionRuntimeWorker {
         AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
         AppLogger.shared.flushBuffer()
         capsInput.revoke()
+        capsArrivalMonitor?.stop()
+        capsArrivalMonitor = nil
         var terminalState = state
         var terminalReason = reason
         if let tap { CGEvent.tapEnable(tap: tap, enable: false) }
