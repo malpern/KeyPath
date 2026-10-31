@@ -323,6 +323,7 @@ final class DeploymentScriptContractTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: repo) }
         let writes = paths.map { #"mkdir -p "$(dirname '\#($0)')"; echo x > '\#($0)'; git add -A"# }.joined(separator: "; ")
         let setup = """
+        export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
         git init -q; git config user.email t@t; git config user.name t
         git commit -q --allow-empty -m base; git tag start
         \(writes)
@@ -348,9 +349,12 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertEqual(try runClassifier(changing: ["docs/a.md", "Sources/A.swift"]).output, "docs_only=false\n")
     }
 
-    /// CI skipped only root-level markdown before, and tests read these other files.
+    /// Tests read these files, and workflow changes must run the tests that guard them.
     func testDocsOnlyClassifierRunsTestsForMarkdownElsewhere() throws {
-        for path in ["guides/a.md", "Tests/README.md", "Sources/KeyPathAppKit/Resources/Sounds/README.md"] {
+        for path in [
+            "guides/a.md", "Tests/README.md", "Sources/KeyPathAppKit/Resources/Sounds/README.md",
+            ".github/workflows/claude.yml",
+        ] {
             XCTAssertEqual(try runClassifier(changing: [path]).output, "docs_only=false\n", path)
         }
     }

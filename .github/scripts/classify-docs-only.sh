@@ -1,7 +1,8 @@
 #!/bin/bash
 # Prints docs_only=true when every file changed since <base> is docs or resources.
 # Anything uncertain must not print true: an unreadable diff exits nonzero, and an
-# empty one prints false. guides/ is not listed: tests read those files.
+# empty one prints false. guides/ is not listed because tests read those files, and
+# workflows aren't because a PR changing them must run the tests that guard them.
 set -euo pipefail
 
 base="${1:-}"
@@ -17,7 +18,7 @@ changed=$(git diff --no-renames --name-only "$base"...HEAD)
 is_docs() {
   local path=$1
   case "$path" in
-    docs/*|.github/workflows/claude.yml|.github/workflows/claude-code-review.yml) return 0 ;;
+    docs/*) return 0 ;;
     */*) ;;
     *.md) return 0 ;;
   esac

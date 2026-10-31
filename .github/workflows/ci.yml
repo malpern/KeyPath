@@ -44,8 +44,11 @@ jobs:
         # master's copy of the script: a PR must not decide its own CI by changing it.
         run: |
           script=$(mktemp)
-          git show "$BASE_SHA:.github/scripts/classify-docs-only.sh" > "$script"
-          result=$(bash "$script" "$BASE_SHA")
+          if git show "$BASE_SHA:.github/scripts/classify-docs-only.sh" > "$script"; then
+            result=$(bash "$script" "$BASE_SHA")
+          else
+            result="docs_only=false" # The base has no classifier yet; run everything.
+          fi
           echo "$result"
           echo "$result" >> "$GITHUB_OUTPUT"
 
