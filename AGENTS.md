@@ -130,6 +130,11 @@ Notes:
 
 ### PR Workflow & Git Safety
 
+- CI normally runs on the mini's self-hosted runners. While they are
+  unavailable, the repo variable `KEYPATH_CI_RUNNER=hosted` moves both required
+  jobs to GitHub's `xcode-27` image (see the header of `.github/workflows/ci.yml`).
+  Delete the variable when the mini is back.
+
 - Follow the invariants in `docs/process/agent-pr-invariants.md`. Step-by-step
   reference: `docs/process/agent-pr-workflow.md`.
 - After merging a PR, always pull `master` and deploy from `master` before

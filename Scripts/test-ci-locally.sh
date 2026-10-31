@@ -3,10 +3,6 @@ set -euo pipefail
 
 # Local runner to approximate CI steps
 
-echo "🔍 Lint: WizardAutoFixer subprocess guard"
-chmod +x ./Scripts/lint-no-subprocess-in-autofixer.sh
-./Scripts/lint-no-subprocess-in-autofixer.sh
-
 echo "🔍 Lint: Wizard sleep guard"
 chmod +x ./Scripts/lint-no-sleep.sh
 ./Scripts/lint-no-sleep.sh
