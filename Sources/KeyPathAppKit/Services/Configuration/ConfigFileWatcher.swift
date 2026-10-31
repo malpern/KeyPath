@@ -32,7 +32,6 @@ class ConfigFileWatcher: @unchecked Sendable {
     private let debounceDelay: TimeInterval = 0.5 // 500ms debounce
     private let maxRetries = 3
     private var retryCount = 0
-    private var pendingAtomicWriteEvent = false
 
     // Each internal save claims exactly one reconciled filesystem revision.
     // Unlike a clock window, this neither hides a later external edit nor
@@ -108,14 +107,16 @@ class ConfigFileWatcher: @unchecked Sendable {
     // MARK: - File Monitoring Setup
 
     /// Set up direct file monitoring when the target file exists
-    private func setupFileMonitoring() {
+    /// `keepBaseline`: a rebind reattaches to the same watched file, so its last
+    /// fingerprint must survive for the new content to count as a change.
+    private func setupFileMonitoring(keepBaseline: Bool = false) {
         guard let path = watchedFilePath else {
             AppLogger.shared.log("❌ [FileWatcher] No file path set for monitoring")
             return
         }
 
-        // Get initial modification date
-        updateLastContentFingerprint()
+        // Record the content later changes are judged against
+        if !keepBaseline { updateLastContentFingerprint() }
 
         // Create file descriptor for monitoring
         guard let fileDescriptor = openFileDescriptor(at: path) else {
@@ -284,7 +285,6 @@ class ConfigFileWatcher: @unchecked Sendable {
             AppLogger.shared.log(
                 "📁 [FileWatcher] Detected atomic write (rename/delete) - rebinding file descriptor"
             )
-            pendingAtomicWriteEvent = true
             rebindFileMonitor(to: path)
         }
 
@@ -308,6 +308,18 @@ class ConfigFileWatcher: @unchecked Sendable {
         func reconcileFileChangeForTesting() async {
             await processFileChange()
         }
+
+        /// Runs the rebind an atomic save triggers, through to its content check.
+        func rebindForTesting() async {
+            guard let path = watchedFilePath else { return }
+            rebindFileMonitor(to: path)
+            // A real file event can replace the rebind in flight; wait for the last.
+            var waitedFor: Task<Void, Never>?
+            while let task = rebindTask, task != waitedFor {
+                waitedFor = task
+                await task.value
+            }
+        }
     #endif
 
     /// Rebind file monitor to handle atomic writes where the file descriptor becomes stale
@@ -326,12 +338,14 @@ class ConfigFileWatcher: @unchecked Sendable {
         rebindTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(50)) // 50ms
             guard !Task.isCancelled, let self else { return }
-            setupFileMonitoring()
+            setupFileMonitoring(keepBaseline: true)
 
-            // Check if file content changed during the rebind blind spot
-            if hasFileActuallyChanged() {
-                AppLogger.shared.log("📁 [FileWatcher] File changed during rebind - ensuring event is processed")
-                pendingAtomicWriteEvent = true
+            // An event can land in the rebind blind spot, so look at the content.
+            // Only compare here: recording the new fingerprint would make the
+            // debounced reconcile see no change, and the reload would never fire.
+            if contentDiffersFromLastFingerprint(at: path) {
+                AppLogger.shared.log("📁 [FileWatcher] File changed during rebind - scheduling reconcile")
+                await handleFileChangeEvent()
             }
         }
     }
@@ -486,6 +500,10 @@ class ConfigFileWatcher: @unchecked Sendable {
         }
     }
 
+    private func contentDiffersFromLastFingerprint(at path: String) -> Bool {
+        (try? contentFingerprint(at: path)) != lastContentFingerprint
+    }
+
     private func hasFileActuallyChanged() -> Bool {
         guard let path = watchedFilePath else {
             AppLogger.shared.log("⚠️ [FileWatcher] Cannot check file changes - no watched file path")
@@ -546,7 +564,6 @@ class ConfigFileWatcher: @unchecked Sendable {
         // or timestamp. A claimed internal revision consumes only its own final
         // bytes; the following external revision is observed normally.
         let changed = hasFileActuallyChanged()
-        pendingAtomicWriteEvent = false
         if let expected = pendingInternalFingerprint, lastContentFingerprint == expected {
             pendingInternalFingerprint = nil
             AppLogger.shared.log("🧾 [FileWatcher] Reconciled exact internal revision")

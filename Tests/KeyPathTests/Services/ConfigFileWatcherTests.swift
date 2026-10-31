@@ -75,6 +75,26 @@ struct ConfigFileWatcherTests {
         watcher.stopWatching()
     }
 
+    @Test("rebinding after an atomic save does not swallow the external change")
+    @MainActor
+    func rebindKeepsExternalChangePending() async throws {
+        let (_, path) = try makeTempFile()
+        let watcher = ConfigFileWatcher()
+        var callbackCount = 0
+        watcher.startWatching(path: path) { callbackCount += 1 }
+
+        // The rebind runs about 50 ms after the rename, before the 500 ms debounce.
+        try "external-write".write(toFile: path, atomically: true, encoding: .utf8)
+        await watcher.rebindForTesting()
+        #expect(callbackCount == 0, "the rebind only schedules; the reconcile decides")
+
+        await watcher.reconcileFileChangeForTesting()
+        #expect(callbackCount == 1)
+        await watcher.reconcileFileChangeForTesting()
+        #expect(callbackCount == 1, "one change reloads once")
+        watcher.stopWatching()
+    }
+
     @Test("same-mtime external rewrite is reconciled by content")
     @MainActor
     func sameMtimeRewriteTriggersCallback() async throws {
