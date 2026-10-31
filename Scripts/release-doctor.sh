@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/sparkle.sh"
 export KEYPATH_PROJECT_DIR="$PROJECT_DIR"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 
 MODE="release-candidate"
 STRICT=0
@@ -127,6 +127,31 @@ cd "$PROJECT_DIR"
 
 print_section "Release Doctor"
 echo "Mode: $MODE"
+
+print_section "Xcode"
+selected_xcode_version="$(keypath_xcode_version "$DEVELOPER_DIR" || true)"
+selected_xcode_build="$(keypath_xcode_build "$DEVELOPER_DIR" || true)"
+echo "Selected Xcode: ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) at $DEVELOPER_DIR"
+# No version pin. An Xcode whose path or version says beta fails shipping (and warns
+# for candidates); every other one must be confirmed by a person to ship.
+if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version"; then
+    if [[ "$MODE" == "ship" ]]; then
+        fail "Selected Xcode looks like a beta; select a released Xcode before shipping"
+    else
+        warn "Selected Xcode looks like a beta; builds will record it in BuildInfo.plist"
+    fi
+elif [[ "$MODE" == "ship" ]]; then
+    # Path and version can't prove a release build, so shipping needs a person to
+    # confirm the exact build: KEYPATH_CONFIRM_XCODE=<build> (see release-process.md).
+    # release.sh repeats this check, so skipping the doctor does not skip it.
+    if keypath_xcode_confirmed "$selected_xcode_build"; then
+        pass "Xcode ${selected_xcode_version} (${selected_xcode_build}) confirmed as a released Xcode"
+    else
+        fail "Confirm Xcode ${selected_xcode_version:-unknown} (${selected_xcode_build:-unknown}) is a released Xcode: rerun with KEYPATH_CONFIRM_XCODE=${selected_xcode_build:-<build>}"
+    fi
+else
+    pass "No beta marker in the Xcode path or version"
+fi
 
 print_section "Required Tools"
 check_command swift

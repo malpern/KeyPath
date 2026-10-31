@@ -26,12 +26,6 @@ cd "$REPO"
 "${SSH[@]}" 'if [ -x ~/.local/bin/agent-awake ]; then ~/.local/bin/agent-awake local 60;
     else nohup caffeinate -d -i -t 3600 >/dev/null 2>&1 & fi' || true
 
-# The pinned stable Xcode may be absent on this Mac; fall back deliberately.
-if [ -z "${KEYPATH_DEV_XCODE_DEVELOPER_DIR:-}" ] && [ ! -d /Applications/Xcode-26.6.0.app ] \
-    && [ -d /Applications/Xcode-27.app ]; then
-    export KEYPATH_DEV_XCODE_DEVELOPER_DIR=/Applications/Xcode-27.app/Contents/Developer
-fi
-
 # Sign from the login keychain unless the caller chose a signing command.
 export KP_SIGN_CMD="${KP_SIGN_CMD:-$SCRIPT_DIR/lib/codesign-login-keychain.sh}"
 

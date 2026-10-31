@@ -15,7 +15,7 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertFalse(buildAndSign.contains("Sources/KeyPath/Resources directory not found"))
     }
 
-    func testCanonicalBuildScriptsUseStableXcodeContract() throws {
+    func testCanonicalBuildScriptsUseSelectedXcodeContract() throws {
         let root = repositoryRoot()
         let xcodeContract = try contents(of: root.appendingPathComponent("Scripts/lib/xcode.sh"))
         let consumers = [
@@ -25,23 +25,49 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Scripts/release-doctor.sh",
         ]
 
-        XCTAssertTrue(xcodeContract.contains("Xcode-27.app/Contents/Developer"))
-        XCTAssertTrue(xcodeContract.contains(#"KEYPATH_STABLE_XCODE_VERSION="${KEYPATH_STABLE_XCODE_VERSION:-27.0}""#))
-        XCTAssertTrue(xcodeContract.contains("/Applications/Xcode.app/Contents/Developer"))
+        // No version pin: the selected Xcode is used, unless the override names another.
+        XCTAssertFalse(xcodeContract.contains("KEYPATH_STABLE_XCODE_VERSION"))
+        XCTAssertTrue(xcodeContract.contains("/usr/bin/xcode-select -p"))
+        XCTAssertTrue(xcodeContract.contains(#"[[ ! -x "$DEVELOPER_DIR/usr/bin/xcodebuild" ]]"#))
         XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
-        XCTAssertTrue(xcodeContract.contains("keypath_use_stable_xcode"))
+        XCTAssertTrue(xcodeContract.contains("keypath_use_selected_xcode"))
         XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
+
+        // Without a pin, shipping refuses an Xcode marked beta and asks a person to confirm any other.
+        let releaseDoctor = try contents(of: root.appendingPathComponent("Scripts/release-doctor.sh"))
+        XCTAssertTrue(releaseDoctor.contains(#"keypath_xcode_looks_beta "$DEVELOPER_DIR" "$selected_xcode_version""#))
+        XCTAssertTrue(releaseDoctor.contains(#"fail "Selected Xcode looks like a beta; select a released Xcode before shipping""#))
+        XCTAssertTrue(releaseDoctor.contains(#"keypath_xcode_confirmed "$selected_xcode_build""#))
+        XCTAssertTrue(releaseDoctor.contains(#"rerun with KEYPATH_CONFIRM_XCODE="#))
+        let xcodeLib = try contents(of: root.appendingPathComponent("Scripts/lib/xcode.sh"))
+        XCTAssertTrue(xcodeLib.contains(#""${KEYPATH_CONFIRM_XCODE:-}" == "$build""#))
+        // Skipping the doctor (--no-doctor) must not skip the beta check or the confirmation.
+        let release = try contents(of: root.appendingPathComponent("Scripts/release.sh"))
+        XCTAssertTrue(release.contains(#"if keypath_xcode_looks_beta "$DEVELOPER_DIR" "$release_xcode_version"; then"#))
+        XCTAssertTrue(release.contains(#"if ! keypath_xcode_confirmed "$release_xcode_build"; then"#))
+        // The checks refuse before the version bump writes Info.plist, so a refused
+        // release leaves the tree untouched.
+        let confirmation = try XCTUnwrap(release.range(of: "keypath_xcode_confirmed"))
+        let bump = try XCTUnwrap(release.range(of: "PlistBuddy -c \"Set :CFBundleShortVersionString"))
+        let build = try XCTUnwrap(release.range(of: "SKIP_NOTARIZE=1 ./build.sh"))
+        XCTAssertTrue(confirmation.lowerBound < bump.lowerBound && bump.lowerBound < build.lowerBound)
+
+        // Without a pin, every signed build records the Xcode that produced it.
+        let buildAndSign = try contents(of: root.appendingPathComponent("Scripts/build-and-sign.sh"))
+        XCTAssertTrue(buildAndSign.contains("<key>XcodeVersion</key>"))
+        XCTAssertTrue(buildAndSign.contains("<key>XcodeBuild</key>"))
+        XCTAssertTrue(buildAndSign.contains(#"XCODE_VERSION=$(keypath_xcode_version "$DEVELOPER_DIR" || true)"#))
 
         for relativePath in consumers {
             let script = try contents(of: root.appendingPathComponent(relativePath))
             XCTAssertTrue(
                 script.contains(#"source "$SCRIPT_DIR/lib/xcode.sh""#),
-                "\(relativePath) must source the stable Xcode contract."
+                "\(relativePath) must source the Xcode selection contract."
             )
             XCTAssertTrue(
-                script.contains("keypath_use_stable_xcode"),
-                "\(relativePath) must select stable Xcode before invoking developer tools."
+                script.contains("keypath_use_selected_xcode"),
+                "\(relativePath) must select Xcode before invoking developer tools."
             )
         }
     }

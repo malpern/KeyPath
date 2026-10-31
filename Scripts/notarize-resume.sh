@@ -26,13 +26,25 @@ source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/deploy-app.sh"
-keypath_use_stable_xcode
+keypath_use_selected_xcode
 keypath_acquire_deploy_lock "notarize-resume ($PROJECT_DIR)" "${KEYPATH_RELEASE_DEPLOY_LOCK_TIMEOUT_SECONDS:-600}"
 trap keypath_release_deploy_lock EXIT
 
 APP_NAME="KeyPath"
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${APP_NAME}.app"
+
+# Resuming compiles nothing: the selected Xcode supplies only notarytool and
+# stapler. Only release-candidate.sh resumes, and a release candidate may be
+# built with a beta Xcode (release-doctor warns), so a beta archive is flagged
+# the same way rather than refused. Public releases go through release.sh,
+# which checks the Xcode before building. Older archives record no Xcode.
+BUILT_WITH_VERSION=$(/usr/libexec/PlistBuddy -c "Print :XcodeVersion" "$APP_BUNDLE/Contents/Resources/BuildInfo.plist" 2>/dev/null || echo unknown)
+BUILT_WITH_BUILD=$(/usr/libexec/PlistBuddy -c "Print :XcodeBuild" "$APP_BUNDLE/Contents/Resources/BuildInfo.plist" 2>/dev/null || echo unknown)
+echo "🛠  Archive built with Xcode $BUILT_WITH_VERSION ($BUILT_WITH_BUILD)"
+if keypath_xcode_looks_beta "" "$BUILT_WITH_VERSION"; then
+    echo "⚠️  This archive was built with a beta Xcode; do not distribute it publicly." >&2
+fi
 ZIP_PATH="${DIST_DIR}/${APP_NAME}.zip"
 STATE_FILE=${KP_NOTARY_STATE_FILE:-"${ZIP_PATH%.zip}.notary-submission.json"}
 

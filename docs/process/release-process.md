@@ -169,8 +169,23 @@ Public releases are intentionally slower and should be explicit:
 
 ```bash
 ./Scripts/release-doctor.sh --ship
-./Scripts/release.sh <version>
+KEYPATH_CONFIRM_XCODE=<build> ./Scripts/release.sh <version>
 ```
+
+Builds use the Xcode that `xcode-select` points at; there is no version pin.
+Before a public release, check that the selected Xcode is a released version,
+not a beta. `release-doctor.sh --ship` prints it, for example
+`Selected Xcode: 27.0 (27A266a)`. Then confirm that exact build by setting
+`KEYPATH_CONFIRM_XCODE` to it on the release command itself, never in a shell
+profile, where it would confirm every later build with that Xcode. That
+confirmation is the real check: a beta
+usually reports a plain version such as 27.1 from an ordinary path, so only a
+person can tell. Shipping fails without it or when it names a different build,
+and an Xcode whose path or version does say "beta" fails outright. `release.sh`
+repeats both checks before it bumps the version, so skipping the doctor skips
+neither and a refused release changes nothing. `--dry-run` needs no confirmation. The
+build is also recorded as `XcodeVersion`/`XcodeBuild` in the app's
+`BuildInfo.plist`.
 
 Use `--dry-run` before an unfamiliar release:
 
@@ -208,6 +223,8 @@ public distribution; unnotarized apps trigger Gatekeeper warnings.
 `release-doctor.sh` is read-only. It checks local prerequisites and state before
 the expensive build starts:
 
+- the selected Xcode: one whose path or version says "beta" fails; in `--ship`
+  mode the build must also match `KEYPATH_CONFIRM_XCODE`
 - required tools (`swift`, `xcrun`, `codesign`, `security`, `git`, `gh`, `nc`)
 - current git branch, dirty state, and master worktree ownership
 - Developer ID signing identity
