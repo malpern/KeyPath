@@ -10,8 +10,8 @@ struct KarabinerConflictServiceTests {
     @Test("Karabiner grabber detection uses injected SystemStateProvider")
     func karabinerGrabberDetectionUsesInjectedSystemStateProvider() async {
         TestSingletonReset.resetAll()
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        // Its own fake: a parallel suite resetting `shared` would clear the command log.
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "karabiner_grabber" ? [1111] : []
         }
@@ -32,8 +32,8 @@ struct KarabinerConflictServiceTests {
     @Test("Karabiner 16 installed without grabber is not a conflict")
     func karabiner16WithoutGrabberIsNotAConflict() async {
         TestSingletonReset.resetAll()
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        // Its own fake: a parallel suite resetting `shared` would clear the command log.
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             // Modern Karabiner releases may run harmless supporting agents,
             // but only the input grabber competes with Kanata for exclusive
@@ -63,8 +63,8 @@ struct KarabinerConflictServiceTests {
             Date().addingTimeInterval(-60),
             serviceID: "com.keypath.karabiner-vhiddaemon"
         )
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        // Its own fake: a parallel suite resetting `shared` would clear the command log.
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "VirtualHIDDevice-Daemon" ? [2222] : []
         }
@@ -85,8 +85,8 @@ struct KarabinerConflictServiceTests {
     @Test("Stopped-process verification uses injected SystemStateProvider")
     func stoppedProcessVerificationUsesInjectedSystemStateProvider() async {
         TestSingletonReset.resetAll()
-        let runner = SubprocessRunnerFake.shared
-        await runner.reset()
+        // Its own fake: a parallel suite resetting `shared` would clear the command log.
+        let runner = SubprocessRunnerFake()
         await runner.configurePgrepResult { pattern in
             pattern == "Karabiner-DriverKit-VirtualHIDDevice" ? [3333] : []
         }
