@@ -1,11 +1,11 @@
 # ADR-013: TCP Communication Without Authentication
 
-**Status:** Accepted (under review, see ADR-045)
-**Date:** 2024
-
 > **Note (2026-10-31):** This was written for the root daemon. The runtime now runs
 > in a user session that holds the user's input permissions, so this risk needs
 > review. See ADR-045.
+
+**Status:** Accepted (under review, see ADR-045)
+**Date:** 2024
 
 ## Context
 
