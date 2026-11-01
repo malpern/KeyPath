@@ -1,8 +1,8 @@
 # ADR-031: Kanata Service Lifecycle Invariants and Postcondition Enforcement
 
-> **Note (2026-10-31):** Written for the privileged helper and root daemon, which are
-> retired (ADR-045). Its rules apply only to detecting and migrating 1.0.1 installs,
-> not to the current session runtime.
+> **Note (2026-10-31):** Rules 2 and 3 and other SMAppService and daemon details
+> apply only to retired-stack code and 1.0.1 migration (ADR-045). The postcondition
+> rule still applies to the session runtime: success requires verified readiness.
 
 ## Status
 

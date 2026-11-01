@@ -1,8 +1,7 @@
 # ADR-033: Bundled Binary as Canonical Kanata Path
 
-> **Note (2026-10-31):** Written for the privileged helper and root daemon, which are
-> retired (ADR-045). Its rules apply only to detecting and migrating 1.0.1 installs,
-> not to the current session runtime.
+> **Note (2026-10-31):** The engine still ships inside the app, now in `Kanata Engine.app`
+> (ADR-034). The daemon and launcher paths here are retired (ADR-045).
 
 **Status:** Accepted
 **Date:** 2026-03-11

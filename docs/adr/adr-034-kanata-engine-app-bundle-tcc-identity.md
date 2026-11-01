@@ -1,8 +1,8 @@
 # ADR-034: Kanata Engine.app Bundle for TCC Identity
 
-> **Note (2026-10-31):** Written for the privileged helper and root daemon, which are
-> retired (ADR-045). Its rules apply only to detecting and migrating 1.0.1 installs,
-> not to the current session runtime.
+> **Note (2026-10-31):** `Kanata Engine.app` still ships and is signed. The LaunchDaemon
+> details here are retired (ADR-045), and permissions now follow the session worker,
+> a second copy of the app, so check TCC claims here against that.
 
 **Status:** Accepted
 **Date:** 2026-03-12
