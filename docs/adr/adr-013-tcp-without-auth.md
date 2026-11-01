@@ -5,7 +5,7 @@
 
 > **Note (2026-10-31):** This was written for the root daemon, and the port below
 > is out of date. The runtime now uses port 37001 in a user session that holds
-> Accessibility and Input Monitoring, so this risk needs review. See ADR-045.
+> the user's input permissions, so this risk needs review. See ADR-045.
 
 ## Context
 

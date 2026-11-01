@@ -55,8 +55,8 @@ upgrade directly.
   until the stage that touches it, then goes.
 - ADR-040's `EPERM` lesson still applies to any legacy-daemon detection.
 - ADR-013's accepted risk needs review before the first public session-runtime
-  release, because the TCP endpoint now fronts a process holding Accessibility
-  and Input Monitoring.
+  release, because the TCP endpoint now fronts a process holding the user's input
+  permissions.
 - Removal order: unreachable wizard pages and actions, then routers and managers,
   then the helper and launcher targets and their scripts. Each stage keeps CI
   green and removes its tests with the code.

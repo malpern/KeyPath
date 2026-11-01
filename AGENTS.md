@@ -331,11 +331,10 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 ### Permissions
 - **Always use `PermissionOracle.shared`** for permission checks.
 - Never call `IOHIDCheckAccess` directly **outside of PermissionOracle**.
-- Never check TCC database directly **outside of PermissionOracle**.
-- **Exception**: `PermissionOracle` itself uses `IOHIDCheckAccess` and TCC as its
-  internal implementation (see [ADR-001](docs/adr/adr-001-oracle-pattern.md) and
-  [ADR-016](docs/adr/adr-016-tcc-database-reading.md)). Apple APIs are
-  authoritative; TCC is a fallback for `.unknown` results only.
+- Never read the TCC database. The reader was removed
+  ([ADR-044](docs/adr/adr-044-remove-full-disk-access.md)); missing or inconclusive
+  evidence stays unknown. Apple APIs and session-runtime capability reports are
+  authoritative (see [ADR-001](docs/adr/adr-001-oracle-pattern.md)).
 
 ### Keyboard Visualization
 - **Geometry follows selected `PhysicalLayout`** (user-selected layout ID).

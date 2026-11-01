@@ -38,7 +38,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-032](/adr/adr-032-macos-kanata-runtime-identity) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed |
 | [ADR-033](/adr/adr-033-bundled-binary-canonical-path) | Bundled Binary as Canonical Kanata Path | Accepted |
 | [ADR-034](/adr/adr-034-kanata-engine-app-bundle-tcc-identity) | Kanata Engine.app Bundle for TCC Identity | Accepted |
-| [ADR-035](/adr/adr-035-bundle-id-tcc-detection-with-path-fallback) | Bundle ID TCC Detection with Path Fallback | Accepted |
+| [ADR-035](/adr/adr-035-bundle-id-tcc-detection-with-path-fallback) | Bundle ID TCC Detection with Path Fallback | Superseded by ADR-044 |
 | [ADR-036](/adr/adr-036-per-device-key-mappings) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
 | [ADR-037](/adr/adr-037-dynamic-os-key-labels) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
 | [ADR-038](/adr/adr-038-extension-file-splitting) | Extension-File Splitting for Large Types | Accepted |
@@ -53,7 +53,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 ## Key Decisions Summary
 
 ### Permission System
-- **ADR-001/006**: `PermissionOracle` is the single source of truth. Apple APIs are authoritative; TCC database is fallback only.
+- **ADR-001/006**: `PermissionOracle` is the single source of truth. Apple APIs are authoritative; the TCC database is never read (ADR-044).
 
 ### Installation & Repair
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
@@ -63,6 +63,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
 - **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.
+- **ADR-045**: The privileged stack is retired. Deletion is gated on a tested upgrade path from 1.0.1.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.

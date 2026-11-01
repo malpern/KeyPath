@@ -32,7 +32,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-032](adr-032-macos-kanata-runtime-identity.md) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed |
 | [ADR-033](adr-033-bundled-binary-canonical-path.md) | Bundled Binary as Canonical Kanata Path | Accepted |
 | [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | Kanata Engine.app Bundle for TCC Identity | Accepted |
-| [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Accepted |
+| [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Superseded by ADR-044 |
 | [ADR-036](adr-036-per-device-key-mappings.md) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
 | [ADR-037](adr-037-dynamic-os-key-labels.md) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
 | [ADR-038](adr-038-extension-file-splitting.md) | Extension-File Splitting for Large Types | Accepted |
@@ -47,17 +47,17 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 ## Key Decisions Summary
 
 ### Permission System
-- **ADR-001/006**: `PermissionOracle` is the single source of truth. Apple APIs are authoritative; TCC database is fallback only.
+- **ADR-001/006**: `PermissionOracle` is the single source of truth. Apple APIs are authoritative; the TCC database is never read (ADR-044).
 
 ### Installation & Repair
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
 - **ADR-040**: the retired kanata daemon was root (ADR-045); the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for a live root daemon left by 1.0.1 — treat EPERM as alive. The app cannot signal/kill that daemon; only launchd can.
-- **ADR-045**: The privileged stack is retired. Deletion is gated on a tested upgrade path from 1.0.1.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
 - **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.
+- **ADR-045**: The privileged stack is retired. Deletion is gated on a tested upgrade path from 1.0.1.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.
