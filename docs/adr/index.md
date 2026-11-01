@@ -47,6 +47,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-041](/adr/adr-041-installer-identity-stability-contract) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](/adr/adr-042-executable-installer-state-classification) | Executable Installer State Classification | Accepted |
 | [ADR-043](/adr/adr-043-opportunistic-manager-consolidation) | Opportunistic Manager Consolidation | Accepted |
+| [ADR-045](/adr/adr-045-retire-privileged-runtime-stack) | Retire the Privileged Runtime Stack | Accepted |
 
 ## Key Decisions Summary
 
@@ -57,7 +58,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
-- **ADR-040**: kanata is a root LaunchDaemon; app-side process liveness treats `EPERM` from `kill(pid,0)` as alive.
+- **ADR-040**: the retired kanata daemon was root (ADR-045); app-side process liveness treats `EPERM` from `kill(pid,0)` as alive.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
 - **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.

@@ -3,6 +3,10 @@
 **Status:** Accepted (with caveats)
 **Date:** 2024
 
+> **Note (2026-10-31):** This was written for the root daemon, and the port below
+> is out of date. The runtime now uses port 37001 in a user session that holds
+> Accessibility and Input Monitoring, so this risk needs review. See ADR-045.
+
 ## Context
 
 KeyPath communicates with Kanata via TCP for runtime control (layer switching, config reloading, push-msg).

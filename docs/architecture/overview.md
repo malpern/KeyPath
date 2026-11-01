@@ -11,39 +11,16 @@ KeyPath is built on a clean, modular architecture that separates concerns and en
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  KeyPath.app (SwiftUI)                                      │
-│  - User interface                                           │
-│  - Visual key recording                                    │
-│  - Configuration management                                 │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│  InstallerEngine (Façade)                                   │
-│  - Unified entry point for all system operations           │
-│  - Installation, repair, uninstall                         │
-│  - System inspection                                       │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-        ┌─────────────────┴─────────────────┐
-        │                                   │
-        ▼                                   ▼
-┌──────────────────┐              ┌──────────────────┐
-│  LaunchDaemon    │              │  KanataManager   │
-│  - Service mgmt  │              │  - Runtime coord │
-│  - Permissions   │              │  - TCP client    │
-└──────────────────┘              └──────────────────┘
-        │                                   │
-        └─────────────────┬─────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Kanata (Rust)                                              │
-│  - Keyboard remapping engine                                │
-│  - TCP server for communication                             │
-│  - Config hot-reload                                        │
-└─────────────────────────────────────────────────────────────┘
+KeyPath.app (SwiftUI, unprivileged)
+  ├─ InstallerEngine            install, repair, uninstall, system inspection
+  ├─ RuntimeCoordinator         runtime and configuration orchestration
+  └─ ServiceLifecycleCoordinator
+        │ launches and supervises
+        ▼
+Session runtime worker (a second copy of the app, same user)
+  - CGEvent tap and synthetic output
+  - Kanata engine through the Rust host bridge
+  - TCP server on 127.0.0.1:37001
 ```
 
 ## Core Components
@@ -99,14 +76,17 @@ Your `keypath.kbd` includes the generated file:
 
 ## Service Architecture
 
-### LaunchDaemon
+### Session Runtime
 
-KeyPath runs Kanata as a LaunchDaemon for:
+KeyPath runs Kanata in a user-session worker with no root daemon or driver:
 
-- System-level access
-- Boot-time operation
-- Crash recovery
-- Reliable operation
+- Runs only while the user is logged in and KeyPath is running
+- Needs Accessibility and Input Monitoring
+- Reports its state to the app in a private report file
+- Is restarted by `ServiceLifecycleCoordinator`, not launchd
+
+The earlier LaunchDaemon design is retired. See
+[ADR-045](../adr/adr-045-retire-privileged-runtime-stack.md).
 
 ### TCP Communication
 

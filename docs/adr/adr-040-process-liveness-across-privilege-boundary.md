@@ -2,6 +2,8 @@
 
 **Status:** Accepted
 **Date:** 2026-05-30
+**Note (2026-10-31):** The root daemon described here is retired (ADR-045). The
+`EPERM` lesson still applies when detecting a daemon left by release 1.0.1.
 **Context:** KeyPath.app runs **unprivileged**, while kanata runs as a **root LaunchDaemon** (Mode A: `kanata-launcher` registers via `SMAppService`, then exec's the bundled kanata as root). Any app-side code that *inspects* or *signals* the kanata process is crossing a privilege boundary, and POSIX behaves differently across that boundary in ways that are easy to get wrong — and easy to ship green, because unit tests that mock the syscall never exercise the real behavior.
 
 This ADR was written after PR #645 (#625 part-1, "wait-for-exit before start") shipped — and was caught in review with — a liveness check that was wrong for exactly this boundary.

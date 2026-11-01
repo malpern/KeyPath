@@ -13,7 +13,9 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 
 ## General
 - KeyPath is a macOS keyboard remapping app built with SwiftUI and a Kanata
-  backend using LaunchDaemon/privileged-helper architecture.
+  engine in an unprivileged user-session runtime. The privileged helper, daemon,
+  and VirtualHID stack is retired ([ADR-045](docs/adr/adr-045-retire-privileged-runtime-stack.md)):
+  public 1.0.1 still ships it, but current builds do not. Do not extend it.
 - User config: `~/.config/keypath/keypath.kbd`.
 - Logs: `~/Library/Logs/KeyPath/keypath-debug.log`.
 - Keep diffs minimal and focused. Preserve directory layout and script entry points.
@@ -54,8 +56,7 @@ Notes:
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
   deploy that refreshes companion binaries. It signs with Developer ID when
   available, otherwise Apple Development, so macOS keeps permissions across
-  deploys. The privileged helper accepts only Developer ID, so helper features
-  fail on an Apple Development build, as they do on ad-hoc. Switching identity
+  deploys. Switching identity
   needs one re-grant (`tccutil reset`, then add the app again). A machine with
   neither certificate falls back to ad-hoc and loses permissions on every deploy.
 - Canonical build, test, deploy, and release scripts use the Xcode that
@@ -68,8 +69,8 @@ Notes:
   Keep each build machine's `xcode-select` on the Xcode you want builds and CI
   to use, not a beta. Signed builds record `XcodeVersion` and `XcodeBuild` in
   `BuildInfo.plist`.
-- It intentionally does **not** redeploy the privileged helper unless
-  `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
+- It does **not** deploy the retired privileged helper unless
+  `KEYPATH_DEPLOY_HELPER=1` is set. Current builds do not need it.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
   `poltergeist start`, edit, then `poltergeist wait keypath`. Stop it before
   release work, helper/service work, broad tests, or parallel agents.
@@ -341,6 +342,10 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
 ### Service Lifecycle Invariants
+The SMAppService and helper items below apply to retired-stack code and to
+migration from 1.0.1 (ADR-045). For the session runtime, the readiness rules still
+apply, with `ServiceLifecycleCoordinator` as owner.
+
 - For installer/repair changes, use
   `docs/process/installer-repair-state-matrix.md` as the review checklist.
 - **Mutating installer actions must be postcondition-verified before returning success.**

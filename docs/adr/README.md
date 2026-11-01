@@ -42,6 +42,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-041](adr-041-installer-identity-stability-contract.md) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](adr-042-executable-installer-state-classification.md) | Executable Installer State Classification | Accepted |
 | [ADR-043](adr-043-opportunistic-manager-consolidation.md) | Opportunistic Manager Consolidation | Accepted |
+| [ADR-045](adr-045-retire-privileged-runtime-stack.md) | Retire the Privileged Runtime Stack | Accepted |
 
 ## Key Decisions Summary
 
@@ -52,7 +53,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
-- **ADR-040**: kanata is a root LaunchDaemon; the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for the live daemon — treat EPERM as alive. The app cannot signal/kill the daemon; only launchd can.
+- **ADR-040**: the retired kanata daemon was root (ADR-045); the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for the live daemon — treat EPERM as alive. The app cannot signal/kill the daemon; only launchd can.
+- **ADR-045**: The privileged stack is retired. Deletion is gated on a tested upgrade path from 1.0.1.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
 - **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.
