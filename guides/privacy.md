@@ -80,6 +80,8 @@ Driverless remapping is unavailable in protected password-entry and Secure Input
 | What | Where | Contents |
 |---|---|---|
 | Your config | `~/.config/keypath/keypath.kbd` | Plain text — your key mappings and layer definitions |
+| App data | `~/Library/Application Support/KeyPath/` | Activity Insights statistics (if you turn it on), plugins, and app state |
+| Caches | `~/Library/Caches/com.keypath.KeyPath/` | Temporary app data |
 | App logs | `~/Library/Logs/KeyPath/` | Local diagnostic logs |
 
 ---

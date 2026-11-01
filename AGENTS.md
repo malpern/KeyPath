@@ -342,9 +342,9 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
 ### Service Lifecycle Invariants
-The SMAppService and helper items below apply to retired-stack code and to
-migration from 1.0.1 (ADR-045). For the session runtime, the readiness rules still
-apply, with `ServiceLifecycleCoordinator` as owner.
+Only the SMAppService and helper items below are limited to retired-stack code and
+migration from 1.0.1 (ADR-045). Everything else applies to the session runtime,
+with `ServiceLifecycleCoordinator` as owner.
 
 - For installer/repair changes, use
   `docs/process/installer-repair-state-matrix.md` as the review checklist.
