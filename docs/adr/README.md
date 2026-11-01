@@ -6,12 +6,11 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 
 | ADR | Title | Status |
 |-----|-------|--------|
-| [ADR-044](adr-044-remove-full-disk-access.md) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-001](adr-001-oracle-pattern.md) | Oracle Pattern for Permission Detection | Accepted |
 | [ADR-006](adr-006-apple-api-priority.md) | Apple API Priority in Permission Checks | Accepted |
 | [ADR-008](adr-008-validation-refactor.md) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](adr-009-service-extraction-mvvm.md) | Service Extraction & MVVM Pattern | Accepted |
-| [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Accepted |
+| [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Accepted (under review) |
 | [ADR-014](adr-014-xpc-signature-mismatch.md) | XPC Signature Mismatch Prevention | Accepted |
 | [ADR-015](adr-015-installer-engine.md) | InstallerEngine Façade | Accepted |
 | [ADR-016](adr-016-tcc-database-reading.md) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
@@ -42,6 +41,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-041](adr-041-installer-identity-stability-contract.md) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](adr-042-executable-installer-state-classification.md) | Executable Installer State Classification | Accepted |
 | [ADR-043](adr-043-opportunistic-manager-consolidation.md) | Opportunistic Manager Consolidation | Accepted |
+| [ADR-044](adr-044-remove-full-disk-access.md) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-045](adr-045-retire-privileged-runtime-stack.md) | Retire the Privileged Runtime Stack | Accepted |
 
 ## Key Decisions Summary

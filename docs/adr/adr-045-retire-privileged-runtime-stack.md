@@ -49,6 +49,8 @@ upgrade directly.
 
 - `AGENTS.md` and architecture docs describe the session runtime. ADRs written
   for the daemon remain as history and carry a note saying so.
+- "Experimental" and "driverless build" wording in code and error strings stays
+  until the stage that touches it, then goes.
 - ADR-040's `EPERM` lesson still applies to any legacy-daemon detection.
 - ADR-013's accepted risk needs review, because the TCP endpoint now fronts a
   process holding Accessibility and Input Monitoring.

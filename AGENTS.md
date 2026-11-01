@@ -56,9 +56,9 @@ Notes:
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
   deploy that refreshes companion binaries. It signs with Developer ID when
   available, otherwise Apple Development, so macOS keeps permissions across
-  deploys. Switching identity
-  needs one re-grant (`tccutil reset`, then add the app again). A machine with
-  neither certificate falls back to ad-hoc and loses permissions on every deploy.
+  deploys. Switching identity needs one re-grant (`tccutil reset`, then add the
+  app again). A machine with neither certificate falls back to ad-hoc and loses
+  permissions on every deploy.
 - Canonical build, test, deploy, and release scripts use the Xcode that
   `xcode-select` points at (`Scripts/lib/xcode.sh`); there is no version pin.
   They refuse Command Line Tools: KeyPath needs a full Xcode with the Metal
@@ -70,7 +70,8 @@ Notes:
   to use, not a beta. Signed builds record `XcodeVersion` and `XcodeBuild` in
   `BuildInfo.plist`.
 - It does **not** deploy the retired privileged helper unless
-  `KEYPATH_DEPLOY_HELPER=1` is set. Current builds do not need it.
+  `KEYPATH_DEPLOY_HELPER=1` is set. Current builds do not need it, and it accepts
+  only Developer ID signatures.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
   `poltergeist start`, edit, then `poltergeist wait keypath`. Stop it before
   release work, helper/service work, broad tests, or parallel agents.

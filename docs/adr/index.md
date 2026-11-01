@@ -16,10 +16,10 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Accepted |
 | [ADR-008](/adr/adr-008-validation-refactor) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](/adr/adr-009-service-extraction-mvvm) | Service Extraction & MVVM Pattern | Accepted |
-| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Accepted |
+| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Accepted (under review) |
 | [ADR-014](/adr/adr-014-xpc-signature-mismatch) | XPC Signature Mismatch Prevention | Accepted |
 | [ADR-015](/adr/adr-015-installer-engine) | InstallerEngine Façade | Accepted |
-| [ADR-016](/adr/adr-016-tcc-database-reading) | TCC Database Reading for Sequential Permission Flow | Accepted |
+| [ADR-016](/adr/adr-016-tcc-database-reading) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
 | [ADR-017](/adr/adr-017-protocol-segregation) | InstallerEngine Protocol Segregation (ISP) | Accepted |
 | [ADR-018](/adr/adr-018-helper-protocol-duplication) | HelperProtocol XPC Duplication | Accepted |
 | [ADR-019](/adr/adr-019-test-seams) | Test Seams via TestEnvironment Checks | Accepted |
@@ -47,6 +47,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-041](/adr/adr-041-installer-identity-stability-contract) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](/adr/adr-042-executable-installer-state-classification) | Executable Installer State Classification | Accepted |
 | [ADR-043](/adr/adr-043-opportunistic-manager-consolidation) | Opportunistic Manager Consolidation | Accepted |
+| [ADR-044](/adr/adr-044-remove-full-disk-access) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-045](/adr/adr-045-retire-privileged-runtime-stack) | Retire the Privileged Runtime Stack | Accepted |
 
 ## Key Decisions Summary

@@ -1,6 +1,6 @@
 # ADR-013: TCP Communication Without Authentication
 
-**Status:** Accepted (with caveats)
+**Status:** Accepted (under review, see ADR-045)
 **Date:** 2024
 
 > **Note (2026-10-31):** This was written for the root daemon, and the port below
