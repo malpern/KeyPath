@@ -1,5 +1,8 @@
 # Service Layer Consolidation Plan
 
+> **Note (2026-10-31):** This page describes the retired privileged stack in places.
+> The session runtime replaced it; see [overview.md](overview.md) and ADR-045.
+
 ## The Problem
 
 KeyPath has 69 coordinator/manager/service classes totaling 22,873 lines. Many follow a pattern where Coordinator A delegates to Manager B which delegates to Service C — three classes for one operation. This creates:

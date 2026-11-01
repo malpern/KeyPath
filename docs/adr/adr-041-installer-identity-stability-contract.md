@@ -1,5 +1,8 @@
 # ADR-041: Installer Identity Stability Contract
 
+> **Note (2026-10-31):** Helper and daemon shell identities no longer ship (ADR-045).
+> Those parts of this contract apply only to detecting and migrating 1.0.1 installs.
+
 ## Status
 
 Accepted

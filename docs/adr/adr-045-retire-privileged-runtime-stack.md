@@ -13,8 +13,9 @@ does not ship the privileged helper, the launcher, or a LaunchDaemon plist.
 The stack that session runtime replaced is still in the repository: the helper
 and launcher targets, `HelperManager`, `PrivilegedOperationsRouter`,
 `KanataDaemonManager`, `KanataDaemonService`, `HelperMaintenance`,
-`ServiceBootstrapper`, `VHIDDeviceManager`, `PlistGenerator`, the Karabiner
-wizard page, and their tests. Most of it cannot run in a current build, but it
+`ServiceBootstrapper`, `VHIDDeviceManager`, `PlistGenerator`, `UninstallCoordinator`,
+`PrivilegeBroker`, the Karabiner wizard page, and their tests. This list is not
+exhaustive. Most of it cannot run in a current build, but it
 still costs CI time and misleads readers. Code and docs called the session
 runtime an experiment, so nothing recorded whether the old stack would return.
 
@@ -47,13 +48,15 @@ upgrade directly.
 
 ## Consequences
 
-- `AGENTS.md` and architecture docs describe the session runtime. ADRs written
-  for the daemon remain as history and carry a note saying so.
+- `AGENTS.md` and `docs/architecture/overview.md` describe the session runtime.
+  ADRs and other pages written for the daemon remain as history until a stage
+  rewrites or removes them, and the main ones carry a note saying so.
 - "Experimental" and "driverless build" wording in code and error strings stays
   until the stage that touches it, then goes.
 - ADR-040's `EPERM` lesson still applies to any legacy-daemon detection.
-- ADR-013's accepted risk needs review, because the TCP endpoint now fronts a
-  process holding Accessibility and Input Monitoring.
+- ADR-013's accepted risk needs review before the first public session-runtime
+  release, because the TCP endpoint now fronts a process holding Accessibility
+  and Input Monitoring.
 - Removal order: unreachable wizard pages and actions, then routers and managers,
   then the helper and launcher targets and their scripts. Each stage keeps CI
   green and removes its tests with the code.

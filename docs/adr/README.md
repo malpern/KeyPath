@@ -53,7 +53,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
-- **ADR-040**: the retired kanata daemon was root (ADR-045); the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for the live daemon — treat EPERM as alive. The app cannot signal/kill the daemon; only launchd can.
+- **ADR-040**: the retired kanata daemon was root (ADR-045); the app is unprivileged. `kill(pid,0)` returns `EPERM` (not `ESRCH`) for a live root daemon left by 1.0.1 — treat EPERM as alive. The app cannot signal/kill that daemon; only launchd can.
 - **ADR-045**: The privileged stack is retired. Deletion is gated on a tested upgrade path from 1.0.1.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.

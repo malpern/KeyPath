@@ -1,5 +1,8 @@
 # ADR-015: InstallerEngine Façade
 
+> **Note (2026-10-31):** `InstallerEngine` is still the façade, but it now runs session
+> recipes only. The daemon and helper paths described here are retired (ADR-045).
+
 **Status:** Accepted
 **Date:** November 2025
 

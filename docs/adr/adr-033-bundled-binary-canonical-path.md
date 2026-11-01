@@ -1,5 +1,9 @@
 # ADR-033: Bundled Binary as Canonical Kanata Path
 
+> **Note (2026-10-31):** Written for the privileged helper and root daemon, which are
+> retired (ADR-045). Its rules apply only to detecting and migrating 1.0.1 installs,
+> not to the current session runtime.
+
 **Status:** Accepted
 **Date:** 2026-03-11
 **Supersedes:** Portions of ADR-032 (system binary preference)

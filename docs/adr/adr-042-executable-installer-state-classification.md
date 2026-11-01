@@ -1,5 +1,9 @@
 # ADR-042: Executable Installer State Classification
 
+> **Note (2026-10-31):** Written for the privileged helper and root daemon, which are
+> retired (ADR-045). Its rules apply only to detecting and migrating 1.0.1 installs,
+> not to the current session runtime.
+
 ## Status
 
 Accepted

@@ -75,9 +75,18 @@ Driverless remapping is unavailable in protected password-entry and Secure Input
 
 ---
 
+## Where your data lives
+
+| What | Where | Contents |
+|---|---|---|
+| Your config | `~/.config/keypath/keypath.kbd` | Plain text — your key mappings and layer definitions |
+| App logs | `~/Library/Logs/KeyPath/` | Local diagnostic logs |
+
+---
+
 ## Legacy installation locations
 
-KeyPath 1.0.1 and earlier installed a root-owned system service. Current versions do not install or use the service, the engine, or the logs listed here, but these files may remain on Macs upgraded from those releases. Your config in `~/.config/keypath/` is still used.
+KeyPath 1.0.1 and earlier installed a root-owned system service. Current versions do not install or use the service, the engine, or the logs listed here, but these files may remain on Macs upgraded from those releases.
 
 | What | Where | Contents |
 |---|---|---|
