@@ -71,6 +71,13 @@ extension ServiceLifecycleCoordinator {
         return nil
     }
 
+    private func isLegacyDaemonRunning() async -> Bool {
+        #if DEBUG
+            if let probe = testSessionLegacyDaemonRunning { return await probe() }
+        #endif
+        return await kanataDaemonService.isDaemonRunning()
+    }
+
     func startSessionRuntime(reason: String, generation: UInt64) async -> Bool {
         guard sessionStartIsCurrent(generation) else { return false }
         #if DEBUG
@@ -86,7 +93,7 @@ extension ServiceLifecycleCoordinator {
         guard await stopSessionRuntime(), sessionStartIsCurrent(generation) else { return false }
         // A legacy runtime cannot coexist with a modifying session tap. Do not
         // terminate or migrate a privileged installation implicitly.
-        let legacyRunning = await kanataDaemonService.isDaemonRunning()
+        let legacyRunning = await isLegacyDaemonRunning()
         guard sessionStartIsCurrent(generation) else { return false }
         if legacyRunning {
             onError?("Stop the existing keyboard service before trying driverless mode.")
