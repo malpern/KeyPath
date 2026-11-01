@@ -7,7 +7,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-001](adr-001-oracle-pattern.md) | Oracle Pattern for Permission Detection | Accepted |
-| [ADR-006](adr-006-apple-api-priority.md) | Apple API Priority in Permission Checks | Accepted |
+| [ADR-006](adr-006-apple-api-priority.md) | Apple API Priority in Permission Checks | Partly superseded by ADR-044 |
 | [ADR-008](adr-008-validation-refactor.md) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](adr-009-service-extraction-mvvm.md) | Service Extraction & MVVM Pattern | Accepted |
 | [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Accepted (under review) |

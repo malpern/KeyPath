@@ -1,6 +1,7 @@
 # Remove Full Disk Access and browser-history suggestions
 
-Status: Accepted for the driverless experimental branch, 2026-10-06.
+Status: Accepted, 2026-10-06. Originally scoped to the driverless branch, which
+is now the product (ADR-045).
 
 The user chose simpler onboarding and less data access over automatic website
 suggestions and legacy permission-database inspection.

@@ -13,7 +13,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-001](/adr/adr-001-oracle-pattern) | Oracle Pattern for Permission Detection | Accepted |
-| [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Accepted |
+| [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Partly superseded by ADR-044 |
 | [ADR-008](/adr/adr-008-validation-refactor) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](/adr/adr-009-service-extraction-mvvm) | Service Extraction & MVVM Pattern | Accepted |
 | [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Accepted (under review) |
