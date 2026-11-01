@@ -342,19 +342,19 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
 ### Service Lifecycle Invariants
-Only the SMAppService and helper items below are limited to retired-stack code and
-migration from 1.0.1 (ADR-045). Everything else applies to the session runtime,
+Items tagged "Retired stack" below are limited to that code and migration from
+1.0.1 (ADR-045). Everything else applies to the session runtime,
 with `ServiceLifecycleCoordinator` as owner.
 
 - For installer/repair changes, use
   `docs/process/installer-repair-state-matrix.md` as the review checklist.
 - **Mutating installer actions must be postcondition-verified before returning success.**
   - Any action that can stop/restart/re-register Kanata must verify runtime readiness (`running + TCP responding`) or explicit pending-approval state before reporting success.
-- **Stale SMAppService recovery bypasses generic install throttle.**
+- **(Retired stack)** **Stale SMAppService recovery bypasses generic install throttle.**
   - If state is `.enabled` but launchd cannot load/run the daemon, recovery install/register logic must run even inside the normal throttle window.
-- **Registration is not liveness.**
+- **(Retired stack)** **Registration is not liveness.**
   - Treat `SMAppService.status == .enabled` as registration metadata only; never infer runtime health from it without process + TCP evidence.
-- **Helper responsiveness is not helper freshness.**
+- **(Retired stack)** **Helper responsiveness is not helper freshness.**
   - After helper deploys or helper behavior changes, verify version/path or force
     the unregister/register repair path instead of treating an XPC response as
     proof that the running helper is current.

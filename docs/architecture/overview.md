@@ -83,7 +83,9 @@ KeyPath runs Kanata in a user-session worker with no root daemon or driver:
 - Runs only while the user is logged in and KeyPath is running
 - Holds the user's input permissions (see `guides/privacy.md`)
 - Reports its state to the app in a private report file
-- Is restarted by `ServiceLifecycleCoordinator`, not launchd
+- Is supervised by `ServiceLifecycleCoordinator`, not launchd. It restarts after
+  session boundaries and some recoverable failures; other failures stop it and
+  ask the user to reopen KeyPath
 
 The earlier LaunchDaemon design is retired. See
 [ADR-045](../adr/adr-045-retire-privileged-runtime-stack.md).
