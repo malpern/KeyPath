@@ -1,6 +1,6 @@
 # ADR-006: Apple API Priority in Permission Checks
 
-**Status:** Accepted
+**Status:** Partly superseded by ADR-044: Apple APIs stay first, and the TCC fallback is removed
 **Date:** 2024
 
 ## Context

@@ -87,17 +87,15 @@ Copy your config to `~/.config/keypath/keypath.kbd` and run the setup wizard.
 ### Setup (once)
 
 1. **Download** KeyPath from the [releases page](https://github.com/malpern/KeyPath/releases) or [build from source](#build-from-source)
-2. **Run the setup wizard** — it handles permissions, drivers, and services automatically
+2. **Run the setup wizard** — it walks you through the permissions KeyPath needs
 3. **Start remapping** — create rules visually or enable pre-built collections
 
 ### Under the hood
 
-KeyPath installs a system-level LaunchDaemon that runs Kanata reliably in the background. The app communicates with it over localhost TCP for instant config reloads. You get:
+KeyPath runs Kanata in your user session, with no system service or driver. The app talks to it over localhost TCP for instant config reloads. You get:
 
-- Automatic driver installation (Karabiner VirtualHID)
-- Guided permission setup (Input Monitoring + Accessibility)
-- Crash recovery and health monitoring
-- Conflict detection with other keyboard tools
+- Guided permission setup
+- Health monitoring
 - Emergency stop (**Ctrl + Space + Esc**) if anything goes wrong
 
 ---

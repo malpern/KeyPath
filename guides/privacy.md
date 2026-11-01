@@ -75,13 +75,23 @@ Driverless remapping is unavailable in protected password-entry and Secure Input
 
 ---
 
-## Legacy installation locations
-
-The following locations describe older system-service installations, not the driverless session runtime. They may remain on machines upgraded from an older release.
+## Where your data lives
 
 | What | Where | Contents |
 |---|---|---|
 | Your config | `~/.config/keypath/keypath.kbd` | Plain text — your key mappings and layer definitions |
+| App data | `~/Library/Application Support/KeyPath/` | Activity Insights statistics (if you turn it on), plugins, and app state |
+| Caches | `~/Library/Caches/com.keypath.KeyPath/` | Temporary app data |
+| App logs | `~/Library/Logs/KeyPath/` | Local diagnostic logs |
+
+---
+
+## Legacy installation locations
+
+KeyPath 1.0.1 and earlier installed a root-owned system service. Current versions do not install or use the service, the engine, or the logs listed here, but these files may remain on Macs upgraded from those releases.
+
+| What | Where | Contents |
+|---|---|---|
 | Service config | `/Library/LaunchDaemons/com.keypath.kanata.plist` | System service definition (root-owned) |
 | Kanata binary | `/Library/KeyPath/bin/kanata` | The remapping engine binary |
 | Logs | `/var/log/com.keypath.kanata.*.log` | Kanata startup messages, errors, reload events |

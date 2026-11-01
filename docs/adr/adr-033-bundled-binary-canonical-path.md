@@ -1,5 +1,8 @@
 # ADR-033: Bundled Binary as Canonical Kanata Path
 
+> **Note (2026-10-31):** The engine still ships inside the app, now in `Kanata Engine.app`
+> (ADR-034). The daemon and launcher paths here are retired (ADR-045).
+
 **Status:** Accepted
 **Date:** 2026-03-11
 **Supersedes:** Portions of ADR-032 (system binary preference)

@@ -13,13 +13,13 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-001](/adr/adr-001-oracle-pattern) | Oracle Pattern for Permission Detection | Accepted |
-| [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Accepted |
+| [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Partly superseded by ADR-044 |
 | [ADR-008](/adr/adr-008-validation-refactor) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](/adr/adr-009-service-extraction-mvvm) | Service Extraction & MVVM Pattern | Accepted |
-| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Accepted |
+| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Accepted (under review) |
 | [ADR-014](/adr/adr-014-xpc-signature-mismatch) | XPC Signature Mismatch Prevention | Accepted |
 | [ADR-015](/adr/adr-015-installer-engine) | InstallerEngine Façade | Accepted |
-| [ADR-016](/adr/adr-016-tcc-database-reading) | TCC Database Reading for Sequential Permission Flow | Accepted |
+| [ADR-016](/adr/adr-016-tcc-database-reading) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
 | [ADR-017](/adr/adr-017-protocol-segregation) | InstallerEngine Protocol Segregation (ISP) | Accepted |
 | [ADR-018](/adr/adr-018-helper-protocol-duplication) | HelperProtocol XPC Duplication | Accepted |
 | [ADR-019](/adr/adr-019-test-seams) | Test Seams via TestEnvironment Checks | Accepted |
@@ -38,7 +38,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-032](/adr/adr-032-macos-kanata-runtime-identity) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed |
 | [ADR-033](/adr/adr-033-bundled-binary-canonical-path) | Bundled Binary as Canonical Kanata Path | Accepted |
 | [ADR-034](/adr/adr-034-kanata-engine-app-bundle-tcc-identity) | Kanata Engine.app Bundle for TCC Identity | Accepted |
-| [ADR-035](/adr/adr-035-bundle-id-tcc-detection-with-path-fallback) | Bundle ID TCC Detection with Path Fallback | Accepted |
+| [ADR-035](/adr/adr-035-bundle-id-tcc-detection-with-path-fallback) | Bundle ID TCC Detection with Path Fallback | Superseded by ADR-044 |
 | [ADR-036](/adr/adr-036-per-device-key-mappings) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
 | [ADR-037](/adr/adr-037-dynamic-os-key-labels) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
 | [ADR-038](/adr/adr-038-extension-file-splitting) | Extension-File Splitting for Large Types | Accepted |
@@ -47,20 +47,23 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-041](/adr/adr-041-installer-identity-stability-contract) | Installer Identity Stability Contract | Accepted |
 | [ADR-042](/adr/adr-042-executable-installer-state-classification) | Executable Installer State Classification | Accepted |
 | [ADR-043](/adr/adr-043-opportunistic-manager-consolidation) | Opportunistic Manager Consolidation | Accepted |
+| [ADR-044](/adr/adr-044-remove-full-disk-access) | Remove Full Disk Access and browser-history suggestions | Accepted |
+| [ADR-045](/adr/adr-045-retire-privileged-runtime-stack) | Retire the Privileged Runtime Stack | Accepted |
 
 ## Key Decisions Summary
 
 ### Permission System
-- **ADR-001/006**: `PermissionOracle` is the single source of truth. Apple APIs are authoritative; TCC database is fallback only.
+- **ADR-001/006**: `PermissionOracle` is the single source of truth. Apple APIs are authoritative; the TCC database is never read (ADR-044).
 
 ### Installation & Repair
 - **ADR-015**: `InstallerEngine` is the unified façade for all install/repair/uninstall operations.
 - **ADR-026**: Always validate components exist BEFORE checking service status.
 - **ADR-031**: Installer success requires verified runtime readiness (`running + TCP`) or explicit pending approval.
-- **ADR-040**: kanata is a root LaunchDaemon; app-side process liveness treats `EPERM` from `kill(pid,0)` as alive.
+- **ADR-040**: the retired kanata daemon was root (ADR-045); app-side process liveness treats `EPERM` from `kill(pid,0)` as alive.
 - **ADR-041**: Installer identity values for kanata, helper, and daemon shell are release-gated contracts.
 - **ADR-042**: The installer repair state matrix is executable; CLI, menu-bar, and wizard consumers share row/action vocabulary.
 - **ADR-043**: Consolidate overlapping installer/runtime managers opportunistically when touching both sides for concrete work; avoid broad manager-merge refactors.
+- **ADR-045**: The privileged stack is retired. Deletion is gated on a tested upgrade path from 1.0.1.
 
 ### Configuration
 - **ADR-023**: Never parse Kanata config files directly. Use TCP and simulator.

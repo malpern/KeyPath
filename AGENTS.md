@@ -13,7 +13,9 @@ Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a
 
 ## General
 - KeyPath is a macOS keyboard remapping app built with SwiftUI and a Kanata
-  backend using LaunchDaemon/privileged-helper architecture.
+  engine in an unprivileged user-session runtime. The privileged helper, daemon,
+  and VirtualHID stack is retired ([ADR-045](docs/adr/adr-045-retire-privileged-runtime-stack.md)):
+  public 1.0.1 still ships it, but current builds do not. Do not extend it.
 - User config: `~/.config/keypath/keypath.kbd`.
 - Logs: `~/Library/Logs/KeyPath/keypath-debug.log`.
 - Keep diffs minimal and focused. Preserve directory layout and script entry points.
@@ -54,10 +56,9 @@ Notes:
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
   deploy that refreshes companion binaries. It signs with Developer ID when
   available, otherwise Apple Development, so macOS keeps permissions across
-  deploys. The privileged helper accepts only Developer ID, so helper features
-  fail on an Apple Development build, as they do on ad-hoc. Switching identity
-  needs one re-grant (`tccutil reset`, then add the app again). A machine with
-  neither certificate falls back to ad-hoc and loses permissions on every deploy.
+  deploys. Switching identity needs one re-grant (`tccutil reset`, then add the
+  app again). A machine with neither certificate falls back to ad-hoc and loses
+  permissions on every deploy.
 - Canonical build, test, deploy, and release scripts use the Xcode that
   `xcode-select` points at (`Scripts/lib/xcode.sh`); there is no version pin.
   They refuse Command Line Tools: KeyPath needs a full Xcode with the Metal
@@ -68,8 +69,9 @@ Notes:
   Keep each build machine's `xcode-select` on the Xcode you want builds and CI
   to use, not a beta. Signed builds record `XcodeVersion` and `XcodeBuild` in
   `BuildInfo.plist`.
-- It intentionally does **not** redeploy the privileged helper unless
-  `KEYPATH_DEPLOY_HELPER=1` is set. Avoid helper redeploys during UI work.
+- It does **not** deploy the retired privileged helper unless
+  `KEYPATH_DEPLOY_HELPER=1` is set. Current builds do not need it, and it accepts
+  only Developer ID signatures.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
   `poltergeist start`, edit, then `poltergeist wait keypath`. Stop it before
   release work, helper/service work, broad tests, or parallel agents.
@@ -329,11 +331,10 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 ### Permissions
 - **Always use `PermissionOracle.shared`** for permission checks.
 - Never call `IOHIDCheckAccess` directly **outside of PermissionOracle**.
-- Never check TCC database directly **outside of PermissionOracle**.
-- **Exception**: `PermissionOracle` itself uses `IOHIDCheckAccess` and TCC as its
-  internal implementation (see [ADR-001](docs/adr/adr-001-oracle-pattern.md) and
-  [ADR-016](docs/adr/adr-016-tcc-database-reading.md)). Apple APIs are
-  authoritative; TCC is a fallback for `.unknown` results only.
+- Never read the TCC database. The reader was removed
+  ([ADR-044](docs/adr/adr-044-remove-full-disk-access.md)); missing or inconclusive
+  evidence stays unknown. Apple APIs and session-runtime capability reports are
+  authoritative (see [ADR-001](docs/adr/adr-001-oracle-pattern.md)).
 
 ### Keyboard Visualization
 - **Geometry follows selected `PhysicalLayout`** (user-selected layout ID).
@@ -341,15 +342,19 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
 ### Service Lifecycle Invariants
+Items tagged "Retired stack" below are limited to that code and migration from
+1.0.1 (ADR-045). Everything else applies to the session runtime,
+with `ServiceLifecycleCoordinator` as owner.
+
 - For installer/repair changes, use
   `docs/process/installer-repair-state-matrix.md` as the review checklist.
 - **Mutating installer actions must be postcondition-verified before returning success.**
   - Any action that can stop/restart/re-register Kanata must verify runtime readiness (`running + TCP responding`) or explicit pending-approval state before reporting success.
-- **Stale SMAppService recovery bypasses generic install throttle.**
+- **(Retired stack)** **Stale SMAppService recovery bypasses generic install throttle.**
   - If state is `.enabled` but launchd cannot load/run the daemon, recovery install/register logic must run even inside the normal throttle window.
-- **Registration is not liveness.**
+- **(Retired stack)** **Registration is not liveness.**
   - Treat `SMAppService.status == .enabled` as registration metadata only; never infer runtime health from it without process + TCP evidence.
-- **Helper responsiveness is not helper freshness.**
+- **(Retired stack)** **Helper responsiveness is not helper freshness.**
   - After helper deploys or helper behavior changes, verify version/path or force
     the unregister/register repair path instead of treating an XPC response as
     proof that the running helper is current.

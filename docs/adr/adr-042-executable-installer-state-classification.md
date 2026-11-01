@@ -1,5 +1,9 @@
 # ADR-042: Executable Installer State Classification
 
+> **Note (2026-10-31):** The state matrix remains the live contract, including its
+> session-runtime rows. Rows and actions for the daemon and helper apply only to
+> retired-stack code and 1.0.1 migration (ADR-045).
+
 ## Status
 
 Accepted

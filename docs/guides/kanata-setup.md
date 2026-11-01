@@ -1,5 +1,8 @@
 # KeyPath Kanata Setup Guide
 
+> **Note (2026-10-31):** This page describes the retired privileged stack in places.
+> The session runtime replaced it; see [overview.md](../architecture/overview.md) and ADR-045.
+
 ## 🎯 Overview
 
 KeyPath uses a simplified Karabiner-Elements inspired architecture with system-level LaunchDaemon for reliable Kanata management and hot reload functionality.

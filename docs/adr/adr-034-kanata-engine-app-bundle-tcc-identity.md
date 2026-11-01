@@ -1,5 +1,9 @@
 # ADR-034: Kanata Engine.app Bundle for TCC Identity
 
+> **Note (2026-10-31):** `Kanata Engine.app` still ships and is signed. The LaunchDaemon
+> details here are retired (ADR-045), and permissions now follow the session worker,
+> a second copy of the app, so check TCC claims here against that.
+
 **Status:** Accepted
 **Date:** 2026-03-12
 **Supersedes:** client_type=1 (path-based) aspects of ADR-033
