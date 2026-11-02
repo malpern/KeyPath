@@ -78,6 +78,26 @@ extension ServiceLifecycleCoordinator {
         return await kanataDaemonService.isDaemonRunning()
     }
 
+    /// Probes only while a refusal stands, so a daemon the user has since stopped
+    /// does not keep blocking the UI until the next start.
+    func legacyDaemonRefusalForStartup() async -> String? {
+        guard sessionLegacyDaemonRefusal != nil else { return nil }
+        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
+        let generation = sessionIntentGeneration
+        let legacyRunning = await isLegacyDaemonRunning()
+        // A newer request owns the refusal now, and this reading predates it.
+        if !legacyRunning, generation == sessionIntentGeneration { clearLegacyDaemonRefusal() }
+        return sessionLegacyDaemonRefusal
+    }
+
+    /// The published error goes too, or Settings would keep naming a stopped daemon.
+    func clearLegacyDaemonRefusal() {
+        guard sessionLegacyDaemonRefusal != nil else { return }
+        sessionLegacyDaemonRefusal = nil
+        onError?(nil)
+        onStateChanged?()
+    }
+
     func startSessionRuntime(reason: String, generation: UInt64) async -> Bool {
         guard sessionStartIsCurrent(generation) else { return false }
         #if DEBUG
@@ -95,8 +115,11 @@ extension ServiceLifecycleCoordinator {
         // terminate or migrate a privileged installation implicitly.
         let legacyRunning = await isLegacyDaemonRunning()
         guard sessionStartIsCurrent(generation) else { return false }
-        if legacyRunning {
-            onError?("Stop the existing keyboard service before trying driverless mode.")
+        sessionLegacyDaemonRefusal = legacyRunning
+            ? "Stop the existing keyboard service before trying driverless mode." : nil
+        if let sessionLegacyDaemonRefusal {
+            onError?(sessionLegacyDaemonRefusal)
+            onStateChanged?()
             return false
         }
         var didLaunch = false
