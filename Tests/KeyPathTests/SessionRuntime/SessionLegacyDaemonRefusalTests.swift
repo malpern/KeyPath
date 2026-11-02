@@ -8,16 +8,15 @@
 @MainActor
 final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
     private let refusal = "Stop the existing keyboard service before trying driverless mode."
-    private var coordinator: ServiceLifecycleCoordinator!
     private var errors: [String] = []
     private var daemonChecks = 0
 
-    override func setUp() {
-        super.setUp()
+    private func start(daemonRunning: Bool) async -> Bool {
         ServiceLifecycleCoordinator.testSessionStart = nil
-        errors = []
-        daemonChecks = 0
-        coordinator = ServiceLifecycleCoordinator(
+        addTeardownBlock { @MainActor in
+            ServiceLifecycleCoordinator.testSessionStart = { _ in false }
+        }
+        let coordinator = ServiceLifecycleCoordinator(
             kanataDaemonService: KanataDaemonService(),
             recoveryCoordinator: RecoveryCoordinator()
         )
@@ -28,15 +27,6 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         coordinator.onError = { [weak self] message in
             if let message { self?.errors.append(message) }
         }
-    }
-
-    override func tearDown() {
-        coordinator = nil
-        ServiceLifecycleCoordinator.testSessionStart = { _ in false }
-        super.tearDown()
-    }
-
-    private func start(daemonRunning: Bool) async -> Bool {
         coordinator.testSessionLegacyDaemonRunning = { [weak self] in
             self?.daemonChecks += 1
             return daemonRunning
