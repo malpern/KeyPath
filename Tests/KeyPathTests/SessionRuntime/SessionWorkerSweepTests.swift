@@ -15,14 +15,15 @@ final class SessionWorkerSweepTests: XCTestCase {
             "--session-nonce", UUID().uuidString, "--session-owner", "30378", "--session-port", "37001",
             "--session-config", "/Users/someone/.config/keypath/keypath.kbd",
         ])
-        XCTAssertEqual(worker, SessionWorkerProcess(pid: 13284, mode: .capabilities, ownerPID: 30378))
+        XCTAssertEqual(worker, SessionWorkerProcess(pid: 13284, mode: .capabilities, ownerPID: 30378, executable: Self.trashedExecutable))
     }
 
     func testParsesARuntimeWorker() {
         let worker = SessionWorkerProcess.parse(pid: 42, arguments: [
             "/Applications/KeyPath.app/Contents/MacOS/KeyPath", "--session-runtime", "--session-owner", "41",
         ])
-        XCTAssertEqual(worker, SessionWorkerProcess(pid: 42, mode: .runtime, ownerPID: 41))
+        XCTAssertEqual(worker?.mode, .runtime)
+        XCTAssertEqual(worker?.ownerPID, 41)
     }
 
     func testIgnoresTheAppItselfAndOtherProcesses() {
@@ -36,7 +37,8 @@ final class SessionWorkerSweepTests: XCTestCase {
 
     func testMissingOwnerValueParsesWithoutOwner() {
         let worker = SessionWorkerProcess.parse(pid: 5, arguments: [Self.trashedExecutable, "--session-runtime", "--session-owner"])
-        XCTAssertEqual(worker, SessionWorkerProcess(pid: 5, mode: .runtime, ownerPID: nil))
+        XCTAssertEqual(worker?.mode, .runtime)
+        XCTAssertNil(worker?.ownerPID)
     }
 
     func testParsesKernelArgumentLayout() {
@@ -64,16 +66,28 @@ final class SessionWorkerSweepTests: XCTestCase {
             self.exitOnTerm = exitOnTerm
         }
 
+        /// Each sleep advances a fake clock, so graces are wall-clock bounded.
+        let clock = Locked(0.0)
+        var arrivals: [Int: SessionWorkerProcess] = [:]
+        private var polls = 0
+
         var sweep: SessionWorkerSweep {
             SessionWorkerSweep(
-                list: { self.locked { self.running } },
+                list: { self.locked {
+                    if let late = self.arrivals[self.polls] { self.running.append(late) }
+                    self.polls += 1
+                    return Optional(self.running)
+                } },
                 signal: { pid, number in
                     self.locked {
                         self.signals.append((pid, number))
                         if number == SIGKILL || self.exitOnTerm.contains(pid) { self.running.removeAll { $0.pid == pid } }
                     }
                 },
-                sleep: { _ in }
+                sleep: { duration in
+                    self.clock.update { $0 += Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18 }
+                },
+                uptime: { self.clock.value }
             )
         }
 
@@ -103,8 +117,7 @@ final class SessionWorkerSweepTests: XCTestCase {
     func testKillsAWedgedProbeAfterItsGrace() async {
         let probe = SessionWorkerProcess(pid: 13284, mode: .capabilities, ownerPID: 30378)
         let fake = FakeProcesses([probe], exitOnTerm: [])
-        let outcome = await fake.sweep.stopAll(probeGrace: .milliseconds(200), runtimeGrace: .seconds(1),
-                                               poll: .milliseconds(100))
+        let outcome = await fake.sweep.stopAll(probeGrace: 0.2, runtimeGrace: 1, poll: .milliseconds(100))
         XCTAssertTrue(outcome.succeeded)
         XCTAssertEqual(fake.received(SIGKILL), [13284])
     }
@@ -114,17 +127,98 @@ final class SessionWorkerSweepTests: XCTestCase {
     func testNeverKillsARuntimeWorkerAndReportsItRemaining() async {
         let runtime = SessionWorkerProcess(pid: 100, mode: .runtime, ownerPID: 99)
         let fake = FakeProcesses([runtime], exitOnTerm: [])
-        let outcome = await fake.sweep.stopAll(probeGrace: .milliseconds(100), runtimeGrace: .milliseconds(500),
-                                               poll: .milliseconds(100))
+        let outcome = await fake.sweep.stopAll(probeGrace: 0.1, runtimeGrace: 0.5, poll: .milliseconds(100))
         XCTAssertFalse(outcome.succeeded)
         XCTAssertEqual(outcome.remaining, [runtime])
         XCTAssertTrue(fake.received(SIGKILL).isEmpty)
     }
 
+    /// A worker that appears after the first listing is signalled, and a late
+    /// probe is still killed once the probe grace has passed.
+    func testSignalsWorkersThatAppearMidSweep() async {
+        let first = SessionWorkerProcess(pid: 100, mode: .runtime, ownerPID: 99)
+        let late = SessionWorkerProcess(pid: 200, mode: .capabilities, ownerPID: 99)
+        let fake = FakeProcesses([first], exitOnTerm: [100])
+        // Listed on the first poll, after the initial SIGTERM went out.
+        fake.arrivals[1] = late
+        let outcome = await fake.sweep.stopAll(probeGrace: 0.2, runtimeGrace: 2, poll: .milliseconds(100))
+        XCTAssertTrue(outcome.succeeded)
+        XCTAssertEqual(Set(fake.received(SIGTERM)), [100, 200])
+        XCTAssertEqual(fake.received(SIGKILL), [200])
+        XCTAssertEqual(Set(outcome.found.map(\.pid)), [100, 200])
+    }
+
+    func testUninstallScopeIsTheRemovedBundleAndOrphans() {
+        let app = URL(fileURLWithPath: "/Applications/KeyPath.app")
+        let own = SessionWorkerProcess(pid: 1, mode: .runtime, ownerPID: 10,
+                                       executable: "/Applications/KeyPath.app/Contents/MacOS/KeyPath")
+        let otherLive = SessionWorkerProcess(pid: 2, mode: .runtime, ownerPID: 20,
+                                             executable: "/Users/me/dev/KeyPath.app/Contents/MacOS/KeyPath")
+        let orphan = SessionWorkerProcess(pid: 3, mode: .capabilities, ownerPID: 30378,
+                                          executable: Self.trashedExecutable)
+        let ownerless = SessionWorkerProcess(pid: 4, mode: .capabilities, ownerPID: nil,
+                                             executable: Self.trashedExecutable)
+        let alive: (pid_t) -> Bool = { $0 != 30378 }
+        XCTAssertTrue(own.belongsToUninstall(of: app, ownerAlive: alive))
+        XCTAssertFalse(otherLive.belongsToUninstall(of: app, ownerAlive: alive))
+        XCTAssertTrue(orphan.belongsToUninstall(of: app, ownerAlive: alive))
+        XCTAssertTrue(ownerless.belongsToUninstall(of: app, ownerAlive: alive))
+        // A sibling bundle whose name starts with the removed one is not inside it.
+        let sibling = SessionWorkerProcess(pid: 5, mode: .runtime, ownerPID: 20,
+                                           executable: "/Applications/KeyPath.app.old/Contents/MacOS/KeyPath")
+        XCTAssertFalse(sibling.belongsToUninstall(of: app, ownerAlive: alive))
+    }
+
     /// Reads the real process table without signalling anything: this test
     /// process is not a KeyPath worker, so it must never list itself.
-    func testLiveListingNeverIncludesThisProcess() {
-        XCTAssertFalse(SessionWorkerSweep.currentUserSessionWorkers().contains { $0.pid == getpid() })
-        XCTAssertNotNil(SessionWorkerSweep.arguments(of: getpid()))
+    func testLiveListingNeverIncludesThisProcess() throws {
+        let workers = try XCTUnwrap(SessionWorkerSweep.currentUserSessionWorkers(), "Process table must be readable")
+        XCTAssertFalse(workers.contains { $0.pid == getpid() })
+        var buffer = try [UInt8](repeating: 0, count: XCTUnwrap(SessionWorkerSweep.argumentMax()))
+        let arguments = try XCTUnwrap(SessionWorkerSweep.arguments(of: getpid(), buffer: &buffer))
+        // The kernel reports the executable path, which need not equal argv[0].
+        XCTAssertTrue(arguments.first?.hasPrefix("/") == true)
+        XCTAssertEqual(Array(arguments.dropFirst()), Array(ProcessInfo.processInfo.arguments.dropFirst()))
     }
+
+    /// An unreadable process table proves nothing, so it is not success.
+    func testUnreadableProcessTableIsNotSuccess() async {
+        let unreadable = SessionWorkerSweep(list: { nil }, signal: { _, _ in XCTFail("Nothing to signal") }, sleep: { _ in })
+        let outcome = await unreadable.stopAll()
+        XCTAssertFalse(outcome.succeeded)
+        XCTAssertFalse(outcome.verified)
+    }
+
+    func testTableThatBecomesUnreadableMidSweepIsNotSuccess() async {
+        let reads = Locked(0)
+        let probe = SessionWorkerProcess(pid: 13284, mode: .capabilities, ownerPID: 30378)
+        let sweep = SessionWorkerSweep(list: {
+            reads.update { $0 += 1 }
+            return reads.value == 1 ? [probe] : nil
+        }, signal: { _, _ in }, sleep: { _ in })
+        let outcome = await sweep.stopAll()
+        XCTAssertFalse(outcome.succeeded)
+        XCTAssertEqual(outcome.remaining, [probe])
+    }
+
+    func testMalformedKernelArgumentsDoNotCrash() {
+        // argc larger than the strings present: returns what is there.
+        var bytes = withUnsafeBytes(of: Int32(5)) { Array($0) }
+        bytes += Array(Self.trashedExecutable.utf8) + [0] + Array("KeyPath".utf8) + [0]
+        XCTAssertEqual(SessionWorkerSweep.parseProcArgs(bytes), [Self.trashedExecutable])
+        // No terminating NUL after the executable path.
+        let unterminated = withUnsafeBytes(of: Int32(1)) { Array($0) } + Array("/x".utf8)
+        XCTAssertNil(SessionWorkerSweep.parseProcArgs(unterminated))
+        // Non-UTF8 bytes decode with replacement rather than failing.
+        let invalid = withUnsafeBytes(of: Int32(1)) { Array($0) } + [0xFF, 0xFE, 0] + [0x41, 0]
+        XCTAssertEqual(SessionWorkerSweep.parseProcArgs(invalid)?.count, 1)
+    }
+}
+
+private final class Locked<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Value
+    init(_ value: Value) { stored = value }
+    var value: Value { lock.lock(); defer { lock.unlock() }; return stored }
+    func update(_ body: (inout Value) -> Void) { lock.lock(); body(&stored); lock.unlock() }
 }

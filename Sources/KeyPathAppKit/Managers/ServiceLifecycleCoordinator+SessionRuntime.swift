@@ -51,28 +51,45 @@ extension ServiceLifecycleCoordinator {
         do {
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: true)
             defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-            var reported = false
-            // A timeout, a cancelled wait, or an error all abandon the probe;
-            // signal it on every one of them, not only after the timeout.
-            // NSWorkspace may return an application without a valid PID (e.g. -1).
-            // Never let that become a process-group/broadcast signal target.
-            // Signal only the independently launched process owned by this call.
-            defer {
-                let probePID = application.processIdentifier
-                if !reported, probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
-            }
-            for _ in 0 ..< 40 {
-                if let report = Self.readSessionReport(url),
-                   report.state == .capabilities,
-                   report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
-                {
-                    reported = true
-                    return Self.permissionSet(report)
+            let report = try await Self.awaitCapabilityReport(
+                read: {
+                    guard let report = Self.readSessionReport(url), report.state == .capabilities,
+                          report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
+                    else { return nil }
+                    return report
+                },
+                sleep: { try await Task.sleep(for: .milliseconds(50)) },
+                abandon: {
+                    // NSWorkspace may return an application without a valid PID (e.g. -1).
+                    // Never let that become a process-group/broadcast signal target.
+                    // Signal only the independently launched process owned by this call.
+                    let probePID = application.processIdentifier
+                    if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
                 }
-                try await Task.sleep(for: .milliseconds(50))
-            }
+            )
+            if let report { return Self.permissionSet(report) }
         } catch {
             AppLogger.shared.warn("Session permission report unavailable")
+        }
+        return nil
+    }
+
+    /// Polls about two seconds for the probe's report. A timeout, a cancelled
+    /// wait, or a thrown error all abandon the probe, and every one of them
+    /// signals it: on 2026-11-03 a cancelled wait skipped the signal and two
+    /// probes outlived their app.
+    static func awaitCapabilityReport(
+        attempts: Int = 40, read: () -> SessionRuntimeReport?,
+        sleep: () async throws -> Void, abandon: () -> Void
+    ) async throws -> SessionRuntimeReport? {
+        var reported = false
+        defer { if !reported { abandon() } }
+        for _ in 0 ..< attempts {
+            if let report = read() {
+                reported = true
+                return report
+            }
+            try await sleep()
         }
         return nil
     }

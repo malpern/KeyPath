@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import KeyPathCore
 
 /// One KeyPath session worker found in this user's process table.
 struct SessionWorkerProcess: Equatable, Sendable {
@@ -11,6 +12,7 @@ struct SessionWorkerProcess: Equatable, Sendable {
     let pid: pid_t
     let mode: Mode
     let ownerPID: pid_t?
+    var executable = ""
 
     /// `arguments[0]` is the executable path. Matches any KeyPath bundle,
     /// including one already moved to the Trash, but never the app itself.
@@ -27,7 +29,15 @@ struct SessionWorkerProcess: Equatable, Sendable {
         let owner = arguments.firstIndex(of: "--session-owner")
             .flatMap { arguments.index(after: $0) < arguments.endIndex ? arguments[arguments.index(after: $0)] : nil }
             .flatMap(pid_t.init)
-        return SessionWorkerProcess(pid: pid, mode: mode, ownerPID: owner)
+        return SessionWorkerProcess(pid: pid, mode: mode, ownerPID: owner, executable: executable)
+    }
+
+    /// Uninstall stops workers of the bundle it removes, and orphans of any
+    /// bundle; a separate KeyPath install whose app is alive keeps its worker.
+    func belongsToUninstall(of app: URL, ownerAlive: (pid_t) -> Bool) -> Bool {
+        if executable.hasPrefix(app.standardizedFileURL.path + "/") { return true }
+        guard let ownerPID, ownerPID > 0 else { return true }
+        return !ownerAlive(ownerPID)
     }
 }
 
@@ -38,73 +48,118 @@ struct SessionWorkerSweep: Sendable {
     struct Outcome: Equatable, Sendable {
         let found: [SessionWorkerProcess]
         let remaining: [SessionWorkerProcess]
-        var succeeded: Bool { remaining.isEmpty }
+        /// False when the process table could not be read: absence unproven.
+        var verified = true
+        var succeeded: Bool { verified && remaining.isEmpty }
     }
 
-    var list: @Sendable () -> [SessionWorkerProcess]
+    /// nil means the process table could not be read, never "no workers".
+    var list: @Sendable () -> [SessionWorkerProcess]?
     var signal: @Sendable (pid_t, Int32) -> Void
     var sleep: @Sendable (Duration) async -> Void
+    var uptime: @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
 
-    static let live = SessionWorkerSweep(
-        list: { currentUserSessionWorkers() },
-        signal: { pid, number in _ = kill(pid, number) },
-        sleep: { try? await Task.sleep(for: $0) }
-    )
+    static func live(uninstalling app: URL) -> SessionWorkerSweep {
+        SessionWorkerSweep(
+            list: {
+                currentUserSessionWorkers()?.filter {
+                    $0.belongsToUninstall(of: app) { SystemStateProvider.isProcessAlive(pid: $0) }
+                }
+            },
+            signal: { pid, number in _ = kill(pid, number) },
+            sleep: { try? await Task.sleep(for: $0) }
+        )
+    }
 
     /// A runtime worker gets SIGTERM only: its shutdown releases held keys and
     /// restores Caps mappings, and killing it would strand them. A capability
     /// probe owns nothing, so one still alive after `probeGrace` is killed.
-    func stopAll(probeGrace: Duration = .seconds(2), runtimeGrace: Duration = .seconds(10),
+    /// Workers that appear mid-sweep are signalled too. Graces are wall-clock.
+    func stopAll(probeGrace: TimeInterval = 2, runtimeGrace: TimeInterval = 10,
                  poll: Duration = .milliseconds(100)) async -> Outcome
     {
-        let found = list()
+        guard let found = list() else { return Outcome(found: [], remaining: [], verified: false) }
         guard !found.isEmpty else { return Outcome(found: [], remaining: []) }
-        for worker in found {
-            signal(worker.pid, SIGTERM)
-        }
-        var waited = Duration.zero
-        var killedProbes = false
+        let started = uptime()
+        var termed: Set<pid_t> = []
+        var killed: Set<pid_t> = []
+        var everFound = found
         var remaining = found
-        while !remaining.isEmpty, waited < runtimeGrace {
-            await sleep(poll)
-            waited += poll
-            remaining = list()
-            if !killedProbes, waited >= probeGrace {
-                killedProbes = true
-                for worker in remaining where worker.mode == .capabilities {
+        while true {
+            let elapsed = uptime() - started
+            for worker in remaining where !termed.contains(worker.pid) {
+                termed.insert(worker.pid)
+                signal(worker.pid, SIGTERM)
+            }
+            if elapsed >= probeGrace {
+                for worker in remaining where worker.mode == .capabilities && !killed.contains(worker.pid) {
+                    killed.insert(worker.pid)
                     signal(worker.pid, SIGKILL)
                 }
             }
+            guard !remaining.isEmpty, elapsed < runtimeGrace else { break }
+            await sleep(poll)
+            guard let listed = list() else { return Outcome(found: everFound, remaining: remaining, verified: false) }
+            remaining = listed
+            everFound += listed.filter { worker in !everFound.contains { $0.pid == worker.pid } }
         }
-        return Outcome(found: found, remaining: remaining)
+        return Outcome(found: everFound, remaining: remaining)
     }
 
     /// Reads the kernel process table directly: no pgrep, and only this UID.
-    static func currentUserSessionWorkers() -> [SessionWorkerProcess] {
+    static func currentUserSessionWorkers() -> [SessionWorkerProcess]? {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_UID, Int32(bitPattern: getuid())]
+        var processes: [kinfo_proc] = []
         var size = 0
-        guard sysctl(&mib, 4, nil, &size, nil, 0) == 0, size > 0 else { return [] }
-        // Headroom for processes started between the two calls.
-        size += 32 * MemoryLayout<kinfo_proc>.stride
-        var processes = [kinfo_proc](repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride)
-        guard sysctl(&mib, 4, &processes, &size, nil, 0) == 0 else { return [] }
+        // Processes started between sizing and reading make the read ENOMEM.
+        for _ in 0 ..< 4 {
+            guard sysctl(&mib, 4, nil, &size, nil, 0) == 0, size > 0 else { return nil }
+            size += 32 * MemoryLayout<kinfo_proc>.stride
+            processes = [kinfo_proc](repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride)
+            if sysctl(&mib, 4, &processes, &size, nil, 0) == 0 { break }
+            guard errno == ENOMEM else { return nil }
+            processes = []
+        }
+        guard !processes.isEmpty else { return nil }
         let count = size / MemoryLayout<kinfo_proc>.stride
         let me = getpid()
-        return processes.prefix(count).compactMap { process in
+        // One buffer for every process: kern.argmax is 1 MiB.
+        guard let argumentMax = argumentMax() else { return nil }
+        var buffer = [UInt8](repeating: 0, count: argumentMax)
+        var workers: [SessionWorkerProcess] = []
+        for process in processes.prefix(count) {
             let pid = process.kp_proc.p_pid
-            guard pid > 0, pid != me, let arguments = arguments(of: pid) else { return nil }
-            return SessionWorkerProcess.parse(pid: pid, arguments: arguments)
+            // Only KeyPath processes pay for an argument read. A zombie has no
+            // arguments and runs nothing.
+            guard pid > 0, pid != me, Int32(process.kp_proc.p_stat) != SZOMB,
+                  command(of: process) == "KeyPath" else { continue }
+            guard let arguments = arguments(of: pid, buffer: &buffer) else {
+                // Gone between the two reads, or unreadable: unreadable is unknown.
+                if kill(pid, 0) == 0 || errno == EPERM { return nil }
+                continue
+            }
+            if let worker = SessionWorkerProcess.parse(pid: pid, arguments: arguments) { workers.append(worker) }
         }
+        return workers
+    }
+
+    private static func command(of process: kinfo_proc) -> String {
+        withUnsafeBytes(of: process.kp_proc.p_comm) { raw in
+            String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+        }
+    }
+
+    static func argumentMax() -> Int? {
+        var argumentMax: Int32 = 0
+        var argumentMaxSize = MemoryLayout<Int32>.size
+        var mib: [Int32] = [CTL_KERN, KERN_ARGMAX]
+        guard sysctl(&mib, 2, &argumentMax, &argumentMaxSize, nil, 0) == 0, argumentMax > 0 else { return nil }
+        return Int(argumentMax)
     }
 
     /// KERN_PROCARGS2 is argc, the executable path, padding, then argv.
     /// Returns the executable path followed by argv[1...].
-    static func arguments(of pid: pid_t) -> [String]? {
-        var argumentMax: Int32 = 0
-        var argumentMaxSize = MemoryLayout<Int32>.size
-        var maxMib: [Int32] = [CTL_KERN, KERN_ARGMAX]
-        guard sysctl(&maxMib, 2, &argumentMax, &argumentMaxSize, nil, 0) == 0, argumentMax > 0 else { return nil }
-        var buffer = [UInt8](repeating: 0, count: Int(argumentMax))
+    static func arguments(of pid: pid_t, buffer: inout [UInt8]) -> [String]? {
         var size = buffer.count
         var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
         guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else { return nil }

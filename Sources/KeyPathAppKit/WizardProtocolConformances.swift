@@ -164,7 +164,7 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         }, removeLoginItem: {
             try await LaunchAtLoginController.shared.setEnabled(false)
         }, stopSessionWorkers: {
-            let outcome = await SessionWorkerSweep.live.stopAll()
+            let outcome = await SessionWorkerSweep.live(uninstalling: Bundle.main.bundleURL).stopAll()
             if !outcome.found.isEmpty {
                 AppLogger.shared.log(
                     "[Uninstall] Session workers found=\(outcome.found.map(\.pid)) remaining=\(outcome.remaining.map(\.pid))"

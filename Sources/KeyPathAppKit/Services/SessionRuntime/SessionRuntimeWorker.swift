@@ -139,12 +139,15 @@ public final class SessionRuntimeWorker {
             worker.experimentalRawPosting = await SystemStateProvider.shared.currentProcessRawEventPostingStatus()
         #endif
         // From here the worker may hold keys or a Caps mapping, so a dead owner
-        // retires it on its run loop, which releases them before exiting.
+        // retires it on its run loop, which releases them before exiting. A
+        // run loop that never gets there would keep an orphan forever; after
+        // the grace it exits anyway, and the Caps journal survives for recovery.
         ownerWatch.setHandler { [weak worker] _ in
             CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
                 MainActor.assumeIsolated { worker?.retire(reason: "owner-exited") }
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + ownerExitShutdownGrace) { _exit(1) }
         }
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;
@@ -154,7 +157,9 @@ public final class SessionRuntimeWorker {
 
     /// The parent waits about two seconds for a capability report and then
     /// abandons the probe; this bounds a probe the parent could not signal.
-    static let capabilityProbeDeadline: TimeInterval = 15
+    nonisolated static let capabilityProbeDeadline: TimeInterval = 15
+    /// How long an orphaned runtime gets to release outputs on its run loop.
+    nonisolated static let ownerExitShutdownGrace: TimeInterval = 30
 
     private func retire(reason: String) {
         guard !finished else { return }
