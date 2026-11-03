@@ -41,7 +41,8 @@ tells the user to stop it, but the app offers no way to do that:
 `InstallerEngine` refuses privileged recipes and `SessionUninstallCoordinator`
 does no privileged cleanup. That path must cover at least the kanata daemon, the
 helper registration, and telling the user what remains of the VirtualHID driver.
-It must be tested on a clean VM that starts from 1.0.1.
+It must be tested on a clean VM that starts from 1.0.1. Tracked in
+[#1353](https://github.com/malpern/KeyPath/issues/1353).
 
 Keep legacy detection after the rest is removed for as long as 1.0.1 installs may
 upgrade directly.
@@ -56,7 +57,7 @@ upgrade directly.
 - ADR-040's `EPERM` lesson still applies to any legacy-daemon detection.
 - ADR-013's accepted risk needs review before the first public session-runtime
   release, because the TCP endpoint now fronts a process holding the user's input
-  permissions.
+  permissions. Tracked in [#1354](https://github.com/malpern/KeyPath/issues/1354).
 - Removal order: unreachable wizard pages and actions, then routers and managers,
   then the helper and launcher targets and their scripts. Each stage keeps CI
   green and removes its tests with the code.
