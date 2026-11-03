@@ -121,6 +121,7 @@ class MainAppStateController {
     @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
     @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
     @ObservationIgnored private var lastKnownRecoveryRevision: UInt64?
+    @ObservationIgnored private var lastKnownLegacyDaemonRefused = false
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
@@ -283,10 +284,12 @@ class MainAppStateController {
 
     /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
     /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
-    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64) -> Bool {
+    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64, legacyDaemonRefused: Bool = false) -> Bool {
         let changed = lastKnownRuntimeHealthy != isHealthy || lastKnownRecoveryRevision != recoveryRevision
+            || lastKnownLegacyDaemonRefused != legacyDaemonRefused
         lastKnownRuntimeHealthy = isHealthy
         lastKnownRecoveryRevision = recoveryRevision
+        lastKnownLegacyDaemonRefused = legacyDaemonRefused
         return changed
     }
 
@@ -299,12 +302,17 @@ class MainAppStateController {
         // Poll runtime status for health transitions.
         serviceHealthTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
+                // Running and refused are both unhealthy, so health alone cannot
+                // show that a refusal appeared or cleared. Read before the status
+                // query, which clears a refusal once its daemon has stopped.
+                let legacyDaemonRefused = serviceLifecycle.sessionLegacyDaemonRefusal != nil
                 let runtimeStatus = await serviceLifecycle.currentRuntimeStatus()
                 let isHealthy = runtimeStatus.isRunning
                 let wasHealthy = lastKnownRuntimeHealthy
 
                 if runtimeValidationNeedsRefresh(isHealthy: isHealthy,
-                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision)
+                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision,
+                                                 legacyDaemonRefused: legacyDaemonRefused)
                 {
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
@@ -459,6 +467,27 @@ class MainAppStateController {
         case missingSessionPermissions
         case invalidSessionConfiguration(String)
         case sessionRecoveryRefused(String)
+        case legacyDaemonRefused(String)
+    }
+
+    private enum SessionRefusal {
+        case configuration, recovery, legacyDaemon
+
+        var title: String {
+            switch self {
+            case .configuration: "Configuration cannot run in driverless mode"
+            case .recovery: "Keyboard recovery requires attention"
+            case .legacyDaemon: "Another KeyPath keyboard service is running"
+            }
+        }
+
+        var userAction: String {
+            switch self {
+            case .configuration: "Edit the configuration and retry. Existing rules were preserved."
+            case .recovery: "The recovery record was preserved. Do not clear it to force a restart."
+            case .legacyDaemon: "KeyPath will not stop it for you. Stop it, then start KeyPath again. Existing rules were preserved."
+            }
+        }
     }
 
     private func performValidation(requiresFreshResult: Bool = false) async {
@@ -506,7 +535,10 @@ class MainAppStateController {
             publishSessionConfigurationRefusal(reason)
             return
         case let .sessionRecoveryRefused(reason):
-            publishSessionConfigurationRefusal(reason, recovery: true)
+            publishSessionConfigurationRefusal(reason, kind: .recovery)
+            return
+        case let .legacyDaemonRefused(reason):
+            publishSessionConfigurationRefusal(reason, kind: .legacyDaemon)
             return
         case .transientTimeout:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "transientTimeout") {
@@ -549,11 +581,15 @@ class MainAppStateController {
         let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
         let snapshot = await validator.checkSystem()
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
-            publishSessionConfigurationRefusal(refusal, recovery: true)
+            publishSessionConfigurationRefusal(refusal, kind: .recovery)
             return
         }
         if let refusal = serviceLifecycle?.configurationRefusalForStartup() {
             publishSessionConfigurationRefusal(refusal)
+            return
+        }
+        if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
+            publishSessionConfigurationRefusal(refusal, kind: .legacyDaemon)
             return
         }
         // Recovery can begin while a snapshot is suspended. Do not publish that
@@ -786,14 +822,13 @@ class MainAppStateController {
         )
     }
 
-    private func publishSessionConfigurationRefusal(_ reason: String, recovery: Bool = false) {
+    private func publishSessionConfigurationRefusal(_ reason: String, kind: SessionRefusal = .configuration) {
         // Keep this actionable correction out of installer repair. A full system
         // snapshot cannot make a proven unsupported configuration start running.
         issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
-                              category: .systemRequirements, title: recovery ? "Keyboard recovery requires attention" : "Configuration cannot run in driverless mode",
+                              category: .systemRequirements, title: kind.title,
                               description: reason, autoFixAction: nil,
-                              userAction: recovery ? "The recovery record was preserved. Do not clear it to force a restart."
-                                  : "Edit the configuration and retry. Existing rules were preserved.")]
+                              userAction: kind.userAction)]
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil
         lastAdaptedState = .serviceNotRunning
@@ -802,7 +837,7 @@ class MainAppStateController {
         lastInstallerStateMatrixPlan = []
         lastValidationDate = Date()
         lastValidationTime = Date()
-        AppLogger.shared.errorUnlessQuietTest("Driverless configuration refused: \(reason)")
+        AppLogger.shared.errorUnlessQuietTest("Driverless start refused (\(kind)): \(reason)")
     }
 
     private func publishWakeRecoveryInProgress() {
@@ -822,6 +857,9 @@ class MainAppStateController {
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
             return .sessionRecoveryRefused(refusal)
         }
+        if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
+            return .legacyDaemonRefused(refusal)
+        }
         if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
         let timing = startupGateTiming()
         let start = startupGateNow()
@@ -832,6 +870,9 @@ class MainAppStateController {
         while startupGateNow() < transientDeadline {
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
+            }
+            if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
+                return .legacyDaemonRefused(refusal)
             }
             if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
             if KanataRuntimeBackend.selected == .session {
