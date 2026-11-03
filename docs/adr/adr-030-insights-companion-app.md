@@ -1,5 +1,8 @@
 # ADR-030: Separate Activity Logging and AI Features into KeyPath Insights Companion App
 
+> **Note (2026-10-31):** The core app no longer has root access or a LaunchDaemon
+> (ADR-045). The case for separating these features is otherwise unchanged.
+
 ## Status
 
 Accepted

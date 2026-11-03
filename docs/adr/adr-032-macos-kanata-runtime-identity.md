@@ -1,5 +1,9 @@
 # ADR-032: Stable App-Bundled Runtime Identity for macOS Kanata Input Capture
 
+> **Note (2026-10-31):** The launcher and root daemon described here are retired
+> (ADR-045). The session worker is a second copy of the app, so read this as history
+> for runtime identity, not as the current design.
+
 ## Status
 
 Proposed

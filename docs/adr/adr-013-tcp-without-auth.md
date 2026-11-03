@@ -1,6 +1,11 @@
 # ADR-013: TCP Communication Without Authentication
 
-**Status:** Accepted (with caveats)
+> **Note (2026-10-31):** This was written for the root daemon. The runtime now runs
+> in a user session that holds the user's input permissions, so this risk needs
+> review. See ADR-045; tracked in
+> [#1354](https://github.com/malpern/KeyPath/issues/1354).
+
+**Status:** Accepted (under review, see ADR-045)
 **Date:** 2024
 
 ## Context
@@ -27,6 +32,6 @@ Use TCP without authentication for localhost IPC.
 
 ```swift
 // TCP connection to Kanata
-let connection = TCPConnection(host: "127.0.0.1", port: 9999)
+let connection = TCPConnection(host: "127.0.0.1", port: 37001)
 await connection.send("layer-names")
 ```

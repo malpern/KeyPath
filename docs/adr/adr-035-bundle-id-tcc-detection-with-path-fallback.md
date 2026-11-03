@@ -1,6 +1,6 @@
 # ADR-035: Bundle ID TCC Detection with Path Fallback
 
-**Status:** Accepted
+**Status:** Superseded by ADR-044
 **Date:** 2026-03-12
 
 ## Context
