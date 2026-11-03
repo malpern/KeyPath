@@ -373,7 +373,7 @@ with `ServiceLifecycleCoordinator` as owner.
 - Do not send TCP reloads directly; use
   `ConfigReloadCoordinator.triggerConfigReload()`.
 - Do not skip TCP reload after config changes; that causes stale config.
-- Do not call `SMAppService.status` in a hot path; it is synchronous IPC and can
+- (Retired stack) Do not call `SMAppService.status` in a hot path; it is synchronous IPC and can
   block for 10-30 seconds.
 - Do not call real `pgrep` in tests; use `KeyPathTestCase` base class.
 

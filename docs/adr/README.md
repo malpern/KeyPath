@@ -11,8 +11,8 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-008](adr-008-validation-refactor.md) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](adr-009-service-extraction-mvvm.md) | Service Extraction & MVVM Pattern | Accepted |
 | [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Accepted (under review) |
-| [ADR-014](adr-014-xpc-signature-mismatch.md) | XPC Signature Mismatch Prevention | Accepted |
-| [ADR-015](adr-015-installer-engine.md) | InstallerEngine Façade | Accepted |
+| [ADR-014](adr-014-xpc-signature-mismatch.md) | XPC Signature Mismatch Prevention | Accepted (see ADR-045 note) |
+| [ADR-015](adr-015-installer-engine.md) | InstallerEngine Façade | Accepted (see ADR-045 note) |
 | [ADR-016](adr-016-tcc-database-reading.md) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
 | [ADR-017](adr-017-protocol-segregation.md) | InstallerEngine Protocol Segregation (ISP) | Accepted |
 | [ADR-018](adr-018-helper-protocol-duplication.md) | HelperProtocol XPC Duplication | Accepted |
@@ -28,18 +28,18 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-028](adr-028-unified-sf-symbols.md) | Unified SF Symbol Resolution via SystemActionInfo | Accepted |
 | [ADR-029](adr-029-eliminate-fake-key-layer-notifications.md) | Eliminate Fake Key Layer Notifications via Native LayerChange | Proposed |
 | [ADR-030](adr-030-insights-companion-app.md) | Separate Activity Logging and AI Features into KeyPath Insights Companion App | Accepted |
-| [ADR-031](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted |
-| [ADR-032](adr-032-macos-kanata-runtime-identity.md) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed |
-| [ADR-033](adr-033-bundled-binary-canonical-path.md) | Bundled Binary as Canonical Kanata Path | Accepted |
-| [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | Kanata Engine.app Bundle for TCC Identity | Accepted |
+| [ADR-031](adr-031-kanata-service-lifecycle-invariants-and-postcondition-enforcement.md) | Kanata Service Lifecycle Invariants and Postcondition Enforcement | Accepted (see ADR-045 note) |
+| [ADR-032](adr-032-macos-kanata-runtime-identity.md) | Stable App-Bundled Runtime Identity for macOS Kanata Input Capture | Proposed (see ADR-045 note) |
+| [ADR-033](adr-033-bundled-binary-canonical-path.md) | Bundled Binary as Canonical Kanata Path | Accepted (see ADR-045 note) |
+| [ADR-034](adr-034-kanata-engine-app-bundle-tcc-identity.md) | Kanata Engine.app Bundle for TCC Identity | Accepted (see ADR-045 note) |
 | [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md) | Bundle ID TCC Detection with Path Fallback | Superseded by ADR-044 |
 | [ADR-036](adr-036-per-device-key-mappings.md) | Per-Device Key Mappings via Conditional Switch Wrapping | Accepted |
 | [ADR-037](adr-037-dynamic-os-key-labels.md) | Dynamic OS-Driven Key Labels (System Keymap) | Accepted |
 | [ADR-038](adr-038-extension-file-splitting.md) | Extension-File Splitting for Large Types | Accepted |
 | [ADR-039](adr-039-key-conflict-resolution-principles.md) | Key Conflict Detection and Resolution Principles | Accepted |
-| [ADR-040](adr-040-process-liveness-across-privilege-boundary.md) | Process Liveness and Signaling Across the Privilege Boundary | Accepted |
-| [ADR-041](adr-041-installer-identity-stability-contract.md) | Installer Identity Stability Contract | Accepted |
-| [ADR-042](adr-042-executable-installer-state-classification.md) | Executable Installer State Classification | Accepted |
+| [ADR-040](adr-040-process-liveness-across-privilege-boundary.md) | Process Liveness and Signaling Across the Privilege Boundary | Accepted (see ADR-045 note) |
+| [ADR-041](adr-041-installer-identity-stability-contract.md) | Installer Identity Stability Contract | Accepted (see ADR-045 note) |
+| [ADR-042](adr-042-executable-installer-state-classification.md) | Executable Installer State Classification | Accepted (see ADR-045 note) |
 | [ADR-043](adr-043-opportunistic-manager-consolidation.md) | Opportunistic Manager Consolidation | Accepted |
 | [ADR-044](adr-044-remove-full-disk-access.md) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-045](adr-045-retire-privileged-runtime-stack.md) | Retire the Privileged Runtime Stack | Accepted |
