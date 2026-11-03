@@ -114,6 +114,7 @@ final class ServiceLifecycleCoordinator {
         var testSessionConfigurationValidation: (() -> KanataHostBridgeValidationResult)?
         var testSessionRequestObserved: ((UInt64) -> Void)?
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?
+        var testSessionLegacyDaemonRunning: (@MainActor () async -> Bool)?
         var testSessionSupervisionStarted: ((UInt64) -> Void)?
         var testSessionCapsRecovery: (() async throws -> Void)?
         var testSessionCapsPreparation: (() async throws -> Void)?
