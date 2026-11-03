@@ -10,8 +10,21 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
     private let refusal = "Stop the existing keyboard service before trying driverless mode."
     private var errors: [String] = []
     private var daemonChecks = 0
+    private var publishedError: String?
 
     private func start(daemonRunning: Bool) async -> Bool {
+        await start(daemonRunning: daemonRunning, using: makeCoordinator())
+    }
+
+    private func start(daemonRunning: Bool, using coordinator: ServiceLifecycleCoordinator) async -> Bool {
+        coordinator.testSessionLegacyDaemonRunning = { [weak self] in
+            self?.daemonChecks += 1
+            return daemonRunning
+        }
+        return await coordinator.startKanata(reason: "Legacy daemon test")
+    }
+
+    private func makeCoordinator() -> ServiceLifecycleCoordinator {
         ServiceLifecycleCoordinator.testSessionStart = nil
         addTeardownBlock { @MainActor in
             ServiceLifecycleCoordinator.testSessionStart = { _ in false }
@@ -27,11 +40,73 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         coordinator.onError = { [weak self] message in
             if let message { self?.errors.append(message) }
         }
-        coordinator.testSessionLegacyDaemonRunning = { [weak self] in
-            self?.daemonChecks += 1
-            return daemonRunning
+        return coordinator
+    }
+
+    func testRefusalStaysVisibleWhileTheDaemonRuns() async {
+        let coordinator = makeCoordinator()
+
+        _ = await start(daemonRunning: true, using: coordinator)
+        let refusedStatus = await coordinator.currentRuntimeStatus()
+        XCTAssertEqual(refusedStatus, .failed(reason: refusal))
+        let inTransientWindow = await coordinator.isInTransientRuntimeStartupWindow()
+        XCTAssertFalse(inTransientWindow, "A completed refusal must not read as startup in progress")
+    }
+
+    func testRefusalClearsOnceTheDaemonStopsWithoutAnotherStart() async {
+        let coordinator = makeCoordinator()
+        _ = await start(daemonRunning: true, using: coordinator)
+        var stateChanges = 0
+        coordinator.onStateChanged = { stateChanges += 1 }
+        coordinator.onError = { [weak self] message in self?.publishedError = message }
+        publishedError = refusal
+
+        coordinator.testSessionLegacyDaemonRunning = { false }
+        let status = await coordinator.currentRuntimeStatus()
+
+        XCTAssertEqual(status, .stopped)
+        XCTAssertNil(coordinator.sessionLegacyDaemonRefusal)
+        XCTAssertNil(publishedError, "Settings shows the last error, so it must clear with the refusal")
+        XCTAssertEqual(stateChanges, 1)
+    }
+
+    func testTurningRemappingOffDropsTheRefusal() async {
+        let coordinator = makeCoordinator()
+        _ = await start(daemonRunning: true, using: coordinator)
+
+        _ = await coordinator.stopKanata(reason: "Legacy daemon test")
+
+        XCTAssertNil(coordinator.sessionLegacyDaemonRefusal)
+        let status = await coordinator.currentRuntimeStatus()
+        XCTAssertEqual(status, .stopped)
+    }
+
+    func testProbeOverlappingANewerRefusedStartLeavesThatRefusal() async {
+        let coordinator = makeCoordinator()
+        _ = await start(daemonRunning: true, using: coordinator)
+        coordinator.testSessionLegacyDaemonRunning = { [weak coordinator] in
+            coordinator?.testSessionLegacyDaemonRunning = { true }
+            _ = await coordinator?.startKanata(reason: "Newer start")
+            return false
         }
-        return await coordinator.startKanata(reason: "Legacy daemon test")
+
+        let remaining = await coordinator.legacyDaemonRefusalForStartup()
+
+        XCTAssertEqual(remaining, refusal)
+    }
+
+    func testConfigurationRefusalOutranksAStaleDaemonRefusal() async {
+        let coordinator = makeCoordinator()
+        _ = await start(daemonRunning: true, using: coordinator)
+        coordinator.testSessionConfigurationValidation = {
+            .invalid(reason: "Unsupported rule")
+        }
+
+        _ = await coordinator.startKanata(reason: "Legacy daemon test")
+
+        let status = await coordinator.currentRuntimeStatus()
+        guard case let .failed(reason) = status else { return XCTFail("Expected a failure, got \(status)") }
+        XCTAssertNotEqual(reason, refusal)
     }
 
     func testRunningLegacyDaemonRefusesStartWithoutLaunching() async {

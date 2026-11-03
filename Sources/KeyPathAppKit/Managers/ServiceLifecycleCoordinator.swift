@@ -37,6 +37,7 @@ final class ServiceLifecycleCoordinator {
         guard let recovery = sessionWakeRecovery else { return false }
         return recovery.generation == sessionIntentGeneration && sessionWantsRunning
             && recoveryRefusalForStartup == nil && sessionConfigurationRefusal == nil
+            && sessionLegacyDaemonRefusal == nil
     }
 
     var sessionWakeEpoch: UInt64 = 0
@@ -131,6 +132,9 @@ final class ServiceLifecycleCoordinator {
         if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
         return sessionRecoveryRefusal
     }
+
+    /// A refused start leaves no worker report, so the reason is kept here.
+    var sessionLegacyDaemonRefusal: String?
 
     /// Intentional-transition gate (#625). While we are deliberately stopping kanata,
     /// the dying process may emit one last `InputGrab active=false` on its still-open
@@ -296,7 +300,12 @@ final class ServiceLifecycleCoordinator {
         if case .stop = operation {} else if Task.isCancelled { return false }
         sessionIntentGeneration &+= 1
         let generation = sessionIntentGeneration
-        if case .stop = operation { sessionWantsRunning = false } else { sessionWantsRunning = true }
+        if case .stop = operation {
+            sessionWantsRunning = false
+            clearLegacyDaemonRefusal()
+        } else {
+            sessionWantsRunning = true
+        }
         #if DEBUG
             testSessionRequestObserved?(generation)
         #endif
@@ -398,6 +407,7 @@ final class ServiceLifecycleCoordinator {
         let admission = refreshSessionConfigurationAdmission()
         guard case .valid = admission else {
             retainOwnedSessionSupervision(generation: generation)
+            sessionLegacyDaemonRefusal = nil
             onError?(refusalMessage(admission))
             onStateChanged?()
             return false
@@ -538,6 +548,8 @@ final class ServiceLifecycleCoordinator {
         if isStartingKanata { return .starting }
         guard let report = currentSessionReport() else {
             if let refusal = sessionRecoveryRefusal { return .failed(reason: refusal) }
+            if let refusal = sessionConfigurationRefusal { return .failed(reason: refusal) }
+            if let refusal = await legacyDaemonRefusalForStartup() { return .failed(reason: refusal) }
             if let admission = sessionConfigurationAdmission,
                let reason = refusalMessage(admission)
             {
