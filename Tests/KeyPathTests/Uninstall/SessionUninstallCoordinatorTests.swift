@@ -88,6 +88,50 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(".config/keypath/keypath.kbd").path))
     }
 
+    func testWorkersThatDoNotStopRemoveNothing() async {
+        var resumed = false
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: { resumed = true },
+                                                      stopSessionWorkers: { false },
+                                                      trash: { _ in XCTFail("Must not trash while a worker runs") })
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(resumed)
+        XCTAssertTrue(result.failureReason?.contains("Nothing was removed") == true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(".config/keypath/keypath.kbd").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: app.path))
+    }
+
+    /// Success is reported only after a final sweep finds no worker left.
+    func testWorkerFoundAfterRemovalIsNotReportedAsSuccess() async {
+        var sweeps = 0
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: {},
+                                                      stopSessionWorkers: { sweeps += 1; return sweeps == 1 },
+                                                      trash: { try FileManager.default.removeItem(at: $0) })
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        XCTAssertEqual(sweeps, 2)
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(result.failureReason?.contains("still running") == true)
+        XCTAssertTrue(result.failureReason?.contains("Your backup is at") == true)
+    }
+
+    func testSuccessfulUninstallSweepsWorkersBeforeAndAfterRemoval() async {
+        var sweepsBeforeTrash = 0
+        var sweeps = 0
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: { XCTFail("Unexpected failure") },
+                                                      stopSessionWorkers: { sweeps += 1; return true },
+                                                      trash: { url in
+                                                          sweepsBeforeTrash = sweeps
+                                                          try FileManager.default.removeItem(at: url)
+                                                      })
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        XCTAssertTrue(result.success, result.failureReason ?? "")
+        XCTAssertEqual(sweepsBeforeTrash, 1)
+        XCTAssertEqual(sweeps, 2)
+    }
+
     func testBackupFailurePreservesSettingsAndApp() async throws {
         try write("Downloads", "not a directory")
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,

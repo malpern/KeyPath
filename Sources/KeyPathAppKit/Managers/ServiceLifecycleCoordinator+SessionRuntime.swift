@@ -51,20 +51,26 @@ extension ServiceLifecycleCoordinator {
         do {
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: true)
             defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+            var reported = false
+            // A timeout, a cancelled wait, or an error all abandon the probe;
+            // signal it on every one of them, not only after the timeout.
+            // NSWorkspace may return an application without a valid PID (e.g. -1).
+            // Never let that become a process-group/broadcast signal target.
+            // Signal only the independently launched process owned by this call.
+            defer {
+                let probePID = application.processIdentifier
+                if !reported, probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
+            }
             for _ in 0 ..< 40 {
                 if let report = Self.readSessionReport(url),
                    report.state == .capabilities,
                    report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
                 {
+                    reported = true
                     return Self.permissionSet(report)
                 }
                 try await Task.sleep(for: .milliseconds(50))
             }
-            // NSWorkspace may return an application without a valid PID (e.g. -1).
-            // Never let that become a process-group/broadcast signal target.
-            // Signal only the independently launched process owned by this call.
-            let probePID = application.processIdentifier
-            if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
         } catch {
             AppLogger.shared.warn("Session permission report unavailable")
         }

@@ -163,6 +163,14 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             runtimeCoordinator.startConfigFileWatching()
         }, removeLoginItem: {
             try await LaunchAtLoginController.shared.setEnabled(false)
+        }, stopSessionWorkers: {
+            let outcome = await SessionWorkerSweep.live.stopAll()
+            if !outcome.found.isEmpty {
+                AppLogger.shared.log(
+                    "[Uninstall] Session workers found=\(outcome.found.map(\.pid)) remaining=\(outcome.remaining.map(\.pid))"
+                )
+            }
+            return outcome.succeeded
         })
     }
     WizardDependencies.executePrivilegedBatch = { batch in

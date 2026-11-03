@@ -12,6 +12,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
     private let resume: () async -> Void
     private let trash: (URL) throws -> Void
     private let removeLoginItem: () async throws -> Void
+    private let stopSessionWorkers: () async -> Bool
     private let files = FileManager.default
 
     init(
@@ -22,6 +23,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         prepare: @escaping () async -> Bool,
         resume: @escaping () async -> Void,
         removeLoginItem: @escaping () async throws -> Void = {},
+        stopSessionWorkers: @escaping () async -> Bool = { true },
         trash: @escaping (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
     ) {
         self.home = home
@@ -32,6 +34,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         self.resume = resume
         self.trash = trash
         self.removeLoginItem = removeLoginItem
+        self.stopSessionWorkers = stopSessionWorkers
     }
 
     func performUninstall(deleteConfig: Bool, removeVirtualHID: Bool, allowAdminFallback: Bool) async -> WizardUninstallResult {
@@ -59,6 +62,13 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         guard await prepare() else {
             await resume()
             return WizardUninstallResult(success: false, failureReason: "Keyboard cleanup could not be verified. Nothing was removed. Try again after releasing all keys.")
+        }
+        // prepare stops only the worker the live app tracks. Orphans of an
+        // earlier app process, or probes it abandoned, would otherwise keep
+        // running from the trashed bundle.
+        guard await stopSessionWorkers() else {
+            await resume()
+            return WizardUninstallResult(success: false, failureReason: "A KeyPath keyboard process did not stop. Nothing was removed. Restart your Mac, then try again.")
         }
 
         let backup = home.appendingPathComponent("Downloads/KeyPath-Uninstall-Backup-\(UUID().uuidString)", isDirectory: true)
@@ -99,6 +109,14 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             try trash(app)
             guard !files.fileExists(atPath: app.path) else {
                 throw CocoaError(.fileWriteUnknown)
+            }
+            // Success means nothing is left running, so check again at the end.
+            guard await stopSessionWorkers() else {
+                return WizardUninstallResult(
+                    success: false,
+                    failureReason: "KeyPath was removed, but a KeyPath keyboard process is still running. Restart your Mac to stop it. Your backup is at \(backup.path).",
+                    logs: ["Backup saved to \(backup.path)"]
+                )
             }
             return WizardUninstallResult(success: true, logs: ["Backup saved to \(backup.path)"])
         } catch {
