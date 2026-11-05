@@ -217,7 +217,7 @@ Phase 4 can follow in a point release.
 |---|---|---|---|
 | 1. Another macOS user | Full access | Blocked (uid check, 0700 directory) | Blocked |
 | 2. Sandboxed app | Full access | Blocked (cannot reach the path) | Blocked |
-| 3. Same user, unsandboxed | Full access | Direct connection blocked (PID check); injecting into or impersonating the app still possible | Blocked unless it injects code into KeyPath (out of scope) |
+| 3. Same user, unsandboxed | Full access | Partly mitigated: direct connection blocked (PID check), but injecting into or impersonating the app is still possible | Blocked unless it injects code into KeyPath (out of scope) |
 | 4. Port squatter | Takes over the channel | Blocked (no TCP port; socket in a directory only this user owns) | Blocked |
 
 Before this ADR is accepted, confirm the main claims on a live install in a
@@ -239,7 +239,7 @@ written from source alone.
      lookup, and the PID must equal the launching app's PID, not merely belong
      to a process of this user.
    - **Acceptance criterion:** the worker watches its owner with a kqueue
-     `NOTE_EXIT` source and stops listening as soon as the app exits, and the
+     `NOTE_EXIT` source and, when the app exits, stops listening and exits, and the
      server re-checks the owner on every accept. Without both, the PID check is
      not meaningful. Required test: start the worker, kill the owner app,
      and assert the socket refuses new connections and the worker exits.
