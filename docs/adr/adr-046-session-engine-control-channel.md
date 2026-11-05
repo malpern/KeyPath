@@ -253,7 +253,12 @@ written from source alone.
    Estimate: roughly 300 to 500 lines of new code and tests, plus rewriting
    the bridge's existing passthru TCP test (`Rust/KeyPathKanataHostBridge/src/lib.rs`).
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
-   socket path (and expected peer PID) instead of `tcp_port`. The worker creates
+   socket path (and expected peer PID) instead of `tcp_port`. The expected PID
+   is the app that launched this worker, passed on every launch, so a relaunch
+   or a new app instance never inherits an old PID. Keep the path short:
+   macOS limits `sun_path` to 104 bytes, so reuse the runtime-control directory
+   (`~/Library/Application Support/KeyPath/control/`) with a short file name and
+   fail with a clear error, never truncate, if a long home path exceeds it. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
    reports the socket path in its owned report instead of `tcpPort`.
 3. **Phase 3, Swift clients.** One transport change: `KanataTCPClient+Connection` and
