@@ -227,7 +227,7 @@ written from source alone.
 
 ## Migration
 
-1. **Fork (`malpern/kanata`, a new branch merged into `keypath/bundled` by
+1. **Phase 1, fork (`malpern/kanata`, a new branch merged into `keypath/bundled` by
    fast-forward; never force-push it).**
    - Make the server generic over a stream type and add a Unix listener
      (`std::os::unix::net::UnixListener`), selected by the bridge. Keep the
@@ -241,7 +241,8 @@ written from source alone.
    - **Acceptance criterion:** the worker watches its owner with a kqueue
      `NOTE_EXIT` source and stops listening as soon as the app exits, and the
      server re-checks the owner on every accept. Without both, the PID check is
-     not meaningful.
+     not meaningful. Required test: start the worker, kill the owner app,
+     and assert the socket refuses new connections and the worker exits.
    - Return an error instead of panicking when the listener cannot be created,
      by binding once and keeping that listener, not by probing first.
    - Option A: drop `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` from the
@@ -251,11 +252,11 @@ written from source alone.
    - Rust tests for the peer check and the removed commands.
    Estimate: roughly 300 to 500 lines of new code and tests, plus rewriting
    the bridge's existing passthru TCP test (`Rust/KeyPathKanataHostBridge/src/lib.rs`).
-2. **Bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
+2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
    reports the socket path in its owned report instead of `tcpPort`.
-3. **Swift clients.** One transport change: `KanataTCPClient+Connection` and
+3. **Phase 3, Swift clients.** One transport change: `KanataTCPClient+Connection` and
    `KanataEventListener.connectAndStream` build `NWConnection`s from host and
    port. They move to `NWEndpoint.unix(path:)` (confirm availability on the
    minimum macOS during implementation; fall back to a POSIX socket if not).
@@ -265,10 +266,10 @@ written from source alone.
    and the legacy port migration retire. `verify-installed-app.sh` checks the
    socket's owner and the connecting worker instead of a TCP listener.
    Estimate: two to four days including tests.
-4. **Signature check.** Add the `LOCAL_PEERTOKEN` code-signing check against
+4. **Phase 4, signature check.** Add the `LOCAL_PEERTOKEN` code-signing check against
    KeyPath's designated requirement. Debug builds signed with another identity
    need an explicit, logged development override.
-5. **Docs.** Mark ADR-013 superseded, rewrite the TCP section of
+5. **Phase 5, docs.** Mark ADR-013 superseded, rewrite the TCP section of
    `guides/privacy.md` (it says key events cross the connection, but not that
    any other local process receives them, and calls the risk low) and publish it, update
    `docs/architecture/overview.md` and `cli-runtime-control.md`, and fix the
