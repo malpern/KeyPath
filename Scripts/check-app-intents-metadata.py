@@ -64,12 +64,19 @@ def declared_types(source_dir: Path) -> dict[str, list[str]]:
 
 
 def identifiers(section) -> set[str]:
-    """Names in an extract section, whether it is keyed by name or a list."""
+    """Names in an extract section, whether it is keyed by name or a list.
+
+    Each name is also recorded by its last dotted component, because the
+    checker reads bare declaration names (`Inner`, not `Outer.Inner`).
+    """
     if isinstance(section, dict):
-        return set(section)
-    if isinstance(section, list):
-        return {entry.get("identifier") for entry in section if isinstance(entry, dict)}
-    return set()
+        names = set(section)
+    elif isinstance(section, list):
+        names = {entry.get("identifier") for entry in section if isinstance(entry, dict)}
+    else:
+        return set()
+    names.discard(None)
+    return names | {name.rsplit(".", 1)[-1] for name in names}
 
 
 def check(extract: dict, declared: dict[str, list[str]]) -> list[str]:

@@ -15,6 +15,7 @@
 # than ship an app without intents.
 #
 # Environment:
+#   KEYPATH_APP_INTENTS_ARCH  architecture to read (default: arm64)
 #   KEYPATH_SCRATCH_DIR   SwiftPM scratch path (default: <repo>/.build).
 #                         build-and-sign.sh derives it from --show-bin-path.
 
@@ -32,7 +33,8 @@ SCRATCH_DIR="${KEYPATH_SCRATCH_DIR:-$REPO_DIR/.build}"
 # cannot be dropped silently.
 MODULE=KeyPathAppKit
 SOURCE_DIR="$REPO_DIR/Sources/$MODULE"
-ARCH=arm64
+# build-and-sign.sh builds arm64 only; override for another architecture.
+ARCH="${KEYPATH_APP_INTENTS_ARCH:-arm64}"
 
 fail() {
     echo "❌ App Intents metadata: $*" >&2
@@ -50,7 +52,7 @@ BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$INFO_PLIST"
 DEPLOYMENT_TARGET=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST")
 
 OBJ_DIR="$SCRATCH_DIR/out/Intermediates.noindex/KeyPath.build/$CONFIG/$MODULE-t.build/Objects-normal/$ARCH"
-[ -d "$OBJ_DIR" ] || fail "no Swift Build intermediates at $OBJ_DIR (built with --build-system native?)"
+[ -d "$OBJ_DIR" ] || fail "no $CONFIG $ARCH Swift Build intermediates at $OBJ_DIR (a --build-system native build, a different --arch, or a different scratch path?)"
 
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "${WORK_DIR:?}"' EXIT

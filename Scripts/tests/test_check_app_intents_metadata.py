@@ -68,6 +68,10 @@ class CheckAppIntentsMetadataTests(unittest.TestCase):
         extract = dict(COMPLETE, autoShortcutProviderMangledName="", autoShortcuts=[])
         self.assertEqual(self.run_check(extract), 1)
 
+    def test_qualified_names_match_bare_declarations(self):
+        extract = dict(COMPLETE, entities={"Outer.ThingEntity": {}})
+        self.assertEqual(self.run_check(extract), 0)
+
     def test_unreadable_extract_fails(self):
         path = self.root / "extract.actionsdata"
         path.write_text("not json")
