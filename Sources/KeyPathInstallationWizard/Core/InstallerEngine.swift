@@ -791,6 +791,8 @@ public final class InstallerEngine {
         using broker: PrivilegeBroker
     ) async -> InstallerReport {
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
+        // Already inside the installer transaction: `runSingleAction` wraps this
+        // function in `withInstallerTransaction`.
         if action == .removeLegacyPrivilegedRuntime {
             return await removeLegacyPrivilegedRuntimeWithinTransaction().report
         }

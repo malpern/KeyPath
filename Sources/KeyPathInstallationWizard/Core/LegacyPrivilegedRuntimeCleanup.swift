@@ -251,6 +251,7 @@ public struct LegacyPrivilegedRuntimeCleanup {
     static func batch(stopping pids: [pid_t], userID: uid_t) -> PrivilegedCommandRunner.Batch {
         var commands = LegacyPrivilegedRuntime.launchdTargets(userID: userID).map {
             // `bootout` can block on a job that will not exit (#927); bound it.
+            // `kp_timeout` comes from `PrivilegedCommandRunner.Batch.scriptPrelude`.
             "kp_timeout 15 /bin/launchctl bootout \($0) 2>/dev/null || true"
         }
         let positive = pids.filter { $0 > 0 }
