@@ -2,6 +2,8 @@
 
 KeyPath exposes its core functionality via the App Intents framework, making it available to Siri, Shortcuts, Spotlight, and Apple Intelligence.
 
+> **Status:** current builds do not yet ship the App Intents metadata that macOS uses to find these actions, so they may not appear in Shortcuts or Siri. See [the open bug](../bugs/2026-11-04-app-intents-metadata-missing.md).
+
 ## Available Intents
 
 ### Get Current Layer

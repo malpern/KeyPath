@@ -122,8 +122,13 @@ pick that up, option B adds the two conformances and the two-step run.
 first step).** After the release `swift build`, run the invocation above
 against the release const values with `--output "$RESOURCES"`, so the bundle
 lands at `KeyPath.app/Contents/Resources/Metadata.appintents` before codesign.
-Fail the build if the processor fails or the bundle is missing, rather than
-shipping silently without it. About 20 lines of shell, no Swift changes.
+Fail the build rather than shipping without it, and check content, not just
+presence: an empty const-values list (the intermediates path above is
+hard-coded to the scratch layout, config, target suffix and arch, and
+`swift build` has no `--show-bin-path` equivalent for it) may still let the
+processor emit a `Metadata.appintents` with no actions. So fail when the
+const-values list is empty, and when `extract.actionsdata` does not name all
+three intents. `Scripts/verify-installed-app.sh` could make the same check. About 20 lines of shell, no Swift changes.
 `Metadata.appintents` is plain resource data, so it is sealed by the existing
 `codesign` of the app and needs nothing new for notarization.
 
@@ -149,6 +154,14 @@ a release-candidate build:
    offers Start / Stop / Restart;
 3. if nothing appears, try B before concluding.
 
-Until that is verified, `docs/guides/app-intents.md` overstates what works.
+The vm-lab guests run on the Mac mini, which is offline for service as of
+2026-11-04, so step 2 waits for the mini.
+
+`--xcode-version` takes the build string (`27A266a`): Xcode's xcspec passes
+`$(XCODE_PRODUCT_BUILD_VERSION)`, and the metadata records it as
+`toolsVersion`.
+
+Until that is verified, `docs/guides/app-intents.md` overstates what works; it
+now carries a status note pointing here.
 Changing the release script affects signing and notarization, so it is held
 for an explicit go-ahead.
