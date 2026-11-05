@@ -60,6 +60,11 @@ Record each run at the bottom, with the build under test and the lease.
 - **Sparkle update** from 1.0.1 instead of a manual replace, if 1.0.1's appcast
   can reach the build under test.
 - **Already removed**: run step 8 a second time. Expect no password prompt.
+- **Switched off in 1.0.1**: turn remapping off in 1.0.1 before upgrading.
+  Expect "Turned off" after the upgrade; turning it on shows the refusal and the
+  button. Note whether the 1.0.1 daemon kept remapping while KeyPath said off.
+- **Two macOS users**: with a second account signed in (fast user switching)
+  running KeyPath, the cleanup must not stop that account's processes.
 
 ## Results
 

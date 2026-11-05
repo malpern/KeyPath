@@ -49,11 +49,14 @@ upgrade directly.
 
 **Upgrade path (2026-11, #1353).** When the refusal stands, Settings → Status
 offers **Remove Old Service**, which calls
-`InstallerEngine.removeLegacyPrivilegedRuntime` (also reachable as
-`AutoFixAction.removeLegacyPrivilegedRuntime`). It runs
+`InstallerEngine.removeLegacyPrivilegedRuntime`. The published refusal issue
+carries `AutoFixAction.removeLegacyPrivilegedRuntime`, and `runSingleAction`
+routes it, but the wizard does not detect the refusal yet (its snapshot has no
+legacy evidence), so Settings is the only entry point today. It runs
 `LegacyPrivilegedRuntimeCleanup`: best-effort SMAppService unregistration, then
-one administrator batch that boots out every `com.keypath.*` label 1.0.1 used,
-stops root KeyPath processes the app cannot signal (ADR-040), and deletes
+one administrator batch that boots out every `com.keypath.*` label 1.0.1 used
+(system and GUI domains), stops root-owned KeyPath processes (the app cannot
+signal them, ADR-040), and deletes
 KeyPath's own system files. It reports success only after a fresh read-only
 observation finds no loaded legacy service, no root KeyPath process, and no
 legacy file. The Karabiner driver is reported, never removed. It is not a

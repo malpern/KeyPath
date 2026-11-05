@@ -226,7 +226,8 @@ extension StatusSettingsTabView {
         }
 
         var actions: [StatusDetailAction] = []
-        if Self.offersLegacyRuntimeRemoval(issues: wizardIssues) {
+        let offersLegacyRemoval = Self.offersLegacyRuntimeRemoval(issues: wizardIssues)
+        if offersLegacyRemoval {
             actions.append(StatusDetailAction(
                 title: removingLegacyRuntime ? "Removing Old Service…" : "Remove Old Service",
                 icon: "trash",
@@ -235,14 +236,15 @@ extension StatusSettingsTabView {
                 accessibilityTitle: "Remove the KeyPath 1.0.1 keyboard service"
             ))
         }
-        actions += [
-            StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
-                SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
-            },
-            StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+        actions.append(StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
+            SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
+        })
+        // The wizard does not detect the 1.0.1 service, so it cannot help here.
+        if !offersLegacyRemoval {
+            actions.append(StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
                 wizardInitialPage = .summary
-            }
-        ]
+            })
+        }
         return StatusDetail(
             title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
             message: Self.stoppedMessage(lastError: kanataManager.lastError),

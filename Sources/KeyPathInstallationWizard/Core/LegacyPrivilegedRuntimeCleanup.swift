@@ -10,7 +10,8 @@ import KeyPathWizardCore
 /// This is migration code, not a backend: it only stops and removes these
 /// items. Nothing here installs, registers, or repairs them.
 public enum LegacyPrivilegedRuntime {
-    /// Launchd labels 1.0.1 loaded into the system domain.
+    /// Launchd labels 1.0.1 used. Each is checked in the system domain and in the
+    /// signed-in user's GUI domain, as the refusal's own detector does.
     public static let serviceLabels = [
         "com.keypath.kanata",
         "com.keypath.helper",
@@ -41,9 +42,15 @@ public enum LegacyPrivilegedRuntime {
         "/var/log/com.keypath.kanata.stderr.log"
     ]
 
-    /// Matches the 1.0.1 kanata launcher, kanata, and the helper, by bundle path.
-    /// `pgrep -f` takes extended regular expressions.
-    public static let processPattern = "Library/(KeyPath|HelperTools)/"
+    /// Matches the 1.0.1 kanata launcher and kanata (in the bundle or
+    /// `/Library/KeyPath/bin`), the bundled helper, and the SMJobBless helper copy.
+    /// `pgrep -f` and `grep -E` both take this extended regular expression.
+    public static let processPattern = #"Library/(KeyPath|HelperTools)/|PrivilegedHelperTools/com\.keypath\.helper"#
+
+    /// Every launchd target to check and boot out, for the user who runs the app.
+    public static func launchdTargets(userID: uid_t) -> [String] {
+        serviceLabels.flatMap { ["system/\($0)", "gui/\(userID)/\($0)"] }
+    }
 
     /// The Karabiner driver is shared with Karabiner-Elements, so KeyPath never
     /// removes it. These paths only decide what to tell the user.
@@ -79,11 +86,11 @@ public struct LegacyVirtualHIDRemnants: Equatable, Sendable {
 
 /// Read-only observation of the 1.0.1 stack. Taken without administrator rights.
 public struct LegacyPrivilegedRuntimeEvidence: Equatable, Sendable {
-    /// Labels launchd reports as loaded in the system domain.
+    /// Launchd targets (`system/…` or `gui/<uid>/…`) reported as loaded.
     public var loadedServices: [String]
     /// Labels whose state could not be read. Never treated as absent.
     public var unreadableServices: [String]
-    /// KeyPath processes that are alive but that this user cannot signal: root (ADR-040).
+    /// Live KeyPath processes owned by root. Another user's session is never included.
     public var rootProcesses: [SystemProcessMatch]
     public var leftoverFiles: [String]
     public var virtualHID: LegacyVirtualHIDRemnants
@@ -133,7 +140,7 @@ public struct LegacyPrivilegedRuntimeEvidence: Equatable, Sendable {
 ///
 /// Order: best-effort SMAppService unregistration (no prompt), then a single
 /// root batch that boots out every legacy label, stops any root KeyPath process
-/// the app cannot signal itself (ADR-040), and deletes KeyPath's own system
+/// (which the app cannot signal itself, ADR-040), and deletes KeyPath's own system
 /// files. The VirtualHID driver is reported, never removed.
 @MainActor
 public struct LegacyPrivilegedRuntimeCleanup {
@@ -178,9 +185,12 @@ public struct LegacyPrivilegedRuntimeCleanup {
     static let verificationInterval: Duration = .milliseconds(500)
 
     private let dependencies: Dependencies
+    /// The signed-in user whose GUI domain is also cleaned.
+    private let userID: uid_t
 
-    public init(dependencies: Dependencies) {
+    public init(dependencies: Dependencies, userID: uid_t = getuid()) {
         self.dependencies = dependencies
+        self.userID = userID
     }
 
     public func run() async -> Outcome {
@@ -195,7 +205,7 @@ public struct LegacyPrivilegedRuntimeCleanup {
 
         logs += await dependencies.unregisterRegistrations()
 
-        let batch = Self.batch(stopping: before.rootProcesses.map(\.pid))
+        let batch = Self.batch(stopping: before.rootProcesses.map(\.pid), userID: userID)
         var operationFailure: String?
         do {
             let result = try await dependencies.executeBatch(batch)
@@ -237,9 +247,9 @@ public struct LegacyPrivilegedRuntimeCleanup {
 
     /// The single root script. Every step tolerates an already-absent item so a
     /// partial earlier run, or a Mac that never had one of them, still succeeds.
-    static func batch(stopping pids: [pid_t]) -> PrivilegedCommandRunner.Batch {
-        var commands = LegacyPrivilegedRuntime.serviceLabels.map {
-            "/bin/launchctl bootout system/\($0) 2>/dev/null || true"
+    static func batch(stopping pids: [pid_t], userID: uid_t) -> PrivilegedCommandRunner.Batch {
+        var commands = LegacyPrivilegedRuntime.launchdTargets(userID: userID).map {
+            "/bin/launchctl bootout \($0) 2>/dev/null || true"
         }
         let positive = pids.filter { $0 > 0 }
         if !positive.isEmpty {
@@ -247,7 +257,8 @@ public struct LegacyPrivilegedRuntimeCleanup {
             // was recycled since the read-only probe is never killed.
             commands.append("""
             for kp_pid in \(positive.map(String.init).joined(separator: " ")); do
-              if /bin/ps -o command= -p "$kp_pid" 2>/dev/null | /usr/bin/grep -qE '\(LegacyPrivilegedRuntime.processPattern)'; then
+              if [ "$(/bin/ps -o uid= -p "$kp_pid" 2>/dev/null | /usr/bin/tr -d ' ')" = "0" ] \\
+                && /bin/ps -o command= -p "$kp_pid" 2>/dev/null | /usr/bin/grep -qE '\(LegacyPrivilegedRuntime.processPattern)'; then
                 /bin/kill -TERM "$kp_pid" 2>/dev/null || true
               fi
             done
@@ -284,8 +295,8 @@ public extension LegacyPrivilegedRuntimeCleanup {
     static let launchctlServiceNotFound: Int32 = 113
 
     /// Live dependencies. Unregistration and the admin batch come from the app
-    /// via `WizardDependencies`; without them the cleanup fails rather than
-    /// silently skipping work.
+    /// via `WizardDependencies`. Without the batch the cleanup fails; without
+    /// unregistration it only logs, since that step is best effort anyway.
     static var live: Self {
         Self(dependencies: Dependencies(
             inspect: { await inspectLive() },
@@ -304,25 +315,26 @@ public extension LegacyPrivilegedRuntimeCleanup {
 
     static func inspectLive(
         provider: SystemStateProvider = .shared,
+        userID: uid_t = getuid(),
         fileExists: @escaping (String) -> Bool = { FileManager.default.fileExists(atPath: $0) },
         isAlive: @escaping (pid_t) -> Bool = { SystemStateProvider.isProcessAlive(pid: $0) },
-        canSignal: @escaping (pid_t) -> Bool = { SystemStateProvider.canSignalProcess(pid: $0) }
+        ownerUID: @escaping (pid_t) -> uid_t? = { processOwnerUID($0) }
     ) async -> LegacyPrivilegedRuntimeEvidence {
         var loaded: [String] = []
         var unreadable: [String] = []
-        for label in LegacyPrivilegedRuntime.serviceLabels {
-            let evidence = await provider.launchctlPrint(target: "system/\(label)")
+        for target in LegacyPrivilegedRuntime.launchdTargets(userID: userID) {
+            let evidence = await provider.launchctlPrint(target: target)
             switch evidence.exitCode {
-            case 0: loaded.append(label)
+            case 0: loaded.append(target)
             case launchctlServiceNotFound: break
-            default: unreadable.append(label)
+            default: unreadable.append(target)
             }
         }
         let matches = await provider.processMatches(matching: LegacyPrivilegedRuntime.processPattern)
         return LegacyPrivilegedRuntimeEvidence(
             loadedServices: loaded,
             unreadableServices: unreadable,
-            rootProcesses: rootProcesses(in: matches, isAlive: isAlive, canSignal: canSignal),
+            rootProcesses: rootProcesses(in: matches, isAlive: isAlive, ownerUID: ownerUID),
             leftoverFiles: LegacyPrivilegedRuntime.systemFiles.filter(fileExists),
             virtualHID: LegacyVirtualHIDRemnants(
                 driverInstalled: fileExists(LegacyPrivilegedRuntime.driverManagerApp)
@@ -332,14 +344,24 @@ public extension LegacyPrivilegedRuntimeCleanup {
         )
     }
 
-    /// Alive but not signalable means another user, in practice root (ADR-040:
-    /// only ESRCH means gone; EPERM means alive). The app's own session worker
-    /// is signalable and so never counted.
+    /// Root-owned and alive. Liveness admits EPERM (ADR-040: only ESRCH means
+    /// gone), but EPERM alone also matches another signed-in user's KeyPath, so
+    /// the owner is read explicitly. An unreadable owner is not root.
     static func rootProcesses(
         in matches: [SystemProcessMatch],
         isAlive: (pid_t) -> Bool,
-        canSignal: (pid_t) -> Bool
+        ownerUID: (pid_t) -> uid_t?
     ) -> [SystemProcessMatch] {
-        matches.filter { $0.pid > 0 && isAlive($0.pid) && !canSignal($0.pid) }
+        matches.filter { $0.pid > 0 && isAlive($0.pid) && ownerUID($0.pid) == 0 }
+    }
+
+    /// The real user ID of a process, readable for any process without privileges.
+    static func processOwnerUID(_ pid: pid_t) -> uid_t? {
+        guard pid > 0 else { return nil }
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        return info.kp_eproc.e_pcred.p_ruid
     }
 }

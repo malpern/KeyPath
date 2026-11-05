@@ -24,12 +24,15 @@ same time, so the new version will not start while the old service is running.
 │ Runtime is stopped. The keyboard service from KeyPath 1.0.1   │
 │ is still running. Remove it to start KeyPath.                 │
 │                                                               │
-│ [Remove Old Service]  [Open System Settings]  [Open Wizard]   │
+│ [Remove Old Service]  [Open System Settings]                  │
 └───────────────────────────────────────────────────────────────┘
 ```
 
 KeyPath stops the old service, removes it and its helper, checks that neither
 is still running, and then starts. Your rules are kept.
+
+If **Settings → Status** says KeyPath is **Turned off**, turn it on with the
+switch first. The **Remove Old Service** button appears once KeyPath tries to start.
 
 If you cancel the password prompt, nothing is removed. Choose
 **Remove Old Service** again when you are ready.

@@ -5,10 +5,11 @@ import ServiceManagement
 /// Drops the SMAppService registrations KeyPath 1.0.1 made for its kanata daemon
 /// and helper (#1353). Migration only: this never registers anything.
 ///
-/// Best effort, and it needs no administrator prompt. Current builds no longer
-/// ship those plists, so ServiceManagement often cannot resolve them; the root
-/// cleanup batch boots the jobs out regardless. Success is judged by that
-/// batch's verification, never by these calls.
+/// Best effort, and it needs no administrator prompt. Release builds no longer
+/// ship those plists, so ServiceManagement usually reports them not found and
+/// this does nothing; a stale Login Items entry may then remain until macOS
+/// drops it. The root batch boots the jobs out regardless, and success is
+/// judged by that batch's verification, never by these calls.
 @MainActor
 enum LegacyServiceRegistrations {
     static func unregister() async -> [String] {
@@ -33,7 +34,7 @@ enum LegacyServiceRegistrations {
                 try await service(plistName).unregister()
                 logs.append("[legacy-cleanup] \(plistName): unregistered")
             } catch {
-                logs.append("[legacy-cleanup] \(plistName): unregister failed (\(error.localizedDescription)); removing as administrator")
+                logs.append("[legacy-cleanup] \(plistName): unregister failed (\(error.localizedDescription)); the administrator step boots the job out")
             }
             await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: plistName)
         }

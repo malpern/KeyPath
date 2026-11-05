@@ -19,7 +19,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     private var batchResult: Result<(exitCode: Int32, output: String), Error> = .success((0, ""))
 
     private static let installed101 = LegacyPrivilegedRuntimeEvidence(
-        loadedServices: ["com.keypath.kanata", "com.keypath.helper"],
+        loadedServices: ["system/com.keypath.kanata", "system/com.keypath.helper"],
         rootProcesses: [SystemProcessMatch(
             pid: 4242,
             command: "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher --port 37001"
@@ -47,7 +47,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
                 return try batchResult.get()
             },
             sleep: { [unowned self] _ in sleeps += 1 }
-        ))
+        ), userID: 501)
     }
 
     // MARK: - Cleanup
@@ -62,7 +62,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     }
 
     func testOneAuthorizationRemovesTheStackAndWaitsForLaunchdTeardown() async {
-        let stillTearingDown = LegacyPrivilegedRuntimeEvidence(loadedServices: ["com.keypath.kanata"])
+        let stillTearingDown = LegacyPrivilegedRuntimeEvidence(loadedServices: ["system/com.keypath.kanata"])
         inspections = [Self.installed101, stillTearingDown, Self.clean]
         let outcome = await makeCleanup().run()
 
@@ -77,6 +77,8 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         let script = batches[0].script
         for label in LegacyPrivilegedRuntime.serviceLabels {
             XCTAssertTrue(script.contains("/bin/launchctl bootout system/\(label)"), label)
+            XCTAssertTrue(script.contains("/bin/launchctl bootout gui/501/\(label)"),
+                          "The refusal's detector also reads the GUI domain, so the cleanup must clean it")
         }
         for file in LegacyPrivilegedRuntime.systemFiles {
             XCTAssertTrue(script.contains("/bin/rm -f '\(file)'"), file)
@@ -84,6 +86,8 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertTrue(script.contains("for kp_pid in 4242;"))
         XCTAssertTrue(script.contains("/bin/ps -o command= -p \"$kp_pid\""),
                       "The PID must be re-checked as root before it is signalled")
+        XCTAssertTrue(script.contains("/bin/ps -o uid= -p \"$kp_pid\""),
+                      "Only a root-owned PID may be signalled")
     }
 
     func testCancelledAuthorizationIsReportedAsCancelled() async {
@@ -116,7 +120,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     }
 
     func testDaemonStillLoadedAfterTheBatchFailsVerification() async {
-        inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(loadedServices: ["com.keypath.kanata"])]
+        inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(loadedServices: ["system/com.keypath.kanata"])]
         let outcome = await makeCleanup().run()
 
         XCTAssertFalse(outcome.success)
@@ -126,14 +130,14 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     }
 
     func testUnreadableServiceStateIsNeverTreatedAsGone() async {
-        inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(unreadableServices: ["com.keypath.kanata"])]
+        inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(unreadableServices: ["system/com.keypath.kanata"])]
         let outcome = await makeCleanup().run()
         XCTAssertFalse(outcome.success)
         XCTAssertTrue(outcome.failureReason?.contains("could not check") == true)
     }
 
     func testVirtualHIDDriverIsReportedButNeverRemoved() async {
-        let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [4242]).script
+        let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [4242], userID: 501).script
         XCTAssertFalse(script.contains("systemextensionsctl"))
         XCTAssertFalse(script.contains("org.pqrs"))
         XCTAssertFalse(script.contains("Karabiner-VirtualHIDDevice-Manager"))
@@ -149,32 +153,65 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertEqual(outcome.virtualHIDNotice, alone.notice)
     }
 
+    /// Parses the real root script without running it (`bash -n`).
+    func testBatchScriptIsValidShell() throws {
+        let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [4242, 4343], userID: 501).script
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/bash")
+        process.arguments = ["-n", "-c", script]
+        let errors = Pipe()
+        process.standardError = errors
+        try process.run()
+        process.waitUntilExit()
+        let message = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertEqual(process.terminationStatus, 0, message)
+    }
+
     func testBatchWithoutRootProcessesHasNoSignalStep() {
-        let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [0, -1]).script
+        let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [0, -1], userID: 501).script
         XCTAssertFalse(script.contains("kp_pid"))
     }
 
     // MARK: - Live probes
 
-    func testRootProcessFilterTreatsEPERMAsAliveAndSkipsSignalableProcesses() {
-        let matches = [101, 102, 103, 0].map { SystemProcessMatch(pid: pid_t($0), command: "x") }
+    func testProcessPatternMatchesEvery101ProcessPath() throws {
+        let regex = try NSRegularExpression(pattern: LegacyPrivilegedRuntime.processPattern)
+        func matches(_ command: String) -> Bool {
+            regex.firstMatch(in: command, range: NSRange(command.startIndex..., in: command)) != nil
+        }
+        XCTAssertTrue(matches("/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher --port 37001"))
+        XCTAssertTrue(matches("/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata --cfg x"))
+        XCTAssertTrue(matches("/Applications/KeyPath.app/Contents/Library/HelperTools/KeyPathHelper"))
+        XCTAssertTrue(matches("/Library/PrivilegedHelperTools/com.keypath.helper"))
+        XCTAssertTrue(matches("/Library/KeyPath/bin/kanata --cfg /Users/x/.config/keypath/keypath.kbd"))
+        XCTAssertFalse(matches("/Applications/KeyPath.app/Contents/MacOS/KeyPath"))
+        XCTAssertFalse(matches("/opt/homebrew/bin/kanata --cfg x"))
+    }
+
+    func testOnlyLiveRootProcessesCountNotAnotherUsersSession() {
+        let matches = [101, 102, 103, 104, 0].map { SystemProcessMatch(pid: pid_t($0), command: "x") }
+        let owners: [pid_t: uid_t] = [101: 0, 102: 501, 103: 0]
         let root = LegacyPrivilegedRuntimeCleanup.rootProcesses(
             in: matches,
             isAlive: { $0 != 103 },
-            canSignal: { $0 == 102 }
+            ownerUID: { owners[$0] }
         )
+        // 102 is another signed-in user's KeyPath; 103 is gone; 104's owner is unreadable.
         XCTAssertEqual(root.map(\.pid), [101])
     }
 
     /// ADR-040: ground the real primitives once. launchd (PID 1) is root and
-    /// alive, so probing it returns EPERM; this test process is signalable.
+    /// alive even though probing it returns EPERM; this test process is not root.
     func testRootProcessFilterAgainstRealProcesses() {
+        XCTAssertEqual(LegacyPrivilegedRuntimeCleanup.processOwnerUID(1), 0)
+        XCTAssertEqual(LegacyPrivilegedRuntimeCleanup.processOwnerUID(getpid()), getuid())
+        XCTAssertFalse(SystemStateProvider.canSignalProcess(pid: 1), "PID 1 must be the EPERM case")
         let matches = [SystemProcessMatch(pid: 1, command: "launchd"),
                        SystemProcessMatch(pid: getpid(), command: "test")]
         let root = LegacyPrivilegedRuntimeCleanup.rootProcesses(
             in: matches,
             isAlive: { SystemStateProvider.isProcessAlive(pid: $0) },
-            canSignal: { SystemStateProvider.canSignalProcess(pid: $0) }
+            ownerUID: { LegacyPrivilegedRuntimeCleanup.processOwnerUID($0) }
         )
         XCTAssertEqual(root.map(\.pid), [1])
     }
@@ -185,7 +222,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
             processMatches: { _ in [SystemProcessMatch(pid: 77, command: "/Library/KeyPath/bin/kanata --cfg x")] },
             launchctlPrint: { target in
                 let code: Int32 = switch target {
-                case "system/com.keypath.kanata": 0
+                case "system/com.keypath.kanata", "gui/501/com.keypath.kanata": 0
                 case "system/com.keypath.helper": 1
                 default: 113
                 }
@@ -199,12 +236,13 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
                                     LegacyPrivilegedRuntime.driverSupportDirectory]
         let evidence = await LegacyPrivilegedRuntimeCleanup.inspectLive(
             provider: SystemStateProvider(probes: probes),
+            userID: 501,
             fileExists: { present.contains($0) },
             isAlive: { _ in true },
-            canSignal: { _ in false }
+            ownerUID: { _ in 0 }
         )
-        XCTAssertEqual(evidence.loadedServices, ["com.keypath.kanata"])
-        XCTAssertEqual(evidence.unreadableServices, ["com.keypath.helper"])
+        XCTAssertEqual(evidence.loadedServices, ["system/com.keypath.kanata", "gui/501/com.keypath.kanata"])
+        XCTAssertEqual(evidence.unreadableServices, ["system/com.keypath.helper"])
         XCTAssertEqual(evidence.rootProcesses.map(\.pid), [77])
         XCTAssertEqual(evidence.leftoverFiles, ["/Library/KeyPath/bin/kanata"])
         XCTAssertEqual(evidence.virtualHID, LegacyVirtualHIDRemnants(driverInstalled: true, karabinerElementsInstalled: true))
@@ -244,7 +282,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     }
 
     func testEngineReportsVerificationFailure() async {
-        inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(loadedServices: ["com.keypath.kanata"])]
+        inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(loadedServices: ["system/com.keypath.kanata"])]
         let result = await makeEngine(context: SystemContextBuilder(componentsInstalled: true).build())
             .removeLegacyPrivilegedRuntime(using: PrivilegeBroker())
         XCTAssertFalse(result.report.success)

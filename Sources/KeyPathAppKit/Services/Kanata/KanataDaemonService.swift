@@ -412,8 +412,8 @@ final class KanataDaemonService {
     func invalidateEvidenceCaches() async {
         await pidCache.invalidateCache()
         await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: Constants.daemonPlistName)
-        // A lingering registration with no process otherwise holds a prior
-        // `.running` for a few samples, which would refuse the next start.
+        // If a registration lingers with no process, the status logic holds a
+        // prior `.running` for a few samples, which would refuse the next start.
         enabledWithoutProcessSampleCount = 0
         lastObservedState = .stopped
     }

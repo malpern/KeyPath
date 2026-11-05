@@ -491,37 +491,21 @@ struct StatusSettingsTabView: View {
         defer { removingLegacyRuntime = false }
         settingsToastManager.showInfo("Removing the old KeyPath service…")
 
-        let result = await InstallerEngine().removeLegacyPrivilegedRuntime(using: PrivilegeBroker())
-        guard result.report.success else {
-            await refreshStatus()
-            settingsToastManager.showError(
-                result.report.failureReason ?? "The old KeyPath service could not be removed.", duration: 10
-            )
-            return
-        }
-
         let lifecycle = kanataManager.underlyingManager.serviceLifecycleCoordinator
-        if await lifecycle.refreshLegacyDaemonRefusalAfterCleanup() {
-            await refreshStatus()
-            settingsToastManager.showError(
-                "The old KeyPath service was removed, but KeyPath still detects it. Restart your Mac, then open KeyPath again.",
-                duration: 10
-            )
-            return
-        }
-
-        let started = await kanataManager.startKanata(reason: "KeyPath 1.0.1 service removed")
+        let outcome = await LegacyRuntimeUpgradeFlow.run(
+            remove: { await InstallerEngine().removeLegacyPrivilegedRuntime(using: PrivilegeBroker()) },
+            refusalStillStands: { await lifecycle.refreshLegacyDaemonRefusalAfterCleanup() },
+            start: { await kanataManager.startKanata(reason: "KeyPath 1.0.1 service removed") },
+            lastError: { kanataManager.lastError }
+        )
         await refreshStatus()
-        var message = started
-            ? "Old KeyPath service removed. KeyPath is running."
-            : "Old KeyPath service removed. \(kanataManager.lastError ?? "Turn KeyPath on with the switch above.")"
-        if let notice = result.virtualHIDNotice {
-            message += " \(notice)"
-        }
-        if started {
-            settingsToastManager.showSuccess(message, duration: 10)
-        } else {
-            settingsToastManager.showInfo(message, duration: 10)
+        switch outcome {
+        case .removalFailed, .stillDetected:
+            settingsToastManager.showError(outcome.message, duration: 10)
+        case .started:
+            settingsToastManager.showSuccess(outcome.message, duration: 10)
+        case .removedButNotStarted:
+            settingsToastManager.showInfo(outcome.message, duration: 10)
         }
     }
 
