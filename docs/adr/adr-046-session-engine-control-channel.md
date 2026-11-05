@@ -245,7 +245,9 @@ written from source alone.
      `NOTE_EXIT` source and, when the app exits, stops listening and exits, and the
      server re-checks the owner on every accept. Without both, the PID check is
      not meaningful. Required test: start the worker, kill the owner app,
-     and assert the socket refuses new connections and the worker exits.
+     and assert the socket refuses new connections and the worker exits. A
+     second test connects after the owner has exited but before the exit
+     watch fires, and asserts the per-accept re-check refuses it.
    - Return an error instead of panicking when the listener cannot be created,
      by binding once and keeping that listener, not by probing first.
    - Option A: drop `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` from the
@@ -255,6 +257,9 @@ written from source alone.
    - Rust tests for the peer check and the removed commands.
    Estimate: roughly 300 to 500 lines of new code and tests, plus rewriting
    the bridge's existing passthru TCP test (`Rust/KeyPathKanataHostBridge/src/lib.rs`).
+   Phases 1 and 2 land together: the new listener, the removal of the bind
+   probe and the bridge API change ship in one fork update, so no build has
+   the Unix socket while still panicking on, or probing, a TCP bind.
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The expected PID
    is the app that launched this worker, passed on every launch, so a relaunch
