@@ -406,6 +406,18 @@ final class KanataDaemonService {
         }
     }
 
+    /// Drops cached launchd and ServiceManagement evidence so the next read is
+    /// fresh. Used after the 1.0.1 daemon is removed, which the PID cache (10s)
+    /// and the cached SMAppService status would otherwise still report.
+    func invalidateEvidenceCaches() async {
+        await pidCache.invalidateCache()
+        await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: Constants.daemonPlistName)
+        // A lingering registration with no process otherwise holds a prior
+        // `.running` for a few samples, which would refuse the next start.
+        enabledWithoutProcessSampleCount = 0
+        lastObservedState = .stopped
+    }
+
     /// Returns whether the internal recovery daemon is currently active.
     func isDaemonRunning() async -> Bool {
         let status = await refreshStatus()

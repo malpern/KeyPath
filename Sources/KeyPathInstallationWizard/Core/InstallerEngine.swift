@@ -56,12 +56,17 @@ public final class InstallerEngine {
         injectedValidator ?? WizardDependencies.systemValidator
     }
 
+    /// Removes the KeyPath 1.0.1 privileged stack. Injected only by tests.
+    private let injectedLegacyCleanup: LegacyPrivilegedRuntimeCleanup?
+
     /// Internal designated initializer to share construction logic
     public init(
         processLifecycleManager _: ProcessLifecycleManager,
-        systemValidator injectedValidator: (any WizardSystemValidating)? = nil
+        systemValidator injectedValidator: (any WizardSystemValidating)? = nil,
+        legacyRuntimeCleanup: LegacyPrivilegedRuntimeCleanup? = nil
     ) {
         self.injectedValidator = injectedValidator
+        injectedLegacyCleanup = legacyRuntimeCleanup
 
         AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
     }
@@ -786,6 +791,9 @@ public final class InstallerEngine {
         using broker: PrivilegeBroker
     ) async -> InstallerReport {
         AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
+        if action == .removeLegacyPrivilegedRuntime {
+            return await removeLegacyPrivilegedRuntimeWithinTransaction().report
+        }
         let context = await inspectSystem()
 
         // Determine which intent would include this action.
@@ -865,6 +873,74 @@ public final class InstallerEngine {
             "✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)"
         )
         return report
+    }
+
+    // MARK: - KeyPath 1.0.1 migration
+
+    /// Result of removing the 1.0.1 privileged stack.
+    public struct LegacyRuntimeRemovalResult: Sendable {
+        public let report: InstallerReport
+        /// What remains of the Karabiner driver, for the user. Nil when nothing does.
+        public let virtualHIDNotice: String?
+    }
+
+    /// Stops and removes the KeyPath 1.0.1 kanata daemon, helper, and their files
+    /// with one administrator prompt (#1353). Success means a fresh read-only
+    /// observation found none of it left: no loaded legacy service, no root
+    /// KeyPath process, no legacy file. The Karabiner driver is reported, not
+    /// removed. This does not start the session runtime; the caller does that.
+    ///
+    /// Not a recipe: privileged recipes stay unavailable (ADR-045). This only
+    /// tears the retired stack down.
+    public func removeLegacyPrivilegedRuntime(using _: PrivilegeBroker) async -> LegacyRuntimeRemovalResult {
+        await withInstallerTransaction {
+            await removeLegacyPrivilegedRuntimeWithinTransaction()
+        }
+    }
+
+    private func removeLegacyPrivilegedRuntimeWithinTransaction() async -> LegacyRuntimeRemovalResult {
+        let runID = UUID()
+        let recipeID = InstallerRecipeID.removeLegacyPrivilegedRuntime
+        let start = Date()
+        let cleanup = injectedLegacyCleanup ?? .live
+        let outcome = await cleanup.run()
+        let duration = Date().timeIntervalSince(start)
+        // Wizard callers require final evidence they own; capture it after the work.
+        let finalContext = await captureFreshContext()
+        let completionState: InstallerCompletionState = if !outcome.success {
+            outcome.operationSucceeded ? .verificationFailed : .executionFailed
+        } else if outcome.requestedAuthorization {
+            .completed
+        } else {
+            .verifiedNoOp
+        }
+        let telemetry = InstallerRepairTelemetryEvent(
+            runID: runID, beforeSnapshotID: nil, afterSnapshotID: finalContext.snapshotID,
+            trigger: .singleAction, intent: InstallIntent.repair.telemetryValue,
+            stateMatrixRow: nil, stateMatrixPlan: [],
+            action: recipeID, recipeID: recipeID, recipeType: nil,
+            postconditionResult: outcome.success ? .succeeded : .failed,
+            error: outcome.failureReason
+        )
+        let report = InstallerReport(
+            runID: runID,
+            afterSnapshotID: finalContext.snapshotID,
+            success: outcome.success,
+            completionState: completionState,
+            failureReason: outcome.failureReason,
+            executedRecipes: outcome.requestedAuthorization ? [RecipeResult(
+                recipeID: recipeID, success: outcome.success, error: outcome.failureReason,
+                duration: duration, logs: outcome.logs
+            )] : [],
+            finalContext: finalContext,
+            logs: outcome.logs,
+            repairTelemetry: [telemetry]
+        )
+        AppLogger.shared.log(
+            "🧹 [InstallerEngine] Legacy runtime removal - success: \(outcome.success), "
+                + "prompted: \(outcome.requestedAuthorization), remaining: \(outcome.after.remainingDescription)"
+        )
+        return LegacyRuntimeRemovalResult(report: report, virtualHIDNotice: outcome.virtualHIDNotice)
     }
 
     // MARK: - Unavailable compatibility APIs

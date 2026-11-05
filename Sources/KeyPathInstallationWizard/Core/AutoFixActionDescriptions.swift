@@ -46,6 +46,8 @@ public enum AutoFixActionDescriptions {
             "Fix Karabiner driver version (v6 → v5)"
         case .installCorrectVHIDDriver:
             "Install Karabiner VirtualHID driver"
+        case .removeLegacyPrivilegedRuntime:
+            "Remove the old KeyPath keyboard service"
         }
     }
 

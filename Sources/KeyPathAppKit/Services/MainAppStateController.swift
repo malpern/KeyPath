@@ -45,12 +45,16 @@ class MainAppStateController {
         case failed(blockingCount: Int, totalCount: Int)
 
         var isSuccess: Bool {
-            if case .success = self { return true }
+            if case .success = self {
+                return true
+            }
             return false
         }
 
         var hasCriticalIssues: Bool {
-            if case let .failed(blockingCount, _) = self, blockingCount > 0 { return true }
+            if case let .failed(blockingCount, _) = self, blockingCount > 0 {
+                return true
+            }
             return false
         }
     }
@@ -477,7 +481,7 @@ class MainAppStateController {
             switch self {
             case .configuration: "Configuration cannot run in driverless mode"
             case .recovery: "Keyboard recovery requires attention"
-            case .legacyDaemon: "Another KeyPath keyboard service is running"
+            case .legacyDaemon: "The KeyPath 1.0.1 keyboard service is still running"
             }
         }
 
@@ -485,14 +489,21 @@ class MainAppStateController {
             switch self {
             case .configuration: "Edit the configuration and retry. Existing rules were preserved."
             case .recovery: "The recovery record was preserved. Do not clear it to force a restart."
-            case .legacyDaemon: "KeyPath will not stop it for you. Stop it, then start KeyPath again. Existing rules were preserved."
+            case .legacyDaemon: "Choose Remove Old Service in Settings → Status. KeyPath asks for your administrator password once, removes the old service, and starts again. Existing rules were preserved."
             }
+        }
+
+        /// Only the 1.0.1 daemon has a fix, and it runs only when the user asks.
+        var autoFixAction: AutoFixAction? {
+            self == .legacyDaemon ? .removeLegacyPrivilegedRuntime : nil
         }
     }
 
     private func performValidation(requiresFreshResult: Bool = false) async {
         if let inProgressValidation {
-            if requiresFreshResult { validationRefreshPending = true }
+            if requiresFreshResult {
+                validationRefreshPending = true
+            }
             AppLogger.shared.log(
                 "🔍 [MainAppStateController] Validation already in progress - waiting for published result"
             )
@@ -507,7 +518,9 @@ class MainAppStateController {
                 await performValidationBody()
                 // An explicit refresh may arrive after this capture started. Invalidate
                 // again because the completed capture can have repopulated caches.
-                if validationRefreshPending { validator?.invalidateCaches() }
+                if validationRefreshPending {
+                    validator?.invalidateCaches()
+                }
             } while validationRefreshPending
             inProgressValidation = nil
         }
@@ -827,7 +840,7 @@ class MainAppStateController {
         // snapshot cannot make a proven unsupported configuration start running.
         issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
                               category: .systemRequirements, title: kind.title,
-                              description: reason, autoFixAction: nil,
+                              description: reason, autoFixAction: kind.autoFixAction,
                               userAction: kind.userAction)]
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil
@@ -860,7 +873,9 @@ class MainAppStateController {
         if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
             return .legacyDaemonRefused(refusal)
         }
-        if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+        if serviceLifecycle?.isRecoveringFromSystemWake == true {
+            return .recoveringFromWake
+        }
         let timing = startupGateTiming()
         let start = startupGateNow()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
@@ -874,7 +889,9 @@ class MainAppStateController {
             if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
                 return .legacyDaemonRefused(refusal)
             }
-            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true {
+                return .recoveringFromWake
+            }
             if KanataRuntimeBackend.selected == .session {
                 let permissions: PermissionOracle.Snapshot
                 #if DEBUG
@@ -886,7 +903,9 @@ class MainAppStateController {
                 #else
                     permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
                 #endif
-                if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+                if serviceLifecycle?.isRecoveringFromSystemWake == true {
+                    return .recoveringFromWake
+                }
                 if Self.hasDefinitiveSessionPermissionFailure(permissions) {
                     return .missingSessionPermissions
                 }
@@ -897,8 +916,12 @@ class MainAppStateController {
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
             }
-            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
-            if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision { continue }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true {
+                return .recoveringFromWake
+            }
+            if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision {
+                continue
+            }
             let isReady = health.isReady
             if isReady {
                 if checks > 0 {
@@ -926,7 +949,9 @@ class MainAppStateController {
 
     private func startupGateNow() -> Date {
         #if DEBUG
-            if let override = startupGateNowOverride { return override() }
+            if let override = startupGateNowOverride {
+                return override()
+            }
         #endif
         return Date()
     }
@@ -1051,7 +1076,9 @@ class MainAppStateController {
 
     /// Check if validation is currently running
     var isValidating: Bool {
-        if case .checking = validationState { return true }
+        if case .checking = validationState {
+            return true
+        }
         return false
     }
 }

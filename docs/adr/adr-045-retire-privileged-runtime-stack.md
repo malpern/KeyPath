@@ -47,6 +47,20 @@ It must be tested on a clean VM that starts from 1.0.1. Tracked in
 Keep legacy detection after the rest is removed for as long as 1.0.1 installs may
 upgrade directly.
 
+**Upgrade path (2026-11, #1353).** When the refusal stands, Settings → Status
+offers **Remove Old Service**, which calls
+`InstallerEngine.removeLegacyPrivilegedRuntime` (also reachable as
+`AutoFixAction.removeLegacyPrivilegedRuntime`). It runs
+`LegacyPrivilegedRuntimeCleanup`: best-effort SMAppService unregistration, then
+one administrator batch that boots out every `com.keypath.*` label 1.0.1 used,
+stops root KeyPath processes the app cannot signal (ADR-040), and deletes
+KeyPath's own system files. It reports success only after a fresh read-only
+observation finds no loaded legacy service, no root KeyPath process, and no
+legacy file. The Karabiner driver is reported, never removed. It is not a
+recipe: privileged recipes stay unavailable. Its live dependency on the retired
+stack is limited to the label, plist, and path lists in that file. The clean-VM
+run is still outstanding: `docs/testing/upgrade-from-1-0-1.md`.
+
 ## Consequences
 
 - `AGENTS.md` and `docs/architecture/overview.md` describe the session runtime.

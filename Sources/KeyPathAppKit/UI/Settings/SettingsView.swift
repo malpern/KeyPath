@@ -28,6 +28,7 @@ struct StatusSettingsTabView: View {
     @State private var launchAtLogin = LaunchAtLoginController.shared
     @State private var settingsToastManager = WizardToastManager()
     @State var showingPermissionAlert = false
+    @State var removingLegacyRuntime = false
     @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
 
     /// Persisted record that the user explicitly switched the service off (as
@@ -471,12 +472,56 @@ struct StatusSettingsTabView: View {
     /// install is not yet reflected; that brief warm-up is intended. Validation
     /// publishes roughly every minute, so rescans are throttled to match.
     private func refreshDuplicateAppCopies() {
-        if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 { return }
+        if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 {
+            return
+        }
         lastDuplicateScan = Date()
         Task { @MainActor in
             let duplicates = await HelperMaintenance.shared.detectDuplicateAppCopies()
             guard duplicates != duplicateAppCopies else { return }
             duplicateAppCopies = duplicates
+        }
+    }
+
+    /// Removes the KeyPath 1.0.1 service the session runtime refuses to start
+    /// beside (#1353), then starts KeyPath. Runs only when the user asks.
+    func removeLegacyRuntimeAndStart() async {
+        guard !removingLegacyRuntime else { return }
+        removingLegacyRuntime = true
+        defer { removingLegacyRuntime = false }
+        settingsToastManager.showInfo("Removing the old KeyPath service…")
+
+        let result = await InstallerEngine().removeLegacyPrivilegedRuntime(using: PrivilegeBroker())
+        guard result.report.success else {
+            await refreshStatus()
+            settingsToastManager.showError(
+                result.report.failureReason ?? "The old KeyPath service could not be removed.", duration: 10
+            )
+            return
+        }
+
+        let lifecycle = kanataManager.underlyingManager.serviceLifecycleCoordinator
+        if await lifecycle.refreshLegacyDaemonRefusalAfterCleanup() {
+            await refreshStatus()
+            settingsToastManager.showError(
+                "The old KeyPath service was removed, but KeyPath still detects it. Restart your Mac, then open KeyPath again.",
+                duration: 10
+            )
+            return
+        }
+
+        let started = await kanataManager.startKanata(reason: "KeyPath 1.0.1 service removed")
+        await refreshStatus()
+        var message = started
+            ? "Old KeyPath service removed. KeyPath is running."
+            : "Old KeyPath service removed. \(kanataManager.lastError ?? "Turn KeyPath on with the switch above.")"
+        if let notice = result.virtualHIDNotice {
+            message += " \(notice)"
+        }
+        if started {
+            settingsToastManager.showSuccess(message, duration: 10)
+        } else {
+            settingsToastManager.showInfo(message, duration: 10)
         }
     }
 

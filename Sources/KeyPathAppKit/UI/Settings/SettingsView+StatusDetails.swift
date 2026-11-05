@@ -163,6 +163,11 @@ extension StatusSettingsTabView {
         return details
     }
 
+    /// The removal is offered exactly when the published refusal names the 1.0.1 service.
+    static func offersLegacyRuntimeRemoval(issues: [WizardIssue]) -> Bool {
+        issues.contains { $0.autoFixAction == .removeLegacyPrivilegedRuntime }
+    }
+
     /// A stopped runtime says why when it knows, instead of only how to start it.
     static func stoppedMessage(lastError: String?) -> String {
         guard let lastError, !lastError.isEmpty else { return "Runtime is stopped. Use the switch above to turn it on." }
@@ -220,19 +225,30 @@ extension StatusSettingsTabView {
             )
         }
 
+        var actions: [StatusDetailAction] = []
+        if Self.offersLegacyRuntimeRemoval(issues: wizardIssues) {
+            actions.append(StatusDetailAction(
+                title: removingLegacyRuntime ? "Removing Old Service…" : "Remove Old Service",
+                icon: "trash",
+                handler: { Task { await removeLegacyRuntimeAndStart() } },
+                identifier: "status-action-remove-legacy-service",
+                accessibilityTitle: "Remove the KeyPath 1.0.1 keyboard service"
+            ))
+        }
+        actions += [
+            StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
+                SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
+            },
+            StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                wizardInitialPage = .summary
+            }
+        ]
         return StatusDetail(
             title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
             message: Self.stoppedMessage(lastError: kanataManager.lastError),
             icon: "pause.circle",
             level: .warning,
-            actions: [
-                StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
-                    SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
-                },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .summary
-                }
-            ]
+            actions: actions
         )
     }
 
@@ -316,8 +332,7 @@ extension StatusSettingsTabView {
     }
 
     var tcpDetail: StatusDetail? {
-        guard !isDriverless else { return nil }
-        guard systemContext?.services.kanataRunning == true else { return nil }
+        guard !isDriverless, systemContext?.services.kanataRunning == true else { return nil }
         guard let tcpConfigured else {
             return StatusDetail(
                 title: "TCP Communication",
@@ -396,8 +411,7 @@ extension StatusSettingsTabView {
         // Show logs affordance when service isn't healthy or has daemon issues.
         // Not when the user simply turned the service off — there's nothing to
         // troubleshoot.
-        guard !isIntentionallyDisabled else { return nil }
-        guard serviceStatusDetail.level != .success else { return nil }
+        guard !isIntentionallyDisabled, serviceStatusDetail.level != .success else { return nil }
         return StatusDetail(
             title: isDriverless ? "KeyPath Logs" : "Kanata Logs",
             message: isDriverless ? "Open KeyPath’s log for remapping startup errors and permission failures." : "Open the daemon stderr log for startup errors and permission failures.",

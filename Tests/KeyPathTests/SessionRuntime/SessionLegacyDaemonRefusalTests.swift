@@ -7,7 +7,7 @@
 /// unit tests, so that failure is the proof that a start got past the check.
 @MainActor
 final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
-    private let refusal = "Stop the existing keyboard service before trying driverless mode."
+    private let refusal = ServiceLifecycleCoordinator.legacyDaemonRefusalMessage
     private var errors: [String] = []
     private var daemonChecks = 0
     private var publishedError: String?
@@ -38,7 +38,9 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         coordinator.testSessionCapsPreparation = {}
         coordinator.testSessionCapsRecovery = {}
         coordinator.onError = { [weak self] message in
-            if let message { self?.errors.append(message) }
+            if let message {
+                self?.errors.append(message)
+            }
         }
         return coordinator
     }
@@ -107,6 +109,20 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         let status = await coordinator.currentRuntimeStatus()
         guard case let .failed(reason) = status else { return XCTFail("Expected a failure, got \(status)") }
         XCTAssertNotEqual(reason, refusal)
+    }
+
+    func testRefreshAfterCleanupClearsTheRefusalOnlyWhenTheDaemonIsGone() async {
+        let coordinator = makeCoordinator()
+        _ = await start(daemonRunning: true, using: coordinator)
+
+        let stillRefused = await coordinator.refreshLegacyDaemonRefusalAfterCleanup()
+        XCTAssertTrue(stillRefused, "A daemon that is still running must keep blocking the start")
+        XCTAssertEqual(coordinator.sessionLegacyDaemonRefusal, refusal)
+
+        coordinator.testSessionLegacyDaemonRunning = { false }
+        let refusedAfterRemoval = await coordinator.refreshLegacyDaemonRefusalAfterCleanup()
+        XCTAssertFalse(refusedAfterRemoval)
+        XCTAssertNil(coordinator.sessionLegacyDaemonRefusal)
     }
 
     func testRunningLegacyDaemonRefusesStartWithoutLaunching() async {
