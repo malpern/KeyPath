@@ -65,7 +65,13 @@ struct CGSFunctions {
     /// Look a symbol up in the images already loaded into the process
     /// (`RTLD_DEFAULT`). CoreGraphics and ApplicationServices are loaded by AppKit.
     static func dlsymLookup(_ name: String) -> UnsafeMutableRawPointer? {
-        dlsym(UnsafeMutableRawPointer(bitPattern: -2), name)
+        dlsym(rtldDefault, name)
+    }
+
+    /// `RTLD_DEFAULT` from <dlfcn.h>, which Swift does not import: search every
+    /// image already loaded into the process.
+    private static var rtldDefault: UnsafeMutableRawPointer? {
+        UnsafeMutableRawPointer(bitPattern: -2)
     }
 
     /// Resolve every symbol. Returns nil plus the names that did not resolve

@@ -275,6 +275,14 @@ struct CGSAPIAvailabilityTests {
         #expect(Set(missing).count == 7)
     }
 
+    @Test("resetCache re-resolves to the same answer as a fresh lookup")
+    func resetCacheReresolves() {
+        CGSPrivateAPI.resetCache()
+        let (available, _) = CGSPrivateAPI.checkAvailabilityDetails()
+        #expect((CGSPrivateAPI.functions != nil) == available)
+        #expect(CGSPrivateAPI.isAvailable == available)
+    }
+
     @Test("SpaceManager.isAvailable matches CGSPrivateAPI.isAvailable")
     @MainActor
     func spaceManagerAvailabilityMatches() {
