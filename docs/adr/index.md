@@ -16,7 +16,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Partly superseded by ADR-044 |
 | [ADR-008](/adr/adr-008-validation-refactor) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](/adr/adr-009-service-extraction-mvvm) | Service Extraction & MVVM Pattern | Accepted |
-| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Under review, see ADR-046 |
+| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Under review; proposed to be superseded by ADR-046 |
 | [ADR-014](/adr/adr-014-xpc-signature-mismatch) | XPC Signature Mismatch Prevention | Accepted (see ADR-045 note) |
 | [ADR-015](/adr/adr-015-installer-engine) | InstallerEngine Façade | Accepted (see ADR-045 note) |
 | [ADR-016](/adr/adr-016-tcc-database-reading) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |

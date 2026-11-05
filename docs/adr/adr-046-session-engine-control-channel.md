@@ -191,13 +191,20 @@ directly and asks the app over the existing runtime-control socket, as
   place. A uid check alone does not stop 3. The PID check is weaker than the
   signature check: it holds only while the launching app is alive (its PID
   cannot be reused until then, so the worker must exit when the app does), and
-  it trusts whatever code runs in that PID. Until phase 4 ships, attacker 3 is
+  it trusts whatever code runs in that PID. Today the worker notices the app
+  has gone by polling `isProcessAlive(ownerPID)` in its 5 ms tick
+  (`SessionRuntimeWorker.tick`), and a dead PID can be reused inside that
+  window. Phase 1 therefore has the server re-check the owner's liveness on
+  every accept, and the worker watch the owner with a kqueue `NOTE_EXIT`
+  source so it stops listening the moment the app exits. Until phase 4 ships, attacker 3 is
   stopped from connecting directly but not from injecting into or impersonating
   the app, which this ADR treats as out of scope.
 - Removes the cross-process trust problem for `MessagePush`: KeyPath only
   dispatches actions it received from its own worker.
-- Cost: see Migration below. The largest of the three, and the only one that
-  closes every case in the threat model.
+- Cost: see Migration below. The largest of the three. With phase 4 it is the
+  only option that closes every case in the threat model. At release (phases 1
+  to 3) it closes 1, 2 and 4 and stops direct connections from 3, leaving
+  injection into or impersonation of the app.
 
 ## Decision (proposed)
 
