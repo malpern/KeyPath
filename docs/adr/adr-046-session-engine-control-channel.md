@@ -258,7 +258,12 @@ written from source alone.
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The expected PID
    is the app that launched this worker, passed on every launch, so a relaunch
-   or a new app instance never inherits an old PID. Keep the path short:
+   or a new app instance never inherits an old PID. This keeps today's
+   adoption rule: `adoptRunningSession` only re-supervises a worker launched by
+   the same app process (`currentSessionReport` needs that process's
+   `sessionApplication` and nonce), and a worker whose owner has exited already
+   stops itself (`owner-exited`). Nothing adopts a worker across app launches,
+   and the owner watch makes that impossible by design. Keep the path short:
    macOS limits `sun_path` to 104 bytes, so reuse the runtime-control directory
    (`~/Library/Application Support/KeyPath/control/`) with a short file name and
    never truncate. If a long home path exceeds it, fall back to a short
