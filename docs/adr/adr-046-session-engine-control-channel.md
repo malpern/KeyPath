@@ -213,6 +213,13 @@ Adopt **C**, and do **A** in the same fork change.
 The first public session-runtime release ships only after phases 1 to 3 below.
 Phase 4 can follow in a point release.
 
+| Attacker | Today | After phases 1–3 (release) | After phase 4 |
+|---|---|---|---|
+| 1. Another macOS user | Full access | Blocked (uid check, 0700 directory) | Blocked |
+| 2. Sandboxed app | Full access | Blocked (cannot reach the path) | Blocked |
+| 3. Same user, unsandboxed | Full access | Direct connection blocked (PID check); injecting into or impersonating the app still possible | Blocked unless it injects code into KeyPath (out of scope) |
+| 4. Port squatter | Takes over the channel | Blocked (no TCP port; socket in a directory only this user owns) | Blocked |
+
 Before this ADR is accepted, confirm the main claims on a live install in a
 lab VM: a second macOS user, and a sandboxed app with the network-client
 entitlement, each connect to the port and receive `KeyInput`. This ADR was
@@ -228,6 +235,10 @@ written from source alone.
    - Check the peer before the connection joins the broadcast set: uid via
      `getpeereid`, and PID via `LOCAL_PEERPID` when the bridge supplies an
      expected PID.
+   - **Acceptance criterion:** the worker watches its owner with a kqueue
+     `NOTE_EXIT` source and stops listening as soon as the app exits, and the
+     server re-checks the owner on every accept. Without both, the PID check is
+     not meaningful.
    - Return an error instead of panicking when the listener cannot be created,
      by binding once and keeping that listener, not by probing first.
    - Option A: drop `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` from the
@@ -268,7 +279,8 @@ from Hammerspoon) loses that. So does the context-integration design above:
 third-party processes feeding context to the engine is exactly what the peer
 check forbids, so if it is revived it goes through the app (a `keypath://` URL
 or runtime-control request), which can validate what it forwards. The supported routes are `keypath://` URLs and
-`keypath-cli`. Call it out in release notes.
+`keypath-cli`. Phase 5 adds a release-notes entry for the release that ships
+this, and an item in `docs/process/release-process.md` to check it is there.
 
 **Fork divergence:** this widens the difference from upstream kanata's TCP
 server. A Unix-socket listener is generally useful on Linux and macOS, so offer
