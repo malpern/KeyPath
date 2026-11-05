@@ -231,7 +231,7 @@ public struct LegacyPrivilegedRuntimeCleanup {
         }
 
         let verificationFailure = after.isClean ? nil
-            : "Old KeyPath service was not fully removed (\(after.remainingDescription)). Choose Remove Old Service to try again."
+            : "Old KeyPath service was not fully removed (\(after.remainingDescription)). Choose Remove Old Service to try again. If it keeps failing, restart your Mac first."
         logs.append("[legacy-cleanup] Verified: \(after.isClean ? "nothing left" : after.remainingDescription)")
         let failureReason: String? = switch (operationFailure, verificationFailure) {
         case (nil, nil): nil
