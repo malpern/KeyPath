@@ -235,6 +235,9 @@ written from source alone.
    - Check the peer before the connection joins the broadcast set: uid via
      `getpeereid`, and PID via `LOCAL_PEERPID` when the bridge supplies an
      expected PID.
+     Both are read from the accepted socket itself, never from a later
+     lookup, and the PID must equal the launching app's PID, not merely belong
+     to a process of this user.
    - **Acceptance criterion:** the worker watches its owner with a kqueue
      `NOTE_EXIT` source and stops listening as soon as the app exits, and the
      server re-checks the owner on every accept. Without both, the PID check is
