@@ -16,6 +16,8 @@ SOURCES = {
     "B.swift": "public struct DoThing: Sendable, AppIntent {\n}\n",
     "C.swift": "struct ThingEntity: AppEntity {\n}\nenum Mode: String, AppEnum {\n}\n",
     "D.swift": "struct Shortcuts: AppShortcutsProvider {\n}\nstruct NotAnIntent: View {\n}\n",
+    "F.swift": "/*\nstruct OldIntent: AppIntent {\n}\n*/\n"
+    "struct Real: View, // not AppIntent\n    Sendable {\n}\n",
     "E.swift": "@available(macOS 26, *)\npublic struct OpenThing<T>: OpenIntent {\n}\n"
     "extension Kind: AppEnum {\n}\n",
 }

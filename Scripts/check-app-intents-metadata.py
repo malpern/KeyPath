@@ -44,10 +44,20 @@ INTENT_REFINEMENTS = {
 }
 
 
+# Block comments, then line comments. String literals containing `//` are not
+# special-cased; at worst that hides a declaration later on the same line.
+COMMENTS = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
+
+
+def strip_comments(text: str) -> str:
+    return COMMENTS.sub(lambda match: "\n" * match.group(0).count("\n"), text)
+
+
 def declared_types(source_dir: Path) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {name: [] for name in PROTOCOLS}
     for path in sorted(source_dir.rglob("*.swift")):
-        for match in DECLARATION.finditer(path.read_text(encoding="utf-8")):
+        text = strip_comments(path.read_text(encoding="utf-8"))
+        for match in DECLARATION.finditer(text):
             conformances = {
                 c.strip().split(" where ")[0].strip() for c in match.group(2).split(",")
             }

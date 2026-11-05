@@ -97,8 +97,12 @@ if [[ "${REQUIRE_APP_INTENTS_METADATA:-$REQUIRE_NOTARIZED}" == "1" ]]; then
         echo "❌ Python 3 is required to check App Intents metadata; set KEYPATH_VERIFY_PYTHON" >&2
         exit 1
     fi
-    "$VERIFY_PYTHON" "$SCRIPT_DIR/check-app-intents-metadata.py" \
-        "$actions_data" "$SCRIPT_DIR/../Sources/KeyPathAppKit"
+    if ! "$VERIFY_PYTHON" "$SCRIPT_DIR/check-app-intents-metadata.py" \
+        "$actions_data" "$SCRIPT_DIR/../Sources/KeyPathAppKit"; then
+        echo "❌ App Intents metadata does not match this checkout's Sources/KeyPathAppKit" >&2
+        echo "   If the app was built from another commit, run this script from that tree." >&2
+        exit 1
+    fi
 else
     echo "⏭️  Skipping App Intents metadata check (REQUIRE_APP_INTENTS_METADATA=0)"
 fi
