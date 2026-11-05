@@ -230,7 +230,8 @@ public struct LegacyPrivilegedRuntimeCleanup {
             }
         }
 
-        let verificationFailure = after.isClean ? nil : "Old KeyPath service was not fully removed (\(after.remainingDescription))."
+        let verificationFailure = after.isClean ? nil
+            : "Old KeyPath service was not fully removed (\(after.remainingDescription)). Choose Remove Old Service to try again."
         logs.append("[legacy-cleanup] Verified: \(after.isClean ? "nothing left" : after.remainingDescription)")
         let failureReason: String? = switch (operationFailure, verificationFailure) {
         case (nil, nil): nil
@@ -301,6 +302,9 @@ public struct LegacyPrivilegedRuntimeCleanup {
 public extension LegacyPrivilegedRuntimeCleanup {
     /// launchd's "Could not find service" status for `launchctl print`.
     static let launchctlServiceNotFound: Int32 = 113
+    /// launchd's "Could not find domain" status, e.g. `gui/<uid>` with no GUI
+    /// session. A domain that does not exist holds no job, so it counts as absent.
+    static let launchctlDomainNotFound: Int32 = 112
 
     /// Live dependencies. The admin batch comes from the app via
     /// `WizardDependencies`; without it the cleanup fails.
@@ -329,7 +333,7 @@ public extension LegacyPrivilegedRuntimeCleanup {
             let evidence = await provider.launchctlPrint(target: target)
             switch evidence.exitCode {
             case 0: loaded.append(target)
-            case launchctlServiceNotFound: break
+            case launchctlServiceNotFound, launchctlDomainNotFound: break
             default: unreadable.append(target)
             }
         }

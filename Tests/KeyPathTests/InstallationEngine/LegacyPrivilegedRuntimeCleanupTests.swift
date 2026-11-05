@@ -162,6 +162,29 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertEqual(process.terminationStatus, 0, message)
     }
 
+    /// Runs the script's own `grep -E` argument after shell quoting, so a quoting
+    /// or escaping regression in the generated pattern fails here.
+    func testScriptPatternSurvivesShellQuoting() throws {
+        let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [4242], userID: 501).script
+        let marker = "/usr/bin/grep -qE '"
+        let start = try XCTUnwrap(script.range(of: marker)).upperBound
+        let end = try XCTUnwrap(script[start...].firstIndex(of: "'"))
+        let quotedPattern = String(script[script.index(before: start) ... end])
+        func shellMatches(_ command: String) throws -> Bool {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = ["-c", "printf '%s\\n' \"$1\" | /usr/bin/grep -qE \(quotedPattern)", "_", command]
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        }
+        XCTAssertTrue(try shellMatches("/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher --port 37001"))
+        XCTAssertTrue(try shellMatches("/Library/PrivilegedHelperTools/com.keypath.helper"))
+        XCTAssertFalse(try shellMatches("/Applications/Other.app/Contents/Library/HelperTools/OtherHelper"))
+        XCTAssertFalse(try shellMatches("/Library/PrivilegedHelperTools/comXkeypathXhelper"),
+                       "Escaped dots must stay literal after quoting")
+    }
+
     func testBatchWithoutRootProcessesHasNoSignalStep() {
         let script = LegacyPrivilegedRuntimeCleanup.batch(stopping: [0, -1], userID: 501).script
         XCTAssertFalse(script.contains("kp_pid"))
@@ -222,6 +245,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
                 let code: Int32 = switch target {
                 case "system/com.keypath.kanata", "gui/501/com.keypath.kanata": 0
                 case "system/com.keypath.helper": 1
+                case "gui/501/com.keypath.helper": 112 // no GUI domain: nothing can be loaded there
                 default: 113
                 }
                 return LaunchctlPrintEvidence(target: target, exitCode: code, stdout: "", stderr: "")
