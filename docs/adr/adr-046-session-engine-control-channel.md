@@ -188,7 +188,12 @@ directly and asks the app over the existing runtime-control socket, as
   can pre-create it, and a stale socket is replaced the same way
   `RuntimeControlServer` replaces one.
 - Stops 3 from talking to the engine when the peer-PID or signature check is in
-  place. A uid check alone does not stop 3.
+  place. A uid check alone does not stop 3. The PID check is weaker than the
+  signature check: it holds only while the launching app is alive (its PID
+  cannot be reused until then, so the worker must exit when the app does), and
+  it trusts whatever code runs in that PID. Until phase 4 ships, attacker 3 is
+  stopped from connecting directly but not from injecting into or impersonating
+  the app, which this ADR treats as out of scope.
 - Removes the cross-process trust problem for `MessagePush`: KeyPath only
   dispatches actions it received from its own worker.
 - Cost: see Migration below. The largest of the three, and the only one that
@@ -200,6 +205,11 @@ Adopt **C**, and do **A** in the same fork change.
 
 The first public session-runtime release ships only after phases 1 to 3 below.
 Phase 4 can follow in a point release.
+
+Before this ADR is accepted, confirm the main claims on a live install in a
+lab VM: a second macOS user, and a sandboxed app with the network-client
+entitlement, each connect to the port and receive `KeyInput`. This ADR was
+written from source alone.
 
 ## Migration
 
