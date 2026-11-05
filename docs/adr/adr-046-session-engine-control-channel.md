@@ -247,7 +247,9 @@ written from source alone.
      not meaningful. Required test: start the worker, kill the owner app,
      and assert the socket refuses new connections and the worker exits. A
      second test connects after the owner has exited but before the exit
-     watch fires, and asserts the per-accept re-check refuses it.
+     watch fires, and asserts the per-accept re-check refuses it. A
+     connection the app hands to a child process is a known gap at this phase
+     (see Option C); phase 4 closes it and adds its test.
    - Return an error instead of panicking when the listener cannot be created,
      by binding once and keeping that listener, not by probing first.
    - Option A: drop `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` from the
