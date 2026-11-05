@@ -56,25 +56,16 @@ final class CompletionFlag: @unchecked Sendable {
 /// - Simple timeout mechanism
 /// - Connection pooling for efficiency
 ///
-/// **SECURITY NOTE (ADR-013):**
-/// Kanata v1.9.0 TCP server does NOT support authentication.
-/// The tcp_server.rs code explicitly ignores Authenticate messages:
-/// ```rust
-/// ClientMessage::Authenticate { .. } => {
-///     log::debug!("TCP server ignoring authentication message (not needed for TCP)");
-///     continue;
-/// }
-/// ```
-///
-/// This means:
-/// - No client identity verification
-/// - Any local process can send commands to localhost:37001
-/// - Limited attack surface: only config reloads, not arbitrary code execution
-///
-/// **Future Work:**
-/// Consider contributing authentication support to upstream Kanata.
-/// Design would mirror the UDP authentication (token-based, session expiry).
-/// Until then, rely on localhost-only binding and OS-level process isolation.
+/// **SECURITY NOTE (ADR-013, under review in ADR-046 / #1354):**
+/// The engine's TCP server has no authentication, and loopback TCP is not
+/// scoped to a user or to the App Sandbox. Any local process, including other
+/// users' processes and sandboxed apps, can connect to localhost:37001 and:
+/// - receive every `KeyInput` event (a keystroke stream) and the config text
+/// - press virtual keys (`ActOnFakeKey`), change layers, move the mouse
+/// - load any readable file as the config (`ReloadFile`)
+/// Virtual keys bound to `push-msg` reach `ActionDispatcher` through
+/// `KanataEventListener`. ADR-046 proposes moving this channel to an
+/// owner-checked Unix socket.
 actor KanataTCPClient {
     let host: String
     let port: Int

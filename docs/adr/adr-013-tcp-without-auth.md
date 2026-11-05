@@ -1,11 +1,13 @@
 # ADR-013: TCP Communication Without Authentication
 
-> **Note (2026-10-31):** This was written for the root daemon. The runtime now runs
-> in a user session that holds the user's input permissions, so this risk needs
-> review. See ADR-045; tracked in
+> **Note (2026-11-04):** This was written for the root daemon. The session
+> runtime holds the user's input permissions, and the port now exposes a
+> keystroke stream and input injection to every local process. The review and
+> the proposed replacement are in
+> [ADR-046](adr-046-session-engine-control-channel.md); tracked in
 > [#1354](https://github.com/malpern/KeyPath/issues/1354).
 
-**Status:** Accepted (under review, see ADR-045)
+**Status:** Under review; to be superseded by [ADR-046](adr-046-session-engine-control-channel.md) (Proposed)
 **Date:** 2024
 
 ## Context
