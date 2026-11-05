@@ -135,19 +135,24 @@ public enum CGSPrivateAPI {
     /// Every call into the private APIs goes through this, so a missing symbol
     /// can never be called.
     static var functions: CGSFunctions? {
-        lock.lock()
-        defer { lock.unlock() }
-        if let cached = cachedFunctions {
-            return cached
-        }
-        let (functions, missing) = CGSFunctions.resolve()
+        let (functions, missing, resolvedNow): (CGSFunctions?, [String], Bool) = {
+            lock.lock()
+            defer { lock.unlock() }
+            if let cached = cachedFunctions {
+                return (cached, [], false)
+            }
+            let (functions, missing) = CGSFunctions.resolve()
+            cachedFunctions = .some(functions)
+            return (functions, missing, true)
+        }()
+        // Log outside the lock, so logging can never re-enter it.
+        guard resolvedNow else { return functions }
         if functions == nil {
             AppLogger.shared.log("⚠️ [CGSPrivateAPI] Missing symbols: \(missing.joined(separator: ", "))")
             AppLogger.shared.log("⚠️ [CGSPrivateAPI] Space movement features will be disabled")
         } else {
             AppLogger.shared.log("✅ [CGSPrivateAPI] All required symbols available")
         }
-        cachedFunctions = .some(functions)
         return functions
     }
 
