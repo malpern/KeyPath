@@ -108,8 +108,11 @@ public final class SessionRuntimeWorker {
         // Until the runtime can own outputs, nothing needs releasing: a dead
         // owner, or a probe still running after its parent stopped waiting,
         // ends the process at once. _exit cannot block on a wedged main thread.
+        // A runtime's tick already checks the owner every 5 ms; this backstop
+        // for a wedged run loop polls slowly, since the 30 s grace dominates.
         let ownerWatch = SessionOwnerWatch(ownerPID: ownerPID,
-                                           deadline: probeOnly ? capabilityProbeDeadline : nil) { _ in _exit(0) }
+                                           deadline: probeOnly ? capabilityProbeDeadline : nil,
+                                           interval: probeOnly ? 0.25 : 2) { _ in _exit(0) }
 
         if probeOnly {
             await writeCapabilityReport(

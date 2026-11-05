@@ -93,6 +93,9 @@ struct SessionWorkerSweep: Sendable {
         var everFound = found
         var remaining = found
         while true {
+            // A cancelled sleep returns at once; without this the loop would
+            // re-read the process table as fast as it can for the whole grace.
+            guard !Task.isCancelled else { return Outcome(found: everFound, remaining: remaining, verified: false) }
             let elapsed = uptime() - started
             for worker in remaining where !termed.contains(worker.pid) {
                 termed.insert(worker.pid)
@@ -134,6 +137,8 @@ struct SessionWorkerSweep: Sendable {
             guard sysctl(&mib, 4, nil, &size, nil, 0) == 0, size > 0 else { return nil }
             size += 32 * MemoryLayout<kinfo_proc>.stride
             processes = [kinfo_proc](repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride)
+            // Never claim more bytes than the array holds.
+            size = processes.count * MemoryLayout<kinfo_proc>.stride
             if sysctl(&mib, 4, &processes, &size, nil, 0) == 0 { break }
             guard errno == ENOMEM else { return nil }
             processes = []

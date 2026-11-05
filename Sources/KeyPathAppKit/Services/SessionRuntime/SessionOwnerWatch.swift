@@ -37,7 +37,7 @@ final class SessionOwnerWatch: @unchecked Sendable {
         timer = DispatchSource.makeTimerSource(queue: queue)
         let started = uptime()
         // The first check runs immediately: the owner may already be gone.
-        timer.schedule(deadline: .now(), repeating: interval)
+        timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(Int(interval * 250)))
         timer.setEventHandler { [self] in
             guard let verdict = Self.verdict(ownerPID: ownerPID, ownerAlive: isAlive(ownerPID),
                                              elapsed: uptime() - started, deadline: deadline)
@@ -70,8 +70,9 @@ final class SessionShutdownFallback: @unchecked Sendable {
     private var shutdownBegan = false
     private var pending: DispatchWorkItem?
 
-    /// Arms `action` after `grace`. Returns false, arming nothing, when an
-    /// orderly shutdown already began.
+    /// Arms `action` after `grace`, once. Returns whether an owner-exit
+    /// retirement should proceed: false when an orderly shutdown already began,
+    /// true otherwise, including when an earlier call already armed it.
     @discardableResult
     func arm(after grace: TimeInterval, queue: DispatchQueue = .global(qos: .utility),
              action: @escaping @Sendable () -> Void) -> Bool

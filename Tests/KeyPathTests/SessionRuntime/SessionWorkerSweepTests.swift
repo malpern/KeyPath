@@ -163,10 +163,12 @@ final class SessionWorkerSweepTests: XCTestCase {
         XCTAssertFalse(otherLive.belongsToUninstall(of: app) { apps[$0] })
         XCTAssertTrue(orphan.belongsToUninstall(of: app) { apps[$0] })
         XCTAssertTrue(ownerless.belongsToUninstall(of: app) { apps[$0] })
-        // A sibling bundle whose name starts with the removed one is not inside it.
-        let sibling = SessionWorkerProcess(pid: 5, mode: .runtime, ownerPID: 20,
-                                           executable: "/Applications/KeyPath.app.old/Contents/MacOS/KeyPath")
-        XCTAssertTrue(sibling.belongsToUninstall(of: app) { apps[$0] }, "Owner 20 runs a different bundle")
+        // A sibling bundle whose name starts with the removed one is not inside
+        // it: its live, matching owner keeps its worker.
+        let siblingExecutable = "/Applications/KeyPath.app.old/Contents/MacOS/KeyPath"
+        let sibling = SessionWorkerProcess(pid: 5, mode: .runtime, ownerPID: 21, executable: siblingExecutable)
+        XCTAssertFalse(sibling.belongsToUninstall(of: app) { [21: siblingExecutable][$0] },
+                       "A sibling bundle is not inside the removed one")
     }
 
     /// The 2026-11-03 orphans outlived their owner by hours. A reused owner
@@ -206,6 +208,20 @@ final class SessionWorkerSweepTests: XCTestCase {
         let outcome = await sweep.stopAll()
         XCTAssertTrue(outcome.succeeded)
         XCTAssertEqual(outcome.result, .noneRunning)
+    }
+
+    /// A cancelled sweep stops at once instead of re-reading the table for
+    /// the whole grace, and claims nothing it did not verify.
+    func testCancelledSweepStopsUnverified() async {
+        let reads = Locked(0)
+        let runtime = SessionWorkerProcess(pid: 100, mode: .runtime, ownerPID: 99)
+        let sweep = SessionWorkerSweep(list: { reads.update { $0 += 1 }; return [runtime] },
+                                       signal: { _, _ in }, sleep: { _ in })
+        let task = Task { await sweep.stopAll() }
+        task.cancel()
+        let outcome = await task.value
+        XCTAssertEqual(outcome.result, .unverified)
+        XCTAssertLessThanOrEqual(reads.value, 2)
     }
 
     func testOutcomeResultSeparatesRunningFromUnverified() {
