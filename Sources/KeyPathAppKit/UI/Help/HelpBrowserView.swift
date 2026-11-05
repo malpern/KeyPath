@@ -63,9 +63,7 @@ extension HelpTopic {
 
     static func topic(forResource resource: String) -> HelpTopic? {
         let resource = resource == "installation" ? "installation-wizard" : resource
-        if let topic = allTopics.first(where: { $0.resource == resource }) {
-            return topic
-        }
+        if let topic = allTopics.first(where: { $0.resource == resource }) { return topic }
         guard !resource.isEmpty, resource.utf8.allSatisfy({ (97 ... 122).contains($0) || (48 ... 57).contains($0) || $0 == 45 }) else { return nil }
         return HelpTopic(id: resource, title: resource.replacingOccurrences(of: "-", with: " ").capitalized,
                          icon: "doc.text", resource: resource, group: .reference)
@@ -447,11 +445,7 @@ private struct CardHoverStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.2), value: isHovered)
             .onHover { hovering in
                 isHovered = hovering
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
+                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
     }
 }
@@ -472,11 +466,7 @@ private struct ToolbarButtonStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.15), value: isHovered)
             .onHover { hovering in
                 isHovered = hovering
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
+                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
     }
 }
@@ -499,11 +489,7 @@ private struct HomeButtonStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.15), value: isHovered)
             .onHover { hovering in
                 isHovered = hovering
-                if hovering {
-                    NSCursor.pointingHand.push()
-                } else {
-                    NSCursor.pop()
-                }
+                if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
     }
 }

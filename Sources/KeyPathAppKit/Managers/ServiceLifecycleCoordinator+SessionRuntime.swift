@@ -6,9 +6,7 @@ import KeyPathPermissions
 extension ServiceLifecycleCoordinator {
     func currentSessionReport() -> SessionRuntimeReport? {
         #if DEBUG
-            if let report = testSessionCurrentReport {
-                return report()
-            }
+            if let report = testSessionCurrentReport { return report() }
         #endif
         guard let application = sessionApplication, !application.isTerminated,
               let url = sessionReportURL, let nonce = sessionNonce,
@@ -25,9 +23,7 @@ extension ServiceLifecycleCoordinator {
     }
 
     func sessionCapabilities() async -> PermissionOracle.PermissionSet? {
-        if let report = currentSessionReport() {
-            return Self.permissionSet(report)
-        }
+        if let report = currentSessionReport() { return Self.permissionSet(report) }
         guard !startsSuppressed else { return nil }
         // Capability checks launch a separate copy of the app too. Serialize
         // them with stop so uninstall waits for existing probes before trashing
@@ -43,18 +39,14 @@ extension ServiceLifecycleCoordinator {
         // An owned runtime may finish starting while the independent probe is
         // suspended. Revalidate ownership/freshness before publishing the older
         // probe result (including a missing result) to the permission cache.
-        if let report = currentSessionReport() {
-            return Self.permissionSet(report)
-        }
+        if let report = currentSessionReport() { return Self.permissionSet(report) }
         return probedPermissions
     }
 
     private func probeSessionCapabilities() async -> PermissionOracle.PermissionSet? {
         guard !startsSuppressed, !Task.isCancelled else { return nil }
         #if DEBUG
-            if let probe = testSessionCapabilityProbe {
-                return await probe()
-            }
+            if let probe = testSessionCapabilityProbe { return await probe() }
         #endif
         do {
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: true)
@@ -72,9 +64,7 @@ extension ServiceLifecycleCoordinator {
             // Never let that become a process-group/broadcast signal target.
             // Signal only the independently launched process owned by this call.
             let probePID = application.processIdentifier
-            if probePID > 0, !application.isTerminated {
-                kill(probePID, SIGTERM)
-            }
+            if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
         } catch {
             AppLogger.shared.warn("Session permission report unavailable")
         }
@@ -86,9 +76,7 @@ extension ServiceLifecycleCoordinator {
 
     private func isLegacyDaemonRunning() async -> Bool {
         #if DEBUG
-            if let probe = testSessionLegacyDaemonRunning {
-                return await probe()
-            }
+            if let probe = testSessionLegacyDaemonRunning { return await probe() }
         #endif
         return await kanataDaemonService.isDaemonRunning()
     }
@@ -97,15 +85,11 @@ extension ServiceLifecycleCoordinator {
     /// does not keep blocking the UI until the next start.
     func legacyDaemonRefusalForStartup() async -> String? {
         guard sessionLegacyDaemonRefusal != nil else { return nil }
-        if let report = currentSessionReport(), report.state == .running, report.tapActive {
-            return nil
-        }
+        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
         let generation = sessionIntentGeneration
         let legacyRunning = await isLegacyDaemonRunning()
         // A newer request owns the refusal now, and this reading predates it.
-        if !legacyRunning, generation == sessionIntentGeneration {
-            clearLegacyDaemonRefusal()
-        }
+        if !legacyRunning, generation == sessionIntentGeneration { clearLegacyDaemonRefusal() }
         return sessionLegacyDaemonRefusal
     }
 
@@ -220,13 +204,9 @@ extension ServiceLifecycleCoordinator {
                         )
                         return true
                     }
-                    if report.state == .failed || report.state == .secureInput {
-                        break
-                    }
+                    if report.state == .failed || report.state == .secureInput { break }
                 }
-                if application.isTerminated {
-                    break
-                }
+                if application.isTerminated { break }
                 try await Task.sleep(for: .milliseconds(100))
             }
             let terminalReport = sessionReportURL.flatMap(Self.readSessionReport)
@@ -263,21 +243,12 @@ extension ServiceLifecycleCoordinator {
             }
             if scheduleInterruptedStartupRecovery(terminalReport, nonce: nonce,
                                                   pid: application.processIdentifier,
-                                                  generation: generation, cleanedUp: cleanedUp)
-            {
-                return false
-            }
+                                                  generation: generation, cleanedUp: cleanedUp) { return false }
             let failure = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
-            if sessionStartIsCurrent(generation) {
-                onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")")
-            }
+            if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
         } catch {
-            if didLaunch {
-                _ = await stopSessionRuntime()
-            }
-            if sessionStartIsCurrent(generation) {
-                onError?("Driverless runtime launch failed: \(error.localizedDescription)")
-            }
+            if didLaunch { _ = await stopSessionRuntime() }
+            if sessionStartIsCurrent(generation) { onError?("Driverless runtime launch failed: \(error.localizedDescription)") }
         }
         onStateChanged?()
         return false
@@ -339,13 +310,9 @@ extension ServiceLifecycleCoordinator {
         // The worker is dead: release exclusion before normal journal recovery.
         sessionTerminationGuard?.release()
         sessionTerminationGuard = nil
-        if let application {
-            _ = recoverSessionOutputs(for: application)
-        }
+        if let application { _ = recoverSessionOutputs(for: application) }
         guard await restoreSessionCaps(for: application) else {
-            if let application {
-                scheduleSessionCleanup(application, nonce: nonce)
-            }
+            if let application { scheduleSessionCleanup(application, nonce: nonce) }
             return false
         }
         if let reportURL {
@@ -382,9 +349,7 @@ extension ServiceLifecycleCoordinator {
         guard !application.isTerminated else { return }
         _ = Self.signalSessionProcess(pid: application.processIdentifier, signal: SIGKILL)
         for _ in 0 ..< 40 {
-            if application.isTerminated {
-                return
-            }
+            if application.isTerminated { return }
             await waitForSessionTermination()
         }
     }
@@ -406,9 +371,7 @@ extension ServiceLifecycleCoordinator {
         await (try? sessionOperationGate.withOperation { @MainActor [self] _ in
             guard sessionNonce == nonce, let application = sessionApplication,
                   application.processIdentifier == pid else { return false }
-            if !application.isTerminated {
-                await terminateIdleSessionWorker(application, nonce: nonce)
-            }
+            if !application.isTerminated { await terminateIdleSessionWorker(application, nonce: nonce) }
             guard application.isTerminated else { return true }
             return await !stopSessionRuntime()
         }) ?? true
@@ -431,14 +394,10 @@ extension ServiceLifecycleCoordinator {
                                          sendTermination: () -> Void,
                                          wait: () async -> Void) async -> Bool
     {
-        if isTerminated() {
-            return true
-        }
+        if isTerminated() { return true }
         sendTermination()
         for _ in 0 ..< 600 {
-            if isTerminated() {
-                return true
-            }
+            if isTerminated() { return true }
             await wait()
         }
         return isTerminated()
@@ -658,9 +617,7 @@ extension ServiceLifecycleCoordinator {
             if blocker == nil {
                 AppLogger.shared.info("[SessionRuntime] Resuming after keyboard readiness")
                 sessionWakeRetryGeneration = nil
-                if await resumeSessionRuntime(expectedGeneration: expectedGeneration, reason: "System wake") {
-                    return true
-                }
+                if await resumeSessionRuntime(expectedGeneration: expectedGeneration, reason: "System wake") { return true }
                 guard sessionStartIsCurrent(expectedGeneration),
                       sessionWakeRetryGeneration == expectedGeneration else { return false }
                 AppLogger.shared.info("[SessionRuntime] Wake startup interrupted; retrying after readiness checks")
@@ -693,10 +650,7 @@ extension ServiceLifecycleCoordinator {
         // startup has installed its supervisor. Preserve the same recovery loop
         // after verified cleanup, just as for a held-key activation race.
         if report.state == .stopped || report.state == .failed,
-           report.recoveryReason == "system-wake-observed"
-        {
-            return true
-        }
+           report.recoveryReason == "system-wake-observed" { return true }
         return report.state == .failed
             && report.failure == "managed-caps-activation-refused: physicalKeysHeld"
     }
@@ -706,18 +660,14 @@ extension ServiceLifecycleCoordinator {
     static func capsConflictMessage(conflict: SessionCapsConflict?,
                                     raycast: SessionCapsConflict.RaycastHyperKey?) -> String
     {
-        if let conflict {
-            return conflict.message
-        }
+        if let conflict { return conflict.message }
         return (raycast?.enabled == true && raycast?.keyCode == 57
             ? SessionCapsConflict.raycastHyperKey : .unknown(destination: 0)).message
     }
 
     private func sessionWakeReadinessBlocker() -> String? {
         #if DEBUG
-            if let ready = testSessionWakeReady {
-                return ready() ? nil : "test-not-ready"
-            }
+            if let ready = testSessionWakeReady { return ready() ? nil : "test-not-ready" }
         #endif
         guard !IsSecureEventInputEnabled() else { return "secure-input" }
         guard let console = SessionRuntimeEnvironmentObserver.currentConsole(),
@@ -804,9 +754,7 @@ extension ServiceLifecycleCoordinator {
             let owner: SessionCapsMappingPolicy.Owner? = if let nonce, let pid {
                 try .init(uid: uid, parentPID: parentPID, workerPID: pid, nonce: nonce,
                           generation: nonce, bootSessionUUID: SessionCapsRuntimeSupport.bootSessionUUID())
-            } else {
-                nil
-            }
+            } else { nil }
             try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
         }.value
     }

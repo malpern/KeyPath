@@ -38,9 +38,7 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         coordinator.testSessionCapsPreparation = {}
         coordinator.testSessionCapsRecovery = {}
         coordinator.onError = { [weak self] message in
-            if let message {
-                self?.errors.append(message)
-            }
+            if let message { self?.errors.append(message) }
         }
         return coordinator
     }

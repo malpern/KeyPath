@@ -227,33 +227,25 @@ public enum IssueIdentifier: Equatable, Sendable {
 
     /// Check if this identifier represents a conflict
     public var isConflict: Bool {
-        if case .conflict = self {
-            return true
-        }
+        if case .conflict = self { return true }
         return false
     }
 
     /// Check if this identifier represents a permission issue
     public var isPermission: Bool {
-        if case .permission = self {
-            return true
-        }
+        if case .permission = self { return true }
         return false
     }
 
     /// Check if this identifier represents a component issue
     public var isComponent: Bool {
-        if case .component = self {
-            return true
-        }
+        if case .component = self { return true }
         return false
     }
 
     /// Check if this identifier represents a daemon issue
     public var isDaemon: Bool {
-        if case .daemon = self {
-            return true
-        }
+        if case .daemon = self { return true }
         return false
     }
 
@@ -561,9 +553,7 @@ public extension [WizardIssue] {
         guard !isEmpty else { return "" }
 
         func truncate(_ s: String, limit: Int = 90) -> String {
-            if s.count <= limit {
-                return s
-            }
+            if s.count <= limit { return s }
             let end = s.index(s.startIndex, offsetBy: limit)
             return String(s[s.startIndex ..< end]).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
         }

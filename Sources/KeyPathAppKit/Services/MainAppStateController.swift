@@ -45,16 +45,12 @@ class MainAppStateController {
         case failed(blockingCount: Int, totalCount: Int)
 
         var isSuccess: Bool {
-            if case .success = self {
-                return true
-            }
+            if case .success = self { return true }
             return false
         }
 
         var hasCriticalIssues: Bool {
-            if case let .failed(blockingCount, _) = self, blockingCount > 0 {
-                return true
-            }
+            if case let .failed(blockingCount, _) = self, blockingCount > 0 { return true }
             return false
         }
     }
@@ -501,9 +497,7 @@ class MainAppStateController {
 
     private func performValidation(requiresFreshResult: Bool = false) async {
         if let inProgressValidation {
-            if requiresFreshResult {
-                validationRefreshPending = true
-            }
+            if requiresFreshResult { validationRefreshPending = true }
             AppLogger.shared.log(
                 "🔍 [MainAppStateController] Validation already in progress - waiting for published result"
             )
@@ -518,9 +512,7 @@ class MainAppStateController {
                 await performValidationBody()
                 // An explicit refresh may arrive after this capture started. Invalidate
                 // again because the completed capture can have repopulated caches.
-                if validationRefreshPending {
-                    validator?.invalidateCaches()
-                }
+                if validationRefreshPending { validator?.invalidateCaches() }
             } while validationRefreshPending
             inProgressValidation = nil
         }
@@ -873,9 +865,7 @@ class MainAppStateController {
         if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
             return .legacyDaemonRefused(refusal)
         }
-        if serviceLifecycle?.isRecoveringFromSystemWake == true {
-            return .recoveringFromWake
-        }
+        if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
         let timing = startupGateTiming()
         let start = startupGateNow()
         let definitiveDeadline = start.addingTimeInterval(timing.definitiveGrace)
@@ -889,9 +879,7 @@ class MainAppStateController {
             if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
                 return .legacyDaemonRefused(refusal)
             }
-            if serviceLifecycle?.isRecoveringFromSystemWake == true {
-                return .recoveringFromWake
-            }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
             if KanataRuntimeBackend.selected == .session {
                 let permissions: PermissionOracle.Snapshot
                 #if DEBUG
@@ -903,9 +891,7 @@ class MainAppStateController {
                 #else
                     permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
                 #endif
-                if serviceLifecycle?.isRecoveringFromSystemWake == true {
-                    return .recoveringFromWake
-                }
+                if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
                 if Self.hasDefinitiveSessionPermissionFailure(permissions) {
                     return .missingSessionPermissions
                 }
@@ -916,12 +902,8 @@ class MainAppStateController {
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
             }
-            if serviceLifecycle?.isRecoveringFromSystemWake == true {
-                return .recoveringFromWake
-            }
-            if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision {
-                continue
-            }
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+            if recoveryRevision != serviceLifecycle?.sessionWakeRecoveryRevision { continue }
             let isReady = health.isReady
             if isReady {
                 if checks > 0 {
@@ -949,9 +931,7 @@ class MainAppStateController {
 
     private func startupGateNow() -> Date {
         #if DEBUG
-            if let override = startupGateNowOverride {
-                return override()
-            }
+            if let override = startupGateNowOverride { return override() }
         #endif
         return Date()
     }
@@ -1076,9 +1056,7 @@ class MainAppStateController {
 
     /// Check if validation is currently running
     var isValidating: Bool {
-        if case .checking = validationState {
-            return true
-        }
+        if case .checking = validationState { return true }
         return false
     }
 }

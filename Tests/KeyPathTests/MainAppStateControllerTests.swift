@@ -718,9 +718,7 @@ struct MainAppStateControllerBehaviorTests {
             let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
             lifecycle.testSessionConfigurationValidation = { .valid }
             lifecycle.testSessionCapsRecovery = { throw SessionCapsMappingLease.Refusal.mutationUncertain }
-            if !duringHealth {
-                #expect(await lifecycle.restoreSessionCaps(for: nil) == false)
-            }
+            if !duringHealth { #expect(await lifecycle.restoreSessionCaps(for: nil) == false) }
             controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
             controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
             var healthChecks = 0, permissionChecks = 0
@@ -764,9 +762,7 @@ struct MainAppStateControllerBehaviorTests {
             SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()
         ])
         validator.beforeCheck = { [weak validator] in
-            if validator?.checkCount == 1 {
-                lifecycle.sessionWakeRecoveryRevision &+= 2
-            }
+            if validator?.checkCount == 1 { lifecycle.sessionWakeRecoveryRevision &+= 2 }
         }
         controller.setValidator(validator)
         controller.configureStartupGateTestingState(

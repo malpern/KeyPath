@@ -488,9 +488,7 @@ struct StatusSettingsTabView: View {
     /// install is not yet reflected; that brief warm-up is intended. Validation
     /// publishes roughly every minute, so rescans are throttled to match.
     private func refreshDuplicateAppCopies() {
-        if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 {
-            return
-        }
+        if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 { return }
         lastDuplicateScan = Date()
         Task { @MainActor in
             let duplicates = await HelperMaintenance.shared.detectDuplicateAppCopies()

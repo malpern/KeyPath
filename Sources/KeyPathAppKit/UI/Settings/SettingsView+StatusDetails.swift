@@ -325,7 +325,8 @@ extension StatusSettingsTabView {
     }
 
     var tcpDetail: StatusDetail? {
-        guard !isDriverless, systemContext?.services.kanataRunning == true else { return nil }
+        guard !isDriverless else { return nil }
+        guard systemContext?.services.kanataRunning == true else { return nil }
         guard let tcpConfigured else {
             return StatusDetail(
                 title: "TCP Communication",
@@ -404,7 +405,8 @@ extension StatusSettingsTabView {
         // Show logs affordance when service isn't healthy or has daemon issues.
         // Not when the user simply turned the service off — there's nothing to
         // troubleshoot.
-        guard !isIntentionallyDisabled, serviceStatusDetail.level != .success else { return nil }
+        guard !isIntentionallyDisabled else { return nil }
+        guard serviceStatusDetail.level != .success else { return nil }
         return StatusDetail(
             title: isDriverless ? "KeyPath Logs" : "Kanata Logs",
             message: isDriverless ? "Open KeyPath’s log for remapping startup errors and permission failures." : "Open the daemon stderr log for startup errors and permission failures.",
