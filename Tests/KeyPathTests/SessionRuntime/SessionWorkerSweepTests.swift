@@ -150,23 +150,69 @@ final class SessionWorkerSweepTests: XCTestCase {
 
     func testUninstallScopeIsTheRemovedBundleAndOrphans() {
         let app = URL(fileURLWithPath: "/Applications/KeyPath.app")
+        let dev = "/Users/me/dev/KeyPath.app/Contents/MacOS/KeyPath"
         let own = SessionWorkerProcess(pid: 1, mode: .runtime, ownerPID: 10,
                                        executable: "/Applications/KeyPath.app/Contents/MacOS/KeyPath")
-        let otherLive = SessionWorkerProcess(pid: 2, mode: .runtime, ownerPID: 20,
-                                             executable: "/Users/me/dev/KeyPath.app/Contents/MacOS/KeyPath")
+        let otherLive = SessionWorkerProcess(pid: 2, mode: .runtime, ownerPID: 20, executable: dev)
         let orphan = SessionWorkerProcess(pid: 3, mode: .capabilities, ownerPID: 30378,
                                           executable: Self.trashedExecutable)
         let ownerless = SessionWorkerProcess(pid: 4, mode: .capabilities, ownerPID: nil,
                                              executable: Self.trashedExecutable)
-        let alive: (pid_t) -> Bool = { $0 != 30378 }
-        XCTAssertTrue(own.belongsToUninstall(of: app, ownerAlive: alive))
-        XCTAssertFalse(otherLive.belongsToUninstall(of: app, ownerAlive: alive))
-        XCTAssertTrue(orphan.belongsToUninstall(of: app, ownerAlive: alive))
-        XCTAssertTrue(ownerless.belongsToUninstall(of: app, ownerAlive: alive))
+        let apps: [pid_t: String] = [10: "/Applications/KeyPath.app/Contents/MacOS/KeyPath", 20: dev]
+        XCTAssertTrue(own.belongsToUninstall(of: app) { apps[$0] })
+        XCTAssertFalse(otherLive.belongsToUninstall(of: app) { apps[$0] })
+        XCTAssertTrue(orphan.belongsToUninstall(of: app) { apps[$0] })
+        XCTAssertTrue(ownerless.belongsToUninstall(of: app) { apps[$0] })
         // A sibling bundle whose name starts with the removed one is not inside it.
         let sibling = SessionWorkerProcess(pid: 5, mode: .runtime, ownerPID: 20,
                                            executable: "/Applications/KeyPath.app.old/Contents/MacOS/KeyPath")
-        XCTAssertFalse(sibling.belongsToUninstall(of: app, ownerAlive: alive))
+        XCTAssertTrue(sibling.belongsToUninstall(of: app) { apps[$0] }, "Owner 20 runs a different bundle")
+    }
+
+    /// The 2026-11-03 orphans outlived their owner by hours. A reused owner
+    /// PID now belonging to an unrelated process, or to another KeyPath
+    /// bundle, does not make the orphan look owned.
+    func testReusedOwnerPIDDoesNotHideAnOrphan() {
+        let app = URL(fileURLWithPath: "/Applications/KeyPath.app")
+        let orphan = SessionWorkerProcess(pid: 13284, mode: .runtime, ownerPID: 30378,
+                                          executable: Self.trashedExecutable)
+        // PID 30378 is now some non-KeyPath process: not in the app table at all.
+        XCTAssertTrue(orphan.belongsToUninstall(of: app) { _ in nil })
+        // PID 30378 is now a KeyPath app from a different bundle.
+        XCTAssertTrue(orphan.belongsToUninstall(of: app) { _ in "/Users/me/dev/KeyPath.app/Contents/MacOS/KeyPath" })
+    }
+
+    /// The parser recognizes exactly the argv the app launches workers with.
+    func testParsesTheRealLaunchArguments() {
+        for probe in [true, false] {
+            let arguments = ServiceLifecycleCoordinator.sessionLaunchArguments(
+                capabilitiesOnly: probe, reportPath: "/tmp/r/report.json", nonce: UUID().uuidString,
+                ownerPID: 30378, port: 37001, configPath: "/Users/me/.config/keypath/keypath.kbd"
+            )
+            let worker = SessionWorkerProcess.parse(pid: 1, arguments: [Self.trashedExecutable] + arguments)
+            XCTAssertEqual(worker?.mode, probe ? .capabilities : .runtime)
+            XCTAssertEqual(worker?.ownerPID, 30378)
+        }
+    }
+
+    /// One unreadable listing is retried; a process exiting mid-read must not
+    /// make the whole sweep unverified.
+    func testSingleUnreadableListingIsRetried() async {
+        let reads = Locked(0)
+        let sweep = SessionWorkerSweep(list: {
+            reads.update { $0 += 1 }
+            return reads.value == 1 ? nil : []
+        }, signal: { _, _ in XCTFail("Nothing to signal") }, sleep: { _ in })
+        let outcome = await sweep.stopAll()
+        XCTAssertTrue(outcome.succeeded)
+        XCTAssertEqual(outcome.result, .noneRunning)
+    }
+
+    func testOutcomeResultSeparatesRunningFromUnverified() {
+        let worker = SessionWorkerProcess(pid: 1, mode: .runtime, ownerPID: 2)
+        XCTAssertEqual(SessionWorkerSweep.Outcome(found: [worker], remaining: []).result, .noneRunning)
+        XCTAssertEqual(SessionWorkerSweep.Outcome(found: [worker], remaining: [worker]).result, .stillRunning)
+        XCTAssertEqual(SessionWorkerSweep.Outcome(found: [], remaining: [], verified: false).result, .unverified)
     }
 
     /// Reads the real process table without signalling anything: this test

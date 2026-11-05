@@ -66,6 +66,33 @@ final class SessionOwnerWatchTests: XCTestCase {
     }
 }
 
+final class SessionShutdownFallbackTests: XCTestCase {
+    func testOrderlyShutdownCancelsTheHardExit() {
+        let fallback = SessionShutdownFallback()
+        let fired = expectation(description: "Hard exit must not run")
+        fired.isInverted = true
+        XCTAssertTrue(fallback.arm(after: 0.05) { fired.fulfill() })
+        fallback.shutdownBegins()
+        wait(for: [fired], timeout: 0.3)
+    }
+
+    /// An owner exit during a shutdown already under way arms nothing.
+    func testNothingIsArmedOnceShutdownBegan() {
+        let fallback = SessionShutdownFallback()
+        fallback.shutdownBegins()
+        XCTAssertFalse(fallback.arm(after: 0) { XCTFail("Must not run") })
+    }
+
+    func testArmedFallbackRunsWhenNoShutdownStarts() {
+        let fallback = SessionShutdownFallback()
+        let fired = expectation(description: "Hard exit runs")
+        XCTAssertTrue(fallback.arm(after: 0.01) { fired.fulfill() })
+        // A second owner verdict does not arm a second exit.
+        XCTAssertTrue(fallback.arm(after: 0.01) { XCTFail("Armed twice") })
+        wait(for: [fired], timeout: 2)
+    }
+}
+
 private final class Locked<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Value

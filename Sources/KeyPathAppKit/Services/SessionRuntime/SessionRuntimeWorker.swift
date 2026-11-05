@@ -142,12 +142,13 @@ public final class SessionRuntimeWorker {
         // retires it on its run loop, which releases them before exiting. A
         // run loop that never gets there would keep an orphan forever; after
         // the grace it exits anyway, and the Caps journal survives for recovery.
+        // A shutdown already under way, or one this starts, cancels that exit.
         ownerWatch.setHandler { [weak worker] _ in
+            guard SessionShutdownFallback.shared.arm(after: ownerExitShutdownGrace, action: { _exit(1) }) else { return }
             CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
                 MainActor.assumeIsolated { worker?.retire(reason: "owner-exited") }
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + ownerExitShutdownGrace) { _exit(1) }
         }
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;
@@ -1183,6 +1184,8 @@ public final class SessionRuntimeWorker {
         acknowledge: (() -> Void)? = nil
     ) -> Never {
         finished = true
+        // The orderly path owns shutdown from here; no hard exit may cut it off.
+        SessionShutdownFallback.shared.shutdownBegins()
         // Every exit records why, so a stop with no failure is still explainable.
         AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
         AppLogger.shared.flushBuffer()

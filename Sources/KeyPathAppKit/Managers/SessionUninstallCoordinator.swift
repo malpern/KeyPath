@@ -1,6 +1,14 @@
 import AppKit
 import KeyPathWizardCore
 
+/// What a sweep of this user's KeyPath session workers proved.
+enum SessionWorkerSweepResult: Equatable, Sendable {
+    case noneRunning
+    case stillRunning
+    /// The process table could not be read, so absence is unproven.
+    case unverified
+}
+
 /// Removes only the current user's driverless installation. No privileged cleanup.
 @MainActor
 final class SessionUninstallCoordinator: WizardUninstalling {
@@ -12,7 +20,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
     private let resume: () async -> Void
     private let trash: (URL) throws -> Void
     private let removeLoginItem: () async throws -> Void
-    private let stopSessionWorkers: () async -> Bool
+    private let stopSessionWorkers: () async -> SessionWorkerSweepResult
     private let files = FileManager.default
 
     init(
@@ -23,7 +31,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         prepare: @escaping () async -> Bool,
         resume: @escaping () async -> Void,
         removeLoginItem: @escaping () async throws -> Void = {},
-        stopSessionWorkers: @escaping () async -> Bool = { true },
+        stopSessionWorkers: @escaping () async -> SessionWorkerSweepResult = { .noneRunning },
         trash: @escaping (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
     ) {
         self.home = home
@@ -66,9 +74,15 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         // prepare stops only the worker the live app tracks. Orphans of an
         // earlier app process, or probes it abandoned, would otherwise keep
         // running from the trashed bundle.
-        guard await stopSessionWorkers() else {
+        switch await stopSessionWorkers() {
+        case .noneRunning:
+            break
+        case .stillRunning:
             await resume()
             return WizardUninstallResult(success: false, failureReason: "A KeyPath keyboard process did not stop. Nothing was removed. Restart your Mac, then try again.")
+        case .unverified:
+            await resume()
+            return WizardUninstallResult(success: false, failureReason: "KeyPath could not check which of its processes are running. Nothing was removed. Try again.")
         }
 
         let backup = home.appendingPathComponent("Downloads/KeyPath-Uninstall-Backup-\(UUID().uuidString)", isDirectory: true)
@@ -111,10 +125,16 @@ final class SessionUninstallCoordinator: WizardUninstalling {
                 throw CocoaError(.fileWriteUnknown)
             }
             // Success means nothing is left running, so check again at the end.
-            guard await stopSessionWorkers() else {
+            // No resume() here, unlike the paths above: the app and its settings
+            // are gone, so there is nothing to resume watching or starting.
+            let finalSweep = await stopSessionWorkers()
+            guard finalSweep == .noneRunning else {
+                let state = finalSweep == .stillRunning
+                    ? "a KeyPath keyboard process is still running. Restart your Mac to stop it."
+                    : "KeyPath could not check that its processes stopped. Restart your Mac to be sure."
                 return WizardUninstallResult(
                     success: false,
-                    failureReason: "KeyPath was removed, but a KeyPath keyboard process is still running. Restart your Mac to stop it. Your backup is at \(backup.path).",
+                    failureReason: "KeyPath was removed, but \(state) Your backup is at \(backup.path).",
                     logs: ["Backup saved to \(backup.path)"]
                 )
             }

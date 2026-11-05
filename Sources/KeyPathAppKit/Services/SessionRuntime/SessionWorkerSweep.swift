@@ -1,6 +1,5 @@
 import Darwin
 import Foundation
-import KeyPathCore
 
 /// One KeyPath session worker found in this user's process table.
 struct SessionWorkerProcess: Equatable, Sendable {
@@ -34,10 +33,13 @@ struct SessionWorkerProcess: Equatable, Sendable {
 
     /// Uninstall stops workers of the bundle it removes, and orphans of any
     /// bundle; a separate KeyPath install whose app is alive keeps its worker.
-    func belongsToUninstall(of app: URL, ownerAlive: (pid_t) -> Bool) -> Bool {
+    /// The owner counts as alive only if that PID is a KeyPath app running the
+    /// worker's own executable: orphans outlive owners by hours, long enough
+    /// for the PID to be reused by an unrelated process.
+    func belongsToUninstall(of app: URL, appExecutable: (pid_t) -> String?) -> Bool {
         if executable.hasPrefix(app.standardizedFileURL.path + "/") { return true }
         guard let ownerPID, ownerPID > 0 else { return true }
-        return !ownerAlive(ownerPID)
+        return appExecutable(ownerPID) != executable
     }
 }
 
@@ -51,6 +53,10 @@ struct SessionWorkerSweep: Sendable {
         /// False when the process table could not be read: absence unproven.
         var verified = true
         var succeeded: Bool { verified && remaining.isEmpty }
+        var result: SessionWorkerSweepResult {
+            guard verified else { return .unverified }
+            return remaining.isEmpty ? .noneRunning : .stillRunning
+        }
     }
 
     /// nil means the process table could not be read, never "no workers".
@@ -62,9 +68,8 @@ struct SessionWorkerSweep: Sendable {
     static func live(uninstalling app: URL) -> SessionWorkerSweep {
         SessionWorkerSweep(
             list: {
-                currentUserSessionWorkers()?.filter {
-                    $0.belongsToUninstall(of: app) { SystemStateProvider.isProcessAlive(pid: $0) }
-                }
+                guard let table = currentUserKeyPathProcesses() else { return nil }
+                return table.workers.filter { $0.belongsToUninstall(of: app) { table.apps[$0] } }
             },
             signal: { pid, number in _ = kill(pid, number) },
             sleep: { try? await Task.sleep(for: $0) }
@@ -78,7 +83,9 @@ struct SessionWorkerSweep: Sendable {
     func stopAll(probeGrace: TimeInterval = 2, runtimeGrace: TimeInterval = 10,
                  poll: Duration = .milliseconds(100)) async -> Outcome
     {
-        guard let found = list() else { return Outcome(found: [], remaining: [], verified: false) }
+        // One unreadable listing may be a process exiting mid-read; two is unknown.
+        func read() -> [SessionWorkerProcess]? { list() ?? list() }
+        guard let found = read() else { return Outcome(found: [], remaining: [], verified: false) }
         guard !found.isEmpty else { return Outcome(found: [], remaining: []) }
         let started = uptime()
         var termed: Set<pid_t> = []
@@ -99,15 +106,26 @@ struct SessionWorkerSweep: Sendable {
             }
             guard !remaining.isEmpty, elapsed < runtimeGrace else { break }
             await sleep(poll)
-            guard let listed = list() else { return Outcome(found: everFound, remaining: remaining, verified: false) }
+            guard let listed = read() else { return Outcome(found: everFound, remaining: remaining, verified: false) }
             remaining = listed
             everFound += listed.filter { worker in !everFound.contains { $0.pid == worker.pid } }
         }
         return Outcome(found: everFound, remaining: remaining)
     }
 
-    /// Reads the kernel process table directly: no pgrep, and only this UID.
+    /// This UID's KeyPath processes: session workers, and the apps (any other
+    /// KeyPath process) by PID with their executable path.
+    struct ProcessTable: Equatable, Sendable {
+        var workers: [SessionWorkerProcess] = []
+        var apps: [pid_t: String] = [:]
+    }
+
     static func currentUserSessionWorkers() -> [SessionWorkerProcess]? {
+        currentUserKeyPathProcesses()?.workers
+    }
+
+    /// Reads the kernel process table directly: no pgrep, and only this UID.
+    static func currentUserKeyPathProcesses() -> ProcessTable? {
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_UID, Int32(bitPattern: getuid())]
         var processes: [kinfo_proc] = []
         var size = 0
@@ -126,7 +144,7 @@ struct SessionWorkerSweep: Sendable {
         // One buffer for every process: kern.argmax is 1 MiB.
         guard let argumentMax = argumentMax() else { return nil }
         var buffer = [UInt8](repeating: 0, count: argumentMax)
-        var workers: [SessionWorkerProcess] = []
+        var table = ProcessTable()
         for process in processes.prefix(count) {
             let pid = process.kp_proc.p_pid
             // Only KeyPath processes pay for an argument read. A zombie has no
@@ -134,13 +152,28 @@ struct SessionWorkerSweep: Sendable {
             guard pid > 0, pid != me, Int32(process.kp_proc.p_stat) != SZOMB,
                   command(of: process) == "KeyPath" else { continue }
             guard let arguments = arguments(of: pid, buffer: &buffer) else {
-                // Gone between the two reads, or unreadable: unreadable is unknown.
-                if kill(pid, 0) == 0 || errno == EPERM { return nil }
+                // Exited or became a zombie between the two reads: it runs
+                // nothing. A live process whose arguments cannot be read is unknown.
+                if isRunning(pid) { return nil }
                 continue
             }
-            if let worker = SessionWorkerProcess.parse(pid: pid, arguments: arguments) { workers.append(worker) }
+            if let worker = SessionWorkerProcess.parse(pid: pid, arguments: arguments) {
+                table.workers.append(worker)
+            } else if let executable = arguments.first {
+                table.apps[pid] = executable
+            }
         }
-        return workers
+        return table
+    }
+
+    /// True while the PID exists and is not a zombie. Signalling a zombie
+    /// succeeds, so kill(pid, 0) cannot tell.
+    private static func isRunning(_ pid: pid_t) -> Bool {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        var process = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        guard sysctl(&mib, 4, &process, &size, nil, 0) == 0, size > 0 else { return false }
+        return Int32(process.kp_proc.p_stat) != SZOMB
     }
 
     private static func command(of process: kinfo_proc) -> String {

@@ -74,6 +74,19 @@ extension ServiceLifecycleCoordinator {
         return nil
     }
 
+    /// The worker's argv. Uninstall's sweep recognizes workers by these flags,
+    /// so a test pins them to SessionWorkerProcess.parse.
+    nonisolated static func sessionLaunchArguments(
+        capabilitiesOnly: Bool, reportPath: String, nonce: String, ownerPID: Int32, port: Int, configPath: String
+    ) -> [String] {
+        [
+            capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
+            "--session-report", reportPath, "--session-nonce", nonce,
+            "--session-owner", String(ownerPID), "--session-port", String(port),
+            "--session-config", configPath
+        ]
+    }
+
     /// Polls about two seconds for the probe's report. A timeout, a cancelled
     /// wait, or a thrown error all abandon the probe, and every one of them
     /// signals it: on 2026-11-03 a cancelled wait skipped the signal and two
@@ -812,12 +825,10 @@ extension ServiceLifecycleCoordinator {
         configuration.activates = false
         configuration.hides = true
         configuration.addsToRecentItems = false
-        configuration.arguments = [
-            capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
-            "--session-report", url.path, "--session-nonce", nonce,
-            "--session-owner", String(getpid()), "--session-port", String(KeyPathConstants.Networking.defaultTCPPort),
-            "--session-config", KeyPathConstants.Config.mainConfigPath
-        ]
+        configuration.arguments = Self.sessionLaunchArguments(
+            capabilitiesOnly: capabilitiesOnly, reportPath: url.path, nonce: nonce, ownerPID: getpid(),
+            port: KeyPathConstants.Networking.defaultTCPPort, configPath: KeyPathConstants.Config.mainConfigPath
+        )
         sessionCapsIntermediate = nil
         if !capabilitiesOnly {
             sessionCapsPaused = nil

@@ -59,3 +59,37 @@ final class SessionOwnerWatch: @unchecked Sendable {
         lock.unlock()
     }
 }
+
+/// Bounds an owner-exit retirement that the worker's run loop never runs. An
+/// orderly shutdown cancels it when it begins, so a slow Caps restore or key
+/// release is never cut off; the HID join it waits on stays unbounded.
+final class SessionShutdownFallback: @unchecked Sendable {
+    static let shared = SessionShutdownFallback()
+
+    private let lock = NSLock()
+    private var shutdownBegan = false
+    private var pending: DispatchWorkItem?
+
+    /// Arms `action` after `grace`. Returns false, arming nothing, when an
+    /// orderly shutdown already began.
+    @discardableResult
+    func arm(after grace: TimeInterval, queue: DispatchQueue = .global(qos: .utility),
+             action: @escaping @Sendable () -> Void) -> Bool
+    {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !shutdownBegan, pending == nil else { return !shutdownBegan }
+        let item = DispatchWorkItem(block: action)
+        pending = item
+        queue.asyncAfter(deadline: .now() + grace, execute: item)
+        return true
+    }
+
+    func shutdownBegins() {
+        lock.lock()
+        shutdownBegan = true
+        pending?.cancel()
+        pending = nil
+        lock.unlock()
+    }
+}

@@ -92,7 +92,7 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         var resumed = false
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
                                                       prepare: { true }, resume: { resumed = true },
-                                                      stopSessionWorkers: { false },
+                                                      stopSessionWorkers: { .stillRunning },
                                                       trash: { _ in XCTFail("Must not trash while a worker runs") })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertFalse(result.success)
@@ -102,12 +102,39 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: app.path))
     }
 
+    /// An unreadable process table is not reported as a running process.
+    func testUnverifiedSweepRemovesNothingAndSaysWhy() async {
+        var resumed = false
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: { resumed = true },
+                                                      stopSessionWorkers: { .unverified },
+                                                      trash: { _ in XCTFail("Must not trash an unverified state") })
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(resumed)
+        XCTAssertTrue(result.failureReason?.contains("could not check") == true)
+        XCTAssertFalse(result.failureReason?.contains("did not stop") == true)
+    }
+
+    /// The final sweep runs after the app and settings are gone, so a failure
+    /// there must not resume watching or starting anything.
+    func testFinalSweepFailureDoesNotResume() async {
+        var sweeps = 0
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: { XCTFail("Nothing is left to resume") },
+                                                      stopSessionWorkers: { sweeps += 1; return sweeps == 1 ? .noneRunning : .unverified },
+                                                      trash: { try FileManager.default.removeItem(at: $0) })
+        let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
+        XCTAssertFalse(result.success)
+        XCTAssertTrue(result.failureReason?.contains("could not check") == true)
+    }
+
     /// Success is reported only after a final sweep finds no worker left.
     func testWorkerFoundAfterRemovalIsNotReportedAsSuccess() async {
         var sweeps = 0
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
                                                       prepare: { true }, resume: {},
-                                                      stopSessionWorkers: { sweeps += 1; return sweeps == 1 },
+                                                      stopSessionWorkers: { sweeps += 1; return sweeps == 1 ? .noneRunning : .stillRunning },
                                                       trash: { try FileManager.default.removeItem(at: $0) })
         let result = await coordinator.performUninstall(deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false)
         XCTAssertEqual(sweeps, 2)
@@ -121,7 +148,7 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         var sweeps = 0
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
                                                       prepare: { true }, resume: { XCTFail("Unexpected failure") },
-                                                      stopSessionWorkers: { sweeps += 1; return true },
+                                                      stopSessionWorkers: { sweeps += 1; return .noneRunning },
                                                       trash: { url in
                                                           sweepsBeforeTrash = sweeps
                                                           try FileManager.default.removeItem(at: url)
