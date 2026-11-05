@@ -258,6 +258,23 @@ struct CGSAPIAvailabilityTests {
         #expect(!message.isEmpty)
     }
 
+    @Test("isAvailable reflects whether every function pointer resolved")
+    func isAvailableMatchesResolvedFunctions() {
+        CGSPrivateAPI.resetCache()
+        let (available, missing) = CGSPrivateAPI.checkAvailabilityDetails()
+        #expect(CGSPrivateAPI.isAvailable == available)
+        #expect((CGSPrivateAPI.functions != nil) == available)
+        #expect(missing.allSatisfy { CGSFunctions.symbolNames.contains($0) })
+    }
+
+    @Test("resolved CGSMainConnectionID is callable")
+    func resolvedMainConnectionIDIsCallable() {
+        // Skips silently on a macOS that dropped the symbol; that is the
+        // degraded mode this indirection exists for.
+        guard let functions = CGSPrivateAPI.functions else { return }
+        #expect(functions.mainConnectionID() != 0)
+    }
+
     @Test("SpaceManager.isAvailable matches CGSPrivateAPI.isAvailable")
     @MainActor
     func spaceManagerAvailabilityMatches() {

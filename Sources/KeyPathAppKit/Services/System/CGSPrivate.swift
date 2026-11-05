@@ -17,56 +17,90 @@ import KeyPathCore
 // The notarization process does not block private API usage (only App Store review does).
 //
 // ## Availability Detection
-// Use `CGSPrivateAPI.isAvailable` to check if the APIs are accessible before use.
+// Every symbol is resolved with `dlsym` (see `CGSFunctions`), so the app has no
+// link-time dependency on them. `CGSPrivateAPI.isAvailable` reports whether all resolved.
 
 // MARK: - Type Aliases
 
 public typealias CGSConnectionID = UInt32
 public typealias CGSSpaceID = UInt64
 
-// MARK: - CGS Function Declarations
+// MARK: - CGS Function Pointers
 
-/// Get the main connection ID for the current process
-@_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> CGSConnectionID
+// These symbols are resolved at runtime with `dlsym`, never linked directly.
+// A direct declaration (`@_silgen_name`) makes the linker emit a strong
+// undefined import, and dyld then refuses to launch the app if a future
+// macOS removes any one of them. Resolving them here means a missing symbol
+// only disables Space management (see `CGSPrivateAPI.isAvailable`).
 
-/// Get the currently active space on the specified display
-@_silgen_name("CGSManagedDisplayGetCurrentSpace")
-func CGSManagedDisplayGetCurrentSpace(_ connection: CGSConnectionID, _ displayUUID: CFString) -> CGSSpaceID
+/// Typed function pointers for the private CGS / AX calls KeyPath uses.
+/// Exists only when every symbol resolved.
+struct CGSFunctions {
+    typealias MainConnectionID = @convention(c) () -> CGSConnectionID
+    typealias ManagedDisplayGetCurrentSpace = @convention(c) (CGSConnectionID, CFString) -> CGSSpaceID
+    /// Follows the Copy rule: the returned array is +1.
+    typealias CopyManagedDisplaySpaces = @convention(c) (CGSConnectionID) -> Unmanaged<CFArray>?
+    typealias WindowsSpaces = @convention(c) (CGSConnectionID, CFArray, CFArray) -> Void
+    /// Follows the Copy rule: the returned array is +1.
+    typealias CopySpacesForWindows = @convention(c) (CGSConnectionID, Int, CFArray) -> Unmanaged<CFArray>?
+    typealias AXUIElementGetWindow = @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> AXError
 
-/// Copy information about all managed displays and their spaces
-/// Returns an array of dictionaries with display and space information
-@_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ connection: CGSConnectionID) -> CFArray
+    /// Get the main connection ID for the current process
+    let mainConnectionID: MainConnectionID
+    /// Get the currently active space on the specified display
+    let managedDisplayGetCurrentSpace: ManagedDisplayGetCurrentSpace
+    /// Copy information about all managed displays and their spaces
+    let copyManagedDisplaySpaces: CopyManagedDisplaySpaces
+    /// Add windows to specified spaces
+    let addWindowsToSpaces: WindowsSpaces
+    /// Remove windows from specified spaces
+    let removeWindowsFromSpaces: WindowsSpaces
+    /// Get the spaces a set of windows are on
+    let copySpacesForWindows: CopySpacesForWindows
+    /// Get the CGWindowID for an AXUIElement window. Bridges the Accessibility
+    /// API to CGS, allowing direct lookup instead of enumerating every window
+    /// via CGWindowListCopyWindowInfo.
+    let axUIElementGetWindow: AXUIElementGetWindow
 
-/// Add windows to specified spaces
-@_silgen_name("CGSAddWindowsToSpaces")
-func CGSAddWindowsToSpaces(_ connection: CGSConnectionID, _ windowIDs: CFArray, _ spaceIDs: CFArray)
+    static let symbolNames = [
+        "CGSMainConnectionID",
+        "CGSCopyManagedDisplaySpaces",
+        "CGSManagedDisplayGetCurrentSpace",
+        "CGSAddWindowsToSpaces",
+        "CGSRemoveWindowsFromSpaces",
+        "CGSCopySpacesForWindows",
+        "_AXUIElementGetWindow"
+    ]
 
-/// Remove windows from specified spaces
-@_silgen_name("CGSRemoveWindowsFromSpaces")
-func CGSRemoveWindowsFromSpaces(_ connection: CGSConnectionID, _ windowIDs: CFArray, _ spaceIDs: CFArray)
+    /// Look a symbol up in the images already loaded into the process
+    /// (`RTLD_DEFAULT`). CoreGraphics and ApplicationServices are loaded by AppKit.
+    static func lookup(_ name: String) -> UnsafeMutableRawPointer? {
+        dlsym(UnsafeMutableRawPointer(bitPattern: -2), name)
+    }
 
-/// Get the space ID for windows
-@_silgen_name("CGSCopySpacesForWindows")
-func CGSCopySpacesForWindows(_ connection: CGSConnectionID, _ mask: Int, _ windowIDs: CFArray) -> CFArray
+    /// Resolve every symbol, or return nil plus the names that are missing.
+    static func resolve() -> (functions: CGSFunctions?, missing: [String]) {
+        let missing = symbolNames.filter { lookup($0) == nil }
+        guard missing.isEmpty else { return (nil, missing) }
 
-// MARK: - AXUIElement Private Extensions
-
-/// Get the CGWindowID for an AXUIElement window.
-/// This bridges the Accessibility API world to the CoreGraphics Services world,
-/// allowing direct lookup instead of enumerating all windows via CGWindowListCopyWindowInfo.
-///
-/// ## Usage
-/// ```swift
-/// let axWindow: AXUIElement = // ... from AXUIElementCopyAttributeValue
-/// var windowID: CGWindowID = 0
-/// if _AXUIElementGetWindow(axWindow, &windowID) == .success {
-///     SpaceManager.shared.moveWindow(windowID, to: targetSpace)
-/// }
-/// ```
-@_silgen_name("_AXUIElementGetWindow")
-func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: inout CGWindowID) -> AXError
+        func load<T>(_ name: String, as _: T.Type) -> T {
+            // Presence was checked above.
+            unsafeBitCast(lookup(name)!, to: T.self)
+        }
+        let functions = CGSFunctions(
+            mainConnectionID: load("CGSMainConnectionID", as: MainConnectionID.self),
+            managedDisplayGetCurrentSpace: load(
+                "CGSManagedDisplayGetCurrentSpace", as: ManagedDisplayGetCurrentSpace.self
+            ),
+            copyManagedDisplaySpaces: load("CGSCopyManagedDisplaySpaces", as: CopyManagedDisplaySpaces.self),
+            addWindowsToSpaces: load("CGSAddWindowsToSpaces", as: WindowsSpaces.self),
+            removeWindowsFromSpaces: load("CGSRemoveWindowsFromSpaces", as: WindowsSpaces.self),
+            copySpacesForWindows: load("CGSCopySpacesForWindows", as: CopySpacesForWindows.self),
+            axUIElementGetWindow: load("_AXUIElementGetWindow", as: AXUIElementGetWindow.self)
+        )
+        return (functions, [])
+    }
+}
 
 // MARK: - Space Mask Constants
 
@@ -78,62 +112,51 @@ let kCGSAllSpacesMask: Int = 0x7
 /// Checks availability of private CGS APIs at runtime.
 /// Use this to gracefully degrade if Apple changes or removes these APIs.
 public enum CGSPrivateAPI {
-    /// Required symbol names for Space management
-    private static let requiredSymbols = [
-        "CGSMainConnectionID",
-        "CGSCopyManagedDisplaySpaces",
-        "CGSManagedDisplayGetCurrentSpace",
-        "CGSAddWindowsToSpaces",
-        "CGSRemoveWindowsFromSpaces",
-        "CGSCopySpacesForWindows",
-        "_AXUIElementGetWindow"
-    ]
+    /// Cached resolution: nil until checked; `.some(nil)` when a symbol is missing.
+    private nonisolated(unsafe) static var cachedFunctions: CGSFunctions??
 
-    /// Cache the availability check result
-    nonisolated(unsafe) static var _isAvailable: Bool?
-
-    /// Whether all required CGS APIs are available.
-    /// This checks for symbol presence using dlsym at runtime.
-    public static var isAvailable: Bool {
-        if let cached = _isAvailable {
+    /// The resolved function pointers, or nil when any symbol is missing.
+    /// Every call into the private APIs goes through this, so a missing symbol
+    /// can never be called.
+    static var functions: CGSFunctions? {
+        if let cached = cachedFunctions {
             return cached
         }
-
-        let result = checkAvailability()
-        _isAvailable = result
-        return result
-    }
-
-    /// Reset the availability cache to force a re-check.
-    /// Used by retry logic when APIs may become available after startup.
-    public static func resetCache() {
-        _isAvailable = nil
-    }
-
-    /// Detailed availability check with per-symbol results
-    public static func checkAvailabilityDetails() -> (available: Bool, missing: [String]) {
-        var missing: [String] = []
-
-        for symbol in requiredSymbols {
-            if dlsym(UnsafeMutableRawPointer(bitPattern: -2), symbol) == nil {
-                missing.append(symbol)
-            }
-        }
-
-        return (missing.isEmpty, missing)
-    }
-
-    private static func checkAvailability() -> Bool {
-        let (available, missing) = checkAvailabilityDetails()
-
-        if !available {
+        let (functions, missing) = CGSFunctions.resolve()
+        if functions == nil {
             AppLogger.shared.log("⚠️ [CGSPrivateAPI] Missing symbols: \(missing.joined(separator: ", "))")
             AppLogger.shared.log("⚠️ [CGSPrivateAPI] Space movement features will be disabled")
         } else {
             AppLogger.shared.log("✅ [CGSPrivateAPI] All required symbols available")
         }
+        cachedFunctions = .some(functions)
+        return functions
+    }
 
-        return available
+    /// Whether all required CGS APIs resolved to callable function pointers.
+    public static var isAvailable: Bool {
+        functions != nil
+    }
+
+    /// Reset the availability cache to force a re-check.
+    /// Used by retry logic when APIs may become available after startup.
+    public static func resetCache() {
+        cachedFunctions = nil
+    }
+
+    /// Detailed availability check with per-symbol results
+    public static func checkAvailabilityDetails() -> (available: Bool, missing: [String]) {
+        let missing = CGSFunctions.symbolNames.filter { CGSFunctions.lookup($0) == nil }
+        return (missing.isEmpty, missing)
+    }
+
+    /// The CGWindowID for an Accessibility window element, or nil when the
+    /// private API is unavailable or the call fails.
+    static func windowID(for element: AXUIElement) -> CGWindowID? {
+        guard let functions else { return nil }
+        var windowID: CGWindowID = 0
+        guard functions.axUIElementGetWindow(element, &windowID) == .success else { return nil }
+        return windowID
     }
 
     /// Human-readable status for UI display
@@ -200,8 +223,8 @@ public final class SpaceManager {
 
     private init() {
         // Only initialize if APIs are available
-        if CGSPrivateAPI.isAvailable {
-            connectionID = CGSMainConnectionID()
+        if let functions = CGSPrivateAPI.functions {
+            connectionID = functions.mainConnectionID()
             refreshSpaces()
         } else {
             initializationDeferred = true
@@ -222,10 +245,8 @@ public final class SpaceManager {
 
         // Force re-check of API availability
         CGSPrivateAPI.resetCache()
-        let nowAvailable = CGSPrivateAPI.isAvailable
-
-        if nowAvailable {
-            connectionID = CGSMainConnectionID()
+        if let functions = CGSPrivateAPI.functions {
+            connectionID = functions.mainConnectionID()
             refreshSpaces()
             initializationDeferred = false
             AppLogger.shared.log("✅ [SpaceManager] Retry successful - CGS APIs now available")
@@ -240,8 +261,10 @@ public final class SpaceManager {
 
     /// Refresh the list of spaces from the system
     public func refreshSpaces() {
-        guard isAvailable else { return }
-        guard let displaysInfo = CGSCopyManagedDisplaySpaces(connectionID) as? [[String: Any]] else {
+        guard let functions = CGSPrivateAPI.functions else { return }
+        guard let displaysInfo = functions.copyManagedDisplaySpaces(connectionID)?
+            .takeRetainedValue() as? [[String: Any]]
+        else {
             AppLogger.shared.log("⚠️ [SpaceManager] Failed to get display spaces")
             return
         }
@@ -266,7 +289,7 @@ public final class SpaceManager {
 
         // Get current space
         if let displayUUID = mainDisplay["Display Identifier"] as? String {
-            currentSpaceID = CGSManagedDisplayGetCurrentSpace(connectionID, displayUUID as CFString)
+            currentSpaceID = functions.managedDisplayGetCurrentSpace(connectionID, displayUUID as CFString)
         }
 
         AppLogger.shared.log("🪟 [SpaceManager] Refreshed: \(spaceIDs.count) spaces, current: \(currentSpaceID)")
@@ -317,25 +340,26 @@ public final class SpaceManager {
     /// - Returns: true if successful
     @discardableResult
     public func moveWindow(_ windowID: CGWindowID, to spaceID: CGSSpaceID) -> Bool {
-        guard isAvailable else {
+        guard let functions = CGSPrivateAPI.functions else {
             AppLogger.shared.log("⚠️ [SpaceManager] moveWindow: CGS APIs unavailable")
             return false
         }
 
         // Get the window's current space
         let windowIDs = [windowID] as CFArray
-        guard let currentSpaces = CGSCopySpacesForWindows(connectionID, kCGSAllSpacesMask, windowIDs) as? [CGSSpaceID],
-              let currentSpace = currentSpaces.first
+        guard let currentSpaces = functions.copySpacesForWindows(connectionID, kCGSAllSpacesMask, windowIDs)?
+            .takeRetainedValue() as? [CGSSpaceID],
+            let currentSpace = currentSpaces.first
         else {
             AppLogger.shared.log("⚠️ [SpaceManager] Could not get current space for window \(windowID)")
             return false
         }
 
         // Remove from current space
-        CGSRemoveWindowsFromSpaces(connectionID, windowIDs, [currentSpace] as CFArray)
+        functions.removeWindowsFromSpaces(connectionID, windowIDs, [currentSpace] as CFArray)
 
         // Add to target space
-        CGSAddWindowsToSpaces(connectionID, windowIDs, [spaceID] as CFArray)
+        functions.addWindowsToSpaces(connectionID, windowIDs, [spaceID] as CFArray)
 
         AppLogger.shared.log("✅ [SpaceManager] Moved window \(windowID) from space \(currentSpace) to \(spaceID)")
         return true
