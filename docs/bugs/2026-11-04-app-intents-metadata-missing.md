@@ -1,7 +1,10 @@
 # App Intents metadata is never generated for the shipped app
 
-Status: open. Investigated 2026-11-04 (finding 5 of the 2026-10-31
-architecture review). No build script has been changed yet.
+Status: fix in the build, discovery unverified. Investigated 2026-11-04
+(finding 5 of the 2026-10-31 architecture review). Option A below is
+implemented as `Scripts/generate-app-intents-metadata.sh`, called from
+`Scripts/build-and-sign.sh`. Whether Shortcuts and Siri then find the intents
+has not been checked on a real install yet.
 
 ## Summary
 
@@ -14,8 +17,7 @@ writes that bundle with `appintentsmetadataprocessor` as a build step. KeyPath
 is built with `swift build` and its bundle is assembled by hand in
 `Scripts/build-and-sign.sh`, and nothing in that path runs the processor.
 
-The fix is small and has been run by hand (below). It touches the release
-build script, so it needs a decision before it lands.
+The fix generates the bundle during the release build (option A below).
 
 ## Evidence
 
@@ -48,7 +50,8 @@ next to the objects:
 `build-and-sign.sh` passes `--build-system` only when `KEYPATH_BUILD_SYSTEM`
 is set to something other than `native`. Left unset, `swift build` uses its
 own default, which on Xcode 27 is Swift Build, so the default release build
-should produce const values too. That was checked for a debug build only. The
+should produce const values too. Checked for both a debug and a release
+build. The
 deprecated `--build-system native` may not write them; check before relying
 on it.
 
@@ -143,25 +146,59 @@ means widening access control. Not worth it unless A and B both fail.
 Siri/Shortcuts promises out of `docs/guides/app-intents.md` so the guide
 matches what ships.
 
-## Recommendation
+## What was implemented
 
-Do A in `Scripts/build-and-sign.sh`, then verify on a vm-lab desktop guest with
-a release-candidate build:
+Option A, approved by Micah on 2026-11-04.
+`Scripts/generate-app-intents-metadata.sh <resources-dir> [Release|Debug]`
+runs the invocation above with the bundle ID and deployment target read from
+`Sources/KeyPathApp/Info.plist`. `build-and-sign.sh` calls it after the
+resources are copied and before codesign, so `Metadata.appintents` is sealed
+with the rest of `Contents/Resources`. The script fails the build when:
 
-1. `ls KeyPath.app/Contents/Resources/Metadata.appintents` after the build;
+- there are no Swift Build intermediates (a `--build-system native` build);
+- no const values are found. A release (whole-module) build writes one
+  `KeyPathAppKit-primary.swiftconstvalues`; a debug build writes one file per
+  source. The script takes per-source files only for current sources, so one
+  left by a deleted source is ignored, and when both layouts are present it
+  uses whichever was written last;
+- the processor fails or writes no `extract.actionsdata` (it skips writing
+  output when it finds no intents);
+- the extract does not match the sources. `Scripts/check-app-intents-metadata.py`
+  finds every type in `Sources/KeyPathAppKit` declared as conforming to
+  `AppIntent`, `AppEntity`, `AppEnum` or `AppShortcutsProvider`, and requires
+  each in the extract. It reads declaration lines (attributes, generics,
+  extensions and protocols that refine `AppIntent`, such as `OpenIntent`,
+  are handled); it is a drift guard, not a Swift parser, so a conformance it
+  cannot see is not required. Its tests are in
+  `Scripts/tests/test_check_app_intents_metadata.py`
+  (`python3 -m unittest Scripts.tests.test_check_app_intents_metadata`). No CI
+  job runs `Scripts/tests/` yet, so they run only by hand.
+
+`Scripts/verify-installed-app.sh` runs the same check on an installed app,
+after the trust checks, whenever it requires notarization (override with
+`REQUIRE_APP_INTENTS_METADATA`). The expected types come from the checkout
+it runs from, so verify an install built from the same tree. And `Scripts/release-doctor.sh` checks that
+the selected Xcode has the processor.
+
+Each of those paths was run against a fake scratch directory, and the success
+path against real Debug and Release builds.
+
+`quick-deploy.sh` and `ui-deploy.sh` do not run it, so development deploys
+still have no intents metadata.
+
+## Still to verify
+
+On a vm-lab desktop guest (needs the Mac mini, offline for service as of
+2026-11-04), with a release-candidate build:
+
+1. `ls KeyPath.app/Contents/Resources/Metadata.appintents`;
 2. install, launch once, and check that Shortcuts lists the three KeyPath
-   actions, the Siri phrases resolve, and the "Control KeyPath Service" action
-   offers Start / Stop / Restart;
-3. if nothing appears, try B before concluding.
-
-The vm-lab guests run on the Mac mini, which is offline for service as of
-2026-11-04, so step 2 waits for the mini.
+   actions, the Siri phrases resolve, and "Control KeyPath Service" offers
+   Start / Stop / Restart;
+3. if nothing appears, try option B before concluding. Keep the status notes
+   in `guides/siri-and-shortcuts.md` (user-facing, ships as offline help) and
+   `docs/guides/app-intents.md` until it works.
 
 `--xcode-version` takes the build string (`27A266a`): Xcode's xcspec passes
 `$(XCODE_PRODUCT_BUILD_VERSION)`, and the metadata records it as
 `toolsVersion`.
-
-Until that is verified, `docs/guides/app-intents.md` overstates what works; it
-now carries a status note pointing here.
-Changing the release script affects signing and notarization, so it is held
-for an explicit go-ahead.
