@@ -191,7 +191,10 @@ directly and asks the app over the existing runtime-control socket, as
   place. A uid check alone does not stop 3. The PID check is weaker than the
   signature check: it holds only while the launching app is alive (its PID
   cannot be reused until then, so the worker must exit when the app does), and
-  it trusts whatever code runs in that PID. Today the worker notices the app
+  it trusts whatever code runs in that PID. `LOCAL_PEERPID` also reports the
+  process that connected, so a connection the app opens and then hands to a
+  forked or exec'd child still passes. The phase 4 signature check is the real
+  fix for both. Today the worker notices the app
   has gone by polling `isProcessAlive(ownerPID)` in its 5 ms tick
   (`SessionRuntimeWorker.tick`), and a dead PID can be reused inside that
   window. Phase 1 therefore has the server re-check the owner's liveness on
