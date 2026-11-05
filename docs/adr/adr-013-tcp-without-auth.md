@@ -22,12 +22,12 @@ Use TCP without authentication for localhost IPC.
 
 - Kanata 1.9.0 TCP server does not support authentication
 - Connection is localhost-only (127.0.0.1)
-- Same security model as other local IPC (Unix sockets, etc.)
+- Same security model as other local IPC (Unix sockets, etc.) *(Wrong: loopback TCP has no peer-uid check and is reachable from other users and sandboxed apps. See ADR-046.)*
 
 ## Security Considerations
 
 - Any local process can send commands to Kanata
-- This is acceptable for keyboard remapping (low security impact)
+- This is acceptable for keyboard remapping (low security impact) *(No longer true for the session runtime: the port exposes a keystroke stream and input injection. See ADR-046.)*
 - If Kanata adds auth in future versions, we should adopt it
 
 ## Implementation

@@ -93,10 +93,16 @@ on its behalf.
    It can already do a lot as the user, but not read global keystrokes or post
    input without its own grants. This port gives it both.
 4. **A process that binds `127.0.0.1:37001` before the worker does** (any user,
-   for example at login or during a restart). The worker's
-   `TcpListener::bind(...).expect` then panics, so the runtime fails to start,
-   and KeyPath's own clients connect to the squatter instead. KeyPath does not
-   check who owns the listener; only `verify-installed-app.sh` does.
+   for example at login or during a restart). The worker uses the bridge's
+   passthru entry point, which has no bind probe, so the fork's
+   `TcpListener::bind(...).expect` panics inside an `extern "C"` function and
+   aborts the worker. (`keypath_kanata_bridge_run_runtime` does probe and
+   return an error, but the probe drops its listener before the server binds,
+   so it is a check-then-use race.) KeyPath's own clients then connect to the
+   squatter. KeyPath does not check who owns the listener; only
+   `verify-installed-app.sh` does. The retired stack's
+   `detectKanataTCPPortConflict` matched on a process name containing
+   "kanata", which a squatter can avoid.
 
 Web pages are out of scope: browsers speak HTTP or WebSocket to that port, the
 first line is not valid JSON, and the server disconnects.
@@ -205,13 +211,15 @@ Phase 4 can follow in a point release.
    - Check the peer before the connection joins the broadcast set: uid via
      `getpeereid`, and PID via `LOCAL_PEERPID` when the bridge supplies an
      expected PID.
-   - Return an error instead of panicking when the listener cannot be created.
+   - Return an error instead of panicking when the listener cannot be created,
+     by binding once and keeping that listener, not by probing first.
    - Option A: drop `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` from the
      session build (feature flag), cap connections, and put a write timeout on
      notification sockets so a stalled client is dropped rather than blocking
      the loop.
    - Rust tests for the peer check and the removed commands.
-   Estimate: roughly 300 to 500 lines with tests.
+   Estimate: roughly 300 to 500 lines of new code and tests, plus rewriting
+   the bridge's existing passthru TCP test (`Rust/KeyPathKanataHostBridge/src/lib.rs`).
 2. **Bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
@@ -230,13 +238,19 @@ Phase 4 can follow in a point release.
    KeyPath's designated requirement. Debug builds signed with another identity
    need an explicit, logged development override.
 5. **Docs.** Mark ADR-013 superseded, rewrite the TCP section of
-   `guides/privacy.md` (it says the risk is limited to remapping keys; it also
-   omits keystroke events) and publish it, update
+   `guides/privacy.md` (it says key events cross the connection, but not that
+   any other local process receives them, and calls the risk low) and publish it, update
    `docs/architecture/overview.md` and `cli-runtime-control.md`, and fix the
-   `KanataTCPClient` security note.
+   `KanataTCPClient` security note. Withdraw or redesign
+   `docs/architecture/context-integration-architecture.md`, whose unimplemented
+   design has tmux, vim and shell hooks send `ContextUpdate` JSON to
+   `nc 127.0.0.1 37001`.
 
 **Compatibility:** anyone scripting `localhost:37001` directly (for example
-from Hammerspoon) loses that. The supported routes are `keypath://` URLs and
+from Hammerspoon) loses that. So does the context-integration design above:
+third-party processes feeding context to the engine is exactly what the peer
+check forbids, so if it is revived it goes through the app (a `keypath://` URL
+or runtime-control request), which can validate what it forwards. The supported routes are `keypath://` URLs and
 `keypath-cli`. Call it out in release notes.
 
 **Fork divergence:** this widens the difference from upstream kanata's TCP
