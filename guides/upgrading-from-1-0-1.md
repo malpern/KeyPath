@@ -41,6 +41,10 @@ If you cancel the password prompt, nothing is removed. Choose
 If KeyPath says the service was removed but it still detects it, restart your
 Mac and open KeyPath again.
 
+**System Settings → General → Login Items** may still list an old KeyPath
+background item afterwards. It is a leftover record from 1.0.1. It no longer
+runs anything, and you can ignore it.
+
 ## The Karabiner virtual keyboard driver
 
 KeyPath does not remove the Karabiner driver. Karabiner-Elements uses the same

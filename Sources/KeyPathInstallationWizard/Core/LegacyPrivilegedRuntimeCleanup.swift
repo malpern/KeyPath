@@ -254,14 +254,21 @@ public struct LegacyPrivilegedRuntimeCleanup {
         }
         let positive = pids.filter { $0 > 0 }
         if !positive.isEmpty {
-            // Re-check the command line as root before signalling, so a PID that
-            // was recycled since the read-only probe is never killed.
+            // Re-check owner and command line as root before every signal, so a
+            // PID recycled since the read-only probe is never killed. TERM first;
+            // whatever is still a root KeyPath process 2s later gets KILL.
+            let list = positive.map(String.init).joined(separator: " ")
             commands.append("""
-            for kp_pid in \(positive.map(String.init).joined(separator: " ")); do
-              if [ "$(/bin/ps -o uid= -p "$kp_pid" 2>/dev/null | /usr/bin/tr -d ' ')" = "0" ] \\
-                && /bin/ps -o command= -p "$kp_pid" 2>/dev/null | /usr/bin/grep -qE '\(LegacyPrivilegedRuntime.processPattern)'; then
-                /bin/kill -TERM "$kp_pid" 2>/dev/null || true
-              fi
+            kp_is_legacy() {
+              [ "$(/bin/ps -o uid= -p "$1" 2>/dev/null | /usr/bin/tr -d ' ')" = "0" ] \\
+                && /bin/ps -o command= -p "$1" 2>/dev/null | /usr/bin/grep -qE '\(LegacyPrivilegedRuntime.processPattern)'
+            }
+            for kp_pid in \(list); do
+              if kp_is_legacy "$kp_pid"; then /bin/kill -TERM "$kp_pid" 2>/dev/null || true; fi
+            done
+            /bin/sleep 2
+            for kp_pid in \(list); do
+              if kp_is_legacy "$kp_pid"; then /bin/kill -KILL "$kp_pid" 2>/dev/null || true; fi
             done
             """)
         }

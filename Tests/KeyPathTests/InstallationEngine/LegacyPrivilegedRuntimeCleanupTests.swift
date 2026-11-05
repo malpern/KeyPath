@@ -75,10 +75,13 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         for file in LegacyPrivilegedRuntime.systemFiles {
             XCTAssertTrue(script.contains("/bin/rm -f '\(file)'"), file)
         }
+        XCTAssertTrue(script.contains("kp_timeout() {"),
+                      "Every bootout is wrapped in kp_timeout, so the script must define it")
         XCTAssertTrue(script.contains("for kp_pid in 4242;"))
-        XCTAssertTrue(script.contains("/bin/ps -o command= -p \"$kp_pid\""),
+        XCTAssertTrue(script.contains("/bin/kill -KILL"), "A root process that ignores TERM must still be stopped")
+        XCTAssertTrue(script.contains("/bin/ps -o command= -p \"$1\""),
                       "The PID must be re-checked as root before it is signalled")
-        XCTAssertTrue(script.contains("/bin/ps -o uid= -p \"$kp_pid\""),
+        XCTAssertTrue(script.contains("/bin/ps -o uid= -p \"$1\""),
                       "Only a root-owned PID may be signalled")
     }
 
