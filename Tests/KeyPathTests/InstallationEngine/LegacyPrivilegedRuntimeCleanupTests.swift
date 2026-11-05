@@ -223,7 +223,8 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
 
     /// ADR-040: ground the real primitives once. launchd (PID 1) is root and
     /// alive even though probing it returns EPERM; this test process is not root.
-    func testRootProcessFilterAgainstRealProcesses() {
+    func testRootProcessFilterAgainstRealProcesses() throws {
+        try XCTSkipIf(getuid() == 0, "Run as a normal user: as root, PID 1 is signalable")
         XCTAssertEqual(LegacyPrivilegedRuntimeCleanup.processOwnerUID(1), 0)
         XCTAssertEqual(LegacyPrivilegedRuntimeCleanup.processOwnerUID(getpid()), getuid())
         XCTAssertFalse(SystemStateProvider.canSignalProcess(pid: 1), "PID 1 must be the EPERM case")
