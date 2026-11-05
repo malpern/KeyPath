@@ -62,41 +62,54 @@ struct CGSFunctions {
     /// via CGWindowListCopyWindowInfo.
     let axUIElementGetWindow: AXUIElementGetWindow
 
-    static let symbolNames = [
-        "CGSMainConnectionID",
-        "CGSCopyManagedDisplaySpaces",
-        "CGSManagedDisplayGetCurrentSpace",
-        "CGSAddWindowsToSpaces",
-        "CGSRemoveWindowsFromSpaces",
-        "CGSCopySpacesForWindows",
-        "_AXUIElementGetWindow"
-    ]
-
     /// Look a symbol up in the images already loaded into the process
     /// (`RTLD_DEFAULT`). CoreGraphics and ApplicationServices are loaded by AppKit.
-    static func lookup(_ name: String) -> UnsafeMutableRawPointer? {
+    static func dlsymLookup(_ name: String) -> UnsafeMutableRawPointer? {
         dlsym(UnsafeMutableRawPointer(bitPattern: -2), name)
     }
 
-    /// Resolve every symbol, or return nil plus the names that are missing.
-    static func resolve() -> (functions: CGSFunctions?, missing: [String]) {
-        let missing = symbolNames.filter { lookup($0) == nil }
-        guard missing.isEmpty else { return (nil, missing) }
+    /// Resolve every symbol. Returns nil plus the names that did not resolve
+    /// when any is missing; never traps. `lookup` is injectable for tests.
+    static func resolve(
+        lookup: (String) -> UnsafeMutableRawPointer? = dlsymLookup
+    ) -> (functions: CGSFunctions?, missing: [String]) {
+        var missing: [String] = []
+        func load<T>(_ name: String, as _: T.Type) -> T? {
+            guard let pointer = lookup(name) else {
+                missing.append(name)
+                return nil
+            }
+            return unsafeBitCast(pointer, to: T.self)
+        }
 
-        func load<T>(_ name: String, as _: T.Type) -> T {
-            // Presence was checked above.
-            unsafeBitCast(lookup(name)!, to: T.self)
+        let mainConnectionID = load("CGSMainConnectionID", as: MainConnectionID.self)
+        let copyManagedDisplaySpaces = load("CGSCopyManagedDisplaySpaces", as: CopyManagedDisplaySpaces.self)
+        let managedDisplayGetCurrentSpace = load(
+            "CGSManagedDisplayGetCurrentSpace", as: ManagedDisplayGetCurrentSpace.self
+        )
+        let addWindowsToSpaces = load("CGSAddWindowsToSpaces", as: WindowsSpaces.self)
+        let removeWindowsFromSpaces = load("CGSRemoveWindowsFromSpaces", as: WindowsSpaces.self)
+        let copySpacesForWindows = load("CGSCopySpacesForWindows", as: CopySpacesForWindows.self)
+        let axUIElementGetWindow = load("_AXUIElementGetWindow", as: AXUIElementGetWindow.self)
+
+        guard let mainConnectionID,
+              let copyManagedDisplaySpaces,
+              let managedDisplayGetCurrentSpace,
+              let addWindowsToSpaces,
+              let removeWindowsFromSpaces,
+              let copySpacesForWindows,
+              let axUIElementGetWindow
+        else {
+            return (nil, missing)
         }
         let functions = CGSFunctions(
-            mainConnectionID: load("CGSMainConnectionID", as: MainConnectionID.self),
-            managedDisplayGetCurrentSpace: load(
-                "CGSManagedDisplayGetCurrentSpace", as: ManagedDisplayGetCurrentSpace.self
-            ),
-            copyManagedDisplaySpaces: load("CGSCopyManagedDisplaySpaces", as: CopyManagedDisplaySpaces.self),
-            addWindowsToSpaces: load("CGSAddWindowsToSpaces", as: WindowsSpaces.self),
-            removeWindowsFromSpaces: load("CGSRemoveWindowsFromSpaces", as: WindowsSpaces.self),
-            copySpacesForWindows: load("CGSCopySpacesForWindows", as: CopySpacesForWindows.self),
-            axUIElementGetWindow: load("_AXUIElementGetWindow", as: AXUIElementGetWindow.self)
+            mainConnectionID: mainConnectionID,
+            managedDisplayGetCurrentSpace: managedDisplayGetCurrentSpace,
+            copyManagedDisplaySpaces: copyManagedDisplaySpaces,
+            addWindowsToSpaces: addWindowsToSpaces,
+            removeWindowsFromSpaces: removeWindowsFromSpaces,
+            copySpacesForWindows: copySpacesForWindows,
+            axUIElementGetWindow: axUIElementGetWindow
         )
         return (functions, [])
     }
@@ -113,12 +126,17 @@ let kCGSAllSpacesMask: Int = 0x7
 /// Use this to gracefully degrade if Apple changes or removes these APIs.
 public enum CGSPrivateAPI {
     /// Cached resolution: nil until checked; `.some(nil)` when a symbol is missing.
+    /// Guarded by `lock`: the value holds function pointers, so a torn read
+    /// would be a call through garbage.
     private nonisolated(unsafe) static var cachedFunctions: CGSFunctions??
+    private static let lock = NSLock()
 
     /// The resolved function pointers, or nil when any symbol is missing.
     /// Every call into the private APIs goes through this, so a missing symbol
     /// can never be called.
     static var functions: CGSFunctions? {
+        lock.lock()
+        defer { lock.unlock() }
         if let cached = cachedFunctions {
             return cached
         }
@@ -141,22 +159,15 @@ public enum CGSPrivateAPI {
     /// Reset the availability cache to force a re-check.
     /// Used by retry logic when APIs may become available after startup.
     public static func resetCache() {
+        lock.lock()
+        defer { lock.unlock() }
         cachedFunctions = nil
     }
 
     /// Detailed availability check with per-symbol results
     public static func checkAvailabilityDetails() -> (available: Bool, missing: [String]) {
-        let missing = CGSFunctions.symbolNames.filter { CGSFunctions.lookup($0) == nil }
-        return (missing.isEmpty, missing)
-    }
-
-    /// The CGWindowID for an Accessibility window element, or nil when the
-    /// private API is unavailable or the call fails.
-    static func windowID(for element: AXUIElement) -> CGWindowID? {
-        guard let functions else { return nil }
-        var windowID: CGWindowID = 0
-        guard functions.axUIElementGetWindow(element, &windowID) == .success else { return nil }
-        return windowID
+        let (functions, missing) = CGSFunctions.resolve()
+        return (functions != nil, missing)
     }
 
     /// Human-readable status for UI display
