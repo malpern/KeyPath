@@ -58,7 +58,8 @@ final class CompletionFlag: @unchecked Sendable {
 ///
 /// **SECURITY NOTE (ADR-013, under review in ADR-046 / #1354):**
 /// The engine's TCP server has no authentication, and loopback TCP is not
-/// scoped to a user or to the App Sandbox. Any local process, including other
+/// scoped to a user or to the App Sandbox. From reading the source (not yet
+/// confirmed on a live install), any local process, including other
 /// users' processes and sandboxed apps with the network-client entitlement,
 /// can connect to the engine port (default 37001) and:
 /// - receive every `KeyInput` event (a keystroke stream) and the config text
