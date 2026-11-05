@@ -131,7 +131,23 @@ struct StatusSettingsTabView: View {
                         // Action button when there are problems. Suppressed when the
                         // user has intentionally turned the service off — nothing is
                         // broken, so there's nothing to fix.
-                        if !isSystemHealthy, !isIntentionallyDisabled {
+                        // The wizard cannot detect KeyPath 1.0.1's service, so its
+                        // removal replaces "Fix it" while that refusal stands (#1353).
+                        if Self.offersLegacyRuntimeRemoval(issues: wizardIssues) {
+                            Button(action: { Task { await removeLegacyRuntimeAndStart() } }) {
+                                Label(
+                                    removingLegacyRuntime ? "Removing Old Service…" : "Remove Old Service",
+                                    systemImage: "trash"
+                                )
+                                .font(.body.weight(.semibold))
+                            }
+                            .settingsPrimaryAction()
+                            .controlSize(.large)
+                            .tint(.orange)
+                            .disabled(removingLegacyRuntime)
+                            .accessibilityIdentifier("status-remove-legacy-service-button")
+                            .accessibilityLabel("Remove the KeyPath 1.0.1 keyboard service")
+                        } else if !isSystemHealthy, !isIntentionallyDisabled {
                             Button(action: { wizardInitialPage = .summary }) {
                                 Label("Fix it", systemImage: "wand.and.stars")
                                     .font(.body.weight(.semibold))

@@ -66,9 +66,6 @@ public enum WizardDependencies {
     /// AdminCommandExecutor - execute(batch:) for privileged commands
     public static var executePrivilegedBatch: ((PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String))?
 
-    /// Drops KeyPath 1.0.1's SMAppService registrations (migration only, #1353). Returns log lines.
-    public static var unregisterLegacyServiceRegistrations: (() async -> [String])?
-
     /// KeyPathAppKitResources bundle accessor
     public static var resourceBundle: Bundle?
 
@@ -108,7 +105,6 @@ public enum WizardDependencies {
         helperNeedsApproval = nil
         createUninstallCoordinator = nil
         executePrivilegedBatch = nil
-        unregisterLegacyServiceRegistrations = nil
         resourceBundle = nil
         getExternalKanataInfo = nil
         stopExternalKanata = nil

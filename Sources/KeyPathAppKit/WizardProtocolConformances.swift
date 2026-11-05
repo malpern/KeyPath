@@ -169,9 +169,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
         let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
         return (exitCode: result.exitCode, output: result.output)
     }
-    WizardDependencies.unregisterLegacyServiceRegistrations = {
-        await LegacyServiceRegistrations.unregister()
-    }
     WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 
     // ExternalKanataService static methods

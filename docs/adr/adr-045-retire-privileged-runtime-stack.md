@@ -53,13 +53,15 @@ offers **Remove Old Service**, which calls
 carries `AutoFixAction.removeLegacyPrivilegedRuntime`, and `runSingleAction`
 routes it, but the wizard does not detect the refusal yet (its snapshot has no
 legacy evidence), so Settings is the only entry point today. It runs
-`LegacyPrivilegedRuntimeCleanup`: best-effort SMAppService unregistration, then
-one administrator batch that boots out every `com.keypath.*` label 1.0.1 used
+`LegacyPrivilegedRuntimeCleanup`: one administrator batch that boots out every `com.keypath.*` label 1.0.1 used
 (system and GUI domains), stops root-owned KeyPath processes (the app cannot
 signal them, ADR-040), and deletes
 KeyPath's own system files. It reports success only after a fresh read-only
 observation finds no loaded legacy service, no root KeyPath process, and no
-legacy file. The Karabiner driver is reported, never removed. It is not a
+legacy file. The Karabiner driver is reported, never removed. 1.0.1's
+ServiceManagement records are left: release builds do not ship those plists, so
+`SMAppService` cannot resolve them, and without plist and program the record
+cannot load a job (a stale Login Items entry may remain). It is not a
 recipe: privileged recipes stay unavailable. Its live dependency on the retired
 stack is limited to the label, plist, and path lists in that file. The clean-VM
 run is still outstanding: `docs/testing/upgrade-from-1-0-1.md`.

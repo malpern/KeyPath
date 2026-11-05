@@ -20,13 +20,6 @@ public enum LegacyPrivilegedRuntime {
         "com.keypath.logrotate"
     ]
 
-    /// Only these two keep the session runtime from starting. The others are
-    /// removed because they are KeyPath's own, not because they conflict.
-    public static let blockingServiceLabels: Set<String> = ["com.keypath.kanata", "com.keypath.helper"]
-
-    /// SMAppService plist names 1.0.1 registered from its app bundle.
-    public static let serviceManagementPlists = ["com.keypath.kanata.plist", "com.keypath.helper.plist"]
-
     /// Root-owned files that only KeyPath creates. Each is removed with `rm -f`.
     public static let systemFiles = [
         "/Library/LaunchDaemons/com.keypath.kanata.plist",
@@ -39,7 +32,14 @@ public enum LegacyPrivilegedRuntime {
         "/etc/newsyslog.d/com.keypath.conf",
         "/usr/local/bin/keypath-logrotate.sh",
         "/var/log/com.keypath.kanata.stdout.log",
-        "/var/log/com.keypath.kanata.stderr.log"
+        "/var/log/com.keypath.kanata.stderr.log",
+        "/var/log/com.keypath.helper.stdout.log",
+        "/var/log/com.keypath.helper.stderr.log",
+        "/var/log/com.keypath.output-bridge.stdout.log",
+        "/var/log/com.keypath.output-bridge.stderr.log",
+        "/var/log/karabiner-vhid-daemon.log",
+        "/var/log/karabiner-vhid-manager.log",
+        "/var/log/keypath-logrotate.log"
     ]
 
     /// Matches the 1.0.1 kanata launcher and kanata (in the bundle or
@@ -138,27 +138,27 @@ public struct LegacyPrivilegedRuntimeEvidence: Equatable, Sendable {
 /// Removes the KeyPath 1.0.1 privileged stack with one administrator prompt and
 /// reports success only after a fresh observation finds none of it left.
 ///
-/// Order: best-effort SMAppService unregistration (no prompt), then a single
-/// root batch that boots out every legacy label, stops any root KeyPath process
-/// (which the app cannot signal itself, ADR-040), and deletes KeyPath's own system
-/// files. The VirtualHID driver is reported, never removed.
+/// One root batch boots out every legacy label, stops any root KeyPath process
+/// (which the app cannot signal itself, ADR-040), and deletes KeyPath's own
+/// system files. The VirtualHID driver is reported, never removed.
+///
+/// 1.0.1's ServiceManagement records are not unregistered: release builds no
+/// longer ship those plists, so `SMAppService` cannot resolve them. The record
+/// cannot load a job once the bundle lacks its plist and program; at worst a
+/// stale Login Items entry remains until macOS drops it.
 @MainActor
 public struct LegacyPrivilegedRuntimeCleanup {
     public struct Dependencies {
         public var inspect: () async -> LegacyPrivilegedRuntimeEvidence
-        /// Asks ServiceManagement to drop 1.0.1's registrations. Returns log lines.
-        public var unregisterRegistrations: () async -> [String]
         public var executeBatch: (PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String)
         public var sleep: (Duration) async -> Void
 
         public init(
             inspect: @escaping () async -> LegacyPrivilegedRuntimeEvidence,
-            unregisterRegistrations: @escaping () async -> [String],
             executeBatch: @escaping (PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String),
             sleep: @escaping (Duration) async -> Void = { try? await Task.sleep(for: $0) }
         ) {
             self.inspect = inspect
-            self.unregisterRegistrations = unregisterRegistrations
             self.executeBatch = executeBatch
             self.sleep = sleep
         }
@@ -202,8 +202,6 @@ public struct LegacyPrivilegedRuntimeCleanup {
                            before: before, after: before,
                            failureReason: nil, logs: logs)
         }
-
-        logs += await dependencies.unregisterRegistrations()
 
         let batch = Self.batch(stopping: before.rootProcesses.map(\.pid), userID: userID)
         var operationFailure: String?
@@ -249,7 +247,8 @@ public struct LegacyPrivilegedRuntimeCleanup {
     /// partial earlier run, or a Mac that never had one of them, still succeeds.
     static func batch(stopping pids: [pid_t], userID: uid_t) -> PrivilegedCommandRunner.Batch {
         var commands = LegacyPrivilegedRuntime.launchdTargets(userID: userID).map {
-            "/bin/launchctl bootout \($0) 2>/dev/null || true"
+            // `bootout` can block on a job that will not exit (#927); bound it.
+            "kp_timeout 15 /bin/launchctl bootout \($0) 2>/dev/null || true"
         }
         let positive = pids.filter { $0 > 0 }
         if !positive.isEmpty {
@@ -294,16 +293,11 @@ public extension LegacyPrivilegedRuntimeCleanup {
     /// launchd's "Could not find service" status for `launchctl print`.
     static let launchctlServiceNotFound: Int32 = 113
 
-    /// Live dependencies. Unregistration and the admin batch come from the app
-    /// via `WizardDependencies`. Without the batch the cleanup fails; without
-    /// unregistration it only logs, since that step is best effort anyway.
+    /// Live dependencies. The admin batch comes from the app via
+    /// `WizardDependencies`; without it the cleanup fails.
     static var live: Self {
         Self(dependencies: Dependencies(
             inspect: { await inspectLive() },
-            unregisterRegistrations: {
-                await WizardDependencies.unregisterLegacyServiceRegistrations?()
-                    ?? ["[legacy-cleanup] ServiceManagement unregistration not configured"]
-            },
             executeBatch: { batch in
                 guard let execute = WizardDependencies.executePrivilegedBatch else {
                     throw InstallerError.unknownRecipe("Administrator commands are not configured")

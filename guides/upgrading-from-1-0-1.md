@@ -20,12 +20,13 @@ same time, so the new version will not start while the old service is running.
 3. Enter your administrator password when macOS asks. You are asked once.
 
 ```
-┌ Keyboard remapping ──────────────────────────────────────────┐
-│ Runtime is stopped. The keyboard service from KeyPath 1.0.1   │
-│ is still running. Remove it to start KeyPath.                 │
-│                                                               │
-│ [Remove Old Service]  [Open System Settings]                  │
-└───────────────────────────────────────────────────────────────┘
+            ( ! )
+       Service Stopped
+ Runtime is stopped. The keyboard service from
+ KeyPath 1.0.1 is still running. Remove it to
+ start KeyPath.
+
+     [ Remove Old Service ]
 ```
 
 KeyPath stops the old service, removes it and its helper, checks that neither

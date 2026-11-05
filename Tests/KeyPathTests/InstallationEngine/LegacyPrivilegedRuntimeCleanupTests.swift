@@ -3,7 +3,6 @@ import KeyPathCore
 import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathWizardCore
-import ServiceManagement
 import XCTest
 
 /// The upgrade path from public 1.0.1 (#1353): one administrator prompt removes
@@ -14,7 +13,6 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     private var inspections: [LegacyPrivilegedRuntimeEvidence] = []
     private var inspectCount = 0
     private var batches: [PrivilegedCommandRunner.Batch] = []
-    private var unregisterCount = 0
     private var sleeps = 0
     private var batchResult: Result<(exitCode: Int32, output: String), Error> = .success((0, ""))
 
@@ -38,10 +36,6 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
                 // Repeat the last reading once the script runs out.
                 return inspections.isEmpty ? Self.clean : (inspections.count > 1 ? inspections.removeFirst() : inspections[0])
             },
-            unregisterRegistrations: { [unowned self] in
-                unregisterCount += 1
-                return ["unregistered"]
-            },
             executeBatch: { [unowned self] batch in
                 batches.append(batch)
                 return try batchResult.get()
@@ -58,7 +52,6 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertTrue(outcome.success)
         XCTAssertFalse(outcome.requestedAuthorization)
         XCTAssertTrue(batches.isEmpty, "A Mac without 1.0.1 must never see an administrator prompt")
-        XCTAssertEqual(unregisterCount, 0)
     }
 
     func testOneAuthorizationRemovesTheStackAndWaitsForLaunchdTeardown() async {
@@ -69,15 +62,14 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertTrue(outcome.success, outcome.failureReason ?? "")
         XCTAssertTrue(outcome.requestedAuthorization)
         XCTAssertEqual(batches.count, 1, "The whole cleanup must take one administrator prompt")
-        XCTAssertEqual(unregisterCount, 1)
         XCTAssertEqual(inspectCount, 3)
         XCTAssertEqual(sleeps, 1)
         XCTAssertTrue(outcome.after.isClean)
 
         let script = batches[0].script
         for label in LegacyPrivilegedRuntime.serviceLabels {
-            XCTAssertTrue(script.contains("/bin/launchctl bootout system/\(label)"), label)
-            XCTAssertTrue(script.contains("/bin/launchctl bootout gui/501/\(label)"),
+            XCTAssertTrue(script.contains("kp_timeout 15 /bin/launchctl bootout system/\(label)"), label)
+            XCTAssertTrue(script.contains("kp_timeout 15 /bin/launchctl bootout gui/501/\(label)"),
                           "The refusal's detector also reads the GUI domain, so the cleanup must clean it")
         }
         for file in LegacyPrivilegedRuntime.systemFiles {
@@ -301,41 +293,5 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("unavailable in the driverless build") == true)
         XCTAssertTrue(batches.isEmpty)
-    }
-
-    // MARK: - ServiceManagement unregistration
-
-    func testUnregistersOnlyRegisteredServicesAndToleratesFailure() async {
-        let kanata = RecordingSMAppService(failsUnregister: true)
-        let helper = RecordingSMAppService(failsUnregister: false)
-        let logs = await LegacyServiceRegistrations.unregister(
-            statusFor: { $0 == "com.keypath.kanata.plist" ? .enabled : .notFound },
-            service: { $0 == "com.keypath.kanata.plist" ? kanata : helper }
-        )
-        XCTAssertEqual(kanata.unregisterCalls, 1)
-        XCTAssertEqual(helper.unregisterCalls, 0)
-        XCTAssertTrue(logs.contains { $0.contains("com.keypath.kanata.plist: unregister failed") })
-        XCTAssertTrue(logs.contains { $0.contains("com.keypath.helper.plist: not registered") })
-    }
-}
-
-private final class RecordingSMAppService: SMAppServiceProtocol, @unchecked Sendable {
-    let failsUnregister: Bool
-    private(set) var unregisterCalls = 0
-
-    init(failsUnregister: Bool) {
-        self.failsUnregister = failsUnregister
-    }
-
-    var status: SMAppService.Status {
-        .notFound
-    }
-
-    func register() throws {}
-    func unregister() async throws {
-        unregisterCalls += 1
-        if failsUnregister {
-            throw NSError(domain: "test", code: 1)
-        }
     }
 }

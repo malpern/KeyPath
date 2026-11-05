@@ -128,7 +128,11 @@ extension StatusSettingsTabView {
     }
 
     var primaryIssueDetail: StatusDetail? {
-        statusDetails
+        // The 1.0.1 refusal explains the Remove Old Service button; nothing outranks it.
+        if Self.offersLegacyRuntimeRemoval(issues: wizardIssues) {
+            return serviceStatusDetail
+        }
+        return statusDetails
             .sorted { $0.level.rawValue > $1.level.rawValue }
             .first(where: { $0.level.isIssue })
     }
@@ -225,32 +229,19 @@ extension StatusSettingsTabView {
             )
         }
 
-        var actions: [StatusDetailAction] = []
-        let offersLegacyRemoval = Self.offersLegacyRuntimeRemoval(issues: wizardIssues)
-        if offersLegacyRemoval {
-            actions.append(StatusDetailAction(
-                title: removingLegacyRuntime ? "Removing Old Service…" : "Remove Old Service",
-                icon: "trash",
-                handler: { Task { await removeLegacyRuntimeAndStart() } },
-                identifier: "status-action-remove-legacy-service",
-                accessibilityTitle: "Remove the KeyPath 1.0.1 keyboard service"
-            ))
-        }
-        actions.append(StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
-            SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
-        })
-        // The wizard does not detect the 1.0.1 service, so it cannot help here.
-        if !offersLegacyRemoval {
-            actions.append(StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                wizardInitialPage = .summary
-            })
-        }
         return StatusDetail(
             title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
             message: Self.stoppedMessage(lastError: kanataManager.lastError),
             icon: "pause.circle",
             level: .warning,
-            actions: actions
+            actions: [
+                StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
+                    SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
+                },
+                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                    wizardInitialPage = .summary
+                }
+            ]
         )
     }
 
