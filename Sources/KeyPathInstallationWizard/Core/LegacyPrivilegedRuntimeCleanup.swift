@@ -362,13 +362,14 @@ public extension LegacyPrivilegedRuntimeCleanup {
         matches.filter { $0.pid > 0 && isAlive($0.pid) && ownerUID($0.pid) == 0 }
     }
 
-    /// The real user ID of a process, readable for any process without privileges.
+    /// The effective user ID of a process, readable for any process without
+    /// privileges. Effective, to match the root script's `ps -o uid=` re-check.
     static func processOwnerUID(_ pid: pid_t) -> uid_t? {
         guard pid > 0 else { return nil }
         var info = kinfo_proc()
         var size = MemoryLayout<kinfo_proc>.stride
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
         guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
-        return info.kp_eproc.e_pcred.p_ruid
+        return info.kp_eproc.e_ucred.cr_uid
     }
 }
