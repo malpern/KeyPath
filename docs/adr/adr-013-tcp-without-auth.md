@@ -7,7 +7,7 @@
 > [ADR-046](adr-046-session-engine-control-channel.md); tracked in
 > [#1354](https://github.com/malpern/KeyPath/issues/1354).
 
-**Status:** Under review; proposed to be superseded by [ADR-046](adr-046-session-engine-control-channel.md) (Proposed)
+**Status:** Under review; proposed to be superseded by [ADR-046](adr-046-session-engine-control-channel.md)
 **Date:** 2024
 
 ## Context
