@@ -258,7 +258,11 @@ written from source alone.
    or a new app instance never inherits an old PID. Keep the path short:
    macOS limits `sun_path` to 104 bytes, so reuse the runtime-control directory
    (`~/Library/Application Support/KeyPath/control/`) with a short file name and
-   fail with a clear error, never truncate, if a long home path exceeds it. The worker creates
+   never truncate. If a long home path exceeds it, fall back to a short
+   directory under the per-user temporary directory
+   (`confstr(_CS_DARWIN_USER_TEMP_DIR)`, which macOS creates 0700 for this
+   user), with the same ownership and mode checks. Fail with a clear error only
+   if both are too long. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
    reports the socket path in its owned report instead of `tcpPort`.
 3. **Phase 3, Swift clients.** One transport change: `KanataTCPClient+Connection` and
