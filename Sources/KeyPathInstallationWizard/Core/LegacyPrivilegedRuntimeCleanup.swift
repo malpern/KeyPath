@@ -42,10 +42,12 @@ public enum LegacyPrivilegedRuntime {
         "/var/log/keypath-logrotate.log"
     ]
 
-    /// Matches the 1.0.1 kanata launcher and kanata (in the bundle or
-    /// `/Library/KeyPath/bin`), the bundled helper, and the SMJobBless helper copy.
+    /// Matches only KeyPath executables: the 1.0.1 kanata launcher and kanata
+    /// inside `KeyPath.app` or `/Library/KeyPath/bin`, the bundled helper, and the
+    /// SMJobBless helper copy. Never a bare `HelperTools/`, which other vendors use.
     /// `pgrep -f` and `grep -E` both take this extended regular expression.
-    public static let processPattern = #"Library/(KeyPath|HelperTools)/|PrivilegedHelperTools/com\.keypath\.helper"#
+    public static let processPattern =
+        #"KeyPath\.app/Contents/Library/(KeyPath|HelperTools)/|/Library/KeyPath/bin/|/Library/PrivilegedHelperTools/com\.keypath\.helper"#
 
     /// Every launchd target to check and boot out, for the user who runs the app.
     public static func launchdTargets(userID: uid_t) -> [String] {

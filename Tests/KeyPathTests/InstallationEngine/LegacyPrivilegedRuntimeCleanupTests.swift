@@ -178,6 +178,9 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertTrue(matches("/Library/KeyPath/bin/kanata --cfg /Users/x/.config/keypath/keypath.kbd"))
         XCTAssertFalse(matches("/Applications/KeyPath.app/Contents/MacOS/KeyPath"))
         XCTAssertFalse(matches("/opt/homebrew/bin/kanata --cfg x"))
+        XCTAssertFalse(matches("/Applications/Other.app/Contents/Library/HelperTools/OtherHelper"),
+                       "Another vendor's root helper must never be stopped")
+        XCTAssertFalse(matches("/Library/PrivilegedHelperTools/com.example.helper"))
     }
 
     func testOnlyLiveRootProcessesCountNotAnotherUsersSession() {
