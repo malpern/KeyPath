@@ -52,7 +52,10 @@ struct SessionWorkerSweep: Sendable {
         let remaining: [SessionWorkerProcess]
         /// False when the process table could not be read: absence unproven.
         var verified = true
-        var succeeded: Bool { verified && remaining.isEmpty }
+        var succeeded: Bool {
+            verified && remaining.isEmpty
+        }
+
         var result: SessionWorkerSweepResult {
             guard verified else { return .unverified }
             return remaining.isEmpty ? .noneRunning : .stillRunning
@@ -83,8 +86,10 @@ struct SessionWorkerSweep: Sendable {
     func stopAll(probeGrace: TimeInterval = 2, runtimeGrace: TimeInterval = 10,
                  poll: Duration = .milliseconds(100)) async -> Outcome
     {
-        // One unreadable listing may be a process exiting mid-read; two is unknown.
-        func read() -> [SessionWorkerProcess]? { list() ?? list() }
+        /// One unreadable listing may be a process exiting mid-read; two is unknown.
+        func read() -> [SessionWorkerProcess]? {
+            list() ?? list()
+        }
         guard let found = read() else { return Outcome(found: [], remaining: [], verified: false) }
         guard !found.isEmpty else { return Outcome(found: [], remaining: []) }
         let started = uptime()

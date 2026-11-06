@@ -91,8 +91,13 @@ final class SessionWorkerSweepTests: XCTestCase {
             )
         }
 
-        func locked<T>(_ body: () -> T) -> T { lock.lock(); defer { lock.unlock() }; return body() }
-        func received(_ number: Int32) -> [pid_t] { locked { signals.filter { $0.1 == number }.map(\.0) } }
+        func locked<T>(_ body: () -> T) -> T {
+            lock.lock(); defer { lock.unlock() }; return body()
+        }
+
+        func received(_ number: Int32) -> [pid_t] {
+            locked { signals.filter { $0.1 == number }.map(\.0) }
+        }
     }
 
     func testNoWorkersSucceedsWithoutSignalling() async {
@@ -280,7 +285,15 @@ final class SessionWorkerSweepTests: XCTestCase {
 private final class Locked<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Value
-    init(_ value: Value) { stored = value }
-    var value: Value { lock.lock(); defer { lock.unlock() }; return stored }
-    func update(_ body: (inout Value) -> Void) { lock.lock(); body(&stored); lock.unlock() }
+    init(_ value: Value) {
+        stored = value
+    }
+
+    var value: Value {
+        lock.lock(); defer { lock.unlock() }; return stored
+    }
+
+    func update(_ body: (inout Value) -> Void) {
+        lock.lock(); body(&stored); lock.unlock()
+    }
 }

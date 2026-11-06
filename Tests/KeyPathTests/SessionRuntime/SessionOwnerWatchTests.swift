@@ -28,7 +28,8 @@ final class SessionOwnerWatchTests: XCTestCase {
         let fired = expectation(description: "Owner exit observed")
         let calls = Locked(0)
         let watch = SessionOwnerWatch(ownerPID: 30378, deadline: nil, interval: 0.01,
-                                      isAlive: { _ in alive.value }) { verdict in
+                                      isAlive: { _ in alive.value })
+        { verdict in
             XCTAssertFalse(Thread.isMainThread)
             XCTAssertEqual(verdict, .ownerExited)
             calls.update { $0 += 1 }
@@ -56,7 +57,8 @@ final class SessionOwnerWatchTests: XCTestCase {
         let now = Locked(100.0)
         let fired = expectation(description: "Deadline observed")
         let watch = SessionOwnerWatch(ownerPID: 30378, deadline: 15, interval: 0.01,
-                                      isAlive: { _ in true }, uptime: { now.value }) { verdict in
+                                      isAlive: { _ in true }, uptime: { now.value })
+        { verdict in
             XCTAssertEqual(verdict, .deadlineExceeded)
             fired.fulfill()
         }
@@ -96,7 +98,15 @@ final class SessionShutdownFallbackTests: XCTestCase {
 private final class Locked<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Value
-    init(_ value: Value) { stored = value }
-    var value: Value { lock.lock(); defer { lock.unlock() }; return stored }
-    func update(_ body: (inout Value) -> Void) { lock.lock(); body(&stored); lock.unlock() }
+    init(_ value: Value) {
+        stored = value
+    }
+
+    var value: Value {
+        lock.lock(); defer { lock.unlock() }; return stored
+    }
+
+    func update(_ body: (inout Value) -> Void) {
+        lock.lock(); body(&stored); lock.unlock()
+    }
 }
