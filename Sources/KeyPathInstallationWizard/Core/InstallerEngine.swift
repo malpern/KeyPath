@@ -894,7 +894,7 @@ public final class InstallerEngine {
     ///
     /// Not a recipe: privileged recipes stay unavailable (ADR-045). This only
     /// tears the retired stack down.
-    public func removeLegacyPrivilegedRuntime(using _: PrivilegeBroker) async -> LegacyRuntimeRemovalResult {
+    public func removeLegacyPrivilegedRuntime() async -> LegacyRuntimeRemovalResult {
         await withInstallerTransaction {
             await removeLegacyPrivilegedRuntimeWithinTransaction()
         }

@@ -507,7 +507,7 @@ struct StatusSettingsTabView: View {
 
         let lifecycle = kanataManager.underlyingManager.serviceLifecycleCoordinator
         let outcome = await LegacyRuntimeUpgradeFlow.run(
-            remove: { await InstallerEngine().removeLegacyPrivilegedRuntime(using: PrivilegeBroker()) },
+            remove: { await InstallerEngine().removeLegacyPrivilegedRuntime() },
             refusalStillStands: { await lifecycle.refreshLegacyDaemonRefusalAfterCleanup() },
             start: { await kanataManager.startKanata(reason: "KeyPath 1.0.1 service removed") },
             lastError: { kanataManager.lastError }

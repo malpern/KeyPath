@@ -297,7 +297,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     func testEngineReportsVerifiedNoOpWithoutPrompting() async {
         inspections = [Self.clean]
         let result = await makeEngine(context: SystemContextBuilder(componentsInstalled: true).build())
-            .removeLegacyPrivilegedRuntime(using: PrivilegeBroker())
+            .removeLegacyPrivilegedRuntime()
         XCTAssertTrue(result.report.success)
         XCTAssertEqual(result.report.completionState, .verifiedNoOp)
         XCTAssertTrue(result.report.executedRecipes.isEmpty)
@@ -307,7 +307,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
     func testEngineReportsVerificationFailure() async {
         inspections = [Self.installed101, LegacyPrivilegedRuntimeEvidence(loadedServices: ["system/com.keypath.kanata"])]
         let result = await makeEngine(context: SystemContextBuilder(componentsInstalled: true).build())
-            .removeLegacyPrivilegedRuntime(using: PrivilegeBroker())
+            .removeLegacyPrivilegedRuntime()
         XCTAssertFalse(result.report.success)
         XCTAssertEqual(result.report.completionState, .verificationFailed)
         XCTAssertEqual(result.report.repairTelemetry.first?.postconditionResult, .failed)

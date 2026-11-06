@@ -408,7 +408,8 @@ final class KanataDaemonService {
 
     /// Drops cached launchd and ServiceManagement evidence so the next read is
     /// fresh. Used after the 1.0.1 daemon is removed, which the PID cache (10s)
-    /// and the cached SMAppService status would otherwise still report.
+    /// and the cached SMAppService status would otherwise still report. Call it
+    /// only after the removal was verified: it forgets a previously running state.
     func invalidateEvidenceCaches() async {
         await pidCache.invalidateCache()
         await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: Constants.daemonPlistName)
