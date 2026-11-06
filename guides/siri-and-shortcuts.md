@@ -11,6 +11,8 @@ permalink: /guides/siri-and-shortcuts/
 
 KeyPath works with Siri and the Shortcuts app. Ask what layer you're on, start or stop the service, or trigger any KeyPath action — by voice or as part of an automation.
 
+> **Note:** KeyPath 1.0.1 and earlier are missing the information macOS uses to list these actions, so they may not appear in Shortcuts or answer Siri yet. A future update fixes this.
+
 ---
 
 ## What you can do with Siri
