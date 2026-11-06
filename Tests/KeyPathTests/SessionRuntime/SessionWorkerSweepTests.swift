@@ -104,7 +104,7 @@ final class SessionWorkerSweepTests: XCTestCase {
         let fake = FakeProcesses([], exitOnTerm: [])
         let outcome = await fake.sweep.stopAll()
         XCTAssertTrue(outcome.succeeded)
-        XCTAssertTrue(fake.signals.isEmpty)
+        XCTAssertTrue(fake.locked { fake.signals.isEmpty })
     }
 
     /// Every worker is stopped, not only the one the live app tracks.
