@@ -177,7 +177,7 @@ builds start the worker with no TCP port at all.
 
 Then narrow who may connect: the only legitimate peer is the KeyPath app that
 launched this worker. The worker already receives that app's PID (`ownerPID` in
-`SessionRuntimeWorker`, recorded as `parentPID` in its report). The server checks `LOCAL_PEERPID` against
+`SessionRuntimeWorker`, recorded as `parentPID` in its report). The server checks the peer's PID and PID version (from `LOCAL_PEERTOKEN`) against
 it, and can additionally check the peer's code signature through
 `LOCAL_PEERTOKEN` and `SecCodeCreateWithAuditToken` against KeyPath's
 designated requirement (team `X2RKZ5TG99`). The CLI stops talking to the engine
@@ -193,15 +193,20 @@ directly and asks the app over the existing runtime-control socket, as
   place. A uid check alone does not stop 3. The PID check is weaker than the
   signature check: it holds only while the launching app is alive (its PID
   cannot be reused until then, so the worker must exit when the app does), and
-  it trusts whatever code runs in that PID. `LOCAL_PEERPID` also reports the
+  it trusts whatever code runs in that PID. The peer token also identifies the
   process that connected, so a connection the app opens and then hands to a
   forked or exec'd child still passes. The phase 4 signature check is the real
   fix for both. Today the worker notices the app
   has gone by polling `isProcessAlive(ownerPID)` in its 5 ms tick
   (`SessionRuntimeWorker.tick`), and a dead PID can be reused inside that
-  window. Phase 1 therefore has the server re-check the owner's liveness on
-  every accept, and the worker watch the owner with a kqueue `NOTE_EXIT`
-  source so it stops listening the moment the app exits. Until phase 4 ships, attacker 3 is
+  window. A liveness re-check on accept cannot tell a reused PID from the
+  owner, so phase 1 compares identity, not liveness: the app passes its PID
+  and its PID version (`audit_token_to_pidversion` on its own
+  `TASK_AUDIT_TOKEN`) at launch, and the server reads the peer's audit token
+  from the accepted socket (`LOCAL_PEERTOKEN`) and requires both to match. The
+  PID version changes when a PID is reused, which closes the race. The worker
+  also watches the owner with a kqueue `NOTE_EXIT` source so it stops
+  listening the moment the app exits. Until phase 4 ships, attacker 3 is
   stopped from connecting directly but not from injecting into or impersonating
   the app, which this ADR treats as out of scope.
 - Removes the cross-process trust problem for `MessagePush`: KeyPath only
@@ -238,18 +243,20 @@ written from source alone.
      (`std::os::unix::net::UnixListener`), selected by the bridge. Keep the
      TCP path for kanata's own binary and upstream users of the fork's code.
    - Check the peer before the connection joins the broadcast set: uid via
-     `getpeereid`, and PID via `LOCAL_PEERPID` when the bridge supplies an
+     `getpeereid`, and PID plus PID version via `LOCAL_PEERTOKEN` when the bridge supplies an
      expected PID.
      Both are read from the accepted socket itself, never from a later
      lookup, and the PID must equal the launching app's PID, not merely belong
      to a process of this user.
    - **Acceptance criterion:** the worker watches its owner with a kqueue
      `NOTE_EXIT` source and, when the app exits, stops listening and exits, and the
-     server re-checks the owner on every accept. Without both, the PID check is
-     not meaningful. Required test: start the worker, kill the owner app,
+     server matches the peer's PID and PID version against the owner's on
+     every accept. Without both, the PID check is not meaningful. Required test: start the worker, kill the owner app,
      and assert the socket refuses new connections and the worker exits. A
      second test connects after the owner has exited but before the exit
-     watch fires, and asserts the per-accept re-check refuses it. A
+     watch fires, from a process given the owner's PID number but a
+     different PID version (simulated in the check), and asserts it is
+     refused. A
      connection the app hands to a child process is a known gap at this phase
      (see Option C); phase 4 closes it and adds its test.
    - Return an error instead of panicking when the listener cannot be created,
