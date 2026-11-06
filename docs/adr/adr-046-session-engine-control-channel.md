@@ -301,7 +301,9 @@ written from source alone.
    (`confstr(_CS_DARWIN_USER_TEMP_DIR)`, which macOS creates 0700 for this
    user), with the same ownership and mode checks. Because the location can
    vary, the app, the CLI and `verify-installed-app.sh` take the path from the
-   worker's report, never from an assumed directory. Fail with a clear error only
+   worker's report, never from an assumed directory. Tests: a home path that
+   pushes the primary path past 104 bytes uses the fallback, and one that
+   overflows both fails with the clear error. Fail with a clear error only
    if both are too long. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
    reports the socket path in its owned report instead of `tcpPort`.
