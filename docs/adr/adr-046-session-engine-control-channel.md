@@ -284,7 +284,12 @@ written from source alone.
    submodule and changes the bridge (`Rust/KeyPathKanataHostBridge`, which
    lives in this repository) and the worker. No KeyPath commit pins the new
    fork without the matching bridge change, so no build has the Unix socket
-   while still panicking on, or probing, a TCP bind.
+   while still panicking on, or probing, a TCP bind. Before pushing to
+   `keypath/bundled`, confirm the push is a fast-forward
+   (`git log --oneline origin/keypath/bundled..<branch>` lists only the new
+   commits, and `git merge-base --is-ancestor origin/keypath/bundled <branch>`
+   succeeds). Before accepting this ADR, re-check the claims above against the
+   fork commit that will ship, since `d9085a9` is not yet on `keypath/bundled`.
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The expected PID
    is the app that launched this worker, passed on every launch, so a relaunch
