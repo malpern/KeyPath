@@ -204,7 +204,10 @@ directly and asks the app over the existing runtime-control socket, as
   and its PID version (`audit_token_to_pidversion` on its own
   `TASK_AUDIT_TOKEN`) at launch, and the server reads the peer's audit token
   from the accepted socket (`LOCAL_PEERTOKEN`) and requires both to match. The
-  PID version changes when a PID is reused, which closes the race. The worker
+  PID version changes when a PID is reused, which closes the race. Confirm
+  during implementation that `LOCAL_PEERTOKEN` and `audit_token_to_pidversion`
+  are usable on KeyPath's minimum macOS (15), as for `NWEndpoint.unix`; if
+  not, phase 1 needs another way to bind a connection to the owner. The worker
   also watches the owner with a kqueue `NOTE_EXIT` source so it stops
   listening the moment the app exits. Until phase 4 ships, attacker 3 is
   stopped from connecting directly but not from injecting into or impersonating
