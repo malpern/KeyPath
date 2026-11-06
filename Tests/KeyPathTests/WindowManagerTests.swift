@@ -258,6 +258,31 @@ struct CGSAPIAvailabilityTests {
         #expect(!message.isEmpty)
     }
 
+    @Test("resolve fails without trapping when one symbol is missing")
+    func resolveReportsSingleMissingSymbol() {
+        let (functions, missing) = CGSFunctions.resolve { name in
+            name == "CGSAddWindowsToSpaces" ? nil : CGSFunctions.dlsymLookup(name)
+        }
+        #expect(functions == nil)
+        #expect(missing == ["CGSAddWindowsToSpaces"])
+    }
+
+    @Test("resolve reports every symbol when none resolve")
+    func resolveReportsAllMissingSymbols() {
+        let (functions, missing) = CGSFunctions.resolve { _ in nil }
+        #expect(functions == nil)
+        #expect(missing.count == 7)
+        #expect(Set(missing).count == 7)
+    }
+
+    @Test("resetCache re-resolves to the same answer as a fresh lookup")
+    func resetCacheReresolves() {
+        CGSPrivateAPI.resetCache()
+        let (available, _) = CGSPrivateAPI.checkAvailabilityDetails()
+        #expect((CGSPrivateAPI.functions != nil) == available)
+        #expect(CGSPrivateAPI.isAvailable == available)
+    }
+
     @Test("SpaceManager.isAvailable matches CGSPrivateAPI.isAvailable")
     @MainActor
     func spaceManagerAvailabilityMatches() {
