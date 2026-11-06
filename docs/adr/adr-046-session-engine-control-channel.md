@@ -27,8 +27,8 @@ byte.
 
 As of 2026-11-04, facts below were read from the fork at `External/kanata`, at `d9085a9`, the
 commit KeyPath `master` (`e42ffea0`) pins, and from KeyPath at that commit.
-`d9085a9` is on the fork's `keypath/explicit-source-keys-20261017` branch, not
-yet on `keypath/bundled`. They were not exercised on a
+`d9085a9` is on `keypath/bundled`: the branch tip `54cdba9` merges it, with
+an identical tree. They were not exercised on a
 live install for this ADR.
 
 ### What a connected client can do
@@ -289,7 +289,7 @@ written from source alone.
    (`git log --oneline origin/keypath/bundled..<branch>` lists only the new
    commits, and `git merge-base --is-ancestor origin/keypath/bundled <branch>`
    succeeds). Before accepting this ADR, re-check the claims above against the
-   fork commit that will ship, since `d9085a9` is not yet on `keypath/bundled`.
+   fork commit that will ship, if it is no longer `d9085a9`.
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The expected PID
    is the app that launched this worker, passed on every launch, so a relaunch
