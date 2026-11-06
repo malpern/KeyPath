@@ -210,7 +210,10 @@ directly and asks the app over the existing runtime-control socket, as
   PID version changes when a PID is reused, which closes the race. Confirm
   during implementation that `LOCAL_PEERTOKEN` and `audit_token_to_pidversion`
   are usable on KeyPath's minimum macOS (15), as for `NWEndpoint.unix`; if
-  not, phase 1 needs another way to bind a connection to the owner. The worker
+  not, the fallback is `LOCAL_PEERPID` plus the `NOTE_EXIT` watch, with the
+  PID-reuse window between owner exit and the watch firing recorded as an
+  accepted risk, and phase 4's signature check moves into the release gate.
+  The worker
   also watches the owner with a kqueue `NOTE_EXIT` source so it stops
   listening the moment the app exits. Until phase 4 ships, attacker 3 is
   stopped from connecting directly but not from injecting into or impersonating
@@ -339,7 +342,8 @@ ADR was written from source alone.
 4. **Phase 4, signature check.** Add the `LOCAL_PEERTOKEN` code-signing check against
    KeyPath's designated requirement. Debug builds signed with another identity
    need an explicit, logged development override.
-5. **Phase 5, docs.** Mark ADR-013 superseded, rewrite the TCP section of
+5. **Phase 5, docs.** Mark ADR-013 superseded (its status line, the README and
+   `index.md` rows, and this ADR's own header change together), rewrite the TCP section of
    `guides/privacy.md` (it says key events cross the connection, but not that
    any other local process receives them, and calls the risk low) and publish it, update
    `docs/architecture/overview.md` and `cli-runtime-control.md`, and fix the
