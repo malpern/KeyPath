@@ -25,8 +25,10 @@ processes of other logged-in users and sandboxed apps that hold
 kind. Every accepted connection joins the broadcast set before it has sent a
 byte.
 
-Facts below were read from the fork at `External/kanata` (`keypath/bundled`,
-`d9085a9`) and from KeyPath `master` at `e42ffea0`. They were not exercised on a
+Facts below were read from the fork at `External/kanata`, at `d9085a9`, the
+commit KeyPath `master` (`e42ffea0`) pins, and from KeyPath at that commit.
+`d9085a9` is on the fork's `keypath/explicit-source-keys-20261017` branch, not
+yet on `keypath/bundled`. They were not exercised on a
 live install for this ADR.
 
 ### What a connected client can do
