@@ -256,11 +256,17 @@ written from source alone.
      second test connects after the owner has exited but before the exit
      watch fires, from a process given the owner's PID number but a
      different PID version (simulated in the check), and asserts it is
-     refused. A
+     refused. If the owner has already exited when the watch is registered,
+     registration fails with `ESRCH`; the worker treats that as owner exit and
+     stops at once. A third test covers that case. A
      connection the app hands to a child process is a known gap at this phase
      (see Option C); phase 4 closes it and adds its test.
    - Return an error instead of panicking when the listener cannot be created,
-     by binding once and keeping that listener, not by probing first.
+     by binding once and keeping that listener, not by probing first. The
+     bridge returns the error through its existing error buffer, and
+     `SessionRuntimeWorker` ends with a failed report naming the cause (for
+     example, socket directory not owned by this user), which the app shows.
+     It does not retry in a loop.
    - Option A: drop `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` from the
      session build (feature flag), cap connections, and put a write timeout on
      notification sockets so a stalled client is dropped rather than blocking
@@ -285,7 +291,9 @@ written from source alone.
    never truncate. If a long home path exceeds it, fall back to a short
    directory under the per-user temporary directory
    (`confstr(_CS_DARWIN_USER_TEMP_DIR)`, which macOS creates 0700 for this
-   user), with the same ownership and mode checks. Fail with a clear error only
+   user), with the same ownership and mode checks. Because the location can
+   vary, the app, the CLI and `verify-installed-app.sh` take the path from the
+   worker's report, never from an assumed directory. Fail with a clear error only
    if both are too long. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
    reports the socket path in its owned report instead of `tcpPort`.

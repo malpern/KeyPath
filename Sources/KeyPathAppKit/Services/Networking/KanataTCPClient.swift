@@ -68,6 +68,7 @@ final class CompletionFlag: @unchecked Sendable {
 /// Virtual keys bound to `push-msg` reach `ActionDispatcher` through
 /// `KanataEventListener`. ADR-046 proposes moving this channel to an
 /// owner-checked Unix socket.
+/// TODO(#1354): revise this note after the lab-VM check and again when ADR-046 lands.
 actor KanataTCPClient {
     let host: String
     let port: Int
