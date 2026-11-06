@@ -248,6 +248,10 @@ It verifies:
 - code signature
 - Gatekeeper assessment
 - stapled notarization ticket
+- App Intents metadata in `Contents/Resources/Metadata.appintents`, matching the
+  intents in `Sources/KeyPathAppKit` (skipped with `REQUIRE_NOTARIZED=0`, or set
+  `REQUIRE_APP_INTENTS_METADATA` explicitly; 1.0.1 and earlier lack it, so set
+  `REQUIRE_APP_INTENTS_METADATA=0` to trust-check those)
 - exact installed KeyPath session parent and worker, with matching non-root UID
 - private owned worker report, bound to launch nonce/PID/UID and canonical freshness
 - TCP readiness on `127.0.0.1:37001`, with the listener owned by that worker

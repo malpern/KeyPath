@@ -167,6 +167,11 @@ else
 fi
 check_command "${KEYPATH_VERIFY_PYTHON:-python3}"
 check_command lsof
+if xcrun -f appintentsmetadataprocessor >/dev/null 2>&1; then
+    pass "appintentsmetadataprocessor available ($(xcrun -f appintentsmetadataprocessor))"
+else
+    fail "appintentsmetadataprocessor is missing from the selected Xcode (needed for App Intents metadata)"
+fi
 
 print_section "Disk Space"
 available_kb=$(df -Pk "$PROJECT_DIR" 2>/dev/null | awk 'NR==2 {print $4}')
