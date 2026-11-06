@@ -98,7 +98,10 @@ on its behalf.
    for example at login or during a restart). The worker uses the bridge's
    passthru entry point, which has no bind probe, so the fork's
    `TcpListener::bind(...).expect` panics inside an `extern "C"` function and
-   aborts the worker. (`keypath_kanata_bridge_run_runtime` does probe and
+   aborts the worker. (The bridge crate sets no panic profile, so it unwinds by
+   default, has no `catch_unwind`, and Rust 1.81 and later abort when a panic
+   unwinds out of an `extern "C"` function. The fork's `panic = "abort"`
+   applies only when kanata is the top-level crate.) (`keypath_kanata_bridge_run_runtime` does probe and
    return an error, but the probe drops its listener before the server binds,
    so it is a check-then-use race.) KeyPath's own clients then connect to the
    squatter. KeyPath does not check who owns the listener; only
@@ -265,8 +268,8 @@ ADR was written from source alone.
      and assert the socket refuses new connections and the worker exits. A
      second test connects after the owner has exited but before the exit
      watch fires, from a process given the owner's PID number but a
-     different PID version (simulated in the check), and asserts it is
-     refused. If the owner has already exited when the watch is registered,
+     different PID version, and asserts it is refused. The peer-token reader
+     is injectable so this runs deterministically without a second process. If the owner has already exited when the watch is registered,
      registration fails with `ESRCH`; the worker treats that as owner exit and
      stops at once. A third test covers that case. A
      connection the app hands to a child process is a known gap at this phase
