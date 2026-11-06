@@ -37,7 +37,10 @@ struct SessionWorkerProcess: Equatable, Sendable {
     /// worker's own executable: orphans outlive owners by hours, long enough
     /// for the PID to be reused by an unrelated process.
     func belongsToUninstall(of app: URL, appExecutable: (pid_t) -> String?) -> Bool {
-        if executable.hasPrefix(app.standardizedFileURL.path + "/") { return true }
+        // The kernel reports a resolved path; the bundle URL may reach it
+        // through a symlink.
+        let bundles = Set([app.standardizedFileURL.path, app.resolvingSymlinksInPath().path])
+        if bundles.contains(where: { executable.hasPrefix($0 + "/") }) { return true }
         guard let ownerPID, ownerPID > 0 else { return true }
         return appExecutable(ownerPID) != executable
     }

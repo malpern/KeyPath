@@ -176,6 +176,20 @@ final class SessionWorkerSweepTests: XCTestCase {
                        "A sibling bundle is not inside the removed one")
     }
 
+    /// A bundle reached through a symlink still claims its workers, which the
+    /// kernel reports at the resolved path, even when a matching owner is live.
+    func testSymlinkedBundleClaimsItsResolvedWorkers() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let real = root.appendingPathComponent("real/KeyPath.app")
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        let link = root.appendingPathComponent("link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real.deletingLastPathComponent())
+        let executable = real.resolvingSymlinksInPath().path + "/Contents/MacOS/KeyPath"
+        let worker = SessionWorkerProcess(pid: 1, mode: .runtime, ownerPID: 10, executable: executable)
+        XCTAssertTrue(worker.belongsToUninstall(of: link.appendingPathComponent("KeyPath.app")) { _ in executable })
+    }
+
     /// The 2026-11-03 orphans outlived their owner by hours. A reused owner
     /// PID now belonging to an unrelated process, or to another KeyPath
     /// bundle, does not make the orphan look owned.
