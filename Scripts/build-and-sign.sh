@@ -328,6 +328,14 @@ for RESOURCE_BUNDLE in "$BUILD_DIR"/KeyPath_*.bundle; do
     fi
 done
 
+# App Intents metadata (Contents/Resources/Metadata.appintents). Without it
+# Shortcuts and Siri cannot see KeyPath's intents; SwiftPM never generates it.
+# Fails the build if the intents are not all present.
+# Swift Build puts products in <scratch>/out/Products/<Config>; hand the
+# generator the scratch path this build actually used.
+KEYPATH_SCRATCH_DIR="$(cd "$BUILD_DIR/../../.." && pwd)" \
+    "$SCRIPT_DIR/generate-app-intents-metadata.sh" "$RESOURCES" Release
+
 # Create PkgInfo file (required for app bundles)
 echo "APPL????" > "$CONTENTS/PkgInfo"
 
