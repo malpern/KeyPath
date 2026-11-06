@@ -232,7 +232,9 @@ residual risk on purpose: a same-user, unsandboxed process that injects into
 or impersonates the app (attacker 3, partly mitigated in the table below).
 That process already runs as the user, and closing the gap needs the
 signature check. Accepting this ADR means accepting that risk for the first
-release; if it is not acceptable, phase 4 joins the release gate.
+release; if it is not acceptable, phase 4 joins the release gate. The
+phase 1–3 mitigation for attacker 3 also assumes `LOCAL_PEERTOKEN` works on
+`AF_UNIX` sockets on macOS 15, which the lab check below must confirm.
 
 | Attacker | Today | After phases 1–3 (release) | After phase 4 |
 |---|---|---|---|
