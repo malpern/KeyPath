@@ -246,8 +246,8 @@ phase 1–3 mitigation for attacker 3 also assumes `LOCAL_PEERTOKEN` works on
 | 3. Same user, unsandboxed | Full access | Partly mitigated: direct connection blocked (PID check), but injecting into or impersonating the app is still possible | Blocked unless it injects code into KeyPath (out of scope) |
 | 4. Port squatter | Takes over the channel | Blocked (no TCP port; socket in a directory only this user owns) | Blocked |
 
-Before this ADR is accepted, confirm the main claims on a live install in a
-lab VM: a second macOS user, and a sandboxed app with the network-client
+**Blocks acceptance:** this ADR stays Proposed until a live install in a lab VM
+confirms the main claims: a second macOS user, and a sandboxed app with the network-client
 entitlement, each connect to the port and receive `KeyInput`. In the same VM,
 check that `LOCAL_PEERTOKEN` returns the peer's audit token on an `AF_UNIX`
 stream socket on macOS 15, since the attacker-3 mitigation depends on it. This
