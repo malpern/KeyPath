@@ -240,8 +240,10 @@ release; if it is not acceptable, phase 4 joins the release gate.
 
 Before this ADR is accepted, confirm the main claims on a live install in a
 lab VM: a second macOS user, and a sandboxed app with the network-client
-entitlement, each connect to the port and receive `KeyInput`. This ADR was
-written from source alone.
+entitlement, each connect to the port and receive `KeyInput`. In the same VM,
+check that `LOCAL_PEERTOKEN` returns the peer's audit token on an `AF_UNIX`
+stream socket on macOS 15, since the attacker-3 mitigation depends on it. This
+ADR was written from source alone.
 
 ## Migration
 
@@ -292,7 +294,11 @@ written from source alone.
    (`git log --oneline origin/keypath/bundled..<branch>` lists only the new
    commits, and `git merge-base --is-ancestor origin/keypath/bundled <branch>`
    succeeds). Before accepting this ADR, re-check the claims above against the
-   fork commit that will ship, if it is no longer `d9085a9`.
+   fork commit that will ship, if it is no longer `d9085a9`. CI today only
+   builds the fork and the bridge (`cargo build` in `.github/workflows/ci.yml`);
+   it runs no Rust tests. The KeyPath PR that lands phases 1 and 2 adds a
+   `cargo test` step for the bridge and the fork's peer-check tests to a
+   required CI job, so the acceptance tests above cannot be skipped.
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The expected PID
    is the app that launched this worker, passed on every launch, so a relaunch
