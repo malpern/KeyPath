@@ -43,16 +43,20 @@ final class SessionOwnerWatch: @unchecked Sendable {
                                              elapsed: uptime() - started, deadline: deadline)
             else { return }
             timer.cancel()
+            // Deliver under the lock: once setHandler returns, a verdict
+            // already in flight has either run the old handler (and exited)
+            // or will run the new one, never the old one late. Both handlers
+            // return at once, so holding the lock cannot stall setHandler.
             lock.lock()
-            let current = self.handler
+            self.handler(verdict)
             lock.unlock()
-            current(verdict)
         }
         timer.resume()
     }
 
     /// The runtime hands off from a hard exit to an orderly shutdown once it
-    /// may own outputs or a Caps mapping.
+    /// may own outputs or a Caps mapping. Blocks while a verdict is being
+    /// delivered, so the old handler cannot run after this returns.
     func setHandler(_ handler: @escaping @Sendable (Verdict) -> Void) {
         lock.lock()
         self.handler = handler

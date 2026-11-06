@@ -27,8 +27,9 @@ final class SessionOwnerWatchTests: XCTestCase {
         let alive = Locked(true)
         let fired = expectation(description: "Owner exit observed")
         let calls = Locked(0)
+        let queue = DispatchQueue(label: "owner-watch-test")
         let watch = SessionOwnerWatch(ownerPID: 30378, deadline: nil, interval: 0.01,
-                                      isAlive: { _ in alive.value })
+                                      isAlive: { _ in alive.value }, queue: queue)
         { verdict in
             XCTAssertFalse(Thread.isMainThread)
             XCTAssertEqual(verdict, .ownerExited)
@@ -37,10 +38,38 @@ final class SessionOwnerWatchTests: XCTestCase {
         }
         alive.update { $0 = false }
         wait(for: [fired], timeout: 2)
-        // A cancelled timer never delivers a second verdict.
-        Thread.sleep(forTimeInterval: 0.1)
+        // The verdict cancels the timer on its own serial queue, so once that
+        // queue drains no further tick can be pending.
+        queue.sync {}
         XCTAssertEqual(calls.value, 1)
         withExtendedLifetime(watch) {}
+    }
+
+    /// setHandler waits for a verdict being delivered, so the startup
+    /// hard-exit handler can never run after the runtime handler is installed.
+    func testSetHandlerWaitsForAVerdictInFlight() {
+        let alive = Locked(true)
+        let inOldHandler = DispatchSemaphore(value: 0)
+        let releaseOldHandler = DispatchSemaphore(value: 0)
+        let order = Locked<[String]>([])
+        let watch = SessionOwnerWatch(ownerPID: 30378, deadline: nil, interval: 0.01,
+                                      isAlive: { _ in alive.value })
+        { _ in
+            order.update { $0.append("old") }
+            inOldHandler.signal()
+            releaseOldHandler.wait()
+        }
+        alive.update { $0 = false }
+        XCTAssertEqual(inOldHandler.wait(timeout: .now() + 2), .success)
+        let swapped = expectation(description: "setHandler returned")
+        DispatchQueue.global().async {
+            watch.setHandler { _ in order.update { $0.append("new") } }
+            order.update { $0.append("swapped") }
+            swapped.fulfill()
+        }
+        releaseOldHandler.signal()
+        wait(for: [swapped], timeout: 2)
+        XCTAssertEqual(order.value, ["old", "swapped"])
     }
 
     func testReplacedHandlerReceivesTheVerdict() {
