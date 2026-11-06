@@ -25,7 +25,7 @@ processes of other logged-in users and sandboxed apps that hold
 kind. Every accepted connection joins the broadcast set before it has sent a
 byte.
 
-Facts below were read from the fork at `External/kanata`, at `d9085a9`, the
+As of 2026-11-04, facts below were read from the fork at `External/kanata`, at `d9085a9`, the
 commit KeyPath `master` (`e42ffea0`) pins, and from KeyPath at that commit.
 `d9085a9` is on the fork's `keypath/explicit-source-keys-20261017` branch, not
 yet on `keypath/bundled`. They were not exercised on a
@@ -221,7 +221,12 @@ directly and asks the app over the existing runtime-control socket, as
 Adopt **C**, and do **A** in the same fork change.
 
 The first public session-runtime release ships only after phases 1 to 3 below.
-Phase 4 can follow in a point release.
+Phase 4 can follow in a point release. Shipping before phase 4 accepts one
+residual risk on purpose: a same-user, unsandboxed process that injects into
+or impersonates the app (attacker 3, partly mitigated in the table below).
+That process already runs as the user, and closing the gap needs the
+signature check. Accepting this ADR means accepting that risk for the first
+release; if it is not acceptable, phase 4 joins the release gate.
 
 | Attacker | Today | After phases 1–3 (release) | After phase 4 |
 |---|---|---|---|
@@ -274,9 +279,12 @@ written from source alone.
    - Rust tests for the peer check and the removed commands.
    Estimate: roughly 300 to 500 lines of new code and tests, plus rewriting
    the bridge's existing passthru TCP test (`Rust/KeyPathKanataHostBridge/src/lib.rs`).
-   Phases 1 and 2 land together: the new listener, the removal of the bind
-   probe and the bridge API change ship in one fork update, so no build has
-   the Unix socket while still panicking on, or probing, a TCP bind.
+   Phases 1 and 2 land together. The fork change merges to `keypath/bundled`
+   first, but KeyPath only picks it up in one KeyPath PR that bumps the
+   submodule and changes the bridge (`Rust/KeyPathKanataHostBridge`, which
+   lives in this repository) and the worker. No KeyPath commit pins the new
+   fork without the matching bridge change, so no build has the Unix socket
+   while still panicking on, or probing, a TCP bind.
 2. **Phase 2, bridge and worker.** `keypath_kanata_bridge_create_passthru_runtime` takes a
    socket path (and expected peer PID) instead of `tcp_port`. The expected PID
    is the app that launched this worker, passed on every launch, so a relaunch

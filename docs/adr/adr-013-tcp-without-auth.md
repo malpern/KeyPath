@@ -1,5 +1,9 @@
 # ADR-013: TCP Communication Without Authentication
 
+> **Note (2026-10-31):** This was written for the root daemon. The runtime now runs
+> in a user session that holds the user's input permissions, so this risk needs
+> review. See ADR-045.
+>
 > **Note (2026-11-04):** This was written for the root daemon, which ADR-045
 > retired. The session runtime holds the user's input permissions, and from a
 > source review the port exposes a keystroke stream and input injection to
