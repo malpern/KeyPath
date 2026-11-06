@@ -278,10 +278,17 @@ struct OverlayKeyboardView: View {
                 keyUnitSize: keyUnitSize,
                 keyGap: keyGap
             )
+            // Computed once per body evaluation: it walks every label, so reading
+            // it per key made each redraw O(keys x labels). Nil when floating
+            // labels are off (reduce motion or a non-standard legend style).
+            let labelVisibility: FloatingLabelVisibility? =
+                !reduceMotion && activeColorway.legendStyle == .standard
+                    ? floatingLabelVisibility
+                    : nil
             ZStack(alignment: .topLeading) {
                 // Layer 1: Keycap backgrounds (stable positions)
                 ForEach(keys, id: \.id) { key in
-                    keyView(key: key, scale: scale)
+                    keyView(key: key, scale: scale, labelVisibility: labelVisibility)
                 }
 
                 // Layer 3: KindaVim hints (renders only while pack is
@@ -310,8 +317,7 @@ struct OverlayKeyboardView: View {
                 // The enableAnimation flag controls whether position changes animate.
                 // Note: frames are calculated directly from layout, no GeometryReader needed.
                 // Skip floating labels for non-standard legend styles (dots show circles, not letters)
-                if !reduceMotion, activeColorway.legendStyle == .standard {
-                    let visibility = floatingLabelVisibility
+                if let visibility = labelVisibility {
                     ForEach(allLabels, id: \.self) { label in
                         FloatingKeymapLabel(
                             label: label,
@@ -441,7 +447,11 @@ struct OverlayKeyboardView: View {
         return CGRect(x: -100, y: -100, width: 20, height: 20)
     }
 
-    private func keyView(key: PhysicalKey, scale: CGFloat) -> some View {
+    private func keyView(
+        key: PhysicalKey,
+        scale: CGFloat,
+        labelVisibility: FloatingLabelVisibility?
+    ) -> some View {
         // Use TCP KeyInput for physical key detection (no CGEvent fallback)
         // TCP KeyInput shows the physical key pressed, not the remapped output
         // Requires Kanata built from keypath-v1.10.0-base branch
@@ -477,9 +487,7 @@ struct OverlayKeyboardView: View {
             nil
         }
 
-        let floatingLabelsEnabled = !reduceMotion && activeColorway.legendStyle == .standard
-        let shouldSuppressKeycapLabel = floatingLabelsEnabled
-            && floatingLabelVisibility.suppressesKeycapContent(baseLabel)
+        let shouldSuppressKeycapLabel = labelVisibility?.suppressesKeycapContent(baseLabel) ?? false
 
         return OverlayKeycapView(
             key: key,
