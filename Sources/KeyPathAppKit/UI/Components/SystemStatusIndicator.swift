@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import KeyPathCore
 import SwiftUI
 
@@ -15,15 +14,15 @@ struct SystemStatusIndicator: View {
     @Binding var showingWizard: Bool
     var onClick: (() -> Void)?
 
-    @State private var isAnimating: Bool = false
     @State private var isHovered: Bool = false
-    @State private var rotationDegrees: Double = 0
-    @State private var rotationSpeedDegPerSec: Double = 180 // ~2s per full rotation
+    // The gear's angle is computed from time, so the TimelineView below can
+    // pause entirely once the gear stops instead of ticking a 60 Hz timer forever.
     @State private var animationPhase: AnimationPhase = .stopped
-    @State private var decelStart: Date?
-    @State private var decelInitialSpeed: Double = 0
+    @State private var phaseStart: Date = .distantPast
+    @State private var phaseBaseDegrees: Double = 0
 
-    private let displayTimer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
+    private static let spinSpeedDegPerSec: Double = 180 // ~2s per full rotation
+    private static let decelDuration: TimeInterval = 0.6
 
     private enum AnimationPhase {
         case spinning
@@ -76,6 +75,60 @@ struct SystemStatusIndicator: View {
     // MARK: - Icon View
 
     private func iconView() -> some View {
+        TimelineView(.animation(paused: animationPhase == .stopped)) { context in
+            iconStack(rotationDegrees: rotationDegrees(at: context.date))
+        }
+        .onChange(of: validator.validationState) { _, newState in
+            // Spin during checking; decelerate to a stop when leaving checking
+            if case .checking = newState {
+                startSpinning()
+            } else if animationPhase == .spinning {
+                startDecelerating()
+            }
+        }
+        .task(id: phaseStart) {
+            guard animationPhase == .decelerating else { return }
+            try? await Task.sleep(for: .seconds(Self.decelDuration))
+            guard !Task.isCancelled, animationPhase == .decelerating else { return }
+            phaseBaseDegrees = rotationDegrees(at: phaseStart.addingTimeInterval(Self.decelDuration))
+            animationPhase = .stopped
+        }
+    }
+
+    private func rotationDegrees(at date: Date) -> Double {
+        let elapsed = max(0, date.timeIntervalSince(phaseStart))
+        let degrees: Double
+        switch animationPhase {
+        case .spinning:
+            degrees = phaseBaseDegrees + elapsed * Self.spinSpeedDegPerSec
+        case .decelerating:
+            // Speed falls off as (1 - t)^2; this is its integral over the slowdown.
+            let t = min(1.0, elapsed / Self.decelDuration)
+            let remaining = 1.0 - t
+            degrees = phaseBaseDegrees
+                + Self.spinSpeedDegPerSec * Self.decelDuration * (1.0 - remaining * remaining * remaining) / 3.0
+        case .stopped:
+            degrees = phaseBaseDegrees
+        }
+        return fmod(degrees, 360)
+    }
+
+    private func startSpinning() {
+        guard animationPhase != .spinning else { return }
+        let now = Date()
+        phaseBaseDegrees = rotationDegrees(at: now)
+        phaseStart = now
+        animationPhase = .spinning
+    }
+
+    private func startDecelerating() {
+        let now = Date()
+        phaseBaseDegrees = rotationDegrees(at: now)
+        phaseStart = now
+        animationPhase = .decelerating
+    }
+
+    private func iconStack(rotationDegrees: Double) -> some View {
         // Fixed frame to prevent layout shifts
         ZStack {
             if let state = validator.validationState {
@@ -85,9 +138,7 @@ struct SystemStatusIndicator: View {
                         .rotationEffect(.degrees(rotationDegrees))
                         .onAppear {
                             // Start or resume spinning
-                            rotationSpeedDegPerSec = 180
-                            animationPhase = .spinning
-                            isAnimating = true
+                            startSpinning()
                         }
                         // Don't stop animation on disappear - let it continue during transition
                         .transition(.opacity)
@@ -111,9 +162,7 @@ struct SystemStatusIndicator: View {
                 Image(systemName: "gear")
                     .rotationEffect(.degrees(rotationDegrees))
                     .onAppear {
-                        rotationSpeedDegPerSec = 180
-                        animationPhase = .spinning
-                        isAnimating = true
+                        startSpinning()
                     }
                     // Don't stop animation on disappear - let it continue during transition
                     .transition(.opacity)
@@ -121,40 +170,6 @@ struct SystemStatusIndicator: View {
         }
         .frame(width: indicatorSize, height: indicatorSize) // Fixed size to prevent jumps
         .animation(.easeInOut(duration: 0.25), value: iconIdentifier) // Smooth transitions between states
-        .onChange(of: validator.validationState) { _, newState in
-            // Spin during checking; decelerate to a stop when leaving checking
-            if case .checking = newState {
-                rotationSpeedDegPerSec = 180
-                animationPhase = .spinning
-                isAnimating = true
-            } else {
-                if animationPhase != .stopped {
-                    decelStart = Date()
-                    decelInitialSpeed = max(rotationSpeedDegPerSec, 60) // ensure visible slowdown
-                    animationPhase = .decelerating
-                }
-            }
-        }
-        .onReceive(displayTimer) { _ in
-            switch animationPhase {
-            case .spinning:
-                rotationDegrees = fmod(rotationDegrees + rotationSpeedDegPerSec / 60.0, 360)
-            case .decelerating:
-                guard let start = decelStart else { break }
-                let duration = 0.6
-                let t = min(1.0, Date().timeIntervalSince(start) / duration)
-                // Ease-out (quadratic) speed curve
-                let currentSpeed = (1.0 - t) * (1.0 - t) * decelInitialSpeed
-                rotationDegrees = fmod(rotationDegrees + currentSpeed / 60.0, 360)
-                if t >= 1.0 || currentSpeed < 1.0 {
-                    animationPhase = .stopped
-                    rotationSpeedDegPerSec = 0
-                    isAnimating = false
-                }
-            case .stopped:
-                break
-            }
-        }
     }
 
     /// Unique identifier for the current icon state to trigger animations
