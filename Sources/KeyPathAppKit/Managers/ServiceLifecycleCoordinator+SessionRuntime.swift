@@ -51,20 +51,23 @@ extension ServiceLifecycleCoordinator {
         do {
             let (application, url, nonce) = try await launchSessionProcess(capabilitiesOnly: true)
             defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
-            for _ in 0 ..< 40 {
-                if let report = Self.readSessionReport(url),
-                   report.state == .capabilities,
-                   report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
-                {
-                    return Self.permissionSet(report)
+            let report = try await Self.awaitCapabilityReport(
+                read: {
+                    guard let report = Self.readSessionReport(url), report.state == .capabilities,
+                          report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
+                    else { return nil }
+                    return report
+                },
+                sleep: { try await Task.sleep(for: .milliseconds(50)) },
+                abandon: {
+                    // NSWorkspace may return an application without a valid PID (e.g. -1).
+                    // Never let that become a process-group/broadcast signal target.
+                    // Signal only the independently launched process owned by this call.
+                    let probePID = application.processIdentifier
+                    if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
                 }
-                try await Task.sleep(for: .milliseconds(50))
-            }
-            // NSWorkspace may return an application without a valid PID (e.g. -1).
-            // Never let that become a process-group/broadcast signal target.
-            // Signal only the independently launched process owned by this call.
-            let probePID = application.processIdentifier
-            if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
+            )
+            if let report { return Self.permissionSet(report) }
         } catch {
             AppLogger.shared.warn("Session permission report unavailable")
         }
@@ -73,6 +76,39 @@ extension ServiceLifecycleCoordinator {
 
     static let legacyDaemonRefusalMessage =
         "The keyboard service from KeyPath 1.0.1 is still running. Remove it to start KeyPath."
+
+    /// The worker's argv. Uninstall's sweep recognizes workers by these flags,
+    /// so a test pins them to SessionWorkerProcess.parse.
+    nonisolated static func sessionLaunchArguments(
+        capabilitiesOnly: Bool, reportPath: String, nonce: String, ownerPID: Int32, port: Int, configPath: String
+    ) -> [String] {
+        [
+            capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
+            "--session-report", reportPath, "--session-nonce", nonce,
+            "--session-owner", String(ownerPID), "--session-port", String(port),
+            "--session-config", configPath
+        ]
+    }
+
+    /// Polls about two seconds for the probe's report. A timeout, a cancelled
+    /// wait, or a thrown error all abandon the probe, and every one of them
+    /// signals it: on 2026-11-03 a cancelled wait skipped the signal and two
+    /// probes outlived their app.
+    static func awaitCapabilityReport(
+        attempts: Int = 40, read: () -> SessionRuntimeReport?,
+        sleep: () async throws -> Void, abandon: () -> Void
+    ) async throws -> SessionRuntimeReport? {
+        var reported = false
+        defer { if !reported { abandon() } }
+        for _ in 0 ..< attempts {
+            if let report = read() {
+                reported = true
+                return report
+            }
+            try await sleep()
+        }
+        return nil
+    }
 
     private func isLegacyDaemonRunning() async -> Bool {
         #if DEBUG
@@ -800,12 +836,10 @@ extension ServiceLifecycleCoordinator {
         configuration.activates = false
         configuration.hides = true
         configuration.addsToRecentItems = false
-        configuration.arguments = [
-            capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
-            "--session-report", url.path, "--session-nonce", nonce,
-            "--session-owner", String(getpid()), "--session-port", String(KeyPathConstants.Networking.defaultTCPPort),
-            "--session-config", KeyPathConstants.Config.mainConfigPath
-        ]
+        configuration.arguments = Self.sessionLaunchArguments(
+            capabilitiesOnly: capabilitiesOnly, reportPath: url.path, nonce: nonce, ownerPID: getpid(),
+            port: KeyPathConstants.Networking.defaultTCPPort, configPath: KeyPathConstants.Config.mainConfigPath
+        )
         sessionCapsIntermediate = nil
         if !capabilitiesOnly {
             sessionCapsPaused = nil
