@@ -15,8 +15,8 @@ concurrency:
 # mini. Job names, and so the required checks, are the same either way.
 #   gh variable set KEYPATH_CI_RUNNER --repo malpern/KeyPath --body hosted
 #   gh variable delete KEYPATH_CI_RUNNER --repo malpern/KeyPath
-# Only ci.yml has the fallback; coverage, cache-warm and runner-health are
-# scheduled jobs that stay on the mini and don't gate PRs.
+# Only ci.yml has the fallback. coverage, cache-warm and runner-health are
+# mini-only jobs that do not gate PRs; they skip while this variable is set.
 
 # GitHub counts a skipped check as passing, so the required checks must never be
 # skipped. `build-and-test` and `code-quality` at the bottom of this file always run
