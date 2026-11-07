@@ -284,7 +284,7 @@ public struct LegacyPrivilegedRuntimeCleanup {
     }
 
     static func describeBatchFailure(exitCode: Int32, output: String) -> String {
-        if output.contains("-128") || output.localizedCaseInsensitiveContains("user canceled") {
+        if output.contains("(-128)") || output.localizedCaseInsensitiveContains("user canceled") {
             return "Administrator authorization was cancelled."
         }
         let detail = output.trimmingCharacters(in: .whitespacesAndNewlines)

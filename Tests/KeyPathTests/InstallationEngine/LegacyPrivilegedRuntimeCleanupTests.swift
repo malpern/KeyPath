@@ -98,6 +98,13 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertEqual(batches.count, 1)
     }
 
+    func testCancelDetectionIgnoresAnUnrelatedMinus128() {
+        XCTAssertEqual(LegacyPrivilegedRuntimeCleanup.describeBatchFailure(exitCode: 1, output: "User canceled. (-128)"),
+                       "Administrator authorization was cancelled.")
+        XCTAssertFalse(LegacyPrivilegedRuntimeCleanup.describeBatchFailure(exitCode: 1, output: "kill: 4-128: no such process")
+            .contains("cancelled"))
+    }
+
     func testFailedBatchIsNeverSuccessEvenIfNothingIsLeft() async {
         inspections = [Self.installed101, Self.clean]
         batchResult = .success((2, "rm: permission denied"))
