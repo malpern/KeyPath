@@ -103,11 +103,21 @@ public final class SessionRuntimeWorker {
               let path = argument("--session-report"),
               let nonce = argument("--session-nonce"), UUID(uuidString: nonce) != nil
         else { exit(64) }
+        let ownerPID = argument("--session-owner").flatMap(Int32.init) ?? 0
+        let probeOnly = arguments.contains("--session-capabilities")
+        // Until the runtime can own outputs, nothing needs releasing: a dead
+        // owner, or a probe still running after its parent stopped waiting,
+        // ends the process at once. _exit cannot block on a wedged main thread.
+        // A runtime's tick already checks the owner every 5 ms; this backstop
+        // for a wedged run loop polls slowly, since the 30 s grace dominates.
+        let ownerWatch = SessionOwnerWatch(ownerPID: ownerPID,
+                                           deadline: probeOnly ? capabilityProbeDeadline : nil,
+                                           interval: probeOnly ? 0.25 : 2) { _ in _exit(0) }
 
-        if arguments.contains("--session-capabilities") {
+        if probeOnly {
             await writeCapabilityReport(
                 reportURL: URL(fileURLWithPath: path), nonce: nonce,
-                ownerPID: argument("--session-owner").flatMap(Int32.init) ?? 0,
+                ownerPID: ownerPID,
                 port: argument("--session-port").flatMap(UInt16.init) ?? 0,
                 snapshotProvider: {
                     await SystemStateProvider.shared.currentProcessSessionCapabilitySnapshot()
@@ -118,7 +128,7 @@ public final class SessionRuntimeWorker {
         let capabilities = await SystemStateProvider.shared.currentProcessPermissionCapabilities()
         let worker = SessionRuntimeWorker(
             reportURL: URL(fileURLWithPath: path), nonce: nonce,
-            ownerPID: argument("--session-owner").flatMap(Int32.init) ?? 0,
+            ownerPID: ownerPID,
             port: argument("--session-port").flatMap(UInt16.init) ?? 0,
             capabilities: capabilities
         )
@@ -131,10 +141,33 @@ public final class SessionRuntimeWorker {
             worker.experimentalRawCapabilities = SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
             worker.experimentalRawPosting = await SystemStateProvider.shared.currentProcessRawEventPostingStatus()
         #endif
+        // From here the worker may hold keys or a Caps mapping, so a dead owner
+        // retires it on its run loop, which releases them before exiting. A
+        // run loop that never gets there would keep an orphan forever; after
+        // the grace it exits anyway, and the Caps journal survives for recovery.
+        // A shutdown already under way, or one this starts, cancels that exit.
+        ownerWatch.setHandler { [weak worker] _ in
+            guard SessionShutdownFallback.shared.arm(after: ownerExitShutdownGrace, action: { _exit(1) }) else { return }
+            CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
+                MainActor.assumeIsolated { worker?.retire(reason: "owner-exited") }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
         worker.start(configPath: config)
         // Keep the worker and loaded bridge alive through process termination;
         // dropping a runtime cannot stop its detached TCP listener threads.
         worker.runLoop()
+    }
+
+    /// The parent waits about two seconds for a capability report and then
+    /// abandons the probe; this bounds a probe the parent could not signal.
+    nonisolated static let capabilityProbeDeadline: TimeInterval = 15
+    /// How long an orphaned runtime gets to release outputs on its run loop.
+    nonisolated static let ownerExitShutdownGrace: TimeInterval = 30
+
+    private func retire(reason: String) {
+        guard !finished else { return }
+        finish(.stopped, reason: reason)
     }
 
     /// Capability mode samples passive APIs and writes evidence only. In particular,
@@ -1154,6 +1187,8 @@ public final class SessionRuntimeWorker {
         acknowledge: (() -> Void)? = nil
     ) -> Never {
         finished = true
+        // The orderly path owns shutdown from here; no hard exit may cut it off.
+        SessionShutdownFallback.shared.shutdownBegins()
         // Every exit records why, so a stop with no failure is still explainable.
         AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
         AppLogger.shared.flushBuffer()
