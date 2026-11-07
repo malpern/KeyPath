@@ -63,6 +63,11 @@ final class LegacyRuntimeUpgradeFlowTests: KeyPathTestCase {
         XCTAssertEqual(outcome.message, "Old KeyPath service removed. Accessibility is off.")
         XCTAssertFalse(outcome.isFailure, "The removal itself succeeded")
 
+        let stale = await run(result(success: true), started: false,
+                              lastError: ServiceLifecycleCoordinator.legacyDaemonRefusalMessage)
+        XCTAssertEqual(stale.message, "Old KeyPath service removed. Turn KeyPath on with the switch above.",
+                       "A stale refusal must not be shown as the reason the start failed")
+
         let unexplained = await run(result(success: true), started: false)
         XCTAssertEqual(unexplained.message, "Old KeyPath service removed. Turn KeyPath on with the switch above.")
     }

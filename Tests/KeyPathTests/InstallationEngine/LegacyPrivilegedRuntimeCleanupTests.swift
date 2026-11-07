@@ -188,6 +188,7 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertTrue(try shellMatches("/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher --port 37001"))
         XCTAssertTrue(try shellMatches("/Library/PrivilegedHelperTools/com.keypath.helper"))
         XCTAssertFalse(try shellMatches("/Applications/Other.app/Contents/Library/HelperTools/OtherHelper"))
+        XCTAssertFalse(try shellMatches("/usr/bin/vim /Library/KeyPath/bin/kanata"))
         XCTAssertFalse(try shellMatches("/Library/PrivilegedHelperTools/comXkeypathXhelper"),
                        "Escaped dots must stay literal after quoting")
     }
@@ -214,6 +215,9 @@ final class LegacyPrivilegedRuntimeCleanupTests: KeyPathTestCase {
         XCTAssertFalse(matches("/Applications/Other.app/Contents/Library/HelperTools/OtherHelper"),
                        "Another vendor's root helper must never be stopped")
         XCTAssertFalse(matches("/Library/PrivilegedHelperTools/com.example.helper"))
+        XCTAssertFalse(matches("/usr/bin/vim /Library/KeyPath/bin/kanata"),
+                       "Only the executable path may match, never an argument")
+        XCTAssertFalse(matches("/usr/bin/tail -f /Applications/KeyPath.app/Contents/Library/KeyPath/log"))
     }
 
     func testOnlyLiveRootProcessesCountNotAnotherUsersSession() {

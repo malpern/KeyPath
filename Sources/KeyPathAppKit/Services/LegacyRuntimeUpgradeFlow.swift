@@ -53,6 +53,8 @@ enum LegacyRuntimeUpgradeFlow {
         if await start() {
             return .started(virtualHIDNotice: result.virtualHIDNotice)
         }
-        return .removedButNotStarted(reason: lastError(), virtualHIDNotice: result.virtualHIDNotice)
+        // The refusal itself is not a reason the start failed once it has cleared.
+        let reason = lastError().flatMap { $0 == ServiceLifecycleCoordinator.legacyDaemonRefusalMessage ? nil : $0 }
+        return .removedButNotStarted(reason: reason, virtualHIDNotice: result.virtualHIDNotice)
     }
 }
