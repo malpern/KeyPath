@@ -10,13 +10,3 @@ public protocol ConfigRepairService: Sendable {
     /// - Returns: A corrected configuration string
     func repairConfig(config: String, errors: [String], mappings: [KeyMapping]) async throws -> String
 }
-
-/// Mock implementation for tests or when AI is disabled
-public struct MockConfigRepairService: ConfigRepairService {
-    public init() {}
-
-    public func repairConfig(config: String, errors _: [String], mappings _: [KeyMapping]) async throws -> String {
-        // Just return the original config to simulate inability to repair without AI
-        config
-    }
-}
