@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import ServiceManagement
 @preconcurrency import XCTest
 
 /// A daemon left by public 1.0.1 and a session tap would both modify the
@@ -7,7 +8,7 @@
 /// unit tests, so that failure is the proof that a start got past the check.
 @MainActor
 final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
-    private let refusal = "Stop the existing keyboard service before trying driverless mode."
+    private let refusal = ServiceLifecycleCoordinator.legacyDaemonRefusalMessage
     private var errors: [String] = []
     private var daemonChecks = 0
     private var publishedError: String?
@@ -109,6 +110,43 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         XCTAssertNotEqual(reason, refusal)
     }
 
+    func testRefreshAfterCleanupClearsTheRefusalOnlyWhenTheDaemonIsGone() async {
+        let coordinator = makeCoordinator()
+        _ = await start(daemonRunning: true, using: coordinator)
+
+        let stillRefused = await coordinator.refreshLegacyDaemonRefusalAfterCleanup()
+        XCTAssertTrue(stillRefused, "A daemon that is still running must keep blocking the start")
+        XCTAssertEqual(coordinator.sessionLegacyDaemonRefusal, refusal)
+
+        coordinator.testSessionLegacyDaemonRunning = { false }
+        let refusedAfterRemoval = await coordinator.refreshLegacyDaemonRefusalAfterCleanup()
+        XCTAssertFalse(refusedAfterRemoval)
+        XCTAssertNil(coordinator.sessionLegacyDaemonRefusal)
+    }
+
+    /// 1.0.1's ServiceManagement record is left behind on purpose. A lingering
+    /// `.enabled` record with no process and no TCP must never read as a
+    /// running daemon after cleanup, or the user would be told to restart.
+    func testLingeringEnabledRegistrationIsNotARunningDaemonAfterCleanup() async {
+        let previousProvider = SMAppServiceStatusProvider.shared
+        let previousTCP = KanataDaemonService.tcpProbeOverride
+        SMAppServiceStatusProvider.shared = SMAppServiceStatusProvider(
+            cacheTTL: 0, serviceFactory: { _ in LingeringRegistration() }
+        )
+        KanataDaemonService.tcpProbeOverride = { _, _ in false }
+        defer {
+            SMAppServiceStatusProvider.shared = previousProvider
+            KanataDaemonService.tcpProbeOverride = previousTCP
+        }
+
+        let service = KanataDaemonService()
+        await service.invalidateEvidenceCaches()
+        for sample in 1 ... 5 {
+            let running = await service.isDaemonRunning()
+            XCTAssertFalse(running, "Sample \(sample) read a stale registration as a running daemon")
+        }
+    }
+
     func testRunningLegacyDaemonRefusesStartWithoutLaunching() async {
         let started = await start(daemonRunning: true)
         XCTAssertFalse(started)
@@ -125,4 +163,13 @@ final class SessionLegacyDaemonRefusalTests: KeyPathTestCase {
         XCTAssertTrue(errors.first?.hasPrefix("Driverless runtime launch failed") == true,
                       "Expected the start to reach launch, got \(errors)")
     }
+}
+
+private struct LingeringRegistration: SMAppServiceProtocol {
+    var status: SMAppService.Status {
+        .enabled
+    }
+
+    func register() throws {}
+    func unregister() async throws {}
 }

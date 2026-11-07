@@ -28,6 +28,7 @@ struct StatusSettingsTabView: View {
     @State private var launchAtLogin = LaunchAtLoginController.shared
     @State private var settingsToastManager = WizardToastManager()
     @State var showingPermissionAlert = false
+    @State var removingLegacyRuntime = false
     @State private var localServiceRunning: Bool? // Optimistic local state for instant toggle feedback
 
     /// Persisted record that the user explicitly switched the service off (as
@@ -130,7 +131,23 @@ struct StatusSettingsTabView: View {
                         // Action button when there are problems. Suppressed when the
                         // user has intentionally turned the service off — nothing is
                         // broken, so there's nothing to fix.
-                        if !isSystemHealthy, !isIntentionallyDisabled {
+                        // The wizard cannot detect KeyPath 1.0.1's service, so its
+                        // removal replaces "Fix it" while that refusal stands (#1353).
+                        if Self.offersLegacyRuntimeRemoval(issues: wizardIssues) {
+                            Button(action: { Task { await removeLegacyRuntimeAndStart() } }) {
+                                Label(
+                                    removingLegacyRuntime ? "Removing Old Service…" : "Remove Old Service",
+                                    systemImage: "trash"
+                                )
+                                .font(.body.weight(.semibold))
+                            }
+                            .settingsPrimaryAction()
+                            .controlSize(.large)
+                            .tint(.orange)
+                            .disabled(removingLegacyRuntime)
+                            .accessibilityIdentifier("status-remove-legacy-service-button")
+                            .accessibilityLabel("Remove the KeyPath 1.0.1 keyboard service")
+                        } else if !isSystemHealthy, !isIntentionallyDisabled {
                             Button(action: { wizardInitialPage = .summary }) {
                                 Label("Fix it", systemImage: "wand.and.stars")
                                     .font(.body.weight(.semibold))
@@ -477,6 +494,32 @@ struct StatusSettingsTabView: View {
             let duplicates = await HelperMaintenance.shared.detectDuplicateAppCopies()
             guard duplicates != duplicateAppCopies else { return }
             duplicateAppCopies = duplicates
+        }
+    }
+
+    /// Removes the KeyPath 1.0.1 service the session runtime refuses to start
+    /// beside (#1353), then starts KeyPath. Runs only when the user asks.
+    func removeLegacyRuntimeAndStart() async {
+        guard !removingLegacyRuntime else { return }
+        removingLegacyRuntime = true
+        defer { removingLegacyRuntime = false }
+        settingsToastManager.showInfo("Removing the old KeyPath service…")
+
+        let lifecycle = kanataManager.underlyingManager.serviceLifecycleCoordinator
+        let outcome = await LegacyRuntimeUpgradeFlow.run(
+            remove: { await InstallerEngine().removeLegacyPrivilegedRuntime() },
+            refusalStillStands: { await lifecycle.refreshLegacyDaemonRefusalAfterCleanup() },
+            start: { await kanataManager.startKanata(reason: "KeyPath 1.0.1 service removed") },
+            lastError: { kanataManager.lastError }
+        )
+        await refreshStatus()
+        switch outcome {
+        case .removalFailed, .stillDetected:
+            settingsToastManager.showError(outcome.message, duration: 10)
+        case .started:
+            settingsToastManager.showSuccess(outcome.message, duration: 10)
+        case .removedButNotStarted:
+            settingsToastManager.showInfo(outcome.message, duration: 10)
         }
     }
 

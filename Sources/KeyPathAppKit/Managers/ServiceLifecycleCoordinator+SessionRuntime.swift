@@ -74,6 +74,9 @@ extension ServiceLifecycleCoordinator {
         return nil
     }
 
+    static let legacyDaemonRefusalMessage =
+        "The keyboard service from KeyPath 1.0.1 is still running. Remove it to start KeyPath."
+
     /// The worker's argv. Uninstall's sweep recognizes workers by these flags,
     /// so a test pins them to SessionWorkerProcess.parse.
     nonisolated static func sessionLaunchArguments(
@@ -126,6 +129,14 @@ extension ServiceLifecycleCoordinator {
         return sessionLegacyDaemonRefusal
     }
 
+    /// Re-reads the legacy daemon with fresh evidence after the 1.0.1 stack was
+    /// removed, clearing the refusal only if it is really gone. Returns whether a
+    /// refusal still stands.
+    func refreshLegacyDaemonRefusalAfterCleanup() async -> Bool {
+        await kanataDaemonService.invalidateEvidenceCaches()
+        return await legacyDaemonRefusalForStartup() != nil
+    }
+
     /// The published error goes too, or Settings would keep naming a stopped daemon.
     func clearLegacyDaemonRefusal() {
         guard sessionLegacyDaemonRefusal != nil else { return }
@@ -152,7 +163,7 @@ extension ServiceLifecycleCoordinator {
         let legacyRunning = await isLegacyDaemonRunning()
         guard sessionStartIsCurrent(generation) else { return false }
         sessionLegacyDaemonRefusal = legacyRunning
-            ? "Stop the existing keyboard service before trying driverless mode." : nil
+            ? Self.legacyDaemonRefusalMessage : nil
         if let sessionLegacyDaemonRefusal {
             onError?(sessionLegacyDaemonRefusal)
             onStateChanged?()

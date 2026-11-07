@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathWizardCore
 import XCTest
 
 @MainActor
@@ -71,5 +72,15 @@ final class SessionFailureRecoveryMessageTests: XCTestCase {
         XCTAssertEqual(StatusSettingsTabView.stoppedMessage(lastError: nil), "Runtime is stopped. Use the switch above to turn it on.")
         XCTAssertEqual(StatusSettingsTabView.stoppedMessage(lastError: "Driverless remapping stopped."),
                        "Runtime is stopped. Driverless remapping stopped.")
+    }
+
+    func testRemovalIsOfferedOnlyForTheLegacyDaemonRefusal() {
+        func issue(_ action: AutoFixAction?) -> WizardIssue {
+            WizardIssue(identifier: .component(.keyPathRuntime), severity: .error, category: .systemRequirements,
+                        title: "t", description: "d", autoFixAction: action, userAction: nil)
+        }
+        XCTAssertTrue(StatusSettingsTabView.offersLegacyRuntimeRemoval(issues: [issue(.removeLegacyPrivilegedRuntime)]))
+        XCTAssertFalse(StatusSettingsTabView.offersLegacyRuntimeRemoval(issues: [issue(nil)]))
+        XCTAssertFalse(StatusSettingsTabView.offersLegacyRuntimeRemoval(issues: []))
     }
 }

@@ -803,22 +803,22 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1, legacyDaemonRefused: false))
     }
 
-    @Test("Legacy daemon refusal reaches the issue list with no automatic fix")
+    @Test("Legacy daemon refusal reaches the issue list with a user-run removal action")
     func legacyDaemonRefusalPublishes() async {
         let controller = MainAppStateController()
         let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
         lifecycle.testSessionConfigurationValidation = { .valid }
         lifecycle.testSessionCurrentReport = { nil }
-        lifecycle.sessionLegacyDaemonRefusal = "Stop the existing keyboard service before trying driverless mode."
+        lifecycle.sessionLegacyDaemonRefusal = ServiceLifecycleCoordinator.legacyDaemonRefusalMessage
         lifecycle.testSessionLegacyDaemonRunning = { true }
         controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
         controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
         await controller.revalidate()
         #expect(controller.validationState?.hasCriticalIssues == true)
         #expect(controller.issues.count == 1)
-        #expect(controller.issues.first?.title == "Another KeyPath keyboard service is running")
-        #expect(controller.issues.first?.autoFixAction == nil)
-        #expect(controller.issues.first?.userAction?.contains("will not stop it") == true)
+        #expect(controller.issues.first?.title == "The KeyPath 1.0.1 keyboard service is still running")
+        #expect(controller.issues.first?.autoFixAction == .removeLegacyPrivilegedRuntime)
+        #expect(controller.issues.first?.userAction?.contains("Remove Old Service") == true)
     }
 
     private func sessionPermissions(

@@ -477,7 +477,7 @@ class MainAppStateController {
             switch self {
             case .configuration: "Configuration cannot run in driverless mode"
             case .recovery: "Keyboard recovery requires attention"
-            case .legacyDaemon: "Another KeyPath keyboard service is running"
+            case .legacyDaemon: "The KeyPath 1.0.1 keyboard service is still running"
             }
         }
 
@@ -485,8 +485,13 @@ class MainAppStateController {
             switch self {
             case .configuration: "Edit the configuration and retry. Existing rules were preserved."
             case .recovery: "The recovery record was preserved. Do not clear it to force a restart."
-            case .legacyDaemon: "KeyPath will not stop it for you. Stop it, then start KeyPath again. Existing rules were preserved."
+            case .legacyDaemon: "Choose Remove Old Service in Settings → Status. KeyPath asks for your administrator password once, removes the old service, and starts again. Existing rules were preserved."
             }
+        }
+
+        /// Only the 1.0.1 daemon has a fix, and it runs only when the user asks.
+        var autoFixAction: AutoFixAction? {
+            self == .legacyDaemon ? .removeLegacyPrivilegedRuntime : nil
         }
     }
 
@@ -827,7 +832,7 @@ class MainAppStateController {
         // snapshot cannot make a proven unsupported configuration start running.
         issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
                               category: .systemRequirements, title: kind.title,
-                              description: reason, autoFixAction: nil,
+                              description: reason, autoFixAction: kind.autoFixAction,
                               userAction: kind.userAction)]
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil

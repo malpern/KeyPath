@@ -214,6 +214,7 @@ public enum AutoFixAction: Equatable, Sendable {
     case restartCommServer // Restart service to enable TCP functionality
     case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
     case installCorrectVHIDDriver // Download and install the correct driver when missing (helper-first)
+    case removeLegacyPrivilegedRuntime // Remove the KeyPath 1.0.1 daemon and helper (migration, #1353)
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation
