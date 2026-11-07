@@ -13,6 +13,9 @@ on:
 
 jobs:
   warm-cache:
+    # Skipped while the mini is away (KEYPATH_CI_RUNNER=hosted); a self-hosted
+    # job with no runner online just queues. See the header of ci.yml.
+    if: vars.KEYPATH_CI_RUNNER != 'hosted'
     runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
     timeout-minutes: 5
     steps:
