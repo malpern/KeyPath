@@ -5,6 +5,18 @@ import XCTest
 
 @MainActor
 final class SessionFailureRecoveryMessageTests: XCTestCase {
+    func testPhantomHeldKeysAreReleasedOnceAfterTheLimit() {
+        let limit = ServiceLifecycleCoordinator.phantomHeldKeyRelease
+        let release = ServiceLifecycleCoordinator.phantomHeldKeysToRelease
+        // A key held for less than the limit is a real press; leave it alone.
+        XCTAssertEqual(release([0], limit - 1, []), [])
+        XCTAssertEqual(release([0, 49], limit, []), [0, 49])
+        // Each key is released once; a key that stays held is not retried.
+        XCTAssertEqual(release([0, 49], limit + 10, [0]), [49])
+        XCTAssertEqual(release([0], limit + 10, [0]), [])
+        XCTAssertEqual(release([], limit + 10, []), [])
+    }
+
     func testHeldKeysWarningNamesTheKeyToRelease() {
         XCTAssertEqual(ServiceLifecycleCoordinator.heldKeysWarning([49]),
                        "Remapping is waiting because macOS reports the \u{201C}space\u{201D} key as held down. Press and release it to resume.")

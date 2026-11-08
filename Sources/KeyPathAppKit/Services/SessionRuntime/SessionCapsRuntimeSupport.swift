@@ -359,6 +359,15 @@ enum SessionCapsRuntimeSupport {
         SessionKeyMap.keyCodeToUsage.keys.filter { $0 != 57 && isDown($0) }.sorted()
     }
 
+    /// Posts a key-up at the HID level for each key, which clears HID state
+    /// that kept a press whose release never arrived.
+    static func postHIDRelease(_ keys: [CGKeyCode]) {
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+        for key in keys {
+            CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false)?.post(tap: .cghidEventTap)
+        }
+    }
+
     static func hidKeyDown(_ key: CGKeyCode) -> Bool {
         CGEventSource.keyState(.hidSystemState, key: key)
     }
