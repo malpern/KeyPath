@@ -79,3 +79,27 @@ exposure, `ci.yml` now keeps SwiftPM scratch per runner across jobs, so binary
 artifacts are fetched only when that scratch is cold. If exit 133 / SIGTRAP in
 `swift-package` returns, check `/Library/Logs/DiagnosticReports/swift-package*`
 first; the fallback is restoring a logged-in `clawd` session for runner 2.
+
+## Update 2026-11-08: the trap is back on both toolchains
+
+On macOS 27.3 (`26C5035r`) the trap returned under the runner 2 daemon. Every
+cold `swift-package` fetch of Sparkle's binary artifact trapped with the same
+`_xpc_api_misuse` / `xpc_connection_set_target_uid` / `AppSSO::shouldManageURL`
+stack, on release Xcode 27 (`27A266a`) and on Xcode-beta (`27A5194q`) alike.
+`xcodebuild -downloadComponent MetalToolchain` traps the same way from the
+daemon, because it also goes through `NSURLSession`. The same commands work over
+ssh as `clawd`.
+
+What still works: `ci.yml` keeps a warm per-runner scratch, so a warm job never
+fetches the artifact. The scratch is stamped with `swift --version` and cleared
+when it changes, so **switching `xcode-select` empties it and the next CI job
+traps.** The mini stays on Xcode-beta, whose toolchain matches the stamp, until
+there is a way to rewarm the scratch outside the daemon. `coverage.yml` builds
+in a fresh scratch, so it traps on every run.
+
+Before changing the mini's Xcode:
+
+- Download the new Xcode's Metal toolchain as `clawd` over ssh first. A beta
+  Xcode's toolchain is a per-user download, so another account's copy does not
+  count.
+- Expect the next SwiftPM job on runner 2 to fail until its scratch is warm again.
