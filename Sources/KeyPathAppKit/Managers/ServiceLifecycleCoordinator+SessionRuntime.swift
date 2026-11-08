@@ -629,6 +629,7 @@ extension ServiceLifecycleCoordinator {
         var lastBlocker: String?
         var heldSince: Date?
         var namedHeldKeys: [CGKeyCode]?
+        var releasedHeldKeys: [CGKeyCode] = []
         while sessionStartIsCurrent(expectedGeneration) {
             // Screen wake can precede system wake by tens of seconds after a
             // quick lid close/open. Only a signal after this retirement counts;
@@ -652,6 +653,14 @@ extension ServiceLifecycleCoordinator {
                     AppLogger.shared.warn("[SessionRuntime] Wake recovery waiting on held key codes \(held)")
                     onWarning?(Self.heldKeysWarning(held))
                 }
+                let release = Self.phantomHeldKeysToRelease(
+                    held: held, heldFor: Date().timeIntervalSince(since), alreadyReleased: releasedHeldKeys
+                )
+                if !release.isEmpty {
+                    releasedHeldKeys += release
+                    AppLogger.shared.warn("[SessionRuntime] Releasing key codes \(release) held for \(Int(Self.phantomHeldKeyRelease))s")
+                    SessionCapsRuntimeSupport.postHIDRelease(release)
+                }
             } else {
                 heldSince = nil
                 namedHeldKeys = nil
@@ -674,6 +683,22 @@ extension ServiceLifecycleCoordinator {
             catch { return false }
         }
         return false
+    }
+
+    /// How long a key may read as held before recovery releases it itself.
+    static let phantomHeldKeyRelease: TimeInterval = 15
+
+    /// HID state can keep a key down after its release report was lost: the
+    /// mini read A as held for minutes on 2026-11-08 with nothing pressed, and
+    /// remapping never resumed until a key-up was posted for it. A real hold
+    /// ends long before this, so release keys still held past the limit, once
+    /// each. The release is a key-up, so a key that truly is still held only
+    /// sees an early release.
+    static func phantomHeldKeysToRelease(
+        held: [CGKeyCode], heldFor: TimeInterval, alreadyReleased: [CGKeyCode]
+    ) -> [CGKeyCode] {
+        guard heldFor >= phantomHeldKeyRelease else { return [] }
+        return held.filter { !alreadyReleased.contains($0) }
     }
 
     static func heldKeysWarning(_ keys: [CGKeyCode]) -> String {
