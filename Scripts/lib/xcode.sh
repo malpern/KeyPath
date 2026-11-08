@@ -59,6 +59,8 @@ keypath_use_selected_xcode() {
 
     # Rust invokes the system compiler through `cc`; without an explicit SDK it
     # can resolve Command Line Tools even when DEVELOPER_DIR points at Xcode.
-    # Keep every compiler on the same selected Xcode SDK.
-    export SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+    # The cargo scripts pass this to cargo as SDKROOT. It is not exported as
+    # SDKROOT itself: with SDKROOT set, Xcode 27.2's SwiftPM reports "missing
+    # Metal Toolchain" for KeyPathAppKit's Metal build step.
+    export KEYPATH_SDKROOT="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
 }

@@ -32,7 +32,8 @@ final class DeploymentScriptContractTests: XCTestCase {
         XCTAssertTrue(xcodeContract.contains("keypath_xcode_version"))
         XCTAssertTrue(xcodeContract.contains("KEYPATH_DEV_XCODE_DEVELOPER_DIR"))
         XCTAssertTrue(xcodeContract.contains("keypath_use_selected_xcode"))
-        XCTAssertTrue(xcodeContract.contains("export SDKROOT="))
+        XCTAssertTrue(xcodeContract.contains("export KEYPATH_SDKROOT="))
+        XCTAssertFalse(xcodeContract.contains("export SDKROOT="))
 
         // Without a pin, shipping refuses an Xcode marked beta and asks a person to confirm any other.
         let releaseDoctor = try contents(of: root.appendingPathComponent("Scripts/release-doctor.sh"))
