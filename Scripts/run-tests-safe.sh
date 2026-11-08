@@ -512,7 +512,11 @@ else
   if [ -n "$SWIFT_BUILD_JOBS" ]; then
     SWIFT_BUILD_COMMAND+=(--jobs "$SWIFT_BUILD_JOBS")
   fi
-  "${SWIFT_BUILD_COMMAND[@]}" 2>&1 | tee "$BUILD_LOG"
+  # Build with the real HOME; only the tests run under the isolated one. Under
+  # the headless CI daemon an isolated HOME makes Xcode 27.2's sandboxed Metal
+  # build step report "missing Metal Toolchain", and build output does not
+  # depend on HOME.
+  HOME="$ORIGINAL_HOME" "${SWIFT_BUILD_COMMAND[@]}" 2>&1 | tee "$BUILD_LOG"
   BUILD_EXIT_CODE="${PIPESTATUS[0]}"
 fi
 set -e
