@@ -138,7 +138,7 @@ cd "$KANATA_SOURCE"
 # (the defcfg flag parses and is ignored); only actual `(cmd …)` actions fail
 # at parse with a clear "cmd is not enabled for this executable" message.
 MACOSX_DEPLOYMENT_TARGET=11.0 \
-cargo build \
+env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
     --release \
     --features "$KANATA_FEATURES" \
     --target aarch64-apple-darwin

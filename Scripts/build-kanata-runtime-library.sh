@@ -46,7 +46,7 @@ rustup target add aarch64-apple-darwin >/dev/null 2>&1 || true
 
 cd "$KANATA_SOURCE"
 MACOSX_DEPLOYMENT_TARGET=11.0 \
-cargo rustc \
+env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo rustc \
     --release \
     --lib \
     --target aarch64-apple-darwin \

@@ -148,16 +148,6 @@ jobs:
       - name: Add Homebrew to PATH
         run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
-      - name: Metal probe (temporary)
-        env:
-          KEYPATH_BUNDLED_SIMULATOR_OVERRIDE: /opt/homebrew/bin/kanata-simulator
-        run: |
-          ./Scripts/ci/metal-probe.sh job-env
-          source Scripts/lib/xcode.sh; keypath_use_selected_xcode
-          export CLANG_MODULECACHE_PATH=$PWD/.build/ModuleCache.noindex SWIFT_MODULECACHE_PATH=$PWD/.build/ModuleCache.noindex
-          ./Scripts/ci/metal-probe.sh safe-runner-env
-          xcodebuild -showComponent MetalToolchain 2>&1 | head -4
-
       - name: Generate full-suite coverage
         timeout-minutes: 30
         env:

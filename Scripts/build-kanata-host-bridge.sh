@@ -88,13 +88,13 @@ cargo clean \
     --package keypath-kanata-host-bridge
 
 if [ -n "$BRIDGE_FEATURES" ]; then
-    cargo build \
+    env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
         --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
         --release \
         --features "$BRIDGE_FEATURES" \
         --target "$BRIDGE_TARGET"
 else
-    cargo build \
+    env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
         --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
         --release \
         --target "$BRIDGE_TARGET"
