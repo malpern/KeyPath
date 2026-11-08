@@ -41,8 +41,8 @@ The original prototype tracked exactly one device. Everything downstream inherit
 - Automatic selection required exactly one eligible device and nothing withheld.
 
 Any other inventory paused Caps Lock rules until the user picked a keyboard.
-The fleet implementation replaced that default while retaining a selected-only mode
-for users who already made a choice.
+The fleet implementation replaced that default, keeping a selected-only mode
+as an explicit opt-in.
 
 ### What that costs
 
@@ -237,12 +237,22 @@ explicit user choice, and nothing stops working without saying so. KeyPath never
 its pair ahead of the user's. Mappings on other source keys are kept and restored byte
 for byte, which A4 showed is safe.
 
-**Migration.** An existing `SessionCapsSelection` keeps the advanced
-"only this keyboard" scope. Users who never chose one get all keyboards.
+**Migration.** None. One-keyboard scope is opt-in only, through
+`selectedKeyboardOnlyKey`. A saved `SessionCapsSelection` on its own no longer
+implies that scope. The earlier rule kept any Mac with a pre-fleet selection in
+one-keyboard mode. Because a selection is bound to its boot session, that Mac then
+paused Caps Lock rules after every restart whenever it had more than one
+keyboard-class device attached, for example a keyboard plus a mouse with a
+keyboard interface. KeyPath has no installed base to preserve, so the fallback
+was removed (2026-11-07).
 `automaticSetupDisabledKey` keeps its meaning: no automatic Caps setup at all.
 
-**UI.** Settings shows keyboard coverage, per-keyboard exceptions, and the
-selected-only option under Caps Lock options. The tour no longer requires a keyboard
+**UI.** Settings shows keyboard coverage inline: an on/off switch on the Caps
+Lock rules row, a checkbox per keyboard when several are connected (or when the only
+connected keyboard is excluded), and the selected-only option below them. Nothing is behind a disclosure group. When the
+only problem is paused Caps Lock rules, the Status tab's "Fix it" opens
+Settings > General instead of the setup wizard. Any wizard issue above `info`
+still opens the wizard (`StatusSettingsTabView.capsPausedIsOnlyIssue`). The tour no longer requires a keyboard
 selection step.
 
 ## Follow-up questions and results

@@ -60,11 +60,12 @@ enum SessionCapsRuntimeSupport {
     /// Advanced compatibility mode. The normal rule scope is every keyboard.
     static let selectedKeyboardOnlyKey = "keypath.session.caps.selected.only"
 
-    /// Preserve the scope of an existing exact-device selection on upgrade.
-    /// A fresh installation has no selection and starts in all-keyboards mode.
+    /// One-keyboard scope is opt-in only. A saved selection on its own does
+    /// not imply it: a choice left over from before all-keyboards mode
+    /// otherwise pinned that Mac to one keyboard, and because a selection
+    /// expires at every restart, paused Caps Lock rules after each reboot.
     static func selectedKeyboardOnly(defaults: UserDefaults = .standard) -> Bool {
-        if let explicit = defaults.object(forKey: selectedKeyboardOnlyKey) as? Bool { return explicit }
-        return defaults.data(forKey: selectionKey) != nil
+        defaults.bool(forKey: selectedKeyboardOnlyKey)
     }
 
     static let allIntermediateKey = "keypath.session.caps.all.intermediate"

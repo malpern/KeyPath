@@ -25,6 +25,28 @@ extension StatusSettingsTabView {
         }
     }
 
+    /// Everything else is healthy and only Caps Lock rules are paused. The
+    /// setup wizard knows nothing about Caps Lock, so "Fix it" must open
+    /// Settings > General, where the Caps Lock controls live.
+    var capsPausedIsOnlyIssue: Bool {
+        Self.capsPausedIsOnlyIssue(
+            driverless: isDriverless, capsPaused: kanataManager.capsPausedMessage != nil,
+            runtimeHealthy: systemContext.map { $0.services.kanataRunning && $0.services.isHealthy } ?? false,
+            tcpConfigured: tcpConfigured, permissionsReady: permissionSnapshot?.isSystemReady ?? false,
+            wizardSeverities: wizardIssues.map(\.severity)
+        )
+    }
+
+    /// Any wizard issue above `info` sends Fix it to the wizard instead. An
+    /// unknown TCP state counts as healthy, as it does for the status level.
+    static func capsPausedIsOnlyIssue(
+        driverless: Bool, capsPaused: Bool, runtimeHealthy: Bool, tcpConfigured: Bool?,
+        permissionsReady: Bool, wizardSeverities: [WizardIssue.IssueSeverity]
+    ) -> Bool {
+        driverless && capsPaused && runtimeHealthy && tcpConfigured != false && permissionsReady
+            && !wizardSeverities.contains { $0 != .info }
+    }
+
     var overallHealthLevel: OverallHealthLevel {
         // The user deliberately switched the service off. This is a calm,
         // intentional state — not a fault — so it takes precedence over both the

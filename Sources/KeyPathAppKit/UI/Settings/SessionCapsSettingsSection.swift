@@ -42,7 +42,6 @@ struct SessionCapsSettingsSection: View {
     @State private var excludedIDs = SessionCapsRuntimeSupport.excludedKeyboardIDs()
     @State private var automaticDisabled = UserDefaults.standard.bool(forKey: SessionCapsRuntimeSupport.automaticSetupDisabledKey)
     @State private var selectedOnly = SessionCapsRuntimeSupport.selectedKeyboardOnly()
-    @State private var showAdvanced = false
     @State private var choosingOneKeyboard = false
     @State private var busy = false
     @State private var message: String?
@@ -71,68 +70,24 @@ struct SessionCapsSettingsSection: View {
                         .settingsAction()
                         .accessibilityIdentifier("settings-caps-check-again")
                 }
+                Toggle("Caps Lock rules", isOn: Binding(
+                    get: { !automaticDisabled },
+                    set: { enabled in Task { await setEnabled(enabled) } }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.regular)
+                .disabled(busy)
+                .accessibilityIdentifier("settings-caps-toggle")
+                .accessibilityLabel("Caps Lock rules")
             }
-            DisclosureGroup("Caps Lock options", isExpanded: $showAdvanced) {
-                VStack(alignment: .leading, spacing: SettingsDesign.labelGap) {
-                    if selectedOnly {
-                        Button("Use Caps Lock rules on all keyboards") {
-                            Task { await setSelectedOnly(false) }
-                        }
-                        .disabled(busy)
-                        .accessibilityIdentifier("settings-caps-use-all-keyboards")
-                    } else if choosingOneKeyboard {
-                        Button("Cancel choosing a keyboard") {
-                            choosingOneKeyboard = false
-                            message = nil
-                        }
-                        .accessibilityIdentifier("settings-caps-cancel-keyboard-choice")
-                    } else {
-                        ForEach(keyboards) { keyboard in
-                            let id = SessionCapsRuntimeSupport.preferenceID(keyboard.device)
-                            Toggle("Use on \(keyboard.name)", isOn: Binding(
-                                get: { !excludedIDs.contains(id) },
-                                set: { enabled in Task { await setKeyboardEnabled(id, enabled: enabled) } }
-                            ))
-                            .disabled(busy || automaticDisabled)
-                            .accessibilityIdentifier("settings-caps-keyboard-\(keyboard.id)")
-                        }
-                        Button("Use on one keyboard only") {
-                            Task { await setSelectedOnly(true) }
-                        }
-                        .disabled(busy || keyboards.isEmpty)
-                        .accessibilityIdentifier("settings-caps-use-one-keyboard")
-                    }
-
-                    if selectedOnly || choosingOneKeyboard {
-                        Picker("Keyboard", selection: Binding(
-                            get: { choosingOneKeyboard ? nil : (choices.pending?.registryEntryID ?? device?.registryEntryID) },
-                            set: { id in
-                                guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
-                                Task { await choose(chosen.device) }
-                            }
-                        )) {
-                            if device == nil || choosingOneKeyboard { Text("Choose a keyboard").tag(UInt64?.none) }
-                            ForEach(keyboards) { keyboard in
-                                Text(keyboard.name).tag(UInt64?.some(keyboard.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .fixedSize()
-                        .disabled(busy)
-                        .accessibilityIdentifier("settings-caps-keyboard-picker")
-                        .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
-                    }
-
-                    Toggle("Enable Caps Lock rules", isOn: Binding(
-                        get: { !automaticDisabled },
-                        set: { enabled in Task { await setEnabled(enabled) } }
-                    ))
-                    .disabled(busy)
-                    .accessibilityIdentifier("settings-caps-toggle")
-                }
-                .padding(.leading, 20 + SettingsDesign.rowGap)
+            // Shown in place, never behind a disclosure: with one keyboard there
+            // is nothing to choose, and with several the choices are visible.
+            if !automaticDisabled {
+                keyboardScope
+                    .padding(.leading, 20 + SettingsDesign.rowGap)
+                    .padding(.top, SettingsDesign.labelGap * 3)
             }
-            .accessibilityIdentifier("settings-caps-advanced")
             if !automaticDisabled, withheld > 0 {
                 Text(withheld == 1 ? "One connected keyboard can\u{2019}t be used for Caps Lock rules."
                     : "\(withheld) connected keyboards can\u{2019}t be used for Caps Lock rules.")
@@ -183,6 +138,81 @@ struct SessionCapsSettingsSection: View {
                 if !Task.isCancelled, !busy { await reviewKeyboard() }
             }
         }
+    }
+
+    /// Which keyboards Caps Lock rules use. All keyboards is the default, so a
+    /// single keyboard shows nothing here; several get a checkbox each.
+    @ViewBuilder
+    private var keyboardScope: some View {
+        if selectedOnly || choosingOneKeyboard {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: SettingsDesign.optionGap) {
+                    Picker("Keyboard", selection: Binding(
+                        get: { choosingOneKeyboard ? nil : (choices.pending?.registryEntryID ?? device?.registryEntryID) },
+                        set: { id in
+                            guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
+                            Task { await choose(chosen.device) }
+                        }
+                    )) {
+                        if device == nil || choosingOneKeyboard { Text("Choose a keyboard").tag(UInt64?.none) }
+                        ForEach(keyboards) { keyboard in
+                            Text(keyboard.name).tag(UInt64?.some(keyboard.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .disabled(busy)
+                    .accessibilityIdentifier("settings-caps-keyboard-picker")
+                    .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
+                    Spacer()
+                    if selectedOnly {
+                        Button("Use on All Keyboards") { Task { await setSelectedOnly(false) } }
+                            .settingsAction()
+                            .disabled(busy)
+                            .accessibilityIdentifier("settings-caps-use-all-keyboards")
+                    } else {
+                        Button("Cancel") {
+                            choosingOneKeyboard = false
+                            message = nil
+                        }
+                        .settingsAction()
+                        .accessibilityIdentifier("settings-caps-cancel-keyboard-choice")
+                    }
+                }
+                Text("Applies to that keyboard until you restart your Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } else if Self.showsKeyboardList(
+            connected: keyboards.map { SessionCapsRuntimeSupport.preferenceID($0.device) }, excluded: excludedIDs
+        ) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Use on").font(.caption).foregroundStyle(.secondary)
+                ForEach(keyboards) { keyboard in
+                    let id = SessionCapsRuntimeSupport.preferenceID(keyboard.device)
+                    Toggle(keyboard.name, isOn: Binding(
+                        get: { !excludedIDs.contains(id) },
+                        set: { enabled in Task { await setKeyboardEnabled(id, enabled: enabled) } }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .disabled(busy)
+                    .accessibilityIdentifier("settings-caps-keyboard-\(keyboard.id)")
+                }
+                Button("Use on one keyboard only…") { Task { await setSelectedOnly(true) } }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .disabled(busy)
+                    .padding(.top, 2)
+                    .accessibilityIdentifier("settings-caps-use-one-keyboard")
+            }
+        }
+    }
+
+    /// Checkboxes appear for two or more keyboards. A lone keyboard that was
+    /// unchecked while another was connected keeps its checkbox, or it would
+    /// stay excluded with no way to turn it back on.
+    static func showsKeyboardList(connected: [String], excluded: Set<String>) -> Bool {
+        connected.count > 1 || connected.contains { excluded.contains($0) }
     }
 
     /// With a withheld keyboard present, even one eligible keyboard is an
@@ -304,7 +334,6 @@ struct SessionCapsSettingsSection: View {
         guard !busy, only != selectedOnly || choosingOneKeyboard else { return }
         if only {
             choosingOneKeyboard = true
-            showAdvanced = true
             message = "Choose the keyboard whose Caps Lock key should use these rules."
             return
         }

@@ -12,15 +12,28 @@ KeyPath applies the same rule to every compatible connected keyboard by default.
 There is no keyboard to choose before the rule works. A keyboard connected later
 is set up automatically once all keys are released.
 
-If you previously chose one keyboard for Caps Lock, KeyPath keeps that choice
-when you upgrade. Use **Settings → General → Caps Lock options → Use Caps Lock
-rules on all keyboards** to switch to the new default. You can also choose
-**Use on one keyboard only** there and select a keyboard from the picker.
+The switch beside **Settings → General → Caps Lock rules** turns Caps Lock
+rules on or off for every keyboard. To limit them to a single keyboard, choose
+**Use on one keyboard only…** below the keyboard list and pick it from the menu.
+**Use on All Keyboards** returns to the default. A one-keyboard choice lasts
+until you restart your Mac. After a restart, KeyPath asks you to choose the
+keyboard again.
+
+```text
+Caps Lock rules                                       [ on ]
+On · all compatible keyboards · Uses F18 behind the scenes
+   Use on
+   [x] cl80
+   [x] Built-in keyboard
+   Use on one keyboard only…
+```
 
 ## Make an exception for one keyboard
 
-Open **Settings → General → Caps Lock rules → Caps Lock options**. Turn
-off **Use on [keyboard name]** to leave that keyboard's Caps Lock key alone.
+Open **Settings → General → Caps Lock rules**. When more than one keyboard is
+connected, each one has a checkbox. Clear a keyboard's checkbox to leave its
+Caps Lock key alone. A keyboard you cleared keeps its checkbox even when it
+is the only one connected, so you can always turn it back on.
 Other keyboards continue using the rule. Turn it back on to resume. The
 exception follows a keyboard reconnected at the same port, with the same
 serial number when one is available. Moving it to another port makes it a new

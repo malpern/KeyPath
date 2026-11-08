@@ -68,6 +68,16 @@ struct StatusSettingsTabView: View {
         userDisabledService && !effectiveServiceRunning
     }
 
+    /// The wizard repairs installation and permissions. A paused Caps Lock
+    /// rule is fixed in Settings > General instead.
+    private func fixSystemIssues() {
+        if capsPausedIsOnlyIssue {
+            NotificationCenter.default.post(name: .openSettingsGeneral, object: nil)
+        } else {
+            wizardInitialPage = .summary
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -90,7 +100,7 @@ struct StatusSettingsTabView: View {
                                     .fill(systemHealthTint.opacity(0.15))
                                     .frame(width: 80, height: 80)
 
-                                Button(action: { wizardInitialPage = .summary }) {
+                                Button(action: fixSystemIssues) {
                                     Image(systemName: systemHealthIcon)
                                         .font(.largeTitle)
                                         .foregroundColor(systemHealthTint)
@@ -148,7 +158,7 @@ struct StatusSettingsTabView: View {
                             .accessibilityIdentifier("status-remove-legacy-service-button")
                             .accessibilityLabel("Remove the KeyPath 1.0.1 keyboard service")
                         } else if !isSystemHealthy, !isIntentionallyDisabled {
-                            Button(action: { wizardInitialPage = .summary }) {
+                            Button(action: fixSystemIssues) {
                                 Label("Fix it", systemImage: "wand.and.stars")
                                     .font(.body.weight(.semibold))
                             }
