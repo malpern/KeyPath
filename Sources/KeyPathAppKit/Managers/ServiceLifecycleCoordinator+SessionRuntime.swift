@@ -184,7 +184,13 @@ extension ServiceLifecycleCoordinator {
                 _ = await stopSessionRuntime()
                 return false
             }
-            for _ in 0 ..< 40 {
+            // Startup includes writing the Caps Lock mapping to every keyboard
+            // interface, several hidutil runs each. With a few keyboard-class
+            // devices attached that takes longer than four seconds, and an
+            // iteration count retired healthy workers mid-write. A worker that
+            // fails or exits still ends this wait at once.
+            let startupDeadline = ContinuousClock.now + Self.sessionStartupTimeout
+            while ContinuousClock.now < startupDeadline {
                 guard sessionStartIsCurrent(generation) else {
                     _ = await stopSessionRuntime()
                     return false
@@ -1041,6 +1047,9 @@ extension ServiceLifecycleCoordinator {
             }
         }
     }
+
+    /// How long a launched worker may stay in `starting` before it is retired.
+    static let sessionStartupTimeout: Duration = .seconds(20)
 
     /// The reloaded profile no longer uses Caps Lock; nothing is paused.
     func clearCapsPaused() {
