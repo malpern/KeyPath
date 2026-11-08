@@ -173,33 +173,13 @@ jobs:
       # Persistent per runner on the mini: runner.workspace (_work/KeyPath)
       # survives between jobs, while runner.temp is wiped after every job and
       # made each build cold. One runner runs one job at a time, so jobs never
-      # share this directory concurrently. It is cleared when the toolchain
-      # changes or it grows past the cap. A hosted VM starts empty every time,
-      # so there it is always cold.
+      # share this directory concurrently. A toolchain change or the size cap
+      # clears build products but keeps what SwiftPM fetched, because fetching
+      # Sparkle again from this headless daemon traps (see the script header).
+      # A hosted VM starts empty every time, so there it is always cold.
       env:
         KEYPATH_SCRATCH_CAP_GIB: "30"
-      run: |
-        scratch="${{ runner.workspace }}/swiftpm-scratch"
-        stamp="$scratch/.keypath-toolchain"
-        toolchain="$(swift --version 2>&1 | head -1)"
-        state=warm
-        if [[ ! -d "$scratch" ]]; then
-          state=cold
-        elif [[ "$(cat "$stamp" 2>/dev/null)" != "$toolchain" ]]; then
-          echo "Toolchain changed; clearing $scratch"
-          rm -rf "$scratch"; state=cold-toolchain
-        else
-          size_gib=$(( $(du -sk "$scratch" | cut -f1) / 1048576 ))
-          if (( size_gib > KEYPATH_SCRATCH_CAP_GIB )); then
-            echo "Scratch is ${size_gib} GiB (cap ${KEYPATH_SCRATCH_CAP_GIB}); clearing"
-            rm -rf "$scratch"; state=cold-cap
-          fi
-        fi
-        mkdir -p "$scratch"
-        printf '%s\n' "$toolchain" > "$stamp"
-        echo "SCRATCH_PATH=$scratch" >> "$GITHUB_ENV"
-        echo "SWIFTPM_SCRATCH_STATE=$state" >> "$GITHUB_ENV"
-        echo "SwiftPM scratch: $scratch ($state)"
+      run: ./Scripts/ci/swiftpm-scratch.sh prepare "${{ runner.workspace }}/swiftpm-scratch"
 
     - name: Run Test Lane - full
       env:
