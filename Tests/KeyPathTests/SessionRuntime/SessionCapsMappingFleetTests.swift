@@ -102,12 +102,15 @@ final class SessionCapsMappingFleetTests: XCTestCase {
         }
     }
 
-    func testExistingSelectionKeepsSingleKeyboardScopeUntilExplicitlyChanged() {
+    func testSingleKeyboardScopeIsOptInOnly() {
         let domain = "caps-fleet-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: domain)!
         defer { defaults.removePersistentDomain(forName: domain) }
         XCTAssertFalse(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))
+        // A leftover selection alone must not pin the Mac to one keyboard.
         defaults.set(Data("legacy".utf8), forKey: SessionCapsRuntimeSupport.selectionKey)
+        XCTAssertFalse(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))
+        defaults.set(true, forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
         XCTAssertTrue(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))
         defaults.set(false, forKey: SessionCapsRuntimeSupport.selectedKeyboardOnlyKey)
         XCTAssertFalse(SessionCapsRuntimeSupport.selectedKeyboardOnly(defaults: defaults))

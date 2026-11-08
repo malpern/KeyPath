@@ -25,6 +25,17 @@ extension StatusSettingsTabView {
         }
     }
 
+    /// Everything else is healthy and only Caps Lock rules are paused. The
+    /// setup wizard knows nothing about Caps Lock, so "Fix it" must open
+    /// Settings > General, where the Caps Lock controls live.
+    var capsPausedIsOnlyIssue: Bool {
+        guard isDriverless, kanataManager.capsPausedMessage != nil,
+              let context = systemContext, context.services.kanataRunning, context.services.isHealthy,
+              tcpConfigured != false, permissionSnapshot?.isSystemReady ?? false
+        else { return false }
+        return !wizardIssues.contains { $0.severity == .critical || $0.severity == .error }
+    }
+
     var overallHealthLevel: OverallHealthLevel {
         // The user deliberately switched the service off. This is a calm,
         // intentional state — not a fault — so it takes precedence over both the
