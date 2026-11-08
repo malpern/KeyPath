@@ -99,7 +99,11 @@ artifact makes no request. `Scripts/ci/swiftpm-scratch.sh` keeps that state:
   a different toolchain resolving kept state makes no fetch.
 - `seed` copies that state into a fresh scratch and rewrites its absolute paths.
   `coverage.yml` seeds the checkout's `.build` from `ci.yml`'s scratch, since
-  `actions/checkout` wipes `.build` every run.
+  `actions/checkout` wipes `.build` every run. Coverage had not passed since
+  October for two other reasons, fixed in the same change: its test bundles
+  could not load `Sparkle.framework` (it now applies `run-tests-safe.sh`'s
+  `PackageFrameworks` fix), and `generate-coverage.sh` looked only for the old
+  single `KeyPathPackageTests` binary (it now reports across every test bundle).
 
 A truly empty scratch (a new runner, or one whose scratch was deleted) still
 fetches and traps. Warm it once as `clawd` over ssh, which does not trap:

@@ -7,11 +7,17 @@ cd "$ROOT_DIR"
 OUT_DIR="${1:-coverage}"
 mkdir -p "$OUT_DIR"
 
-TEST_BINARY="$(find .build -path '*debug/KeyPathPackageTests.xctest/Contents/MacOS/KeyPathPackageTests' | head -n1)"
-PROFDATA="$(find .build -path '*debug/codecov/default.profdata' | head -n1)"
+# The older build system produced one KeyPathPackageTests.xctest under
+# .build/debug; the current one writes one bundle per test target under
+# .build/out/Products/Debug. Report across every test binary found.
+TEST_BINARIES=()
+while IFS= read -r binary; do TEST_BINARIES+=("$binary"); done < <(
+  find .build -ipath '*debug/*.xctest/Contents/MacOS/*' -type f -perm -u+x | sort
+)
+PROFDATA="$(find .build -ipath '*debug/codecov/default.profdata' | head -n1)"
 
-if [[ -z "${TEST_BINARY:-}" || ! -f "$TEST_BINARY" ]]; then
-  echo "ERROR: Coverage test binary not found. Run: swift test --enable-code-coverage"
+if [[ ${#TEST_BINARIES[@]} -eq 0 ]]; then
+  echo "ERROR: Coverage test binaries not found. Run: swift test --enable-code-coverage"
   exit 1
 fi
 
@@ -20,17 +26,19 @@ if [[ -z "${PROFDATA:-}" || ! -f "$PROFDATA" ]]; then
   exit 1
 fi
 
-echo "Using test binary: $TEST_BINARY"
+echo "Using test binaries: ${TEST_BINARIES[*]}"
 echo "Using profile data: $PROFDATA"
 
+OBJECT_ARGS=("${TEST_BINARIES[0]}")
+for binary in "${TEST_BINARIES[@]:1}"; do OBJECT_ARGS+=(-object "$binary"); done
 xcrun llvm-cov report \
   -instr-profile "$PROFDATA" \
-  "$TEST_BINARY" | tee "$OUT_DIR/coverage-report.txt"
+  "${OBJECT_ARGS[@]}" | tee "$OUT_DIR/coverage-report.txt"
 
 # Skip llvm-cov export — it generates a multi-MB JSON file that hangs on CI
 # runners and is not used by the coverage floor check. Re-enable locally if
 # you need per-file coverage data:
-#   xcrun llvm-cov export -format=text -instr-profile "$PROFDATA" "$TEST_BINARY" > "$OUT_DIR/coverage.json"
+#   xcrun llvm-cov export -format=text -instr-profile "$PROFDATA" "${OBJECT_ARGS[@]}" > "$OUT_DIR/coverage.json"
 
 TOTAL_LINE="$(grep '^TOTAL' "$OUT_DIR/coverage-report.txt" || true)"
 if [[ -n "$TOTAL_LINE" ]]; then
