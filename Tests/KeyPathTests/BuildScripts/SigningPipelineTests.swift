@@ -599,7 +599,7 @@ final class SigningPipelineTests: XCTestCase {
         try XCTSkipUnless(FileManager.default.isExecutableFile(atPath: "\(selected)/usr/bin/xcodebuild"),
                           "needs a full Xcode selected on this machine")
         let result = runScript(
-            #"source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR" && echo "sdk=$KEYPATH_SDKROOT" && echo "sdkroot=${SDKROOT-unset}""#,
+            #"unset SDKROOT; source Scripts/lib/xcode.sh && keypath_use_selected_xcode && echo "dev=$DEVELOPER_DIR" && echo "sdk=$KEYPATH_SDKROOT" && echo "sdkroot=${SDKROOT-unset}""#,
             env: ["KEYPATH_DEV_XCODE_DEVELOPER_DIR": selected]
         )
 
