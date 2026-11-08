@@ -114,3 +114,17 @@ Before changing the mini's Xcode, download that Xcode's Metal toolchain as
 `clawd` over ssh (`xcodebuild -downloadComponent MetalToolchain`). A beta
 Xcode's toolchain is a per-user download, so another account's copy does not
 count, and the CI step that would fetch it traps.
+
+### 2026-11-08: the switch to release Xcode 27.2
+
+The mini now runs release Xcode 27.2 (`27B52`) at `/Applications/Xcode-27.app`.
+It is an App Store install, and it updated itself from 27.0 that day. Its Metal
+toolchain (`27B47`) installs as a system asset, downloaded as `clawd` over ssh.
+The narrow coverage lane passed right away. The full lane failed with
+`cannot execute tool 'metal' due to missing Metal Toolchain`. That had nothing
+to do with AppSSO or with the toolchain being absent: `metal` ran fine under
+the daemon, sandboxed or not. On 27.2, SwiftPM's own Metal build step reports
+the toolchain missing whenever `SDKROOT` is set, and `Scripts/lib/xcode.sh`
+exported it for every build. #1372 passes it only to cargo, through
+`KEYPATH_SDKROOT`. If a future Xcode reports a missing Metal toolchain while
+`xcrun -sdk macosx metal -v` works, check the environment for `SDKROOT` first.
