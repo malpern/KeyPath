@@ -496,6 +496,16 @@ fi
 # sufficient for local testing, but NOT equivalent to the distribution signature
 # from build-and-sign.sh which applies proper entitlements and a notarizable
 # Developer ID identity to every artifact.
+# BuildInfo.plist is written only by build-and-sign.sh, so an incremental
+# deploy left it naming whichever full build last ran. Stamp this deploy's
+# commit and time before signing seals the bundle.
+BUILD_INFO="$APP_BUNDLE/Contents/Resources/BuildInfo.plist"
+if [ -f "$BUILD_INFO" ]; then
+    /usr/libexec/PlistBuddy -c "Set :GitCommit $(git -C "$PROJECT_DIR" rev-parse --short=9 HEAD)" "$BUILD_INFO" 2>/dev/null \
+        || /usr/libexec/PlistBuddy -c "Add :GitCommit string $(git -C "$PROJECT_DIR" rev-parse --short=9 HEAD)" "$BUILD_INFO"
+    /usr/libexec/PlistBuddy -c "Set :BuildDate $(date -u +%Y-%m-%dT%H:%M:%SZ)" "$BUILD_INFO" 2>/dev/null || true
+fi
+
 echo "✍️  Signing..."
 PREFERRED_SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
 SIGNING_IDENTITY="$(kp_dev_signing_identity "$PREFERRED_SIGNING_IDENTITY")"
