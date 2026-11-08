@@ -34,6 +34,8 @@ TEST_RESET_MODULE_CACHE="${KEYPATH_TEST_RESET_MODULE_CACHE:-0}"
 LOG="${KEYPATH_TEST_LOG:-$PROJECT_DIR/test_output.safe.txt}"
 BUILD_LOG="${KEYPATH_TEST_BUILD_LOG:-$LOG.build}"
 EXTRA_SWIFT_TEST_ARGS="${SWIFT_TEST_ARGS:-}"
+# Instrument both the build and the test run; coverage needs both.
+TEST_COVERAGE="${KEYPATH_TEST_COVERAGE:-0}"
 SWIFT_BUILD_JOBS="${KEYPATH_SWIFT_BUILD_JOBS:-}"
 if [ -n "$SWIFT_BUILD_JOBS" ]; then
   [[ "$SWIFT_BUILD_JOBS" =~ ^[1-9][0-9]*$ ]] || {
@@ -504,6 +506,9 @@ if [ "$TEST_PREBUILD" = "0" ]; then
   BUILD_EXIT_CODE=0
 else
   SWIFT_BUILD_COMMAND=(swift build --disable-automatic-resolution --build-tests --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  if [ "$TEST_COVERAGE" = "1" ]; then
+    SWIFT_BUILD_COMMAND+=(--enable-code-coverage)
+  fi
   if [ -n "$SWIFT_BUILD_JOBS" ]; then
     SWIFT_BUILD_COMMAND+=(--jobs "$SWIFT_BUILD_JOBS")
   fi
@@ -543,6 +548,9 @@ TEST_START_SECONDS="$(date +%s)"
   set +e
   set -o pipefail
   SWIFT_TEST_COMMAND=(swift test --disable-automatic-resolution --scratch-path "$SCRATCH_PATH" "${MODULE_CACHE_FLAGS[@]}")
+  if [ "$TEST_COVERAGE" = "1" ]; then
+    SWIFT_TEST_COMMAND+=(--enable-code-coverage)
+  fi
   if [ -n "$SWIFT_BUILD_JOBS" ]; then
     SWIFT_TEST_COMMAND+=(--jobs "$SWIFT_BUILD_JOBS")
   fi
