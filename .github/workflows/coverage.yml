@@ -15,7 +15,7 @@ jobs:
     # job with no runner online just queues. See the header of ci.yml.
     if: vars.KEYPATH_CI_RUNNER != 'hosted'
     runs-on: [self-hosted, macOS, keypath, swiftpm-safe]
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       COVERAGE_BASELINE_PERCENT: "0.27"
       COVERAGE_TOLERANCE_PERCENT: "0.01"
@@ -44,14 +44,25 @@ jobs:
         run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
       - name: Generate coverage
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           KP_SIGN_DRY_RUN: "1"
           CI_ENVIRONMENT: "true"
           SKIP_EVENT_TAP_TESTS: "1"
         run: |
           echo "Generating narrow-lane coverage..."
-          swift test --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
+          # Fetching Sparkle from this headless daemon traps; reuse CI's fetched packages.
+          ./Scripts/ci/swiftpm-scratch.sh seed "${{ runner.workspace }}/swiftpm-scratch" "$PWD/.build"
+          # Xcode 27's SwiftPM puts Sparkle.framework in Products/Debug, where the
+          # test helper does not look (same fix as Scripts/run-tests-safe.sh).
+          swift build --build-tests --enable-code-coverage
+          products=.build/out/Products/Debug
+          if [ -d "$products/Sparkle.framework" ]; then
+            mkdir -p "$products/PackageFrameworks"
+            rm -rf "$products/PackageFrameworks/Sparkle.framework"
+            ditto "$products/Sparkle.framework" "$products/PackageFrameworks/Sparkle.framework"
+          fi
+          swift test --skip-build --enable-code-coverage --filter 'KeyPathErrorTests|PermissionOracleTests'
           chmod +x ./Scripts/generate-coverage.sh
           ./Scripts/generate-coverage.sh coverage
 
@@ -145,7 +156,18 @@ jobs:
           SKIP_EVENT_TAP_TESTS: "1"
         run: |
           echo "Generating full-suite coverage (no filter)..."
-          swift test --enable-code-coverage
+          # Fetching Sparkle from this headless daemon traps; reuse CI's fetched packages.
+          ./Scripts/ci/swiftpm-scratch.sh seed "${{ runner.workspace }}/swiftpm-scratch" "$PWD/.build"
+          # Xcode 27's SwiftPM puts Sparkle.framework in Products/Debug, where the
+          # test helper does not look (same fix as Scripts/run-tests-safe.sh).
+          swift build --build-tests --enable-code-coverage
+          products=.build/out/Products/Debug
+          if [ -d "$products/Sparkle.framework" ]; then
+            mkdir -p "$products/PackageFrameworks"
+            rm -rf "$products/PackageFrameworks/Sparkle.framework"
+            ditto "$products/Sparkle.framework" "$products/PackageFrameworks/Sparkle.framework"
+          fi
+          swift test --skip-build --enable-code-coverage
           chmod +x ./Scripts/generate-coverage.sh
           ./Scripts/generate-coverage.sh coverage-full
 

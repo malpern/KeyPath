@@ -90,16 +90,27 @@ stack, on release Xcode 27 (`27A266a`) and on Xcode-beta (`27A5194q`) alike.
 daemon, because it also goes through `NSURLSession`. The same commands work over
 ssh as `clawd`.
 
-What still works: `ci.yml` keeps a warm per-runner scratch, so a warm job never
-fetches the artifact. The scratch is stamped with `swift --version` and cleared
-when it changes, so **switching `xcode-select` empties it and the next CI job
-traps.** The mini stays on Xcode-beta, whose toolchain matches the stamp, until
-there is a way to rewarm the scratch outside the daemon. `coverage.yml` builds
-in a fresh scratch, so it traps on every run.
+What avoids it: a scratch whose `workspace-state.json` already records the
+artifact makes no request. `Scripts/ci/swiftpm-scratch.sh` keeps that state:
 
-Before changing the mini's Xcode:
+- `prepare` reuses `ci.yml`'s per-runner scratch. On a toolchain change or past
+  the size cap it deletes only build products and keeps `workspace-state.json`,
+  `artifacts`, `checkouts`, `repositories` and `prebuilts`. Verified locally:
+  a different toolchain resolving kept state makes no fetch.
+- `seed` copies that state into a fresh scratch and rewrites its absolute paths.
+  `coverage.yml` seeds the checkout's `.build` from `ci.yml`'s scratch, since
+  `actions/checkout` wipes `.build` every run. Coverage had not passed since
+  October for two other reasons, fixed in the same change: its test bundles
+  could not load `Sparkle.framework` (it now applies `run-tests-safe.sh`'s
+  `PackageFrameworks` fix), and `generate-coverage.sh` looked only for the old
+  single `KeyPathPackageTests` binary (it now reports across every test bundle).
 
-- Download the new Xcode's Metal toolchain as `clawd` over ssh first. A beta
-  Xcode's toolchain is a per-user download, so another account's copy does not
-  count.
-- Expect the next SwiftPM job on runner 2 to fail until its scratch is warm again.
+A truly empty scratch (a new runner, or one whose scratch was deleted) still
+fetches and traps. Warm it once as `clawd` over ssh, which does not trap:
+`swift package resolve --scratch-path ~/actions-runner-2/_work/KeyPath/swiftpm-scratch`
+from a KeyPath checkout.
+
+Before changing the mini's Xcode, download that Xcode's Metal toolchain as
+`clawd` over ssh (`xcodebuild -downloadComponent MetalToolchain`). A beta
+Xcode's toolchain is a per-user download, so another account's copy does not
+count, and the CI step that would fetch it traps.
