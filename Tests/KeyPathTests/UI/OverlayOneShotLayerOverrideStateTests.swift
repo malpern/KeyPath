@@ -52,7 +52,11 @@ final class OverlayOneShotLayerOverrideStateTests: XCTestCase {
         let state = OneShotLayerOverrideState(timeoutDuration: .nanoseconds(1), sleep: { _ in })
 
         state.activate("nav")
-        await Task.yield()
+        // One yield is not always enough for the timeout task to run: under
+        // coverage instrumentation it needs several. Bound the wait instead.
+        for _ in 0 ..< 1000 where state.currentLayer != nil {
+            await Task.yield()
+        }
 
         XCTAssertNil(state.currentLayer)
     }

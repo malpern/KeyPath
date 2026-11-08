@@ -154,20 +154,20 @@ jobs:
           KP_SIGN_DRY_RUN: "1"
           CI_ENVIRONMENT: "true"
           SKIP_EVENT_TAP_TESTS: "1"
+          # The full suite needs the safe runner's isolation and setup (the host
+          # bridge, the Sparkle layout fix); plain `swift test` fails config and
+          # manager tests that pass in ci.yml. Same settings as ci.yml's test lane.
+          KEYPATH_TEST_COVERAGE: "1"
+          KEYPATH_BUNDLED_SIMULATOR_OVERRIDE: /opt/homebrew/bin/kanata-simulator
+          KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: "1"
+          KEYPATH_TEST_RESET_MODULE_CACHE: "0"
+          KEYPATH_SWIFT_BUILD_JOBS: "4"
+          TIMEOUT_SECONDS: "600"
         run: |
           echo "Generating full-suite coverage (no filter)..."
           # Fetching Sparkle from this headless daemon traps; reuse CI's fetched packages.
           ./Scripts/ci/swiftpm-scratch.sh seed "${{ runner.workspace }}/swiftpm-scratch" "$PWD/.build"
-          # Xcode 27's SwiftPM puts Sparkle.framework in Products/Debug, where the
-          # test helper does not look (same fix as Scripts/run-tests-safe.sh).
-          swift build --build-tests --enable-code-coverage
-          products=.build/out/Products/Debug
-          if [ -d "$products/Sparkle.framework" ]; then
-            mkdir -p "$products/PackageFrameworks"
-            rm -rf "$products/PackageFrameworks/Sparkle.framework"
-            ditto "$products/Sparkle.framework" "$products/PackageFrameworks/Sparkle.framework"
-          fi
-          swift test --skip-build --enable-code-coverage
+          ./Scripts/run-tests-safe.sh
           chmod +x ./Scripts/generate-coverage.sh
           ./Scripts/generate-coverage.sh coverage-full
 
