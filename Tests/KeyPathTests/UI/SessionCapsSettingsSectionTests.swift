@@ -27,4 +27,12 @@ final class SessionCapsSettingsSectionTests: XCTestCase {
         let rule = CustomRule(input: "caps", action: .keystroke(key: "esc"))
         XCTAssertTrue(SessionCapsSettingsSection.rulesUseCapsLock(collections: [], customRules: [rule]))
     }
+
+    func testKeyboardListShowsForTwoKeyboardsOrALoneExcludedOne() {
+        XCTAssertFalse(SessionCapsSettingsSection.showsKeyboardList(connected: [], excluded: []))
+        XCTAssertFalse(SessionCapsSettingsSection.showsKeyboardList(connected: ["a"], excluded: ["b"]))
+        XCTAssertTrue(SessionCapsSettingsSection.showsKeyboardList(connected: ["a", "b"], excluded: []))
+        // Unchecked while a second keyboard was connected: it must stay re-enableable.
+        XCTAssertTrue(SessionCapsSettingsSection.showsKeyboardList(connected: ["a"], excluded: ["a"]))
+    }
 }

@@ -32,7 +32,8 @@ On · all compatible keyboards · Uses F18 behind the scenes
 
 Open **Settings → General → Caps Lock rules**. When more than one keyboard is
 connected, each one has a checkbox. Clear a keyboard's checkbox to leave its
-Caps Lock key alone.
+Caps Lock key alone. A keyboard you cleared keeps its checkbox even when it
+is the only one connected, so you can always turn it back on.
 Other keyboards continue using the rule. Turn it back on to resume. The
 exception follows a keyboard reconnected at the same port, with the same
 serial number when one is available. Moving it to another port makes it a new

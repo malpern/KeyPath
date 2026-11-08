@@ -248,10 +248,11 @@ was removed (2026-11-07).
 `automaticSetupDisabledKey` keeps its meaning: no automatic Caps setup at all.
 
 **UI.** Settings shows keyboard coverage inline: an on/off switch on the Caps
-Lock rules row, a checkbox per keyboard when several are connected, and the
-selected-only option below them. Nothing is behind a disclosure group. When the
+Lock rules row, a checkbox per keyboard when several are connected (or when the only
+connected keyboard is excluded), and the selected-only option below them. Nothing is behind a disclosure group. When the
 only problem is paused Caps Lock rules, the Status tab's "Fix it" opens
-Settings > General instead of the setup wizard. The tour no longer requires a keyboard
+Settings > General instead of the setup wizard. Any wizard issue above `info`
+still opens the wizard (`StatusSettingsTabView.capsPausedIsOnlyIssue`). The tour no longer requires a keyboard
 selection step.
 
 ## Follow-up questions and results

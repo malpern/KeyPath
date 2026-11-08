@@ -145,40 +145,47 @@ struct SessionCapsSettingsSection: View {
     @ViewBuilder
     private var keyboardScope: some View {
         if selectedOnly || choosingOneKeyboard {
-            HStack(spacing: SettingsDesign.optionGap) {
-                Picker("Keyboard", selection: Binding(
-                    get: { choosingOneKeyboard ? nil : (choices.pending?.registryEntryID ?? device?.registryEntryID) },
-                    set: { id in
-                        guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
-                        Task { await choose(chosen.device) }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: SettingsDesign.optionGap) {
+                    Picker("Keyboard", selection: Binding(
+                        get: { choosingOneKeyboard ? nil : (choices.pending?.registryEntryID ?? device?.registryEntryID) },
+                        set: { id in
+                            guard let chosen = keyboards.first(where: { $0.id == id }) else { return }
+                            Task { await choose(chosen.device) }
+                        }
+                    )) {
+                        if device == nil || choosingOneKeyboard { Text("Choose a keyboard").tag(UInt64?.none) }
+                        ForEach(keyboards) { keyboard in
+                            Text(keyboard.name).tag(UInt64?.some(keyboard.id))
+                        }
                     }
-                )) {
-                    if device == nil || choosingOneKeyboard { Text("Choose a keyboard").tag(UInt64?.none) }
-                    ForEach(keyboards) { keyboard in
-                        Text(keyboard.name).tag(UInt64?.some(keyboard.id))
-                    }
-                }
-                .pickerStyle(.menu)
-                .fixedSize()
-                .disabled(busy)
-                .accessibilityIdentifier("settings-caps-keyboard-picker")
-                .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
-                Spacer()
-                if selectedOnly {
-                    Button("Use on All Keyboards") { Task { await setSelectedOnly(false) } }
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .disabled(busy)
+                    .accessibilityIdentifier("settings-caps-keyboard-picker")
+                    .accessibilityHint("Caps Lock rules apply to the keyboard you choose")
+                    Spacer()
+                    if selectedOnly {
+                        Button("Use on All Keyboards") { Task { await setSelectedOnly(false) } }
+                            .settingsAction()
+                            .disabled(busy)
+                            .accessibilityIdentifier("settings-caps-use-all-keyboards")
+                    } else {
+                        Button("Cancel") {
+                            choosingOneKeyboard = false
+                            message = nil
+                        }
                         .settingsAction()
-                        .disabled(busy)
-                        .accessibilityIdentifier("settings-caps-use-all-keyboards")
-                } else {
-                    Button("Cancel") {
-                        choosingOneKeyboard = false
-                        message = nil
+                        .accessibilityIdentifier("settings-caps-cancel-keyboard-choice")
                     }
-                    .settingsAction()
-                    .accessibilityIdentifier("settings-caps-cancel-keyboard-choice")
                 }
+                Text("Applies to that keyboard until you restart your Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-        } else if keyboards.count > 1 {
+        } else if Self.showsKeyboardList(
+            connected: keyboards.map { SessionCapsRuntimeSupport.preferenceID($0.device) }, excluded: excludedIDs
+        ) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Use on").font(.caption).foregroundStyle(.secondary)
                 ForEach(keyboards) { keyboard in
@@ -199,6 +206,13 @@ struct SessionCapsSettingsSection: View {
                     .accessibilityIdentifier("settings-caps-use-one-keyboard")
             }
         }
+    }
+
+    /// Checkboxes appear for two or more keyboards. A lone keyboard that was
+    /// unchecked while another was connected keeps its checkbox, or it would
+    /// stay excluded with no way to turn it back on.
+    static func showsKeyboardList(connected: [String], excluded: Set<String>) -> Bool {
+        connected.count > 1 || connected.contains { excluded.contains($0) }
     }
 
     /// With a withheld keyboard present, even one eligible keyboard is an
