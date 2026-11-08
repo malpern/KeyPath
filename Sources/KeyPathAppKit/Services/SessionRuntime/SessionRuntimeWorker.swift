@@ -521,7 +521,8 @@ public final class SessionRuntimeWorker {
             usage = logical
         }
         guard runtime?.isInputMapped(usagePage: 7, usage: usage) == true else {
-            event.flags = CGEventFlags(rawValue: outputs.modifierFlags | physicalPassthroughFlags | event.flags.intersection(.maskAlphaShift).rawValue)
+            event.flags = CGEventFlags(rawValue: outputs.modifierFlags | physicalPassthroughFlags
+                | event.flags.intersection(Self.keyIntrinsicFlags.union(.maskAlphaShift)).rawValue)
             return original
         }
         // Do not consume a release/repeat for a press that preceded this tap.
@@ -1001,12 +1002,32 @@ public final class SessionRuntimeWorker {
         )
     }
 
+    /// Flags macOS attaches to a key itself rather than to a held modifier:
+    /// Fn on arrows, Home/End, Page Up/Down and F-keys, and the keypad flag on
+    /// arrows and the keypad. A new CGEvent sets them from its key code.
+    /// Dropping them breaks shortcuts registered with them, such as the
+    /// Mission Control Ctrl+arrow Space switches (Control + Fn in
+    /// `com.apple.symbolichotkeys`), which then silently never fire.
+    nonisolated static let keyIntrinsicFlags: CGEventFlags = [.maskSecondaryFn, .maskNumericPad]
+
+    /// The flags a posted output carries: Kanata's modifiers, physical
+    /// modifiers Kanata does not handle, the live Caps Lock state, and the
+    /// output key's own intrinsic flags from its default event.
+    nonisolated static func outputFlags(
+        keyDefault: CGEventFlags, output: UInt64, passthrough: UInt64, capsLock: UInt64
+    ) -> CGEventFlags {
+        CGEventFlags(rawValue: output | (passthrough & ~CGEventFlags.maskAlphaShift.rawValue) | capsLock
+            | keyDefault.intersection(keyIntrinsicFlags).rawValue)
+    }
+
     private func post(_ output: SessionKeyOutput) -> Bool {
         guard let source = CGEventSource(stateID: .privateState),
               let event = CGEvent(keyboardEventSource: source, virtualKey: output.keyCode, keyDown: output.isDown)
         else { return false }
         let capsFlag = CGEventSource.flagsState(.combinedSessionState).intersection(.maskAlphaShift).rawValue
-        event.flags = CGEventFlags(rawValue: output.flags | (physicalPassthroughFlags & ~CGEventFlags.maskAlphaShift.rawValue) | capsFlag)
+        event.flags = Self.outputFlags(
+            keyDefault: event.flags, output: output.flags, passthrough: physicalPassthroughFlags, capsLock: capsFlag
+        )
         event.setIntegerValueField(.keyboardEventAutorepeat, value: output.isRepeat ? 1 : 0)
         event.setIntegerValueField(.eventSourceUserData, value: Self.outputTag)
         event.post(tap: .cgSessionEventTap)
