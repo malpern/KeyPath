@@ -1,23 +1,16 @@
 import Foundation
 
-/// User-visible macOS permission naming. This does not change AX APIs, TCC
-/// identifiers, readiness policy, or the existing System Settings deep link.
+/// User-visible naming for the permission APIs and TCC call "Accessibility".
+/// macOS 27, KeyPath's minimum, shows it as "Device Control and Data Access".
+/// This does not change AX APIs, TCC identifiers, readiness policy, or the
+/// System Settings deep link.
 public struct AccessibilityPermissionPresentation: Sendable {
-    public static var current: Self {
-        Self(macOSMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
-    }
+    public static let current = Self()
 
-    public let name: String
-    public let openButtonTitle: String
-    /// On macOS 27, Device Control and Data Access lets a process both read and
-    /// post keys, so Input Monitoring is not needed alongside it.
-    public let coversInputMonitoring: Bool
+    public let name = "Device Control and Data Access"
+    public let openButtonTitle = "Open Settings"
 
-    public init(macOSMajorVersion: Int) {
-        coversInputMonitoring = macOSMajorVersion >= 27
-        openButtonTitle = macOSMajorVersion >= 27 ? "Open Settings" : "Open Accessibility"
-        name = macOSMajorVersion >= 27 ? "Device Control and Data Access" : "Accessibility"
-    }
+    public init() {}
 
     public func displayName(for canonicalPermission: String) -> String {
         switch canonicalPermission {

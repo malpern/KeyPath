@@ -16,25 +16,20 @@ public struct KeyboardNavigationModifier: ViewModifier {
     }
 
     public func body(content: Content) -> some View {
-        if #available(macOS 14.0, *) {
-            content
-                .onKeyPress(.leftArrow) {
-                    onLeftArrow()
-                    return .handled
-                }
-                .onKeyPress(.rightArrow) {
-                    onRightArrow()
-                    return .handled
-                }
-                .onKeyPress(.escape) {
-                    onEscape?()
-                    return .handled
-                }
-                .focusable(true)
-                .focusEffectDisabled()
-        } else {
-            // For macOS 13.0, keyboard navigation isn't available
-            content
-        }
+        content
+            .onKeyPress(.leftArrow) {
+                onLeftArrow()
+                return .handled
+            }
+            .onKeyPress(.rightArrow) {
+                onRightArrow()
+                return .handled
+            }
+            .onKeyPress(.escape) {
+                onEscape?()
+                return .handled
+            }
+            .focusable(true)
+            .focusEffectDisabled()
     }
 }

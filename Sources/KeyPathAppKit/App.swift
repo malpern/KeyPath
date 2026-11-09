@@ -106,13 +106,9 @@ func openPreferencesTab(_ notification: Notification.Name, userInfo: [AnyHashabl
 
     AppLogger.shared.log("⚠️ [App] Could not find Settings menu item, trying fallback")
 
-    // Fallback: Use the selector method (works on macOS 13 and earlier)
+    // Fallback: Use the selector method
     NSApp.activate(ignoringOtherApps: true)
-    if #available(macOS 13, *) {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-    } else {
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-    }
+    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
 }
 
 // MARK: - AppDelegate

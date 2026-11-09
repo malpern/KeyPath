@@ -268,11 +268,7 @@ final class KanataErrorMonitor {
         defer { try? fileHandle.close() }
 
         // Seek to last position
-        if #available(macOS 10.15.4, *) {
-            try? fileHandle.seek(toOffset: lastFilePosition)
-        } else {
-            fileHandle.seek(toFileOffset: lastFilePosition)
-        }
+        try? fileHandle.seek(toOffset: lastFilePosition)
 
         // Read new data
         let newData = fileHandle.readDataToEndOfFile()

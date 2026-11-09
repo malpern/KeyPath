@@ -331,6 +331,9 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
   already touching the area for a concrete behavior, reliability, testability,
   or compile-boundary improvement. See
   [ADR-043](docs/adr/adr-043-opportunistic-manager-consolidation.md).
+- Exception until the first session-runtime release: the four cleanup steps in
+  [ADR-047](docs/adr/adr-047-pre-release-cleanup.md) (macOS 27 minimum, retired
+  stack, one permission set, backend-switching layers) are deliberate PRs.
 
 ### Permissions
 - **Always use `PermissionOracle.shared`** for permission checks.

@@ -218,23 +218,11 @@ struct OverlayLaunchersSection: View {
         .animation(.easeInOut(duration: 0.25), value: store.sortedMappings.map(\.id))
     }
 
-    private func playDeletePoof(at screenPoint: NSPoint) {
-        if #available(macOS 14.0, *) {
-            NSCursor.disappearingItem.push()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                NSCursor.pop()
-            }
-        } else {
-            legacyPoof(at: screenPoint)
+    private func playDeletePoof(at _: NSPoint) {
+        NSCursor.disappearingItem.push()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            NSCursor.pop()
         }
-    }
-
-    @available(macOS, deprecated: 14.0)
-    private func legacyPoof(at screenPoint: NSPoint) {
-        NSAnimationEffect.disappearingItemDefault.show(
-            centeredAt: screenPoint,
-            size: .zero // Use default size
-        )
     }
 }
 

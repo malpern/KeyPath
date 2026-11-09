@@ -288,24 +288,23 @@ final class CLIOutputContractTests: KeyPathTestCase {
     }
 
     func testPermissionGuidanceUsesOSPaneNameWithoutChangingPolicyOrDeepLink() {
-        for (major, name) in [(26, "Accessibility"), (27, "Device Control and Data Access")] {
-            let presentation = AccessibilityPermissionPresentation(macOSMajorVersion: major)
-            let contexts = [
-                sessionContext(appAX: .denied),
-                historicalDriverContext(
-                    permissionsStatus: .denied, helperReady: true,
-                    servicesHealthy: true, componentsInstalled: true
-                )
-            ]
-            for context in contexts {
-                let issues = SystemFacade.issues(from: context, accessibility: presentation)
-                let issue = issues.first { $0.title == "KeyPath needs \(name) permission" }
-                XCTAssertEqual(issue?.action, "Open KeyPath.app and grant \(name) in System Settings > Privacy & Security > \(name)")
-                XCTAssertEqual(issue?.remediationURL, "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-                XCTAssertEqual(issue?.severity, .error)
-                XCTAssertEqual(issue?.requiresUserAction, true)
-                XCTAssertFalse(SystemFacade.isOperational(context))
-            }
+        let name = "Device Control and Data Access"
+        let presentation = AccessibilityPermissionPresentation()
+        let contexts = [
+            sessionContext(appAX: .denied),
+            historicalDriverContext(
+                permissionsStatus: .denied, helperReady: true,
+                servicesHealthy: true, componentsInstalled: true
+            )
+        ]
+        for context in contexts {
+            let issues = SystemFacade.issues(from: context, accessibility: presentation)
+            let issue = issues.first { $0.title == "KeyPath needs \(name) permission" }
+            XCTAssertEqual(issue?.action, "Open KeyPath.app and grant \(name) in System Settings > Privacy & Security > \(name)")
+            XCTAssertEqual(issue?.remediationURL, "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            XCTAssertEqual(issue?.severity, .error)
+            XCTAssertEqual(issue?.requiresUserAction, true)
+            XCTAssertFalse(SystemFacade.isOperational(context))
         }
     }
 

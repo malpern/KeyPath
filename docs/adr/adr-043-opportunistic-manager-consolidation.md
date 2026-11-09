@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted. Suspended for the pre-release cleanup steps in
+[ADR-047](adr-047-pre-release-cleanup.md).
 
 ## Date
 

@@ -40,12 +40,7 @@ public final class AppConditionManager {
             }
 
             // Get app icon
-            let fallbackIcon: NSImage = if #available(macOS 12.0, *) {
-                NSWorkspace.shared.icon(for: .application)
-            } else {
-                NSWorkspace.shared.icon(forFileType: "app")
-            }
-            let icon = app.icon ?? fallbackIcon
+            let icon = app.icon ?? NSWorkspace.shared.icon(for: .application)
             icon.size = NSSize(width: 24, height: 24)
 
             return AppConditionInfo(

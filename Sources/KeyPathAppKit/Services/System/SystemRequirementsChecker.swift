@@ -139,18 +139,8 @@ final class SystemRequirementsChecker {
 
     /// Open Accessibility settings in System Settings
     func openAccessibilitySettings() {
-        if #available(macOS 13.0, *) {
-            if let url = URL(string: KeyPathConstants.URLs.accessibilityPrivacy) {
-                NSWorkspace.shared.open(url)
-            }
-        } else {
-            if let url = URL(string: KeyPathConstants.URLs.accessibilityPrivacy) {
-                NSWorkspace.shared.open(url)
-            } else {
-                NSWorkspace.shared.open(
-                    URL(fileURLWithPath: KeyPathConstants.System.securityPrefPane)
-                )
-            }
+        if let url = URL(string: KeyPathConstants.URLs.accessibilityPrivacy) {
+            NSWorkspace.shared.open(url)
         }
     }
 

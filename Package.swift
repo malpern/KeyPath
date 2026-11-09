@@ -5,8 +5,8 @@ let package = Package(
     name: "KeyPath",
     defaultLocalization: "en",
     platforms: [
-        // Keep CI compatible with GitHub-hosted Xcode versions while still supporting modern macOS.
-        .macOS(.v15)
+        // KeyPath supports only the latest macOS (ADR-047).
+        .macOS("27.0")
     ],
     products: [
         .library(

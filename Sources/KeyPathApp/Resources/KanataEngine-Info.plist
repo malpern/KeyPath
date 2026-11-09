@@ -19,7 +19,7 @@
     <key>LSUIElement</key>
     <true/>
     <key>LSMinimumSystemVersion</key>
-    <string>15.0</string>
+    <string>27.0</string>
     <key>CFBundleIconFile</key>
     <string>KanataEngineIcon</string>
 </dict>
