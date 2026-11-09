@@ -159,31 +159,6 @@ public enum WizardSystemPaths {
         remapSystemPath("/usr/local/etc/kanata/keypath.kbd")
     }
 
-    // MARK: - Log Files
-
-    /// Candidate Kanata log files (SMAppService stdout/stderr first, legacy launchctl second)
-    public static var kanataLogFileCandidates: [String] {
-        [
-            remapSystemPath("/var/log/com.keypath.kanata.stdout.log"),
-            remapSystemPath("/var/log/com.keypath.kanata.stderr.log"),
-            remapSystemPath("/var/log/kanata.log")
-        ]
-    }
-
-    /// Main kanata log file (prefers existing candidate paths)
-    public static var kanataLogFile: String {
-        let fileManager = FileManager.default
-        if let existing = kanataLogFileCandidates.first(where: { fileManager.fileExists(atPath: $0) }) {
-            return existing
-        }
-        return kanataLogFileCandidates.first ?? "/var/log/com.keypath.kanata.stdout.log"
-    }
-
-    /// System log directory
-    public static var systemLogDirectory: String {
-        remapSystemPath("/var/log")
-    }
-
     // MARK: - Karabiner Paths
 
     /// Karabiner-Elements VirtualHIDDevice path

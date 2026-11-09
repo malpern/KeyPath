@@ -1554,14 +1554,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         diagnostics = []
     }
 
-    func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
-        let diagnostics = diagnosticsManager.diagnoseFailure(exitCode: exitCode, output: output)
-
-        for diagnostic in diagnostics {
-            addDiagnostic(diagnostic)
-        }
-    }
-
     // MARK: - Auto-Fix Capabilities
 
     func autoFixDiagnostic(_ diagnostic: KanataDiagnostic) async -> Bool {

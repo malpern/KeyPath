@@ -1,15 +1,13 @@
 import Foundation
 import KeyPathCore
 
-/// Manages diagnostics, health monitoring, and log monitoring
+/// Manages diagnostics and health monitoring
 @MainActor
 final class DiagnosticsManager {
     private var diagnostics: [KanataDiagnostic] = []
     private let diagnosticsService: DiagnosticsServiceProtocol
     private let healthMonitor: ServiceHealthMonitor
     private let processStatusProvider: @MainActor @Sendable () async -> ProcessHealthStatus
-
-    private var logMonitorTask: Task<Void, Never>?
 
     init(
         diagnosticsService: DiagnosticsServiceProtocol,
@@ -41,107 +39,12 @@ final class DiagnosticsManager {
         diagnostics.removeAll()
     }
 
-    func startLogMonitoring() {
-        // Cancel any existing monitoring
-        logMonitorTask?.cancel()
-
-        logMonitorTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            let logPath = WizardSystemPaths.kanataLogFile
-            guard Foundation.FileManager().fileExists(atPath: logPath) else {
-                AppLogger.shared.log("⚠️ [DiagnosticsManager] Kanata log file not found at \(logPath)")
-                return
-            }
-
-            AppLogger.shared.log(
-                "🔍 [DiagnosticsManager] Starting real-time VirtualHID connection monitoring"
-            )
-
-            // Scan existing log content first to clear any stale diagnostics
-            var lastPosition: UInt64 = 0
-            do {
-                let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: logPath))
-                defer { fileHandle.closeFile() }
-
-                let fileSize = fileHandle.seekToEndOfFile()
-                lastPosition = fileSize
-
-                if fileSize > 0 {
-                    fileHandle.seek(toFileOffset: 0)
-                    let existingData = fileHandle.readDataToEndOfFile()
-                    if let logContent = String(data: existingData, encoding: .utf8) {
-                        // Check if we see driver_connected 1 in recent logs (last 1000 lines)
-                        let lines = logContent.components(separatedBy: .newlines)
-                        let recentLines = lines.suffix(1000)
-                        let recentContent = recentLines.joined(separator: "\n")
-
-                        if recentContent.contains("driver_connected 1") {
-                            AppLogger.shared.log(
-                                "✅ [DiagnosticsManager] Found driver_connected 1 in recent logs - clearing stale VirtualHID failure diagnostics"
-                            )
-                            diagnostics.removeAll { diagnostic in
-                                diagnostic.title == "VirtualHID Connection Failure"
-                            }
-                        }
-                    }
-                }
-            } catch {
-                AppLogger.shared.log("⚠️ [DiagnosticsManager] Could not scan existing log content: \(error)")
-            }
-
-            // Monitor log file for connection failures
-
-            while !Task.isCancelled {
-                do {
-                    let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: logPath))
-                    defer { fileHandle.closeFile() }
-
-                    let fileSize = fileHandle.seekToEndOfFile()
-                    if fileSize > lastPosition {
-                        fileHandle.seek(toFileOffset: lastPosition)
-                        let newData = fileHandle.readDataToEndOfFile()
-                        lastPosition = fileSize
-
-                        if let logContent = String(data: newData, encoding: .utf8) {
-                            await analyzeLogContent(logContent)
-                        }
-                    }
-
-                    // Check every 2 seconds
-                    try await Task.sleep(for: .seconds(2))
-                } catch {
-                    AppLogger.shared.log("⚠️ [DiagnosticsManager] Error reading log file: \(error)")
-                    try? await Task.sleep(for: .seconds(5)) // Wait 5 seconds before retry
-                }
-            }
-
-            AppLogger.shared.log("🔍 [DiagnosticsManager] Stopped log monitoring")
-        }
-    }
-
-    func stopLogMonitoring() {
-        logMonitorTask?.cancel()
-        logMonitorTask = nil
-        Task { @MainActor [weak self] in
-            await self?.recordConnectionSuccess() // Reset on stop
-        }
-    }
-
     func checkHealth(tcpPort: Int) async -> ServiceHealthStatus {
         let processStatus = await processStatusProvider()
         return await healthMonitor.checkServiceHealth(
             processStatus: processStatus,
             tcpPort: tcpPort
         )
-    }
-
-    func recordConnectionFailure() async -> Bool {
-        await healthMonitor.recordConnectionFailure()
-    }
-
-    func recordConnectionSuccess() async {
-        await healthMonitor.recordConnectionSuccess()
     }
 
     func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
@@ -152,68 +55,7 @@ final class DiagnosticsManager {
         await healthMonitor.recordGrabSuccess()
     }
 
-    func diagnoseFailure(exitCode: Int32, output: String) -> [KanataDiagnostic] {
-        diagnosticsService.diagnoseKanataFailure(exitCode: exitCode, output: output)
-    }
-
     func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
         await diagnosticsService.getSystemDiagnostics(engineClient: engineClient)
-    }
-
-    // MARK: - Private Helper Methods
-
-    /// Analyze log content for VirtualHID connection issues
-    private func analyzeLogContent(_ content: String) async {
-        // Check for successful connection first - clear any existing failure diagnostics
-        if content.contains("driver_connected 1") {
-            AppLogger.shared.log(
-                "✅ [DiagnosticsManager] Detected VirtualHID connection success - clearing failure diagnostics"
-            )
-
-            // Remove VirtualHID Connection Failure diagnostics
-            diagnostics.removeAll { diagnostic in
-                diagnostic.title == "VirtualHID Connection Failure"
-            }
-
-            // Record connection success
-            await recordConnectionSuccess()
-            return
-        }
-
-        // Check for VirtualHID connection failures
-        if content.contains("connect_failed asio.system:61")
-            || content.contains("connect_failed asio.system:2")
-        {
-            AppLogger.shared.log("🚨 [DiagnosticsManager] Detected VirtualHID connection failure in logs")
-
-            // Only add if we don't already have this diagnostic
-            let hasExistingFailure = diagnostics.contains { diagnostic in
-                diagnostic.title == "VirtualHID Connection Failure"
-            }
-
-            if !hasExistingFailure {
-                let diagnostic = KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .conflict,
-                    title: "VirtualHID Connection Failure",
-                    description:
-                    "Kanata cannot connect to VirtualHID device. This may indicate a driver or daemon issue.",
-                    technicalDetails: "Connection error detected in log output",
-                    suggestedAction: "Check VirtualHID driver and daemon status",
-                    canAutoFix: true
-                )
-
-                addDiagnostic(diagnostic)
-            }
-
-            // Record connection failure for health monitoring
-            let shouldRecover = await recordConnectionFailure()
-            if shouldRecover {
-                AppLogger.shared.log(
-                    "🚨 [DiagnosticsManager] Max connection failures reached - recovery recommended"
-                )
-            }
-        }
     }
 }

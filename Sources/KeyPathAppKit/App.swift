@@ -723,7 +723,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         MainAppStateController.shared.invalidateValidationCooldown()
                     } else {
                         // This is commonly the expected first-run/early-boot race (e.g.
-                        // VirtualHID daemon not yet healthy) rather than a genuine failure —
+                        // Accessibility not yet granted) rather than a genuine failure —
                         // the underlying cause is already logged as an ERROR by
                         // ServiceLifecycleCoordinator, and the wizard auto-launches below
                         // to repair/complete setup. Log at warn to avoid a cosmetic ERROR

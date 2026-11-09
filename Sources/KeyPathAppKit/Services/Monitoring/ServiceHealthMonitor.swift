@@ -42,7 +42,6 @@ enum ServiceRecoveryAction: Sendable {
     case none
     case simpleRestart
     case killAndRestart
-    case fullRecovery // Includes VirtualHID daemon restart
     case giveUp(reason: String)
 }
 
@@ -80,7 +79,6 @@ final class ServiceHealthMonitor {
     private let maxRestartInterval: TimeInterval = 30.0 // Maximum backoff interval
     private let backoffMultiplier: Double = 2.0 // Exponential backoff multiplier
     private let tcpServerGracePeriod: TimeInterval = 10.0 // Time to wait for TCP server to start
-    private let maxConnectionFailures = 10 // VirtualHID connection failures before recovery
     private let maxStartAttempts = 5 // Max auto-start attempts before giving up (increased for backoff)
     private let maxRetryAttempts = 3 // Max retry attempts after fixes
     private let maxTCPHealthCheckRetries = 3 // Retries for TCP health checks
@@ -90,7 +88,6 @@ final class ServiceHealthMonitor {
 
     private var lastStartAttempt: Date?
     private var lastServiceStart: Date? // Tracks when service was last started (for grace period)
-    private var connectionFailureCount = 0
     // Grab-failure recovery guard (#625): bound auto-restarts so a deterministic kanata
     // crash (e.g. #631) doesn't restart forever. Attempts reset on grab-success or after
     // a quiet window (a fresh failure episode gets a fresh budget).
@@ -319,7 +316,6 @@ final class ServiceHealthMonitor {
         let previousAttempts = startAttemptCount
         startAttemptCount = 0
         retryAttemptCount = 0
-        connectionFailureCount = 0
         // Clear crash loop observations: a successful start means the new PID is intentional,
         // not a crash. Without this, 3 user-initiated restarts within the window would
         // falsely trigger crash loop detection.
@@ -401,29 +397,6 @@ final class ServiceHealthMonitor {
         AppLogger.shared.info("[HealthMonitor] Cleared crash loop detection state")
     }
 
-    // MARK: - Connection Failure Tracking
-
-    func recordConnectionFailure() async -> Bool {
-        connectionFailureCount += 1
-        AppLogger.shared.debug(
-            "[HealthMonitor] Connection failure #\(connectionFailureCount)/\(maxConnectionFailures)"
-        )
-
-        let shouldTriggerRecovery = connectionFailureCount >= maxConnectionFailures
-        if shouldTriggerRecovery {
-            AppLogger.shared.warnUnlessQuietTest("[HealthMonitor] Max connection failures reached - recovery needed")
-        }
-
-        return shouldTriggerRecovery
-    }
-
-    func recordConnectionSuccess() async {
-        if connectionFailureCount > 0 {
-            AppLogger.shared.info("[HealthMonitor] Connection restored - resetting failure count")
-            connectionFailureCount = 0
-        }
-    }
-
     func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
         decideGrabRecovery(now: Date())
     }
@@ -481,14 +454,6 @@ final class ServiceHealthMonitor {
             return .giveUp(reason: "Failed to recover after \(maxRetryAttempts) retry attempts")
         }
 
-        // Check if connection failures warrant full recovery
-        if connectionFailureCount >= maxConnectionFailures {
-            AppLogger.shared.warnUnlessQuietTest(
-                "[HealthMonitor] Connection failures detected - recommend full recovery"
-            )
-            return .fullRecovery
-        }
-
         // Check process conflicts
         let conflicts = await processDetector.detectConflicts()
         if conflicts.hasConflicts {
@@ -506,7 +471,6 @@ final class ServiceHealthMonitor {
     func resetMonitoringState() async {
         lastStartAttempt = nil
         lastServiceStart = nil
-        connectionFailureCount = 0
         startAttemptCount = 0
         retryAttemptCount = 0
         lastHealthCheckResult = nil

@@ -122,12 +122,8 @@ struct GeneralSettingsTabView: View {
                         VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                             DisclosureGroup {
                                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
-                                    HStack {
-                                        Button("KeyPath Log") { openLogFile(KeyPathConstants.Logs.userDebugLog) }
-                                            .settingsAction().accessibilityIdentifier("settings-open-keypath-log-button")
-                                        Button("Runtime Log") { openLogFile(WizardSystemPaths.kanataLogFile) }
-                                            .settingsAction().accessibilityIdentifier("settings-open-kanata-log-button")
-                                    }
+                                    Button("KeyPath Log") { openLogFile(KeyPathConstants.Logs.userDebugLog) }
+                                        .settingsAction().accessibilityIdentifier("settings-open-keypath-log-button")
                                     VerboseLoggingToggle()
                                 }.padding(.top, SettingsDesign.rowGap)
                             } label: { Label("Logs & Diagnostics", systemImage: "waveform.path.ecg") }

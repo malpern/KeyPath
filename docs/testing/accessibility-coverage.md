@@ -41,7 +41,6 @@ KeyPath now has comprehensive accessibility identifiers across all major screens
 | Element | Identifier | Label |
 |---------|------------|-------|
 | Open KeyPath Log | `settings-open-keypath-log-button` | Open KeyPath log |
-| Open Kanata Log | `settings-open-kanata-log-button` | Open Kanata log |
 | Capture Mode Picker | `settings-capture-mode-picker` | Capture Mode |
 | Recording Behavior Picker | `settings-recording-behavior-picker` | Recording Behavior |
 | Overlay Layout Picker | `settings-overlay-layout-picker` | Keyboard Overlay Layout |

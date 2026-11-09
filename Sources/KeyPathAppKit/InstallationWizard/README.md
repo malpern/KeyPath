@@ -279,7 +279,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 - **Wizard won't advance**: Check `WizardNavigationEngine.determineCurrentPage()` logs
 - **Auto-fix fails**: Look at `InstallerEngine.runSingleAction()` return value
 - **Permissions incorrect**: Trust `PermissionOracle` (see `Sources/KeyPathPermissions/PermissionOracle.swift`)
-- **Service won't start**: Check `/var/log/com.keypath.kanata.stdout.log` and `launchctl print gui/$(id -u)/com.keypath.kanata`
+- **Runtime won't start**: Check `~/Library/Logs/KeyPath/keypath-debug.log` for `[SessionRuntime]` and `[SessionWorker]` lines
 
 ## Related Documentation
 

@@ -159,7 +159,7 @@ public extension InstallationWizardView {
                         AppLogger.shared.log("❌ [Wizard] Failed to start KeyPath Runtime")
                         let failureMessage =
                             kanataManager.lastError
-                                ?? "KeyPath Runtime failed to stay running. Review /var/log/com.keypath.kanata.stderr.log for details."
+                                ?? "KeyPath Runtime failed to stay running. See the KeyPath log in Settings > Advanced."
                         toastManager.showError(failureMessage)
                     }
                 } onFailure: { error in
