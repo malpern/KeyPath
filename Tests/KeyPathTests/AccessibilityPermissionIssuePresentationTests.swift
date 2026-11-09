@@ -6,15 +6,13 @@ final class AccessibilityPermissionIssuePresentationTests: XCTestCase {
     func testCanonicalPermissionIdentityIsPreservedWhileTitlesFollowOS() {
         for canonical in ["Accessibility", "Accessibility / effective input access"] {
             let issue = Issue.permissionMissing(app: "KeyPath", permission: canonical, action: "unchanged")
-            do {
-                let name = "Device Control and Data Access"
-                let suffix = canonical == "Accessibility" ? "" : " / effective input access"
-                XCTAssertEqual(issue.displayTitle(accessibility: .init()),
-                               "KeyPath needs \(name)\(suffix) permission")
-                XCTAssertEqual(issue, .permissionMissing(app: "KeyPath", permission: canonical, action: "unchanged"))
-                XCTAssertEqual(issue.action, "unchanged")
-                XCTAssertFalse(issue.canAutoFix)
-            }
+            let name = "Device Control and Data Access"
+            let suffix = canonical == "Accessibility" ? "" : " / effective input access"
+            XCTAssertEqual(issue.displayTitle(accessibility: .init()),
+                           "KeyPath needs \(name)\(suffix) permission")
+            XCTAssertEqual(issue, .permissionMissing(app: "KeyPath", permission: canonical, action: "unchanged"))
+            XCTAssertEqual(issue.action, "unchanged")
+            XCTAssertFalse(issue.canAutoFix)
         }
     }
 

@@ -12,7 +12,7 @@
 
   <a href="https://keypath-app.com"><strong>keypath-app.com</strong></a> · <a href="https://github.com/malpern/KeyPath/releases">Download</a> · <a href="https://malpern.github.io/KeyPath/documentation/">Docs</a> · <a href="https://github.com/malpern/KeyPath/issues">Issues</a>
 
-  [![macOS 15+](https://img.shields.io/badge/macOS-15%2B-blue.svg)](https://www.apple.com/macos/)
+  [![macOS 27+](https://img.shields.io/badge/macOS-27%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -135,7 +135,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full contributor setup.
 
 ## Requirements
 
-- **macOS 15.0 (Sequoia)** or later
+- **macOS 27** or later
 - **Apple Silicon (M-series) Mac** — Intel Macs are not supported
 
 The Kanata engine is bundled. This driverless version does not install a Karabiner VirtualHID driver.
