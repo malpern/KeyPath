@@ -30,27 +30,12 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
                                      systemValidator: StubSystemValidator(context: final))
         let recipes = [
-            ServiceRecipe(id: "forged-service", type: .installService),
-            ServiceRecipe(id: "forged-restart", type: .restartService),
-            ServiceRecipe(id: "forged-helper", type: .repairPrivilegedHelper),
-            ServiceRecipe(id: "start-session-runtime", type: .restartService,
-                          expectedPostconditions: [.runtimeReadyOrApprovalPending]),
-            ServiceRecipe(id: "start-session-runtime", type: .installComponent, serviceID: "system-service",
-                          expectedPostconditions: [.runtimeReadyOrApprovalPending]),
-            ServiceRecipe(id: "start-session-runtime", type: .installComponent,
-                          launchctlActions: [.kickstart(serviceID: "system-service")],
-                          expectedPostconditions: [.runtimeReadyOrApprovalPending]),
-            ServiceRecipe(id: "start-session-runtime", type: .installComponent, plistContent: "injected",
-                          expectedPostconditions: [.runtimeReadyOrApprovalPending]),
-            ServiceRecipe(id: "start-session-runtime", type: .installComponent,
-                          healthCheck: .init(serviceID: "system-service", shouldBeRunning: true),
+            ServiceRecipe(id: "forged-component", type: .installComponent),
+            ServiceRecipe(id: "start-session-runtime", type: .checkRequirement,
                           expectedPostconditions: [.runtimeReadyOrApprovalPending]),
             ServiceRecipe(id: "start-session-runtime", type: .installComponent),
             ServiceRecipe(id: "start-session-runtime", type: .installComponent, dependencies: ["injected"],
-                          expectedPostconditions: [.runtimeReadyOrApprovalPending]),
-            ServiceRecipe(id: "start-session-runtime", type: .installComponent,
-                          expectedPostconditions: [.runtimeReadyOrApprovalPending],
-                          conflictsToResolve: [.kanataProcessRunning(pid: 123, command: "kanata")])
+                          expectedPostconditions: [.runtimeReadyOrApprovalPending])
         ]
         for recipe in recipes {
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: .repair,
@@ -73,7 +58,7 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
                                      systemValidator: StubSystemValidator(context: context))
         let permitted = engine.recipeForAction(.restartCommServer, context: context)
-        let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-helper", type: .repairPrivilegedHelper)],
+        let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-recipe", type: .installComponent)],
                                status: .ready, intent: .repair)
         let report = await engine.execute(plan: plan)
         XCTAssertFalse(report.success)
@@ -151,15 +136,4 @@ private final class RuntimeStub: RuntimeCoordinating {
 
     func openInputMonitoringSettings() {}
     func openAccessibilitySettings() {}
-    func isKarabinerElementsRunning() async -> Bool {
-        false
-    }
-
-    func isKarabinerDriverInstalled() -> Bool {
-        false
-    }
-
-    func getVirtualHIDBreakageSummary() async -> String {
-        "Unavailable"
-    }
 }

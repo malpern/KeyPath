@@ -143,7 +143,7 @@ final class ConfigHotReloadServiceTests: KeyPathTestCase {
     }
 
     func testHandleExternalChangeFailsWhenReloadFailsAndServiceRunning() async {
-        // If reload fails while service is running and installation state is not pending,
+        // If reload fails while service is running and the runtime is running,
         // this should be treated as a real failure.
         reloadHandlerResult = false
 
@@ -154,7 +154,6 @@ final class ConfigHotReloadServiceTests: KeyPathTestCase {
                 return (self?.reloadHandlerResult ?? false) ? .applied : .failed("Hot reload failed")
             },
             configParser: { _ in [] },
-            serviceManagementStateProvider: { .smappserviceActive },
             isKanataProcessRunningProvider: { true }
         )
 

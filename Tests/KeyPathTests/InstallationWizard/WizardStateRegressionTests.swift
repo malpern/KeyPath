@@ -44,11 +44,6 @@ final class WizardStateRegressionTests: XCTestCase {
             services: health,
             conflicts: .init(conflicts: [], canAutoResolve: false),
             components: components,
-            helper: HelperStatus(
-                isInstalled: true,
-                version: KeyPathHelperContract.version,
-                isWorking: true
-            ),
             system: EngineSystemInfo(macOSVersion: "26.0.1", driverCompatible: true),
             timestamp: Date()
         )
@@ -75,7 +70,7 @@ final class WizardStateRegressionTests: XCTestCase {
                 backend: .session, kanataProcessRunning: true, kanataTCPResponding: true,
                 kanataRunning: true, karabinerDaemonRunning: false, vhidHealthy: false,
                 kanataInputCaptureReady: false,
-                kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
+                kanataInputCaptureIssue: "kanata-cannot-open-built-in-keyboard"
             ),
             conflicts: .empty,
             components: ComponentStatus(
@@ -83,7 +78,7 @@ final class WizardStateRegressionTests: XCTestCase {
                 karabinerDriverInstalled: false, karabinerDaemonRunning: false,
                 vhidDeviceInstalled: false, vhidDeviceHealthy: false,
                 vhidServicesHealthy: false, vhidVersionMismatch: false
-            ), helper: .empty, system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
+            ), system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
             timestamp: now
         )
         let result = SystemStateResult.projecting(context)

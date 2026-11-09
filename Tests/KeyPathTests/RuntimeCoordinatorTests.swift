@@ -6,16 +6,6 @@ import KeyPathRulesCore
 final class RuntimeCoordinatorTests: KeyPathTestCase {
     lazy var manager: RuntimeCoordinator = .init()
 
-    override func setUp() {
-        super.setUp()
-        KarabinerConflictService.testDaemonRunning = nil
-    }
-
-    override func tearDown() {
-        KarabinerConflictService.testDaemonRunning = nil
-        super.tearDown()
-    }
-
     func testInitialState() {
         if let error = manager.lastError {
             XCTAssertTrue(

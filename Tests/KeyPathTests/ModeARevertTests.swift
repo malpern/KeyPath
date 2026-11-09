@@ -192,7 +192,6 @@ final class ModeARevertTests: XCTestCase {
                 vhidServicesHealthy: true,
                 vhidVersionMismatch: false
             ),
-            helper: HelperStatus(isInstalled: true, version: nil, isWorking: true),
             system: EngineSystemInfo(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )
@@ -238,7 +237,6 @@ final class ModeARevertTests: XCTestCase {
                                  vhidHealthy: true,
                                  kanataInputCaptureReady: true,
                                  kanataPermissionRejected: kanataPermissionRejected),
-            helper: HelperStatus(isInstalled: true, version: nil, isWorking: true),
             compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )

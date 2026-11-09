@@ -15,11 +15,7 @@ enum CLIRuntimeBootstrap {
         // JSON output remains machine-parseable in debug builds.
         AppLogger.shared.setConsoleLoggingEnabled(false)
 
-        let processLifecycleManager = ProcessLifecycleManager()
-        let validator = SystemValidator(
-            processLifecycleManager: processLifecycleManager,
-            kanataManager: nil
-        )
+        let validator = SystemValidator(kanataManager: nil)
 
         configureCLIWizardDependencies(systemValidator: validator)
         isConfigured = true

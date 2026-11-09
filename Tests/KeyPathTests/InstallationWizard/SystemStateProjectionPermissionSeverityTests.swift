@@ -44,7 +44,6 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
                 vhidServicesHealthy: true,
                 vhidVersionMismatch: false
             ),
-            helper: HelperStatus(isInstalled: true, version: nil, isWorking: true),
             system: EngineSystemInfo(macOSVersion: "test", driverCompatible: true),
             timestamp: now
         )

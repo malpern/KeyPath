@@ -27,7 +27,7 @@ final class WizardRecipeParityTests: KeyPathTestCase {
                 vhidDeviceInstalled: false, vhidDeviceHealthy: false,
                 vhidServicesHealthy: false, vhidVersionMismatch: false
             ),
-            helper: .empty, system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
+            system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
             timestamp: now
         )
     }
@@ -37,9 +37,7 @@ final class WizardRecipeParityTests: KeyPathTestCase {
         for action in [AutoFixAction.restartCommServer, .synchronizeConfigPaths] {
             let recipe = engine.recipeForAction(action, context: context(running: false))
             XCTAssertEqual(recipe.id, engine.recipeIDForAction(action))
-            XCTAssertTrue(recipe.launchctlActions.isEmpty)
-            XCTAssertNil(recipe.serviceID)
-            XCTAssertNil(recipe.plistContent)
+            XCTAssertTrue(recipe.dependencies.isEmpty)
         }
     }
 

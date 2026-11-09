@@ -78,7 +78,6 @@ public struct SystemSnapshot: Sendable {
     public let components: ComponentStatus
     public let conflicts: ConflictStatus
     public let health: HealthStatus
-    public let helper: HelperStatus
     public let compatibility: SystemCompatibilityStatus
     public let timestamp: Date
     public let captureStatus: SystemSnapshotCaptureStatus
@@ -89,7 +88,6 @@ public struct SystemSnapshot: Sendable {
         components: ComponentStatus,
         conflicts: ConflictStatus,
         health: HealthStatus,
-        helper: HelperStatus,
         compatibility: SystemCompatibilityStatus = .unknown,
         timestamp: Date,
         captureStatus: SystemSnapshotCaptureStatus = .complete
@@ -99,7 +97,6 @@ public struct SystemSnapshot: Sendable {
         self.components = components
         self.conflicts = conflicts
         self.health = health
-        self.helper = helper
         self.compatibility = compatibility
         self.timestamp = timestamp
         self.captureStatus = captureStatus
@@ -114,7 +111,7 @@ public struct SystemSnapshot: Sendable {
                 && components.requiredRuntimePayloadPresent && health.kanataRuntimeReadiness.isReady
         }
         return captureStatus.isComplete && compatibility.driverCompatible
-            && helper.isReady && permissions.isSystemReady && !conflicts.hasConflicts
+            && permissions.isSystemReady && !conflicts.hasConflicts
             && components.hasAllRequired && health.isHealthy
     }
 
@@ -135,13 +132,6 @@ public struct SystemSnapshot: Sendable {
             return issues
         }
         var issues: [Issue] = []
-
-        // Helper issues (check first - required for system operations)
-        if !helper.isInstalled {
-            issues.append(.componentMissing(name: "Privileged Helper", autoFix: true))
-        } else if !helper.isWorking {
-            issues.append(.componentUnhealthy(name: "Privileged Helper", autoFix: true))
-        }
 
         // Permission issues
         if !permissions.keyPath.hasAllPermissions {
@@ -292,7 +282,6 @@ public struct SystemSnapshot: Sendable {
             components: .empty,
             conflicts: .empty,
             health: .empty,
-            helper: .empty,
             compatibility: .unknown,
             timestamp: timestamp,
             captureStatus: captureStatus
@@ -533,48 +522,6 @@ public struct HealthStatus: Sendable {
     /// Convenience factory for empty/fallback state
     public static var empty: HealthStatus {
         HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false)
-    }
-}
-
-// MARK: - Helper Status
-
-public struct HelperStatus: Sendable {
-    public let isInstalled: Bool
-    public let version: String?
-    public let isWorking: Bool
-    /// True when the helper registration exists but macOS requires the user to
-    /// approve it in Login Items. Keep this raw fact in the canonical snapshot
-    /// so wizard routing never needs a second SMAppService read.
-    public let requiresApproval: Bool
-
-    public init(
-        isInstalled: Bool,
-        version: String?,
-        isWorking: Bool,
-        requiresApproval: Bool = false
-    ) {
-        self.isInstalled = isInstalled
-        self.version = version
-        self.isWorking = isWorking
-        self.requiresApproval = requiresApproval
-    }
-
-    public var isReady: Bool {
-        isInstalled && isWorking
-    }
-
-    public var displayVersion: String {
-        version ?? "Unknown"
-    }
-
-    public func freshness(expectedVersion: String) -> RuntimeFreshness {
-        guard isInstalled, isWorking else { return .unknown }
-        return RuntimeFreshness.classify(actual: version, expected: expectedVersion)
-    }
-
-    /// Convenience factory for empty/fallback state
-    public static var empty: HelperStatus {
-        HelperStatus(isInstalled: false, version: nil, isWorking: false, requiresApproval: false)
     }
 }
 

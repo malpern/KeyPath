@@ -5,36 +5,6 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import SwiftUI
 
-// MARK: - WizardServiceManagementState ↔ KanataDaemonManager.ServiceManagementState converters
-
-extension WizardServiceManagementState {
-    /// Convert from the internal ServiceManagementState type (defined in KeyPathAppKit).
-    init(_ state: KanataDaemonManager.ServiceManagementState) {
-        // EXHAUSTIVE: must mirror KanataDaemonManager.ServiceManagementState exactly — do not add a default case
-        switch state {
-        case .legacyActive: self = .legacyActive
-        case .smappserviceActive: self = .smappserviceActive
-        case .smappservicePending: self = .smappservicePending
-        case .uninstalled: self = .uninstalled
-        case .conflicted: self = .conflicted
-        case .unknown: self = .unknown
-        }
-    }
-
-    /// Convert back to the internal ServiceManagementState type.
-    var asInternal: KanataDaemonManager.ServiceManagementState {
-        // EXHAUSTIVE: must mirror KanataDaemonManager.ServiceManagementState exactly — do not add a default case
-        switch self {
-        case .legacyActive: .legacyActive
-        case .smappserviceActive: .smappserviceActive
-        case .smappservicePending: .smappservicePending
-        case .uninstalled: .uninstalled
-        case .conflicted: .conflicted
-        case .unknown: .unknown
-        }
-    }
-}
-
 // MARK: - RuntimeCoordinator + RuntimeCoordinating
 
 extension RuntimeCoordinator: RuntimeCoordinating {
@@ -51,41 +21,6 @@ extension RuntimeCoordinator: RuntimeCoordinating {
 
     public func isInTransientRuntimeStartupWindow() async -> Bool {
         await serviceLifecycleCoordinator.isInTransientRuntimeStartupWindow()
-    }
-}
-
-// MARK: - KanataDaemonManager + WizardDaemonManaging
-
-extension KanataDaemonManager: WizardDaemonManaging {
-    public func refreshManagementState() async -> WizardServiceManagementState {
-        await WizardServiceManagementState(refreshManagementStateInternal())
-    }
-
-    public func activeRuntimeFreshness() async -> RuntimeFreshness {
-        let snapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshotFresh()
-        let actualIdentity = snapshot.activeProgramIdentity.map {
-            RuntimeIdentity(
-                programIdentifier: $0.programIdentifier,
-                parentBundleIdentifier: $0.parentBundleIdentifier,
-                parentBundleVersion: $0.parentBundleVersion
-            )
-        }
-        return RuntimeFreshness.classify(
-            actual: actualIdentity,
-            expected: RuntimeIdentity.expectedKeyPathKanata()
-        )
-    }
-
-    public nonisolated var kanataServiceID: String {
-        Self.kanataServiceID
-    }
-
-    public nonisolated var legacyPlistPath: String {
-        Self.legacyPlistPath
-    }
-
-    public func preferredLaunchctlTargets(for state: WizardServiceManagementState) -> [String] {
-        Self.preferredLaunchctlTargets(for: state.asInternal)
     }
 }
 
@@ -116,11 +51,7 @@ extension TCPProbe: WizardTCPProbing {}
 public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) {
     WizardDependencies.isRunningAdHoc = WizardSignatureHealthCheck.isRunningAdHoc()
     WizardDependencies.runtimeCoordinator = runtimeCoordinator
-    WizardDependencies.daemonManager = KanataDaemonManager.shared
-    let sharedValidator = SystemValidator(
-        processLifecycleManager: runtimeCoordinator.processLifecycleManager,
-        kanataManager: runtimeCoordinator
-    )
+    let sharedValidator = SystemValidator(kanataManager: runtimeCoordinator)
     WizardDependencies.systemValidator = sharedValidator
 
     // Share the same validator with MainAppStateController so there's only one instance app-wide.
@@ -187,13 +118,12 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
 @MainActor
 func configureCLIWizardDependencies(systemValidator: SystemValidator) {
     WizardDependencies.runtimeCoordinator = nil
-    WizardDependencies.daemonManager = KanataDaemonManager.shared
     WizardDependencies.systemValidator = systemValidator
 
     MainAppStateController.shared.setValidator(systemValidator)
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
 
-    // CLI must not remove a GUI installation through the legacy system helper.
+    // The CLI cannot uninstall: the session runtime belongs to the running app.
     WizardDependencies.createUninstallCoordinator = nil
     WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 

@@ -10,7 +10,6 @@ import SwiftUI
 /// Usage in KeyPathAppKit startup:
 ///     WizardDependencies.configure(
 ///         runtimeCoordinator: runtimeCoordinator,
-///         daemonManager: KanataDaemonManager.shared,
 ///         ...
 ///     )
 @MainActor
@@ -19,9 +18,6 @@ public enum WizardDependencies {
 
     /// RuntimeCoordinator instance
     public static var runtimeCoordinator: (any RuntimeCoordinating)?
-
-    /// KanataDaemonManager instance
-    public static var daemonManager: (any WizardDaemonManaging)?
 
     // MARK: - Service Protocols
 
@@ -73,7 +69,6 @@ public enum WizardDependencies {
     /// Call from KeyPathTestCase.tearDown() within `MainActor.assumeIsolated` or `MainActor.run`.
     public static func reset() {
         runtimeCoordinator = nil
-        daemonManager = nil
         systemValidator = nil
         permissionRequestService = nil
         makeKanataMigrationPage = nil

@@ -45,12 +45,6 @@ public protocol RuntimeCoordinating: AnyObject, Sendable {
     func openInputMonitoringSettings()
     func openAccessibilitySettings()
 
-    // MARK: - Queries
-
-    func isKarabinerElementsRunning() async -> Bool
-    func isKarabinerDriverInstalled() -> Bool
-    func getVirtualHIDBreakageSummary() async -> String
-
     // MARK: - State
 
     var lastError: String? { get }

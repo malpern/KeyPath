@@ -254,10 +254,7 @@ final class HealthObserverInitializationOrderTests: XCTestCase {
 
         // Just set the validator — don't create a full RuntimeCoordinator
         // which starts TCP connections, event monitoring, etc. that hang on CI.
-        let validator = SystemValidator(
-            vhidDeviceManager: VHIDDeviceManager(),
-            processLifecycleManager: ProcessLifecycleManager()
-        )
+        let validator = SystemValidator()
         controller.setValidator(validator)
 
         XCTAssertTrue(controller.isConfigured, "Controller is configured after setValidator()")

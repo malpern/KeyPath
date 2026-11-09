@@ -1,5 +1,8 @@
 Troubleshooting: SMAppService Codesigning Error (-67028)
 
+> **Retired (ADR-047 step 2e):** the privileged helper, `HelperManager`, and
+> `HelperMaintenance` were removed from the app. Kept as history for 1.0.1.
+
 Summary
 - Symptom: `SMAppService` returns status `.notFound` at first, and a subsequent `register()` throws with underlying Security error `errSecCSReqFailed (-67028)`.
 - Impact: Helper installation fails; the wizard previously hid the real cause behind a generic “plist not found” error.

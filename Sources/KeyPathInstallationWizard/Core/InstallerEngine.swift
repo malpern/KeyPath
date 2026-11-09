@@ -317,18 +317,6 @@ public final class InstallerEngine {
                 recipeLogs.append(contentsOf: executionResult.logs)
                 commandsRun.append(contentsOf: executionResult.commands)
 
-                // Perform health check if specified
-                if let healthCheck = recipe.healthCheck {
-                    recipeLogs.append("[\(recipe.id)] Running health check for \(healthCheck.serviceID)...")
-                    let isHealthy = await verifyHealthCheck(healthCheck)
-                    if !isHealthy {
-                        throw InstallerError.healthCheckFailed(
-                            "Health check failed for service: \(healthCheck.serviceID)"
-                        )
-                    }
-                    recipeLogs.append("[\(recipe.id)] Health check passed")
-                }
-
                 let duration = Date().timeIntervalSince(startTime)
                 recipeLogs.append("[\(recipe.id)] Completed in \(String(format: "%.2f", duration))s")
                 allLogs.append(contentsOf: recipeLogs)
@@ -618,10 +606,7 @@ public final class InstallerEngine {
 
     /// Only exact user-session recipe shapes may execute, including caller-built plans.
     private func isSupportedSessionRecipe(_ recipe: ServiceRecipe) -> Bool {
-        guard recipe.serviceID == nil, recipe.plistContent == nil,
-              recipe.launchctlActions.isEmpty, recipe.healthCheck == nil,
-              recipe.dependencies.isEmpty, recipe.conflictsToResolve.isEmpty
-        else { return false }
+        guard recipe.dependencies.isEmpty else { return false }
         switch recipe.id {
         case InstallerRecipeID.startSessionRuntime:
             return recipe.type == .installComponent
@@ -661,35 +646,11 @@ public final class InstallerEngine {
         return RecipeExecutionResult(logs: ["[\(recipe.id)] Session operation completed"], commands: [])
     }
 
-    /// Caller-supplied health checks cannot route to privileged service metadata.
-    private func verifyHealthCheck(_: HealthCheckCriteria) async -> Bool {
-        false
-    }
-
     // MARK: - Public Health Check API
 
-    /// Check if a specific service is healthy (running and responsive)
-    /// Delegates to ServiceHealthChecker
-    public func isServiceHealthy(serviceID: String) async -> Bool {
-        await ServiceHealthChecker.shared.isServiceHealthy(serviceID: serviceID)
-    }
-
-    /// Check if a specific service is loaded (registered with launchd)
-    public func isServiceLoaded(serviceID: String) async -> Bool {
-        await ServiceHealthChecker.shared.isServiceLoaded(serviceID: serviceID)
-    }
-
-    /// Get aggregated status of all KeyPath services
-    public func getServiceStatus() async -> LaunchDaemonStatus {
-        await ServiceHealthChecker.shared.getServiceStatus()
-    }
-
-    /// Check Kanata service health (running + TCP responsive)
-    public func checkKanataServiceHealth(tcpPort: Int = KeyPathConstants.Networking.defaultTCPPort) async -> KanataRuntimeReadiness {
-        let runtimeSnapshot = await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshot(
-            tcpPort: tcpPort
-        )
-        return runtimeSnapshot.readiness
+    /// Check Kanata session runtime health (running + TCP responsive + input capture)
+    public func checkKanataServiceHealth() async -> KanataRuntimeReadiness {
+        await ServiceHealthChecker.shared.checkKanataServiceHealth()
     }
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.

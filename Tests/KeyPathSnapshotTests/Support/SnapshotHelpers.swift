@@ -175,7 +175,7 @@ class ScreenshotTestCase: XCTestCase {
             DispatchQueue.main.sync { _ = NSApplication.shared }
         }
         // Snapshot rendering must not scan the developer's installed apps.
-        HelperMaintenance.testDuplicateAppPathsOverride = { [] }
+        DuplicateAppDetector.testDuplicateAppPathsOverride = { [] }
         originalHomeEnv = ProcessInfo.processInfo.environment["HOME"]
         originalFixedHomeEnv = ProcessInfo.processInfo.environment["CFFIXED_USER_HOME"]
         let isolatedHome = FileManager.default.temporaryDirectory
@@ -209,7 +209,7 @@ class ScreenshotTestCase: XCTestCase {
     }
 
     override func tearDown() {
-        HelperMaintenance.testDuplicateAppPathsOverride = nil
+        DuplicateAppDetector.testDuplicateAppPathsOverride = nil
         if let snapshotDefaultsSuiteName {
             snapshotDefaults?.removePersistentDomain(forName: snapshotDefaultsSuiteName)
         }

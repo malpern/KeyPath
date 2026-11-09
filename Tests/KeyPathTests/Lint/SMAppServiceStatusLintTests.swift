@@ -11,9 +11,8 @@ import Foundation
 ///
 /// This test fails the build if any source outside the provider reads `.status` off an
 /// `SMAppService` instance (a `SMAppService.daemon(…)` value or a `SMAppServiceProtocol`
-/// from `smServiceFactory`). To fix a new violation, route the read through
-/// `SystemStateProvider` or, for the low-level cache/coalescer itself,
-/// `SMAppServiceStatusProvider.shared.cachedStatus(for:)` / `.freshStatus(for:)`.
+/// from `smServiceFactory`). To fix a new violation, route the read through an
+/// `SMAppServiceStatusProvider` (`cachedStatus(for:)` / `freshStatus(for:)`).
 /// Do **not** extend the allowlist.
 ///
 /// The allowlist is a shrinking ratchet of pre-existing **synchronous** call sites that
@@ -23,14 +22,11 @@ final class SMAppServiceStatusLintTests: XCTestCase {
     /// Files permitted to read `.status` directly. Ratchet — never add entries.
     ///
     /// - `SMAppServiceStatusProvider.swift`: the sole intended owner of the IPC.
-    /// - `HelperManager.swift`: defines the `SMAppServiceProtocol` seam whose `status`
-    ///   getter forwards to Apple's `SMAppService` — the one legitimate declaration.
-    /// - The remainder are synchronous, non-hot-path diagnostic readers still
-    ///   awaiting an async migration.
+    /// - `SMAppServiceProtocol.swift`: defines the seam whose `status` getter
+    ///   forwards to Apple's `SMAppService` — the one legitimate declaration.
     private static let allowList: Set<String> = [
         "SMAppServiceStatusProvider.swift",
-        "HelperManager.swift",
-        "BlessDiagnostics.swift"
+        "SMAppServiceProtocol.swift"
     ]
 
     func testStatusAccessIsCentralized() throws {
@@ -72,127 +68,6 @@ final class SMAppServiceStatusLintTests: XCTestCase {
             Direct SMAppService `.status` reads found outside SMAppServiceStatusProvider \
             (issue #853). Route through SystemStateProvider or the low-level \
             SMAppServiceStatusProvider cache/coalescer instead of adding to the allowlist:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider() throws {
-        let manager = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Managers/KanataDaemonManager.swift")
-
-        let violations = try matchingLines(
-            in: manager,
-            patterns: [#"SMAppServiceStatusProvider\.shared"#]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            KanataDaemonManager must delegate SMAppService status/cache access \
-            through SystemStateProvider:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider() throws {
-        let files = [
-            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Installation.swift"),
-            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Status.swift")
-        ]
-
-        let violations = try files.flatMap {
-            try matchingLines(
-                in: $0,
-                patterns: [#"SMAppServiceStatusProvider\.shared"#]
-            )
-        }
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            HelperManager SMAppService status/cache access must delegate \
-            through SystemStateProvider:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testWizardProtocolConformancesDelegateHelperApprovalToHelperManager() throws {
-        let conformances = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/WizardProtocolConformances.swift")
-
-        let violations = try matchingLines(
-            in: conformances,
-            patterns: [
-                #"smServiceFactory\(.*\)\.status"#,
-                #"SMAppServiceStatusProvider\.shared"#
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            Wizard dependency glue must not read SMAppService status directly. \
-            Route helper approval checks through HelperManager/SystemStateProvider:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider() throws {
-        let service = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Services/Kanata/KanataDaemonService.swift")
-
-        let violations = try matchingLines(
-            in: service,
-            patterns: [#"SMAppServiceStatusProvider\.shared"#]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            KanataDaemonService must delegate SMAppService status/cache access \
-            through SystemStateProvider:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testHelperMaintenanceDelegatesStatusProviderAccessToSystemStateProvider() throws {
-        let maintenance = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Managers/HelperMaintenance.swift")
-
-        let violations = try matchingLines(
-            in: maintenance,
-            patterns: [#"SMAppServiceStatusProvider\.shared"#]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            HelperMaintenance must delegate SMAppService status/cache access \
-            through SystemStateProvider:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testUninstallCoordinatorDelegatesStatusProviderAccessToSystemStateProvider() throws {
-        let coordinator = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift")
-
-        let violations = try matchingLines(
-            in: coordinator,
-            patterns: [#"SMAppServiceStatusProvider\.shared"#]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            UninstallCoordinator must delegate SMAppService status/cache access \
-            through SystemStateProvider:
             \(violations.sorted().joined(separator: "\n"))
             """
         )

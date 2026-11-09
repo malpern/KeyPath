@@ -213,7 +213,6 @@ let health = await engine.checkKanataServiceHealth()
 | **KeyPath Runtime / RuntimeCoordinator** | Normal runtime lifecycle (start/stop/restart) | Primary path |
 | **RecoveryDaemonService** | Internal recovery-daemon stop/status utility | Narrow internal seam |
 | **KeyboardCapture** | CGEvent input recording | 622 |
-| **KarabinerConflictService** | Detect keyboard conflicts | 600 |
 | **DiagnosticsService** | System analysis | 537 |
 | **ConfigFileWatcher** | Monitor config changes | 496 |
 | **SystemValidator** | Stateless validation | 269 |
@@ -425,10 +424,7 @@ KeyPath uses a **hybrid approach** for privileged operations that supports both 
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **PrivilegedOperationsCoordinator** | `Core/PrivilegedOperationsCoordinator.swift` | Routes operations to helper or sudo |
-| **HelperManager** | `Core/HelperManager.swift` | App-side XPC connection manager |
-| **KeyPathHelper** | `Sources/KeyPathHelper/` | Root-privileged helper binary |
-| **HelperProtocol** | `Core/HelperProtocol.swift` | XPC interface (17 operations) |
+| **KeyPathHelper** | `Sources/KeyPathHelper/` | Retired root-privileged helper binary (removed from the app in ADR-047 step 2e; target pending removal in step 2f) |
 
 ### For Contributors
 

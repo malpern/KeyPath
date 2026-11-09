@@ -141,8 +141,6 @@ Pages are shown in priority order when issues are detected:
 |------|-------|---------|
 | `WizardAutoFixer.swift` | 1,187 | **Auto-remediation** - Implements fixes for 50+ edge cases |
 | `InstallerEngine.swift` | 400 | **Service installation façade** - install/repair/uninstall through recipes |
-| `VHIDDeviceManager.swift` | 548 | **Driver management** - VirtualHID driver download, installation, version checking |
-| `PackageManager.swift` | 650 | **Dependency installation** - Homebrew and .pkg installer integration |
 | `PermissionGrantCoordinator.swift` | 428 | **Permission flows** - Coordinates System Settings dialogs and permission grants |
 
 ### System Integration
@@ -268,7 +266,6 @@ Each page is 400-600 lines and follows a consistent pattern:
   removed with the privileged stack (ADR-047).
 
 ### Pending Work
-- ✅ DONE: Updated `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift (Kanata v1.10.0 released Nov 2025)
 - ✅ DONE: Missing bundled kanata binary now surfaces as .critical wizard issue (Nov 2025)
 
 ### Future Improvements

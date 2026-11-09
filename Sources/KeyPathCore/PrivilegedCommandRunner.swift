@@ -108,17 +108,6 @@ public enum PrivilegedCommandRunner {
         return execute(command: batch.script, prompt: batch.prompt)
     }
 
-    /// Direct entry points for callers that must force one mechanism
-    /// (e.g. AdminCommandExecutor delegation). Same bounded execution as
-    /// `execute(command:prompt:)`.
-    public static func executeSudoDirect(command: String) -> Result {
-        executeWithSudo(command: command)
-    }
-
-    public static func executeOsascriptDirect(command: String, prompt: String) -> Result {
-        executeWithOsascript(command: command, prompt: prompt)
-    }
-
     // MARK: - Private Implementation
 
     /// Hard ceiling on the osascript CLIENT process. The deadline includes the

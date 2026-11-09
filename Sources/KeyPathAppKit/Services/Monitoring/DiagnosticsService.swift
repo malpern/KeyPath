@@ -41,17 +41,6 @@ enum DiagnosticCategory: String, CaseIterable, Sendable {
     case conflict = "Conflict"
 }
 
-// MARK: - Shared Types
-
-struct VirtualHIDDaemonStatus: Sendable {
-    let pids: [String]
-    let owners: [String]
-    let serviceInstalled: Bool
-    let serviceState: String
-    /// Optional launchctl health signal. nil means unknown (command failed / not permitted).
-    let serviceHealthy: Bool?
-}
-
 // MARK: - Protocol
 
 /// Service responsible for generating and analyzing system diagnostics
@@ -69,8 +58,6 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
     /// Analyze log file for issues
     func analyzeLogFile(path: String) async -> [KanataDiagnostic]
-    /// VirtualHID daemon low-level status (used for summaries)
-    func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus
 }
 
 // MARK: - Implementation
@@ -88,23 +75,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     ) {
         self.processLifecycleManager = processLifecycleManager
         self.systemStateProvider = systemStateProvider
-    }
-
-    nonisolated func virtualHIDDaemonStatus() async -> VirtualHIDDaemonStatus {
-        // Get actual VirtualHID daemon status with real PIDs
-        let vhid = VHIDDeviceManager(systemStateProvider: systemStateProvider)
-        let pids = await vhid.getDaemonPIDs() // Get real PIDs instead of placeholder
-        let installed = vhid.detectActivation()
-        let running = !pids.isEmpty
-        let health = await vhid.checkLaunchctlHealth()
-
-        return VirtualHIDDaemonStatus(
-            pids: pids, // Real PIDs from pgrep
-            owners: [],
-            serviceInstalled: installed,
-            serviceState: running ? "running" : "stopped",
-            serviceHealthy: health
-        )
     }
 
     func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
@@ -305,72 +275,9 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             )
         }
 
-        // Check driver status
-        if !isKarabinerDriverInstalled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .system,
-                    title: "Missing Virtual HID Driver",
-                    description: "Karabiner VirtualHID driver is required for Kanata to function",
-                    technicalDetails: "Driver not found at expected location",
-                    suggestedAction: "Install Karabiner-Elements to get the VirtualHID driver",
-                    canAutoFix: false
-                )
-            )
-        } else if await !isKarabinerDaemonRunning() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .system,
-                    title: "VirtualHID Daemon Not Running",
-                    description: "Karabiner VirtualHID daemon is installed but not running",
-                    technicalDetails: "VirtualHIDDevice-Daemon process not found",
-                    suggestedAction: "The app will try to start the daemon automatically",
-                    canAutoFix: true
-                )
-            )
-        }
-
         // Check for Kanata process conflicts
         let processConflicts = await checkProcessConflicts()
         diagnostics.append(contentsOf: processConflicts)
-
-        // Check driver extension status
-        if isKarabinerDriverInstalled(), await !isKarabinerDriverExtensionEnabled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .system,
-                    title: "Driver Extension Not Enabled",
-                    description: "Karabiner driver is installed but not enabled in System Settings",
-                    technicalDetails: "Driver extension shows as not [activated enabled]",
-                    suggestedAction: "Enable in System Settings > Privacy & Security > Driver Extensions",
-                    canAutoFix: false
-                )
-            )
-        }
-
-        // Karabiner background services
-        // If they are disabled, that's OK for KeyPath (it avoids conflicts). Downgrade to info.
-        if await !areKarabinerBackgroundServicesEnabled() {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .info,
-                    category: .system,
-                    title: "Karabiner Background Services Disabled (OK)",
-                    description:
-                    "Karabiner-Elements background services are not enabled. This is fine when using KeyPath.",
-                    technicalDetails: "No org.pqrs.karabiner services detected in launchctl",
-                    suggestedAction: "No action needed unless you intend to use Karabiner-Elements.",
-                    canAutoFix: false
-                )
-            )
-        }
 
         // Note: Some Kanata builds do not implement a Status command.
         // Keep TCP diagnostics driven by HelloOk + log analysis instead.
@@ -565,49 +472,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     func isKarabinerElementsRunning() async -> Bool {
         let pids = await systemStateProvider.processIDs(matching: "karabiner_grabber")
         return !pids.isEmpty
-    }
-
-    private func isKarabinerDriverInstalled() -> Bool {
-        Foundation.FileManager().fileExists(
-            atPath: "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
-        )
-    }
-
-    func isKarabinerDaemonRunning() async -> Bool {
-        let pids = await systemStateProvider.processIDs(matching: "Karabiner-VirtualHIDDevice")
-        return !pids.isEmpty
-    }
-
-    private func isKarabinerDriverExtensionEnabled() async -> Bool {
-        // Skip process checks in test mode
-        if TestEnvironment.isRunningTests { return true }
-
-        do {
-            let result = try await SubprocessRunner.shared.run(
-                "/usr/bin/systemextensionsctl",
-                args: ["list"],
-                timeout: 10
-            )
-            let output = result.stdout + result.stderr
-            return output.contains("org.pqrs.Karabiner-DriverKit-VirtualHIDDevice")
-                && (output.contains("[activated enabled]") || output.contains("enabled"))
-        } catch {
-            AppLogger.shared.log("⚠️ [Diagnostics] Failed to check driver extension status: \(error)")
-            return false
-        }
-    }
-
-    private func areKarabinerBackgroundServicesEnabled() async -> Bool {
-        // Skip launchctl checks in test mode
-        if TestEnvironment.isRunningTests { return true }
-
-        do {
-            let result = try await SubprocessRunner.shared.launchctl("list", [])
-            return result.stdout.contains("org.pqrs.karabiner")
-        } catch {
-            AppLogger.shared.log("⚠️ [Diagnostics] Failed to check background services: \(error)")
-            return false
-        }
     }
 
     private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {

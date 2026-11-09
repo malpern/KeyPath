@@ -60,7 +60,7 @@ public struct Requirement: Sendable, Equatable {
 // MARK: - System Context
 
 /// Snapshot of detected system state.
-/// Consolidates data from SystemValidator/SystemRequirements into a façade-friendly type.
+/// Projection of the canonical `SystemSnapshot` captured by SystemValidator.
 public struct SystemContext: Sendable {
     /// Readiness from the canonical snapshot; never inferred from registration.
     public let isReady: Bool
@@ -68,14 +68,12 @@ public struct SystemContext: Sendable {
     public let snapshotID: UUID
     /// Current permission status (Input Monitoring, Accessibility)
     public let permissions: PermissionOracle.Snapshot
-    /// Status of all services (Kanata, VHID daemon, VHID manager)
+    /// Session runtime health
     public let services: HealthStatus
     /// Any detected conflicts (root-owned processes, etc.)
     public let conflicts: ConflictStatus
     /// Installed components (Kanata binary, Karabiner driver, etc.)
     public let components: ComponentStatus
-    /// Privileged helper installation status
-    public let helper: HelperStatus
     /// macOS version, driver compatibility, etc.
     public let system: EngineSystemInfo
     /// When this snapshot was taken
@@ -95,7 +93,6 @@ public struct SystemContext: Sendable {
         services: HealthStatus,
         conflicts: ConflictStatus,
         components: ComponentStatus,
-        helper: HelperStatus,
         system: EngineSystemInfo,
         timestamp: Date,
         captureStatus: SystemSnapshotCaptureStatus = .complete,
@@ -107,7 +104,6 @@ public struct SystemContext: Sendable {
         self.services = services
         self.conflicts = conflicts
         self.components = components
-        self.helper = helper
         self.system = system
         self.timestamp = timestamp
         self.captureStatus = timedOut ? .timedOut : captureStatus
@@ -121,7 +117,6 @@ public struct SystemContext: Sendable {
             services: snapshot.health,
             conflicts: snapshot.conflicts,
             components: snapshot.components,
-            helper: snapshot.helper,
             system: EngineSystemInfo(
                 macOSVersion: snapshot.compatibility.macOSVersion,
                 driverCompatible: snapshot.compatibility.driverCompatible
@@ -166,59 +161,20 @@ public struct EngineSystemInfo: Sendable, Equatable {
 
 /// Type of operation a recipe performs.
 public enum RecipeType: Sendable, Equatable {
-    /// Install a LaunchDaemon service
-    case installService
-    /// Repair or refresh the privileged helper registration
-    case repairPrivilegedHelper
-    /// Restart an existing service
-    case restartService
-    /// Install a component (Kanata binary, driver, etc.)
+    /// Install or start a component (the session runtime)
     case installComponent
     /// Validate a prerequisite
     case checkRequirement
-    /// Mutate system state to resolve an unmet prerequisite
-    case resolveRequirement
 }
 
 public extension RecipeType {
     var telemetryValue: String {
         switch self {
-        case .installService:
-            "install-service"
-        case .repairPrivilegedHelper:
-            "repair-privileged-helper"
-        case .restartService:
-            "restart-service"
         case .installComponent:
             "install-component"
         case .checkRequirement:
             "check-requirement"
-        case .resolveRequirement:
-            "resolve-requirement"
         }
-    }
-}
-
-/// Launchctl action to perform.
-public enum LaunchctlAction: Sendable, Equatable {
-    /// Bootstrap a service
-    case bootstrap(serviceID: String)
-    /// Kickstart a service
-    case kickstart(serviceID: String)
-    /// Bootout a service
-    case bootout(serviceID: String)
-}
-
-/// Criteria for verifying recipe success.
-public struct HealthCheckCriteria: Sendable, Equatable {
-    /// Service ID to check
-    public let serviceID: String
-    /// Whether service should be running
-    public let shouldBeRunning: Bool
-
-    public init(serviceID: String, shouldBeRunning: Bool) {
-        self.serviceID = serviceID
-        self.shouldBeRunning = shouldBeRunning
     }
 }
 
@@ -244,41 +200,21 @@ public struct ServiceRecipe: Sendable, Equatable {
     public let id: String
     /// What kind of operation
     public let type: RecipeType
-    /// Service identifier if applicable (e.g., "com.keypath.kanata")
-    public let serviceID: String?
-    /// Plist XML content if installing a service
-    public let plistContent: String?
-    /// Ordered list of launchctl commands
-    public let launchctlActions: [LaunchctlAction]
-    /// How to verify success
-    public let healthCheck: HealthCheckCriteria?
     /// IDs of recipes that must complete first
     public let dependencies: [String]
     /// State that must be true in the engine-owned final snapshot.
     public let expectedPostconditions: [InstallerPostcondition]
-    /// Conflicts captured by planning for a conflict-resolution recipe.
-    public let conflictsToResolve: [SystemConflict]
 
     public init(
         id: String,
         type: RecipeType,
-        serviceID: String? = nil,
-        plistContent: String? = nil,
-        launchctlActions: [LaunchctlAction] = [],
-        healthCheck: HealthCheckCriteria? = nil,
         dependencies: [String] = [],
-        expectedPostconditions: [InstallerPostcondition] = [],
-        conflictsToResolve: [SystemConflict] = []
+        expectedPostconditions: [InstallerPostcondition] = []
     ) {
         self.id = id
         self.type = type
-        self.serviceID = serviceID
-        self.plistContent = plistContent
-        self.launchctlActions = launchctlActions
-        self.healthCheck = healthCheck
         self.dependencies = dependencies
         self.expectedPostconditions = expectedPostconditions
-        self.conflictsToResolve = conflictsToResolve
     }
 }
 
@@ -569,59 +505,5 @@ public struct InstallerReport: Sendable {
         self.recommendedRecovery = recommendedRecovery
         self.recoveryPlan = recoveryPlan
         self.failedPostconditions = failedPostconditions
-    }
-}
-
-/// Status of all KeyPath LaunchDaemon services
-///
-/// Provides loaded and healthy status for Kanata, VHID Daemon, and VHID Manager services.
-public struct LaunchDaemonStatus: Sendable {
-    public let kanataServiceLoaded: Bool
-    public let vhidDaemonServiceLoaded: Bool
-    public let vhidManagerServiceLoaded: Bool
-    public let kanataServiceHealthy: Bool
-    public let vhidDaemonServiceHealthy: Bool
-    public let vhidManagerServiceHealthy: Bool
-
-    /// True if all required services are loaded
-    public var allServicesLoaded: Bool {
-        kanataServiceLoaded && vhidDaemonServiceLoaded && vhidManagerServiceLoaded
-    }
-
-    /// True if all required services are healthy (loaded and running properly)
-    public var allServicesHealthy: Bool {
-        kanataServiceHealthy && vhidDaemonServiceHealthy && vhidManagerServiceHealthy
-    }
-
-    /// True if VHID services (daemon + manager) are healthy
-    /// Use this for Karabiner driver health, independent of Kanata service status
-    public var vhidServicesHealthy: Bool {
-        vhidDaemonServiceHealthy && vhidManagerServiceHealthy
-    }
-
-    /// Description of current status for logging/debugging
-    public var description: String {
-        """
-        LaunchDaemon Status:
-          Kanata: loaded=\(kanataServiceLoaded), healthy=\(kanataServiceHealthy)
-          VHID Daemon: loaded=\(vhidDaemonServiceLoaded), healthy=\(vhidDaemonServiceHealthy)
-          VHID Manager: loaded=\(vhidManagerServiceLoaded), healthy=\(vhidManagerServiceHealthy)
-        """
-    }
-
-    public init(
-        kanataServiceLoaded: Bool,
-        vhidDaemonServiceLoaded: Bool,
-        vhidManagerServiceLoaded: Bool,
-        kanataServiceHealthy: Bool,
-        vhidDaemonServiceHealthy: Bool,
-        vhidManagerServiceHealthy: Bool
-    ) {
-        self.kanataServiceLoaded = kanataServiceLoaded
-        self.vhidDaemonServiceLoaded = vhidDaemonServiceLoaded
-        self.vhidManagerServiceLoaded = vhidManagerServiceLoaded
-        self.kanataServiceHealthy = kanataServiceHealthy
-        self.vhidDaemonServiceHealthy = vhidDaemonServiceHealthy
-        self.vhidManagerServiceHealthy = vhidManagerServiceHealthy
     }
 }

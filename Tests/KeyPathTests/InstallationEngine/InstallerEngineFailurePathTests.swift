@@ -12,13 +12,11 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        HelperManager.testHelperFunctionalityOverride = { false }
         engine = InstallerEngine()
     }
 
     override func tearDown() async throws {
         engine = nil
-        HelperManager.testHelperFunctionalityOverride = nil
         try await super.tearDown()
     }
 
@@ -194,14 +192,12 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     func testSystemContextBuilder_CleanInstall() {
         let context = SystemContextBuilder.cleanInstall()
-        XCTAssertFalse(context.helper.isInstalled)
         XCTAssertFalse(context.services.kanataRunning)
         XCTAssertFalse(context.components.kanataBinaryInstalled)
     }
 
     func testSystemContextBuilder_DegradedRepair() {
         let context = SystemContextBuilder.degradedRepair()
-        XCTAssertTrue(context.helper.isInstalled)
         XCTAssertFalse(context.services.kanataRunning)
         XCTAssertTrue(context.components.kanataBinaryInstalled)
     }

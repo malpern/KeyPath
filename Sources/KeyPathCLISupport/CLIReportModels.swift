@@ -3,11 +3,6 @@ import KeyPathInstallationWizard
 
 public struct CLIStatusResult: Codable, Sendable {
     public let isOperational: Bool
-    public let helperInstalled: Bool
-    public let helperWorking: Bool
-    public let helperVersion: String?
-    public let helperExpectedVersion: String
-    public let helperFreshness: String
     public let keyPathAccessibility: Bool
     public let keyPathInputMonitoring: Bool
     public let kanataAccessibility: Bool
@@ -27,11 +22,6 @@ public struct CLIStatusResult: Codable, Sendable {
 
     public init(
         isOperational: Bool,
-        helperInstalled: Bool,
-        helperWorking: Bool,
-        helperVersion: String?,
-        helperExpectedVersion: String,
-        helperFreshness: String,
         keyPathAccessibility: Bool,
         keyPathInputMonitoring: Bool,
         kanataAccessibility: Bool,
@@ -50,11 +40,6 @@ public struct CLIStatusResult: Codable, Sendable {
         timestamp: Date
     ) {
         self.isOperational = isOperational
-        self.helperInstalled = helperInstalled
-        self.helperWorking = helperWorking
-        self.helperVersion = helperVersion
-        self.helperExpectedVersion = helperExpectedVersion
-        self.helperFreshness = helperFreshness
         self.keyPathAccessibility = keyPathAccessibility
         self.keyPathInputMonitoring = keyPathInputMonitoring
         self.kanataAccessibility = kanataAccessibility

@@ -9,9 +9,6 @@ import KeyPathWizardCore
 struct SystemContextBuilder {
     var snapshotID = UUID()
     var permissionsStatus: PermissionOracle.Status = .granted
-    var helperReady: Bool = true
-    var helperRequiresApproval: Bool = false
-    var helperVersion: String? = KeyPathHelperContract.version
     var servicesHealthy: Bool = false
     var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?
@@ -27,7 +24,7 @@ struct SystemContextBuilder {
     /// The input-capture failure reason surfaced when not ready (#624 attribution).
     /// Defaults to the built-in-keyboard permission reason; set to a grab-failure
     /// reason, or explicitly nil, to exercise the other branches.
-    var kanataInputCaptureIssue: String? = ServiceHealthChecker.inputCaptureBuiltInKeyboardReason
+    var kanataInputCaptureIssue: String? = "kanata-cannot-open-built-in-keyboard"
     var componentsInstalled: Bool = false
     var conflicts: [SystemConflict] = []
     var driverCompatible: Bool = true
@@ -45,13 +42,6 @@ struct SystemContextBuilder {
             keyPath: permissionSet,
             kanata: permissionSet,
             timestamp: Date()
-        )
-
-        let helper = HelperStatus(
-            isInstalled: helperReady || helperRequiresApproval,
-            version: helperVersion,
-            isWorking: helperReady,
-            requiresApproval: helperRequiresApproval
         )
 
         let components: ComponentStatus = if componentsInstalled {
@@ -91,7 +81,6 @@ struct SystemContextBuilder {
             services: services,
             conflicts: conflictStatus,
             components: components,
-            helper: helper,
             system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: driverCompatible),
             timestamp: Date(),
             captureStatus: captureStatus
@@ -101,7 +90,6 @@ struct SystemContextBuilder {
     static func cleanInstall() -> SystemContext {
         SystemContextBuilder(
             permissionsStatus: .granted,
-            helperReady: false,
             servicesHealthy: false,
             componentsInstalled: false
         ).build()
@@ -110,7 +98,6 @@ struct SystemContextBuilder {
     static func degradedRepair() -> SystemContext {
         SystemContextBuilder(
             permissionsStatus: .granted,
-            helperReady: true,
             servicesHealthy: false,
             componentsInstalled: true
         ).build()

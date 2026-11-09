@@ -133,15 +133,4 @@ private final class SessionStartStub: RuntimeCoordinating {
 
     func openInputMonitoringSettings() {}
     func openAccessibilitySettings() {}
-    func isKarabinerElementsRunning() async -> Bool {
-        false
-    }
-
-    func isKarabinerDriverInstalled() -> Bool {
-        false
-    }
-
-    func getVirtualHIDBreakageSummary() async -> String {
-        "Unavailable"
-    }
 }

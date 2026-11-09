@@ -2,40 +2,6 @@ import Foundation
 @preconcurrency import XCTest
 
 final class W6DeletionPassLintTests: XCTestCase {
-    func testKarabinerConflictSingleImplementationProtocolDoesNotRegrow() throws {
-        let serviceFile = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Services/Karabiner/KarabinerConflictService.swift")
-        let runtimeCoordinator = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Managers/RuntimeCoordinator.swift")
-        let requirementsChecker = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Services/System/SystemRequirementsChecker.swift")
-
-        let violations = try [
-            serviceFile,
-            runtimeCoordinator,
-            requirementsChecker,
-        ].flatMap { file in
-            try matchingLines(
-                in: file,
-                patterns: [
-                    #"protocol\s+KarabinerConflictManaging\b"#,
-                    #":\s*KarabinerConflictManaging\b"#,
-                    #"\bKarabinerConflictManaging\b"#,
-                ]
-            )
-        }
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            W6 removes single-implementation protocols unless they provide \
-            real injection value. KarabinerConflictService is the concrete \
-            dependency; do not regrow KarabinerConflictManaging:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
     func testServiceHealthMonitorSingleImplementationProtocolDoesNotRegrow() throws {
         let monitorFile = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Services/Monitoring/ServiceHealthMonitor.swift")
@@ -290,33 +256,6 @@ final class W6DeletionPassLintTests: XCTestCase {
             Helper responsiveness is not helper freshness. The matrix projection \
             must treat an unknown helper version as not fresh and route to \
             helper verification/refresh instead of reporting green:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testHelperManagerDoesNotRegrowCachedHelperVersion() throws {
-        let helperFiles = [
-            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager.swift"),
-            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+Status.swift"),
-            repositoryRoot().appendingPathComponent("Sources/KeyPathAppKit/Core/HelperManager+ConnectionLifecycle.swift"),
-        ]
-
-        let violations = try helperFiles.flatMap { file in
-            try matchingLines(
-                in: file,
-                patterns: [
-                    #"\bcachedHelperVersion\b"#,
-                ]
-            )
-        }
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            W6 collapses installer helper state into current provider/XPC \
-            evidence instead of keeping an actor-local helper-version cache. \
-            Do not regrow cachedHelperVersion:
             \(violations.sorted().joined(separator: "\n"))
             """
         )
