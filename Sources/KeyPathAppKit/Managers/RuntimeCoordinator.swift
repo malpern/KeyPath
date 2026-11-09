@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Foundation
 import IOKit.hidsystem
@@ -21,7 +22,6 @@ import Network
 // - **ConfigReloadCoordinator**: TCP-based config reload, safety checks
 // - **SaveCoordinator**: Save operations with rollback
 // - **RecoveryCoordinator**: VirtualHID recovery, keyboard recovery
-// - **InstallationCoordinator**: First-time install checks
 // - **RuleCollectionsCoordinator**: Rule collection CRUD and persistence
 // - **ConfigurationManager**: Config file management (create, validate, backup)
 // - **DiagnosticsManager**: System diagnostics and health checks
@@ -178,13 +178,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // Additional dependencies needed by extensions
     let installerEngine: InstallerEngine
-    let kanataDaemonService: KanataDaemonService
     nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
-    let karabinerConflictService: KarabinerConflictService
     let configBackupManager: ConfigBackupManager
     let ruleCollectionsManager: RuleCollectionsManager
-    let systemRequirementsChecker: SystemRequirementsChecker
 
     /// Provides access to the rule collections manager for keymap changes
     var rulesManager: RuleCollectionsManager {
@@ -195,7 +192,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     let saveCoordinator: SaveCoordinator
     let recoveryCoordinator: RecoveryCoordinator // internal for extension access
-    let installationCoordinator: InstallationCoordinator
     let ruleCollectionsCoordinator: RuleCollectionsCoordinator
     let serviceHealthMonitor: ServiceHealthMonitor
     let serviceLifecycleCoordinator: ServiceLifecycleCoordinator
@@ -245,8 +241,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
         }
 
-        // Phase 3: Use shared KanataDaemonService for dependencies
-        let kanataDaemonService = KanataDaemonService.shared
         let lifecycleManager = ProcessLifecycleManager()
         processLifecycleManager = lifecycleManager
 
@@ -259,13 +253,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
 
         // Initialize manager dependencies
-        let karabinerConflictService = KarabinerConflictService()
         let diagnosticsService = DiagnosticsService(processLifecycleManager: lifecycleManager)
         installerEngine = InstallerEngine()
         // Store for extensions
-        self.kanataDaemonService = kanataDaemonService
         self.diagnosticsService = diagnosticsService
-        self.karabinerConflictService = karabinerConflictService
         self.configBackupManager = configBackupManager
 
         // Initialize RuleCollectionsManager
@@ -273,17 +264,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             configurationService: configurationService
         )
 
-        // Initialize SystemRequirementsChecker
-        systemRequirementsChecker = SystemRequirementsChecker(
-            karabinerConflictService: karabinerConflictService
-        )
-
         // Initialize extracted coordinators
         saveCoordinator = SaveCoordinator(
             configurationService: configurationService,
             configFileWatcher: configFileWatcher
         )
-        installationCoordinator = InstallationCoordinator()
         serviceHealthMonitor = ServiceHealthMonitor(processLifecycle: lifecycleManager)
 
         // Initialize ConfigurationManager
@@ -757,7 +742,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
     }
 
-    // MARK: - Installation and Permissions (delegates to SystemRequirementsChecker)
+    // MARK: - Installation and Permissions
 
     func isInstalled() -> Bool {
         isServiceInstalled()
@@ -768,21 +753,15 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     func hasInputMonitoringPermission() async -> Bool {
-        await systemRequirementsChecker.hasInputMonitoringPermission()
+        await SystemStateProvider.shared.currentPermissionSnapshot().keyPath.inputMonitoring.isReady
     }
 
     func hasAccessibilityPermission() async -> Bool {
-        await systemRequirementsChecker.hasAccessibilityPermission()
-    }
-
-    func checkBothAppsHavePermissions() async -> (
-        keyPathHasPermission: Bool, kanataHasPermission: Bool, permissionDetails: String
-    ) {
-        await systemRequirementsChecker.checkBothAppsHavePermissions()
+        await SystemStateProvider.shared.currentPermissionSnapshot().keyPath.accessibility.isReady
     }
 
     func hasAllRequiredPermissions() async -> Bool {
-        await systemRequirementsChecker.hasAllRequiredPermissions()
+        await SystemStateProvider.shared.currentPermissionSnapshot().keyPath.hasAllPermissions
     }
 
     func hasAllSystemRequirements() async -> Bool {
@@ -801,32 +780,15 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     public func openInputMonitoringSettings() {
-        systemRequirementsChecker.openInputMonitoringSettings()
+        if let url = URL(string: KeyPathConstants.URLs.inputMonitoringPrivacy) {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     public func openAccessibilitySettings() {
-        systemRequirementsChecker.openAccessibilitySettings()
-    }
-
-    func revealKanataInFinder() {
-        systemRequirementsChecker.revealKanataInFinder(onRevealed: nil)
-    }
-
-    /// Compatibility query: this build has no DriverKit backend.
-    public func isKarabinerDriverInstalled() -> Bool {
-        false
-    }
-
-    public func getVirtualHIDBreakageSummary() async -> String {
-        "VirtualHID is unavailable in the driverless build"
-    }
-
-    func isKarabinerDriverExtensionEnabled() async -> Bool {
-        await systemRequirementsChecker.isKarabinerDriverExtensionEnabled()
-    }
-
-    public func isKarabinerElementsRunning() async -> Bool {
-        await systemRequirementsChecker.isKarabinerElementsRunning()
+        if let url = URL(string: KeyPathConstants.URLs.accessibilityPrivacy) {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     func getInstallationStatus() -> String {
@@ -1277,10 +1239,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             // does reach here. The one residual window is single-flight: a failure event
             // arriving while a recovery is still in flight is suppressed; in practice the
             // new kanata's InputGrab arrives after the recovery call returns, so the
-            // bounded loop re-fires and advances toward give-up. Even in the rare miss,
-            // it is not silent — KanataGrabStatusStore also feeds
-            // ServiceHealthChecker.resolveInputCaptureStatus, so the degraded state is
-            // surfaced on the next health check.
+            // bounded loop re-fires and advances toward give-up.
             switch await diagnosticsManager.recordGrabFailureAndDecideRecovery() {
             case let .recover(attempt):
                 AppLogger.shared.info(

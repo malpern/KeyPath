@@ -120,8 +120,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
     func testInstallerReportPreservesStructuredAwaitingApprovalOutcome() {
         let context = SystemContextBuilder(
-            helperReady: false,
-            helperRequiresApproval: true,
             loginItemsApprovalRequired: true
         ).build()
         let plan = InstallPlan(
@@ -173,10 +171,9 @@ final class CLIOutputContractTests: KeyPathTestCase {
     func testInstallerReportLinksTerminalInputCaptureFailureToTroubleshooting() {
         let context = historicalDriverContext(
             permissionsStatus: .granted,
-            helperReady: true,
             servicesHealthy: true,
             kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+            kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard",
             componentsInstalled: true
         )
         let report = CLIInstallerReport(
@@ -192,7 +189,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
     func testInstallerReportLinksTerminalConfigFailureToTroubleshooting() {
         let context = SystemContextBuilder(
             permissionsStatus: .granted,
-            helperReady: true,
             servicesHealthy: false,
             kanataRunning: false,
             kanataInputCaptureReady: true,
@@ -210,7 +206,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
             services: services,
             conflicts: context.conflicts,
             components: context.components,
-            helper: context.helper,
             system: context.system,
             timestamp: context.timestamp
         )
@@ -227,7 +222,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
     func testInstallerReportLinksMissingBundledKanataToTroubleshooting() {
         let context = historicalDriverContext(
             permissionsStatus: .granted,
-            helperReady: true,
             servicesHealthy: false,
             kanataInputCaptureReady: true,
             componentsInstalled: false
@@ -293,7 +287,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         let contexts = [
             sessionContext(appAX: .denied),
             historicalDriverContext(
-                permissionsStatus: .denied, helperReady: true,
+                permissionsStatus: .denied,
                 servicesHealthy: true, componentsInstalled: true
             )
         ]
@@ -311,7 +305,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
     func testPermissionIssuesPreserveTriModeSemantics() {
         let granted = historicalDriverContext(
             permissionsStatus: .granted,
-            helperReady: true,
             servicesHealthy: true,
             componentsInstalled: true
         )
@@ -320,7 +313,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
         let denied = historicalDriverContext(
             permissionsStatus: .denied,
-            helperReady: true,
             servicesHealthy: true,
             componentsInstalled: true
         )
@@ -332,7 +324,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
         let unknown = historicalDriverContext(
             permissionsStatus: .unknown,
-            helperReady: true,
             servicesHealthy: true,
             componentsInstalled: true
         )
@@ -373,7 +364,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertTrue(SystemFacade.isOperational(context))
         let issues = SystemFacade.issues(from: context)
         XCTAssertTrue(issues.isEmpty)
-        XCTAssertFalse(context.helper.isInstalled)
         XCTAssertFalse(context.components.karabinerDriverInstalled)
     }
 
@@ -463,7 +453,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         return SystemContext(snapshot: SystemSnapshot(
             permissions: permissions, components: components,
             conflicts: ConflictStatus(conflicts: conflicts, canAutoResolve: true),
-            health: health, helper: .empty, timestamp: now
+            health: health, timestamp: now
         ))
     }
 
@@ -479,7 +469,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
     /// product's selected backend and the default session context builder.
     private func historicalDriverContext(
         permissionsStatus: PermissionOracle.Status = .granted,
-        helperReady: Bool = true, servicesHealthy: Bool = true,
+        servicesHealthy: Bool = true,
         kanataInputCaptureReady: Bool = true,
         kanataInputCaptureIssue: String? = nil,
         componentsInstalled: Bool = true
@@ -509,7 +499,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
             permissions: .init(keyPath: permissions, kanata: permissions,
                                timestamp: now, backend: .driverKit),
             services: services, conflicts: .empty, components: components,
-            helper: .init(isInstalled: helperReady, version: "test", isWorking: helperReady, requiresApproval: false),
             system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true), timestamp: now
         )
     }
@@ -517,7 +506,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
     private func contextWithKeyPathInputMonitoring(_ status: PermissionOracle.Status) -> SystemContext {
         let context = historicalDriverContext(
             permissionsStatus: .granted,
-            helperReady: true,
             servicesHealthy: true,
             componentsInstalled: true
         )
@@ -539,7 +527,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
             services: context.services,
             conflicts: context.conflicts,
             components: context.components,
-            helper: context.helper,
             system: context.system,
             timestamp: context.timestamp,
             captureStatus: context.captureStatus

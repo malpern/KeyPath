@@ -106,7 +106,7 @@ struct AdvancedSettingsTabView: View {
         .settingsBackground()
         .withToasts(settingsToastManager)
         .task {
-            duplicateAppCopies = await HelperMaintenance.shared.detectDuplicateAppCopies()
+            duplicateAppCopies = await DuplicateAppDetector.detectDuplicateAppCopies()
             backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
         }
         .alert("Move Extra Copies to Trash?", isPresented: $showingRemoveDuplicatesConfirm) {
@@ -147,7 +147,7 @@ struct AdvancedSettingsTabView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "app.dashed")
                         .foregroundStyle(.secondary)
-                    Text(HelperMaintenance.displayLocation(forAppAt: path))
+                    Text(DuplicateAppDetector.displayLocation(forAppAt: path))
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .help(path)
@@ -273,7 +273,7 @@ struct AdvancedSettingsTabView: View {
             }
         }
 
-        let refreshed = await HelperMaintenance.shared.detectDuplicateAppCopies()
+        let refreshed = await DuplicateAppDetector.detectDuplicateAppCopies()
         await MainActor.run {
             duplicateAppCopies = refreshed
             if removed > 0 {

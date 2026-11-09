@@ -100,7 +100,7 @@ struct MainAppStateControllerTests {
         #expect(controller.isConfigured == false)
 
         // Inject validator
-        controller.setValidator(SystemValidator(processLifecycleManager: ProcessLifecycleManager()))
+        controller.setValidator(SystemValidator())
 
         // Now should be true
         #expect(controller.isConfigured == true)
@@ -629,7 +629,7 @@ struct MainAppStateControllerBehaviorTests {
             let context = SystemContextBuilder(componentsInstalled: true).build()
             let snapshot = SystemSnapshot(
                 id: context.snapshotID, permissions: permissions, components: context.components,
-                conflicts: context.conflicts, health: context.services, helper: context.helper,
+                conflicts: context.conflicts, health: context.services,
                 compatibility: SystemCompatibilityStatus(macOSVersion: "26.0", driverCompatible: true),
                 timestamp: Date(), captureStatus: .complete
             )
@@ -845,7 +845,6 @@ private final class GatedCountingValidator: WizardSystemValidating {
             components: context.components,
             conflicts: context.conflicts,
             health: context.services,
-            helper: context.helper,
             compatibility: SystemCompatibilityStatus(
                 macOSVersion: context.system.macOSVersion,
                 driverCompatible: context.system.driverCompatible
@@ -882,7 +881,6 @@ private final class SequenceSystemValidator: WizardSystemValidating {
                 components: context.components,
                 conflicts: context.conflicts,
                 health: context.services,
-                helper: context.helper,
                 compatibility: SystemCompatibilityStatus(
                     macOSVersion: context.system.macOSVersion,
                     driverCompatible: context.system.driverCompatible

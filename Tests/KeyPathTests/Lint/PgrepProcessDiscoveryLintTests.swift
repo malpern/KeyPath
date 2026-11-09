@@ -61,29 +61,6 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
         )
     }
 
-    func testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider() throws {
-        let manager = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Managers/KanataDaemonManager.swift")
-
-        let violations = try matchingLines(
-            in: manager,
-            patterns: [
-                #"SubprocessRunner\.shared\.pgrep"#,
-                #"subprocessRunner\.pgrep"#,
-                #"/usr/bin/pgrep"#
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            KanataDaemonManager must delegate process discovery to \
-            SystemStateProvider instead of calling pgrep directly:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
     func testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider() throws {
         let validator = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathAppKit/Services/System/SystemValidator.swift")
@@ -101,52 +78,6 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             violations.isEmpty,
             """
             SystemValidator must delegate process discovery to \
-            SystemStateProvider instead of calling pgrep directly:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider() throws {
-        let service = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Services/Karabiner/KarabinerConflictService.swift")
-
-        let violations = try matchingLines(
-            in: service,
-            patterns: [
-                #"SubprocessRunner\.shared\.pgrep"#,
-                #"subprocessRunner\.pgrep"#,
-                #"/usr/bin/pgrep"#
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            KarabinerConflictService must delegate process discovery to \
-            SystemStateProvider instead of calling pgrep directly:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider() throws {
-        let manager = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/VHIDDeviceManager.swift")
-
-        let violations = try matchingLines(
-            in: manager,
-            patterns: [
-                #"SubprocessRunner\.shared\.pgrep"#,
-                #"subprocessRunner\.pgrep"#,
-                #"/usr/bin/pgrep"#
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            VHIDDeviceManager must delegate process discovery to \
             SystemStateProvider instead of calling pgrep directly:
             \(violations.sorted().joined(separator: "\n"))
             """

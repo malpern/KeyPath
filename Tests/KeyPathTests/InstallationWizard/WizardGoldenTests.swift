@@ -59,10 +59,6 @@ final class WizardGoldenTests: XCTestCase {
                      vhidHealthy: true)
     }
 
-    private var healthyHelper: HelperStatus {
-        HelperStatus(isInstalled: true, version: "1.0", isWorking: true)
-    }
-
     private var defaultSystem: EngineSystemInfo {
         EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true)
     }
@@ -72,7 +68,6 @@ final class WizardGoldenTests: XCTestCase {
         services: HealthStatus? = nil,
         conflicts: ConflictStatus = .empty,
         components: ComponentStatus? = nil,
-        helper: HelperStatus? = nil,
         timedOut: Bool = false
     ) -> SystemContext {
         SystemContext(
@@ -80,7 +75,6 @@ final class WizardGoldenTests: XCTestCase {
             services: services ?? healthyServices,
             conflicts: conflicts,
             components: components ?? allComponentsHealthy,
-            helper: helper ?? healthyHelper,
             system: defaultSystem,
             timestamp: Date(),
             timedOut: timedOut

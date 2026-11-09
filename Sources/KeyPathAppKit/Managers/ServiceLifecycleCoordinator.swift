@@ -521,12 +521,6 @@ final class ServiceLifecycleCoordinator {
         return isStartingKanata || isRecoveringFromSystemWake
     }
 
-    static func shouldAcceptPostStartRuntime(
-        _ snapshot: ServiceHealthChecker.KanataServiceRuntimeSnapshot
-    ) -> Bool {
-        snapshot.readiness.isReady
-    }
-
     // MARK: - Runtime Status
 
     func currentRuntimeStatus() async -> RuntimeStatus {
@@ -556,9 +550,5 @@ final class ServiceLifecycleCoordinator {
     func shouldShowWizardForPermissions() async -> Bool {
         let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
         return snapshot.blockingIssue != nil
-    }
-
-    func isFirstTimeInstall() -> Bool {
-        InstallationCoordinator().isFirstTimeInstall(configPath: KeyPathConstants.Config.mainConfigPath)
     }
 }

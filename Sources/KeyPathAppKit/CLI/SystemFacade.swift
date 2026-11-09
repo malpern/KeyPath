@@ -7,136 +7,15 @@ import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 
+/// CLI facade over `InstallerEngine` for inspect, install, repair, uninstall, and logs.
+///
+/// Start, stop, and restart do not live here: the CLI asks the running app over its
+/// control socket (`RuntimeControlClient`), and the app's `ServiceLifecycleCoordinator`
+/// owns the session runtime.
 public struct SystemFacade: Sendable {
-    typealias RuntimeSnapshot = ServiceHealthChecker.KanataServiceRuntimeSnapshot
+    public init() {}
 
-    private let startServiceOperation: @Sendable () async throws -> Void
-    private let stopServiceOperation: @Sendable () async throws -> Void
-    private let restartServiceOperation: @Sendable () async throws -> Void
-    private let runtimeCacheInvalidator: @Sendable () async -> Void
-    private let runtimeSnapshotProvider: @Sendable () async -> RuntimeSnapshot
-    private let runtimeTransitionTimeoutSeconds: TimeInterval
-    private let pollDelayNanoseconds: UInt64
-
-    public init() {
-        self.init(
-            startServiceOperation: {
-                try await KanataDaemonService.shared.start()
-            },
-            stopServiceOperation: {
-                try await KanataDaemonService.shared.stop()
-            },
-            restartServiceOperation: {
-                try await KanataDaemonService.shared.restart()
-            },
-            runtimeCacheInvalidator: {
-                await MainActor.run {
-                    ServiceHealthChecker.shared.invalidateHealthCache()
-                }
-            },
-            runtimeSnapshotProvider: {
-                await ServiceHealthChecker.shared.checkKanataServiceRuntimeSnapshotFresh()
-            }
-        )
-    }
-
-    init(
-        startServiceOperation: @escaping @Sendable () async throws -> Void = {
-            try await HelperManager.shared.startKanataService()
-        },
-        stopServiceOperation: @escaping @Sendable () async throws -> Void = {
-            try await HelperManager.shared.stopKanataService()
-        },
-        restartServiceOperation: @escaping @Sendable () async throws -> Void = {
-            try await HelperManager.shared.restartKanataService()
-        },
-        runtimeCacheInvalidator: @escaping @Sendable () async -> Void = {
-            await MainActor.run {
-                ServiceHealthChecker.shared.invalidateHealthCache()
-            }
-        },
-        runtimeSnapshotProvider: @escaping @Sendable () async -> RuntimeSnapshot,
-        // The Kanata LaunchDaemon has a 10-second ThrottleInterval. A restart
-        // can legitimately remain stopped for that long before launchd starts it.
-        runtimeTransitionTimeoutSeconds: TimeInterval = 20,
-        pollDelayNanoseconds: UInt64 = 200_000_000
-    ) {
-        self.startServiceOperation = startServiceOperation
-        self.stopServiceOperation = stopServiceOperation
-        self.restartServiceOperation = restartServiceOperation
-        self.runtimeCacheInvalidator = runtimeCacheInvalidator
-        self.runtimeSnapshotProvider = runtimeSnapshotProvider
-        self.runtimeTransitionTimeoutSeconds = runtimeTransitionTimeoutSeconds
-        self.pollDelayNanoseconds = pollDelayNanoseconds
-    }
-
-    // MARK: - Service Lifecycle
-
-    public func startService() async -> Bool {
-        await MainActor.run {
-            CLIRuntimeBootstrap.ensureConfigured()
-        }
-        do {
-            try await startServiceOperation()
-            await runtimeCacheInvalidator()
-            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
-                snapshot.isRunning && snapshot.isResponding
-            }
-        } catch {
-            return false
-        }
-    }
-
-    public func stopService() async -> Bool {
-        await MainActor.run {
-            CLIRuntimeBootstrap.ensureConfigured()
-        }
-        do {
-            try await stopServiceOperation()
-            await runtimeCacheInvalidator()
-            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
-                !snapshot.isRunning && !snapshot.isResponding
-            }
-        } catch {
-            return false
-        }
-    }
-
-    public func restartService() async -> Bool {
-        await MainActor.run {
-            CLIRuntimeBootstrap.ensureConfigured()
-        }
-        do {
-            try await restartServiceOperation()
-            await runtimeCacheInvalidator()
-
-            // The lifecycle operation verifies registration plus process/TCP
-            // readiness. Independently verify the facade's final runtime view.
-            return await waitForRuntime(timeoutSeconds: runtimeTransitionTimeoutSeconds) { snapshot in
-                snapshot.isRunning && snapshot.isResponding
-            }
-        } catch {
-            return false
-        }
-    }
-
-    private func waitForRuntime(
-        timeoutSeconds: TimeInterval,
-        matches predicate: (RuntimeSnapshot) -> Bool
-    ) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeoutSeconds)
-        repeat {
-            let snapshot = await runtimeSnapshotProvider()
-            if predicate(snapshot) {
-                return true
-            }
-            if pollDelayNanoseconds > 0 {
-                try? await Task.sleep(nanoseconds: pollDelayNanoseconds)
-            }
-        } while Date() < deadline
-
-        return false
-    }
+    // MARK: - Logs
 
     public func serviceLogs(lines: Int = 50) -> [String] {
         let logPath = KeyPathConstants.Logs.userDebugLog
@@ -157,11 +36,6 @@ public struct SystemFacade: Sendable {
 
         return CLIStatusResult(
             isOperational: Self.isOperational(context),
-            helperInstalled: context.helper.isInstalled,
-            helperWorking: context.helper.isWorking,
-            helperVersion: context.helper.version,
-            helperExpectedVersion: KeyPathHelperContract.version,
-            helperFreshness: context.helper.freshness(expectedVersion: KeyPathHelperContract.version).rawValue,
             keyPathAccessibility: context.permissions.keyPath.accessibility.isReady,
             keyPathInputMonitoring: context.permissions.keyPath.inputMonitoring.isReady,
             kanataAccessibility: context.permissions.kanata.accessibility.isReady,
@@ -326,7 +200,6 @@ public struct SystemFacade: Sendable {
         return context.permissions.keyPath.accessibility.isReady
             && context.permissions.kanata.accessibility.isReady
             && context.permissions.kanata.inputMonitoring.isReady
-            && context.helper.isReady
             && context.components.hasAllRequired
             && context.services.isHealthy
             && !context.conflicts.hasConflicts
@@ -363,22 +236,6 @@ public struct SystemFacade: Sendable {
     static func issues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation = .current) -> [CLISystemIssue] {
         if context.permissions.backend == .session { return sessionIssues(from: context, accessibility: accessibility) }
         var issues: [CLISystemIssue] = []
-
-        if !context.helper.isInstalled {
-            issues.append(.init(
-                title: "Privileged Helper not installed",
-                category: "helper",
-                action: "Install or repair KeyPath services",
-                canAutoFix: true
-            ))
-        } else if !context.helper.isWorking {
-            issues.append(.init(
-                title: "Privileged Helper unhealthy",
-                category: "helper",
-                action: "Reinstall the privileged helper",
-                canAutoFix: true
-            ))
-        }
 
         appendPermissionIssues(from: context, accessibility: accessibility, to: &issues)
 

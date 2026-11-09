@@ -426,7 +426,6 @@ struct AboutView: View {
         if let context = systemContext {
             lines.append("Engine Running: \(context.services.kanataRunning)")
             lines.append("Permissions Ready: \(context.permissions.isSystemReady)")
-            lines.append("Helper Ready: \(context.helper.isReady)")
             lines.append("Snapshot: \(context.timestamp)")
             lines.append("")
             lines.append(context.permissions.diagnosticSummary)

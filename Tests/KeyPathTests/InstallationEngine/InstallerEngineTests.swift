@@ -17,14 +17,11 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        // Skip real XPC calls in tests to avoid timeouts
-        HelperManager.testHelperFunctionalityOverride = { false }
         engine = InstallerEngine()
     }
 
     override func tearDown() async throws {
         engine = nil
-        HelperManager.testHelperFunctionalityOverride = nil
         try await super.tearDown()
     }
 
@@ -66,7 +63,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         XCTAssertNotNil(context.services, "SystemContext should have services")
         XCTAssertNotNil(context.conflicts, "SystemContext should have conflicts")
         XCTAssertNotNil(context.components, "SystemContext should have components")
-        XCTAssertNotNil(context.helper, "SystemContext should have helper")
         XCTAssertNotNil(context.system, "SystemContext should have system info")
         XCTAssertNotNil(context.timestamp, "SystemContext should have timestamp")
 

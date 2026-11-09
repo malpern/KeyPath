@@ -24,7 +24,7 @@ final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
             recipes: [
                 ServiceRecipe(id: "install-required-runtime-services", type: .installComponent),
                 ServiceRecipe(id: "install-missing-components", type: .installComponent),
-                ServiceRecipe(id: "start-karabiner-daemon", type: .restartService, serviceID: KeyPathConstants.Bundle.vhidDaemonID)
+                ServiceRecipe(id: "start-karabiner-daemon", type: .checkRequirement)
             ],
             status: .ready,
             intent: .repair

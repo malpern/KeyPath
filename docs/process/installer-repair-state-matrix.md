@@ -138,9 +138,9 @@ the result as user action required and name the approval surface.
 
 - Planner routing belongs in `InstallerDecisionPipeline` and pure wizard logic
   tests.
-- Privileged command routing belongs in `PrivilegedOperationsRouter`.
-- Helper-owned root mutations belong in `HelperService`, but helper success must
-  still be verified by the app-side router when possible.
+- There is no privileged command routing: the retired router, helper, and
+  daemon managers were deleted in ADR-047 step 2e. Session runtime start, stop,
+  and restart belong to `ServiceLifecycleCoordinator`.
 - Runtime readiness checks belong in `ServiceHealthChecker` and
   `SystemStateProvider`'s shared lifecycle predicates.
 - CLI `system inspect` reports the shared state-matrix classification and plan.
@@ -185,20 +185,9 @@ the result as user action required and name the approval surface.
   `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryRejectsBlankPatterns`
   and `SystemStateProviderLivenessTests.testSynchronousProcessDiscoveryReturnsEmptyForMissingProcess`
   pin the synchronous provider contract, while
-  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForProcessDiscovery`,
   `PgrepProcessDiscoveryLintTests.testServiceLifecycleCoordinatorDelegatesPgrepDiscoveryToSystemStateProvider`,
-  `PgrepProcessDiscoveryLintTests.testKanataDaemonManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
-  `SystemValidatorTests.karabinerGrabberPIDUsesInjectedSystemStateProvider`,
   `PgrepProcessDiscoveryLintTests.testSystemValidatorDelegatesPgrepDiscoveryToSystemStateProvider`,
-  `KarabinerConflictServiceTests.karabinerGrabberDetectionUsesInjectedSystemStateProvider`,
-  `KarabinerConflictServiceTests.virtualHIDDaemonDetectionUsesInjectedSystemStateProvider`,
-  `KarabinerConflictServiceTests.stoppedProcessVerificationUsesInjectedSystemStateProvider`,
-  `PgrepProcessDiscoveryLintTests.testKarabinerConflictServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
-  `VHIDDeviceManagerTests.testDetectRunningUsesInjectedSystemStateProviderForProcessDiscovery`,
-  `VHIDDeviceManagerTests.testGetDaemonPIDsUsesInjectedSystemStateProviderForProcessDiscovery`,
-  `PgrepProcessDiscoveryLintTests.testVHIDDeviceManagerDelegatesPgrepDiscoveryToSystemStateProvider`,
   `DiagnosticsServiceTests.testKarabinerGrabberDetectionUsesInjectedSystemStateProvider`,
-  `DiagnosticsServiceTests.testKarabinerDaemonDetectionUsesInjectedSystemStateProvider`,
   `PgrepProcessDiscoveryLintTests.testDiagnosticsServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
   `PgrepProcessDiscoveryLintTests.testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider`,
   `ProcessLifecycleManagerTests.testDetectKanataProcessesUsesInjectedSystemStateProvider`,
@@ -208,51 +197,17 @@ the result as user action required and name the approval surface.
   block migrated runtime/system-validator/Karabiner-conflict/VHID/diagnostics/launcher/process-lifecycle/helper consumers from bypassing it.
 - Read-only `launchctl print` service-state evidence belongs in
   `KeyPathSystemProbes` and is exposed through
-  `SystemStateProvider.launchctlPrint(target:)`; mutating launchctl operations
-  remain installer/helper actions, not state reads.
+  `SystemStateProvider.launchctlPrint(target:)`.
   `SystemStateProviderLivenessTests.testLaunchctlPrintDelegatesToInjectedSubprocessRunner`
   and `SystemStateProviderLivenessTests.testLaunchctlPrintRejectsBlankTargets`
-  pin the provider contract, while
-  `VHIDDeviceManagerTests.testCheckLaunchctlHealthUsesInjectedSystemStateProvider`,
-  `VHIDDeviceManagerTests.testDuplicateProcessRaceUsesInjectedLaunchctlEvidence`,
-  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
-  block migrated VirtualHID health checks from bypassing it.
-  `ServiceHealthCheckerTests.testIsServiceLoadedDelegatesLaunchctlPrintToSystemStateProvider`,
-  `ServiceHealthCheckerTests.testIsServiceHealthyDelegatesLaunchctlPrintToSystemStateProvider`,
-  `ServiceHealthCheckerTests.testKanataRuntimeSnapshotDelegatesLaunchctlTargetsToSystemStateProvider`,
-  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
-  block migrated service-health checks from bypassing it.
-  `KanataDaemonManagerTests.testIsInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
-  `KanataDaemonManagerTests.testRegisteredButNotLoadedUsesInjectedSystemStateProviderForLaunchctlEvidence`,
-  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
-  block migrated Kanata daemon management checks from bypassing it.
-  `HelperManagerTests.testIsHelperInstalledUsesInjectedSystemStateProviderForLaunchctlEvidence`,
-  `HelperManagerTests.testLastHelperLogsUsesInjectedSystemStateProviderForLaunchctlEvidence`,
-  and `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
-  block migrated helper installation/log-registration checks from bypassing it.
-- SMAppService registration status belongs behind `SystemStateProvider`'s
-  SMAppService façade, which delegates to the existing
-  `SMAppServiceStatusProvider` cache/coalescer.
-  `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusAccessDelegatesToCentralStatusProvider`,
-  `SystemStateProviderSMAppServiceTests.testSMAppServiceFreshStatusBypassesCache`,
-  and `SystemStateProviderSMAppServiceTests.testSMAppServiceStatusInvalidationDelegatesToCentralStatusProvider`
-  pin the façade contract, while
-  `SMAppServiceStatusLintTests.testKanataDaemonManagerDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated Kanata daemon status reads from bypassing it and
-  `SMAppServiceStatusLintTests.testHelperManagerAsyncStatusAccessDelegatesToSystemStateProvider`
-  blocks migrated HelperManager async status reads from bypassing it, while
-  `SMAppServiceStatusLintTests.testKanataDaemonServiceDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated KanataDaemonService status reads from bypassing it and
-  `SMAppServiceStatusLintTests.testHelperMaintenanceDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated HelperMaintenance status reads from bypassing it, while
-  `SMAppServiceStatusLintTests.testUninstallCoordinatorDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated UninstallCoordinator status reads from bypassing it, and
-  `SMAppServiceStatusLintTests.testAppLifecycleDelegatesStatusProviderAccessToSystemStateProvider`
-  blocks migrated App lifecycle/dev-utility status reads from bypassing it, and
-  `SystemStateProviderSMAppServiceTests.testSynchronousSMAppServiceStatusDelegatesToCentralStatusProviderBridge`,
-  `SMAppServiceStatusLintTests.testStatusAccessIsCentralized`, and
-  `SMAppServiceStatusLintTests.testWizardProtocolConformancesDelegateHelperApprovalToHelperManager`
-  prevent synchronous helper Login Items approval reads from bypassing it.
+  pin the provider contract, and
+  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
+  blocks new direct reads.
+- `SMAppService.status` is read only through an `SMAppServiceStatusProvider`
+  (launch at login, `SMAppService.mainApp`). `SMAppServiceStatusProviderTests`
+  pin its cache/coalescing contract, and
+  `SMAppServiceStatusLintTests.testStatusAccessIsCentralized` blocks direct
+  `.status` reads elsewhere.
 - Permission snapshot reads belong behind `SystemStateProvider`'s façade over
   `PermissionOracle`.
   `SystemStateProviderPermissionTests.testPermissionSnapshotAccessDelegatesToPermissionOracle`
@@ -262,42 +217,18 @@ the result as user action required and name the approval surface.
   `PermissionSnapshotLintTests.testProductionPermissionSnapshotReadsDelegateToSystemStateProvider`
   scans all production sources and prevents new `PermissionOracle.shared`
   bypasses outside the provider façade.
-- Direct privileged repair entry points belong behind `InstallerEngine`, with
-  only the wizard dependency bridge allowed to hold
-  `PrivilegedOperationsRouter.shared`. This is enforced by
+- Repair entry points belong behind `InstallerEngine`. This is enforced by
   `FacadeLintTests.testProductionSourcesDoNotBypassInstallerEngine`.
-- Mutating privileged operations must be postcondition-reviewed before they can
-  report success. `PostconditionLintTests.testRuntimeMutatingRouterVerbsEnforceRuntimePostcondition`
-  and `PostconditionLintTests.testVHIDServiceRepairEnforcesVHIDPostcondition`
-  pin the current runtime/VHID service enforcers.
-  `PostconditionLintTests.testVHIDDriverInstallEnforcesDriverPostcondition`,
-  `PostconditionLintTests.testProcessTerminationEnforcesProcessPostcondition`,
-  and `PostconditionLintTests.testKanataStopEnforcesRuntimeStoppedPostcondition`
-  pin driver-install, process-termination, and Kanata-stop postconditions, while
-  `PrivilegedOperationsRouterTests.testTerminateProcessWaitsForProcessToExitAfterCommandSuccess`
-  pins a grace period for normal signal-delivery delay.
-  `ServiceHealthCheckerTests.testClassifyVHIDDriverExtensionStatusDistinguishesPendingApprovalFromMissingDriver`
-  pins DriverKit extension evidence for enabled vs installed-but-not-enabled
-  vs missing states, and
-  `PrivilegedOperationsRouterTests.testDownloadAndInstallCorrectVHIDDriverAllowsInstalledButNotEnabledPostcondition`
-  pins the router success path for that pending/manual-approval state.
-  `PostconditionLintTests.testPublicRouterOperationsAreClassifiedForPostconditionReview`
-  fails when a new public router operation is added without being classified.
+- Installer recipes must be postcondition-verified before they report success:
+  `InstallerEngine` checks each recipe's `expectedPostconditions` against the
+  engine-owned final snapshot.
 - Runtime and installer state caches must not regrow in consumers.
-  `SnapshotConsumerLintTests.testSMAppServiceStatusProviderCacheIsOnlyConsumedThroughSystemStateProvider`
-  keeps direct SMAppService status-cache consumption behind
-  `SystemStateProvider`, and
   `SnapshotConsumerLintTests.testRuntimeAndInstallerStateCachesStayInKnownOwners`
   prevents new runtime/installer state caches outside the current known owners.
   `W6DeletionPassLintTests.testAsyncRepairGatesDoNotConsumeUnboundedManagementStateCache`
   prevents async repair/start/reload gates from consuming the unbounded
   `currentManagementState` cache instead of refreshing through the
   provider-backed manager.
-- Helper responsiveness is not helper freshness.
-  `W6DeletionPassLintTests.testMatrixAdaptersDoNotTreatUnknownHelperVersionAsFresh`,
-  `HelperVersionContractTests`, and the matrix golden fixtures
-  enforce that an unknown helper version routes to helper verification/refresh
-  rather than a healthy row.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 - The state-matrix table itself is an executable golden fixture:
   `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`

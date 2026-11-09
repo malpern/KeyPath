@@ -190,7 +190,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             components: context.components,
             conflicts: context.conflicts,
             health: context.services,
-            helper: context.helper,
             compatibility: SystemCompatibilityStatus(
                 macOSVersion: context.system.macOSVersion,
                 driverCompatible: context.system.driverCompatible

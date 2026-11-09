@@ -16,11 +16,6 @@ final class CLIReportModelsTests: XCTestCase {
     func testStatusJSONShape() throws {
         let status = CLIStatusResult(
             isOperational: true,
-            helperInstalled: true,
-            helperWorking: true,
-            helperVersion: "1.0",
-            helperExpectedVersion: "1.1.0",
-            helperFreshness: "stale",
             keyPathAccessibility: true,
             keyPathInputMonitoring: true,
             kanataAccessibility: true,
@@ -40,8 +35,7 @@ final class CLIReportModelsTests: XCTestCase {
         )
         let keys = try jsonKeys(status)
         let required: Set = [
-            "isOperational", "helperInstalled", "helperWorking",
-            "helperExpectedVersion", "helperFreshness",
+            "isOperational",
             "keyPathAccessibility", "keyPathInputMonitoring",
             "kanataAccessibility", "kanataInputMonitoring",
             "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",

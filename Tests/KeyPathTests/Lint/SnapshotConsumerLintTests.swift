@@ -42,7 +42,7 @@ final class SnapshotConsumerLintTests: XCTestCase {
         XCTAssertFalse(controller.contains("PropertyListSerialization.propertyList"))
     }
 
-    func testFreshCaptureInvalidatesComponentFacts() throws {
+    func testFreshCaptureInvalidatesCaches() throws {
         let validator = LintScanner.path(
             "Sources/KeyPathAppKit/Services/System/SystemValidator.swift"
         )
@@ -51,34 +51,6 @@ final class SnapshotConsumerLintTests: XCTestCase {
         XCTAssertTrue(
             source.contains("if freshness == .fresh {") && source.contains("invalidateCaches()"),
             "A canonical fresh capture must invalidate subordinate evidence caches."
-        )
-        XCTAssertTrue(
-            source.contains("cachedComponentFacts = nil"),
-            "SystemValidator.invalidateCaches() must clear component installation facts."
-        )
-        XCTAssertTrue(
-            source.contains("cachedComponentFacts.isFresh(ttl: Self.canonicalSnapshotCacheTTL)"),
-            "Component facts must use the canonical snapshot freshness window."
-        )
-    }
-
-    func testSMAppServiceStatusProviderCacheIsOnlyConsumedThroughSystemStateProvider() throws {
-        let violations = try LintScanner.matchingLines(
-            under: LintScanner.path("Sources"),
-            patterns: [#"SMAppServiceStatusProvider\.shared"#],
-            allowList: [
-                "Sources/KeyPathAppKit/Core/SMAppServiceStatusProvider.swift",
-                "Sources/KeyPathAppKit/Core/SystemStateProvider+SMAppService.swift"
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            Production consumers must reach SMAppService status/cache evidence \
-            through SystemStateProvider, not SMAppServiceStatusProvider.shared:
-            \(violations.sorted().joined(separator: "\n"))
-            """
         )
     }
 
@@ -93,10 +65,7 @@ final class SnapshotConsumerLintTests: XCTestCase {
                 #"\bsmAppServicePendingCache\b"#,
                 #"\bcachedHelperVersion\b"#
             ],
-            allowList: [
-                "Sources/KeyPathInstallationWizard/Core/ServiceHealthChecker.swift",
-                "Sources/KeyPathAppKit/Managers/KanataDaemonManager.swift"
-            ]
+            allowList: []
         )
 
         XCTAssertTrue(
@@ -139,7 +108,6 @@ final class SnapshotConsumerLintTests: XCTestCase {
             "services: snapshot.health",
             "conflicts: snapshot.conflicts",
             "components: snapshot.components",
-            "helper: snapshot.helper",
             "macOSVersion: snapshot.compatibility.macOSVersion",
             "driverCompatible: snapshot.compatibility.driverCompatible",
             "timestamp: snapshot.timestamp",

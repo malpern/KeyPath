@@ -177,56 +177,6 @@ final class AliasDeduplicationTests: XCTestCase {
         XCTAssertEqual(aliasLines.count, 1, "Safety net should ensure exactly one beh_base_; definition")
     }
 
-    // MARK: - extractConfigParseError (stderr detection)
-
-    func testExtractsDuplicateAliasError() {
-        let log = """
-        [kanata-launcher] Launching Kanata for user=test
-        04:28:32 [ERROR]  × Error in configuration
-             ╭─[keypath.kbd:159:1]
-         159 │   beh_base_; (tap-hold-opposite-hand 150 ; (layer-while-held fun))
-             ·   ─────┬────
-             ·        ╰── Error here
-         160 │   beh_base_a (tap-hold-opposite-hand 150 a (layer-while-held fun))
-             ╰────
-          help: Duplicate alias: beh_base_;
-        04:28:32 [ERROR] failed to parse file
-        """
-
-        let error = ServiceHealthChecker.extractConfigParseError(from: log)
-
-        XCTAssertNotNil(error)
-        XCTAssertEqual(error, "Duplicate alias: beh_base_;")
-    }
-
-    func testExtractsGenericConfigError() {
-        let log = """
-        [kanata-launcher] Host bridge config validation failed: Error in configuration
-        [kanata-launcher] Host bridge runtime creation failed: failed to parse file
-        04:28:32 [ERROR]  × Error in configuration
-        04:28:32 [ERROR] failed to parse file
-        """
-
-        let error = ServiceHealthChecker.extractConfigParseError(from: log)
-
-        XCTAssertNotNil(error)
-        XCTAssertTrue(
-            error?.contains("failed to parse file") == true || error?.contains("Error in configuration") == true,
-            "Should extract a meaningful error, got: \(error ?? "nil")"
-        )
-    }
-
-    func testNoConfigErrorWhenLogIsClean() {
-        let log = """
-        [kanata-launcher] Launching Kanata for user=test
-        [kanata-launcher] Runtime started successfully
-        """
-
-        let error = ServiceHealthChecker.extractConfigParseError(from: log)
-
-        XCTAssertNil(error)
-    }
-
     // MARK: - Issue.configParseError
 
     func testConfigParseErrorIssueProperties() {

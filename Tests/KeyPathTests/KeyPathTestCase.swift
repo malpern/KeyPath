@@ -6,19 +6,9 @@ import KeyPathWizardCore
 
 /// Base test case class that provides common test seam setup for KeyPath tests.
 ///
-/// **IMPORTANT**: Use this base class for any test that uses:
-/// - `InstallerEngine`
-/// - `RuntimeCoordinator`
-/// - `SystemValidator`
-/// - `VHIDDeviceManager`
-///
-/// This base class automatically sets up `VHIDDeviceManager.testPIDProvider` to avoid
-/// spawning real `pgrep` subprocess calls, which can deadlock during parallel test execution.
-///
-/// ## Why This Matters
-/// `VHIDDeviceManager.detectConnectionHealth()` spawns `pgrep` subprocesses with 3s timeouts.
-/// When tests run in parallel and repeatedly call this code path, the subprocesses can deadlock,
-/// causing tests to hang indefinitely.
+/// Use this base class for any test that uses `InstallerEngine`,
+/// `RuntimeCoordinator`, or `SystemValidator`. It resets shared singletons and
+/// installs a `SystemValidator` in `WizardDependencies`.
 ///
 /// ## Usage
 /// ```swift
@@ -44,19 +34,14 @@ open class KeyPathTestCase: XCTestCase {
         super.setUp()
         MainActor.assumeIsolated {
             TestSingletonReset.resetAll()
-            VHIDDeviceManager.testPIDProvider = { [] }
-            WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
-                WizardDependencies.systemValidator = SystemValidator(
-                    processLifecycleManager: ProcessLifecycleManager()
-                )
+                WizardDependencies.systemValidator = SystemValidator()
             }
         }
     }
 
     override open func tearDown() {
         MainActor.assumeIsolated {
-            VHIDDeviceManager.testPIDProvider = nil
             WizardDependencies.reset()
             TestSingletonReset.resetAll()
         }
@@ -71,19 +56,14 @@ open class KeyPathAsyncTestCase: XCTestCase {
         try await super.setUp()
         await MainActor.run {
             TestSingletonReset.resetAll()
-            VHIDDeviceManager.testPIDProvider = { [] }
-            WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
-                WizardDependencies.systemValidator = SystemValidator(
-                    processLifecycleManager: ProcessLifecycleManager()
-                )
+                WizardDependencies.systemValidator = SystemValidator()
             }
         }
     }
 
     override open func tearDown() async throws {
         await MainActor.run {
-            VHIDDeviceManager.testPIDProvider = nil
             WizardDependencies.reset()
             TestSingletonReset.resetAll()
         }

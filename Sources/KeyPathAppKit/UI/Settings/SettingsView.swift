@@ -482,7 +482,7 @@ struct StatusSettingsTabView: View {
         if let last = lastDuplicateScan, Date().timeIntervalSince(last) < 60 { return }
         lastDuplicateScan = Date()
         Task { @MainActor in
-            let duplicates = await HelperMaintenance.shared.detectDuplicateAppCopies()
+            let duplicates = await DuplicateAppDetector.detectDuplicateAppCopies()
             guard duplicates != duplicateAppCopies else { return }
             duplicateAppCopies = duplicates
         }

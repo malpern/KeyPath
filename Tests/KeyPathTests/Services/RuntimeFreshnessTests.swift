@@ -8,24 +8,6 @@ final class RuntimeFreshnessTests: XCTestCase {
         XCTAssertEqual(RuntimeFreshness.classify(actual: nil, expected: "1.1.0"), .unknown)
     }
 
-    func testHelperFreshnessRequiresAWorkingInstalledHelper() {
-        XCTAssertEqual(
-            HelperStatus(isInstalled: true, version: "1.1.0", isWorking: true)
-                .freshness(expectedVersion: "1.1.0"),
-            .fresh
-        )
-        XCTAssertEqual(
-            HelperStatus(isInstalled: true, version: "1.0.0", isWorking: true)
-                .freshness(expectedVersion: "1.1.0"),
-            .stale
-        )
-        XCTAssertEqual(
-            HelperStatus(isInstalled: true, version: "1.1.0", isWorking: false)
-                .freshness(expectedVersion: "1.1.0"),
-            .unknown
-        )
-    }
-
     func testKanataFreshnessIsDiagnosticAndUsesLiveServiceIdentity() {
         let health = HealthStatus(
             kanataRunning: true,

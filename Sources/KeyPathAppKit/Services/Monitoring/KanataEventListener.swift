@@ -454,9 +454,6 @@ actor KanataEventListener {
         isAwaitingHrmTraceSubscribeAck = false
         activeConnection = nil
         currentSessionID = nil
-        // No live connection → drop any authoritative grab status so it can't
-        // outlive the session that produced it.
-        KanataGrabStatusStore.shared.reset()
     }
 
     private func listenLoop() async {
@@ -490,11 +487,6 @@ actor KanataEventListener {
             currentSessionID = nil
             isHrmTraceSubscribed = false
             isAwaitingHrmTraceSubscribeAck = false
-            // Connection dropped: a previously-authoritative grab status no
-            // longer reflects reality (e.g. kanata crashed). Reset so the health
-            // checker falls back to log-pattern detection until we reconnect and
-            // kanata emits a fresh InputGrab.
-            KanataGrabStatusStore.shared.reset()
         }
 
         try await waitForReady(connection)
@@ -744,15 +736,13 @@ actor KanataEventListener {
         // Format: {"InputGrab":{"active":true,"devices":["..."]}}
         //         {"InputGrab":{"active":false,"devices":[],"reason":"..."}}
         // Ground truth from kanata's OS grab layer — immune to the VNC/"no keys
-        // seen" ambiguity. Recorded into the process-wide store that the health
-        // checker reads (ServiceHealthChecker.resolveInputCaptureStatus).
+        // seen" ambiguity.
         if let inputGrab = json["InputGrab"] as? [String: Any],
            let status = Self.parseInputGrab(from: inputGrab, observedAt: Date())
         {
             AppLogger.shared.log(
                 "🎛️ [EventListener] InputGrab active=\(status.active) devices=\(status.devices.count) reason=\(status.reason ?? "none")"
             )
-            KanataGrabStatusStore.shared.record(status)
             // Notify the recovery path (#625): active=false is an authoritative
             // grab failure (up but not remapping); active=true clears it.
             await grabStatusHandler?(status.active, status.reason)

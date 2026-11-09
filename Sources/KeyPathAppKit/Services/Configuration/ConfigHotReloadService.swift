@@ -77,7 +77,6 @@ final class ConfigHotReloadService {
     private var configurationService: ConfigurationService?
     private var reloadHandler: (() async -> ReloadOutcome)?
     private var configParser: ((String) throws -> [KeyMapping])?
-    private var serviceManagementStateProvider: (() async -> KanataDaemonManager.ServiceManagementState)?
     private var isKanataProcessRunningProvider: (() async -> Bool)?
 
     /// UI feedback callbacks
@@ -88,18 +87,13 @@ final class ConfigHotReloadService {
 
     // MARK: - Dependencies
 
-    private let kanataDaemonManager: KanataDaemonManager
     private let serviceHealthChecker: ServiceHealthChecker
 
     // MARK: - Singleton
 
     static let shared = ConfigHotReloadService()
 
-    init(
-        kanataDaemonManager: KanataDaemonManager = .shared,
-        serviceHealthChecker: ServiceHealthChecker = .shared
-    ) {
-        self.kanataDaemonManager = kanataDaemonManager
+    init(serviceHealthChecker: ServiceHealthChecker = .shared) {
         self.serviceHealthChecker = serviceHealthChecker
     }
 
@@ -115,13 +109,11 @@ final class ConfigHotReloadService {
         configurationService: ConfigurationService,
         reloadHandler: @escaping () async -> ReloadOutcome,
         configParser: @escaping (String) throws -> [KeyMapping],
-        serviceManagementStateProvider: (() async -> KanataDaemonManager.ServiceManagementState)? = nil,
         isKanataProcessRunningProvider: (() async -> Bool)? = nil
     ) {
         self.configurationService = configurationService
         self.reloadHandler = reloadHandler
         self.configParser = configParser
-        self.serviceManagementStateProvider = serviceManagementStateProvider
         self.isKanataProcessRunningProvider = isKanataProcessRunningProvider
     }
 
@@ -213,19 +205,13 @@ final class ConfigHotReloadService {
             return .pendingReload(content: configContent, message: message)
 
         case .failed:
-            // Check if service is simply unavailable (SMAppService pending, service not running, or process not started)
-            // In this case, don't show error to user - config is valid, just can't reload yet
-            let smState = await currentServiceManagementState()
-
-            // Also check if Kanata process is actually running - if service is "active" but
-            // process isn't running yet, we shouldn't show an error.
+            // If the session runtime is not running yet, the config is valid but
+            // cannot be reloaded: don't show an error to the user.
             // Use ServiceHealthChecker directly here to avoid hopping through @MainActor InstallerEngine.
             let isProcessRunning = await checkKanataProcessRunning()
 
-            if smState == .smappservicePending || smState.needsInstallation || !isProcessRunning {
-                let reason = !isProcessRunning ? "process not running" :
-                    (smState == .smappservicePending ? "pending approval" : "needs installation")
-                AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload skipped - service not available (\(reason)), config is valid")
+            if !isProcessRunning {
+                AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload skipped - runtime not running, config is valid")
                 // Don't call onFailure - this isn't a real error, just service unavailability
                 // Reset status after a brief delay so UI doesn't show stale "validating" state
                 callbacks.onReset?()
@@ -285,12 +271,5 @@ final class ConfigHotReloadService {
             return await provider()
         }
         return await serviceHealthChecker.checkKanataServiceHealth().isRunning
-    }
-
-    private func currentServiceManagementState() async -> KanataDaemonManager.ServiceManagementState {
-        if let provider = serviceManagementStateProvider {
-            return await provider()
-        }
-        return await kanataDaemonManager.refreshManagementStateInternal()
     }
 }

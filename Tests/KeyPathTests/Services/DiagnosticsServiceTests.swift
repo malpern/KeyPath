@@ -174,28 +174,6 @@ final class DiagnosticsServiceTests: XCTestCase {
         )
     }
 
-    func testKarabinerDaemonDetectionUsesInjectedSystemStateProvider() async {
-        let runner = SubprocessRunnerFake()
-        await runner.configurePgrepResult { pattern in
-            pattern == "Karabiner-VirtualHIDDevice" ? [5678] : []
-        }
-
-        let provider = SystemStateProvider(probes: runner.systemProbeClient())
-        let service = DiagnosticsService(
-            processLifecycleManager: processManager,
-            systemStateProvider: provider
-        )
-
-        let isRunning = await service.isKarabinerDaemonRunning()
-        let commands = await runner.executedCommands
-
-        XCTAssertTrue(isRunning)
-        XCTAssertTrue(
-            commands.contains { $0.executable == "/usr/bin/pgrep" && $0.args == ["-f", "Karabiner-VirtualHIDDevice"] },
-            "DiagnosticsService should use the injected provider for Karabiner daemon discovery"
-        )
-    }
-
     // MARK: - Log Analysis Tests
 
     func testAnalyzeLogFileNotFound() async {

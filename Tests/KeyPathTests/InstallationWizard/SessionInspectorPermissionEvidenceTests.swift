@@ -110,7 +110,7 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
                                         karabinerDriverInstalled: false, karabinerDaemonRunning: false,
                                         vhidDeviceInstalled: false, vhidDeviceHealthy: false,
                                         vhidServicesHealthy: false, vhidVersionMismatch: false),
-            helper: .empty, system: EngineSystemInfo(macOSVersion: "26.0", driverCompatible: false), timestamp: now
+            system: EngineSystemInfo(macOSVersion: "26.0", driverCompatible: false), timestamp: now
         ))
     }
 }

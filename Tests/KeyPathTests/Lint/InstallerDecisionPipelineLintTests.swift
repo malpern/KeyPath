@@ -158,36 +158,6 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         )
     }
 
-    func testBootstrapperDoesNotRecursivelyInvokeInstallerEngine() throws {
-        let file = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathInstallationWizard/Core/ServiceBootstrapper.swift")
-        let source = try String(contentsOf: file, encoding: .utf8)
-        let forbiddenCalls = ["InstallerEngine(", ".runSingleAction("]
-        let violations = forbiddenCalls.filter { source.contains($0) }
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            ServiceBootstrapper executes inside an InstallerEngine transaction. \
-            It must execute declared operations without creating another plan or \
-            reacquiring the transaction gate; found: \(violations)
-            """
-        )
-    }
-
-    func testUninstallCoordinatorDoesNotStartInstallerTransactions() throws {
-        let file = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathAppKit/Managers/UninstallCoordinator.swift")
-        let source = try String(contentsOf: file, encoding: .utf8)
-        let forbiddenCalls = [".run(intent:", ".runSingleAction(", ".uninstall("]
-        let violations = forbiddenCalls.filter { source.contains($0) }
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            "UninstallCoordinator executes inside the InstallerEngine-owned transaction: \(violations)"
-        )
-    }
-
     func testDriverlessEngineHasNoPrivilegedExecution() throws {
         let source = try String(contentsOf: repositoryRoot().appendingPathComponent(
             "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"

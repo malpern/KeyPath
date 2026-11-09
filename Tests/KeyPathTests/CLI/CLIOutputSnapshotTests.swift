@@ -226,11 +226,6 @@ final class CLIOutputSnapshotTests: XCTestCase {
     func testStatusResultSnapshotKeys() throws {
         let value = CLIStatusResult(
             isOperational: true,
-            helperInstalled: true,
-            helperWorking: true,
-            helperVersion: "1.0",
-            helperExpectedVersion: "1.1.0",
-            helperFreshness: "stale",
             keyPathAccessibility: true,
             keyPathInputMonitoring: true,
             kanataAccessibility: true,
@@ -251,8 +246,7 @@ final class CLIOutputSnapshotTests: XCTestCase {
         let json = try encode(value)
         let dict = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
         let expectedKeys: Set = [
-            "isOperational", "helperInstalled", "helperWorking", "helperVersion",
-            "helperExpectedVersion", "helperFreshness",
+            "isOperational",
             "keyPathAccessibility", "keyPathInputMonitoring",
             "kanataAccessibility", "kanataInputMonitoring",
             "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",

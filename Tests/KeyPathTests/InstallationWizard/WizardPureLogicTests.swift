@@ -64,10 +64,6 @@ final class WizardPureLogicTests: XCTestCase {
                      loginItemsApprovalRequired: false)
     }
 
-    private var healthyHelper: HelperStatus {
-        HelperStatus(isInstalled: true, version: KeyPathHelperContract.version, isWorking: true)
-    }
-
     private var defaultSystem: EngineSystemInfo {
         EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true)
     }
@@ -77,7 +73,6 @@ final class WizardPureLogicTests: XCTestCase {
         services: HealthStatus? = nil,
         conflicts: ConflictStatus = .empty,
         components: ComponentStatus? = nil,
-        helper: HelperStatus? = nil,
         captureStatus: SystemSnapshotCaptureStatus = .complete,
         timedOut: Bool = false
     ) -> SystemContext {
@@ -86,7 +81,6 @@ final class WizardPureLogicTests: XCTestCase {
             services: services ?? healthyServices,
             conflicts: conflicts,
             components: components ?? allComponentsHealthy,
-            helper: helper ?? healthyHelper,
             system: defaultSystem,
             timestamp: Date(),
             captureStatus: captureStatus,
@@ -131,7 +125,7 @@ final class WizardPureLogicTests: XCTestCase {
                                    karabinerDaemonRunning: true,
                                    vhidHealthy: true,
                                    kanataInputCaptureReady: false,
-                                   kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+                                   kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard",
                                    kanataSMAppServiceRegistered: true,
                                    loginItemsApprovalRequired: false)
         )
@@ -141,7 +135,7 @@ final class WizardPureLogicTests: XCTestCase {
     }
 
     func test_systemStateProjectionPublishesStateMatrixMetadata() {
-        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
+        let context = makeContext()
 
         let result = SystemStateResult.projecting(context)
 
@@ -215,7 +209,7 @@ final class WizardPureLogicTests: XCTestCase {
                                                       karabinerDaemonRunning: true,
                                                       vhidHealthy: true,
                                                       kanataInputCaptureReady: false,
-                                                      kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureGrabFailureReason,
+                                                      kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard",
                                                       kanataSMAppServiceRegistered: true,
                                                       loginItemsApprovalRequired: false)
         let driverApprovalPending = HealthStatus(backend: .driverKit,
@@ -241,7 +235,7 @@ final class WizardPureLogicTests: XCTestCase {
             DecisionFixture(
                 name: "missing retired helper does not affect repair",
                 intent: .repair,
-                context: makeContext(helper: .empty),
+                context: makeContext(),
                 assessment: .sessionRuntimeReady,
                 matrixActions: [],
                 autoFixActions: []
@@ -534,7 +528,7 @@ final class WizardPureLogicTests: XCTestCase {
                 karabinerDaemonRunning: false, vhidHealthy: false,
                 kanataInputCaptureReady: inputReady
             )
-            let context = makeContext(services: health, components: .empty, helper: .empty)
+            let context = makeContext(services: health, components: .empty)
             let expected: [AutoFixAction] = running && responding && inputReady ? [] : [.restartCommServer]
             for intent in [InstallIntent.install, .repair] {
                 XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: intent, context: context), expected)
@@ -553,7 +547,7 @@ final class WizardPureLogicTests: XCTestCase {
             let context = makeContext(
                 services: health,
                 conflicts: ConflictStatus(conflicts: [.kanataProcessRunning(pid: 1, command: "historical")], canAutoResolve: canAutoResolve),
-                components: .empty, helper: .empty
+                components: .empty
             )
             XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [])
             XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [])
@@ -568,13 +562,13 @@ final class WizardPureLogicTests: XCTestCase {
             kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
             loginItemsApprovalRequired: true
         )
-        let context = makeContext(services: health, components: .empty, helper: .empty)
+        let context = makeContext(services: health, components: .empty)
         XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [.restartCommServer])
         XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [.restartCommServer])
     }
 
     func test_inspectionAndUninstallNeverPlanRuntimeMutations() {
-        let context = makeContext(services: .empty, components: .empty, helper: .empty)
+        let context = makeContext(services: .empty, components: .empty)
         XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: .inspectOnly, context: context), [])
         XCTAssertEqual(InstallerDecisionPipeline.determineUninstallActions(context: context), [])
         XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: .uninstall, context: context), [])

@@ -47,7 +47,7 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
             health: .init(backend: backend, kanataProcessRunning: running, kanataTCPResponding: running,
                           kanataRunning: running, karabinerDaemonRunning: false, vhidHealthy: false,
                           kanataInputCaptureReady: running),
-            helper: .empty, compatibility: .unknown, timestamp: Date()
+            compatibility: .unknown, timestamp: Date()
         )
     }
 
@@ -55,7 +55,6 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
         let snapshot = snapshot(running: true)
         XCTAssertTrue(snapshot.isReady)
         XCTAssertTrue(snapshot.blockingIssues.isEmpty)
-        XCTAssertFalse(snapshot.helper.isInstalled)
         XCTAssertFalse(snapshot.components.karabinerDriverInstalled)
         XCTAssertFalse(snapshot.health.vhidHealthy)
         XCTAssertTrue(snapshot.health.isHealthy)
