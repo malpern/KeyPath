@@ -28,7 +28,7 @@ struct SystemInspect: AsyncParsableCommand {
         CLIOutput.write(result, context: ctx) {
             var lines = [
                 "=== System Inspection ===",
-                "This CLI inspection does not verify the running app's owned session.",
+                "Runtime state and key access come from the running KeyPath.app; Accessibility is checked from this CLI.",
                 "macOS Version: \(result.macOSVersion)",
                 "Driver Compatible: \(result.driverCompatible ? "Yes" : "No")",
                 "",
