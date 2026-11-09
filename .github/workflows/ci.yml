@@ -90,22 +90,24 @@ jobs:
         submodules: true
         persist-credentials: false
 
-    - name: Select Xcode 27.0 (hosted runner)
-      # GitHub's image defaults to a newer Xcode; its Xcode 27.0 is build 27A266a,
-      # the one the Macs use. The stable-Xcode path keeps the scripts' version
-      # check, and DEVELOPER_DIR covers tools that ask xcode-select.
+    - name: Select Xcode 27.2 (hosted runner)
+      # The image's default Xcode is 27.1. Xcode_27.2 is build 27B52, the one the
+      # Macs use. KEYPATH_DEV_XCODE_DEVELOPER_DIR makes Scripts/lib/xcode.sh use
+      # it instead of xcode-select, and DEVELOPER_DIR covers tools that ask
+      # xcode-select. Never export SDKROOT here: with it set, SwiftPM's Metal step
+      # reports "missing Metal Toolchain" (#1372). The cargo scripts take the SDK
+      # from KEYPATH_SDKROOT.
       if: vars.KEYPATH_CI_RUNNER == 'hosted'
       run: |
-        xcode=/Applications/Xcode_27.app/Contents/Developer
-        version=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Xcode //p' | head -1)
-        if [[ "$version" != "27.0" ]]; then
-          echo "::error::$xcode is Xcode '$version', not 27.0; the image changed"
+        xcode=/Applications/Xcode_27.2.app/Contents/Developer
+        build=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Build version //p' | head -1)
+        if [[ "$build" != "27B52" ]]; then
+          echo "::error::$xcode is Xcode build '$build', not 27B52; the image changed"
           exit 1
         fi
-        echo "KEYPATH_STABLE_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        echo "KEYPATH_DEV_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
         echo "DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
-        # cargo reaches the compiler through cc, which needs the SDK named.
-        echo "SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
+        echo "KEYPATH_SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
 
     - name: Verify runner disk reserve
       env:
@@ -295,22 +297,24 @@ jobs:
     - name: Add Homebrew to PATH
       run: echo "/opt/homebrew/bin" >> $GITHUB_PATH
 
-    - name: Select Xcode 27.0 (hosted runner)
-      # GitHub's image defaults to a newer Xcode; its Xcode 27.0 is build 27A266a,
-      # the one the Macs use. The stable-Xcode path keeps the scripts' version
-      # check, and DEVELOPER_DIR covers tools that ask xcode-select.
+    - name: Select Xcode 27.2 (hosted runner)
+      # The image's default Xcode is 27.1. Xcode_27.2 is build 27B52, the one the
+      # Macs use. KEYPATH_DEV_XCODE_DEVELOPER_DIR makes Scripts/lib/xcode.sh use
+      # it instead of xcode-select, and DEVELOPER_DIR covers tools that ask
+      # xcode-select. Never export SDKROOT here: with it set, SwiftPM's Metal step
+      # reports "missing Metal Toolchain" (#1372). The cargo scripts take the SDK
+      # from KEYPATH_SDKROOT.
       if: vars.KEYPATH_CI_RUNNER == 'hosted'
       run: |
-        xcode=/Applications/Xcode_27.app/Contents/Developer
-        version=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Xcode //p' | head -1)
-        if [[ "$version" != "27.0" ]]; then
-          echo "::error::$xcode is Xcode '$version', not 27.0; the image changed"
+        xcode=/Applications/Xcode_27.2.app/Contents/Developer
+        build=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Build version //p' | head -1)
+        if [[ "$build" != "27B52" ]]; then
+          echo "::error::$xcode is Xcode build '$build', not 27B52; the image changed"
           exit 1
         fi
-        echo "KEYPATH_STABLE_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
+        echo "KEYPATH_DEV_XCODE_DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
         echo "DEVELOPER_DIR=$xcode" >> "$GITHUB_ENV"
-        # cargo reaches the compiler through cc, which needs the SDK named.
-        echo "SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
+        echo "KEYPATH_SDKROOT=$xcode/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk" >> "$GITHUB_ENV"
 
     - name: Install mise and SwiftLint (hosted runner)
       # The mini has both; GitHub's image has neither. mise ignores a repo config
