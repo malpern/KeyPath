@@ -391,6 +391,7 @@ struct LiveKeyboardOverlayView: View {
                 uiState.keyboardAspectRatio = keyboardAspectRatio
                 inputSourceDetector.startMonitoring()
                 autoDetectController.startObserving()
+                autoDetectController.setFeedbackVisible(true)
                 if !isMapperAvailable, inspectorSection == .mapper {
                     inspectorSection = hasCustomRules ? .customRules : .launchers
                 }
@@ -410,7 +411,7 @@ struct LiveKeyboardOverlayView: View {
             },
             onDisappearAction: {
                 inputSourceDetector.stopMonitoring()
-                autoDetectController.stopObserving()
+                autoDetectController.setFeedbackVisible(false)
             },
             onLoadCustomRulesState: { loadCustomRulesState() },
             onServiceIssueChange: { handleRuntimeIssueChange($0) },

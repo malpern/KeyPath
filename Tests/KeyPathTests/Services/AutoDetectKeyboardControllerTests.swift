@@ -199,6 +199,47 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
         XCTAssertEqual(controller.activeKeyboard?.status, .suggested)
     }
 
+    private func corneEvent() -> HIDDeviceMonitor.HIDKeyboardEvent {
+        KeyboardDetectionIndex.seedIndex(exactEntries: [
+            .init(
+                matchKey: "CB10:1256", matchType: .exactVIDPID, source: .via, confidence: .high,
+                displayName: "Corne Keyboard", manufacturer: nil,
+                qmkPath: "crkbd/rev4_0/standard", builtInLayoutId: "corne"
+            )
+        ])
+        return HIDDeviceMonitor.HIDKeyboardEvent(
+            vendorID: 0xCB10, productID: 0x1256, productName: "Corne Keyboard", isConnected: true
+        )
+    }
+
+    private func postConnected(_ event: HIDDeviceMonitor.HIDKeyboardEvent) async throws {
+        NotificationCenter.default.post(name: .hidKeyboardConnected, object: nil, userInfo: ["event": event])
+        for _ in 0 ..< 10000 where controller.connectedKeyboards.isEmpty {
+            await Task.yield()
+        }
+    }
+
+    /// Settings reads connected keyboards, so tracking runs from launch even
+    /// while the overlay (which owns the plug-in toast) has never appeared.
+    func testPlugInWhileOverlayHiddenIsTrackedWithoutToast() async throws {
+        controller.startObserving()
+        try await postConnected(corneEvent())
+
+        XCTAssertEqual(controller.connectedKeyboards.count, 1)
+        XCTAssertEqual(controller.activeKeyboard?.keyboardName, "Corne Keyboard")
+        XCTAssertFalse(controller.showingToast, "No toast while the overlay is not on screen")
+    }
+
+    func testPlugInWhileOverlayVisibleShowsToast() async throws {
+        controller.startObserving()
+        controller.startObserving() // the overlay calls it again; must not double-subscribe
+        controller.setFeedbackVisible(true)
+        try await postConnected(corneEvent())
+
+        XCTAssertEqual(controller.connectedKeyboards.count, 1)
+        XCTAssertTrue(controller.showingToast)
+    }
+
     func testStartupSeedAddsAppleInternalKeyboardWithoutToast() async {
         initialKeyboardEvents = [
             HIDDeviceMonitor.HIDKeyboardEvent(

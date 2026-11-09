@@ -158,6 +158,12 @@ enum CompositionRoot {
                     AppLogger.shared.info("⌨️ [App] Refined keyboard layout to \(refined) from the I/O Registry")
                 }
             }
+
+            // Track connected keyboards from launch, not only while the overlay is
+            // open: Settings reads them, and showed "No keyboard detected" until the
+            // overlay had appeared once. Started after the one-time refinement above
+            // so a remembered keyboard layout is applied on top of it, as before.
+            AutoDetectKeyboardController.shared.startObserving()
         }
     }
 }

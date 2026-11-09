@@ -95,6 +95,10 @@ final class AutoDetectKeyboardController {
     // MARK: - Private
 
     private var connectCancellable: AnyCancellable?
+    /// Plug-in toasts and sounds belong to the overlay, so they play only while
+    /// it is on screen. Tracking runs from launch so Settings always knows
+    /// which keyboards are connected.
+    private var feedbackVisible = false
     private var disconnectCancellable: AnyCancellable?
     private var autoDismissTask: Task<Void, Never>?
     private var importTask: Task<Void, Never>?
@@ -139,7 +143,15 @@ final class AutoDetectKeyboardController {
         self.initialKeyboardEventsProvider = initialKeyboardEventsProvider
     }
 
+    /// Called by the overlay as it appears and disappears.
+    func setFeedbackVisible(_ visible: Bool) {
+        feedbackVisible = visible
+    }
+
+    /// Starts tracking keyboards. Safe to call more than once: CompositionRoot
+    /// starts it at launch and the overlay calls it again when it appears.
     func startObserving() {
+        guard connectCancellable == nil else { return }
         // Use notifications (fire-once) instead of @Published (replays current value).
         // This prevents stale lastConnectedKeyboard from triggering on re-subscribe.
         connectCancellable = NotificationCenter.default
@@ -147,7 +159,8 @@ final class AutoDetectKeyboardController {
             .compactMap { $0.userInfo?["event"] as? HIDDeviceMonitor.HIDKeyboardEvent }
             .sink { [weak self] event in
                 Task { @MainActor in
-                    await self?.handleNewKeyboard(event)
+                    guard let self else { return }
+                    await self.handleNewKeyboard(event, showFeedback: self.feedbackVisible)
                 }
             }
 
@@ -299,7 +312,9 @@ final class AutoDetectKeyboardController {
                 UserDefaults.standard.set(layoutId, forKey: LayoutPreferences.layoutIdKey)
             }
         }
-        SoundPlayer.shared.playDeviceDisconnectedSound()
+        if feedbackVisible {
+            SoundPlayer.shared.playDeviceDisconnectedSound()
+        }
     }
 
     #if DEBUG
