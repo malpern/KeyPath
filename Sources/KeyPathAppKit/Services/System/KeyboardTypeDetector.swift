@@ -63,6 +63,13 @@ enum KeyboardTypeDetector {
         }
     }
 
+    /// The layout to store after detection, or nil to leave the stored one alone.
+    /// Only a layout still at the default is replaced, so a user's choice survives.
+    static func refinedLayoutId(stored: String?, recommended: String) -> String? {
+        guard stored == nil || stored == LayoutPreferences.defaultLayoutId else { return nil }
+        return recommended == LayoutPreferences.defaultLayoutId ? nil : recommended
+    }
+
     /// Returns the recommended PhysicalLayout ID for the detected keyboard type.
     static func recommendedLayoutId() -> String {
         switch detect() {

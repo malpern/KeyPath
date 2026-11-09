@@ -37,8 +37,17 @@ Only main-app features:
 Reading a device's registry properties (name, vendor and product ID) needs no
 privacy permission; only opening the device does. A listen-only tap needs Input
 Monitoring, while a modifying tap needs only Device Control and Data Access.
-`ObservingEventTap` still prefers listen-only, because a modifying tap on the
-main run loop would delay typing whenever the main thread stalls.
+
+A modifying tap holds every keystroke until its callback returns, so
+`ObservingEventTap` runs on its own thread and hops to the main actor
+afterwards: a stalled main thread can never delay typing. It re-enables itself
+when macOS disables it for a timeout. It asks for listen-only only when
+`CGPreflightListenEventAccess()` already allows it, because requesting one
+without access can prompt for Input Monitoring.
+
+The first-launch layout refinement used to run only with Input Monitoring, so
+its "done" flag is unset for most existing users. It now replaces the stored
+layout only while that is still the default, so a user's choice survives.
 
 The emergency stop chord was silently disabled for anyone without Input
 Monitoring, which on macOS 27 is everyone who follows setup.

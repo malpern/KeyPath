@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 import XCTest
 
 final class RegistryKeyboardsTests: XCTestCase {
@@ -30,13 +31,23 @@ final class RegistryKeyboardsTests: XCTestCase {
         XCTAssertNil(HIDDeviceMonitor.event(from: anonymous, isConnected: true))
 
         let virtual = RegistryKeyboards.Entry(
-            registryID: 3, vendorID: 0x16C0, productID: 0x27DB, productName: "Karabiner VirtualHIDKeyboard", keyboardType: nil
+            registryID: 3, vendorID: 0x16C0, productID: 0x27DB,
+            productName: "Karabiner VirtualHIDKeyboard", keyboardType: nil
         )
         XCTAssertNil(HIDDeviceMonitor.event(from: virtual, isConnected: true))
     }
 
-    func testRegistryEnumerationNeedsNoPermission() {
-        // Reading the registry must not throw or prompt; on a Mac with a keyboard it finds one.
-        _ = RegistryKeyboards.current()
+    func testLayoutRefinementKeepsAUserChoice() {
+        let defaultID = LayoutPreferences.defaultLayoutId
+        XCTAssertEqual(KeyboardTypeDetector.refinedLayoutId(stored: nil, recommended: "macbook-iso"), "macbook-iso")
+        XCTAssertEqual(KeyboardTypeDetector.refinedLayoutId(stored: defaultID, recommended: "macbook-jis"), "macbook-jis")
+        XCTAssertNil(KeyboardTypeDetector.refinedLayoutId(stored: "kinesis-advantage", recommended: "macbook-iso"))
+        XCTAssertNil(KeyboardTypeDetector.refinedLayoutId(stored: defaultID, recommended: defaultID))
+    }
+
+    func testObservingTapAsksForListenOnlyOnlyWhenAllowed() {
+        // Requesting a listen-only tap without access can prompt for Input Monitoring.
+        XCTAssertEqual(ObservingEventTap.preferredOptions(listenAllowed: false), [.defaultTap])
+        XCTAssertEqual(ObservingEventTap.preferredOptions(listenAllowed: true), [.listenOnly, .defaultTap])
     }
 }

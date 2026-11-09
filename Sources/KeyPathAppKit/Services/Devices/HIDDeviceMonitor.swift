@@ -115,7 +115,7 @@ final class HIDDeviceMonitor {
         var addedIterator: io_iterator_t = 0
         var removedIterator: io_iterator_t = 0
 
-        IOServiceAddMatchingNotification(
+        let addedResult = IOServiceAddMatchingNotification(
             port, kIOFirstMatchNotification, RegistryKeyboards.hidDeviceMatching(),
             { context, iterator in
                 guard let context else { return }
@@ -123,7 +123,7 @@ final class HIDDeviceMonitor {
                     .handleDevicesConnected(RegistryKeyboards.drain(iterator))
             }, context, &addedIterator
         )
-        IOServiceAddMatchingNotification(
+        let removedResult = IOServiceAddMatchingNotification(
             port, kIOTerminatedNotification, RegistryKeyboards.hidDeviceMatching(),
             { context, iterator in
                 guard let context else { return }
@@ -131,6 +131,13 @@ final class HIDDeviceMonitor {
                     .handleDevicesRemoved(RegistryKeyboards.drainIDs(iterator))
             }, context, &removedIterator
         )
+        guard addedResult == KERN_SUCCESS, removedResult == KERN_SUCCESS else {
+            AppLogger.shared.error("❌ [HIDDeviceMonitor] Registry notifications failed (added=\(addedResult), removed=\(removedResult))")
+            if addedIterator != 0 { IOObjectRelease(addedIterator) }
+            if removedIterator != 0 { IOObjectRelease(removedIterator) }
+            IONotificationPortDestroy(port)
+            return
+        }
         // Arm both notifications and report the keyboards already present.
         handleDevicesConnected(RegistryKeyboards.drain(addedIterator))
         _ = RegistryKeyboards.drainIDs(removedIterator)

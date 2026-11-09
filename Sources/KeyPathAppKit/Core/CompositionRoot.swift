@@ -149,16 +149,18 @@ enum CompositionRoot {
             HIDDeviceMonitor.shared.startMonitoring()
             AppLogger.shared.info("🔌 [App] HID device monitor started")
 
-            // Refine keyboard layout only on first launch (before user has made an explicit choice).
-            // We use a separate flag so we don't override a user who explicitly chose the ANSI default.
+            // Refine the keyboard layout once, and only while it is still the default.
+            // Before detection stopped needing Input Monitoring, this flag stayed unset
+            // for most users, so the stored layout may be one they chose themselves.
             let layoutRefinedKey = "keypath.layoutRefinedAtStartup"
             if !UserDefaults.standard.bool(forKey: layoutRefinedKey) {
                 UserDefaults.standard.set(true, forKey: layoutRefinedKey)
                 let layoutKey = LayoutPreferences.layoutIdKey
+                let stored = UserDefaults.standard.string(forKey: layoutKey)
                 let recommended = KeyboardTypeDetector.recommendedLayoutId()
-                if recommended != LayoutPreferences.defaultLayoutId {
-                    UserDefaults.standard.set(recommended, forKey: layoutKey)
-                    AppLogger.shared.info("⌨️ [App] Refined keyboard layout to \(recommended) via HID detection")
+                if let refined = KeyboardTypeDetector.refinedLayoutId(stored: stored, recommended: recommended) {
+                    UserDefaults.standard.set(refined, forKey: layoutKey)
+                    AppLogger.shared.info("⌨️ [App] Refined keyboard layout to \(refined) from the I/O Registry")
                 }
             }
         }

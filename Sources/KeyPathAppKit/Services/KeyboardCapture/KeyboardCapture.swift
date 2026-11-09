@@ -87,8 +87,7 @@ public class KeyboardCapture {
     }
 
     // Emergency stop sequence detection
-    @ObservationIgnored var emergencyEventTap: CFMachPort?
-    @ObservationIgnored var emergencyRunLoopSource: CFRunLoopSource?
+    @ObservationIgnored var emergencyObserver: ObservingEventTap?
     @ObservationIgnored var emergencyCallback: (() -> Void)?
     @ObservationIgnored var isMonitoringEmergency = false
     @ObservationIgnored var pressedKeys: Set<Int64> = []
@@ -342,10 +341,15 @@ public class KeyboardCapture {
             return
         }
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-        let callback: CGEventTapCallBack = { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
+        let callback: CGEventTapCallBack = { tapProxy, type, event, refcon -> Unmanaged<CGEvent>? in
             guard let refcon else { return Unmanaged.passRetained(event) }
 
             let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
+            // macOS disables a tap that is slow or interrupted; turn it back on.
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = capture.eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
 
             // Process through event router if enabled
             if capture.useEventRouter, let router = capture.eventRouter {
@@ -372,11 +376,15 @@ public class KeyboardCapture {
                 eventsOfInterest: CGEventMask(eventMask), callback: callback, userInfo: userInfo
             )
         } else {
-            // Observing only: listen-only when macOS allows it, else pass-through.
-            eventTap = ObservingEventTap.create(
-                location: location, place: .headInsertEventTap, events: CGEventMask(eventMask),
-                callback: callback, userInfo: userInfo
-            )?.tap
+            // Observing only. Recording is short-lived, so this tap stays on the
+            // main run loop; listen-only when allowed, so it cannot delay typing.
+            for options in ObservingEventTap.preferredOptions(listenAllowed: CGPreflightListenEventAccess()) {
+                eventTap = CGEvent.tapCreate(
+                    tap: location, place: .headInsertEventTap, options: options,
+                    eventsOfInterest: CGEventMask(eventMask), callback: callback, userInfo: userInfo
+                )
+                if eventTap != nil { break }
+            }
         }
 
         guard let eventTap else {

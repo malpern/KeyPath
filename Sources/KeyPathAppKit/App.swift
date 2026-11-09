@@ -901,7 +901,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Set ANSI as default; deferred startup refines it from the I/O Registry
         UserDefaults.standard.set(LayoutPreferences.defaultLayoutId, forKey: key)
-        AppLogger.shared.info("⌨️ [AppDelegate] First launch - set default layout: \(LayoutPreferences.defaultLayoutId) (HID detection deferred)")
+        AppLogger.shared.info("⌨️ [AppDelegate] First launch - set default layout: \(LayoutPreferences.defaultLayoutId) (refined from the I/O Registry at startup)")
     }
 
     // MARK: - Private: Emergency Stop
