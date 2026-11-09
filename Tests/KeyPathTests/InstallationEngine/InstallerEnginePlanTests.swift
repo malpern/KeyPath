@@ -6,14 +6,15 @@ import KeyPathCore
 
 @MainActor
 final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
-    func testRuntimePostconditionAcceptsReadyRuntimeOrPendingApproval() {
+    func testRuntimePostconditionRequiresAReadyRuntime() {
         let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         let stopped = SystemContextBuilder.cleanInstall()
         let pendingApproval = SystemContextBuilder(loginItemsApprovalRequired: true).build()
 
         XCTAssertTrue(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: ready))
         XCTAssertFalse(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: stopped))
-        XCTAssertTrue(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: pendingApproval))
+        // Login Items approval belonged to the retired daemon; it no longer counts.
+        XCTAssertFalse(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: pendingApproval))
     }
 
     func testExecuteSkipsRecipesAfterFailure() async {

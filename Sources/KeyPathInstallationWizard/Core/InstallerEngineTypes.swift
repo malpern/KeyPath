@@ -224,6 +224,8 @@ public struct HealthCheckCriteria: Sendable, Equatable {
 
 /// Observable state that a recipe declares must hold after the complete plan runs.
 public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIterable {
+    /// The name predates the session runtime: Login Items approval belonged to the
+    /// retired daemon, so only a ready runtime satisfies this now.
     case runtimeReadyOrApprovalPending = "runtime-ready-or-approval-pending"
 
     public func isSatisfied(by context: SystemContext) -> Bool {
@@ -232,7 +234,6 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
         switch self {
         case .runtimeReadyOrApprovalPending:
             return context.services.kanataRuntimeReadiness.isReady
-                || context.services.loginItemsApprovalRequired == true
         }
     }
 }

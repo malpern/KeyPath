@@ -638,10 +638,7 @@ public final class InstallerEngine {
     private func sessionPostconditionSatisfied(
         _ postcondition: InstallerPostcondition, by context: SystemContext
     ) -> Bool {
-        switch postcondition {
-        case .runtimeReadyOrApprovalPending:
-            context.captureStatus.isComplete && context.services.kanataRuntimeReadiness.isReady
-        }
+        postcondition.isSatisfied(by: context)
     }
 
     /// Execute a session recipe; there is no system-service fallback.
