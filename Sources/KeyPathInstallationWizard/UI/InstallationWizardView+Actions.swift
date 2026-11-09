@@ -95,9 +95,6 @@ public extension InstallationWizardView {
 
         // Give VHID/launch-service operations more time
         let timeoutSeconds = switch action {
-        case .removeLegacyPrivilegedRuntime:
-            // Includes the administrator password dialog.
-            300.0
         case .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
              .installRequiredRuntimeServices:
             30.0

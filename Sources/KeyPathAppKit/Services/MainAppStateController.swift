@@ -121,7 +121,6 @@ class MainAppStateController {
     @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
     @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
     @ObservationIgnored private var lastKnownRecoveryRevision: UInt64?
-    @ObservationIgnored private var lastKnownLegacyDaemonRefused = false
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
@@ -284,12 +283,10 @@ class MainAppStateController {
 
     /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
     /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
-    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64, legacyDaemonRefused: Bool = false) -> Bool {
+    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64) -> Bool {
         let changed = lastKnownRuntimeHealthy != isHealthy || lastKnownRecoveryRevision != recoveryRevision
-            || lastKnownLegacyDaemonRefused != legacyDaemonRefused
         lastKnownRuntimeHealthy = isHealthy
         lastKnownRecoveryRevision = recoveryRevision
-        lastKnownLegacyDaemonRefused = legacyDaemonRefused
         return changed
     }
 
@@ -302,17 +299,12 @@ class MainAppStateController {
         // Poll runtime status for health transitions.
         serviceHealthTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
-                // Running and refused are both unhealthy, so health alone cannot
-                // show that a refusal appeared or cleared. Read before the status
-                // query, which clears a refusal once its daemon has stopped.
-                let legacyDaemonRefused = serviceLifecycle.sessionLegacyDaemonRefusal != nil
                 let runtimeStatus = await serviceLifecycle.currentRuntimeStatus()
                 let isHealthy = runtimeStatus.isRunning
                 let wasHealthy = lastKnownRuntimeHealthy
 
                 if runtimeValidationNeedsRefresh(isHealthy: isHealthy,
-                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision,
-                                                 legacyDaemonRefused: legacyDaemonRefused)
+                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision)
                 {
                     AppLogger.shared.log(
                         "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
@@ -467,17 +459,15 @@ class MainAppStateController {
         case missingSessionPermissions
         case invalidSessionConfiguration(String)
         case sessionRecoveryRefused(String)
-        case legacyDaemonRefused(String)
     }
 
     private enum SessionRefusal {
-        case configuration, recovery, legacyDaemon
+        case configuration, recovery
 
         var title: String {
             switch self {
             case .configuration: "Configuration cannot run in driverless mode"
             case .recovery: "Keyboard recovery requires attention"
-            case .legacyDaemon: "The KeyPath 1.0.1 keyboard service is still running"
             }
         }
 
@@ -485,13 +475,7 @@ class MainAppStateController {
             switch self {
             case .configuration: "Edit the configuration and retry. Existing rules were preserved."
             case .recovery: "The recovery record was preserved. Do not clear it to force a restart."
-            case .legacyDaemon: "Choose Remove Old Service in Settings → Status. KeyPath asks for your administrator password once, removes the old service, and starts again. Existing rules were preserved."
             }
-        }
-
-        /// Only the 1.0.1 daemon has a fix, and it runs only when the user asks.
-        var autoFixAction: AutoFixAction? {
-            self == .legacyDaemon ? .removeLegacyPrivilegedRuntime : nil
         }
     }
 
@@ -542,9 +526,6 @@ class MainAppStateController {
         case let .sessionRecoveryRefused(reason):
             publishSessionConfigurationRefusal(reason, kind: .recovery)
             return
-        case let .legacyDaemonRefused(reason):
-            publishSessionConfigurationRefusal(reason, kind: .legacyDaemon)
-            return
         case .transientTimeout:
             if shouldLogValidationFailureInDetail(site: .startupGate, signature: "transientTimeout") {
                 AppLogger.shared.warn(
@@ -591,10 +572,6 @@ class MainAppStateController {
         }
         if let refusal = serviceLifecycle?.configurationRefusalForStartup() {
             publishSessionConfigurationRefusal(refusal)
-            return
-        }
-        if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
-            publishSessionConfigurationRefusal(refusal, kind: .legacyDaemon)
             return
         }
         // Recovery can begin while a snapshot is suspended. Do not publish that
@@ -825,7 +802,7 @@ class MainAppStateController {
         // snapshot cannot make a proven unsupported configuration start running.
         issues = [WizardIssue(identifier: .component(.keyPathRuntime), severity: .error,
                               category: .systemRequirements, title: kind.title,
-                              description: reason, autoFixAction: kind.autoFixAction,
+                              description: reason, autoFixAction: nil,
                               userAction: kind.userAction)]
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil
@@ -855,9 +832,6 @@ class MainAppStateController {
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
             return .sessionRecoveryRefused(refusal)
         }
-        if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
-            return .legacyDaemonRefused(refusal)
-        }
         if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
         let timing = startupGateTiming()
         let start = startupGateNow()
@@ -868,9 +842,6 @@ class MainAppStateController {
         while startupGateNow() < transientDeadline {
             if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
                 return .sessionRecoveryRefused(refusal)
-            }
-            if let refusal = await serviceLifecycle?.legacyDaemonRefusalForStartup() {
-                return .legacyDaemonRefused(refusal)
             }
             if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
             if KanataRuntimeBackend.selected == .session {

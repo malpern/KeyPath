@@ -122,8 +122,6 @@ public extension InstallerEngine {
             "start-session-runtime"
         case .synchronizeConfigPaths:
             InstallerRecipeID.synchronizeConfigPaths
-        case .removeLegacyPrivilegedRuntime:
-            InstallerRecipeID.removeLegacyPrivilegedRuntime
         }
     }
 }

@@ -6,7 +6,6 @@ import Foundation
 public enum InstallerRecipeID {
     public static let installRequiredRuntimeServices = "install-required-runtime-services"
     public static let installCorrectVHIDDriver = "install-correct-vhid-driver"
-    public static let removeLegacyPrivilegedRuntime = "remove-legacy-privileged-runtime"
     public static let installLogRotation = "install-log-rotation"
     public static let installPrivilegedHelper = "install-privileged-helper"
     public static let reinstallPrivilegedHelper = "reinstall-privileged-helper"

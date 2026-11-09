@@ -643,8 +643,6 @@ public extension AutoFixAction {
             "Fix Karabiner Driver Version"
         case .installCorrectVHIDDriver:
             "Install Karabiner Driver"
-        case .removeLegacyPrivilegedRuntime:
-            "Remove Old KeyPath Service"
         }
     }
 }

@@ -1,5 +1,7 @@
 # Manual test: upgrade from public 1.0.1 to the session runtime
 
+**Obsolete:** [ADR-047](../adr/adr-047-pre-release-cleanup.md) withdrew 1.0.1 upgrade support, and the in-app removal this test covered was deleted. Kept for history.
+
 Issue [#1353](https://github.com/malpern/KeyPath/issues/1353), ADR-045 Upgrade Constraint.
 
 **Status: not yet run.** It needs a clean macOS VM from `vm-lab` on the mini.
