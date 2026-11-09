@@ -214,8 +214,8 @@ final class AutoDetectKeyboardControllerTests: KeyPathAsyncTestCase {
 
     private func postConnected(_ event: HIDDeviceMonitor.HIDKeyboardEvent) async throws {
         NotificationCenter.default.post(name: .hidKeyboardConnected, object: nil, userInfo: ["event": event])
-        for _ in 0 ..< 200 where controller.connectedKeyboards.isEmpty {
-            try await Task.sleep(for: .milliseconds(5))
+        for _ in 0 ..< 10000 where controller.connectedKeyboards.isEmpty {
+            await Task.yield()
         }
     }
 
