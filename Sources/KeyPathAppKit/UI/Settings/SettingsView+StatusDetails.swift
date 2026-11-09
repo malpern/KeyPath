@@ -317,7 +317,10 @@ extension StatusSettingsTabView {
             )
         }
 
-        if !snapshot.keyPath.inputMonitoring.isReady || !snapshot.kanata.inputMonitoring.isReady {
+        // Driverless KeyPath does not need its own Input Monitoring; only a runtime
+        // that cannot read keys points the user there.
+        let keyPathNeedsInputMonitoring = snapshot.backend != .session && !snapshot.keyPath.inputMonitoring.isReady
+        if keyPathNeedsInputMonitoring || !snapshot.kanata.inputMonitoring.isReady {
             actions.append(
                 StatusDetailAction(title: "Open Input Monitoring", icon: "lock.shield") {
                     SystemDiagnostics.open(.inputMonitoring)

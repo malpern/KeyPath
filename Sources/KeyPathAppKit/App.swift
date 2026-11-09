@@ -889,9 +889,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Private: Keyboard Layout Detection
 
     /// Sets a default keyboard layout on first launch.
-    /// Uses ANSI as the synchronous default. Actual HID-based detection is deferred
-    /// to `CompositionRoot.scheduleDeferredStartupServices()` where we can check
-    /// Input Monitoring permission first (IOHIDManagerOpen triggers a prompt without it).
+    /// Uses ANSI as the synchronous default. Registry-based detection, which needs no
+    /// permission, refines it in `CompositionRoot.scheduleDeferredStartupServices()`.
     private func setSmartKeyboardLayoutDefault() {
         let key = LayoutPreferences.layoutIdKey
 
@@ -900,9 +899,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Set ANSI as default; will be refined in deferred startup if Input Monitoring is granted
+        // Set ANSI as default; deferred startup refines it from the I/O Registry
         UserDefaults.standard.set(LayoutPreferences.defaultLayoutId, forKey: key)
-        AppLogger.shared.info("⌨️ [AppDelegate] First launch - set default layout: \(LayoutPreferences.defaultLayoutId) (HID detection deferred)")
+        AppLogger.shared.info("⌨️ [AppDelegate] First launch - set default layout: \(LayoutPreferences.defaultLayoutId) (refined from the I/O Registry at startup)")
     }
 
     // MARK: - Private: Emergency Stop

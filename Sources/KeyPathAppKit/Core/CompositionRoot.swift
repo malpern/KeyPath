@@ -143,30 +143,25 @@ enum CompositionRoot {
             await WindowManager.shared.initializeWithRetry()
             AppLogger.shared.info("🪟 [App] WindowManager initialization complete")
 
-            // HID device monitoring (connect/disconnect detection) uses IOHIDManager
-            // with kIOHIDOptionsTypeNone, which does NOT require Input Monitoring.
-            // Only seize-mode (reading key events) needs IM. Start unconditionally
-            // so keyboard plug-in detection always works.
-            let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
-            if snapshot.keyPath.inputMonitoring == .granted {
-                // Start HID device monitoring for auto-detect keyboard on plug-in
-                HIDDeviceMonitor.shared.startMonitoring()
-                AppLogger.shared.info("🔌 [App] HID device monitor started")
+            // Keyboard connect/disconnect detection reads the I/O Registry, which
+            // needs no privacy permission, so it always starts.
+            // Start HID device monitoring for auto-detect keyboard on plug-in
+            HIDDeviceMonitor.shared.startMonitoring()
+            AppLogger.shared.info("🔌 [App] HID device monitor started")
 
-                // Refine keyboard layout only on first launch (before user has made an explicit choice).
-                // We use a separate flag so we don't override a user who explicitly chose the ANSI default.
-                let layoutRefinedKey = "keypath.layoutRefinedAtStartup"
-                if !UserDefaults.standard.bool(forKey: layoutRefinedKey) {
-                    UserDefaults.standard.set(true, forKey: layoutRefinedKey)
-                    let layoutKey = LayoutPreferences.layoutIdKey
-                    let recommended = KeyboardTypeDetector.recommendedLayoutId()
-                    if recommended != LayoutPreferences.defaultLayoutId {
-                        UserDefaults.standard.set(recommended, forKey: layoutKey)
-                        AppLogger.shared.info("⌨️ [App] Refined keyboard layout to \(recommended) via HID detection")
-                    }
+            // Refine the keyboard layout once, and only while it is still the default.
+            // Before detection stopped needing Input Monitoring, this flag stayed unset
+            // for most users, so the stored layout may be one they chose themselves.
+            let layoutRefinedKey = "keypath.layoutRefinedAtStartup"
+            if !UserDefaults.standard.bool(forKey: layoutRefinedKey) {
+                UserDefaults.standard.set(true, forKey: layoutRefinedKey)
+                let layoutKey = LayoutPreferences.layoutIdKey
+                let stored = UserDefaults.standard.string(forKey: layoutKey)
+                let recommended = KeyboardTypeDetector.recommendedLayoutId()
+                if let refined = KeyboardTypeDetector.refinedLayoutId(stored: stored, recommended: recommended) {
+                    UserDefaults.standard.set(refined, forKey: layoutKey)
+                    AppLogger.shared.info("⌨️ [App] Refined keyboard layout to \(refined) from the I/O Registry")
                 }
-            } else {
-                AppLogger.shared.info("🔌 [App] HID device monitor skipped (Input Monitoring not yet granted)")
             }
         }
     }

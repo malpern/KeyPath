@@ -27,7 +27,7 @@ struct SessionActiveTapPermissionTests {
                     #expect(snapshot.isSystemReady == permissions.hasAllPermissions)
                     if accessibility == .granted, listening == .denied, posting == .granted {
                         #expect(snapshot
-                            .blockingIssue == "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
+                            .blockingIssue == "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name).")
                     }
                 }
             }

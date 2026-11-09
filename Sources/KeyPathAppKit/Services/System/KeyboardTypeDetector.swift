@@ -14,57 +14,28 @@ enum KeyboardTypeDetector {
         case unknown = "Unknown"
     }
 
-    /// Detects the current keyboard type from IOKit HID.
+    /// Detects the current keyboard type from the I/O Registry.
     /// Returns the keyboard type of the first keyboard found (typically the built-in one).
-    ///
-    /// - Warning: Calls `IOHIDManagerOpen` which triggers the Input Monitoring
-    ///   permission prompt if not already granted. Callers must check permissions
-    ///   before calling this method (e.g. via `PermissionOracle`).
+    /// Reads registry properties only, so it needs no privacy permission.
     static func detect() -> KeyboardType {
-        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted else { return .unknown }
-        // Create HID manager to find keyboard devices
-        let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-
-        // Match keyboard devices
-        let matching: [String: Any] = [
-            kIOHIDDeviceUsagePageKey as String: kHIDPage_GenericDesktop,
-            kIOHIDDeviceUsageKey as String: kHIDUsage_GD_Keyboard
-        ]
-
-        IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
-        IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
-
-        defer {
-            IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
-        }
-
-        // Get all matching devices
-        guard let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> else {
+        let keyboards = RegistryKeyboards.current()
+        guard !keyboards.isEmpty else {
             AppLogger.shared.log("⌨️ [KeyboardTypeDetector] No keyboard devices found")
             return .unknown
         }
 
-        // Look for Apple internal keyboard first (most reliable for laptop users)
-        // Then fall back to any keyboard with type info
+        // Prefer an Apple keyboard (most reliable for laptop users), then any keyboard with type info.
         var appleKeyboardType: KeyboardType?
         var anyKeyboardType: KeyboardType?
-
-        for device in devices {
-            // Get vendor ID to check if it's Apple
-            let vendorID = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
-            let isApple = vendorID == 0x05AC
-
-            // Get keyboard type property
-            if let typeValue = IOHIDDeviceGetProperty(device, "KeyboardType" as CFString) as? Int {
-                let type = keyboardTypeFromIOKit(typeValue)
-
-                if isApple, type != .unknown {
-                    appleKeyboardType = type
-                    break // Found Apple keyboard with valid type, use it
-                } else if type != .unknown {
-                    anyKeyboardType = type
-                }
+        for keyboard in keyboards {
+            guard let typeValue = keyboard.keyboardType else { continue }
+            let type = keyboardTypeFromIOKit(typeValue)
+            guard type != .unknown else { continue }
+            if keyboard.vendorID == 0x05AC || keyboard.productName.lowercased().contains("apple internal") {
+                appleKeyboardType = type
+                break
             }
+            anyKeyboardType = anyKeyboardType ?? type
         }
 
         let result = appleKeyboardType ?? anyKeyboardType ?? .unknown
@@ -90,6 +61,13 @@ enum KeyboardTypeDetector {
             // Type 0-3 are generic/unknown, others are less common
             type > 0 ? .ansi : .unknown // Default to ANSI for unknown positive types
         }
+    }
+
+    /// The layout to store after detection, or nil to leave the stored one alone.
+    /// Only a layout still at the default is replaced, so a user's choice survives.
+    static func refinedLayoutId(stored: String?, recommended: String) -> String? {
+        guard stored == nil || stored == LayoutPreferences.defaultLayoutId else { return nil }
+        return recommended == LayoutPreferences.defaultLayoutId ? nil : recommended
     }
 
     /// Returns the recommended PhysicalLayout ID for the detected keyboard type.

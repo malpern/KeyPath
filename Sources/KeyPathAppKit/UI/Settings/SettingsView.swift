@@ -241,18 +241,17 @@ struct StatusSettingsTabView: View {
                                     : "settings-status-action-button-keypath-accessibility"
                             )
 
-                            PermissionStatusRow(
-                                title: isDriverless ? "Input Monitoring" : "KeyPath Input Monitoring",
-                                icon: "keyboard",
-                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.inputMonitoring, permissionSnapshot?.kanata.inputMonitoring) : permissionSnapshot?
-                                    .keyPath.inputMonitoring,
-                                isKanata: false,
-                                onTap: { wizardInitialPage = .inputMonitoring }
-                            )
-
-                            // In driverless mode these match the two rows above; only the
-                            // legacy backend's separate runtime has its own permissions.
+                            // Driverless KeyPath needs only the permission above: it lets the
+                            // runtime read and post keys, so Input Monitoring is not required.
+                            // The runtime's own input access is reported by the remapping row.
                             if !isDriverless {
+                                PermissionStatusRow(
+                                    title: "KeyPath Input Monitoring",
+                                    icon: "keyboard",
+                                    status: permissionSnapshot?.keyPath.inputMonitoring,
+                                    isKanata: false,
+                                    onTap: { wizardInitialPage = .inputMonitoring }
+                                )
                                 runtimePermissionRows
                             }
 
@@ -422,9 +421,7 @@ struct StatusSettingsTabView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "keyboard")
                         .foregroundStyle(.tertiary)
-                    Text(permissionSnapshot?.keyPath.inputMonitoring.isReady == true
-                        ? "No keyboard detected"
-                        : "Keyboard discovery unavailable until Input Monitoring is enabled for KeyPath.")
+                    Text("No keyboard detected")
                         .font(.callout)
                         .foregroundColor(.secondary)
                 }

@@ -87,8 +87,7 @@ public class KeyboardCapture {
     }
 
     // Emergency stop sequence detection
-    @ObservationIgnored var emergencyEventTap: CFMachPort?
-    @ObservationIgnored var emergencyRunLoopSource: CFRunLoopSource?
+    @ObservationIgnored var emergencyObserver: ObservingEventTap?
     @ObservationIgnored var emergencyCallback: (() -> Void)?
     @ObservationIgnored var isMonitoringEmergency = false
     @ObservationIgnored var pressedKeys: Set<Int64> = []
@@ -342,46 +341,55 @@ public class KeyboardCapture {
             return
         }
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-        let tapOptions: CGEventTapOptions = suppressEvents ? .defaultTap : .listenOnly
+        let callback: CGEventTapCallBack = { tapProxy, type, event, refcon -> Unmanaged<CGEvent>? in
+            guard let refcon else { return Unmanaged.passRetained(event) }
 
-        eventTap = CGEvent.tapCreate(
-            tap: location,
-            place: .headInsertEventTap,
-            options: tapOptions,
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: { tapProxy, _, event, refcon -> Unmanaged<CGEvent>? in
-                guard let refcon else { return Unmanaged.passRetained(event) }
+            let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
+            // macOS disables a tap that is slow or interrupted; turn it back on.
+            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                if let tap = capture.eventTap { CGEvent.tapEnable(tap: tap, enable: true) }
+                return Unmanaged.passUnretained(event)
+            }
 
-                let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
-
-                // Process through event router if enabled
-                if capture.useEventRouter, let router = capture.eventRouter {
-                    let result = router.route(
-                        event: event,
-                        location: .cgSessionEventTap,
-                        proxy: tapProxy,
-                        scope: .keyboard
-                    )
-
-                    // Handle the routing result
-                    if let processedEvent = result.processedEvent {
-                        capture.handleKeyEvent(processedEvent, type: processedEvent.type)
-                    }
-                    // Allow event to pass in listen-only mode; suppress otherwise
-                    return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
-                } else {
-                    // Legacy behavior - process directly
-                    capture.handleKeyEvent(event, type: event.type)
-                    // Allow event to pass in listen-only mode; suppress otherwise
-                    return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
+            // Process through event router if enabled
+            if capture.useEventRouter, let router = capture.eventRouter {
+                let result = router.route(
+                    event: event,
+                    location: .cgSessionEventTap,
+                    proxy: tapProxy,
+                    scope: .keyboard
+                )
+                if let processedEvent = result.processedEvent {
+                    capture.handleKeyEvent(processedEvent, type: processedEvent.type)
                 }
-            },
-            userInfo: Unmanaged.passUnretained(self).toOpaque()
-        )
+            } else {
+                capture.handleKeyEvent(event, type: event.type)
+            }
+            // Pass the event on unless this capture suppresses it.
+            return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
+        }
+        let userInfo = Unmanaged.passUnretained(self).toOpaque()
+
+        if suppressEvents {
+            eventTap = CGEvent.tapCreate(
+                tap: location, place: .headInsertEventTap, options: .defaultTap,
+                eventsOfInterest: CGEventMask(eventMask), callback: callback, userInfo: userInfo
+            )
+        } else {
+            // Observing only. Recording is short-lived, so this tap stays on the
+            // main run loop; listen-only when allowed, so it cannot delay typing.
+            for options in ObservingEventTap.preferredOptions(listenAllowed: SystemStateProvider.shared.keyPathCanCreateListenOnlyTap()) {
+                eventTap = CGEvent.tapCreate(
+                    tap: location, place: .headInsertEventTap, options: options,
+                    eventsOfInterest: CGEventMask(eventMask), callback: callback, userInfo: userInfo
+                )
+                if eventTap != nil { break }
+            }
+        }
 
         guard let eventTap else {
             AppLogger.shared.error(
-                "❌ [KeyboardCapture] Failed to create event tap (options=\(tapOptions == .listenOnly ? "listenOnly" : "defaultTap"))"
+                "❌ [KeyboardCapture] Failed to create event tap (suppress=\(suppressEvents))"
             )
 
             // Cleanly end capture state so UI doesn't appear stuck

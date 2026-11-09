@@ -54,4 +54,9 @@ public extension SystemStateProvider {
     nonisolated func keyPathAccessibilityStatus() -> PermissionOracle.Status {
         PermissionOracle.shared.keyPathAccessibilityStatus()
     }
+
+    /// Whether a listen-only event tap is already permitted, without prompting.
+    nonisolated func keyPathCanCreateListenOnlyTap() -> Bool {
+        PermissionOracle.shared.keyPathCanCreateListenOnlyTap()
+    }
 }

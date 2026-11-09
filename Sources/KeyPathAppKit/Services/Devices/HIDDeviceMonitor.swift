@@ -4,7 +4,8 @@ import IOKit.hid
 import KeyPathCore
 import Observation
 
-/// Monitors USB HID keyboard connect/disconnect events via IOKit.
+/// Monitors keyboard connect/disconnect events via I/O Registry notifications.
+/// Needs no privacy permission: it reads registry properties and never opens a device.
 ///
 /// Publishes `connectedKeyboards` as keyboards are plugged in and removed.
 /// Filters out VirtualHID devices and devices with VID:PID 0:0 (BLE with no identity).
@@ -60,53 +61,19 @@ final class HIDDeviceMonitor {
     @ObservationIgnored
     private nonisolated(unsafe) var _monitorRunLoop: CFRunLoop?
 
-    private var trackedDeviceIDs: [UInt: HIDKeyboardEvent] = [:]
+    private var trackedDeviceIDs: [UInt64: HIDKeyboardEvent] = [:]
 
     static func currentKeyboardSnapshot() -> [HIDKeyboardEvent] {
-        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted else { return [] }
-        let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-        let matching: [String: Any] = [
-            kIOHIDDeviceUsagePageKey as String: kHIDPage_GenericDesktop,
-            kIOHIDDeviceUsageKey as String: kHIDUsage_GD_Keyboard,
-        ]
-
-        IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
-        IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
-        defer {
-            IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
-        }
-
-        guard let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> else {
-            return []
-        }
-
-        return devices.compactMap { device in
-            let vendorID = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
-            let productID = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
-            let productName = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "Unknown Keyboard"
-
-            let lowerName = productName.lowercased()
-            let isAppleInternalKeyboard = lowerName.contains("apple internal keyboard")
-
-            guard vendorID != 0 || productID != 0 || isAppleInternalKeyboard else { return nil }
-            guard !productName.contains("VirtualHID") else { return nil }
-
-            return HIDKeyboardEvent(
-                vendorID: vendorID,
-                productID: productID,
-                productName: productName,
-                isConnected: true
-            )
-        }
-        .sorted { lhs, rhs in
-            if lhs.vendorID != rhs.vendorID {
-                return lhs.vendorID < rhs.vendorID
+        RegistryKeyboards.current().compactMap { event(from: $0, isConnected: true) }
+            .sorted { lhs, rhs in
+                if lhs.vendorID != rhs.vendorID {
+                    return lhs.vendorID < rhs.vendorID
+                }
+                if lhs.productID != rhs.productID {
+                    return lhs.productID < rhs.productID
+                }
+                return lhs.productName < rhs.productName
             }
-            if lhs.productID != rhs.productID {
-                return lhs.productID < rhs.productID
-            }
-            return lhs.productName < rhs.productName
-        }
     }
 
     func startMonitoring() {
@@ -139,45 +106,57 @@ final class HIDDeviceMonitor {
 
     // MARK: - IOKit Setup (runs entirely on the dedicated IOKit thread)
 
+    /// Watches the I/O Registry for keyboards arriving and leaving. Reading a
+    /// registry entry needs no privacy permission, unlike opening the device
+    /// through IOHIDManager, which requires Input Monitoring.
     private nonisolated func setupHIDManager() {
-        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted else { return }
-        let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-
-        let matching: [String: Any] = [
-            kIOHIDDeviceUsagePageKey as String: kHIDPage_GenericDesktop,
-            kIOHIDDeviceUsageKey as String: kHIDUsage_GD_Keyboard,
-        ]
-        IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
-
-        // SAFETY: passUnretained is safe because HIDDeviceMonitor is a singleton
-        // (static let shared) — it is never deallocated during app lifetime.
+        guard let port = IONotificationPortCreate(kIOMainPortDefault) else { return }
         let context = Unmanaged.passUnretained(self).toOpaque()
+        var addedIterator: io_iterator_t = 0
+        var removedIterator: io_iterator_t = 0
 
-        IOHIDManagerRegisterDeviceMatchingCallback(manager, { context, _, _, device in
-            guard let context else { return }
-            let monitor = Unmanaged<HIDDeviceMonitor>.fromOpaque(context).takeUnretainedValue()
-            monitor.handleDeviceConnected(device)
-        }, context)
-
-        IOHIDManagerRegisterDeviceRemovalCallback(manager, { context, _, _, device in
-            guard let context else { return }
-            let monitor = Unmanaged<HIDDeviceMonitor>.fromOpaque(context).takeUnretainedValue()
-            monitor.handleDeviceRemoved(device)
-        }, context)
+        let addedResult = IOServiceAddMatchingNotification(
+            port, kIOFirstMatchNotification, RegistryKeyboards.hidDeviceMatching(),
+            { context, iterator in
+                guard let context else { return }
+                Unmanaged<HIDDeviceMonitor>.fromOpaque(context).takeUnretainedValue()
+                    .handleDevicesConnected(RegistryKeyboards.drain(iterator))
+            }, context, &addedIterator
+        )
+        let removedResult = IOServiceAddMatchingNotification(
+            port, kIOTerminatedNotification, RegistryKeyboards.hidDeviceMatching(),
+            { context, iterator in
+                guard let context else { return }
+                Unmanaged<HIDDeviceMonitor>.fromOpaque(context).takeUnretainedValue()
+                    .handleDevicesRemoved(RegistryKeyboards.drainIDs(iterator))
+            }, context, &removedIterator
+        )
+        guard addedResult == KERN_SUCCESS, removedResult == KERN_SUCCESS else {
+            AppLogger.shared.error("❌ [HIDDeviceMonitor] Registry notifications failed (added=\(addedResult), removed=\(removedResult))")
+            if addedIterator != 0 { IOObjectRelease(addedIterator) }
+            if removedIterator != 0 { IOObjectRelease(removedIterator) }
+            IONotificationPortDestroy(port)
+            return
+        }
+        // Arm both notifications and report the keyboards already present.
+        handleDevicesConnected(RegistryKeyboards.drain(addedIterator))
+        _ = RegistryKeyboards.drainIDs(removedIterator)
 
         let runLoop = CFRunLoopGetCurrent()!
         runLoopLock.lock()
         _monitorRunLoop = runLoop
         runLoopLock.unlock()
 
-        IOHIDManagerScheduleWithRunLoop(manager, runLoop, CFRunLoopMode.defaultMode.rawValue)
-        IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        let source = IONotificationPortGetRunLoopSource(port).takeUnretainedValue()
+        CFRunLoopAddSource(runLoop, source, .defaultMode)
 
         // Blocks until CFRunLoopStop is called from stopMonitoring.
-        // The local `manager` stays alive on the stack for the duration.
         CFRunLoopRun()
 
-        IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        CFRunLoopRemoveSource(runLoop, source, .defaultMode)
+        IOObjectRelease(addedIterator)
+        IOObjectRelease(removedIterator)
+        IONotificationPortDestroy(port)
         runLoopLock.lock()
         _monitorRunLoop = nil
         runLoopLock.unlock()
@@ -185,51 +164,51 @@ final class HIDDeviceMonitor {
 
     // MARK: - Device Callbacks (called on IOKit thread, hop to MainActor)
 
-    private nonisolated func handleDeviceConnected(_ device: IOHIDDevice) {
-        guard let event = extractEvent(from: device, isConnected: true) else { return }
-        let deviceID = UInt(bitPattern: ObjectIdentifier(device))
+    private nonisolated func handleDevicesConnected(_ entries: [RegistryKeyboards.Entry]) {
+        let events = entries.compactMap { entry in
+            Self.event(from: entry, isConnected: true).map { (entry.registryID, $0) }
+        }
+        guard !events.isEmpty else { return }
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            trackedDeviceIDs[deviceID] = event
-
-            if !connectedKeyboards.contains(where: { $0.id == event.id }) {
-                connectedKeyboards.append(event)
-                lastConnectedKeyboard = event
-                AppLogger.shared.log("🔌 [HIDDeviceMonitor] Keyboard connected: \(event.productName) (\(event.vidPidKey))")
-                NotificationCenter.default.post(name: .hidKeyboardConnected, object: nil, userInfo: ["event": event])
+            for (deviceID, event) in events {
+                trackedDeviceIDs[deviceID] = event
+                if !connectedKeyboards.contains(where: { $0.id == event.id }) {
+                    connectedKeyboards.append(event)
+                    lastConnectedKeyboard = event
+                    AppLogger.shared.log("🔌 [HIDDeviceMonitor] Keyboard connected: \(event.productName) (\(event.vidPidKey))")
+                    NotificationCenter.default.post(name: .hidKeyboardConnected, object: nil, userInfo: ["event": event])
+                }
             }
         }
     }
 
-    private nonisolated func handleDeviceRemoved(_ device: IOHIDDevice) {
-        let deviceID = UInt(bitPattern: ObjectIdentifier(device))
-
+    private nonisolated func handleDevicesRemoved(_ deviceIDs: [UInt64]) {
+        guard !deviceIDs.isEmpty else { return }
         Task { @MainActor [weak self] in
-            guard let self, let event = trackedDeviceIDs.removeValue(forKey: deviceID) else { return }
-            connectedKeyboards.removeAll { $0.id == event.id }
-            AppLogger.shared.log("🔌 [HIDDeviceMonitor] Keyboard disconnected: \(event.productName) (\(event.vidPidKey))")
-            NotificationCenter.default.post(name: .hidKeyboardDisconnected, object: nil, userInfo: ["event": event])
+            guard let self else { return }
+            for deviceID in deviceIDs {
+                guard let event = trackedDeviceIDs.removeValue(forKey: deviceID) else { continue }
+                // A keyboard can expose several HID interfaces with the same identity.
+                guard !trackedDeviceIDs.values.contains(where: { $0.id == event.id }) else { continue }
+                connectedKeyboards.removeAll { $0.id == event.id }
+                AppLogger.shared.log("🔌 [HIDDeviceMonitor] Keyboard disconnected: \(event.productName) (\(event.vidPidKey))")
+                NotificationCenter.default.post(name: .hidKeyboardDisconnected, object: nil, userInfo: ["event": event])
+            }
         }
     }
 
-    // MARK: - Device Info Extraction (called on IOKit thread, returns Sendable value)
+    // MARK: - Device Info Extraction
 
-    private nonisolated func extractEvent(from device: IOHIDDevice, isConnected: Bool) -> HIDKeyboardEvent? {
-        let vendorID = IOHIDDeviceGetProperty(device, kIOHIDVendorIDKey as CFString) as? Int ?? 0
-        let productID = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
-        let productName = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "Unknown Keyboard"
-
-        let lowerName = productName.lowercased()
-        let isAppleInternalKeyboard = lowerName.contains("apple internal keyboard")
-
-        guard vendorID != 0 || productID != 0 || isAppleInternalKeyboard else { return nil }
-        guard !productName.contains("VirtualHID") else { return nil }
-
+    nonisolated static func event(from entry: RegistryKeyboards.Entry, isConnected: Bool) -> HIDKeyboardEvent? {
+        let isAppleInternalKeyboard = entry.productName.lowercased().contains("apple internal keyboard")
+        guard entry.vendorID != 0 || entry.productID != 0 || isAppleInternalKeyboard else { return nil }
+        guard !entry.productName.contains("VirtualHID") else { return nil }
         return HIDKeyboardEvent(
-            vendorID: vendorID,
-            productID: productID,
-            productName: productName,
+            vendorID: entry.vendorID,
+            productID: entry.productID,
+            productName: entry.productName,
             isConnected: isConnected
         )
     }

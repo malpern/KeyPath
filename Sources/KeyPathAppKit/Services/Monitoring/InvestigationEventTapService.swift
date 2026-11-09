@@ -1,66 +1,42 @@
 @preconcurrency import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 
 @MainActor
 final class InvestigationEventTapService {
     static let shared = InvestigationEventTapService()
 
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
+    private var observer: ObservingEventTap?
     private var isStarted = false
-
-    deinit {
-        // Prevent use-after-free if deallocated while the tap is still scheduled
-        // on the run loop, since the callback captures an unretained reference to self.
-        // We inline the cleanup here because deinit is nonisolated and cannot call
-        // the @MainActor-isolated stop() method.
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        }
-        if let eventTap {
-            CFMachPortInvalidate(eventTap)
-        }
-    }
 
     func startIfNeeded() {
         guard !TestEnvironment.isRunningTests else { return }
         guard !isStarted else { return }
-        // Opening a tap without access can trigger TCC at launch. Only buttons request it.
-        guard CGPreflightListenEventAccess() else { return }
+        // Diagnostic only: runs when listen access already exists, as before, so it
+        // never prompts and is not switched on for everyone by the pass-through fallback.
+        guard SystemStateProvider.shared.keyPathCanCreateListenOnlyTap() else { return }
 
         let eventMask =
             (1 << CGEventType.keyDown.rawValue) |
             (1 << CGEventType.keyUp.rawValue) |
             (1 << CGEventType.flagsChanged.rawValue)
 
-        eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+        observer = ObservingEventTap.start(
             place: .tailAppendEventTap,
-            options: .listenOnly,
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
-                guard let refcon else {
-                    return Unmanaged.passUnretained(event)
-                }
-
-                let service = Unmanaged<InvestigationEventTapService>.fromOpaque(refcon).takeUnretainedValue()
-                service.handleEvent(event, type: type)
-                return Unmanaged.passUnretained(event)
-            },
-            userInfo: Unmanaged.passUnretained(self).toOpaque()
-        )
-
-        guard let eventTap else {
+            events: CGEventMask(eventMask),
+            threadName: "com.keypath.investigation-tap"
+        ) { [weak self] type, event in
+            guard let copy = event.copy() else { return }
+            let observedAt = Date() // on the tap thread, so a busy main thread cannot skew it
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.handleEvent(copy, type: type, observedAt: observedAt) }
+            }
+        }
+        guard observer != nil else {
             AppLogger.shared.error("❌ [InvestigationEventTap] Failed to create investigation event tap")
             return
         }
-
-        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-        if let runLoopSource {
-            CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-        }
-        CGEvent.tapEnable(tap: eventTap, enable: true)
         isStarted = true
 
         AppLogger.shared.debug("[INVESTIGATION] SystemKeyEvent tap_started location=cgSessionEventTap")
@@ -68,22 +44,14 @@ final class InvestigationEventTapService {
 
     func stop() {
         guard isStarted else { return }
-
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-            self.runLoopSource = nil
-        }
-
-        if let eventTap {
-            CFMachPortInvalidate(eventTap)
-            self.eventTap = nil
-        }
+        observer?.stop()
+        observer = nil
 
         isStarted = false
         AppLogger.shared.debug("[INVESTIGATION] SystemKeyEvent tap_stopped")
     }
 
-    private func handleEvent(_ event: CGEvent, type: CGEventType) {
+    private func handleEvent(_ event: CGEvent, type: CGEventType, observedAt: Date) {
         guard type == .keyDown || type == .keyUp || type == .flagsChanged else { return }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
@@ -94,7 +62,7 @@ final class InvestigationEventTapService {
             isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) == 1,
             flagsRawValue: event.flags.rawValue,
             sourcePID: sourcePID(from: event),
-            observedAt: Date()
+            observedAt: observedAt
         )
 
         Task.detached(priority: .utility) {

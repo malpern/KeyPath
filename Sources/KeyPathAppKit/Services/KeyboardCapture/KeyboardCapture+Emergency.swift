@@ -8,7 +8,6 @@ extension KeyboardCapture {
 
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
         guard !isMonitoringEmergency else { return }
-        guard CGPreflightListenEventAccess() else { return }
 
         // Avoid event taps in test/CI to prevent hangs
         if TestEnvironment.isRunningTests {
@@ -50,46 +49,34 @@ extension KeyboardCapture {
         isMonitoringEmergency = false
         pressedKeys.removeAll()
 
-        if let source = emergencyRunLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
-            emergencyRunLoopSource = nil
-        }
-
-        if let tap = emergencyEventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-            emergencyEventTap = nil
-        }
+        emergencyObserver?.stop()
+        emergencyObserver = nil
     }
 
     func setupEmergencyEventTap() {
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
 
-        emergencyEventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+        // The tap runs on its own thread so a busy main thread never delays typing;
+        // chord detection hops back to the main actor in event order.
+        emergencyObserver = ObservingEventTap.start(
             place: .headInsertEventTap,
-            options: .listenOnly, // ADR-006: Use listen-only for emergency monitoring
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
-                let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon!).takeUnretainedValue()
-                capture.handleEmergencyEvent(event: event, type: type)
-                return Unmanaged.passUnretained(event)
-            },
-            userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        )
-
-        guard let eventTap = emergencyEventTap else {
-            AppLogger.shared.error("❌ [KeyboardCapture] Failed to create emergency event tap")
-            return
+            events: CGEventMask(eventMask),
+            threadName: "com.keypath.emergency-stop-tap"
+        ) { [weak self] type, event in
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.handleEmergencyKey(keyCode: keyCode, type: type) }
+            }
         }
 
-        emergencyRunLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), emergencyRunLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: eventTap, enable: true)
+        if let emergencyObserver {
+            AppLogger.shared.log("🛑 [KeyboardCapture] Emergency stop tap active (passThrough=\(emergencyObserver.passThrough))")
+        } else {
+            AppLogger.shared.error("❌ [KeyboardCapture] Failed to create emergency event tap")
+        }
     }
 
-    func handleEmergencyEvent(event: CGEvent, type: CGEventType) {
-        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-
+    func handleEmergencyKey(keyCode: Int64, type: CGEventType) {
         // Key codes for the emergency sequence: Ctrl (59), Space (49), Esc (53)
         let leftControlKey: Int64 = 59
         let spaceKey: Int64 = 49
