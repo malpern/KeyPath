@@ -19,15 +19,7 @@ private actor SnapshotGate {
 }
 
 private func snapshot(runtimeReady: Bool) -> PermissionOracle.Snapshot {
-    let granted = PermissionOracle.PermissionSet(
-        accessibility: .granted, inputMonitoring: .granted,
-        source: "test", confidence: .high, timestamp: Date()
-    )
-    let runtime = runtimeReady ? granted : PermissionOracle.PermissionSet(
-        accessibility: .unknown, inputMonitoring: .unknown,
-        source: "session-process-not-verified", confidence: .low, timestamp: Date()
-    )
-    return PermissionOracle.Snapshot(keyPath: granted, kanata: runtime, timestamp: Date(), backend: .session)
+    .fixture(runtimeKeyAccess: runtimeReady ? .granted : .unknown)
 }
 
 /// Launch on the Air (2026-10-18 10:19): a snapshot sampled before the worker

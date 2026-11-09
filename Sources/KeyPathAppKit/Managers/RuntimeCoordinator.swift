@@ -752,16 +752,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         isServiceInstalled()
     }
 
-    func hasInputMonitoringPermission() async -> Bool {
-        await SystemStateProvider.shared.currentPermissionSnapshot().keyPath.inputMonitoring.isReady
-    }
-
     func hasAccessibilityPermission() async -> Bool {
-        await SystemStateProvider.shared.currentPermissionSnapshot().keyPath.accessibility.isReady
+        await SystemStateProvider.shared.currentPermissionSnapshot().accessibility.isReady
     }
 
     func hasAllRequiredPermissions() async -> Bool {
-        await SystemStateProvider.shared.currentPermissionSnapshot().keyPath.hasAllPermissions
+        await SystemStateProvider.shared.currentPermissionSnapshot().isSystemReady
     }
 
     func hasAllSystemRequirements() async -> Bool {
@@ -777,12 +773,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // backend has no driver or privileged daemon prerequisite.
         return (installed: snapshot.components.kanataBinaryInstalled,
                 permissions: snapshot.permissions.isSystemReady, driver: true, daemon: true)
-    }
-
-    public func openInputMonitoringSettings() {
-        if let url = URL(string: KeyPathConstants.URLs.inputMonitoringPrivacy) {
-            NSWorkspace.shared.open(url)
-        }
     }
 
     public func openAccessibilitySettings() {

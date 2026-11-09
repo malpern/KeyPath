@@ -5,12 +5,12 @@ import KeyPathWizardCore
 
 @MainActor
 final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
-    func testKanataPermissionWarningAppearsAsWarning() {
+    func testRuntimePermissionWarningAppearsAsWarning() {
         let warningIssue = WizardIssue(
-            identifier: .permission(.kanataInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .warning,
             category: .permissions,
-            title: "Kanata Input Monitoring Permission",
+            title: "Keyboard access not verified",
             description: "Permission not verified.",
             autoFixAction: nil,
             userAction: "Check the matching System Settings privacy pane."
@@ -31,12 +31,13 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         let items = overview.statusItems
         XCTAssertFalse(items.contains { $0.id == "full-disk-access" || $0.title == "Enhanced Diagnostics" })
         XCTAssertFalse(WizardPage.allCases.contains { $0.rawValue == "Full Disk Access" })
-        let input = items.first(where: { $0.id == "input-monitoring" })
-        XCTAssertNotNil(input, "Expected an Input Monitoring status row")
-        XCTAssertEqual(input?.status, .warning, "Kanata permission warning should surface as a warning, not completed")
+        XCTAssertFalse(items.contains { $0.id == "input-monitoring" })
+        let accessibility = items.first(where: { $0.id == "accessibility" })
+        XCTAssertNotNil(accessibility, "Expected the permission status row")
+        XCTAssertEqual(accessibility?.status, .warning, "A runtime permission warning should surface as a warning, not completed")
         XCTAssertTrue(
-            (input?.relatedIssues.contains { $0.identifier == .permission(.kanataInputMonitoring) } ?? false),
-            "Input Monitoring row should include the underlying warning issue"
+            (accessibility?.relatedIssues.contains { $0.identifier == .permission(.runtimeKeyAccess) } ?? false),
+            "The permission row should include the underlying warning issue"
         )
     }
 
@@ -50,10 +51,8 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
             navSequence: .constant([]),
             visibleIssueCount: .constant(0)
         )
-        let permissionItems = overview.statusItems.filter {
-            $0.id == "input-monitoring" || $0.id == "accessibility"
-        }
-        XCTAssertEqual(permissionItems.count, 2)
+        let permissionItems = overview.statusItems.filter { $0.id == "accessibility" }
+        XCTAssertEqual(permissionItems.count, 1)
         XCTAssertTrue(permissionItems.allSatisfy { $0.status == .notStarted })
     }
 }

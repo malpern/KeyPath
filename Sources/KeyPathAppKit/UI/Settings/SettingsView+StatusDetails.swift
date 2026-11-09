@@ -296,18 +296,7 @@ extension StatusSettingsTabView {
             )
         }
 
-        // Driverless KeyPath does not need its own Input Monitoring; only a runtime
-        // that cannot read keys points the user there.
-        let keyPathNeedsInputMonitoring = snapshot.backend != .session && !snapshot.keyPath.inputMonitoring.isReady
-        if keyPathNeedsInputMonitoring || !snapshot.kanata.inputMonitoring.isReady {
-            actions.append(
-                StatusDetailAction(title: "Open Input Monitoring", icon: "lock.shield") {
-                    SystemDiagnostics.open(.inputMonitoring)
-                }
-            )
-        }
-
-        if !snapshot.keyPath.accessibility.isReady || !snapshot.kanata.accessibility.isReady {
+        if !snapshot.accessibility.isReady {
             actions.append(
                 StatusDetailAction(
                     title: AccessibilityPermissionPresentation.current.openButtonTitle,
@@ -391,12 +380,9 @@ extension StatusSettingsTabView {
             }
         }
 
-        append(status: snapshot.keyPath.accessibility, label: "KeyPath \(AccessibilityPermissionPresentation.current.name)")
-        // Use the runtime's independent capture evidence for this gap summary.
-        // The session worker uses KeyPath's consent; it is not another app to grant.
-        let runtimeName = snapshot.backend == .session ? "KeyPath Runtime" : "Kanata"
-        append(status: snapshot.kanata.accessibility, label: "\(runtimeName) \(AccessibilityPermissionPresentation.current.name)")
-        append(status: snapshot.kanata.inputMonitoring, label: "\(runtimeName) Input Monitoring")
+        append(status: snapshot.accessibility, label: "KeyPath \(AccessibilityPermissionPresentation.current.name)")
+        // The runtime's own report: it uses KeyPath's grant, so a gap here means it needs relaunching.
+        append(status: snapshot.runtimeKeyAccess.status, label: "Runtime key access")
 
         return (missingOrDenied, unknown, hasErrors)
     }

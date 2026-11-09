@@ -50,9 +50,11 @@ final class GlobalHotkeyService {
 
     init(
         notificationCenter: NotificationCenter = .default,
+        // A global keyDown monitor is a listen-only tap, so it runs only when macOS
+        // already allows one; KeyPath never prompts for that separate access.
         permissionsReady: @escaping () -> Bool = {
-            let permissions = SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
-            return permissions.accessibility.isReady && permissions.inputMonitoring.isReady
+            SystemStateProvider.shared.keyPathAccessibilityStatus().isReady
+                && SystemStateProvider.shared.keyPathCanCreateListenOnlyTap()
         },
         addGlobalMonitor: @escaping (@escaping (NSEvent) -> Void) -> Any? = {
             NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: $0)

@@ -17,9 +17,7 @@ final class CLIReportModelsTests: XCTestCase {
         let status = CLIStatusResult(
             isOperational: true,
             keyPathAccessibility: true,
-            keyPathInputMonitoring: true,
-            kanataAccessibility: true,
-            kanataInputMonitoring: true,
+            runtimeKeyAccess: true,
             kanataBinaryInstalled: true,
             karabinerDriverInstalled: true,
             vhidDeviceHealthy: true,
@@ -36,8 +34,7 @@ final class CLIReportModelsTests: XCTestCase {
         let keys = try jsonKeys(status)
         let required: Set = [
             "isOperational",
-            "keyPathAccessibility", "keyPathInputMonitoring",
-            "kanataAccessibility", "kanataInputMonitoring",
+            "keyPathAccessibility", "runtimeKeyAccess",
             "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
             "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
             "kanataServiceFreshness", "kanataExpectedIdentity",

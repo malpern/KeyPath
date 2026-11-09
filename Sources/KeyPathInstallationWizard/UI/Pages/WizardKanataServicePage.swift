@@ -670,7 +670,7 @@ public struct WizardKanataServicePage: View {
     private nonisolated static func extractErrorMessage(from logLine: String) -> String {
         // Extract meaningful error message from log line
         if logLine.contains("Permission denied") {
-            "Permission denied - check Input Monitoring settings"
+            "Permission denied - check \(AccessibilityPermissionPresentation.current.name) for KeyPath"
         } else if logLine.contains("Config error") {
             "Configuration error - check your keypath.kbd file"
         } else if logLine.contains("Device not found") {

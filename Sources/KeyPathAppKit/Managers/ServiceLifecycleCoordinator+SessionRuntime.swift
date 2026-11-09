@@ -22,13 +22,13 @@ extension ServiceLifecycleCoordinator {
         return generation == sessionNonce
     }
 
-    func sessionCapabilities() async -> PermissionOracle.PermissionSet? {
-        if let report = currentSessionReport() { return Self.permissionSet(report) }
+    func sessionRuntimeKeyAccess() async -> PermissionOracle.RuntimeKeyAccess? {
+        if let report = currentSessionReport() { return Self.runtimeKeyAccess(report) }
         guard !startsSuppressed else { return nil }
         // Capability checks launch a separate copy of the app too. Serialize
         // them with stop so uninstall waits for existing probes before trashing
         // the bundle, and queued checks cannot launch during shutdown.
-        let probedPermissions: PermissionOracle.PermissionSet?
+        let probedPermissions: PermissionOracle.RuntimeKeyAccess?
         do {
             probedPermissions = try await sessionOperationGate.withOperation { [self] _ in
                 await probeSessionCapabilities()
@@ -39,11 +39,11 @@ extension ServiceLifecycleCoordinator {
         // An owned runtime may finish starting while the independent probe is
         // suspended. Revalidate ownership/freshness before publishing the older
         // probe result (including a missing result) to the permission cache.
-        if let report = currentSessionReport() { return Self.permissionSet(report) }
+        if let report = currentSessionReport() { return Self.runtimeKeyAccess(report) }
         return probedPermissions
     }
 
-    private func probeSessionCapabilities() async -> PermissionOracle.PermissionSet? {
+    private func probeSessionCapabilities() async -> PermissionOracle.RuntimeKeyAccess? {
         guard !startsSuppressed, !Task.isCancelled else { return nil }
         #if DEBUG
             if let probe = testSessionCapabilityProbe { return await probe() }
@@ -67,7 +67,7 @@ extension ServiceLifecycleCoordinator {
                     if probePID > 0, !application.isTerminated { kill(probePID, SIGTERM) }
                 }
             )
-            if let report { return Self.permissionSet(report) }
+            if let report { return Self.runtimeKeyAccess(report) }
         } catch {
             AppLogger.shared.warn("Session permission report unavailable")
         }
@@ -1055,11 +1055,10 @@ extension ServiceLifecycleCoordinator {
         return try? JSONDecoder().decode(SessionRuntimeReport.self, from: data)
     }
 
-    private static func permissionSet(_ report: SessionRuntimeReport) -> PermissionOracle.PermissionSet {
+    private static func runtimeKeyAccess(_ report: SessionRuntimeReport) -> PermissionOracle.RuntimeKeyAccess {
         .init(
-            accessibility: report.accessibility ? .granted : .denied,
-            inputMonitoring: report.effectiveInputAccess ? .granted : .denied,
-            source: report.inputAccessSource ?? "session-process.apple-api.legacy-listen-event", confidence: .high, timestamp: report.timestamp
+            runtimeAccessibility: report.accessibility, keyAccess: report.effectiveInputAccess,
+            source: report.inputAccessSource ?? "session-process.apple-api", timestamp: report.timestamp
         )
     }
 }

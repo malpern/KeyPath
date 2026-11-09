@@ -10,19 +10,7 @@ import KeyPathWizardCore
 final class WizardStateRegressionTests: XCTestCase {
     func testDoubleAdaptKeepsActiveStateWhenKanataRunning() {
         // Build a healthy SystemContext (Kanata running, no blocking issues)
-        let ready = PermissionOracle.Status.granted
-        let set = PermissionOracle.PermissionSet(
-            accessibility: ready,
-            inputMonitoring: ready,
-            source: "test",
-            confidence: .high,
-            timestamp: Date()
-        )
-        let perms = PermissionOracle.Snapshot(
-            keyPath: set,
-            kanata: set,
-            timestamp: Date(), backend: .driverKit
-        )
+        let perms = PermissionOracle.Snapshot.fixture()
 
         let health = HealthStatus(backend: .driverKit,
                                   kanataRunning: true,
@@ -60,12 +48,8 @@ final class WizardStateRegressionTests: XCTestCase {
 
     func testRunningSessionWithoutInputCaptureRoutesToRuntimeRepair() {
         let now = Date()
-        let capabilities = PermissionOracle.PermissionSet(
-            accessibility: .granted, inputMonitoring: .granted,
-            source: "independent-session", confidence: .high, timestamp: now
-        )
         let context = SystemContext(
-            permissions: .init(keyPath: capabilities, kanata: capabilities, timestamp: now, backend: .session),
+            permissions: .fixture(source: "independent-session", timestamp: now),
             services: HealthStatus(
                 backend: .session, kanataProcessRunning: true, kanataTCPResponding: true,
                 kanataRunning: true, karabinerDaemonRunning: false, vhidHealthy: false,

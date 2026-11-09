@@ -387,9 +387,9 @@ final class ErrorHandlingTests: KeyPathTestCase {
 
     func testPermissionErrorHandling() async {
         // Test permission-related error scenarios
-        let hasInputPermission = await manager.hasInputMonitoringPermission()
+        let hasPermissions = await manager.hasAllRequiredPermissions()
         XCTAssertTrue(
-            hasInputPermission == true || hasInputPermission == false,
+            hasPermissions == true || hasPermissions == false,
             "Permission check should return boolean"
         )
 

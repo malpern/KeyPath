@@ -2,35 +2,24 @@ import Foundation
 import KeyPathCore
 import KeyPathPermissions
 
-enum PGPermissionType: Hashable {
-    case inputMonitoring
-    case accessibility
-}
-
 enum PermissionGatedFeature {
     case keyboardRemapping
     case emergencyStop
     case keyCapture
     case configurationReload
 
-    /// KeyPath's own grant is distinct from the remapping engine's capability.
+    /// Whether the feature needs KeyPath's own Accessibility grant.
     /// Reloading a config uses TCP and does not capture or post keyboard events.
-    var requiredKeyPathPermissions: Set<PGPermissionType> {
+    var requiresAccessibility: Bool {
         switch self {
-        case .keyboardRemapping, .emergencyStop, .keyCapture:
-            [.accessibility]
-        case .configurationReload:
-            []
+        case .keyboardRemapping, .emergencyStop, .keyCapture: true
+        case .configurationReload: false
         }
     }
 
-    var requiredKanataPermissions: Set<PGPermissionType> {
-        switch self {
-        case .keyboardRemapping:
-            [.accessibility, .inputMonitoring]
-        case .emergencyStop, .keyCapture, .configurationReload:
-            []
-        }
+    /// Whether the feature needs the session runtime to report key access.
+    var requiresRuntimeKeyAccess: Bool {
+        self == .keyboardRemapping
     }
 
     var contextualExplanation: String {
@@ -55,46 +44,37 @@ final class PermissionGate {
     private let permissionService = PermissionRequestService.shared
 
     struct Evaluation: Equatable {
-        let missingKeyPath: Set<PGPermissionType>
-        let kanataBlocking: Set<PGPermissionType>
-        let kanataNotVerified: Set<PGPermissionType>
+        /// KeyPath's own Accessibility grant is missing.
+        let accessibilityMissing: Bool
+        /// The runtime reported it cannot read or post keys.
+        let runtimeBlocked: Bool
+        /// No runtime has reported key access yet.
+        let runtimeNotVerified: Bool
 
         var canProceed: Bool {
-            missingKeyPath.isEmpty && kanataBlocking.isEmpty && kanataNotVerified.isEmpty
+            !accessibilityMissing && !runtimeBlocked && !runtimeNotVerified
         }
     }
 
     /// Pure evaluator so unit tests can cover semantics:
-    /// - Kanata `.unknown` is "not verified" (often no FDA) and should not be treated as "required/denied".
+    /// unreported runtime key access is "not verified", never "denied".
     static func evaluate(_ snapshot: PermissionOracle.Snapshot, for feature: PermissionGatedFeature)
         -> Evaluation
     {
-        var missingKeyPath: Set<PGPermissionType> = []
-        var kanataBlocking: Set<PGPermissionType> = []
-        var kanataNotVerified: Set<PGPermissionType> = []
-
-        for perm in feature.requiredKeyPathPermissions {
-            let status = perm == .accessibility
-                ? snapshot.keyPath.accessibility : snapshot.keyPath.inputMonitoring
-            if !status.isReady { missingKeyPath.insert(perm) }
-        }
-        for perm in feature.requiredKanataPermissions {
-            let status = perm == .accessibility
-                ? snapshot.kanata.accessibility : snapshot.kanata.inputMonitoring
-            switch status {
-            case .unknown:
-                kanataNotVerified.insert(perm)
-            case .denied, .error:
-                kanataBlocking.insert(perm)
-            case .granted:
-                break
+        let accessibilityMissing = feature.requiresAccessibility && !snapshot.accessibility.isReady
+        var runtimeBlocked = false
+        var runtimeNotVerified = false
+        if feature.requiresRuntimeKeyAccess {
+            switch snapshot.runtimeKeyAccess.status {
+            case .unknown: runtimeNotVerified = true
+            case .denied, .error: runtimeBlocked = true
+            case .granted: break
             }
         }
-
         return Evaluation(
-            missingKeyPath: missingKeyPath,
-            kanataBlocking: kanataBlocking,
-            kanataNotVerified: kanataNotVerified
+            accessibilityMissing: accessibilityMissing,
+            runtimeBlocked: runtimeBlocked,
+            runtimeNotVerified: runtimeNotVerified
         )
     }
 
@@ -103,28 +83,21 @@ final class PermissionGate {
         onGranted: @escaping () async -> Void,
         onDenied: @escaping () -> Void
     ) async {
-        // TCP-only operations need no TCC inspection or keyboard consent.
-        if feature.requiredKeyPathPermissions.isEmpty, feature.requiredKanataPermissions.isEmpty {
+        // TCP-only operations need no keyboard consent.
+        if !feature.requiresAccessibility, !feature.requiresRuntimeKeyAccess {
             await onGranted()
             return
         }
         let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
         let eval = Self.evaluate(snapshot, for: feature)
 
-        // If Kanata permissions are not verifiable (unknown), do NOT label them "required".
-        // Surface this as "not verified" and send the user to the setup verification flow.
-        if eval.missingKeyPath.isEmpty, !eval.kanataBlocking.isEmpty {
-            let perms = Array(eval.kanataBlocking).map { $0 == .inputMonitoring ? "Input Monitoring" : AccessibilityPermissionPresentation.current.name }
-                .joined(separator: ", ")
+        if !eval.accessibilityMissing, eval.runtimeBlocked {
             let approved = await PermissionRequestDialog.show(
-                title: snapshot.backend == .session
-                    ? "KeyPath Runtime Permission Required" : "Kanata Permission Required",
-                explanation:
-                snapshot.backend == .session
-                    ? "The KeyPath keyboard runtime is missing required access (\(perms)). Open setup to enable these permissions for KeyPath."
-                    : "Kanata is missing required permissions (\(perms)). Open the Installation Wizard to grant permissions.",
-                permissions: [],
-                approveButtonTitle: "Open Wizard",
+                title: "KeyPath Needs a Restart",
+                explanation: PermissionOracle.Snapshot.sessionBlockingGuidance(
+                    accessibilityBlocking: false, presentation: .current
+                ),
+                approveButtonTitle: "Open Setup",
                 cancelButtonTitle: "Not Now"
             )
             if approved {
@@ -134,19 +107,12 @@ final class PermissionGate {
             return
         }
 
-        if eval.missingKeyPath.isEmpty, !eval.kanataNotVerified.isEmpty {
-            let perms = Array(eval.kanataNotVerified).map { $0 == .inputMonitoring ? "Input Monitoring" : AccessibilityPermissionPresentation.current.name }
-                .joined(separator: ", ")
+        // Unreported runtime access is not a denial; send the user to setup to check it.
+        if !eval.accessibilityMissing, eval.runtimeNotVerified {
             let approved = await PermissionRequestDialog.show(
-                title: snapshot.backend == .session
-                    ? "KeyPath Runtime Permission Not Verified" : "Kanata Permission Not Verified",
-                explanation:
-                snapshot.backend == .session
-                    ? "The independently launched KeyPath keyboard runtime has not reported its access yet. Retry setup to check its current permissions."
-                    :
-                    "KeyPath has not verified the keyboard runtime’s permissions (\(perms)). Open the Installation Wizard to check current access.",
-                permissions: [],
-                approveButtonTitle: "Open Wizard",
+                title: "Keyboard Access Not Verified",
+                explanation: "The KeyPath keyboard runtime has not reported its access yet. Open setup to check it.",
+                approveButtonTitle: "Open Setup",
                 cancelButtonTitle: "Not Now"
             )
             if approved {
@@ -156,7 +122,7 @@ final class PermissionGate {
             return
         }
 
-        if eval.missingKeyPath.isEmpty {
+        if !eval.accessibilityMissing {
             await onGranted()
             return
         }
@@ -165,7 +131,6 @@ final class PermissionGate {
         let approved = await PermissionRequestDialog.show(
             title: "Permission Required",
             explanation: feature.contextualExplanation,
-            permissions: eval.missingKeyPath,
             approveButtonTitle: "Allow",
             cancelButtonTitle: "Cancel"
         )
@@ -174,26 +139,18 @@ final class PermissionGate {
             return
         }
 
-        // Request automatically for KeyPath.app (Kanata must still be toggled by user if needed)
+        // Ask macOS for KeyPath.app's Accessibility grant.
         permissionService.enterWizardContext()
         defer { permissionService.leaveWizardContext() }
-        for perm in eval.missingKeyPath {
-            switch perm {
-            case .inputMonitoring:
-                _ = await permissionService.requestInputMonitoringPermission()
-            case .accessibility:
-                _ = await permissionService.requestAccessibilityPermission()
-            }
-            try? await Task.sleep(for: .milliseconds(400))
-        }
+        _ = await permissionService.requestAccessibilityPermission()
 
         // Poll until granted or timeout
         for _ in 0 ..< 30 {
             try? await Task.sleep(for: .seconds(1))
             let snap = await SystemStateProvider.shared.currentPermissionSnapshot()
             let refreshed = Self.evaluate(snap, for: feature)
-            if refreshed.missingKeyPath.isEmpty {
-                // An app grant must not bypass a missing/unverified engine grant.
+            if !refreshed.accessibilityMissing {
+                // An app grant must not bypass missing or unverified runtime key access.
                 if refreshed.canProceed {
                     await onGranted()
                 } else {

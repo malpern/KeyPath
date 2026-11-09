@@ -62,7 +62,7 @@ keypath setup --no-open           # Just report what's needed; don't open System
 keypath uninstall                 # Show what uninstalling would do (add --yes to do it)
 ```
 
-macOS only lets a person turn on Accessibility and Input Monitoring. When one is off, `keypath setup` opens that pane in System Settings and waits up to five minutes (`--wait`) for you to switch KeyPath on, then finishes. `keypath repair` is the same command.
+macOS only lets a person turn on Device Control and Data Access (Accessibility before macOS 27). When it is off, `keypath setup` opens that pane in System Settings and waits up to five minutes (`--wait`) for you to switch KeyPath on, then finishes. `keypath repair` is the same command.
 
 | Exit code | `doctor` and `setup` |
 |-----------|----------------------|

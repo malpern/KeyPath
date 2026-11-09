@@ -1,7 +1,8 @@
 import Foundation
 @preconcurrency import XCTest
 
-/// The session-only bundle has no launcher that users can grant permission to.
+/// The session-only bundle has no launcher that users can grant permission to,
+/// and KeyPath asks for exactly one permission.
 final class SessionPermissionUIContractTests: XCTestCase {
     private func source(_ path: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath)
@@ -10,34 +11,31 @@ final class SessionPermissionUIContractTests: XCTestCase {
         return try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
     }
 
-    func testPermissionPagesOnlyOfferKeyPathGrantSubject() throws {
-        for page in ["WizardAccessibilityPage", "WizardInputMonitoringPage"] {
-            let text = try source("Sources/KeyPathInstallationWizard/UI/Pages/\(page).swift")
-            XCTAssertFalse(text.contains("kanata-launcher"))
-            XCTAssertFalse(text.contains("setServiceBounceNeeded"))
-            XCTAssertFalse(text.contains("Full Disk Access"))
-            let grantActions = text.components(separatedBy: "\n")
-                .filter { $0.contains("DragToAuthorizeController.shared.present") }
-            XCTAssertFalse(grantActions.isEmpty)
-            XCTAssertTrue(grantActions.allSatisfy { $0.contains("subject: .keyPath") })
-        }
+    func testPermissionPageOnlyOffersKeyPathGrantSubject() throws {
+        let text = try source("Sources/KeyPathInstallationWizard/UI/Pages/WizardAccessibilityPage.swift")
+        XCTAssertFalse(text.contains("kanata-launcher"))
+        XCTAssertFalse(text.contains("setServiceBounceNeeded"))
+        XCTAssertFalse(text.contains("Full Disk Access"))
+        XCTAssertFalse(text.contains("inputMonitoring"))
+        let grantActions = text.components(separatedBy: "\n")
+            .filter { $0.contains("DragToAuthorizeController.shared.present") }
+        XCTAssertFalse(grantActions.isEmpty)
+        XCTAssertTrue(grantActions.allSatisfy { $0.contains("subject: .keyPath") })
     }
 
-    func testEffectiveInputAccessAndMissingWorkerEvidenceRemainDistinct() throws {
-        let text = try source("Sources/KeyPathInstallationWizard/UI/Pages/WizardInputMonitoringPage.swift")
-        XCTAssertTrue(text.contains("snapshot.keyPath.inputMonitoring.isReady ? .granted : snapshot.kanata.inputMonitoring"))
-        XCTAssertTrue(text.contains("snapshot.kanata.inputMonitoring"))
-        XCTAssertTrue(text.contains("if case .unknown = snapshot.kanata.inputMonitoring"))
-        XCTAssertTrue(text.contains("if sessionInputNeedsVerification {\n            verifySessionInputAccess()\n            return"))
-        XCTAssertTrue(text.contains("switch keyPathGuidance"))
-        XCTAssertTrue(text.contains("startKanata(reason: \"Wizard verifying session input access\")"))
+    func testInputMonitoringPageIsGone() {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let page = root.appendingPathComponent("Sources/KeyPathInstallationWizard/UI/Pages/WizardInputMonitoringPage.swift")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: page.path))
     }
 
     func testFinderPermissionHelperDoesNotRevealOrModifyRemovedLauncher() throws {
         let text = try source("Sources/KeyPathInstallationWizard/UI/Helpers/WizardPermissionFinderHelper.swift")
         XCTAssertTrue(text.contains("Bundle.main.bundleURL"))
         XCTAssertTrue(text.contains("Bundle.main.bundlePath"))
-        for forbidden in ["bundledKanataLauncherPath", "chflags", "setIcon", "SubprocessRunner", "kanata-launcher"] {
+        for forbidden in ["bundledKanataLauncherPath", "chflags", "setIcon", "SubprocessRunner", "kanata-launcher", "ListenEvent"] {
             XCTAssertFalse(text.contains(forbidden), "Unexpected permission helper operation: \(forbidden)")
         }
     }

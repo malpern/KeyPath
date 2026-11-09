@@ -87,7 +87,7 @@ final class WizardRulesHandoffTests: XCTestCase {
             dismissHandler: {}
         )
         let issue = WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring), severity: .warning,
+            identifier: .permission(.runtimeKeyAccess), severity: .warning,
             category: .permissions, title: "Not verified", description: "",
             autoFixAction: nil, userAction: ""
         )

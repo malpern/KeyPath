@@ -106,7 +106,7 @@ final class ServiceLifecycleCoordinator {
         nonisolated(unsafe) static var testSessionStart: (@MainActor (String) async -> Bool)?
         nonisolated(unsafe) static var testSessionStop: (@MainActor () async -> Bool)?
         var testSessionCurrentReport: (() -> SessionRuntimeReport?)?
-        var testSessionCapabilityProbe: (() async -> PermissionOracle.PermissionSet?)?
+        var testSessionCapabilityProbe: (() async -> PermissionOracle.RuntimeKeyAccess?)?
         var testSessionConfigurationValidation: (() -> KanataHostBridgeValidationResult)?
         var testSessionRequestObserved: ((UInt64) -> Void)?
         var testSessionRunningReadiness: (@MainActor () async -> Bool)?
@@ -204,8 +204,8 @@ final class ServiceLifecycleCoordinator {
             return KanataRuntimeReadiness(isRunning: running, isResponding: responding, inputCaptureReady: running)
         }
         Task { [weak self] in
-            await SystemStateProvider.shared.configureSessionPermissionCapabilityProvider { [weak self] in
-                await self?.sessionCapabilities()
+            await SystemStateProvider.shared.configureRuntimeKeyAccessProvider { [weak self] in
+                await self?.sessionRuntimeKeyAccess()
             }
         }
     }

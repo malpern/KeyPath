@@ -2,66 +2,24 @@
 import KeyPathPermissions
 @preconcurrency import XCTest
 
-/// Covers the pure target×subject → grant mapping used by the drag-to-authorize
-/// overlay (#933). The overlay must poll the correct app's correct permission:
-/// `.keyPath` reads `snapshot.keyPath` and `.kanata` reads `snapshot.kanata`.
+/// Covers the pure grant decision used by the drag-to-authorize overlay (#933).
+/// KeyPath.app is the only permission identity, so the overlay polls KeyPath's
+/// own Accessibility grant and ignores the runtime's report.
 final class DragToAuthorizeGrantResolverTests: XCTestCase {
-    private typealias Target = DragToAuthorizeController.PermissionTarget
-    private typealias Subject = DragToAuthorizeController.PermissionSubject
-
-    private func permissionSet(ax: PermissionOracle.Status, im: PermissionOracle.Status)
-        -> PermissionOracle.PermissionSet
-    {
-        PermissionOracle.PermissionSet(
-            accessibility: ax, inputMonitoring: im, source: "test", confidence: .high, timestamp: Date()
-        )
-    }
-
-    private func snapshot(
-        keyPathAX: PermissionOracle.Status = .denied,
-        keyPathIM: PermissionOracle.Status = .denied,
-        kanataAX: PermissionOracle.Status = .denied,
-        kanataIM: PermissionOracle.Status = .denied
-    ) -> PermissionOracle.Snapshot {
-        PermissionOracle.Snapshot(
-            keyPath: permissionSet(ax: keyPathAX, im: keyPathIM),
-            kanata: permissionSet(ax: kanataAX, im: kanataIM),
-            timestamp: Date()
-        )
-    }
-
-    private func resolve(
-        _ target: Target, _ subject: Subject,
-        _ snapshot: PermissionOracle.Snapshot
-    ) -> Bool {
+    private func resolve(_ snapshot: PermissionOracle.Snapshot) -> Bool {
         DragToAuthorizeController.grantResolved(
-            target: target, subject: subject, snapshot: snapshot
+            target: .accessibility, subject: .keyPath, snapshot: snapshot
         )
     }
 
-    func testAccessibilityReadsTheChosenSubjectsRow() {
-        let snap = snapshot(keyPathAX: .granted, kanataAX: .denied)
-        XCTAssertTrue(resolve(.accessibility, .keyPath, snap))
-        XCTAssertFalse(resolve(.accessibility, .kanata, snap))
-    }
-
-    func testInputMonitoringReadsTheChosenSubjectsRow() {
-        let snap = snapshot(keyPathIM: .denied, kanataIM: .granted)
-        XCTAssertFalse(resolve(.inputMonitoring, .keyPath, snap))
-        XCTAssertTrue(resolve(.inputMonitoring, .kanata, snap))
-    }
-
-    func testTargetSelectsPermissionWithinTheSameSubject() {
-        // KeyPath AX granted but IM denied — target must not cross-read.
-        let snap = snapshot(keyPathAX: .granted, keyPathIM: .denied)
-        XCTAssertTrue(resolve(.accessibility, .keyPath, snap))
-        XCTAssertFalse(resolve(.inputMonitoring, .keyPath, snap))
+    func testAccessibilityReadsKeyPathsGrant() {
+        XCTAssertTrue(resolve(.fixture(accessibility: .granted, runtimeKeyAccess: .denied)))
+        XCTAssertFalse(resolve(.fixture(accessibility: .denied, runtimeKeyAccess: .granted)))
     }
 
     func testNonGrantedStatusesAreNotTreatedAsGranted() {
         for status in [PermissionOracle.Status.denied, .unknown, .error("x")] {
-            let snap = snapshot(keyPathAX: status)
-            XCTAssertFalse(resolve(.accessibility, .keyPath, snap), "\(status) must not count as granted")
+            XCTAssertFalse(resolve(.fixture(accessibility: status)), "\(status) must not count as granted")
         }
     }
 }

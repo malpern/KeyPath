@@ -18,7 +18,7 @@ The wizard handles:
 ## Why is the Wizard So Complex?
 
 KeyPath requires deep macOS system integration:
-- TCC permissions (Accessibility, Input Monitoring, Full Disk Access)
+- One TCC permission: Device Control and Data Access (Accessibility before macOS 27)
 - Karabiner-Elements VirtualHID driver installation
 - LaunchDaemon service management (requires root privileges)
 - Keyboard conflict detection and resolution
@@ -72,14 +72,8 @@ The wizard uses **state-driven navigation** - pages are shown dynamically based 
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                 4. INPUT MONITORING PERMISSION                      │
-│  Required for both KeyPath (recording) and Kanata (remapping)      │
-│  User action: Opens System Settings                                │
-└─────────────────────────────────────────────────────────────────────┘
-                                  ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                  5. ACCESSIBILITY PERMISSION                        │
-│  Required for Kanata's keyboard event injection                    │
+│     4-5. DEVICE CONTROL AND DATA ACCESS (ACCESSIBILITY) PERMISSION  │
+│  The only permission: lets the runtime read and post keys          │
 │  User action: Opens System Settings                                │
 └─────────────────────────────────────────────────────────────────────┘
                                   ↓
@@ -115,7 +109,7 @@ The wizard uses **state-driven navigation** - pages are shown dynamically based 
 Pages are shown in priority order when issues are detected:
 
 1. **Conflicts** (highest) - Must resolve before anything else
-2. **Permissions** - Input Monitoring, then Accessibility
+2. **Permissions** - Device Control and Data Access (Accessibility)
 3. **Communication** - UDP server configuration (optional but recommended)
 4. **Karabiner Components** - Driver and VirtualHID setup
 5. **Kanata Components** - Binary and service installation
@@ -155,7 +149,7 @@ Pages are shown in priority order when issues are detected:
 All wizard types are defined in `WizardTypes.swift` (433 lines):
 
 ### Pages (`WizardPage` enum)
-- `welcome`, `summary`, `accessibility`, `inputMonitoring`, `service`
+- `welcome`, `summary`, `accessibility`, `service`
 - `kanataMigration`, `stopExternalKanata`, `karabinerImport` (moving from other tools)
 
 ### System State (`WizardSystemState` enum)
@@ -173,7 +167,7 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
   config exists). The privileged-stack actions were removed (ADR-047).
 
 ### Requirements
-- `PermissionRequirement` - TCC permissions (Input Monitoring, Accessibility)
+- `PermissionRequirement` - `keyPathAccessibility` and `runtimeKeyAccess` (the runtime needs a relaunch)
 - `ComponentRequirement` - `bundledKanataMissing` and `keyPathRuntime`
 
 ## How State-Driven Navigation Works
@@ -181,10 +175,9 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
 `WizardRouter.route(state:issues:)` picks the page:
 
 ```swift
-1. Blocking Accessibility issue → .accessibility
-2. Blocking Input Monitoring issue → .inputMonitoring
-3. Runtime not running → .service
-4. Default → .summary (all clear)
+1. Blocking Accessibility or runtime key-access issue → .accessibility
+2. Runtime not running → .service
+3. Default → .summary (all clear)
 ```
 
 This ensures users always see the **most critical issue first** without manual navigation.
@@ -206,7 +199,6 @@ InstallationWizardView.swift (1,020 lines)
 ├── Page Content (dynamic based on currentPage)
 │   ├── WizardSummaryPage
 │   ├── WizardAccessibilityPage
-│   ├── WizardInputMonitoringPage
 │   └── WizardKanataServicePage
 ├── Page Dots (navigation indicators)
 └── Action Buttons (Next, Previous, Fix)
@@ -277,7 +269,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 ### For New Developers
 1. Start with `WizardNavigationEngine.swift` - understand the page flow
 2. Read `WizardTypes.swift` - learn all the type definitions
-3. Look at one page (e.g., `WizardInputMonitoringPage.swift`) - see the pattern
+3. Look at one page (e.g., `WizardAccessibilityPage.swift`) - see the pattern
 4. Check `InstallerEngine.runSingleAction()` - understand auto-remediation
 5. Review `ARCHITECTURE.md` - system-level design decisions
 

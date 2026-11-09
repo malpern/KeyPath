@@ -33,7 +33,8 @@ when you want a fresh reinstall.
 
 `keypath uninstall` does the same thing. On its own it only shows what it would do;
 add `--yes` to uninstall. Add `--reset-permissions` to also clear KeyPath's
-Accessibility and Input Monitoring entries, so a reinstall asks for them again.
+privacy permission entries, so a reinstall asks for Device Control and Data
+Access again.
 
 ```bash
 keypath uninstall                        # show the plan; changes nothing

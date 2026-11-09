@@ -9,12 +9,8 @@ import KeyPathWizardCore
 final class WizardRecipeParityTests: KeyPathTestCase {
     private func context(running: Bool) -> SystemContext {
         let now = Date()
-        let permissions = PermissionOracle.PermissionSet(
-            accessibility: .granted, inputMonitoring: .granted,
-            source: "session-test", confidence: .high, timestamp: now
-        )
         return SystemContext(
-            permissions: .init(keyPath: permissions, kanata: permissions, timestamp: now, backend: .session),
+            permissions: .fixture(source: "session-test", timestamp: now),
             services: HealthStatus(
                 backend: .session, kanataProcessRunning: running, kanataTCPResponding: running,
                 kanataRunning: running, karabinerDaemonRunning: false, vhidHealthy: false,

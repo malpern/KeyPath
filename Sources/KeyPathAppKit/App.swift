@@ -870,9 +870,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             UserDefaults.standard.removeObject(forKey: "wizard_return_to_summary")
             AppLogger.shared.log("✅ [AppDelegate] Permissions granted - returning to Summary")
             return .summary
-        } else if UserDefaults.standard.bool(forKey: "wizard_return_to_input_monitoring") {
-            UserDefaults.standard.removeObject(forKey: "wizard_return_to_input_monitoring")
-            return .inputMonitoring
         } else if UserDefaults.standard.bool(forKey: "wizard_return_to_accessibility") {
             UserDefaults.standard.removeObject(forKey: "wizard_return_to_accessibility")
             return .accessibility
@@ -904,7 +901,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     private func startEmergencyMonitoringIfPermitted() async {
         let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
-        guard snapshot.keyPath.accessibility.isReady else {
+        guard snapshot.accessibility.isReady else {
             AppLogger.shared.debug("🛑 [EmergencyStop] Skipping monitor start (Accessibility not granted)")
             return
         }

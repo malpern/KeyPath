@@ -119,15 +119,6 @@ enum AppNotificationWiring {
             }
         }
 
-        // Open Input Monitoring settings
-        NotificationCenter.default.addObserver(
-            forName: .openInputMonitoringSettings, object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak delegate] _ in
-            Task { @MainActor in
-                delegate?.kanataManager?.openInputMonitoringSettings()
-            }
-        }
-
         // Open Accessibility settings
         NotificationCenter.default.addObserver(
             forName: .openAccessibilitySettings, object: nil, queue: NotificationObserverManager.mainOperationQueue

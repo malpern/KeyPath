@@ -14,7 +14,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
 
     case welcome = "Welcome"
     case summary = "Summary"
-    case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
     case kanataMigration = "Kanata Migration"
     case stopExternalKanata = "Stop External Kanata"
@@ -26,7 +25,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .welcome: "Welcome to KeyPath"
         case .summary: "Setup Overview"
-        case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "\(AccessibilityPermissionPresentation.current.name) Permission"
         case .kanataMigration: "Migrate Existing Kanata Config"
         case .stopExternalKanata: "Stop External Kanata"
@@ -40,7 +38,6 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .welcome: "welcome"
         case .summary: "overview"
-        case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
         case .kanataMigration: "kanata-migration"
         case .stopExternalKanata: "stop-external-kanata"
@@ -59,7 +56,6 @@ public extension WizardPage {
         .stopExternalKanata,
         .karabinerImport,
         .accessibility,
-        .inputMonitoring,
         .service
     ]
 
@@ -144,10 +140,10 @@ public enum SystemConflict: Equatable, Sendable {
 
 /// Permission requirements for the system
 public enum PermissionRequirement: Equatable, Sendable {
-    case kanataInputMonitoring
-    case kanataAccessibility
-    case keyPathInputMonitoring
+    /// KeyPath.app's own Accessibility grant (Device Control and Data Access on macOS 27).
     case keyPathAccessibility
+    /// The session runtime reports it cannot read or post keys; it needs a fresh launch.
+    case runtimeKeyAccess
 }
 
 /// Component requirements that need installation
@@ -410,10 +406,7 @@ public struct ConfigPathMismatch {
 
 public enum WizardConstants {
     public enum Titles {
-        public static let inputMonitoring = "Input Monitoring"
         public static let accessibility = "Accessibility"
-        public static let kanataInputMonitoring = "Kanata Input Monitoring"
-        public static let kanataAccessibility = "Kanata Accessibility"
         public static let conflictingProcesses = "Conflicting Processes Detected"
         public static let karabinerGrabberConflict = "Karabiner Grabber Conflict"
         public static let daemonNotRunning = "Karabiner Daemon Not Running"

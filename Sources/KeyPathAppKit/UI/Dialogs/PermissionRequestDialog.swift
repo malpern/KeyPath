@@ -6,7 +6,6 @@ enum PermissionRequestDialog {
     static func show(
         title: String = "Permission Required",
         explanation: String,
-        permissions _: Set<PGPermissionType>,
         approveButtonTitle: String = "Allow",
         cancelButtonTitle: String = "Cancel"
     ) async -> Bool {

@@ -37,7 +37,9 @@ runtime or by the macOS 27 minimum.
    by hand (see git history for `LegacyPrivilegedRuntimeCleanup` and its label
    and path lists).
 3. Merge KeyPath's and the runtime's permission sets into one, and remove the
-   Input Monitoring concept.
+   Input Monitoring concept. (Done: `PermissionOracle.Snapshot` holds KeyPath's
+   Accessibility grant and the runtime's key-access report; see the follow-up in
+   `docs/bugs/2026-11-08-input-monitoring-not-required-on-macos27.md`.)
 4. Collapse manager and coordinator layers that existed only to switch between
    backends.
 

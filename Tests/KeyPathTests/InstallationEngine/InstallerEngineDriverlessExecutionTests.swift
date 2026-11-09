@@ -134,6 +134,5 @@ private final class RuntimeStub: RuntimeCoordinating {
         false
     }
 
-    func openInputMonitoringSettings() {}
     func openAccessibilitySettings() {}
 }

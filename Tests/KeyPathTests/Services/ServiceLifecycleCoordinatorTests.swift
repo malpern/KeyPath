@@ -383,11 +383,10 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     }
 
     func testOwnedRuntimeEvidenceWinsWhenCapabilityProbeFinishesLater() async {
-        let deniedProbe = PermissionOracle.PermissionSet(
-            accessibility: .denied, inputMonitoring: .denied,
-            source: "earlier-capability-probe", confidence: .high, timestamp: Date()
+        let deniedProbe = PermissionOracle.RuntimeKeyAccess(
+            status: .denied, source: "earlier-capability-probe", confidence: .high, timestamp: Date()
         )
-        for probeResult: PermissionOracle.PermissionSet? in [nil, deniedProbe] {
+        for probeResult: PermissionOracle.RuntimeKeyAccess? in [nil, deniedProbe] {
             var ownedReport: SessionRuntimeReport?
             var probes = 0
             coordinator.testSessionCurrentReport = { ownedReport }
@@ -401,10 +400,9 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
                 )
                 return probeResult
             }
-            let permissions = await coordinator.sessionCapabilities()
+            let permissions = await coordinator.sessionRuntimeKeyAccess()
             XCTAssertEqual(probes, 1)
-            XCTAssertEqual(permissions?.accessibility, .granted)
-            XCTAssertEqual(permissions?.inputMonitoring, .granted)
+            XCTAssertEqual(permissions?.status, .granted)
             XCTAssertNotEqual(permissions?.source, deniedProbe.source)
         }
     }
@@ -414,12 +412,12 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         coordinator.testSessionCapabilityProbe = { probes += 1; return nil }
         coordinator.setTerminationPreparationActive(true)
         coordinator.setUpdatePreparationActive(true)
-        _ = await coordinator.sessionCapabilities()
+        _ = await coordinator.sessionRuntimeKeyAccess()
         coordinator.setUpdatePreparationActive(false)
-        _ = await coordinator.sessionCapabilities()
+        _ = await coordinator.sessionRuntimeKeyAccess()
         XCTAssertEqual(probes, 0)
         coordinator.setTerminationPreparationActive(false)
-        _ = await coordinator.sessionCapabilities()
+        _ = await coordinator.sessionRuntimeKeyAccess()
         XCTAssertEqual(probes, 1)
     }
 
@@ -439,37 +437,35 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
         ServiceLifecycleCoordinator.testSessionStop = { events.append("stop"); return true }
         defer { ServiceLifecycleCoordinator.testSessionStop = nil }
-        let probe = Task { await coordinator.sessionCapabilities() }
+        let probe = Task { await coordinator.sessionRuntimeKeyAccess() }
         for await _ in entered.stream {
             break
         }
         coordinator.setTerminationPreparationActive(true)
         let stop = Task { await coordinator.stopKanata(reason: "Uninstall KeyPath") }
-        _ = await coordinator.sessionCapabilities()
+        _ = await coordinator.sessionRuntimeKeyAccess()
         XCTAssertEqual(events, ["probe-start"])
         release.continuation.yield(())
         _ = await probe.value
         let stopped = await stop.value
         XCTAssertTrue(stopped)
         XCTAssertEqual(events, ["probe-start", "probe-end", "stop"])
-        _ = await coordinator.sessionCapabilities()
+        _ = await coordinator.sessionRuntimeKeyAccess()
         XCTAssertEqual(events, ["probe-start", "probe-end", "stop"])
     }
 
     func testMissingOwnedEvidenceDoesNotUpgradeCapabilityProbeResult() async {
         coordinator.testSessionCurrentReport = { nil }
         coordinator.testSessionCapabilityProbe = { await Task.yield(); return nil }
-        let unavailable = await coordinator.sessionCapabilities()
+        let unavailable = await coordinator.sessionRuntimeKeyAccess()
         XCTAssertNil(unavailable)
 
-        let deniedProbe = PermissionOracle.PermissionSet(
-            accessibility: .denied, inputMonitoring: .denied,
-            source: "current-capability-probe", confidence: .high, timestamp: Date()
+        let deniedProbe = PermissionOracle.RuntimeKeyAccess(
+            status: .denied, source: "current-capability-probe", confidence: .high, timestamp: Date()
         )
         coordinator.testSessionCapabilityProbe = { await Task.yield(); return deniedProbe }
-        let denied = await coordinator.sessionCapabilities()
-        XCTAssertEqual(denied?.accessibility, .denied)
-        XCTAssertEqual(denied?.inputMonitoring, .denied)
+        let denied = await coordinator.sessionRuntimeKeyAccess()
+        XCTAssertEqual(denied?.status, .denied)
         XCTAssertEqual(denied?.source, deniedProbe.source)
     }
 

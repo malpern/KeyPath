@@ -424,9 +424,9 @@
 }
 
 <span class="cm">// Test:</span>
-<span class="kw">let</span> snapshot = <span class="tp">SystemSnapshot</span>(permissions: noIM, components: allGood, ...)
+<span class="kw">let</span> snapshot = <span class="tp">SystemSnapshot</span>(permissions: noAccessibility, components: allGood, ...)
 <span class="kw">let</span> (state, issues) = <span class="tp">SystemInspector</span>.<span class="fn">inspect</span>(snapshot: snapshot)
-<span class="fn">XCTAssertEqual</span>(issues.first?.identifier, .permission(.keyPathInputMonitoring))</pre>
+<span class="fn">XCTAssertEqual</span>(issues.first?.identifier, .permission(.keyPathAccessibility))</pre>
     </div>
 
     <div class="type-card">

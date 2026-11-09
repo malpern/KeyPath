@@ -131,6 +131,5 @@ private final class SessionStartStub: RuntimeCoordinating {
         false
     }
 
-    func openInputMonitoringSettings() {}
     func openAccessibilitySettings() {}
 }

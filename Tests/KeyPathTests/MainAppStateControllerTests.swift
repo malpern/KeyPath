@@ -408,7 +408,7 @@ struct MainAppStateControllerBehaviorTests {
         let controller = MainAppStateController()
         #if DEBUG
             controller.configureStartupGateTestingState(
-                permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+                permissionsOverride: { sessionPermissions(runtimeKeyAccess: .granted) },
                 healthOverride: {
                     KanataRuntimeReadiness(isRunning: false, isResponding: false)
                 },
@@ -577,21 +577,15 @@ struct MainAppStateControllerBehaviorTests {
         #expect(ready == true)
     }
 
-    @Test("Definitive permission failures bypass startup grace only for the session backend")
+    @Test("Definitive permission failures bypass startup grace")
     func sessionPermissionFailurePolicy() {
-        for backend in [KanataRuntimeBackend.session, .driverKit] {
-            for status in [PermissionOracle.Status.granted, .unknown, .denied, .error("probe failed")] {
-                let requiredFailures = [
-                    sessionPermissions(inputMonitoring: status, backend: backend),
-                    sessionPermissions(inputMonitoring: .granted, workerAX: status, backend: backend),
-                    sessionPermissions(inputMonitoring: .granted, parentAX: status, backend: backend),
-                ]
-                for permissions in requiredFailures {
-                    #expect(MainAppStateController.hasDefinitiveSessionPermissionFailure(permissions) ==
-                        (backend == .session && status.isBlocking))
-                }
-                let overlayOnly = sessionPermissions(inputMonitoring: .granted, parentIM: status, backend: backend)
-                #expect(!MainAppStateController.hasDefinitiveSessionPermissionFailure(overlayOnly))
+        for status in [PermissionOracle.Status.granted, .unknown, .denied, .error("probe failed")] {
+            let requiredFailures = [
+                sessionPermissions(runtimeKeyAccess: status),
+                sessionPermissions(runtimeKeyAccess: .granted, accessibility: status),
+            ]
+            for permissions in requiredFailures {
+                #expect(MainAppStateController.hasDefinitiveSessionPermissionFailure(permissions) == status.isBlocking)
             }
         }
     }
@@ -604,7 +598,7 @@ struct MainAppStateControllerBehaviorTests {
             var now = Date(timeIntervalSince1970: 1000)
             controller.configureStartupGateTestingState(
                 nowOverride: { now },
-                permissionsOverride: { sessionPermissions(inputMonitoring: status) },
+                permissionsOverride: { sessionPermissions(runtimeKeyAccess: status) },
                 healthOverride: {
                     healthProbes += 1
                     // First cross the definitive deadline, then the transient
@@ -625,7 +619,7 @@ struct MainAppStateControllerBehaviorTests {
     @Test("Initial unknown or denied listening publishes actionable failure during startup grace")
     func deniedSessionPermissionPublishesDuringStartupGrace() async {
         for initialStatus in [PermissionOracle.Status.unknown, .denied] {
-            let permissions = sessionPermissions(inputMonitoring: .denied)
+            let permissions = sessionPermissions(runtimeKeyAccess: .denied)
             let context = SystemContextBuilder(componentsInstalled: true).build()
             let snapshot = SystemSnapshot(
                 id: context.snapshotID, permissions: permissions, components: context.components,
@@ -646,7 +640,7 @@ struct MainAppStateControllerBehaviorTests {
             controller.configureStartupGateTestingState(
                 permissionsOverride: {
                     permissionProbes += 1
-                    return permissionProbes == 1 ? sessionPermissions(inputMonitoring: initialStatus) : permissions
+                    return permissionProbes == 1 ? sessionPermissions(runtimeKeyAccess: initialStatus) : permissions
                 },
                 healthOverride: {
                     healthProbes += 1
@@ -660,11 +654,11 @@ struct MainAppStateControllerBehaviorTests {
             #expect(healthProbes == (initialStatus == .unknown ? 1 : 0))
             #expect(permissionProbes == (initialStatus == .unknown ? 2 : 1))
             #expect(controller.validationState?.hasCriticalIssues == true)
-            #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
+            #expect(controller.lastValidatedSystemContext?.permissions.runtimeKeyAccess.status == .denied)
             #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
                 "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name).")
             #expect(controller.issues.contains {
-                $0.identifier == .permission(.keyPathInputMonitoring) &&
+                $0.identifier == .permission(.runtimeKeyAccess) &&
                     $0.description.localizedCaseInsensitiveContains("quit and reopen KeyPath") &&
                     $0.userAction?.localizedCaseInsensitiveContains("quit and reopen KeyPath") == true
             })
@@ -684,7 +678,7 @@ struct MainAppStateControllerBehaviorTests {
         controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
         controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
         controller.configureStartupGateTestingState(
-            permissionsOverride: { permissionProbes += 1; return sessionPermissions(inputMonitoring: .granted) },
+            permissionsOverride: { permissionProbes += 1; return sessionPermissions(runtimeKeyAccess: .granted) },
             healthOverride: { healthProbes += 1; return KanataRuntimeReadiness(isRunning: false, isResponding: false) },
             transientWindowOverride: { true },
             timingOverride: (definitiveGrace: 1, transientGrace: 1, checkInterval: 0.01)
@@ -703,7 +697,7 @@ struct MainAppStateControllerBehaviorTests {
 
         lifecycle.testSessionConfigurationValidation = { .valid }
         controller.configureStartupGateTestingState(
-            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            permissionsOverride: { sessionPermissions(runtimeKeyAccess: .granted) },
             healthOverride: { KanataRuntimeReadiness(isRunning: true, isResponding: true, inputCaptureReady: true) },
             transientWindowOverride: { true }
         )
@@ -723,7 +717,7 @@ struct MainAppStateControllerBehaviorTests {
             controller.setValidator(StubSystemValidator(context: SystemContextBuilder(componentsInstalled: true).build()))
             var healthChecks = 0, permissionChecks = 0
             controller.configureStartupGateTestingState(
-                permissionsOverride: { permissionChecks += 1; return sessionPermissions(inputMonitoring: .granted) },
+                permissionsOverride: { permissionChecks += 1; return sessionPermissions(runtimeKeyAccess: .granted) },
                 healthOverride: {
                     healthChecks += 1
                     #expect(await lifecycle.restoreSessionCaps(for: nil) == false)
@@ -766,7 +760,7 @@ struct MainAppStateControllerBehaviorTests {
         }
         controller.setValidator(validator)
         controller.configureStartupGateTestingState(
-            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            permissionsOverride: { sessionPermissions(runtimeKeyAccess: .granted) },
             healthOverride: { .init(isRunning: true, isResponding: true, inputCaptureReady: true) }
         )
         defer { controller.resetStartupGateTestingState() }
@@ -785,7 +779,7 @@ struct MainAppStateControllerBehaviorTests {
         validator.beforeCheck = { _ = await lifecycle.restoreSessionCaps(for: nil) }
         controller.setValidator(validator)
         controller.configureStartupGateTestingState(
-            permissionsOverride: { sessionPermissions(inputMonitoring: .granted) },
+            permissionsOverride: { sessionPermissions(runtimeKeyAccess: .granted) },
             healthOverride: { .init(isRunning: true, isResponding: true, inputCaptureReady: true) }
         )
         defer { controller.resetStartupGateTestingState() }
@@ -795,21 +789,10 @@ struct MainAppStateControllerBehaviorTests {
     }
 
     private func sessionPermissions(
-        inputMonitoring: PermissionOracle.Status,
-        workerAX: PermissionOracle.Status = .granted,
-        parentAX: PermissionOracle.Status = .granted,
-        parentIM: PermissionOracle.Status = .granted,
-        backend: KanataRuntimeBackend = .session
+        runtimeKeyAccess: PermissionOracle.Status,
+        accessibility: PermissionOracle.Status = .granted
     ) -> PermissionOracle.Snapshot {
-        let parent = PermissionOracle.PermissionSet(
-            accessibility: parentAX, inputMonitoring: parentIM,
-            source: "test.parent", confidence: .high, timestamp: Date()
-        )
-        let worker = PermissionOracle.PermissionSet(
-            accessibility: workerAX, inputMonitoring: inputMonitoring,
-            source: "test.listen-and-post-event", confidence: .high, timestamp: Date()
-        )
-        return PermissionOracle.Snapshot(keyPath: parent, kanata: worker, timestamp: Date(), backend: backend)
+        .fixture(accessibility: accessibility, runtimeKeyAccess: runtimeKeyAccess, source: "test.listen-and-post-event")
     }
 
     private func configuredController(validator: any WizardSystemValidating) -> MainAppStateController {

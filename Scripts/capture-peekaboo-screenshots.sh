@@ -6,13 +6,12 @@
 #
 # Prerequisites:
 #   - Peekaboo installed: brew install steipete/tap/peekaboo
-#   - KeyPath.app installed in /Applications (for Accessibility/Input Monitoring to show it)
+#   - KeyPath.app installed in /Applications (for Accessibility to show it)
 #   - Screen Capture permission granted to Terminal/iTerm
 #
 # Usage:
 #   ./Scripts/capture-peekaboo-screenshots.sh              # capture all 3
 #   ./Scripts/capture-peekaboo-screenshots.sh accessibility # capture one
-#   ./Scripts/capture-peekaboo-screenshots.sh input-monitoring
 #   ./Scripts/capture-peekaboo-screenshots.sh file-picker
 #
 # Output goes to Sources/KeyPathAppKit/Resources/ alongside existing help images.
@@ -76,9 +75,6 @@ open_system_settings() {
         accessibility)
             open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             ;;
-        input-monitoring)
-            open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
-            ;;
     esac
 
     sleep "$WAIT_LONG"
@@ -96,7 +92,7 @@ quit_system_settings() {
 # ---------------------------------------------------------------------------
 capture_accessibility() {
     echo ""
-    echo "[1/3] Accessibility Settings"
+    echo "[1/2] Accessibility Settings"
     echo "  System Settings > Privacy & Security > Accessibility"
     echo ""
     echo "  SETUP: Before capturing, ensure:"
@@ -116,7 +112,7 @@ capture_accessibility() {
 # ---------------------------------------------------------------------------
 capture_file_picker() {
     echo ""
-    echo "[2/3] File Picker (Add Kanata Binary)"
+    echo "[2/2] File Picker (Add Kanata Binary)"
     echo "  System Settings > Accessibility > + button > Go to Folder"
     echo ""
     echo "  NOTE: This screenshot requires manual interaction."
@@ -145,26 +141,6 @@ capture_file_picker() {
 }
 
 # ---------------------------------------------------------------------------
-# Screenshot 3: Input Monitoring
-# ---------------------------------------------------------------------------
-capture_input_monitoring() {
-    echo ""
-    echo "[3/3] Input Monitoring Settings"
-    echo "  System Settings > Privacy & Security > Input Monitoring"
-    echo ""
-    echo "  SETUP: Before capturing, ensure:"
-    echo "    - KeyPath.app is toggled ON in Input Monitoring"
-    echo "    - kanata is toggled ON in Input Monitoring"
-    echo ""
-
-    quit_system_settings
-    open_system_settings "input-monitoring"
-
-    capture_window "screenshot-input-monitoring.png" \
-        "Privacy > Input Monitoring with KeyPath and kanata ON"
-}
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -182,17 +158,13 @@ case "$target" in
     file-picker)
         capture_file_picker
         ;;
-    input-monitoring)
-        capture_input_monitoring
-        ;;
     all)
         capture_accessibility
         capture_file_picker
-        capture_input_monitoring
         ;;
     *)
         echo "Unknown target: $target"
-        echo "Usage: $0 [accessibility|file-picker|input-monitoring|all]"
+        echo "Usage: $0 [accessibility|file-picker|all]"
         exit 1
         ;;
 esac
@@ -205,7 +177,6 @@ echo "Screenshots saved to $OUTPUT_DIR/"
 echo ""
 echo "Review the captures and re-run individual targets if needed:"
 echo "  $0 accessibility"
-echo "  $0 input-monitoring"
 echo "  $0 file-picker"
 
 # Cleanup

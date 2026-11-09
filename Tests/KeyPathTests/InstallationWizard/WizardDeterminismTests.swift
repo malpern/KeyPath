@@ -7,15 +7,15 @@ import KeyPathWizardCore
 final class WizardDeterminismTests: XCTestCase {
     func testSameInputsProduceSamePageEveryTime() {
         let issues = [WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .error,
             category: .permissions,
-            title: "IM denied",
+            title: "Runtime key access denied",
             description: "",
             autoFixAction: nil,
             userAction: nil
         )]
-        let state: WizardSystemState = .missingPermissions(missing: [.keyPathInputMonitoring])
+        let state: WizardSystemState = .missingPermissions(missing: [.runtimeKeyAccess])
 
         let first = WizardRouter.route(state: state, issues: issues)
         let second = WizardRouter.route(state: state, issues: issues)

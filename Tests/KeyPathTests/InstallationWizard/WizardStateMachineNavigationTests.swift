@@ -27,10 +27,10 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertEqual(stateMachine.currentPage, .summary)
 
         // When
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
 
         // Then
-        XCTAssertEqual(stateMachine.currentPage, .inputMonitoring)
+        XCTAssertEqual(stateMachine.currentPage, .accessibility)
     }
 
     func testNavigateToPage_updatesLastVisitedPage() {
@@ -38,7 +38,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertNil(stateMachine.lastVisitedPage)
 
         // When
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
 
         // Then
         XCTAssertEqual(stateMachine.lastVisitedPage, .summary)
@@ -57,7 +57,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
     func testNavigateToPage_multipleNavigations_tracksLastVisited() {
         // When
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.karabinerImport)
         stateMachine.navigateToPage(.accessibility)
         stateMachine.navigateToPage(.service)
 
@@ -78,21 +78,19 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
     func testIsNavigatingForward_whenMovingForward_returnsTrue() {
         // Given - navigate forward in the flow
-        // Order: .accessibility (6) -> .inputMonitoring (7) -> .service (10)
         stateMachine.navigateToPage(.accessibility)
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.service)
 
-        // Then - inputMonitoring comes after accessibility in orderedPages
+        // Then - service comes after accessibility in orderedPages
         XCTAssertTrue(stateMachine.isNavigatingForward)
     }
 
     func testIsNavigatingForward_whenMovingBackward_returnsFalse() {
         // Given - navigate forward then back
-        // Order: .accessibility (6) -> .inputMonitoring (7)
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.service)
         stateMachine.navigateToPage(.accessibility)
 
-        // Then - accessibility comes before inputMonitoring in orderedPages
+        // Then - accessibility comes before service in orderedPages
         XCTAssertFalse(stateMachine.isNavigatingForward)
     }
 
@@ -103,7 +101,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertFalse(stateMachine.canNavigateBack)
 
         // When - navigate away from summary
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
 
         // Then - not on summary, can go back
         XCTAssertTrue(stateMachine.canNavigateBack)
@@ -111,16 +109,16 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
     func testCustomSequence_affectsPreviousPage() {
         // Given
-        stateMachine.customSequence = [.inputMonitoring, .accessibility, .service]
+        stateMachine.customSequence = [.karabinerImport, .accessibility, .service]
         stateMachine.navigateToPage(.accessibility)
 
         // Then
-        XCTAssertEqual(stateMachine.previousPageInSequence, .inputMonitoring)
+        XCTAssertEqual(stateMachine.previousPageInSequence, .karabinerImport)
     }
 
     func testCustomSequence_affectsNextPage() {
         // Given
-        stateMachine.customSequence = [.inputMonitoring, .accessibility, .service]
+        stateMachine.customSequence = [.karabinerImport, .accessibility, .service]
         stateMachine.navigateToPage(.accessibility)
 
         // Then
@@ -157,7 +155,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
     func testCanNavigateBack_whenNotOnFirstPage_returnsTrue() {
         // Given
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
 
         // Then
         XCTAssertTrue(stateMachine.canNavigateBack)
@@ -191,10 +189,10 @@ final class WizardStateMachineNavigationTests: XCTestCase {
     }
 
     func testPreviousPage_returnsCorrectPage() {
-        // Given - inputMonitoring is at index 7, accessibility is at index 6
-        stateMachine.navigateToPage(.inputMonitoring)
+        // Given - service follows accessibility in orderedPages
+        stateMachine.navigateToPage(.service)
 
-        // Then - previous page is accessibility (index 6), not summary
+        // Then - previous page is accessibility, not summary
         XCTAssertEqual(stateMachine.previousPageInSequence, .accessibility)
     }
 
@@ -252,7 +250,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
     func testResetNavigation_clearsCustomSequence() {
         // Given - a custom sequence left over from a prior wizard run
-        stateMachine.customSequence = [.inputMonitoring, .accessibility, .service]
+        stateMachine.customSequence = [.karabinerImport, .accessibility, .service]
 
         // When
         stateMachine.resetNavigation()
@@ -276,13 +274,13 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
     func testUserInteractionMode_blocksAutoNavigation_withinGracePeriod() async {
         // Given - user navigates (sets interaction mode)
-        stateMachine.navigateToPage(.inputMonitoring)
+        stateMachine.navigateToPage(.accessibility)
 
         // When - try to auto-navigate immediately
         await stateMachine.autoNavigateIfNeeded(for: .active, issues: [])
 
         // Then - should NOT auto-navigate because we're in grace period
-        XCTAssertEqual(stateMachine.currentPage, .inputMonitoring)
+        XCTAssertEqual(stateMachine.currentPage, .accessibility)
     }
 
     func testAutomaticNavigationDoesNotPretendUserInteracted() {

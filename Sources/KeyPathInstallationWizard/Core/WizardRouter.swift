@@ -13,17 +13,12 @@ public enum WizardRouter {
         issues: [WizardIssue]
     ) -> WizardPage {
         // 1. Permissions (blocking only — warnings like "not verified" don't route here)
-        // Accessibility may already provide effective input access. Resolve it
-        // first, then refresh the Oracle before asking for separate IM approval.
+        // Accessibility is the only permission. A runtime that still lacks key
+        // access after it is granted needs a relaunch, explained on the same page.
         if hasBlockingPermissionIssue(.permission(.keyPathAccessibility), in: issues)
-            || hasBlockingPermissionIssue(.permission(.kanataAccessibility), in: issues)
+            || hasBlockingPermissionIssue(.permission(.runtimeKeyAccess), in: issues)
         {
             return .accessibility
-        }
-        if hasBlockingPermissionIssue(.permission(.keyPathInputMonitoring), in: issues)
-            || hasBlockingPermissionIssue(.permission(.kanataInputMonitoring), in: issues)
-        {
-            return .inputMonitoring
         }
 
         // 2. Service readiness
@@ -38,27 +33,16 @@ public enum WizardRouter {
         return .summary
     }
 
-    /// Adjust a routing decision when kanata's permission state could not be
-    /// verified through available runtime permission evidence.
-    ///
-    /// Unverified permissions produce only warning-severity issues, which
-    /// `route()` deliberately ignores — but auto-advancing past the permission
-    /// pages would start the service and trigger both system permission dialogs
-    /// at once. Land on the first unverified permission page so the user sees the
-    /// "not verified — add manually" guidance instead of parking on summary.
-    public static func routeForUnverifiedKanataPermissions(
+    /// Adjust a routing decision when permissions could not be verified: KeyPath's
+    /// Accessibility is unknown or no runtime has reported key access. Unverified
+    /// permissions produce no blocking issue, but auto-advancing past the
+    /// permission page would start the service before the user saw the grant step.
+    public static func routeForUnverifiedPermissions(
         base: WizardPage,
-        inputMonitoringUnknown: Bool,
-        accessibilityUnknown: Bool
+        permissionsUnverified: Bool
     ) -> WizardPage {
-        switch base {
-        case .inputMonitoring, .accessibility:
-            return base
-        default:
-            if accessibilityUnknown { return .accessibility }
-            if inputMonitoringUnknown { return .inputMonitoring }
-            return base
-        }
+        if base == .accessibility { return base }
+        return permissionsUnverified ? .accessibility : base
     }
 
     // MARK: - Next Page (skipping resolved pages)
@@ -99,20 +83,8 @@ public enum WizardRouter {
         switch page {
         case .summary:
             true
-        case .inputMonitoring:
-            issues.contains { issue in
-                if case let .permission(perm) = issue.identifier {
-                    return perm == .keyPathInputMonitoring || perm == .kanataInputMonitoring
-                }
-                return false
-            }
         case .accessibility:
-            issues.contains { issue in
-                if case let .permission(perm) = issue.identifier {
-                    return perm == .keyPathAccessibility || perm == .kanataAccessibility
-                }
-                return false
-            }
+            issues.contains { $0.identifier.isPermission }
         case .service:
             switch state {
             case .serviceNotRunning, .ready:

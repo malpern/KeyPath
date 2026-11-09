@@ -41,221 +41,66 @@ struct PermissionOracleTests {
         #expect(PermissionOracle.Status.error("test").description == "error(test)")
     }
 
-    // MARK: - PermissionSet Tests
-
-    @Test("PermissionSet.hasAllPermissions requires both AX and IM")
-    func permissionSetHasAll() {
-        let granted = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: Date()
-        )
-        #expect(granted.hasAllPermissions == true)
-
-        let missingAX = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: Date()
-        )
-        #expect(missingAX.hasAllPermissions == false)
-
-        let missingIM = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: Date()
-        )
-        #expect(missingIM.hasAllPermissions == false)
-
-        let bothMissing = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: Date()
-        )
-        #expect(bothMissing.hasAllPermissions == false)
-    }
-
     // MARK: - Snapshot Tests
 
-    @Test("Snapshot.isSystemReady requires both apps to have all permissions")
+    @Test("Snapshot.isSystemReady requires Accessibility and runtime key access")
     func snapshotSystemReady() {
-        let now = Date()
-        let granted = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
-        let denied = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
-        // Both apps fully granted
-        let allGranted = PermissionOracle.Snapshot(
-            keyPath: granted,
-            kanata: granted,
-            timestamp: now
-        )
-        #expect(allGranted.isSystemReady == true)
-
-        // KeyPath missing permissions
-        let keyPathMissing = PermissionOracle.Snapshot(
-            keyPath: denied,
-            kanata: granted,
-            timestamp: now
-        )
-        #expect(keyPathMissing.isSystemReady == false)
-
-        // Kanata missing permissions
-        let kanataMissing = PermissionOracle.Snapshot(
-            keyPath: granted,
-            kanata: denied,
-            timestamp: now
-        )
-        #expect(kanataMissing.isSystemReady == false)
-
-        // Both missing permissions
-        let bothMissing = PermissionOracle.Snapshot(
-            keyPath: denied,
-            kanata: denied,
-            timestamp: now
-        )
-        #expect(bothMissing.isSystemReady == false)
+        #expect(PermissionOracle.Snapshot.fixture().isSystemReady == true)
+        #expect(PermissionOracle.Snapshot.fixture(accessibility: .denied).isSystemReady == false)
+        #expect(PermissionOracle.Snapshot.fixture(runtimeKeyAccess: .denied).isSystemReady == false)
+        #expect(PermissionOracle.Snapshot.fixture(runtimeKeyAccess: .unknown).isSystemReady == false)
+        #expect(PermissionOracle.Snapshot.fixture(accessibility: .unknown).isSystemReady == false)
     }
 
-    @Test("Snapshot.blockingIssue identifies first blocker")
+    @Test("Snapshot.blockingIssue reports Accessibility, then a runtime relaunch")
     func snapshotBlockingIssue() {
-        let now = Date()
+        let name = AccessibilityPermissionPresentation.current.name
+        #expect(PermissionOracle.Snapshot.fixture().blockingIssue == nil)
 
-        // No issues
-        let granted = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let noIssues = PermissionOracle.Snapshot(
-            keyPath: granted,
-            kanata: granted,
-            timestamp: now, backend: .driverKit
-        )
-        #expect(noIssues.blockingIssue == nil)
+        let axIssue = PermissionOracle.Snapshot.fixture(accessibility: .denied).blockingIssue
+        #expect(axIssue == "Enable KeyPath in \(name) in System Settings, then quit and reopen KeyPath.")
 
-        // KeyPath AX blocked
-        let keyPathAXBlocked = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let axIssue = PermissionOracle.Snapshot(
-            keyPath: keyPathAXBlocked,
-            kanata: granted,
-            timestamp: now, backend: .driverKit
-        )
-        #expect(axIssue.blockingIssue?.contains("KeyPath needs \(AccessibilityPermissionPresentation.current.name)") == true)
+        let runtimeIssue = PermissionOracle.Snapshot.fixture(runtimeKeyAccess: .denied).blockingIssue
+        #expect(runtimeIssue == "Quit and reopen KeyPath so it can use \(name).")
 
-        // KeyPath IM denied — soft (overlay only), NOT a blocking issue (#931)
-        let keyPathIMBlocked = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let imIssue = PermissionOracle.Snapshot(
-            keyPath: keyPathIMBlocked,
-            kanata: granted,
-            timestamp: now, backend: .driverKit
-        )
-        #expect(imIssue.blockingIssue == nil)
+        // Accessibility outranks the runtime's report.
+        let both = PermissionOracle.Snapshot.fixture(accessibility: .denied, runtimeKeyAccess: .denied)
+        #expect(both.blockingIssue == axIssue)
 
-        // Kanata blocked (KeyPath OK)
-        let kanataBlocked = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let kanataIssue = PermissionOracle.Snapshot(
-            keyPath: granted,
-            kanata: kanataBlocked,
-            timestamp: now, backend: .driverKit
-        )
-        #expect(kanataIssue.blockingIssue?.contains("Kanata needs permissions") == true)
-    }
-
-    @Test("Snapshot.blockingIssue prioritizes KeyPath over Kanata")
-    func snapshotBlockingIssuePriority() {
-        let now = Date()
-
-        let keyPathBlocked = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
-        let kanataBlocked = PermissionOracle.PermissionSet(
-            accessibility: .denied,
-            inputMonitoring: .denied,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
-        // Both blocked - should report KeyPath first
-        let bothBlocked = PermissionOracle.Snapshot(
-            keyPath: keyPathBlocked,
-            kanata: kanataBlocked,
-            timestamp: now
-        )
-        #expect(bothBlocked.blockingIssue?.contains("KeyPath") == true)
-        #expect(bothBlocked.blockingIssue?.contains("Kanata") == false)
+        // Unreported runtime access is not a blocker.
+        #expect(PermissionOracle.Snapshot.fixture(runtimeKeyAccess: .unknown).blockingIssue == nil)
     }
 
     @Test("Snapshot.diagnosticSummary contains key information")
     func snapshotDiagnosticSummary() {
-        let now = Date()
-        let granted = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test-source",
-            confidence: .high,
-            timestamp: now
-        )
-
-        let snapshot = PermissionOracle.Snapshot(
-            keyPath: granted,
-            kanata: granted,
-            timestamp: now
-        )
-
-        let summary = snapshot.diagnosticSummary
+        let summary = PermissionOracle.Snapshot.fixture(source: "test-source").diagnosticSummary
         #expect(summary.contains("Permission Oracle Snapshot"))
         #expect(summary.contains("KeyPath"))
-        #expect(summary.contains("Kanata"))
+        #expect(summary.contains("Runtime key access"))
         #expect(summary.contains("test-source"))
         #expect(summary.contains("high"))
         #expect(summary.contains("granted"))
         #expect(summary.contains("System Ready: true"))
+        #expect(!summary.contains("Input Monitoring"))
+    }
+
+    @Test("Runtime report combines its Accessibility and key access")
+    func runtimeKeyAccessFromReport() {
+        let now = Date()
+        let ready = PermissionOracle.RuntimeKeyAccess(
+            runtimeAccessibility: true, keyAccess: true, source: "worker", timestamp: now
+        )
+        #expect(ready.status == .granted)
+        #expect(ready.confidence == .high)
+        #expect(PermissionOracle.RuntimeKeyAccess(
+            runtimeAccessibility: false, keyAccess: true, source: "worker", timestamp: now
+        ).status == .denied)
+        #expect(PermissionOracle.RuntimeKeyAccess(
+            runtimeAccessibility: true, keyAccess: false, source: "worker", timestamp: now
+        ).status == .denied)
+        let unreported = PermissionOracle.RuntimeKeyAccess.notReported(timestamp: now)
+        #expect(unreported.status == .unknown)
+        #expect(unreported.confidence == .low)
     }
 
     // MARK: - Confidence Tests
@@ -275,12 +120,9 @@ struct PermissionOracleTests {
         let snapshot = await oracle.currentSnapshot()
 
         // In test mode, should get placeholder with unknown status
-        #expect(snapshot.keyPath.accessibility == PermissionOracle.Status.unknown)
-        #expect(snapshot.keyPath.inputMonitoring == PermissionOracle.Status.unknown)
-        #expect(snapshot.kanata.accessibility == PermissionOracle.Status.unknown)
-        #expect(snapshot.kanata.inputMonitoring == PermissionOracle.Status.unknown)
-        #expect(snapshot.keyPath.source == "test.placeholder")
-        #expect(snapshot.keyPath.confidence == PermissionOracle.Confidence.low)
+        #expect(snapshot.accessibility == PermissionOracle.Status.unknown)
+        #expect(snapshot.runtimeKeyAccess.status == PermissionOracle.Status.unknown)
+        #expect(snapshot.runtimeKeyAccess.confidence == PermissionOracle.Confidence.low)
     }
 
     @Test("Cache invalidation works")

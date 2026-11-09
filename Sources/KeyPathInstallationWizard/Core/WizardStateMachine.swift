@@ -204,8 +204,7 @@ public class WizardStateMachine {
         case .stopExternalKanata: .kanataMigration
         case .karabinerImport:
             hasShownKarabinerImportPage ? .karabinerImport : .stopExternalKanata
-        case .inputMonitoring: .summary
-        case .accessibility: .inputMonitoring
+        case .accessibility: .summary
         case .service: .accessibility
         }
     }

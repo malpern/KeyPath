@@ -17,8 +17,8 @@ struct PermissionOracleFastModeTests {
         let duration = Date().timeIntervalSince(start)
 
         #expect(duration < 1.0)
-        #expect(snapshot.keyPath.confidence == .low)
-        #expect(snapshot.keyPath.source.contains("test"))
+        #expect(snapshot.accessibility == .unknown)
+        #expect(snapshot.runtimeKeyAccess.confidence == .low)
     }
 
     @Test("Cached snapshot has same timestamp on immediate re-read")
@@ -33,15 +33,16 @@ struct PermissionOracleFastModeTests {
         #expect(first.timestamp.timeIntervalSince1970 == second.timestamp.timeIntervalSince1970)
     }
 
-    @Test("Kanata permission set also uses low confidence in test mode")
+    @Test("Runtime key access is unreported in test mode")
     @MainActor
-    func kanataConfidenceLowInTestMode() async {
+    func runtimeKeyAccessUnreportedInTestMode() async {
         TestEnvironment.forceTestMode = true
         defer { TestEnvironment.forceTestMode = false }
 
         let oracle = PermissionOracle()
         let snapshot = await oracle.currentSnapshot()
-        #expect(snapshot.kanata.confidence == .low)
+        #expect(snapshot.runtimeKeyAccess.status == .unknown)
+        #expect(snapshot.runtimeKeyAccess.confidence == .low)
     }
 
     @Test("Snapshot has a recent timestamp")
@@ -69,7 +70,7 @@ struct PermissionOracleFastModeTests {
         let duration = Date().timeIntervalSince(start)
 
         #expect(duration < 1.0)
-        #expect(snapshot.keyPath.confidence == .low)
+        #expect(snapshot.runtimeKeyAccess.confidence == .low)
     }
 
     @Test("diagnosticSummary is non-empty in test mode")

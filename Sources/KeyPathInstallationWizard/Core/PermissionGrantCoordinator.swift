@@ -7,14 +7,11 @@ import SwiftUI
 
 public enum CoordinatorPermissionType: String, CaseIterable {
     case accessibility
-    case inputMonitoring = "input_monitoring"
 
     public var displayName: String {
         switch self {
         case .accessibility:
             AccessibilityPermissionPresentation.current.name
-        case .inputMonitoring:
-            "Input Monitoring"
         }
     }
 
@@ -97,8 +94,6 @@ public class PermissionGrantCoordinator {
             switch permissionType {
             case .accessibility:
                 "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-            case .inputMonitoring:
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
             }
 
         if let url = URL(string: settingsPath) {
@@ -231,16 +226,10 @@ public class PermissionGrantCoordinator {
 
             let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
 
-            let keyPathAccessibility = snapshot.keyPath.accessibility.isReady
-            let keyPathInputMonitoring = snapshot.keyPath.inputMonitoring.isReady
-
-            logger.log("  KeyPath permissions:")
-            logger.log("    • Accessibility: \(keyPathAccessibility ? "granted" : "denied")")
-            logger.log("    • Input Monitoring: \(keyPathInputMonitoring ? "granted" : "denied")")
-
-            logger.log("  Kanata permissions (source: \(snapshot.kanata.source)):")
-            logger.log("    • Accessibility: \(snapshot.kanata.accessibility)")
-            logger.log("    • Input Monitoring: \(snapshot.kanata.inputMonitoring)")
+            logger.log("  • KeyPath Accessibility: \(snapshot.accessibility)")
+            logger.log(
+                "  • Runtime key access: \(snapshot.runtimeKeyAccess.status) (source: \(snapshot.runtimeKeyAccess.source))"
+            )
 
             logger.log("  System ready: \(snapshot.isSystemReady)")
 
@@ -287,8 +276,6 @@ public class PermissionGrantCoordinator {
                 switch permissionType {
                 case .accessibility:
                     UserDefaults.standard.set(true, forKey: "wizard_return_to_accessibility")
-                case .inputMonitoring:
-                    UserDefaults.standard.set(true, forKey: "wizard_return_to_input_monitoring")
                 }
             }
 
@@ -306,16 +293,7 @@ public class PermissionGrantCoordinator {
 
         switch permissionType {
         case .accessibility:
-            // Both KeyPath and kanata should have accessibility
-            let keyPathGranted = snapshot.keyPath.accessibility == .granted
-            let kanataGranted = snapshot.kanata.accessibility == .granted
-            return keyPathGranted && kanataGranted
-
-        case .inputMonitoring:
-            // Both KeyPath and kanata should have input monitoring
-            let keyPathGranted = snapshot.keyPath.inputMonitoring == .granted
-            let kanataGranted = snapshot.kanata.inputMonitoring == .granted
-            return keyPathGranted && kanataGranted
+            return snapshot.isSystemReady
         }
     }
 }

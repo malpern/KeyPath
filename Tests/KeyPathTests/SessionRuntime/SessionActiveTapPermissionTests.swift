@@ -11,20 +11,24 @@ struct SessionActiveTapPermissionTests {
         for accessibility in statuses {
             for listening in statuses {
                 for posting in statuses {
-                    let permissions = PermissionOracle.sessionPermissionSet(
+                    let permissions = PermissionOracle.sessionCapabilities(
                         accessibility: accessibility, eventListening: listening,
                         eventPosting: posting, timestamp: Date()
                     )
                     #expect(permissions.accessibility == accessibility)
-                    #expect(permissions.inputMonitoring == (listening.isReady ? posting : listening))
-                    #expect(permissions.hasAllPermissions == (accessibility.isReady && listening.isReady && posting.isReady))
+                    #expect(permissions.keyAccess == (listening.isReady ? posting : listening))
+                    #expect(permissions.isReady == (accessibility.isReady && listening.isReady && posting.isReady))
                     #expect(permissions.source == "current-process.apple-api.listen-and-post-event")
                     let snapshot = PermissionOracle.Snapshot(
-                        keyPath: .init(accessibility: .granted, inputMonitoring: .denied,
-                                       source: "inert-parent", confidence: .high, timestamp: Date()),
-                        kanata: permissions, timestamp: Date(), backend: .session
+                        accessibility: .granted,
+                        runtimeKeyAccess: .init(
+                            runtimeAccessibility: permissions.accessibility.isReady,
+                            keyAccess: permissions.keyAccess.isReady,
+                            source: permissions.source, timestamp: Date()
+                        ),
+                        timestamp: Date()
                     )
-                    #expect(snapshot.isSystemReady == permissions.hasAllPermissions)
+                    #expect(snapshot.isSystemReady == permissions.isReady)
                     if accessibility == .granted, listening == .denied, posting == .granted {
                         #expect(snapshot
                             .blockingIssue == "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name).")

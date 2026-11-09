@@ -118,15 +118,15 @@ struct AboutView: View {
 
                 if let context = systemContext {
                     statusRow(
-                        label: "Input Monitoring",
-                        value: context.permissions.keyPath.inputMonitoring.description,
-                        color: context.permissions.keyPath.inputMonitoring.isReady ? .green : .orange
+                        label: AccessibilityPermissionPresentation.current.name,
+                        value: context.permissions.accessibility.description,
+                        color: context.permissions.accessibility.isReady ? .green : .orange
                     )
 
                     statusRow(
-                        label: AccessibilityPermissionPresentation.current.name,
-                        value: context.permissions.keyPath.accessibility.description,
-                        color: context.permissions.keyPath.accessibility.isReady ? .green : .orange
+                        label: "Runtime key access",
+                        value: context.permissions.runtimeKeyAccess.status.description,
+                        color: context.permissions.runtimeKeyAccess.status.isReady ? .green : .orange
                     )
                 }
 

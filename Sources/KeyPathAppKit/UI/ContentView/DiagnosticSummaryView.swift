@@ -95,10 +95,10 @@ struct DiagnosticSummaryView: View {
                 timestamp: Date(),
                 severity: .critical,
                 category: .permissions,
-                title: "Input Monitoring Missing",
-                description: "KeyPath does not have Input Monitoring permission.",
-                technicalDetails: "IOHID access denied",
-                suggestedAction: "Grant Input Monitoring access",
+                title: "Device Control and Data Access Missing",
+                description: "KeyPath does not have Device Control and Data Access permission.",
+                technicalDetails: "AXIsProcessTrusted returned false",
+                suggestedAction: "Enable KeyPath in Device Control and Data Access, then quit and reopen KeyPath",
                 canAutoFix: false
             )
         ],
@@ -115,10 +115,10 @@ struct DiagnosticSummaryView: View {
                 timestamp: Date(),
                 severity: .critical,
                 category: .permissions,
-                title: "Input Monitoring Missing",
-                description: "KeyPath does not have Input Monitoring permission.",
-                technicalDetails: "IOHID access denied",
-                suggestedAction: "Grant Input Monitoring access",
+                title: "Device Control and Data Access Missing",
+                description: "KeyPath does not have Device Control and Data Access permission.",
+                technicalDetails: "AXIsProcessTrusted returned false",
+                suggestedAction: "Enable KeyPath in Device Control and Data Access, then quit and reopen KeyPath",
                 canAutoFix: false
             ),
             KanataDiagnostic(

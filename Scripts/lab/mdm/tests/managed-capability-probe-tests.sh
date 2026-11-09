@@ -18,7 +18,7 @@ $1
 JSON"
 }
 
-write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}}'
+write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":true,"runtimeKeyAccess":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}}'
 write_tool tcp-probe 'echo "{\"CurrentLayerName\":{\"name\":\"base\"}}"'
 write_tool sfltool 'echo "background items available"'
 
@@ -36,7 +36,7 @@ test -s "$TMP/pass/service-status.json"
 test -s "$TMP/pass/tcp-readiness.json"
 test -s "$TMP/pass/background-items.txt"
 
-write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":false,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}}'
+write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":false,"runtimeKeyAccess":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}}'
 if run_probe "$TMP/missing-permission" >"$TMP/missing.stdout" 2>"$TMP/missing.stderr"; then
     echo "expected missing KeyPath Accessibility to fail" >&2
     exit 1
@@ -44,14 +44,14 @@ fi
 grep -Fq 'managed capabilities missing: keyPathAccessibility' "$TMP/missing.stderr"
 
 # The unwrapped payload shape is accepted too; a stopped runtime fails.
-write_status '{"isOperational":false,"keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":false,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}'
+write_status '{"isOperational":false,"keyPathAccessibility":true,"runtimeKeyAccess":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":false,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}'
 if run_probe "$TMP/stopped-runtime" >"$TMP/stopped.stdout" 2>"$TMP/stopped.stderr"; then
     echo "expected a stopped session runtime to fail" >&2
     exit 1
 fi
 grep -Fq 'managed capabilities missing: isOperational, kanataRunning' "$TMP/stopped.stderr"
 
-write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":true}}'
+write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":true,"runtimeKeyAccess":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":true}}'
 if run_probe "$TMP/conflict" >"$TMP/conflict.stdout" 2>"$TMP/conflict.stderr"; then
     echo "expected a conflicting remapper to fail" >&2
     exit 1

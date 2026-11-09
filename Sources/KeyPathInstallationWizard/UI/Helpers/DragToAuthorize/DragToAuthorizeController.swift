@@ -17,41 +17,32 @@ public final class DragToAuthorizeController {
 
     public enum PermissionTarget: Sendable {
         case accessibility
-        case inputMonitoring
 
         var settingsURL: URL {
             switch self {
             case .accessibility:
                 URL(string: KeyPathConstants.URLs.accessibilityPrivacy)!
-            case .inputMonitoring:
-                URL(string: KeyPathConstants.URLs.inputMonitoringPrivacy)!
             }
         }
 
         var displayName: String {
             switch self {
             case .accessibility: AccessibilityPermissionPresentation.current.name
-            case .inputMonitoring: "Input Monitoring"
             }
         }
     }
 
     /// Which app the overlay authorizes — i.e. which file the user drags into the
-    /// privacy list and whose permission is polled. Historically the overlay only
-    /// added kanata-launcher; `.keyPath` targets KeyPath.app's own consent rows.
+    /// privacy list and whose permission is polled. KeyPath.app is the only
+    /// permission identity; the session runtime runs from its bundle.
     public enum PermissionSubject: Equatable, Sendable {
-        /// KeyPath.app's Accessibility and Input Monitoring grants. Drags the
-        /// app bundle and polls `snapshot.keyPath`.
+        /// KeyPath.app's own grant. Drags the app bundle and polls `snapshot.accessibility`.
         case keyPath
-        /// The bundled kanata-launcher binary (the remapping engine's grant).
-        /// Drags the launcher executable; polled via `snapshot.kanata`.
-        case kanata
 
         /// File dragged into the System Settings privacy list for this subject.
         var fileURL: URL {
             switch self {
             case .keyPath: URL(fileURLWithPath: Bundle.main.bundlePath)
-            case .kanata: URL(fileURLWithPath: WizardSystemPaths.bundledKanataLauncherPath)
             }
         }
 
@@ -59,7 +50,6 @@ public final class DragToAuthorizeController {
         var displayName: String {
             switch self {
             case .keyPath: "KeyPath"
-            case .kanata: "kanata-launcher"
             }
         }
 
@@ -67,7 +57,6 @@ public final class DragToAuthorizeController {
         var subtitle: String {
             switch self {
             case .keyPath: "Main application"
-            case .kanata: "KeyPath Engine"
             }
         }
     }
@@ -86,7 +75,7 @@ public final class DragToAuthorizeController {
 
     public private(set) var state: OverlayState = .idle
     public private(set) var currentTarget: PermissionTarget?
-    public private(set) var currentSubject: PermissionSubject = .kanata
+    public private(set) var currentSubject: PermissionSubject = .keyPath
 
     // MARK: - Private Properties
 
@@ -103,11 +92,10 @@ public final class DragToAuthorizeController {
     /// Present the drag-to-authorize overlay for the given permission target.
     /// Opens System Settings and shows the floating panel anchored below it.
     ///
-    /// - Parameter subject: which app the user drags into the list (defaults to
-    ///   `.kanata` for backward compatibility with the kanata-launcher rows).
+    /// - Parameter subject: which app the user drags into the list.
     public func present(
         for target: PermissionTarget,
-        subject: PermissionSubject = .kanata,
+        subject: PermissionSubject = .keyPath,
         sourceRect: NSRect? = nil,
         in sourceWindow: NSWindow? = nil
     ) {
@@ -324,17 +312,15 @@ public final class DragToAuthorizeController {
     }
 
     /// Pure decision: is `subject`'s `target` permission granted in this snapshot?
-    /// Extracted so the target×subject → PermissionSet mapping is unit-testable
-    /// without AppKit (mirrors the resolver pattern in #931/#937/#939).
+    /// Extracted so the decision is unit-testable without AppKit
+    /// (mirrors the resolver pattern in #931/#937/#939).
     nonisolated static func grantResolved(
         target: PermissionTarget,
         subject: PermissionSubject,
         snapshot: PermissionOracle.Snapshot
     ) -> Bool {
-        let permissions = subject == .keyPath ? snapshot.keyPath : snapshot.kanata
-        switch target {
-        case .accessibility: return permissions.accessibility == .granted
-        case .inputMonitoring: return permissions.inputMonitoring == .granted
+        switch (target, subject) {
+        case (.accessibility, .keyPath): snapshot.accessibility == .granted
         }
     }
 
@@ -343,7 +329,7 @@ public final class DragToAuthorizeController {
         panel = nil
         stateModel = nil
         currentTarget = nil
-        currentSubject = .kanata
+        currentSubject = .keyPath
         state = .idle
     }
 }

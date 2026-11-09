@@ -75,15 +75,14 @@ public protocol WizardUninstalling: Sendable {
 
 @MainActor
 public protocol WizardPermissionRequesting: AnyObject, Sendable {
-    func requestInputMonitoringPermission(ignoreCooldown: Bool) async -> Bool
     func requestAccessibilityPermission(ignoreCooldown: Bool) async -> Bool
 }
 
 // MARK: - PermissionService Protocol
 
 // STUB: WizardPermissionAnalyzing is an intentional no-op placeholder. Actual permission
-// analysis is deferred entirely to the Permission Oracle system (PermissionOracle.shared),
-// which uses IOHIDCheckAccess as the authoritative source. This type exists only to satisfy
+// analysis is deferred entirely to the Permission Oracle system (PermissionOracle.shared).
+// This type exists only to satisfy
 // call sites that historically expected a permission-analysis helper; callers should use
 // the Oracle and SystemSnapshot permission fields instead.
 public enum WizardPermissionAnalyzing {

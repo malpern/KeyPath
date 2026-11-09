@@ -12,24 +12,8 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
     func testKanataUnknownPermissionRequestsRuntimeEvidenceNotConsent() {
         let now = Date()
 
-        let keyPath = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
         // Represents "not verified" when effective runtime facts are unavailable.
-        let kanata = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .unknown,
-            source: "test",
-            confidence: .low,
-            timestamp: now
-        )
-
-        let permissions = PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit)
+        let permissions = PermissionOracle.Snapshot.fixture(runtimeKeyAccess: .unknown, timestamp: now)
 
         let context = SystemContext(
             permissions: permissions,

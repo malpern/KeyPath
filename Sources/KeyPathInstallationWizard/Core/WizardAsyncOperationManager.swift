@@ -296,76 +296,6 @@ public enum WizardOperations {
             return restarted
         }
     }
-
-    /// Permission grant operation (opens settings and waits for user)
-    public static func grantPermission(
-        type: PermissionType,
-        kanataManager: any RuntimeCoordinating
-    ) -> AsyncOperation<Bool> {
-        AsyncOperation<Bool>(
-            id: "grant_permission_\(type.rawValue)",
-            name: "Grant Permission: \(type.displayName)"
-        ) { progressCallback in
-            progressCallback(0.1)
-
-            // Open settings
-            switch type {
-            case .inputMonitoring:
-                await MainActor.run { kanataManager.openInputMonitoringSettings() }
-            case .accessibility:
-                await MainActor.run { kanataManager.openAccessibilitySettings() }
-            }
-
-            progressCallback(0.3)
-
-            // Wait and periodically check for permission grant
-            var attempts = 0
-            let maxAttempts = 30 // 30 seconds max
-
-            while attempts < maxAttempts {
-                let clock = ContinuousClock()
-                try await clock.sleep(for: .seconds(1)) // 1 second
-                attempts += 1
-                progressCallback(0.3 + (Double(attempts) / Double(maxAttempts)) * 0.7)
-
-                let snapshot = await SystemStateProvider.shared.currentPermissionSnapshot()
-                let hasPermission =
-                    switch type {
-                    case .inputMonitoring:
-                        snapshot.keyPath.inputMonitoring.isReady
-                    case .accessibility:
-                        snapshot.keyPath.accessibility.isReady
-                    }
-
-                if hasPermission {
-                    AppLogger.shared.log("🔮 [WizardAsyncOperationManager] Permission granted")
-
-                    // TCP-only mode: No automatic restart needed
-                    // User can manually restart via UI if needed
-
-                    progressCallback(1.0)
-                    return true
-                }
-            }
-
-            // Timeout
-            return false
-        }
-    }
-}
-
-// MARK: - Permission Type
-
-public enum PermissionType: String {
-    case inputMonitoring
-    case accessibility
-
-    public var displayName: String {
-        switch self {
-        case .inputMonitoring: "Input Monitoring"
-        case .accessibility: AccessibilityPermissionPresentation.current.name
-        }
-    }
 }
 
 // MARK: - Error Handling
@@ -488,8 +418,8 @@ public struct WizardError: LocalizedError {
                 "KeyPath needs additional system permissions to work properly",
                 [
                     "Open System Settings → Privacy & Security",
-                    "Find 'Input Monitoring' and '\(AccessibilityPermissionPresentation.current.name)' sections",
-                    "Make sure KeyPath and Kanata are both enabled"
+                    "Find the '\(AccessibilityPermissionPresentation.current.name)' section",
+                    "Make sure KeyPath is enabled, then quit and reopen KeyPath"
                 ]
             )
 

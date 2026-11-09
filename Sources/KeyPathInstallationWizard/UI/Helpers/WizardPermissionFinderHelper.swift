@@ -21,10 +21,4 @@ enum WizardPermissionFinderHelper {
         let url = URL(string: KeyPathConstants.URLs.accessibilityPrivacy)!
         NSWorkspace.shared.open(url)
     }
-
-    /// Opens System Settings to the Input Monitoring pane.
-    static func openInputMonitoringSettings() {
-        let url = URL(string: KeyPathConstants.URLs.inputMonitoringPrivacy)!
-        NSWorkspace.shared.open(url)
-    }
 }

@@ -95,7 +95,7 @@ The build script automatically:
 
 When you first launch KeyPath, the **Installation Wizard** will guide you through:
 
-1. **Permission Setup** - Grants Input Monitoring and Accessibility permissions
+1. **Permission Setup** - Grants Device Control and Data Access (Accessibility before macOS 27)
 2. **Driver Installation** - Installs Karabiner VirtualHID driver if needed
 3. **Service Configuration** - Sets up LaunchDaemon services
 4. **System Validation** - Verifies everything is working correctly
@@ -868,8 +868,7 @@ Conflicts are warnings, not errors. The last enabled rule wins. To resolve:
 
 1. **Run Setup Wizard** - File → Run Setup Wizard
 2. **Check System Settings** - System Settings → Privacy & Security
-   - Input Monitoring: Should show KeyPath and Kanata
-   - Accessibility: Should show KeyPath
+   - Device Control and Data Access (Accessibility before macOS 27): Should show KeyPath
 3. **Use Fix Button** - Wizard provides one-click fixes for common issues
 
 [[advanced-troubleshooting]]

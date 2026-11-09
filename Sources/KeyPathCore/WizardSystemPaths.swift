@@ -217,10 +217,6 @@ public enum WizardSystemPaths {
     public static let privacySecuritySettings =
         "x-apple.systempreferences:com.apple.preference.security"
 
-    /// Input Monitoring settings URL
-    public static let inputMonitoringSettings =
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
-
     /// Accessibility settings URL
     public static let accessibilitySettings =
         "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"

@@ -3,10 +3,10 @@ import KeyPathInstallationWizard
 
 public struct CLIStatusResult: Codable, Sendable {
     public let isOperational: Bool
+    /// KeyPath.app's own Accessibility grant (Device Control and Data Access on macOS 27).
     public let keyPathAccessibility: Bool
-    public let keyPathInputMonitoring: Bool
-    public let kanataAccessibility: Bool
-    public let kanataInputMonitoring: Bool
+    /// The session runtime reports it can read and post keys.
+    public let runtimeKeyAccess: Bool
     public let kanataBinaryInstalled: Bool
     public let karabinerDriverInstalled: Bool
     public let vhidDeviceHealthy: Bool
@@ -23,9 +23,7 @@ public struct CLIStatusResult: Codable, Sendable {
     public init(
         isOperational: Bool,
         keyPathAccessibility: Bool,
-        keyPathInputMonitoring: Bool,
-        kanataAccessibility: Bool,
-        kanataInputMonitoring: Bool,
+        runtimeKeyAccess: Bool,
         kanataBinaryInstalled: Bool,
         karabinerDriverInstalled: Bool,
         vhidDeviceHealthy: Bool,
@@ -41,9 +39,7 @@ public struct CLIStatusResult: Codable, Sendable {
     ) {
         self.isOperational = isOperational
         self.keyPathAccessibility = keyPathAccessibility
-        self.keyPathInputMonitoring = keyPathInputMonitoring
-        self.kanataAccessibility = kanataAccessibility
-        self.kanataInputMonitoring = kanataInputMonitoring
+        self.runtimeKeyAccess = runtimeKeyAccess
         self.kanataBinaryInstalled = kanataBinaryInstalled
         self.karabinerDriverInstalled = karabinerDriverInstalled
         self.vhidDeviceHealthy = vhidDeviceHealthy

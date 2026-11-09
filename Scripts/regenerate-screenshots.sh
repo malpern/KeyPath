@@ -101,12 +101,9 @@ else
     if command -v peekaboo &>/dev/null; then
         echo ""
         echo "📷 Capturing Peekaboo system screenshots..."
-        # Only capture the non-interactive ones (accessibility + input-monitoring)
+        # Only capture the non-interactive one (accessibility)
         "$SCRIPT_DIR/capture-peekaboo-screenshots.sh" accessibility 2>&1 || {
             echo "⚠️  Peekaboo accessibility capture failed (non-fatal)"
-        }
-        "$SCRIPT_DIR/capture-peekaboo-screenshots.sh" input-monitoring 2>&1 || {
-            echo "⚠️  Peekaboo input-monitoring capture failed (non-fatal)"
         }
         echo "✅ Peekaboo captures complete"
     else

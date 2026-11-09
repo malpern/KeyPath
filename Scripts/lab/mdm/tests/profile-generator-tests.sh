@@ -52,11 +52,9 @@ assert "kanataLauncher" not in manifest and "virtualHID" not in manifest
 
 pppc = plistlib.load(open(root / "keypath-pppc.mobileconfig", "rb"))
 services = pppc["PayloadContent"][0]["Services"]
-assert {"Accessibility", "ListenEvent", "SystemPolicyAllFiles"} == set(services)
+assert {"Accessibility", "SystemPolicyAllFiles"} == set(services)
 assert [item["IdentifierType"] for item in services["Accessibility"]] == ["bundleID", "bundleID"]
-assert [item["IdentifierType"] for item in services["ListenEvent"]] == ["bundleID", "bundleID"]
 assert {item["Authorization"] for item in services["Accessibility"]} == {"Allow"}
-assert {item["Authorization"] for item in services["ListenEvent"]} == {"AllowStandardUserToSetSystemService"}
 assert {item["Authorization"] for item in services["SystemPolicyAllFiles"]} == {"Allow"}
 assert all("Allowed" not in item for items in services.values() for item in items)
 

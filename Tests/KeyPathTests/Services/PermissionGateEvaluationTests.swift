@@ -4,135 +4,74 @@
 
 @MainActor
 final class PermissionGateEvaluationTests: XCTestCase {
-    func testKanataUnknownClassifiesAsNotVerifiedNotBlocking() {
-        let now = Date()
-        let snap = PermissionOracle.Snapshot(
-            keyPath: .init(
-                accessibility: .granted,
-                inputMonitoring: .granted,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            kanata: .init(
-                accessibility: .unknown,
-                inputMonitoring: .unknown,
-                source: "test",
-                confidence: .low,
-                timestamp: now
-            ),
-            timestamp: now
-        )
-
-        let eval = PermissionGate.evaluate(snap, for: .keyboardRemapping)
-        XCTAssertTrue(eval.missingKeyPath.isEmpty)
-        XCTAssertTrue(eval.kanataBlocking.isEmpty)
-        XCTAssertEqual(eval.kanataNotVerified, [.accessibility, .inputMonitoring])
-    }
-
-    func testKanataDeniedClassifiesAsBlocking() {
-        let now = Date()
-        let snap = PermissionOracle.Snapshot(
-            keyPath: .init(
-                accessibility: .granted,
-                inputMonitoring: .granted,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            kanata: .init(
-                accessibility: .denied,
-                inputMonitoring: .denied,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            timestamp: now
-        )
-
-        let eval = PermissionGate.evaluate(snap, for: .keyboardRemapping)
-        XCTAssertTrue(eval.missingKeyPath.isEmpty)
-        XCTAssertEqual(eval.kanataBlocking, [.accessibility, .inputMonitoring])
-        XCTAssertTrue(eval.kanataNotVerified.isEmpty)
-    }
-
     private func snapshot(
-        keyPathAX: PermissionOracle.Status = .granted,
-        keyPathIM: PermissionOracle.Status = .denied,
-        kanataAX: PermissionOracle.Status = .granted,
-        kanataIM: PermissionOracle.Status = .granted
+        accessibility: PermissionOracle.Status = .granted,
+        runtimeKeyAccess: PermissionOracle.Status = .granted
     ) -> PermissionOracle.Snapshot {
-        let now = Date()
-        return .init(
-            keyPath: .init(accessibility: keyPathAX, inputMonitoring: keyPathIM,
-                           source: "test", confidence: .high, timestamp: now),
-            kanata: .init(accessibility: kanataAX, inputMonitoring: kanataIM,
-                          source: "test", confidence: .high, timestamp: now),
-            timestamp: now
-        )
+        .fixture(accessibility: accessibility, runtimeKeyAccess: runtimeKeyAccess)
     }
 
-    func testRemappingDoesNotRequireKeyPathInputMonitoring() {
-        let eval = PermissionGate.evaluate(snapshot(), for: .keyboardRemapping)
-        XCTAssertTrue(eval.missingKeyPath.isEmpty)
-        XCTAssertTrue(eval.kanataBlocking.isEmpty)
-        XCTAssertTrue(eval.kanataNotVerified.isEmpty)
+    func testUnreportedRuntimeIsNotVerifiedNotBlocking() {
+        let eval = PermissionGate.evaluate(snapshot(runtimeKeyAccess: .unknown), for: .keyboardRemapping)
+        XCTAssertFalse(eval.accessibilityMissing)
+        XCTAssertFalse(eval.runtimeBlocked)
+        XCTAssertTrue(eval.runtimeNotVerified)
+        XCTAssertFalse(eval.canProceed)
     }
 
-    func testRemappingStillRequiresEngineInputAccess() {
-        let eval = PermissionGate.evaluate(snapshot(kanataIM: .denied), for: .keyboardRemapping)
-        XCTAssertTrue(eval.missingKeyPath.isEmpty)
-        XCTAssertEqual(eval.kanataBlocking, [.inputMonitoring])
+    func testDeniedRuntimeIsBlocking() {
+        let eval = PermissionGate.evaluate(snapshot(runtimeKeyAccess: .denied), for: .keyboardRemapping)
+        XCTAssertFalse(eval.accessibilityMissing)
+        XCTAssertTrue(eval.runtimeBlocked)
+        XCTAssertFalse(eval.runtimeNotVerified)
     }
 
-    func testReloadDoesNotRequestKeyboardPermissionsEvenWithStoppedUnverifiedEngine() {
+    func testRemappingProceedsWithAccessibilityAndRuntimeAccess() {
+        XCTAssertTrue(PermissionGate.evaluate(snapshot(), for: .keyboardRemapping).canProceed)
+    }
+
+    func testReloadDoesNotRequireKeyboardPermissions() {
         let eval = PermissionGate.evaluate(
-            snapshot(keyPathAX: .denied, kanataAX: .unknown, kanataIM: .unknown),
-            for: .configurationReload
+            snapshot(accessibility: .denied, runtimeKeyAccess: .unknown), for: .configurationReload
         )
-        XCTAssertTrue(eval.missingKeyPath.isEmpty)
-        XCTAssertTrue(eval.kanataBlocking.isEmpty)
-        XCTAssertTrue(eval.kanataNotVerified.isEmpty)
+        XCTAssertTrue(eval.canProceed)
     }
 
-    func testCaptureRequiresAppAccessibilityButNotEnginePermissions() {
+    func testCaptureRequiresAccessibilityButNotRuntimeAccess() {
         let eval = PermissionGate.evaluate(
-            snapshot(keyPathAX: .denied, kanataAX: .unknown, kanataIM: .denied),
-            for: .keyCapture
+            snapshot(accessibility: .denied, runtimeKeyAccess: .denied), for: .keyCapture
         )
-        XCTAssertEqual(eval.missingKeyPath, [.accessibility])
-        XCTAssertTrue(eval.kanataBlocking.isEmpty)
-        XCTAssertTrue(eval.kanataNotVerified.isEmpty)
+        XCTAssertTrue(eval.accessibilityMissing)
+        XCTAssertFalse(eval.runtimeBlocked)
+        XCTAssertFalse(eval.runtimeNotVerified)
     }
 
-    func testAppAndEngineFailuresRemainIndependentDuringRemapping() {
+    func testAccessibilityAndRuntimeFailuresRemainIndependentDuringRemapping() {
         let eval = PermissionGate.evaluate(
-            snapshot(keyPathAX: .denied, kanataAX: .unknown, kanataIM: .denied),
-            for: .keyboardRemapping
+            snapshot(accessibility: .denied, runtimeKeyAccess: .denied), for: .keyboardRemapping
         )
-        XCTAssertEqual(eval.missingKeyPath, [.accessibility])
-        XCTAssertEqual(eval.kanataBlocking, [.inputMonitoring])
-        XCTAssertEqual(eval.kanataNotVerified, [.accessibility])
+        XCTAssertTrue(eval.accessibilityMissing)
+        XCTAssertTrue(eval.runtimeBlocked)
     }
 
-    func testGrantingAppAccessibilityCannotBypassEngineDenialOrUnknown() {
+    func testGrantingAccessibilityCannotBypassRuntimeDenialOrUnknown() {
         for status in [PermissionOracle.Status.denied, .unknown] {
             let before = PermissionGate.evaluate(
-                snapshot(keyPathAX: .denied, kanataIM: status), for: .keyboardRemapping
+                snapshot(accessibility: .denied, runtimeKeyAccess: status), for: .keyboardRemapping
             )
             let after = PermissionGate.evaluate(
-                snapshot(keyPathAX: .granted, kanataIM: status), for: .keyboardRemapping
+                snapshot(accessibility: .granted, runtimeKeyAccess: status), for: .keyboardRemapping
             )
             XCTAssertFalse(before.canProceed)
             XCTAssertFalse(after.canProceed)
-            XCTAssertTrue(after.missingKeyPath.isEmpty)
+            XCTAssertFalse(after.accessibilityMissing)
         }
     }
 
-    func testUnverifiedAppAccessibilityDoesNotPermitLocalCapture() {
-        let eval = PermissionGate.evaluate(snapshot(keyPathAX: .unknown), for: .keyCapture)
+    func testUnverifiedAccessibilityDoesNotPermitLocalCapture() {
+        let eval = PermissionGate.evaluate(snapshot(accessibility: .unknown), for: .keyCapture)
         XCTAssertFalse(eval.canProceed)
-        XCTAssertEqual(eval.missingKeyPath, [.accessibility])
+        XCTAssertTrue(eval.accessibilityMissing)
     }
 
     func testReloadActionProceedsWithoutPermissionInspection() async {

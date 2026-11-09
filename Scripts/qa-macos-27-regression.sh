@@ -52,7 +52,7 @@ cat > "$OUTPUT_ROOT/operator-checklist.md" <<'EOF'
 
 - [ ] In a disposable or clean account, capture the setup summary before granting permissions.
 - [ ] Grant and revoke Accessibility; confirm KeyPath reports the current state and recovery action.
-- [ ] Grant and revoke Input Monitoring; confirm PermissionOracle follows the current IOHID result.
+- [ ] With only Device Control and Data Access granted, confirm remapping works and no Input Monitoring prompt or row appears.
 - [ ] Exercise Background App Activity/Login Items approval and distinguish pending approval from failure.
 - [ ] Confirm the VirtualHID Driver Extension approval opens the correct macOS 27 System Settings surface.
 - [ ] Type through Kanata and confirm the live overlay renders physical key down/up state correctly.

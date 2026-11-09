@@ -163,8 +163,8 @@ public extension FeatureFlags {
     }
 
     /// Reset TCC permissions and preferences on uninstall for fresh install testing (default OFF)
-    /// When enabled, uninstall also clears Accessibility, Input Monitoring, and Full Disk Access
-    /// permissions plus UserDefaults, allowing a true "first launch" experience.
+    /// When enabled, uninstall also clears KeyPath's privacy permission entries
+    /// plus UserDefaults, allowing a true "first launch" experience.
     static var uninstallForTesting: Bool {
         // default OFF for production
         boolFlag(forKey: uninstallForTestingKey, default: false)

@@ -44,23 +44,7 @@ struct SystemValidatorTests {
         let oldTimestamp = Date(timeIntervalSinceNow: -35)
 
         let snapshot = SystemSnapshot(
-            permissions: PermissionOracle.Snapshot(
-                keyPath: PermissionOracle.PermissionSet(
-                    accessibility: .unknown,
-                    inputMonitoring: .unknown,
-                    source: "test",
-                    confidence: .low,
-                    timestamp: Date()
-                ),
-                kanata: PermissionOracle.PermissionSet(
-                    accessibility: .unknown,
-                    inputMonitoring: .unknown,
-                    source: "test",
-                    confidence: .low,
-                    timestamp: Date()
-                ),
-                timestamp: Date()
-            ),
+            permissions: PermissionOracle.Snapshot.fixture(accessibility: .unknown, runtimeKeyAccess: .unknown),
             components: ComponentStatus(
                 kanataBinaryInstalled: false,
                 karabinerDriverInstalled: false,

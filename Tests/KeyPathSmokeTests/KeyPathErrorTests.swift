@@ -102,9 +102,6 @@ struct KeyPathErrorTests {
         #expect(accessibility.errorDescription == "\(AccessibilityPermissionPresentation.current.name) permission not granted")
         #expect(accessibility.failureReason == "Permission or security check failed")
 
-        let inputMonitoring = KeyPathError.permission(.inputMonitoringNotGranted)
-        #expect(inputMonitoring.errorDescription == "Input Monitoring permission not granted")
-
         let keychainSave = KeyPathError.permission(.keychainSaveFailed(status: -25300))
         #expect(keychainSave.errorDescription?.contains("-25300") == true)
     }
@@ -114,18 +111,12 @@ struct KeyPathErrorTests {
         let accessibility = KeyPathError.permission(.accessibilityNotGranted)
         #expect(accessibility.recoverySuggestion?.contains("System Settings") == true)
         #expect(accessibility.recoverySuggestion?.contains("Privacy & Security") == true)
-
-        let inputMonitoring = KeyPathError.permission(.inputMonitoringNotGranted)
-        #expect(inputMonitoring.recoverySuggestion?.contains("System Settings") == true)
     }
 
     @Test("Permission errors are not recoverable")
     func permissionErrorRecoverability() {
         let accessibility = KeyPathError.permission(.accessibilityNotGranted)
         #expect(accessibility.isRecoverable == false)
-
-        let inputMonitoring = KeyPathError.permission(.inputMonitoringNotGranted)
-        #expect(inputMonitoring.isRecoverable == false)
     }
 
     // MARK: - System Errors
@@ -253,9 +244,6 @@ struct KeyPathErrorTests {
 
         let accessibilityError = KeyPathError.accessibilityNotGranted
         #expect(accessibilityError.errorDescription?.contains(AccessibilityPermissionPresentation.current.name) == true)
-
-        let inputMonitoringError = KeyPathError.inputMonitoringNotGranted
-        #expect(inputMonitoringError.errorDescription?.contains("Input Monitoring") == true)
 
         let udpTimeoutError = KeyPathError.udpTimeout
         #expect(udpTimeoutError.errorDescription?.contains("timeout") == true)
