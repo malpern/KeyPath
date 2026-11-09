@@ -71,3 +71,22 @@ CODESIGN_BIN="$TMP/codesign" SW_VERS_BIN="$TMP/sw_vers" \
     "$MDM_DIR/verify-artifact-policy" --app "$app" --manifest "$TMP/one/manifest.json" >/dev/null
 
 echo "profile-generator-tests: passed"
+
+# A driverless build ships no kanata-launcher: the policy grants only the app and
+# the engine, and names no launcher.
+rm "$app/Contents/Library/KeyPath/kanata-launcher"
+CODESIGN_BIN="$TMP/codesign" "$MDM_DIR/generate-keypath-profiles" --app "$app" --output "$TMP/driverless" >/dev/null
+/usr/bin/python3 - "$TMP/driverless" <<'PY'
+import json
+import plistlib
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest = json.loads((root / "manifest.json").read_text())
+assert manifest["kanataLauncher"] is None
+services = plistlib.load(open(root / "keypath-pppc.mobileconfig", "rb"))["PayloadContent"][0]["Services"]
+assert [item["IdentifierType"] for item in services["Accessibility"]] == ["bundleID", "bundleID"]
+assert [item["IdentifierType"] for item in services["ListenEvent"]] == ["bundleID", "bundleID"]
+PY
+echo "driverless profile generator test passed"
