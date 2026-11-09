@@ -66,75 +66,13 @@ enum SettingsSystemStatusRowsBuilder {
         wizardSystemState: WizardSystemState,
         wizardIssues: [WizardIssue],
         systemContext: SystemContext?,
-        tcpConfigured: Bool?,
+        tcpConfigured _: Bool?,
         driverless: Bool = false,
         intentionallyOff: Bool = false
     ) -> [SettingsSystemStatusRowModel] {
-        // Mirror wizard summary ordering and semantics.
         var rows: [SettingsSystemStatusRowModel] = []
 
-        // 1) Helper
-        let helperIssues = wizardIssues.filter { issue in
-            if case let .component(req) = issue.identifier {
-                return req == .privilegedHelper || req == .privilegedHelperUnhealthy
-            }
-            return false
-        }
-        let helperStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : issueStatus(for: helperIssues)
-        let helperMessage: String? = helperStatus != .completed ? helperIssues.first?.title : nil
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "privileged-helper",
-                title: "Privileged Helper",
-                icon: "shield.checkered",
-                status: helperStatus,
-                targetPage: .helper,
-                message: helperMessage
-            )
-        )
-
-        // 3) Conflicts
-        let conflictIssues = wizardIssues.filter { $0.category == .conflicts }
-        let conflictStatus: InstallationStatus = wizardSystemState == .initializing
-            ? .notStarted
-            : issueStatus(for: conflictIssues)
-        let conflictMessage: String? = conflictStatus != .completed ? conflictIssues.first?.title : nil
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "conflicts",
-                title: "System Conflicts",
-                icon: "exclamationmark.triangle",
-                status: conflictStatus,
-                targetPage: .conflicts,
-                message: conflictMessage
-            )
-        )
-
-        // 4) Karabiner Driver (permissions are shown in dedicated section above)
-        let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
-            systemState: wizardSystemState,
-            issues: wizardIssues
-        )
-        let karabinerIssues = wizardIssues.filter { issue in
-            (issue.category == .installation && issue.identifier.isVHIDRelated)
-                || issue.category == .backgroundServices
-                || (issue.category == .daemon && issue.identifier == .component(.karabinerDaemon))
-        }
-        let karabinerMessage: String? = karabinerStatus != .completed ? karabinerIssues.first?.title : nil
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "karabiner-components",
-                title: "Karabiner Driver",
-                icon: "keyboard.macwindow",
-                status: karabinerStatus,
-                targetPage: .karabinerComponents,
-                message: karabinerMessage
-            )
-        )
-
-        // 5) KeyPath Runtime
+        // The session runtime is the only system component to report.
         let daemonIssues = wizardIssues.filter(\.identifier.isDaemon)
         let blockingPermissionIssue = ServiceStatusEvaluator.blockingIssueMessage(from: wizardIssues)
         let serviceStatus: InstallationStatus = {
@@ -170,33 +108,7 @@ enum SettingsSystemStatusRowsBuilder {
             )
         )
 
-        // 6) TCP Communication
-        let commStatus: InstallationStatus = {
-            if wizardSystemState == .initializing { return .notStarted }
-            guard systemContext?.services.kanataRunning == true else { return .notStarted }
-            guard let tcpConfigured else { return .inProgress }
-            return tcpConfigured ? .completed : .failed
-        }()
-        let commMessage: String? = {
-            if commStatus == .failed {
-                return "TCP port configuration missing"
-            } else if commStatus == .inProgress {
-                return "Checking TCP configuration…"
-            }
-            return nil
-        }()
-        rows.append(
-            SettingsSystemStatusRowModel(
-                id: "tcp-communication",
-                title: "TCP Communication",
-                icon: "network",
-                status: commStatus,
-                targetPage: .communication,
-                message: commMessage
-            )
-        )
-
-        return driverless ? rows.filter { $0.id == "kanata-service" } : rows
+        return rows
     }
 }
 

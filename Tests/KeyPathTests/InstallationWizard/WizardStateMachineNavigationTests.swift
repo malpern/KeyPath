@@ -215,7 +215,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
         XCTAssertEqual(stateMachine.nextPageInSequence, expectedNext)
     }
 
-    func testNextPageUsesCapturedHelperApprovalWithoutReprobing() async {
+    func testDriverKitNextPageIgnoresCapturedHelperApproval() async {
         let result = SystemStateResult(
             state: .serviceNotRunning,
             issues: [],
@@ -228,7 +228,7 @@ final class WizardStateMachineNavigationTests: XCTestCase {
 
         let next = await stateMachine.getNextPage(for: result.state, issues: result.issues)
 
-        XCTAssertEqual(next, .helper)
+        XCTAssertEqual(next, .service, "There is no helper page; the captured approval no longer gates navigation")
         XCTAssertEqual(stateMachine.lastWizardSnapshot?.helperNeedsApproval, true)
     }
 

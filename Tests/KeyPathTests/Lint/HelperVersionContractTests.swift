@@ -22,7 +22,6 @@ final class HelperVersionContractTests: KeyPathTestCase {
             "Sources/KeyPathHelper/main.swift",
             "Sources/KeyPathAppKit/Core/HelperManager.swift",
             "Sources/KeyPathWizardCore/WizardHelperManaging.swift",
-            "Sources/KeyPathInstallationWizard/UI/Pages/WizardHelperPage.swift",
         ]
         for relativePath in contractConsumers {
             let source = try String(

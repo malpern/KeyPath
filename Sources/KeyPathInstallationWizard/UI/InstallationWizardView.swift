@@ -59,7 +59,6 @@ public struct InstallationWizardView: View {
     @State public var showAllSummaryItems: Bool = false
     @State public var navSequence: [WizardPage] = []
     @State public var inFlightFixActions: Set<AutoFixAction> = []
-    @State public var showingBackgroundApprovalPrompt = false
     @State public var currentFixAction: AutoFixAction?
     @State public var fixInFlight: Bool = false
     @State public var lastRefreshAt: Date?
@@ -68,7 +67,6 @@ public struct InstallationWizardView: View {
     // Task management for race condition prevention
     @State public var refreshTask: Task<Void, Never>?
     @State public var isForceClosing = false // Prevent new operations after nuclear close
-    @State public var loginItemsPollingTask: Task<Void, Never>? // Polls for Login Items approval
     @State public var statusBannerMessage: String?
     @State public var statusBannerTimestamp: Date?
     /// Kept in-memory so existing users are never offered first-run education
@@ -178,9 +176,6 @@ public struct InstallationWizardView: View {
         )
         .onExitCommand { forciblyCloseWizard() }
         .task { await monitorSystemState() }
-        .onReceive(NotificationCenter.default.publisher(for: .wizardSmAppServiceApprovalRequired)) { _ in
-            showingBackgroundApprovalPrompt = true
-        }
         .alert("Couldn't check setup", isPresented: Binding(
             get: { asyncOperationManager.lastError?.operation == "System State Detection" },
             set: { if !$0 { asyncOperationManager.lastError = nil } }
@@ -196,16 +191,6 @@ public struct InstallationWizardView: View {
             closeConfirmationButtons
         } message: {
             closeConfirmationMessage
-        }
-        .alert("Enable KeyPath in Login Items", isPresented: $showingBackgroundApprovalPrompt) {
-            loginItemsApprovalButtons
-        } message: {
-            Text("Login Items will open. Find KeyPath under Background Items and flip the switch to enable it.")
-        }
-        .onChange(of: showingBackgroundApprovalPrompt) { _, isShowing in
-            if isShowing {
-                startLoginItemsApprovalPolling()
-            }
         }
     }
 
@@ -305,19 +290,6 @@ public struct InstallationWizardView: View {
             "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") "
                 + "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
         )
-    }
-
-    @ViewBuilder
-    private var loginItemsApprovalButtons: some View {
-        Button("OK") {
-            showingBackgroundApprovalPrompt = false
-            openLoginItemsSettings()
-        }
-        .keyboardShortcut(.defaultAction)
-        Button("Later", role: .cancel) {
-            showingBackgroundApprovalPrompt = false
-            stopLoginItemsApprovalPolling()
-        }
     }
 
     // MARK: - Event Handlers

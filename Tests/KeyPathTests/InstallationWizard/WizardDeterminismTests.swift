@@ -24,19 +24,19 @@ final class WizardDeterminismTests: XCTestCase {
     }
 
     func testDifferentInputsLeadToDifferentPages() {
-        let conflictIssues = [WizardIssue(
-            identifier: .conflict(.karabinerGrabberRunning(pid: 123)),
+        let permissionIssues = [WizardIssue(
+            identifier: .permission(.keyPathAccessibility),
             severity: .error,
-            category: .conflicts,
-            title: "Conflict",
+            category: .permissions,
+            title: "Accessibility denied",
             description: "",
             autoFixAction: nil,
             userAction: nil
         )]
 
-        let conflictPage = WizardRouter.route(
-            state: .conflictsDetected(conflicts: [.karabinerGrabberRunning(pid: 123)]),
-            issues: conflictIssues,
+        let permissionPage = WizardRouter.route(
+            state: .missingPermissions(missing: [.keyPathAccessibility]),
+            issues: permissionIssues,
             helperInstalled: true,
             helperNeedsApproval: false
         )
@@ -47,9 +47,9 @@ final class WizardDeterminismTests: XCTestCase {
             helperNeedsApproval: false
         )
 
-        XCTAssertEqual(conflictPage, .conflicts)
+        XCTAssertEqual(permissionPage, .accessibility)
         XCTAssertEqual(readyPage, .summary)
-        XCTAssertNotEqual(conflictPage, readyPage)
+        XCTAssertNotEqual(permissionPage, readyPage)
     }
 
     /// Regression test for #934: the wizard must have a single, deterministic
@@ -61,8 +61,8 @@ final class WizardDeterminismTests: XCTestCase {
         let stateMachine = WizardStateMachine()
         XCTAssertEqual(stateMachine.currentPage, .summary, "Fresh state machine must start on summary")
 
-        stateMachine.navigateToPage(.helper)
-        XCTAssertEqual(stateMachine.currentPage, .helper)
+        stateMachine.navigateToPage(.accessibility)
+        XCTAssertEqual(stateMachine.currentPage, .accessibility)
 
         stateMachine.resetNavigation()
         XCTAssertEqual(

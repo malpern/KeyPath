@@ -9,12 +9,12 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
     func testFilteredDisplayItemsKeepsDependentRows() {
         let items: [LocalStatusItem] = [
             LocalStatusItem(
-                id: "privileged-helper",
-                icon: "lock",
-                title: "Privileged Helper",
+                id: "accessibility",
+                icon: "accessibility",
+                title: "Accessibility",
                 status: .failed,
                 isNavigable: true,
-                targetPage: .helper
+                targetPage: .accessibility
             ),
             LocalStatusItem(
                 id: "kanata-service",
@@ -28,7 +28,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
 
         let filtered = filteredDisplayItems(items, showAllItems: false)
 
-        XCTAssertEqual(filtered.map(\.id), ["privileged-helper", "kanata-service"])
+        XCTAssertEqual(filtered.map(\.id), ["accessibility", "kanata-service"])
         XCTAssertEqual(filtered.count, 2, "Dependent rows should remain visible in filtered view")
     }
 
@@ -216,7 +216,7 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 3)
     }
 
-    func testDriverKitBackendRetainsLegacyRows() {
+    func testDriverKitBackendShowsOnlySessionRows() {
         let nav: [WizardPage] = []
         let visible = 0
         let overview = WizardSystemStatusOverview(
@@ -231,10 +231,11 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             duplicateCopiesOverride: []
         )
 
-        let ids = Set(overview.statusItems.map(\.id))
-        XCTAssertTrue(ids.contains("privileged-helper"))
-        XCTAssertFalse(ids.contains("full-disk-access"))
-        XCTAssertTrue(ids.contains("karabiner-components"))
+        XCTAssertEqual(
+            overview.statusItems.map(\.id),
+            ["input-monitoring", "accessibility", "kanata-service"],
+            "Helper, conflict and Karabiner rows are retired for every backend"
+        )
     }
 
     private func sessionPermissions(

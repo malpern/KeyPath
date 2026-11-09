@@ -83,7 +83,7 @@ final class WizardWelcomeTests: XCTestCase {
         )
     }
 
-    func testNextPageFromWelcomeHistoricalDriverKitInstallGoesToHelper() {
+    func testNextPageFromWelcomeHistoricalDriverKitInstallSkipsRetiredHelper() {
         let next = WizardRouter.nextPage(
             after: .welcome,
             state: .initializing,
@@ -91,7 +91,7 @@ final class WizardWelcomeTests: XCTestCase {
             helperInstalled: false,
             helperNeedsApproval: false, backend: .driverKit
         )
-        XCTAssertEqual(next, .helper, "Get Started on a fresh install should route to the helper page")
+        XCTAssertEqual(next, .summary, "There is no helper page; with nothing to fix Get Started lands on summary")
     }
 
     func testWelcomeSessionDoesNotUseLegacyHelperPrerequisite() {

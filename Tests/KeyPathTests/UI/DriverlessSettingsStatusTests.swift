@@ -20,9 +20,10 @@ final class DriverlessSettingsStatusTests: XCTestCase {
         XCTAssertEqual(SettingsPermissionSummary.combine(.granted, .granted), .granted)
     }
 
-    func testLegacyStatusRetainsSeparateComponents() {
+    func testLegacyStatusShowsOnlyTheRuntimeRow() {
+        // Helper, conflict, Karabiner and TCP rows are retired for every backend.
         let rows = SettingsSystemStatusRowsBuilder.rows(wizardSystemState: .initializing, wizardIssues: [], systemContext: nil, tcpConfigured: nil, driverless: false)
-        XCTAssertEqual(rows.map(\.id), ["privileged-helper", "conflicts", "karabiner-components", "kanata-service", "tcp-communication"])
+        XCTAssertEqual(rows.map(\.id), ["kanata-service"])
     }
 
     /// Turning remapping off with the Status switch is a choice, not a fault: the

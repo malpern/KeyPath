@@ -9,10 +9,7 @@ public extension InstallationWizardView {
     /// Navigate to the previous page using keyboard left arrow
     func navigateToPreviousPage() {
         guard stateMachine.currentPage != .summary, stateMachine.currentPage != .welcome else { return }
-        let defaultSequence: [WizardPage] = [
-            .conflicts, .inputMonitoring, .accessibility,
-            .karabinerComponents, .service, .communication
-        ]
+        let defaultSequence: [WizardPage] = [.inputMonitoring, .accessibility, .service]
         let sequence = navSequence.isEmpty ? defaultSequence : navSequence
         guard let idx = sequence.firstIndex(of: stateMachine.currentPage), idx > 0 else {
             return

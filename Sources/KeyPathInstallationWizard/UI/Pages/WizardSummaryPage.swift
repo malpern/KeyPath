@@ -377,91 +377,12 @@ public struct WizardSummaryPage: View {
     // MARK: - Issue Counting (summary indicator)
 
     private var failedIssueCount: Int {
-        if (stateMachine.lastWizardSnapshot?.backend ?? .selected) == .session {
-            let items = WizardSystemStatusOverview.sessionStatusItems(
-                systemState: systemState,
-                issues: issues,
-                permissions: stateMachine.lastWizardSnapshot?.permissions
-            )
-            return WizardSystemStatusOverview.incompleteItemCount(items)
-        }
-
-        var count = 0
-
-        // 1. Privileged Helper issues (installed? unhealthy?) => count as issue
-        let hasHelperProblems = issues.contains { issue in
-            if case let .component(req) = issue.identifier {
-                return req == .privilegedHelper || req == .privilegedHelperUnhealthy
-            }
-            return false
-        }
-        if hasHelperProblems { count += 1 }
-
-        // 2. Conflicts (any => red)
-        let hasConflicts = issues.contains { $0.category == .conflicts }
-        if hasConflicts { count += 1 }
-
-        // 3. Input Monitoring - only count confirmed blocking issues
-        let hasKeyPathInputMonitoringIssues = issues.contains { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .keyPathInputMonitoring
-            }
-            return false
-        }
-        let hasKanataInputMonitoringIssues = issues.contains { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .kanataInputMonitoring && (issue.severity == .error || issue.severity == .critical)
-            }
-            return false
-        }
-        if hasKeyPathInputMonitoringIssues || hasKanataInputMonitoringIssues {
-            count += 1
-        }
-
-        // 4. Accessibility - same logic: only count verifiable issues
-        let hasKeyPathAccessibilityIssues = issues.contains { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .keyPathAccessibility
-            }
-            return false
-        }
-        let hasKanataAccessibilityIssues = issues.contains { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .kanataAccessibility && (issue.severity == .error || issue.severity == .critical)
-            }
-            return false
-        }
-        if hasKeyPathAccessibilityIssues || hasKanataAccessibilityIssues {
-            count += 1
-        }
-
-        // 5. Karabiner Driver status (failed => red)
-        let karabinerStatus = KarabinerComponentsStatusEvaluator.evaluate(
+        let items = WizardSystemStatusOverview.sessionStatusItems(
             systemState: systemState,
-            issues: issues
+            issues: issues,
+            permissions: stateMachine.lastWizardSnapshot?.permissions
         )
-        if karabinerStatus == .failed { count += 1 }
-
-        // 6. Keyboard Engine Setup (failed => red)
-        let hasKanataIssues = issues.contains { issue in
-            if issue.category == .installation {
-                switch issue.identifier {
-                case .component(.keyPathRuntime):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-        if hasKanataIssues { count += 1 }
-
-        // NOTE: Kanata Service (daemon issues) is NOT counted here because it's a
-        // dependent item that's hidden when earlier prerequisites fail.
-        // The service item only shows after: Karabiner Driver + Helper + Permissions are complete.
-        // Counting hidden items would inflate the count and confuse users.
-
-        return count
+        return WizardSystemStatusOverview.incompleteItemCount(items)
     }
 
     // MARK: - Testing helper

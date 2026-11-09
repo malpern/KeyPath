@@ -84,17 +84,6 @@ extension InstallationWizardView {
                     issues: stateMachine.wizardIssues
                 )
             )
-        case .conflicts:
-            if let coordinator = kanataManager {
-                WizardConflictsPage(
-                    isFixing: fixInFlight,
-                    onAutoFix: performAutoFix,
-                    onRefresh: { refreshSystemState() },
-                    kanataManager: coordinator
-                )
-            } else {
-                unconfiguredView(page: "conflicts")
-            }
         case .inputMonitoring:
             if let coordinator = kanataManager {
                 WizardInputMonitoringPage(
@@ -124,18 +113,6 @@ extension InstallationWizardView {
                 )
             } else {
                 unconfiguredView(page: "accessibility")
-            }
-        case .karabinerComponents:
-            if let coordinator = kanataManager {
-                WizardKarabinerComponentsPage(
-                    isFixing: fixInFlight,
-                    blockingFixDescription: currentFixDescriptionForUI,
-                    onAutoFix: performAutoFix,
-                    onRefresh: { refreshSystemState() },
-                    kanataManager: coordinator
-                )
-            } else {
-                unconfiguredView(page: "karabinerComponents")
             }
         case .kanataMigration:
             if let factory = WizardDependencies.makeKanataMigrationPage {
@@ -180,24 +157,6 @@ extension InstallationWizardView {
                         refreshSystemState()
                         stateMachine.nextPage()
                     }
-                )
-            }
-        case .helper:
-            if let coordinator = kanataManager {
-                WizardHelperPage(
-                    isFixing: fixInFlight,
-                    blockingFixDescription: currentFixDescriptionForUI,
-                    onAutoFix: performAutoFix,
-                    onRefresh: { refreshSystemState() },
-                    kanataManager: coordinator
-                )
-            } else {
-                unconfiguredView(page: "helper")
-            }
-        case .communication:
-            if let factory = WizardDependencies.makeCommunicationPage {
-                factory(
-                    performAutoFix
                 )
             }
         case .service:

@@ -51,10 +51,6 @@ public enum WizardDependencies {
     /// Signature: (onImportComplete: () -> Void, onSkip: () -> Void) -> AnyView
     @MainActor public static var makeKarabinerImportPage: ((@escaping () -> Void, @escaping () -> Void) -> AnyView)?
 
-    /// Factory for the communication wizard page.
-    /// Signature: (onAutoFix: (AutoFixAction, Bool) async -> Bool) -> AnyView
-    @MainActor public static var makeCommunicationPage: ((@escaping (AutoFixAction, Bool) async -> Bool) -> AnyView)?
-
     // MARK: - Type-Erased Closures
 
     /// Check if the helper needs Login Items approval in System Settings
@@ -101,7 +97,6 @@ public enum WizardDependencies {
         privilegedOperations = nil
         makeKanataMigrationPage = nil
         makeKarabinerImportPage = nil
-        makeCommunicationPage = nil
         helperNeedsApproval = nil
         createUninstallCoordinator = nil
         executePrivilegedBatch = nil

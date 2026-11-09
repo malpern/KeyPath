@@ -35,7 +35,7 @@ final class WizardStepIndicatorTests: XCTestCase {
 
     func testPageNotInSequenceHasNoStepPosition() {
         // .service is not part of a custom sequence that omits it.
-        let customSequence: [WizardPage] = [.summary, .helper, .accessibility]
+        let customSequence: [WizardPage] = [.summary, .inputMonitoring, .accessibility]
         XCTAssertNil(WizardPage.service.stepPosition(in: customSequence))
     }
 
