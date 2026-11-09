@@ -5,7 +5,6 @@ import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathPluginKit
 import KeyPathWizardCore
-import ServiceManagement
 import Sparkle
 import SwiftUI
 
@@ -945,48 +944,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 }
-
-#if DEBUG
-
-    // MARK: - SMAppService Dev Utilities
-
-    @MainActor
-    private func showSMAppServiceStatus(plistName: String) async {
-        // Route through SystemStateProvider (#853) even in dev utilities.
-        let status = await SystemStateProvider.shared.freshSMAppServiceStatus(for: plistName)
-        AppLogger.shared.info(
-            "🔧 [SM] \(plistName) status=\(status.rawValue) (0=notRegistered,1=enabled,2=requiresApproval,3=notFound)"
-        )
-    }
-
-    @MainActor
-    private func registerSMAppService(plistName: String) async {
-        let svc = SMAppService.daemon(plistName: plistName)
-        do {
-            try svc.register()
-            await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: plistName)
-            AppLogger.shared.info("✅ [SM] register() ok for \(plistName)")
-        } catch {
-            AppLogger.shared.error("❌ [SM] register() failed for \(plistName): \(error)")
-        }
-        await showSMAppServiceStatus(plistName: plistName)
-    }
-
-    private func unregisterSMAppService(plistName: String) {
-        let svc = SMAppService.daemon(plistName: plistName)
-        if #available(macOS 13, *) {
-            Task { @MainActor in
-                do {
-                    try await svc.unregister()
-                    await SystemStateProvider.shared.invalidateSMAppServiceStatus(plistName: plistName)
-                    AppLogger.shared.info("✅ [SM] unregister() ok for \(plistName)")
-                } catch {
-                    AppLogger.shared.error("❌ [SM] unregister() failed for \(plistName): \(error)")
-                }
-                await showSMAppServiceStatus(plistName: plistName)
-            }
-        } else {
-            AppLogger.shared.warn("⚠️ [SM] unregister requires macOS 13+")
-        }
-    }
-#endif

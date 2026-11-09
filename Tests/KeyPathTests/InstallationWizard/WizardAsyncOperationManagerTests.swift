@@ -130,7 +130,7 @@ final class WizardAsyncOperationManagerTests: XCTestCase {
         let view = InstallationWizardView()
         let oldRequest = UUID()
         view.stateMachine.inspectionRequestID = UUID()
-        view.performStateDetection(previousPage: .communication, attempt: 1,
+        view.performStateDetection(previousPage: .service, attempt: 1,
                                    showSpinner: true, requestID: oldRequest)
         XCTAssertFalse(view.asyncOperationManager.hasRunningOperations)
         XCTAssertEqual(view.stateMachine.stateVersion, 0)

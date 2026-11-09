@@ -8,7 +8,6 @@ struct ExperimentalSettingsSection: View {
 
     // Feature flag states
     @State private var captureListenOnlyEnabled = FeatureFlags.captureListenOnlyEnabled
-    @State private var useSMAppServiceForDaemon = FeatureFlags.useSMAppServiceForDaemon
     @State private var simulatorAndVirtualKeysEnabled = FeatureFlags.simulatorAndVirtualKeysEnabled
     @State private var uninstallForTesting = FeatureFlags.uninstallForTesting
     @State private var learningTipsMode = FeatureFlags.learningTipsMode
@@ -195,16 +194,6 @@ struct ExperimentalSettingsSection: View {
                 onChange: { FeatureFlags.setCaptureListenOnlyEnabled($0) },
                 identifier: "feature-flag-listen-only"
             )
-
-            if KanataRuntimeBackend.selected != .session {
-                featureFlagToggle(
-                    title: "SMAppService for Daemon",
-                    description: "Use modern daemon registration API",
-                    isOn: $useSMAppServiceForDaemon,
-                    onChange: { FeatureFlags.setUseSMAppServiceForDaemon($0) },
-                    identifier: "feature-flag-smappservice"
-                )
-            }
 
             featureFlagToggle(
                 title: "Uninstall for Testing",

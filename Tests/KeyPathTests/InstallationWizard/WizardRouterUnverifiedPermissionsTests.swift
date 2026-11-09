@@ -36,8 +36,8 @@ final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
         XCTAssertEqual(page, .service)
     }
 
-    func testBlockingPagesAreNeverOverridden() {
-        for base in [WizardPage.conflicts, .helper, .inputMonitoring, .accessibility] {
+    func testPermissionPagesAreNeverOverridden() {
+        for base in [WizardPage.inputMonitoring, .accessibility] {
             let page = WizardRouter.routeForUnverifiedKanataPermissions(
                 base: base,
                 inputMonitoringUnknown: true,

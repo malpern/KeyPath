@@ -207,11 +207,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             onSkip: onSkip
         ))
     }
-    WizardDependencies.makeCommunicationPage = { onAutoFix in
-        AnyView(WizardCommunicationPage(
-            onAutoFix: onAutoFix
-        ))
-    }
 }
 
 /// Configure WizardDependencies for app-bundled CLI repair/inspect entry points.

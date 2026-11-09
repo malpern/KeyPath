@@ -150,7 +150,6 @@ public protocol WizardTCPProbing: Sendable {
 public extension NSNotification.Name {
     static let wizardStartupRevalidate = NSNotification.Name("kp_startupRevalidate")
     static let wizardContentSizeChanged = NSNotification.Name("wizardContentSizeChanged")
-    static let wizardSmAppServiceApprovalRequired = NSNotification.Name("smAppServiceApprovalRequired")
     static let wizardOpenInstallationWizard = NSNotification.Name("openInstallationWizard")
 }
 

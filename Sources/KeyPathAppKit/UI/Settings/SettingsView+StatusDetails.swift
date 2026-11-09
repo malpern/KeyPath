@@ -166,19 +166,7 @@ extension StatusSettingsTabView {
             details.append(detail)
         }
 
-        if let detail = tcpDetail {
-            details.append(detail)
-        }
-
-        if let detail = karabinerDetail {
-            details.append(detail)
-        }
-
         if let detail = kanataLogsDetail {
-            details.append(detail)
-        }
-
-        if let detail = karabinerLogsDetail {
             details.append(detail)
         }
 
@@ -349,83 +337,6 @@ extension StatusSettingsTabView {
         )
     }
 
-    var tcpDetail: StatusDetail? {
-        guard !isDriverless else { return nil }
-        guard systemContext?.services.kanataRunning == true else { return nil }
-        guard let tcpConfigured else {
-            return StatusDetail(
-                title: "TCP Communication",
-                message: "Checking TCP configuration…",
-                icon: "ellipsis.circle",
-                level: .info
-            )
-        }
-
-        if tcpConfigured {
-            return StatusDetail(
-                title: "TCP Communication",
-                message: "Configured.",
-                icon: "checkmark.shield.fill",
-                level: .success
-            )
-        }
-
-        return StatusDetail(
-            title: "TCP Communication",
-            message: "Service is missing the TCP port configuration. Open the wizard to repair communication settings.",
-            icon: "exclamationmark.triangle",
-            level: .critical,
-            actions: [
-                StatusDetailAction(title: "Open Kanata Logs", icon: "doc.text.magnifyingglass") {
-                    SystemDiagnostics.openKanataLogsInEditor()
-                },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .communication
-                }
-            ]
-        )
-    }
-
-    var karabinerDetail: StatusDetail? {
-        guard !isDriverless else { return nil }
-        let status = KarabinerComponentsStatusEvaluator.evaluate(
-            systemState: wizardSystemState,
-            issues: wizardIssues
-        )
-        guard status != .completed else { return nil }
-
-        let level: StatusDetail.Level = wizardIssues.contains(where: { $0.severity == .critical || $0.severity == .error })
-            ? .critical
-            : .warning
-
-        let message: String = {
-            let relevant = wizardIssues.filter { issue in
-                (issue.category == .installation && issue.identifier.isVHIDRelated)
-                    || issue.category == .backgroundServices
-                    || (issue.category == .daemon && issue.identifier == .component(.karabinerDaemon))
-            }
-            if let first = relevant.first {
-                return first.title
-            }
-            return "Karabiner driver or related services are not healthy."
-        }()
-
-        return StatusDetail(
-            title: "Karabiner Driver",
-            message: message,
-            icon: "keyboard.macwindow",
-            level: level,
-            actions: [
-                StatusDetailAction(title: "Open Karabiner Logs", icon: "doc.on.doc") {
-                    SystemDiagnostics.openKarabinerLogsDirectory()
-                },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
-                    wizardInitialPage = .karabinerComponents
-                }
-            ]
-        )
-    }
-
     var kanataLogsDetail: StatusDetail? {
         // Show logs affordance when service isn't healthy or has daemon issues.
         // Not when the user simply turned the service off — there's nothing to
@@ -444,21 +355,6 @@ extension StatusSettingsTabView {
                     } else {
                         SystemDiagnostics.openKanataLogsInEditor()
                     }
-                }
-            ]
-        )
-    }
-
-    var karabinerLogsDetail: StatusDetail? {
-        guard karabinerDetail != nil else { return nil }
-        return StatusDetail(
-            title: "Karabiner Logs",
-            message: "Open the Karabiner log directory for VirtualHID daemon/manager logs.",
-            icon: "doc.on.doc",
-            level: .info,
-            actions: [
-                StatusDetailAction(title: "Open", icon: "folder") {
-                    SystemDiagnostics.openKarabinerLogsDirectory()
                 }
             ]
         )

@@ -19,8 +19,6 @@ public extension InstallationWizardView {
 
     @MainActor
     func dismissAndRefreshMainScreen() {
-        stopLoginItemsApprovalPolling()
-
         let shouldShowFirstSuccess = if onFirstSuccess == nil {
             false
         } else {
@@ -55,7 +53,6 @@ public extension InstallationWizardView {
         }
 
         refreshTask?.cancel()
-        stopLoginItemsApprovalPolling()
         performDismiss()
     }
 

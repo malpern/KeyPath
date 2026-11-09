@@ -11,22 +11,11 @@ public enum WizardRouter {
     public static func route(
         state: WizardSystemState,
         issues: [WizardIssue],
-        helperInstalled: Bool,
-        helperNeedsApproval: Bool,
-        backend: KanataRuntimeBackend = .selected
+        helperInstalled _: Bool,
+        helperNeedsApproval _: Bool,
+        backend _: KanataRuntimeBackend = .selected
     ) -> WizardPage {
-        // 1. Conflicts (highest priority)
-        if issues.contains(where: { $0.category == .conflicts }) {
-            return .conflicts
-        }
-
-        // 2. Privileged Helper gating
-        if backend.requiresPrivilegedServices {
-            if helperNeedsApproval { return .helper }
-            if !helperInstalled { return .helper }
-        }
-
-        // 3. Permissions (blocking only — warnings like "not verified" don't route here)
+        // 1. Permissions (blocking only — warnings like "not verified" don't route here)
         // Accessibility may already provide effective input access. Resolve it
         // first, then refresh the Oracle before asking for separate IM approval.
         if hasBlockingPermissionIssue(.permission(.keyPathAccessibility), in: issues)
@@ -40,13 +29,7 @@ public enum WizardRouter {
             return .inputMonitoring
         }
 
-        // 4. Communication configuration
-        if hasCommunicationIssues(in: issues) { return .communication }
-
-        // 5. Karabiner components (driver/VHID/background services)
-        if hasKarabinerIssues(in: issues) { return .karabinerComponents }
-
-        // 6. Service readiness
+        // 2. Service readiness
         switch state {
         case .serviceNotRunning, .ready, .daemonNotRunning:
             return .service
@@ -54,7 +37,7 @@ public enum WizardRouter {
             break
         }
 
-        // 7. Default to summary
+        // 3. Default to summary
         return .summary
     }
 
@@ -64,8 +47,7 @@ public enum WizardRouter {
     /// Unverified permissions produce only warning-severity issues, which
     /// `route()` deliberately ignores — but auto-advancing past the permission
     /// pages would start the service and trigger both system permission dialogs
-    /// at once. Once the higher-priority blocking pages (conflicts/helper) are
-    /// clear, land on the first unverified permission page so the user sees the
+    /// at once. Land on the first unverified permission page so the user sees the
     /// "not verified — add manually" guidance instead of parking on summary.
     public static func routeForUnverifiedKanataPermissions(
         base: WizardPage,
@@ -73,7 +55,7 @@ public enum WizardRouter {
         accessibilityUnknown: Bool
     ) -> WizardPage {
         switch base {
-        case .conflicts, .helper, .inputMonitoring, .accessibility:
+        case .inputMonitoring, .accessibility:
             return base
         default:
             if accessibilityUnknown { return .accessibility }
@@ -138,15 +120,6 @@ public enum WizardRouter {
         switch page {
         case .summary:
             true
-        case .conflicts:
-            issues.contains { $0.category == .conflicts }
-        case .helper:
-            issues.contains { issue in
-                if case let .component(req) = issue.identifier {
-                    return req == .privilegedHelper || req == .privilegedHelperUnhealthy
-                }
-                return false
-            }
         case .inputMonitoring:
             issues.contains { issue in
                 if case let .permission(perm) = issue.identifier {
@@ -161,10 +134,6 @@ public enum WizardRouter {
                 }
                 return false
             }
-        case .communication:
-            hasCommunicationIssues(in: issues)
-        case .karabinerComponents:
-            hasKarabinerIssues(in: issues)
         case .service:
             switch state {
             case .serviceNotRunning, .ready, .daemonNotRunning:
@@ -181,18 +150,12 @@ public enum WizardRouter {
 
     /// Whether a page represents a blocking issue that must be resolved before proceeding.
     public static func isBlockingPage(
-        _ page: WizardPage,
-        helperInstalled: Bool,
-        helperNeedsApproval: Bool
+        _: WizardPage,
+        helperInstalled _: Bool,
+        helperNeedsApproval _: Bool
     ) -> Bool {
-        switch page {
-        case .conflicts, .karabinerComponents:
-            true
-        case .helper:
-            !helperInstalled || helperNeedsApproval
-        default:
-            false
-        }
+        // The helper, conflicts and Karabiner pages were the blocking ones; all are retired.
+        false
     }
 
     // MARK: - Summary Navigation
@@ -215,43 +178,6 @@ public enum WizardRouter {
         issues.contains { issue in
             guard issue.severity == .error || issue.severity == .critical else { return false }
             return issue.identifier == identifier
-        }
-    }
-
-    private static func hasCommunicationIssues(in issues: [WizardIssue]) -> Bool {
-        issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.communicationServerConfiguration),
-                     .component(.communicationServerNotResponding),
-                     .component(.tcpServerConfiguration),
-                     .component(.tcpServerNotResponding):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
-        }
-    }
-
-    private static func hasKarabinerIssues(in issues: [WizardIssue]) -> Bool {
-        issues.contains {
-            if $0.category == .installation {
-                switch $0.identifier {
-                case .component(.karabinerDriver),
-                     .component(.karabinerDaemon),
-                     .component(.vhidDeviceManager),
-                     .component(.vhidDeviceActivation),
-                     .component(.vhidDeviceRunning),
-                     .component(.vhidDaemonMisconfigured),
-                     .component(.vhidDriverVersionMismatch):
-                    return true
-                default:
-                    return false
-                }
-            }
-            return false
         }
     }
 }

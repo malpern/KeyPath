@@ -75,7 +75,7 @@ final class UnitTestSuite: XCTestCase {
 
     func testWizardPageAccessibilityIdentifiers() {
         XCTAssertEqual(WizardPage.summary.accessibilityIdentifier, "overview")
-        XCTAssertEqual(WizardPage.conflicts.accessibilityIdentifier, "conflicts")
+        XCTAssertEqual(WizardPage.accessibility.accessibilityIdentifier, "accessibility")
         XCTAssertEqual(WizardPage.inputMonitoring.accessibilityIdentifier, "input-monitoring")
     }
 

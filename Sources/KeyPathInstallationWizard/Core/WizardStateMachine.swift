@@ -234,13 +234,9 @@ public class WizardStateMachine {
         case .stopExternalKanata: .kanataMigration
         case .karabinerImport:
             hasShownKarabinerImportPage ? .karabinerImport : .stopExternalKanata
-        case .helper: .summary
-        case .conflicts: .helper
-        case .inputMonitoring: .conflicts
+        case .inputMonitoring: .summary
         case .accessibility: .inputMonitoring
-        case .karabinerComponents: .accessibility
-        case .communication: .karabinerComponents
-        case .service: .karabinerComponents
+        case .service: .accessibility
         }
     }
 }

@@ -5,7 +5,7 @@ import KeyPathWizardCore
 
 @MainActor
 final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
-    func testKanataPermissionWarningAppearsAsUnverified() {
+    func testKanataPermissionWarningAppearsAsWarning() {
         let warningIssue = WizardIssue(
             identifier: .permission(.kanataInputMonitoring),
             severity: .warning,
@@ -38,7 +38,7 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         XCTAssertFalse(WizardPage.allCases.contains { $0.rawValue == "Full Disk Access" })
         let input = items.first(where: { $0.id == "input-monitoring" })
         XCTAssertNotNil(input, "Expected an Input Monitoring status row")
-        XCTAssertEqual(input?.status, .unverified, "Kanata permission warning should surface as unverified")
+        XCTAssertEqual(input?.status, .warning, "Kanata permission warning should surface as a warning, not completed")
         XCTAssertTrue(
             (input?.relatedIssues.contains { $0.identifier == .permission(.kanataInputMonitoring) } ?? false),
             "Input Monitoring row should include the underlying warning issue"
@@ -61,6 +61,6 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
             $0.id == "input-monitoring" || $0.id == "accessibility"
         }
         XCTAssertEqual(permissionItems.count, 2)
-        XCTAssertTrue(permissionItems.allSatisfy { $0.status == .unverified })
+        XCTAssertTrue(permissionItems.allSatisfy { $0.status == .notStarted })
     }
 }

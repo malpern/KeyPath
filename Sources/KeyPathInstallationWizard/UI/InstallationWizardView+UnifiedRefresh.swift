@@ -51,12 +51,7 @@ public extension InstallationWizardView {
 
             guard !Task.isCancelled else { return }
 
-            // Give TCP server time to recover after leaving communication page
-            if previousPage == .communication {
-                guard await WizardSleep.seconds(1) else { return }
-            }
-
-            // Run state detection with optional retry for communication page
+            // Run state detection
             await MainActor.run {
                 performStateDetection(
                     previousPage: previousPage,
@@ -68,7 +63,7 @@ public extension InstallationWizardView {
         }
     }
 
-    /// Internal: Performs state detection with retry logic for communication page
+    /// Internal: Performs state detection
     @MainActor
     func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool, requestID: UUID) {
         guard !isForceClosing, !Task.isCancelled,
@@ -81,18 +76,6 @@ public extension InstallationWizardView {
 
         asyncOperationManager.execute(operation: operation) { [previousPage, attempt, showSpinner] (result: SystemStateResult) in
             guard stateMachine.inspectionRequestID == requestID else { return }
-            // Retry once if coming from communication page and seeing transient issues
-            if previousPage == .communication, attempt == 0, shouldRetryForCommunication(result: result) {
-                AppLogger.shared.log("🔍 [Wizard] Deferring result for TCP warm-up, will retry")
-                Task {
-                    guard await WizardSleep.seconds(1.5) else { return }
-                    await MainActor.run {
-                        performStateDetection(previousPage: previousPage, attempt: 1, showSpinner: showSpinner, requestID: requestID)
-                    }
-                }
-                return
-            }
-
             _ = applySystemStateResult(result)
 
             // A quiet refresh may have replaced one that showed the spinner.
@@ -109,32 +92,6 @@ public extension InstallationWizardView {
     func handleStateCheckFailure(_ error: WizardError) {
         isValidating = false
         asyncOperationManager.lastError = error
-    }
-
-    /// Check if we should retry due to transient communication issues
-    func shouldRetryForCommunication(result: SystemStateResult) -> Bool {
-        // Retry if service appears not running
-        switch result.state {
-        case .serviceNotRunning, .daemonNotRunning:
-            return true
-        default:
-            break
-        }
-
-        // Also retry if there are transient communication issues (TCP warm-up)
-        return result.issues.contains { issue in
-            guard case let .component(component) = issue.identifier else { return false }
-            switch component {
-            case .kanataTCPServer,
-                 .communicationServerConfiguration,
-                 .communicationServerNotResponding,
-                 .tcpServerConfiguration,
-                 .tcpServerNotResponding:
-                return true
-            default:
-                return false
-            }
-        }
     }
 
     func cachedPreferredPage() async -> WizardPage? {

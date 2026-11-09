@@ -73,12 +73,6 @@ public struct WizardActionSection: View {
             "Fix \(AccessibilityPermissionPresentation.current.name)"
         case .service:
             "Start KeyPath Runtime"
-        case .helper:
-            "Install Helper"
-        case .conflicts:
-            "Resolve Conflicts"
-        case .karabinerComponents:
-            "Fix Components"
         default:
             "Continue Setup"
         }

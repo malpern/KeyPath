@@ -121,7 +121,6 @@ public extension FeatureFlags {
     }
 
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
-    private static let useSMAppServiceForDaemonKey = "USE_SMAPPSERVICE_FOR_DAEMON"
     private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
     private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
     private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
@@ -141,16 +140,6 @@ public extension FeatureFlags {
 
     static func setCaptureListenOnlyEnabled(_ enabled: Bool) {
         setBoolFlag(enabled, forKey: captureListenOnlyKey)
-    }
-
-    /// Whether to use SMAppService for Kanata daemon management (default ON)
-    /// When enabled, uses SMAppService instead of launchctl for daemon registration.
-    static var useSMAppServiceForDaemon: Bool {
-        boolFlag(forKey: useSMAppServiceForDaemonKey, default: true)
-    }
-
-    static func setUseSMAppServiceForDaemon(_ enabled: Bool) {
-        setBoolFlag(enabled, forKey: useSMAppServiceForDaemonKey)
     }
 
     /// Enable simulator for layer mapping and virtual key actions (default ON)

@@ -330,7 +330,7 @@ public extension InstallationWizardView {
             } onFailure: { error in
                 handleStateCheckFailure(error)
             }
-        case .inputMonitoring, .accessibility, .conflicts:
+        case .inputMonitoring, .accessibility:
             // 🎯 Phase 2: Quick checks removed - SystemValidator does full check
             // The full check is fast enough (<1s) and prevents partial state issues
             // If needed later, can add specific quick methods to SystemValidator

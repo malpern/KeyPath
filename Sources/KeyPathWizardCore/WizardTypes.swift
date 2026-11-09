@@ -14,31 +14,23 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
 
     case welcome = "Welcome"
     case summary = "Summary"
-    case helper = "Privileged Helper"
-    case conflicts = "Resolve Conflicts"
     case inputMonitoring = "Input Monitoring"
     case accessibility = "Accessibility"
-    case karabinerComponents = "Karabiner Components"
     case kanataMigration = "Kanata Migration"
     case stopExternalKanata = "Stop External Kanata"
     case karabinerImport = "Karabiner Import"
     case service = "Start Service"
-    case communication = "Communication"
 
     /// User-friendly display name for accessibility and UI
     public var displayName: String {
         switch self {
         case .welcome: "Welcome to KeyPath"
         case .summary: "Setup Overview"
-        case .helper: "Privileged Helper Installation"
-        case .conflicts: "Resolve System Conflicts"
         case .inputMonitoring: "Input Monitoring Permission"
         case .accessibility: "\(AccessibilityPermissionPresentation.current.name) Permission"
-        case .karabinerComponents: "Karabiner Driver Setup"
         case .kanataMigration: "Migrate Existing Kanata Config"
         case .stopExternalKanata: "Stop External Kanata"
         case .karabinerImport: "Import Karabiner Rules"
-        case .communication: "Communication Protocol"
         case .service: "Start Keyboard Service"
         }
     }
@@ -48,15 +40,11 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         switch self {
         case .welcome: "welcome"
         case .summary: "overview"
-        case .conflicts: "conflicts"
         case .inputMonitoring: "input-monitoring"
         case .accessibility: "accessibility"
-        case .karabinerComponents: "karabiner-components"
         case .kanataMigration: "kanata-migration"
         case .stopExternalKanata: "stop-external-kanata"
         case .karabinerImport: "karabiner-import"
-        case .helper: "privileged-helper"
-        case .communication: "communication"
         case .service: "service"
         }
     }
@@ -64,20 +52,15 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
 
 /// Explicit, user-facing ordering for wizard navigation and bullets.
 /// This matches the Summary order shown in WizardSystemStatusOverview.
-/// NOTE: Helper is FIRST (after summary) because it's required for privileged operations
 public extension WizardPage {
     static let orderedPages: [WizardPage] = [
         .summary,
         .kanataMigration,
         .stopExternalKanata,
         .karabinerImport,
-        .helper,
-        .conflicts,
         .accessibility,
         .inputMonitoring,
-        .karabinerComponents,
-        .service,
-        .communication
+        .service
     ]
 
     /// "Step X of Y" position of a page within a wizard navigation sequence.

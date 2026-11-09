@@ -537,7 +537,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func wizardPage(for issue: WizardIssue) -> WizardPage {
         switch issue.category {
         case .conflicts:
-            return .conflicts
+            return .summary
         case .permissions:
             // Use identifier to determine if it's accessibility or input monitoring
             if case let .permission(requirement) = issue.identifier {
@@ -547,7 +547,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 case .kanataInputMonitoring, .keyPathInputMonitoring:
                     return .inputMonitoring
                 case .driverExtensionEnabled:
-                    return .karabinerComponents
+                    return .summary
                 case .backgroundServicesEnabled:
                     return .service
                 }
@@ -556,7 +556,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .backgroundServices, .daemon:
             return .service
         case .installation:
-            return .helper
+            return .summary
         case .systemRequirements:
             return .summary
         }
