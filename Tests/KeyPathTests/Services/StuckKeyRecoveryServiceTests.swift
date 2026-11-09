@@ -66,6 +66,34 @@ final class StuckKeyRecoveryServiceTests: KeyPathTestCase {
         XCTAssertEqual(lastIncident?.msSinceAnyKanataEvent, 5000)
     }
 
+    func testIgnoresHeldKeysWhileTheRuntimeIsNotRemapping() {
+        service.runtimeIsRemapping = { false }
+        let correlation = makeCorrelation(
+            key: "delete",
+            suggestsUnmatchedAutorepeat: true,
+            msSinceAnyKanataEvent: 1_400_646
+        )
+
+        service.handleAutorepeatMismatch(correlation)
+
+        XCTAssertEqual(incidentCallCount, 0, "A held key is ordinary autorepeat when no runtime intercepts keys")
+    }
+
+    func testStillSurfacesIncidentWhileTheRuntimeIsRemapping() async {
+        let expectation = expectation(description: "incident surfaced while remapping")
+        incidentExpectation = expectation
+        service.runtimeIsRemapping = { true }
+
+        service.handleAutorepeatMismatch(makeCorrelation(
+            key: "t",
+            suggestsUnmatchedAutorepeat: true,
+            msSinceAnyKanataEvent: 5000
+        ))
+        await fulfillment(of: [expectation], timeout: 5.0)
+
+        XCTAssertEqual(incidentCallCount, 1)
+    }
+
     func testIgnoresNilKanataEventTime() {
         let correlation = makeCorrelation(
             suggestsUnmatchedAutorepeat: true,

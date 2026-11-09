@@ -40,6 +40,12 @@ final class StuckKeyRecoveryService {
     /// Wired by RuntimeCoordinator; the legacy daemon logs say nothing about it.
     var sessionReportProvider: (@MainActor () -> (report: SessionRuntimeReport, current: Bool)?)?
 
+    /// Whether the remapping runtime is running and intercepting keys right now.
+    /// Wired by RuntimeCoordinator. When it is not, keys never pass through Kanata,
+    /// so a quiet Kanata says nothing and holding a key is just ordinary autorepeat.
+    /// Unset means "assume running", which keeps the old behaviour.
+    var runtimeIsRemapping: (@MainActor () -> Bool)?
+
     /// Evaluate an AutorepeatMismatch correlation and surface an incident if the key is truly stuck.
     ///
     /// A stuck key is distinguished from normal autorepeat by checking that kanata has been
@@ -47,6 +53,11 @@ final class StuckKeyRecoveryService {
     /// show low `msSinceAnyKanataEvent`.
     func handleAutorepeatMismatch(_ correlation: InvestigationSystemEventCorrelation) {
         guard correlation.suggestsUnmatchedAutorepeat else { return }
+
+        // Without a running runtime, every held key would read as stuck: all 20
+        // incidents on 2026-11-08 were held arrows, delete, space and escape while
+        // the session runtime had never been started.
+        if let runtimeIsRemapping, !runtimeIsRemapping() { return }
 
         guard let msSinceKanata = correlation.msSinceAnyKanataEvent,
               msSinceKanata >= Self.kanataUnresponsiveThresholdMs

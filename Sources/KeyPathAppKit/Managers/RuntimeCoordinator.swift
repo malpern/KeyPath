@@ -407,6 +407,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         StuckKeyRecoveryService.shared.sessionReportProvider = { [weak self] in
             self?.serviceLifecycleCoordinator.lastSessionReportForDiagnostics()
         }
+        StuckKeyRecoveryService.shared.runtimeIsRemapping = { [weak self] in
+            guard KanataRuntimeBackend.selected == .session else { return true }
+            guard let report = self?.serviceLifecycleCoordinator.currentSessionReport() else { return false }
+            return report.state == .running && report.tapActive
+        }
         // Wire up ConfigReloadCoordinator callbacks
         configReloadCoordinator.onReloadSuccess = { [weak self] in
             self?.clearDiagnostics()
