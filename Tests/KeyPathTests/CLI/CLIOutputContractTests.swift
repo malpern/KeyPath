@@ -119,8 +119,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
     }
 
     func testInstallerReportPreservesStructuredAwaitingApprovalOutcome() {
-        let context = SystemContextBuilder(
-        ).build()
+        let context = SystemContextBuilder().build()
         let plan = InstallPlan(
             sourceSnapshotID: context.snapshotID,
             recipes: [],

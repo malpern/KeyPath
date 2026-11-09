@@ -29,7 +29,6 @@ class MainAppStateController {
     private(set) var lastValidatedSystemContext: SystemContext?
     /// Adapted wizard state from the last validation — consumed by Settings Status tab.
     private(set) var lastAdaptedState: WizardSystemState = .initializing
-    /// TCP configuration status from the last validation — consumed by Settings Status tab.
     /// Latest shared installer state-matrix row — consumed by CLI/status/menu surfaces.
     var lastInstallerStateMatrixRow: InstallerStateMatrixRow?
     /// Latest shared installer state-matrix plan — consumed by CLI/status/menu surfaces.

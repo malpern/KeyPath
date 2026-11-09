@@ -47,25 +47,18 @@ final class KanataProcessDetector {
         return Conflicts(externalProcesses: processes)
     }
 
-    /// Simple check for actual kanata binaries (not editor plugins, log viewers, etc.)
-    static func isKanataBinary(_ command: String) -> Bool {
-        // Skip pgrep itself and editor extensions
-        if command.contains("pgrep") || command.contains("vscode") || command.contains(".cursor") {
-            return false
-        }
-
-        // Skip log monitoring and other utilities that contain "kanata" in paths
-        if command.contains("tail") || command.contains("cat") || command.contains("grep")
-            || command.contains("less") || command.contains("vim") || command.contains("nano")
-        {
-            return false
-        }
-
-        // Check against all known kanata paths (bundled, homebrew, standard locations)
-        for path in WizardSystemPaths.allKnownKanataPaths() where command.contains(path) {
+    /// Whether a process command line is a Kanata binary, not a tool that merely
+    /// mentions one (an editor, `tail` of a log, `pgrep`). Decided by the
+    /// executable, never by substrings: "/Applications" contains "cat".
+    nonisolated static func isKanataBinary(
+        _ command: String, knownPaths: [String] = WizardSystemPaths.allKnownKanataPaths()
+    ) -> Bool {
+        // Known install paths may contain spaces ("Kanata Engine.app"), so match
+        // them as a prefix before splitting the command line.
+        if knownPaths.contains(where: { command == $0 || command.hasPrefix($0 + " ") }) {
             return true
         }
-
-        return command.contains("/bin/kanata") || command.hasPrefix("kanata ") || command == "kanata"
+        guard let executable = command.split(separator: " ", maxSplits: 1).first else { return false }
+        return (executable as NSString).lastPathComponent == "kanata"
     }
 }
