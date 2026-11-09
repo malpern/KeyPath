@@ -139,7 +139,6 @@ Pages are shown in priority order when issues are detected:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `WizardAutoFixer.swift` | 1,187 | **Auto-remediation** - Implements fixes for 50+ edge cases |
 | `InstallerEngine.swift` | 400 | **Service installation façade** - install/repair/uninstall through recipes |
 | `PermissionGrantCoordinator.swift` | 428 | **Permission flows** - Coordinates System Settings dialogs and permission grants |
 
@@ -243,7 +242,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 
 ### Adding a New Auto-Fix Action
 1. Add case to `AutoFixAction` enum in `WizardTypes.swift`
-2. Implement fix in `WizardAutoFixer.performAutoFix()`
+2. Implement fix in `InstallerEngine.runSingleAction()`
 3. Add issue generation in `IssueGenerator`
 4. Update navigation logic if needed
 
@@ -279,12 +278,12 @@ Each page is 400-600 lines and follows a consistent pattern:
 1. Start with `WizardNavigationEngine.swift` - understand the page flow
 2. Read `WizardTypes.swift` - learn all the type definitions
 3. Look at one page (e.g., `WizardInputMonitoringPage.swift`) - see the pattern
-4. Check `WizardAutoFixer.swift` - understand auto-remediation
+4. Check `InstallerEngine.runSingleAction()` - understand auto-remediation
 5. Review `ARCHITECTURE.md` - system-level design decisions
 
 ### Quick Debugging
 - **Wizard won't advance**: Check `WizardNavigationEngine.determineCurrentPage()` logs
-- **Auto-fix fails**: Look at `WizardAutoFixer.performAutoFix()` return value
+- **Auto-fix fails**: Look at `InstallerEngine.runSingleAction()` return value
 - **Permissions incorrect**: Trust `PermissionOracle` (see `Sources/KeyPathPermissions/PermissionOracle.swift`)
 - **Service won't start**: Check `/var/log/com.keypath.kanata.stdout.log` and `launchctl print gui/$(id -u)/com.keypath.kanata`
 

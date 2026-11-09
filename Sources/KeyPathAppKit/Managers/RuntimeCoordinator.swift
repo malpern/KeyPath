@@ -22,7 +22,6 @@ import Network
 // - **ConfigReloadCoordinator**: TCP-based config reload, safety checks
 // - **SaveCoordinator**: Save operations with rollback
 // - **RecoveryCoordinator**: VirtualHID recovery, keyboard recovery
-// - **InstallationCoordinator**: First-time install checks
 // - **RuleCollectionsCoordinator**: Rule collection CRUD and persistence
 // - **ConfigurationManager**: Config file management (create, validate, backup)
 // - **DiagnosticsManager**: System diagnostics and health checks

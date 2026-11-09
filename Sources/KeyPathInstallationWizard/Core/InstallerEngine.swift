@@ -34,7 +34,7 @@ private enum InstallerTransactionContext {
 /// Façade for installer operations.
 ///
 /// - Provides a stable, unified API for install/repair/uninstall flows.
-/// - Wraps extracted services (ServiceBootstrapper, ServiceHealthChecker, etc.).
+/// - Wraps extracted services (ServiceHealthChecker, SessionUninstallCoordinator, etc.).
 /// - Projects canonical system evidence into the planner's SystemContext input.
 @MainActor
 public final class InstallerEngine {
