@@ -143,6 +143,10 @@ enum CompositionRoot {
             // Start HID device monitoring for auto-detect keyboard on plug-in
             HIDDeviceMonitor.shared.startMonitoring()
             AppLogger.shared.info("🔌 [App] HID device monitor started")
+            // Track connected keyboards from launch, not only while the overlay is
+            // open: Settings reads them, and showed "No keyboard detected" until the
+            // overlay had appeared once.
+            AutoDetectKeyboardController.shared.startObserving()
 
             // Refine the keyboard layout once, and only while it is still the default.
             // Before detection stopped needing Input Monitoring, this flag stayed unset
