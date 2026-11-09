@@ -233,9 +233,8 @@ struct InputCaptureExperimentView: View {
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         for provider in providers {
-            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-                guard let data = item as? Data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
 
                 Task { @MainActor in
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {

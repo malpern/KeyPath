@@ -395,10 +395,11 @@ struct StatusSettingsTabView: View {
                         } label: {
                             // One Text keeps the chevron trailing; a menu label lays out
                             // an HStack's image before its text.
-                            Text("\(activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout") ")
-                                + Text(Image(systemName: "chevron.up.chevron.down"))
+                            let layoutName = activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout"
+                            let chevron = Text(Image(systemName: "chevron.up.chevron.down"))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundColor(.secondary)
+                            Text("\(layoutName) \(chevron)")
                         }
                         .menuStyle(.borderlessButton)
                         .menuIndicator(.hidden)
