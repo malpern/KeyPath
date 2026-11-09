@@ -66,8 +66,6 @@ enum SettingsSystemStatusRowsBuilder {
         wizardSystemState: WizardSystemState,
         wizardIssues: [WizardIssue],
         systemContext: SystemContext?,
-        tcpConfigured _: Bool?,
-        driverless: Bool = false,
         intentionallyOff: Bool = false
     ) -> [SettingsSystemStatusRowModel] {
         var rows: [SettingsSystemStatusRowModel] = []
@@ -100,7 +98,7 @@ enum SettingsSystemStatusRowsBuilder {
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "kanata-service",
-                title: driverless ? "Keyboard remapping" : "KeyPath Runtime",
+                title: "Keyboard remapping",
                 icon: "app.badge.checkmark",
                 status: serviceStatus,
                 targetPage: .service,

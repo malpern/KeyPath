@@ -56,8 +56,7 @@ final class StubSystemValidator: WizardSystemValidating {
             conflicts: context.conflicts,
             health: context.services,
             compatibility: SystemCompatibilityStatus(
-                macOSVersion: context.system.macOSVersion,
-                driverCompatible: context.system.driverCompatible
+                macOSVersion: context.system.macOSVersion
             ),
             timestamp: context.timestamp
         )

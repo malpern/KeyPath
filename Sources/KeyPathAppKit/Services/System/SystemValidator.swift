@@ -1,20 +1,9 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
 import os.lock
-
-extension RuntimeIdentity {
-    static func expectedKeyPathKanata(buildVersion: String = BuildInfo.current().build) -> RuntimeIdentity {
-        RuntimeIdentity(
-            programIdentifier: KanataRuntimeHost.launcherBundleRelativePath,
-            parentBundleIdentifier: KeyPathConstants.Bundle.bundleID,
-            parentBundleVersion: buildVersion
-        )
-    }
-}
 
 /// Stateless system validation service for the session runtime.
 ///
@@ -202,25 +191,16 @@ public class SystemValidator {
         progressCallback(1)
         return SystemSnapshot(
             permissions: permissions,
-            components: ComponentStatus(
-                kanataBinaryInstalled: payload, requiredRuntimePayloadPresent: payload,
-                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
-                vhidServicesHealthy: false, vhidVersionMismatch: false
-            ),
+            components: ComponentStatus(kanataBinaryInstalled: payload, requiredRuntimePayloadPresent: payload),
             conflicts: .empty,
             health: HealthStatus(
-                backend: .session,
                 kanataProcessRunning: running, kanataTCPResponding: responding,
-                kanataTCPConfigured: true, kanataRunning: running && responding,
-                karabinerDaemonRunning: false, vhidHealthy: false,
+                kanataRunning: running && responding,
                 kanataInputCaptureReady: running,
                 activeRuntimePathTitle: "Driverless session runtime",
                 activeRuntimePathDetail: "Current user · KeyPath app identity · session event tap"
             ),
-            compatibility: SystemCompatibilityStatus(
-                macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString, driverCompatible: false
-            ),
+            compatibility: SystemCompatibilityStatus(macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString),
             timestamp: Date()
         )
     }
@@ -237,24 +217,10 @@ public class SystemValidator {
                 runtimeKeyAccess: .init(status: .granted, source: "test-stub", confidence: .high, timestamp: now),
                 timestamp: now
             ),
-            components: ComponentStatus(
-                kanataBinaryInstalled: true,
-                requiredRuntimePayloadPresent: true,
-                karabinerDriverInstalled: true,
-                karabinerDaemonRunning: true,
-                vhidDeviceInstalled: true,
-                vhidDeviceHealthy: true,
-                vhidServicesHealthy: true,
-                vhidVersionMismatch: false
-            ),
+            components: ComponentStatus(kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
-            health: HealthStatus(
-                kanataTCPConfigured: true,
-                kanataRunning: true,
-                karabinerDaemonRunning: true,
-                vhidHealthy: true
-            ),
-            compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
+            health: HealthStatus(kanataRunning: true),
+            compatibility: SystemCompatibilityStatus(macOSVersion: "test"),
             timestamp: now
         )
     }

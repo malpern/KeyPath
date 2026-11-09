@@ -42,7 +42,7 @@ SH
 
 cat > "$TMP/bin/sw_vers" <<'SH'
 #!/bin/bash
-echo 15.7.7
+echo 27.2
 SH
 
 chmod +x "$TMP/bin/"*
@@ -70,7 +70,7 @@ for identifier, filename in {
 (root / "manifest.json").write_text(json.dumps({
     "lane": "managed-functional",
     "profiles": profiles,
-    "supportedMacOSMajorVersions": [15, 26],
+    "supportedMacOSMajorVersions": [27],
 }))
 PY
 

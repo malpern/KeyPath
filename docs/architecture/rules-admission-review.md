@@ -1,6 +1,10 @@
 # Architectural review: rule admission, backend capability and conflicts
 
 **Status:** Proposal for review (2026-10-19). No product code changes.
+**Update (2026-11-09):** the backend switch this review anticipates is gone.
+`KanataRuntimeBackend` was removed in ADR-047 step 4; `BackendCapabilityProfile`
+now describes only the session runtime, and device-targeted rules are always an
+unmet need. References below to a driver backend are historical.
 **Builds on:** [ADR-039 Key Conflict Detection and Resolution Principles](../adr/adr-039-key-conflict-resolution-principles.md).
 **Prompted by:** the media-key and Caps Lock work on the driverless runtime
 (#1303–#1309), where three faults in one day shared a cause: a rule that the

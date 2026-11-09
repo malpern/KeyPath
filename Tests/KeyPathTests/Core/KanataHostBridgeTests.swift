@@ -4,7 +4,6 @@ import XCTest
 final class KanataHostBridgeTests: XCTestCase {
     func testProbeReturnsUnavailableWhenLibraryMissing() {
         let runtimeHost = KanataRuntimeHost(
-            launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
             kanataEngineBundlePath: "/tmp/Kanata Engine.app"
@@ -25,7 +24,6 @@ final class KanataHostBridgeTests: XCTestCase {
 
     func testCreatePassthruRuntimeReturnsUnavailableWhenLibraryMissing() {
         let runtimeHost = KanataRuntimeHost(
-            launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
             kanataEngineBundlePath: "/tmp/Kanata Engine.app"

@@ -1,6 +1,5 @@
 @testable import KeyPathAppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathPermissions
 @testable import KeyPathWizardCore
@@ -47,7 +46,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     func testExecute_StopsOnFirstRecipeFailure() async throws {
         let context = SystemContextBuilder.cleanInstall()
         let deterministicEngine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: StubSystemValidator(context: context)
         )
         let plan = await deterministicEngine.makePlan(for: .install, context: context)
@@ -313,9 +311,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         let health = HealthStatus(
             kanataProcessRunning: true,
             kanataTCPResponding: false,
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
+            kanataRunning: true
         )
 
         XCTAssertFalse(health.kanataRuntimeReadiness.isReady)
@@ -324,9 +320,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     func testHealthStatusRetainsLegacyRuntimeSummaryFallback() {
         let health = HealthStatus(
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
+            kanataRunning: true
         )
 
         XCTAssertTrue(health.kanataRuntimeReadiness.isReady)

@@ -25,8 +25,9 @@ enum RuleCollectionNeedsExtractor {
         return needs
     }
 
-    /// The needs the active backend or Mac cannot meet. Caps Lock input is met
-    /// on the session backend by the managed intermediate key.
+    /// The needs the session runtime or Mac cannot meet. Caps Lock input is met
+    /// by the managed intermediate key; device-specific rules
+    /// (`macos-dev-names-*`) are refused by the session runtime.
     static func unmet(_ needs: Set<RuleEnvironmentNeed>,
                       profile: BackendCapabilityProfile = .shared,
                       fileExists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) })
@@ -36,7 +37,7 @@ enum RuleCollectionNeedsExtractor {
             switch need {
             case let .emits(key): !profile.canEmit(kanataKey: key)
             case .capsLockInput: false
-            case .deviceTargeting: !profile.supportsDeviceTargeting
+            case .deviceTargeting: true
             case let .externalApp(_, path): !fileExists(path)
             }
         }

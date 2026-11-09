@@ -235,7 +235,7 @@ final class GeneratedSessionProfileEligibilityTests: KeyPathTestCase {
             throw XCTSkip("Build the local bridge or set KEYPATH_SESSION_TEST_BRIDGE_PATH")
         }
         return KanataRuntimeHost(
-            launcherPath: "/unused/kanata-launcher", bridgeLibraryPath: bridgePath,
+            bridgeLibraryPath: bridgePath,
             bundledCorePath: "/unused/kanata", kanataEngineBundlePath: "/unused/Kanata Engine.app"
         )
     }

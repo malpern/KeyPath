@@ -8,7 +8,7 @@ final class SystemActionInfoTests: XCTestCase {
     /// be emitted; without a bridge answer the old consumer-key refusal stands.
     func testDriverlessSupportCoversEveryActionWithTheBridge() throws {
         try SessionBridgeTestFixture.requireAvailable()
-        BackendCapabilityProfile.testOverride = BackendCapabilityProfile(backend: .session) { key in
+        BackendCapabilityProfile.testOverride = BackendCapabilityProfile { key in
             KanataHostBridge.sessionOutputKeySupported(
                 runtimeHost: SessionBridgeTestFixture.runtimeHost, keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
             )
@@ -20,7 +20,7 @@ final class SystemActionInfoTests: XCTestCase {
     }
 
     func testWithoutABridgeAnswerOnlyConsumerMediaOutputsAreRefused() {
-        BackendCapabilityProfile.testOverride = BackendCapabilityProfile(backend: .session) { _ in nil }
+        BackendCapabilityProfile.testOverride = BackendCapabilityProfile { _ in nil }
         defer { BackendCapabilityProfile.testOverride = nil }
         let unsupported = Set(SystemActionInfo.allActions.filter { !$0.isSupportedInDriverlessSession }.map(\.id))
         XCTAssertEqual(unsupported, ["play-pause", "next-track", "prev-track", "mute", "volume-up", "volume-down", "brightness-up", "brightness-down"])
@@ -32,7 +32,7 @@ final class SystemActionInfoTests: XCTestCase {
 
     @MainActor
     func testUnsupportedActionCannotReplaceMapperSelection() throws {
-        BackendCapabilityProfile.testOverride = BackendCapabilityProfile(backend: .session) { _ in nil }
+        BackendCapabilityProfile.testOverride = BackendCapabilityProfile { _ in nil }
         defer { BackendCapabilityProfile.testOverride = nil }
         let model = MapperViewModel()
         let supported = try XCTUnwrap(SystemActionInfo.find(byOutput: "home"))

@@ -1,5 +1,4 @@
 @testable import KeyPathAppKit
-@testable import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 @testable import KeyPathPermissions
 import KeyPathWizardCore
@@ -17,18 +16,12 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
 
         let context = SystemContext(
             permissions: permissions,
-            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true),
+            services: HealthStatus(kanataRunning: false),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             components: ComponentStatus(
-                kanataBinaryInstalled: true,
-                karabinerDriverInstalled: true,
-                karabinerDaemonRunning: true,
-                vhidDeviceInstalled: true,
-                vhidDeviceHealthy: true,
-                vhidServicesHealthy: true,
-                vhidVersionMismatch: false
+                kanataBinaryInstalled: true
             ),
-            system: EngineSystemInfo(macOSVersion: "test", driverCompatible: true),
+            system: EngineSystemInfo(macOSVersion: "test"),
             timestamp: now
         )
 

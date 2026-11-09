@@ -1,7 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import Testing
 @preconcurrency import XCTest
 
@@ -128,7 +127,6 @@ struct ConfigReloadCoordinatorTests {
             : .unhealthy(reason: "Service not running"))
 
         let safetyMonitor = ReloadSafetyMonitor()
-        let processLifecycle = ProcessLifecycleManager()
         let transitionState = runtimeTransitionState
             ?? MutableRuntimeTransition(isTransitioning: runtimeTransitioning)
         let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = if let customTCPReloadOverride {
@@ -146,7 +144,6 @@ struct ConfigReloadCoordinatorTests {
                 if let healthStatusOverride { return await healthStatusOverride() }
                 return healthStatus.value
             },
-            processLifecycleManager: processLifecycle,
             isRuntimeTransitioning: { transitionState.isTransitioning },
             tcpReloadOverride: tcpReloadOverride,
             transitionRetryMaximumPolls: transitionRetryMaximumPolls,
@@ -173,7 +170,7 @@ struct ConfigReloadCoordinatorTests {
         let health = MutableHealthStatus(.unhealthy(reason: "Keyboard disconnected"))
         let sut = ConfigReloadCoordinator(
             engineClient: MockEngineClient(), reloadSafetyMonitor: ReloadSafetyMonitor(),
-            healthStatusProvider: { _ in health.value }, processLifecycleManager: ProcessLifecycleManager(),
+            healthStatusProvider: { _ in health.value },
             tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "applied") },
             startRuntimeForExplicitApply: { state.restartCount += 1; health.value = .healthy(); return true }
         )

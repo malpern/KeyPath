@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import KeyPathWizardCore
 
@@ -49,19 +48,12 @@ public final class InstallerEngine {
         injectedValidator ?? WizardDependencies.systemValidator
     }
 
-    /// Internal designated initializer to share construction logic
-    public init(
-        processLifecycleManager _: ProcessLifecycleManager,
-        systemValidator injectedValidator: (any WizardSystemValidating)? = nil
-    ) {
+    /// Creates an engine. Tests inject a validator; app and CLI callers resolve
+    /// `WizardDependencies.systemValidator` at call time.
+    public init(systemValidator injectedValidator: (any WizardSystemValidating)? = nil) {
         self.injectedValidator = injectedValidator
 
         AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
-    }
-
-    /// Public initializer for app/CLI callers (no DI needed).
-    public convenience init() {
-        self.init(processLifecycleManager: ProcessLifecycleManager())
     }
 
     private func withInstallerTransaction<T>(

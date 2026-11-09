@@ -158,7 +158,7 @@ profiles = {
 manifest = {
     "schemaVersion": 1,
     "lane": "managed-functional",
-    "supportedMacOSMajorVersions": [15, 26],
+    "supportedMacOSMajorVersions": [27],
     "keyPath": {
         "bundleIdentifier": app_id,
         "teamIdentifier": team,

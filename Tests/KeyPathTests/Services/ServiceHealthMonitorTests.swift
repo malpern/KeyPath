@@ -1,6 +1,5 @@
 import Foundation
 @testable import KeyPathAppKit
-import KeyPathDaemonLifecycle
 @preconcurrency import XCTest
 
 /// Mock UDP client for testing health checks
@@ -20,7 +19,7 @@ actor MockKanataUDPClient {
 
 @MainActor
 class ServiceHealthMonitorTests: XCTestCase {
-    var processLifecycle: ProcessLifecycleManager!
+    var processDetector: KanataProcessDetector!
     var monitor: ServiceHealthMonitor!
     private var previousSudoEnv: String?
 
@@ -28,8 +27,8 @@ class ServiceHealthMonitorTests: XCTestCase {
         try await super.setUp()
         previousSudoEnv = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"]
         setenv("KEYPATH_USE_SUDO", "0", 1)
-        processLifecycle = ProcessLifecycleManager()
-        monitor = ServiceHealthMonitor(processLifecycle: processLifecycle)
+        processDetector = KanataProcessDetector()
+        monitor = ServiceHealthMonitor(processDetector: processDetector)
     }
 
     override func tearDown() async throws {
@@ -38,7 +37,7 @@ class ServiceHealthMonitorTests: XCTestCase {
         } else {
             unsetenv("KEYPATH_USE_SUDO")
         }
-        processLifecycle = nil
+        processDetector = nil
         monitor = nil
         try await super.tearDown()
     }
@@ -242,27 +241,6 @@ class ServiceHealthMonitorTests: XCTestCase {
             // Success
         } else {
             XCTFail("Should recommend full recovery for connection failures")
-        }
-    }
-
-    /// NOTE: Test disabled - requires mocking ProcessLifecycleManager which is now final
-    /// To properly test conflict resolution, would need integration test with actual processes
-    func skip_testDetermineRecoveryAction_ProcessConflicts() async {
-        // Set up mock conflicts
-        _ = ProcessLifecycleManager.ProcessInfo(pid: 9999, command: "/usr/local/bin/kanata")
-        // mockProcessLifecycle.mockConflicts = ProcessLifecycleManager.ConflictResolution(
-        //     externalProcesses: [conflictProcess],
-        //     managedProcesses: [],
-        //     canAutoResolve: true
-        // )
-
-        let healthStatus = ServiceHealthStatus.unhealthy(reason: "Conflicts", shouldRestart: true)
-        let action = await monitor.determineRecoveryAction(healthStatus: healthStatus)
-
-        if case .killAndRestart = action {
-            // Success
-        } else {
-            XCTFail("Should recommend kill and restart for process conflicts")
         }
     }
 

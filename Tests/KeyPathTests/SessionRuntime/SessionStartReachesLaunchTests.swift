@@ -11,7 +11,7 @@ final class SessionStartReachesLaunchTests: KeyPathTestCase {
         addTeardownBlock { @MainActor in
             ServiceLifecycleCoordinator.testSessionStart = { _ in false }
         }
-        let coordinator = ServiceLifecycleCoordinator(recoveryCoordinator: RecoveryCoordinator())
+        let coordinator = ServiceLifecycleCoordinator()
         coordinator.testSessionCurrentReport = { nil }
         coordinator.testSessionConfigurationValidation = { .valid }
         coordinator.testSessionCapsPreparation = {}

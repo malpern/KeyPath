@@ -117,10 +117,7 @@ public struct SystemContext: Sendable {
             services: snapshot.health,
             conflicts: snapshot.conflicts,
             components: snapshot.components,
-            system: EngineSystemInfo(
-                macOSVersion: snapshot.compatibility.macOSVersion,
-                driverCompatible: snapshot.compatibility.driverCompatible
-            ),
+            system: EngineSystemInfo(macOSVersion: snapshot.compatibility.macOSVersion),
             timestamp: snapshot.timestamp,
             captureStatus: snapshot.captureStatus
         )
@@ -141,19 +138,13 @@ public struct SystemContext: Sendable {
     }
 }
 
-/// System information (macOS version, driver compatibility, etc.).
+/// System information (macOS version).
 public struct EngineSystemInfo: Sendable, Equatable {
     /// macOS version string
     public let macOSVersion: String
-    /// Driver compatibility status
-    public let driverCompatible: Bool
 
-    public init(
-        macOSVersion: String,
-        driverCompatible: Bool
-    ) {
+    public init(macOSVersion: String) {
         self.macOSVersion = macOSVersion
-        self.driverCompatible = driverCompatible
     }
 }
 

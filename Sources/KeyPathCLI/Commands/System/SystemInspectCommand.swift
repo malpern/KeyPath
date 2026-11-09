@@ -30,7 +30,6 @@ struct SystemInspect: AsyncParsableCommand {
                 "=== System Inspection ===",
                 "Runtime state and key access come from the running KeyPath.app; Accessibility is checked from this CLI.",
                 "macOS Version: \(result.macOSVersion)",
-                "Driver Compatible: \(result.driverCompatible ? "Yes" : "No")",
                 "",
                 "System Ready: \((result.isOperational ?? false) ? "Yes" : "No")",
                 "Plan Status: \(result.planStatus)",

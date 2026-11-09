@@ -23,30 +23,18 @@ final class WizardPureLogicTests: XCTestCase {
 
     private var allComponentsHealthy: ComponentStatus {
         ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
+            kanataBinaryInstalled: true
         )
     }
 
     private var healthyServices: HealthStatus {
-        HealthStatus(backend: .driverKit,
-                     kanataLaunchdLoaded: true,
-                     kanataProcessRunning: true,
+        HealthStatus(kanataProcessRunning: true,
                      kanataTCPResponding: true,
-                     kanataRunning: true,
-                     karabinerDaemonRunning: true,
-                     vhidHealthy: true,
-                     kanataSMAppServiceRegistered: true,
-                     loginItemsApprovalRequired: false)
+                     kanataRunning: true)
     }
 
     private var defaultSystem: EngineSystemInfo {
-        EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true)
+        EngineSystemInfo(macOSVersion: "15.0")
     }
 
     private func makeContext(
@@ -98,17 +86,11 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCaptureAsStopped() {
         let context = makeContext(
-            services: HealthStatus(backend: .driverKit,
-                                   kanataLaunchdLoaded: true,
-                                   kanataProcessRunning: false,
+            services: HealthStatus(kanataProcessRunning: false,
                                    kanataTCPResponding: false,
                                    kanataRunning: false,
-                                   karabinerDaemonRunning: true,
-                                   vhidHealthy: true,
                                    kanataInputCaptureReady: false,
-                                   kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard",
-                                   kanataSMAppServiceRegistered: true,
-                                   loginItemsApprovalRequired: false)
+                                   kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard")
         )
 
         XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeStopped)
@@ -122,7 +104,7 @@ final class WizardPureLogicTests: XCTestCase {
 
         XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeReady.rawValue)
         XCTAssertEqual(result.stateMatrixPlan, [])
-        XCTAssertEqual(result.autoFixActions, [], "A missing retired helper must not produce an executable repair")
+        XCTAssertEqual(result.autoFixActions, [])
     }
 
     func test_systemStateProjectionPreservesCaptureStatus() {
@@ -174,47 +156,16 @@ final class WizardPureLogicTests: XCTestCase {
         }
 
         let missingComponents = ComponentStatus(
-            kanataBinaryInstalled: false,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
+            kanataBinaryInstalled: false
         )
-        let stoppedWithStaleDiagnostic = HealthStatus(backend: .driverKit,
-                                                      kanataLaunchdLoaded: true,
-                                                      kanataProcessRunning: false,
+        let stoppedWithStaleDiagnostic = HealthStatus(kanataProcessRunning: false,
                                                       kanataTCPResponding: false,
                                                       kanataRunning: false,
-                                                      karabinerDaemonRunning: true,
-                                                      vhidHealthy: true,
                                                       kanataInputCaptureReady: false,
-                                                      kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard",
-                                                      kanataSMAppServiceRegistered: true,
-                                                      loginItemsApprovalRequired: false)
-        let driverApprovalPending = HealthStatus(backend: .driverKit,
-                                                 kanataLaunchdLoaded: true,
-                                                 kanataProcessRunning: false,
-                                                 kanataTCPResponding: false,
-                                                 kanataRunning: false,
-                                                 karabinerDaemonRunning: true,
-                                                 vhidHealthy: false,
-                                                 kanataInputCaptureReady: false,
-                                                 kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
-                                                 kanataSMAppServiceRegistered: true,
-                                                 loginItemsApprovalRequired: false)
+                                                      kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard")
         let fixtures = [
             DecisionFixture(
                 name: "healthy repair",
-                intent: .repair,
-                context: makeContext(),
-                assessment: .sessionRuntimeReady,
-                matrixActions: [],
-                autoFixActions: []
-            ),
-            DecisionFixture(
-                name: "missing retired helper does not affect repair",
                 intent: .repair,
                 context: makeContext(),
                 assessment: .sessionRuntimeReady,
@@ -233,14 +184,6 @@ final class WizardPureLogicTests: XCTestCase {
                 name: "stale diagnostic after stopped runtime",
                 intent: .repair,
                 context: makeContext(services: stoppedWithStaleDiagnostic),
-                assessment: .sessionRuntimeStopped,
-                matrixActions: [.restartOrRecoverKanataRuntime],
-                autoFixActions: [.restartCommServer]
-            ),
-            DecisionFixture(
-                name: "retired driver approval signal with stopped runtime",
-                intent: .repair,
-                context: makeContext(services: driverApprovalPending),
                 assessment: .sessionRuntimeStopped,
                 matrixActions: [.restartOrRecoverKanataRuntime],
                 autoFixActions: [.restartCommServer]
@@ -457,7 +400,7 @@ final class WizardPureLogicTests: XCTestCase {
 
     // MARK: - InstallerDecisionPipeline: Repair Actions
 
-    /// Executable plans use session readiness regardless of historical helper/driver facts.
+    /// Executable plans start the runtime only when session readiness is missing.
     func test_sessionPlansOnlyStartWhenRuntimeReadinessIsMissing() {
         let cases: [(Bool, Bool, Bool)] = [
             (true, true, true), (false, false, false),
@@ -465,9 +408,8 @@ final class WizardPureLogicTests: XCTestCase {
         ]
         for (running, responding, inputReady) in cases {
             let health = HealthStatus(
-                backend: .session, kanataProcessRunning: running,
+                kanataProcessRunning: running,
                 kanataTCPResponding: responding, kanataRunning: running,
-                karabinerDaemonRunning: false, vhidHealthy: false,
                 kanataInputCaptureReady: inputReady
             )
             let context = makeContext(services: health, components: .empty)
@@ -478,12 +420,10 @@ final class WizardPureLogicTests: XCTestCase {
         }
     }
 
-    func test_readySessionNeverRepairsHistoricalHelperDriverOrConflicts() {
+    func test_readySessionNeverRepairsConflicts() {
         let health = HealthStatus(
-            backend: .session, kanataProcessRunning: true, kanataTCPResponding: true,
-            kanataRunning: true, karabinerDaemonRunning: false, vhidHealthy: false,
-            kanataInputCaptureReady: true,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
+            kanataProcessRunning: true, kanataTCPResponding: true,
+            kanataRunning: true, kanataInputCaptureReady: true
         )
         for canAutoResolve in [false, true] {
             let context = makeContext(
@@ -494,19 +434,6 @@ final class WizardPureLogicTests: XCTestCase {
             XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [])
             XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [])
         }
-    }
-
-    func test_missingSessionDoesNotPlanPrivilegedFallbackForLegacyApproval() {
-        let health = HealthStatus(
-            backend: .session, kanataProcessRunning: false, kanataTCPResponding: false,
-            kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason,
-            loginItemsApprovalRequired: true
-        )
-        let context = makeContext(services: health, components: .empty)
-        XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [.restartCommServer])
-        XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [.restartCommServer])
     }
 
     func test_inspectionAndUninstallNeverPlanRuntimeMutations() {

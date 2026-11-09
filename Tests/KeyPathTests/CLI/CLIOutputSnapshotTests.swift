@@ -229,15 +229,9 @@ final class CLIOutputSnapshotTests: XCTestCase {
             keyPathAccessibility: true,
             runtimeKeyAccess: true,
             kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            vhidDeviceHealthy: true,
             kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
-            activeRuntimePathTitle: "LaunchDaemon",
+            activeRuntimePathTitle: "Driverless session runtime",
             activeRuntimePathDetail: "Running",
-            kanataServiceFreshness: "stale",
-            kanataExpectedIdentity: "com.keypath.KeyPath build 4 · Contents/Library/KeyPath/kanata-launcher",
             hasConflicts: false,
             timestamp: fixedDate
         )
@@ -246,10 +240,8 @@ final class CLIOutputSnapshotTests: XCTestCase {
         let expectedKeys: Set = [
             "isOperational",
             "keyPathAccessibility", "runtimeKeyAccess",
-            "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
-            "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
+            "kanataBinaryInstalled", "kanataRunning",
             "activeRuntimePathTitle", "activeRuntimePathDetail",
-            "kanataServiceFreshness", "kanataExpectedIdentity",
             "hasConflicts", "timestamp",
         ]
         XCTAssertEqual(Set(dict.keys), expectedKeys, "Status result key set changed — this breaks agent contracts")

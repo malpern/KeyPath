@@ -1,7 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
-@testable import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathPermissions
 @testable import KeyPathWizardCore
@@ -456,65 +455,23 @@ struct MainAppStateControllerBehaviorTests {
         #expect(controller.issues.isEmpty)
     }
 
-    @Test("Unknown TCP configuration remains inconclusive")
-    func unknownTCPConfigurationRemainsInconclusive() async {
+    @Test("A healthy complete capture validates successfully")
+    func healthyCaptureValidatesSuccessfully() async {
         let context = SystemContextBuilder(
             servicesHealthy: true,
-            kanataTCPConfigured: nil,
             componentsInstalled: true
         ).build()
         let controller = configuredController(validator: StubSystemValidator(context: context))
 
         await controller.refreshValidation()
 
-        #expect(controller.lastTCPConfigured == nil)
-        #expect(controller.validationState == .checking)
-    }
-
-    @Test("A later complete capture resolves unknown TCP configuration")
-    func laterCaptureResolvesUnknownTCPConfiguration() async {
-        let unknown = SystemContextBuilder(
-            servicesHealthy: true,
-            kanataTCPConfigured: nil,
-            componentsInstalled: true
-        ).build()
-        let healthy = SystemContextBuilder(
-            servicesHealthy: true,
-            kanataTCPConfigured: true,
-            componentsInstalled: true
-        ).build()
-        let validator = SequenceSystemValidator(contexts: [unknown, healthy])
-        let controller = configuredController(validator: validator)
-
-        await controller.refreshValidation()
-        #expect(controller.validationState == .checking)
-
-        await controller.revalidate()
-        #expect(controller.lastTCPConfigured == true)
         #expect(controller.validationState == .success)
-        #expect(validator.checkCount == 2)
-    }
-
-    @Test("Explicit missing TCP configuration remains a failure")
-    func explicitMissingTCPConfigurationRemainsFailure() async {
-        let context = SystemContextBuilder(
-            servicesHealthy: true,
-            kanataTCPConfigured: false,
-            componentsInstalled: true
-        ).build()
-        let controller = configuredController(validator: StubSystemValidator(context: context))
-
-        await controller.refreshValidation()
-
-        #expect(controller.lastTCPConfigured == false)
-        #expect(controller.validationState?.hasCriticalIssues == true)
     }
 
     @Test("Concurrent refreshes publish one validation result")
     func concurrentRefreshesPublishOneValidationResult() async {
         let context = SystemContextBuilder(
             servicesHealthy: true,
-            kanataTCPConfigured: true,
             componentsInstalled: true
         ).build()
         let validator = GatedCountingValidator(context: context)
@@ -535,7 +492,6 @@ struct MainAppStateControllerBehaviorTests {
     func explicitRefreshDuringValidationRunsAgain() async {
         let context = SystemContextBuilder(
             servicesHealthy: true,
-            kanataTCPConfigured: true,
             componentsInstalled: true
         ).build()
         let validator = GatedCountingValidator(context: context)
@@ -624,7 +580,7 @@ struct MainAppStateControllerBehaviorTests {
             let snapshot = SystemSnapshot(
                 id: context.snapshotID, permissions: permissions, components: context.components,
                 conflicts: context.conflicts, health: context.services,
-                compatibility: SystemCompatibilityStatus(macOSVersion: "26.0", driverCompatible: true),
+                compatibility: SystemCompatibilityStatus(macOSVersion: "26.0"),
                 timestamp: Date(), captureStatus: .complete
             )
             let controller = MainAppStateController()
@@ -752,8 +708,8 @@ struct MainAppStateControllerBehaviorTests {
         let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
         controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
         let validator = SequenceSystemValidator(contexts: [
-            SystemContextBuilder(servicesHealthy: false, kanataTCPConfigured: true, componentsInstalled: true).build(),
-            SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()
+            SystemContextBuilder(servicesHealthy: false, componentsInstalled: true).build(),
+            SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         ])
         validator.beforeCheck = { [weak validator] in
             if validator?.checkCount == 1 { lifecycle.sessionWakeRecoveryRevision &+= 2 }
@@ -775,7 +731,7 @@ struct MainAppStateControllerBehaviorTests {
         let lifecycle = RuntimeCoordinator().serviceLifecycleCoordinator
         lifecycle.testSessionCapsRecovery = { throw SessionCapsMappingLease.Refusal.mutationUncertain }
         controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
-        let validator = SequenceSystemValidator(contexts: [SystemContextBuilder(servicesHealthy: true, kanataTCPConfigured: true, componentsInstalled: true).build()])
+        let validator = SequenceSystemValidator(contexts: [SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()])
         validator.beforeCheck = { _ = await lifecycle.restoreSessionCaps(for: nil) }
         controller.setValidator(validator)
         controller.configureStartupGateTestingState(
@@ -829,8 +785,7 @@ private final class GatedCountingValidator: WizardSystemValidating {
             conflicts: context.conflicts,
             health: context.services,
             compatibility: SystemCompatibilityStatus(
-                macOSVersion: context.system.macOSVersion,
-                driverCompatible: context.system.driverCompatible
+                macOSVersion: context.system.macOSVersion
             ),
             timestamp: context.timestamp,
             captureStatus: context.captureStatus
@@ -865,8 +820,7 @@ private final class SequenceSystemValidator: WizardSystemValidating {
                 conflicts: context.conflicts,
                 health: context.services,
                 compatibility: SystemCompatibilityStatus(
-                    macOSVersion: context.system.macOSVersion,
-                    driverCompatible: context.system.driverCompatible
+                    macOSVersion: context.system.macOSVersion
                 ),
                 timestamp: context.timestamp,
                 captureStatus: context.captureStatus

@@ -3,14 +3,11 @@ import KeyPathCore
 
 enum SystemDiagnostics {
     enum Target {
-        case loginItems
         case accessibility
         case systemSettings
 
         fileprivate var url: URL? {
             switch self {
-            case .loginItems:
-                URL(string: WizardSystemPaths.loginItemsSettings)
             case .accessibility:
                 URL(string: WizardSystemPaths.accessibilitySettings)
             case .systemSettings:
@@ -22,17 +19,6 @@ enum SystemDiagnostics {
     static func open(_ target: Target) {
         guard let url = target.url else { return }
         NSWorkspace.shared.open(url)
-    }
-
-    static func openKanataLogsInEditor() {
-        let url = URL(fileURLWithPath: KeyPathConstants.Logs.kanataStderr)
-        Task { @MainActor in
-            openFileInPreferredEditor(url)
-        }
-    }
-
-    static func openKarabinerLogsDirectory() {
-        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: KeyPathConstants.Logs.karabinerDir)
     }
 
     static func openSystemSettings() {

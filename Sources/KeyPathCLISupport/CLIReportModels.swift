@@ -8,15 +8,9 @@ public struct CLIStatusResult: Codable, Sendable {
     /// The session runtime reports it can read and post keys.
     public let runtimeKeyAccess: Bool
     public let kanataBinaryInstalled: Bool
-    public let karabinerDriverInstalled: Bool
-    public let vhidDeviceHealthy: Bool
     public let kanataRunning: Bool
-    public let karabinerDaemonRunning: Bool
-    public let vhidHealthy: Bool
     public let activeRuntimePathTitle: String?
     public let activeRuntimePathDetail: String?
-    public let kanataServiceFreshness: String
-    public let kanataExpectedIdentity: String
     public let hasConflicts: Bool
     public let timestamp: Date
 
@@ -25,15 +19,9 @@ public struct CLIStatusResult: Codable, Sendable {
         keyPathAccessibility: Bool,
         runtimeKeyAccess: Bool,
         kanataBinaryInstalled: Bool,
-        karabinerDriverInstalled: Bool,
-        vhidDeviceHealthy: Bool,
         kanataRunning: Bool,
-        karabinerDaemonRunning: Bool,
-        vhidHealthy: Bool,
         activeRuntimePathTitle: String?,
         activeRuntimePathDetail: String?,
-        kanataServiceFreshness: String,
-        kanataExpectedIdentity: String,
         hasConflicts: Bool,
         timestamp: Date
     ) {
@@ -41,15 +29,9 @@ public struct CLIStatusResult: Codable, Sendable {
         self.keyPathAccessibility = keyPathAccessibility
         self.runtimeKeyAccess = runtimeKeyAccess
         self.kanataBinaryInstalled = kanataBinaryInstalled
-        self.karabinerDriverInstalled = karabinerDriverInstalled
-        self.vhidDeviceHealthy = vhidDeviceHealthy
         self.kanataRunning = kanataRunning
-        self.karabinerDaemonRunning = karabinerDaemonRunning
-        self.vhidHealthy = vhidHealthy
         self.activeRuntimePathTitle = activeRuntimePathTitle
         self.activeRuntimePathDetail = activeRuntimePathDetail
-        self.kanataServiceFreshness = kanataServiceFreshness
-        self.kanataExpectedIdentity = kanataExpectedIdentity
         self.hasConflicts = hasConflicts
         self.timestamp = timestamp
     }
@@ -243,7 +225,6 @@ public struct CLIRepairTelemetryEvent: Codable, Sendable {
 
 public struct CLIInspectResult: Codable, Sendable {
     public let macOSVersion: String
-    public let driverCompatible: Bool
     public let planStatus: String
     public let blockedBy: String?
     public let plannedRecipes: [String]
@@ -257,7 +238,6 @@ public struct CLIInspectResult: Codable, Sendable {
 
     public init(
         macOSVersion: String,
-        driverCompatible: Bool,
         planStatus: String,
         blockedBy: String?,
         plannedRecipes: [String],
@@ -270,7 +250,6 @@ public struct CLIInspectResult: Codable, Sendable {
         stateMatrixPlan: [String]? = nil
     ) {
         self.macOSVersion = macOSVersion
-        self.driverCompatible = driverCompatible
         self.planStatus = planStatus
         self.blockedBy = blockedBy
         self.plannedRecipes = plannedRecipes

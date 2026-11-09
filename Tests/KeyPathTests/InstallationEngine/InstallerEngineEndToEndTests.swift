@@ -1,5 +1,4 @@
 @testable import KeyPathAppKit
-import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 @testable import KeyPathWizardCore
 import ServiceManagement
@@ -11,7 +10,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
 
@@ -31,7 +29,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
         let plan = InstallPlan(
@@ -59,7 +56,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
         let beforeSnapshotID = UUID()
@@ -92,7 +88,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let context = SystemContextBuilder.degradedRepair()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
         let plan = InstallPlan(
@@ -121,7 +116,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
         let plan = InstallPlan(recipes: [], status: .ready, intent: .repair)
@@ -139,7 +133,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
         let plan = InstallPlan(
@@ -161,7 +154,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
         let engine = InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: validator
         )
         let plan = InstallPlan(
@@ -191,8 +183,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             conflicts: context.conflicts,
             health: context.services,
             compatibility: SystemCompatibilityStatus(
-                macOSVersion: context.system.macOSVersion,
-                driverCompatible: context.system.driverCompatible
+                macOSVersion: context.system.macOSVersion
             ),
             timestamp: context.timestamp,
             captureStatus: context.captureStatus

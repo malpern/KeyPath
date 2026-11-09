@@ -1,6 +1,5 @@
 import AppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathPluginKit
@@ -379,7 +378,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if kanataManager?.uninstallCleanupCompleted != true {
             KindaVimTelemetryStore.shared.flushNow()
         }
-        kanataManager?.cleanupSync()
         AppLogger.shared.info("✅ [AppDelegate] Cleanup complete, app terminating")
     }
 

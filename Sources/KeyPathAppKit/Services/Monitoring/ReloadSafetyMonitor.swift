@@ -34,7 +34,6 @@ actor ReloadSafetyMonitor {
     private struct ReloadAttempt {
         let timestamp: Date
         let succeeded: Bool
-        let daemonPID: Int?
     }
 
     private var reloadHistory: [ReloadAttempt] = []
@@ -51,10 +50,8 @@ actor ReloadSafetyMonitor {
     // MARK: - Public API
 
     /// Check if it's safe to perform a reload right now
-    /// - Parameters:
-    ///   - currentPID: The current daemon PID (if known)
     /// - Returns: SafetyCheck result with reasoning
-    func checkReloadSafety(currentPID _: Int?) -> SafetyCheck {
+    func checkReloadSafety() -> SafetyCheck {
         let now = Date()
 
         // Check 1: Crash loop backoff
@@ -104,12 +101,10 @@ actor ReloadSafetyMonitor {
     }
 
     /// Record a reload attempt
-    /// - Parameters:
-    ///   - succeeded: Whether the reload succeeded
-    ///   - daemonPID: The daemon PID at time of reload (if known)
-    func recordReloadAttempt(succeeded: Bool, daemonPID: Int?) {
+    /// - Parameter succeeded: Whether the reload succeeded
+    func recordReloadAttempt(succeeded: Bool) {
         let now = Date()
-        let attempt = ReloadAttempt(timestamp: now, succeeded: succeeded, daemonPID: daemonPID)
+        let attempt = ReloadAttempt(timestamp: now, succeeded: succeeded)
         reloadHistory.append(attempt)
         lastReloadTime = now
 

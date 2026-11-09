@@ -2,8 +2,10 @@
 
 > **Partly historical.** KeyPath now runs only the unprivileged session runtime
 > (ADR-045, ADR-047). The helper, conflicts, Karabiner and communication pages
-> are gone. Sections describing drivers, LaunchDaemons and their auto-fixes are
-> kept as history until the retired code is deleted.
+> are gone, and so is the backend switch (`KanataRuntimeBackend`, ADR-047
+> step 4): the wizard plans only the session runtime. Sections describing
+> drivers, LaunchDaemons and their auto-fixes describe deleted code and are kept
+> only as history.
 
 The Installation Wizard is KeyPath's multi-step setup system that automatically detects and resolves system configuration issues. It accounts for **45% of the codebase** (17,985 lines across 44 files) due to the complexity of macOS system integration.
 

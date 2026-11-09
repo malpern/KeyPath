@@ -30,40 +30,31 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
     }
 
     private func snapshot(running: Bool, ax: PermissionOracle.Status = .granted,
-                          input: PermissionOracle.Status = .granted,
-                          backend: KanataRuntimeBackend = .session) -> SystemSnapshot
+                          input: PermissionOracle.Status = .granted) -> SystemSnapshot
     {
         SystemSnapshot(
             permissions: .fixture(accessibility: ax, runtimeKeyAccess: input, source: "independent-process"),
             components: ComponentStatus(
-                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
-                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
-                vhidServicesHealthy: false, vhidVersionMismatch: false
+                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true
             ), conflicts: .empty,
-            health: .init(backend: backend, kanataProcessRunning: running, kanataTCPResponding: running,
-                          kanataRunning: running, karabinerDaemonRunning: false, vhidHealthy: false,
-                          kanataInputCaptureReady: running),
+            health: .init(kanataProcessRunning: running, kanataTCPResponding: running,
+                          kanataRunning: running, kanataInputCaptureReady: running),
             compatibility: .unknown, timestamp: Date()
         )
     }
 
-    func testSessionReadinessDoesNotInventHelperOrDriverHealth() {
+    func testSessionReadinessFollowsRuntimeEvidence() {
         let snapshot = snapshot(running: true)
         XCTAssertTrue(snapshot.isReady)
         XCTAssertTrue(snapshot.blockingIssues.isEmpty)
-        XCTAssertFalse(snapshot.components.karabinerDriverInstalled)
-        XCTAssertFalse(snapshot.health.vhidHealthy)
         XCTAssertTrue(snapshot.health.isHealthy)
         let context = SystemContext(snapshot: snapshot)
         XCTAssertTrue(context.isReady)
         XCTAssertFalse(SystemContext(snapshot: self.snapshot(running: false)).isReady)
-        XCTAssertFalse(SystemContext(snapshot: self.snapshot(running: true, backend: .driverKit)).isReady)
         XCTAssertFalse(SystemContext.empty.isReady)
         XCTAssertEqual(SystemInspector.inspect(context: context).0, .active)
         XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [])
         XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeReady)
-        XCTAssertFalse(self.snapshot(running: true, backend: .driverKit).isReady)
     }
 
     func testSessionSetupAndRepairNeverPlanPrivilegedInstallation() {

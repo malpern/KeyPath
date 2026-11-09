@@ -283,13 +283,12 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
 
     // MARK: Stuck-key snapshot
 
-    func testDriverlessSnapshotAttachesTheWorkerNotTheLegacyDaemonLog() {
+    func testSnapshotAttachesTheSessionWorkerReport() {
         let report = SessionRuntimeReport(nonce: "n", pid: 4242, uid: 501, state: .failed, accessibility: true,
                                           effectiveInputAccess: true, tapActive: false, tcpPort: 37001,
                                           inputCount: 7, outputCount: 5, failure: "output-queue-overrun",
                                           heldOutputUsages: [4, 225])
-        let lines = StuckKeyRecoveryService.runtimeEvidenceLines(.sessionWorker((report, false)),
-                                                                 stderrPath: "/nonexistent", stdoutPath: "/nonexistent")
+        let lines = StuckKeyRecoveryService.runtimeEvidenceLines((report, false))
         XCTAssertTrue(lines.contains("=== Session Worker ==="))
         XCTAssertTrue(lines.contains("state: failed"))
         XCTAssertTrue(lines.contains("worker_pid: 4242"))
@@ -298,14 +297,8 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
         XCTAssertTrue(lines.contains("failure: output-queue-overrun"))
         XCTAssertFalse(lines.contains { $0.contains("Kanata Stderr") || $0.contains("Kanata Stdout") })
 
-        let none = StuckKeyRecoveryService.runtimeEvidenceLines(.sessionWorker(nil))
+        let none = StuckKeyRecoveryService.runtimeEvidenceLines(nil)
         XCTAssertTrue(none.contains { $0.contains("no worker report") })
         XCTAssertFalse(none.contains { $0.contains("Kanata Stderr") })
-    }
-
-    func testLegacySnapshotKeepsTheDaemonLogs() {
-        let lines = StuckKeyRecoveryService.runtimeEvidenceLines(.daemonLogs, stderrPath: "/nonexistent", stdoutPath: "/nonexistent")
-        XCTAssertTrue(lines.contains("=== Kanata Stderr (last 50 lines) ==="))
-        XCTAssertFalse(lines.contains("=== Session Worker ==="))
     }
 }

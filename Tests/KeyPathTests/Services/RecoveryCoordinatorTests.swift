@@ -26,7 +26,6 @@ struct RecoveryCoordinatorInitTests {
 
         coordinator.configure(
             killAllKanataProcesses: { killCalled = true },
-            restartKarabinerDaemon: { true },
             restartService: { _ in
                 restartServiceCalled = true
                 return true
@@ -42,61 +41,6 @@ struct RecoveryCoordinatorInitTests {
         let resumeResult = await coordinator.resumeMappings()
         #expect(restartServiceCalled, "restartService should have been called")
         #expect(resumeResult == true)
-    }
-}
-
-// MARK: - VirtualHID Validation
-
-@Suite("RecoveryCoordinator — VirtualHID Validation")
-@MainActor
-struct RecoveryCoordinatorVirtualHIDValidationTests {
-    @Test("startKanataWithValidation calls onError when daemon not running")
-    func callsOnErrorWhenDaemonNotRunning() async {
-        let coordinator = RecoveryCoordinator()
-        var errorMessage: String?
-
-        await coordinator.startKanataWithValidation(
-            isKarabinerDaemonRunning: { false },
-            startKanata: { true },
-            onError: { errorMessage = $0 }
-        )
-
-        #expect(errorMessage != nil, "onError should have been called")
-        #expect(errorMessage?.contains("Recovery failed") == true)
-    }
-
-    @Test("startKanataWithValidation starts kanata when daemon running")
-    func startsKanataWhenDaemonRunning() async {
-        let coordinator = RecoveryCoordinator()
-        var startKanataCalled = false
-
-        await coordinator.startKanataWithValidation(
-            isKarabinerDaemonRunning: { true },
-            startKanata: {
-                startKanataCalled = true
-                return true
-            },
-            onError: { _ in }
-        )
-
-        #expect(startKanataCalled, "startKanata should have been called")
-    }
-
-    @Test("startKanataWithValidation does not start when daemon not running")
-    func doesNotStartWhenDaemonNotRunning() async {
-        let coordinator = RecoveryCoordinator()
-        var startKanataCalled = false
-
-        await coordinator.startKanataWithValidation(
-            isKarabinerDaemonRunning: { false },
-            startKanata: {
-                startKanataCalled = true
-                return true
-            },
-            onError: { _ in }
-        )
-
-        #expect(!startKanataCalled, "startKanata should NOT have been called")
     }
 }
 
@@ -167,7 +111,6 @@ struct RecoveryCoordinatorPauseResumeTests {
         let coordinator = RecoveryCoordinator()
         coordinator.configure(
             killAllKanataProcesses: { /* success — no throw */ },
-            restartKarabinerDaemon: { true },
             restartService: { _ in true }
         )
 
@@ -180,7 +123,6 @@ struct RecoveryCoordinatorPauseResumeTests {
         let coordinator = RecoveryCoordinator()
         coordinator.configure(
             killAllKanataProcesses: { throw TestError.intentional },
-            restartKarabinerDaemon: { true },
             restartService: { _ in true }
         )
 
@@ -193,7 +135,6 @@ struct RecoveryCoordinatorPauseResumeTests {
         let coordinator = RecoveryCoordinator()
         coordinator.configure(
             killAllKanataProcesses: {},
-            restartKarabinerDaemon: { true },
             restartService: { _ in true }
         )
 
@@ -206,77 +147,11 @@ struct RecoveryCoordinatorPauseResumeTests {
         let coordinator = RecoveryCoordinator()
         coordinator.configure(
             killAllKanataProcesses: {},
-            restartKarabinerDaemon: { true },
             restartService: { _ in false }
         )
 
         let result = await coordinator.resumeMappings()
         #expect(result == false)
-    }
-}
-
-// MARK: - Failure Diagnosis
-
-@Suite("RecoveryCoordinator — Failure Diagnosis")
-@MainActor
-struct RecoveryCoordinatorFailureDiagnosisTests {
-    @Test("diagnoseKanataFailure surfaces VirtualHID diagnostics without recovery")
-    func surfacesVirtualHIDDiagnosticWithoutRecovery() {
-        let coordinator = RecoveryCoordinator()
-
-        let diagnostics = [
-            makeDiagnostic(
-                category: .conflict,
-                title: "VirtualHID Connection Failed",
-                canAutoFix: true
-            )
-        ]
-        var addedTitles: [String] = []
-        coordinator.diagnoseKanataFailure(
-            exitCode: 6,
-            output: "error: connect_failed asio.system:61",
-            diagnostics: diagnostics,
-            addDiagnostic: { addedTitles.append($0.title) }
-        )
-
-        #expect(addedTitles == ["VirtualHID Connection Failed"])
-    }
-
-    @Test("diagnoseKanataFailure adds all diagnostics")
-    func addsAllDiagnostics() {
-        let coordinator = RecoveryCoordinator()
-
-        let diagnostics = [
-            makeDiagnostic(title: "Diag 1"),
-            makeDiagnostic(title: "Diag 2"),
-            makeDiagnostic(title: "Diag 3"),
-        ]
-
-        var addedTitles: [String] = []
-        coordinator.diagnoseKanataFailure(
-            exitCode: 0,
-            output: "",
-            diagnostics: diagnostics,
-            addDiagnostic: { addedTitles.append($0.title) }
-        )
-
-        #expect(addedTitles.count == 3)
-        #expect(addedTitles == ["Diag 1", "Diag 2", "Diag 3"])
-    }
-
-    @Test("diagnoseKanataFailure does not trigger recovery for normal exit")
-    func doesNotTriggerRecoveryForNormalExit() {
-        let coordinator = RecoveryCoordinator()
-        var addedTitles: [String] = []
-
-        coordinator.diagnoseKanataFailure(
-            exitCode: 0,
-            output: "",
-            diagnostics: [makeDiagnostic(title: "Normal Exit Diagnostic")],
-            addDiagnostic: { addedTitles.append($0.title) }
-        )
-
-        #expect(addedTitles == ["Normal Exit Diagnostic"])
     }
 }
 

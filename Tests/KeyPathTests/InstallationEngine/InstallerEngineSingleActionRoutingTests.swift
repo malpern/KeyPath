@@ -1,6 +1,5 @@
 @testable import KeyPathAppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 @testable import KeyPathWizardCore
 import XCTest
@@ -23,7 +22,6 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
 
     private func engine(finalContext: SystemContext) -> InstallerEngine {
         InstallerEngine(
-            processLifecycleManager: ProcessLifecycleManager(),
             systemValidator: StubSystemValidator(context: finalContext)
         )
     }

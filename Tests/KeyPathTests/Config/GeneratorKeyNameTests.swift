@@ -38,7 +38,7 @@ final class GeneratorKeyNameTests: KeyPathTestCase {
         XCTAssertEqual(profile.knowsKey("f21"), true)
         XCTAssertEqual(profile.knowsKey("volu"), true)
         XCTAssertEqual(profile.knowsKey("hello"), false)
-        XCTAssertNil(BackendCapabilityProfile(backend: .session) { _ in nil }.knowsKey("f21"), "no bridge, no answer")
+        XCTAssertNil(BackendCapabilityProfile { _ in nil }.knowsKey("f21"), "no bridge, no answer")
     }
 
     /// `f21` used to become `(macro f 2 1)` and type three characters. Now it

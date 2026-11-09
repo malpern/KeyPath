@@ -14,7 +14,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        coordinator = ServiceLifecycleCoordinator(recoveryCoordinator: RecoveryCoordinator())
+        coordinator = ServiceLifecycleCoordinator()
         capturedErrors = []
         capturedWarnings = []
         stateChangeCount = 0

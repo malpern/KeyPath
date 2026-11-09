@@ -12,10 +12,13 @@ repository, including Codex and Claude. Do not duplicate repo policy in
 Rationale: older CLI/tooling may still expose `tools.web_search`, which prints a deprecation warning. Enforcing `web_search_request` avoids the warning and keeps behavior consistent.
 
 ## General
-- KeyPath is a macOS keyboard remapping app built with SwiftUI and a Kanata
-  engine in an unprivileged user-session runtime. The privileged helper, daemon,
-  and VirtualHID stack is retired ([ADR-045](docs/adr/adr-045-retire-privileged-runtime-stack.md)):
-  public 1.0.1 still ships it, but current builds do not. Do not extend it.
+- KeyPath is a macOS 27 keyboard remapping app built with SwiftUI and a Kanata
+  engine. It has one runtime: Kanata in an unprivileged user-session worker
+  launched from KeyPath.app. There is no backend switch. The privileged helper,
+  daemon, and VirtualHID stack is retired
+  ([ADR-045](docs/adr/adr-045-retire-privileged-runtime-stack.md),
+  [ADR-047](docs/adr/adr-047-pre-release-cleanup.md)); public 1.0.1 still ships
+  it, but current builds do not. Do not reintroduce it.
 - User config: `~/.config/keypath/keypath.kbd`.
 - Logs: `~/Library/Logs/KeyPath/keypath-debug.log`.
 - Keep diffs minimal and focused. Preserve directory layout and script entry points.
@@ -349,26 +352,21 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 - Do **not** add a UI toggle for this; treat it as a single consistent rule.
 
 ### Service Lifecycle Invariants
-Items tagged "Retired stack" below are limited to that code and migration from
-1.0.1 (ADR-045). Everything else applies to the session runtime,
-with `ServiceLifecycleCoordinator` as owner.
+These apply to the session runtime, with `ServiceLifecycleCoordinator` as owner.
 
 - For installer/repair changes, use
   `docs/process/installer-repair-state-matrix.md` as the review checklist.
 - **Mutating installer actions must be postcondition-verified before returning success.**
-  - Any action that can stop/restart/re-register Kanata must verify runtime readiness (`running + TCP responding`) or explicit pending-approval state before reporting success.
-- **(Retired stack)** **Stale SMAppService recovery bypasses generic install throttle.**
-  - If state is `.enabled` but launchd cannot load/run the daemon, recovery install/register logic must run even inside the normal throttle window.
-- **(Retired stack)** **Registration is not liveness.**
-  - Treat `SMAppService.status == .enabled` as registration metadata only; never infer runtime health from it without process + TCP evidence.
+  - Any action that can stop or restart Kanata must verify runtime readiness
+    (`running + TCP responding`) before reporting success.
 - **Stale diagnostics must not outrank current runtime state.**
   - Log-derived input-capture issues only apply to a live current runtime. If
     Kanata is missing or stopped, install/start runtime services first.
 
 ### Lifecycle and Health Anti-Patterns
 
-- Do not manually call `launchctl` for install/repair paths; use
-  `InstallerEngine`.
+- Do not add `launchctl`, LaunchDaemon, or privileged-helper paths; install
+  and repair go through `InstallerEngine` and the session runtime.
 - Do not roll your own `pgrep`/`launchctl` health checks; use
   `ServiceHealthChecker`.
 - Do not start, stop, or restart Kanata except through
@@ -376,8 +374,9 @@ with `ServiceLifecycleCoordinator` as owner.
 - Do not send TCP reloads directly; use
   `ConfigReloadCoordinator.triggerConfigReload()`.
 - Do not skip TCP reload after config changes; that causes stale config.
-- (Retired stack) Do not call `SMAppService.status` in a hot path; it is synchronous IPC and can
-  block for 10-30 seconds.
+- Do not call `SMAppService.status` (launch at login) in a hot path; it is
+  synchronous IPC and can block for 10-30 seconds. Use
+  `SMAppServiceStatusProvider`.
 - Do not call real `pgrep` in tests; use `KeyPathTestCase` base class.
 
 ### Testing

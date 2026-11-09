@@ -16,7 +16,7 @@ enum SessionBridgeTestFixture {
 
     static var runtimeHost: KanataRuntimeHost {
         KanataRuntimeHost(
-            launcherPath: "/unused/kanata-launcher", bridgeLibraryPath: libraryPath,
+            bridgeLibraryPath: libraryPath,
             bundledCorePath: "/unused/kanata", kanataEngineBundlePath: "/unused/Kanata Engine.app"
         )
     }
@@ -26,7 +26,7 @@ enum SessionBridgeTestFixture {
     /// `BackendCapabilityProfile.testOverride`, since `.shared` asks whatever
     /// bridge the host process finds (an installed app's, possibly older).
     static var profile: BackendCapabilityProfile {
-        BackendCapabilityProfile(backend: .session) { key in
+        BackendCapabilityProfile { key in
             KanataHostBridge.sessionOutputKeySupported(
                 runtimeHost: runtimeHost, keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
             )

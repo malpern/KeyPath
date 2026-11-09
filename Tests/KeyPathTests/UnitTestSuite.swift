@@ -1,6 +1,5 @@
 @testable import KeyPathAppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathRulesCore
 import KeyPathWizardCore
 @preconcurrency import XCTest
@@ -59,16 +58,6 @@ final class UnitTestSuite: XCTestCase {
             config.contains("C-c") || config.contains("cmd") || config.contains("macro")
                 || config.contains("caps")
         )
-    }
-
-    // MARK: - State Machine Tests
-
-    func testLifecycleStateValues() {
-        // Test state enumeration exists and has expected values
-        XCTAssertEqual(LifecycleStateMachine.KanataState.uninitialized.rawValue, "uninitialized")
-        XCTAssertEqual(LifecycleStateMachine.KanataState.starting.rawValue, "starting")
-        XCTAssertEqual(LifecycleStateMachine.KanataState.running.rawValue, "running")
-        XCTAssertEqual(LifecycleStateMachine.KanataState.stopped.rawValue, "stopped")
     }
 
     // MARK: - Wizard Types Tests

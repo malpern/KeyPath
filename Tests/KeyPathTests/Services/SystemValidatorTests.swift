@@ -1,7 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
 @testable import KeyPathCore
-@testable import KeyPathDaemonLifecycle
 @testable import KeyPathPermissions
 @testable import KeyPathWizardCore
 import Testing
@@ -46,19 +45,11 @@ struct SystemValidatorTests {
         let snapshot = SystemSnapshot(
             permissions: PermissionOracle.Snapshot.fixture(accessibility: .unknown, runtimeKeyAccess: .unknown),
             components: ComponentStatus(
-                kanataBinaryInstalled: false,
-                karabinerDriverInstalled: false,
-                karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false,
-                vhidDeviceHealthy: false,
-                vhidServicesHealthy: false,
-                vhidVersionMismatch: false
+                kanataBinaryInstalled: false
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             health: HealthStatus(
-                kanataRunning: false,
-                karabinerDaemonRunning: false,
-                vhidHealthy: false
+                kanataRunning: false
             ),
             timestamp: oldTimestamp
         )
@@ -85,18 +76,6 @@ struct SystemValidatorTests {
         #expect(!snapshot.isReady)
         #expect(snapshot.captureStatus == .cancelled)
         #expect(snapshot.isStale(maxAge: 1))
-    }
-
-    @Test("Captured missing TCP configuration makes health incomplete")
-    func missingTCPConfigurationIsUnhealthy() {
-        let health = HealthStatus(
-            kanataTCPConfigured: false,
-            kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true
-        )
-
-        #expect(!health.isHealthy)
     }
 
     @Test("Canonical capture timeout returns first-class timed-out evidence")

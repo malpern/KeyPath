@@ -12,18 +12,14 @@ final class WizardRecipeParityTests: KeyPathTestCase {
         return SystemContext(
             permissions: .fixture(source: "session-test", timestamp: now),
             services: HealthStatus(
-                backend: .session, kanataProcessRunning: running, kanataTCPResponding: running,
-                kanataRunning: running, karabinerDaemonRunning: false, vhidHealthy: false,
-                kanataInputCaptureReady: running
+                kanataProcessRunning: running, kanataTCPResponding: running,
+                kanataRunning: running, kanataInputCaptureReady: running
             ),
             conflicts: .empty,
             components: ComponentStatus(
-                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
-                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
-                vhidServicesHealthy: false, vhidVersionMismatch: false
+                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true
             ),
-            system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
+            system: EngineSystemInfo(macOSVersion: "27.0"),
             timestamp: now
         )
     }

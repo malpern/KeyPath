@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 
 // MARK: - Health Check Result Types
 
@@ -73,7 +72,7 @@ struct ProcessHealthStatus: Sendable {
 final class ServiceHealthMonitor {
     // MARK: - Dependencies
 
-    private let processLifecycle: ProcessLifecycleManager
+    private let processDetector: KanataProcessDetector
 
     // MARK: - Configuration Constants
 
@@ -128,8 +127,8 @@ final class ServiceHealthMonitor {
 
     // MARK: - Initialization
 
-    init(processLifecycle: ProcessLifecycleManager) {
-        self.processLifecycle = processLifecycle
+    init(processDetector: KanataProcessDetector) {
+        self.processDetector = processDetector
         heartbeatObserver = NotificationCenter.default.addObserver(
             forName: .kanataTcpHeartbeat, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
@@ -491,13 +490,7 @@ final class ServiceHealthMonitor {
         }
 
         // Check process conflicts
-        let conflicts: ProcessLifecycleManager.ConflictResolution
-        do {
-            conflicts = try await processLifecycle.detectConflicts()
-        } catch {
-            AppLogger.shared.log("❌ [HealthMonitor] Process conflict detection failed: \(error)")
-            return .simpleRestart
-        }
+        let conflicts = await processDetector.detectConflicts()
         if conflicts.hasConflicts {
             AppLogger.shared.warn(
                 "[HealthMonitor] Process conflicts detected - recommend kill and restart"

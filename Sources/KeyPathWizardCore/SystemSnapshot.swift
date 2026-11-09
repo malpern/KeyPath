@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathPermissions
 
 public enum SystemSnapshotCaptureStatus: String, Sendable, Equatable {
@@ -16,57 +15,12 @@ public enum SystemSnapshotCaptureStatus: String, Sendable, Equatable {
 
 public struct SystemCompatibilityStatus: Sendable, Equatable {
     public let macOSVersion: String
-    public let driverCompatible: Bool
 
-    public init(macOSVersion: String, driverCompatible: Bool) {
+    public init(macOSVersion: String) {
         self.macOSVersion = macOSVersion
-        self.driverCompatible = driverCompatible
     }
 
-    public static let unknown = SystemCompatibilityStatus(
-        macOSVersion: "unknown",
-        driverCompatible: false
-    )
-}
-
-/// Whether live runtime identity evidence matches the currently installed app.
-/// Freshness is diagnostic only: a stale but working process remains operational.
-public enum RuntimeFreshness: String, Codable, Sendable, Equatable {
-    case fresh
-    case stale
-    case unknown
-
-    public static func classify(actual: String?, expected: String) -> RuntimeFreshness {
-        guard let actual, !actual.isEmpty, !expected.isEmpty else { return .unknown }
-        return actual == expected ? .fresh : .stale
-    }
-}
-
-public struct RuntimeIdentity: Sendable, Equatable {
-    public let programIdentifier: String
-    public let parentBundleIdentifier: String
-    public let parentBundleVersion: String
-
-    public init(
-        programIdentifier: String,
-        parentBundleIdentifier: String,
-        parentBundleVersion: String
-    ) {
-        self.programIdentifier = programIdentifier
-        self.parentBundleIdentifier = parentBundleIdentifier
-        self.parentBundleVersion = parentBundleVersion
-    }
-
-    public var diagnosticDescription: String {
-        "\(parentBundleIdentifier) build \(parentBundleVersion) · \(programIdentifier)"
-    }
-}
-
-public extension RuntimeFreshness {
-    static func classify(actual: RuntimeIdentity?, expected: RuntimeIdentity) -> RuntimeFreshness {
-        guard let actual else { return .unknown }
-        return actual == expected ? .fresh : .stale
-    }
+    public static let unknown = SystemCompatibilityStatus(macOSVersion: "unknown")
 }
 
 /// Complete snapshot of system state at a point in time
@@ -104,78 +58,26 @@ public struct SystemSnapshot: Sendable {
 
     // MARK: - Computed Properties for UI
 
-    /// System is ready when all critical components are operational
+    /// The session runtime is ready when the capture completed, KeyPath can
+    /// remap keys, nothing conflicts, the bundled runtime is present, and the
+    /// runtime reports it is running and responding.
     public var isReady: Bool {
-        if health.backend == .session {
-            return captureStatus.isComplete && permissions.isSystemReady && !conflicts.hasConflicts
-                && components.requiredRuntimePayloadPresent && health.kanataRuntimeReadiness.isReady
-        }
-        return captureStatus.isComplete && compatibility.driverCompatible
-            && permissions.isSystemReady && !conflicts.hasConflicts
-            && components.hasAllRequired && health.isHealthy
+        captureStatus.isComplete && permissions.isSystemReady && !conflicts.hasConflicts
+            && components.requiredRuntimePayloadPresent && health.kanataRuntimeReadiness.isReady
     }
 
     /// Issues that prevent the system from working
     public var blockingIssues: [Issue] {
-        if health.backend == .session {
-            var issues: [Issue] = []
-            if let permissionIssue {
-                issues.append(permissionIssue)
-            }
-            if !components.requiredRuntimePayloadPresent {
-                issues.append(.componentMissing(name: "Bundled session runtime", autoFix: false))
-            }
-            if !health.kanataRuntimeReadiness.isReady {
-                issues.append(.componentUnhealthy(name: "Session keyboard runtime", autoFix: true))
-            }
-            return issues
-        }
         var issues: [Issue] = []
-
         if let permissionIssue {
             issues.append(permissionIssue)
         }
-
-        // Conflict issues
-        for conflict in conflicts.conflicts {
-            issues.append(.conflict(conflict))
+        if !components.requiredRuntimePayloadPresent {
+            issues.append(.componentMissing(name: "Bundled session runtime", autoFix: false))
         }
-
-        // Component issues
-        if !components.kanataBinaryInstalled {
-            issues.append(.componentMissing(name: "Kanata binary", autoFix: true))
+        if !health.kanataRuntimeReadiness.isReady {
+            issues.append(.componentUnhealthy(name: "Session keyboard runtime", autoFix: true))
         }
-        if !components.karabinerDriverInstalled {
-            issues.append(.componentMissing(name: "Karabiner driver", autoFix: true))
-        }
-        // ⭐ Check version mismatch BEFORE health check (mismatch causes health issues)
-        if components.vhidVersionMismatch {
-            issues.append(.componentVersionMismatch(name: "Karabiner driver", autoFix: true))
-        }
-        if !components.vhidDeviceHealthy {
-            issues.append(.componentUnhealthy(name: "VirtualHID Device", autoFix: true))
-        }
-
-        // Health issues
-        if !health.isHealthy {
-            if !health.kanataRunning, let configError = health.configParseError {
-                issues.append(.configParseError(detail: configError))
-            } else if !health.kanataRunning, health.kanataPermissionRejected {
-                issues.append(
-                    .permissionMissing(
-                        app: "Kanata",
-                        permission: "Accessibility",
-                        action: "Re-grant \(AccessibilityPermissionPresentation.current.name) permission after rebuild — remove and re-add Kanata Engine in System Settings"
-                    )
-                )
-            } else if !health.kanataRunning {
-                issues.append(.serviceNotRunning(name: "Kanata Service", autoFix: true))
-            }
-            if !health.karabinerDaemonRunning {
-                issues.append(.serviceNotRunning(name: "Karabiner Daemon", autoFix: true))
-            }
-        }
-
         return issues
     }
 
@@ -246,75 +148,19 @@ public struct SystemSnapshot: Sendable {
 
 public struct ComponentStatus: Sendable {
     public let kanataBinaryInstalled: Bool
-    /// True when the app bundle contains the non-binary runtime payload needed
-    /// to register and launch Kanata: the SMAppService plist and daemon
-    /// launcher. This is intentionally separate from `kanataBinaryInstalled`.
+    /// True when the app bundle contains the session runtime payload (the
+    /// Kanata host bridge and the KeyPath executable that hosts the worker).
+    /// This is intentionally separate from `kanataBinaryInstalled`.
     public let requiredRuntimePayloadPresent: Bool
-    public let karabinerDriverInstalled: Bool
-    public let karabinerDaemonRunning: Bool
-    public let vhidDeviceInstalled: Bool
-    public let vhidDeviceHealthy: Bool
-    /// VHID services health (daemon + manager) independent of Kanata service
-    /// Use for Karabiner Components page which should only care about VHID, not Kanata
-    public let vhidServicesHealthy: Bool
-    /// True when the installed VHID daemon plist exists but predates the
-    /// MAL-57 fix (wrong program path or missing ProcessType=Interactive).
-    /// The daemon may be running fine, but it is vulnerable to starvation
-    /// under CPU load and the plist should be rewritten via repair.
-    public let vhidDaemonPlistMisconfigured: Bool
-    public let vhidVersionMismatch: Bool
 
-    public init(
-        kanataBinaryInstalled: Bool,
-        requiredRuntimePayloadPresent: Bool = true,
-        karabinerDriverInstalled: Bool,
-        karabinerDaemonRunning: Bool,
-        vhidDeviceInstalled: Bool,
-        vhidDeviceHealthy: Bool,
-        vhidServicesHealthy: Bool,
-        vhidDaemonPlistMisconfigured: Bool = false,
-        vhidVersionMismatch: Bool
-    ) {
+    public init(kanataBinaryInstalled: Bool, requiredRuntimePayloadPresent: Bool = true) {
         self.kanataBinaryInstalled = kanataBinaryInstalled
         self.requiredRuntimePayloadPresent = requiredRuntimePayloadPresent
-        self.karabinerDriverInstalled = karabinerDriverInstalled
-        self.karabinerDaemonRunning = karabinerDaemonRunning
-        self.vhidDeviceInstalled = vhidDeviceInstalled
-        self.vhidDeviceHealthy = vhidDeviceHealthy
-        self.vhidServicesHealthy = vhidServicesHealthy
-        self.vhidDaemonPlistMisconfigured = vhidDaemonPlistMisconfigured
-        self.vhidVersionMismatch = vhidVersionMismatch
-    }
-
-    /// Required components for the normal split-runtime architecture.
-    /// Deliberately excludes `vhidDaemonPlistMisconfigured`: a stale plist
-    /// still runs day-to-day, so it surfaces as a repairable wizard issue
-    /// rather than a missing component that would fail readiness app-wide.
-    public var hasAllRequired: Bool {
-        kanataBinaryInstalled && requiredRuntimePayloadPresent && karabinerDriverInstalled && karabinerDaemonRunning && vhidDeviceHealthy
-            && vhidServicesHealthy && !vhidVersionMismatch
-    }
-
-    /// The VHID runtime services need (re)installation: either they are
-    /// unhealthy, or the installed daemon plist predates the MAL-57 fix and
-    /// must be rewritten. Single source for the installRequiredRuntimeServices
-    /// trigger so repair and install plans cannot drift apart.
-    public var vhidRuntimeServicesNeedRepair: Bool {
-        !vhidServicesHealthy || vhidDaemonPlistMisconfigured
     }
 
     /// Convenience factory for empty/fallback state
     public static var empty: ComponentStatus {
-        ComponentStatus(
-            kanataBinaryInstalled: false,
-            requiredRuntimePayloadPresent: false,
-            karabinerDriverInstalled: false,
-            karabinerDaemonRunning: false,
-            vhidDeviceInstalled: false,
-            vhidDeviceHealthy: false,
-            vhidServicesHealthy: false,
-            vhidVersionMismatch: false
-        )
+        ComponentStatus(kanataBinaryInstalled: false, requiredRuntimePayloadPresent: false)
     }
 }
 
@@ -368,97 +214,52 @@ public struct KanataRuntimeReadiness: Sendable, Equatable {
 // MARK: - Health Status
 
 public struct HealthStatus: Sendable {
-    public let backend: KanataRuntimeBackend
-    /// True when launchd can find/load the Kanata job. This is distinct from
-    /// the runtime being usable: launchd can know about a job whose process is
-    /// stopped or whose TCP server is not responding.
-    public let kanataLaunchdLoaded: Bool?
     /// True when current process evidence shows the Kanata runtime process
     /// exists. This must not be collapsed with TCP or input-capture readiness.
     public let kanataProcessRunning: Bool?
     /// True when the Kanata TCP health endpoint responds.
     public let kanataTCPResponding: Bool?
-    /// True when the installed daemon plist declares the TCP server argument.
-    /// Nil means this older/fallback evidence did not capture configuration.
-    public let kanataTCPConfigured: Bool?
     public let kanataRunning: Bool
-    public let karabinerDaemonRunning: Bool
-    public let vhidHealthy: Bool
     public let kanataInputCaptureReady: Bool
     public let kanataInputCaptureIssue: String?
     public let activeRuntimePathTitle: String?
     public let activeRuntimePathDetail: String?
-    public let kanataServiceFreshness: RuntimeFreshness
-    /// True when the daemon stderr log shows kanata was rejected by macOS
-    /// at runtime despite an earlier permission grant
-    /// (e.g., after a rebuild/move/upgrade).
+    /// True when the runtime reports it was rejected by macOS despite an
+    /// earlier permission grant (e.g., after a rebuild/move/upgrade).
     public let kanataPermissionRejected: Bool
-    /// Non-nil when kanata's stderr contains a configuration parse error
-    /// (e.g., duplicate alias, syntax error). This causes kanata to exit
-    /// immediately and crash-loop. The string is a user-facing error message.
+    /// Non-nil when the runtime reports a configuration parse error
+    /// (e.g., duplicate alias, syntax error). The string is a user-facing error message.
     public let configParseError: String?
-    /// True when SMAppService reports enabled but launchd/runtime evidence
-    /// cannot prove the submitted job exists or can load.
-    public let staleEnabledRegistration: Bool
-    /// True when current SMAppService evidence says the Kanata daemon is
-    /// registered or pending approval. Nil means the snapshot did not capture
-    /// registration evidence; state-matrix consumers must preserve that as
-    /// unknown rather than inferring from summary health.
-    public let kanataSMAppServiceRegistered: Bool?
-    /// True when Kanata or helper SMAppService evidence is blocked on Login
-    /// Items approval. Nil means this snapshot did not capture that evidence;
-    /// state-matrix consumers must preserve that as unknown.
-    public let loginItemsApprovalRequired: Bool?
 
     public init(
-        backend: KanataRuntimeBackend = .selected,
-        kanataLaunchdLoaded: Bool? = nil,
         kanataProcessRunning: Bool? = nil,
         kanataTCPResponding: Bool? = nil,
-        kanataTCPConfigured: Bool? = nil,
         kanataRunning: Bool,
-        karabinerDaemonRunning: Bool,
-        vhidHealthy: Bool,
         kanataInputCaptureReady: Bool = true,
         kanataInputCaptureIssue: String? = nil,
         activeRuntimePathTitle: String? = nil,
         activeRuntimePathDetail: String? = nil,
-        kanataServiceFreshness: RuntimeFreshness = .unknown,
         kanataPermissionRejected: Bool = false,
-        configParseError: String? = nil,
-        staleEnabledRegistration: Bool = false,
-        kanataSMAppServiceRegistered: Bool? = nil,
-        loginItemsApprovalRequired: Bool? = nil
+        configParseError: String? = nil
     ) {
-        self.backend = backend
-        self.kanataLaunchdLoaded = kanataLaunchdLoaded
         self.kanataProcessRunning = kanataProcessRunning
         self.kanataTCPResponding = kanataTCPResponding
-        self.kanataTCPConfigured = kanataTCPConfigured
         self.kanataRunning = kanataRunning
-        self.karabinerDaemonRunning = karabinerDaemonRunning
-        self.vhidHealthy = vhidHealthy
         self.kanataInputCaptureReady = kanataInputCaptureReady
         self.kanataInputCaptureIssue = kanataInputCaptureIssue
         self.activeRuntimePathTitle = activeRuntimePathTitle
         self.activeRuntimePathDetail = activeRuntimePathDetail
-        self.kanataServiceFreshness = kanataServiceFreshness
         self.kanataPermissionRejected = kanataPermissionRejected
         self.configParseError = configParseError
-        self.staleEnabledRegistration = staleEnabledRegistration
-        self.kanataSMAppServiceRegistered = kanataSMAppServiceRegistered
-        self.loginItemsApprovalRequired = loginItemsApprovalRequired
     }
 
-    /// Overall health (includes Kanata runtime)
+    /// Overall health of the session runtime.
     public var isHealthy: Bool {
-        kanataRuntimeReadiness.isReady && (backend == .session || (karabinerDaemonRunning && vhidHealthy))
-            && (kanataTCPConfigured ?? true)
+        kanataRuntimeReadiness.isReady
     }
 
     /// Project the broader system snapshot onto the canonical runtime-readiness contract.
-    /// Older snapshots that lack explicit process/TCP evidence retain their historical
-    /// `kanataRunning` fallback instead of becoming false negatives.
+    /// Snapshots that lack explicit process/TCP evidence fall back to `kanataRunning`.
     public var kanataRuntimeReadiness: KanataRuntimeReadiness {
         KanataRuntimeReadiness(
             isRunning: kanataProcessRunning ?? kanataRunning,
@@ -467,14 +268,9 @@ public struct HealthStatus: Sendable {
         )
     }
 
-    /// Health of background services only (Karabiner daemon + VHID driver)
-    public var backgroundServicesHealthy: Bool {
-        backend == .session || (karabinerDaemonRunning && vhidHealthy)
-    }
-
     /// Convenience factory for empty/fallback state
     public static var empty: HealthStatus {
-        HealthStatus(kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: false)
+        HealthStatus(kanataRunning: false)
     }
 }
 
@@ -484,8 +280,6 @@ public enum Issue: Equatable {
     case permissionMissing(app: String, permission: String, action: String)
     case componentMissing(name: String, autoFix: Bool)
     case componentUnhealthy(name: String, autoFix: Bool)
-    case componentVersionMismatch(name: String, autoFix: Bool)
-    case serviceNotRunning(name: String, autoFix: Bool)
     case conflict(SystemConflict)
     /// Kanata refuses to start because the generated config has errors.
     /// `detail` is the user-facing error message (e.g., "Duplicate alias: beh_base_;").
@@ -503,20 +297,12 @@ public enum Issue: Equatable {
             "\(name) not installed"
         case let .componentUnhealthy(name, _):
             "\(name) unhealthy"
-        case let .componentVersionMismatch(name, _):
-            "\(name) version incompatible"
-        case let .serviceNotRunning(name, _):
-            "\(name) not running"
         case let .conflict(conflict):
             switch conflict {
             case let .kanataProcessRunning(pid, _):
                 "Conflicting Kanata process (PID \(pid))"
             case let .karabinerGrabberRunning(pid):
                 "Karabiner Grabber running (PID \(pid))"
-            case let .karabinerVirtualHIDDeviceRunning(pid, _):
-                "Karabiner VirtualHID running (PID \(pid))"
-            case let .karabinerVirtualHIDDaemonRunning(pid):
-                "Karabiner VirtualHID Daemon running (PID \(pid))"
             case let .exclusiveDeviceAccess(device):
                 "Device \(device) in use"
             }
@@ -530,9 +316,7 @@ public enum Issue: Equatable {
         case .permissionMissing:
             false // User must grant permissions
         case let .componentMissing(_, autoFix),
-             let .componentUnhealthy(_, autoFix),
-             let .componentVersionMismatch(_, autoFix),
-             let .serviceNotRunning(_, autoFix):
+             let .componentUnhealthy(_, autoFix):
             autoFix
         case .conflict:
             true // Can terminate conflicting processes
@@ -549,10 +333,6 @@ public enum Issue: Equatable {
             "Install via wizard"
         case .componentUnhealthy:
             "Restart component"
-        case .componentVersionMismatch:
-            "Install correct version"
-        case .serviceNotRunning:
-            "Start service"
         case .conflict:
             "Terminate conflicting process"
         case .configParseError:

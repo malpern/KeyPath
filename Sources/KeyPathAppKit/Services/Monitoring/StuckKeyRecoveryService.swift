@@ -121,8 +121,7 @@ final class StuckKeyRecoveryService {
             correlation: correlation,
             tracker: tracker,
             lastIncidentDescription: lastIncidentDescription,
-            evidence: KanataRuntimeBackend.selected == .session
-                ? .sessionWorker(sessionReportProvider?()) : .daemonLogs
+            worker: sessionReportProvider?()
         )
 
         await Task.detached(priority: .utility) {
@@ -170,7 +169,7 @@ final class StuckKeyRecoveryService {
         lines.append("session_id: \(snapshot.tracker.sessionID.map(String.init) ?? "none")")
         lines.append("")
 
-        lines.append(contentsOf: runtimeEvidenceLines(snapshot.evidence))
+        lines.append(contentsOf: runtimeEvidenceLines(snapshot.worker))
 
         // CPU starvation is the leading trigger for the VHID disconnects
         // behind stuck keys (MAL-57); record load so incidents can confirm or
@@ -193,59 +192,29 @@ final class StuckKeyRecoveryService {
         pruneSnapshots(in: diagnosticsDir)
     }
 
-    /// What the snapshot attaches about the remapping runtime.
-    enum RuntimeEvidence: Sendable {
-        /// The privileged daemon's stderr/stdout logs (legacy backend).
-        case daemonLogs
-        /// Driverless: the session worker's last report, if it ever wrote one.
-        /// The daemon logs belong to a pre-driverless install and are stale.
-        case sessionWorker((report: SessionRuntimeReport, current: Bool)?)
-    }
+    /// The session worker's last report attached to a snapshot, if it ever wrote one.
+    typealias WorkerEvidence = (report: SessionRuntimeReport, current: Bool)?
 
-    nonisolated static func runtimeEvidenceLines(
-        _ evidence: RuntimeEvidence,
-        stderrPath: String = KeyPathConstants.Logs.kanataStderr,
-        stdoutPath: String = KeyPathConstants.Logs.kanataStdout
-    ) -> [String] {
+    nonisolated static func runtimeEvidenceLines(_ worker: WorkerEvidence) -> [String] {
         var lines: [String] = []
-        if case let .sessionWorker(worker) = evidence {
-            lines.append("=== Session Worker ===")
-            guard let worker else {
-                lines.append("(no worker report: the session runtime was never started by this app)")
-                lines.append("")
-                return lines
-            }
-            let report = worker.report
-            lines.append("report_current: \(worker.current)")
-            lines.append("state: \(report.state.rawValue)")
-            lines.append("worker_pid: \(report.pid)")
-            lines.append("report_timestamp: \(ISO8601DateFormatter().string(from: report.timestamp))")
-            lines.append("failure: \(report.failure ?? "none")")
-            lines.append("retirement_reason: \(report.retirementReason ?? "none")")
-            lines.append("tap_active: \(report.tapActive)")
-            lines.append("accessibility: \(report.accessibility) input_access: \(report.effectiveInputAccess)")
-            lines.append("input_count: \(report.inputCount) output_count: \(report.outputCount)")
-            lines.append("held_output_usages: \(report.heldOutputUsages.isEmpty ? "none" : report.heldOutputUsages.map(String.init).joined(separator: ","))")
-            lines.append("managed_caps: \(report.managedCapsGeneration == nil ? "no" : "yes")")
+        lines.append("=== Session Worker ===")
+        guard let worker else {
+            lines.append("(no worker report: the session runtime was never started by this app)")
             lines.append("")
             return lines
         }
-        lines.append("=== Kanata Stderr (last 50 lines) ===")
-        lines.append(contentsOf: logTail(path: stderrPath, maxLines: 50))
-        lines.append("")
-
-        // The diagnostic gold lives in stdout, not stderr: key-input traces, VHID
-        // connection events ("connected", "driver connected:", "output backend
-        // unavailable during write", "dropping KEY_X Release"). The 2026-06-10 MAL-57
-        // incidents were diagnosed entirely from stdout. The high-volume
-        // "virtual_hid_keyboard_ready true" heartbeat is filtered out; "... false"
-        // lines are kept because they indicate driver disconnects.
-        lines.append("=== Kanata Stdout (last 200 lines, vhid-ready spam filtered) ===")
-        lines.append(contentsOf: logTail(
-            path: stdoutPath,
-            maxLines: 200,
-            excludingLinesContaining: "virtual_hid_keyboard_ready true"
-        ))
+        let report = worker.report
+        lines.append("report_current: \(worker.current)")
+        lines.append("state: \(report.state.rawValue)")
+        lines.append("worker_pid: \(report.pid)")
+        lines.append("report_timestamp: \(ISO8601DateFormatter().string(from: report.timestamp))")
+        lines.append("failure: \(report.failure ?? "none")")
+        lines.append("retirement_reason: \(report.retirementReason ?? "none")")
+        lines.append("tap_active: \(report.tapActive)")
+        lines.append("accessibility: \(report.accessibility) input_access: \(report.effectiveInputAccess)")
+        lines.append("input_count: \(report.inputCount) output_count: \(report.outputCount)")
+        lines.append("held_output_usages: \(report.heldOutputUsages.isEmpty ? "none" : report.heldOutputUsages.map(String.init).joined(separator: ","))")
+        lines.append("managed_caps: \(report.managedCapsGeneration == nil ? "no" : "yes")")
         lines.append("")
         return lines
     }
@@ -273,52 +242,6 @@ final class StuckKeyRecoveryService {
     }
 
     // MARK: - Capture Helpers
-
-    /// Last `maxLines` non-empty lines of a log file, optionally dropping lines that
-    /// contain `filter`. Reads only the trailing `maxBytes` of the file — the kanata
-    /// stdout log can exceed 100MB; never load it whole. When the read is truncated, a
-    /// marker line is prepended (on top of `maxLines`, so the result can be
-    /// `maxLines + 1` long) so a capture dominated by filtered spam can't masquerade
-    /// as the full history.
-    nonisolated static func logTail(
-        path: String,
-        maxLines: Int,
-        maxBytes: UInt64 = 1024 * 1024,
-        excludingLinesContaining filter: String? = nil
-    ) -> [String] {
-        let unreadable = ["(file not readable)"]
-        guard let handle = FileHandle(forReadingAtPath: path) else {
-            return unreadable
-        }
-        defer { try? handle.close() }
-
-        guard let size = try? handle.seekToEnd() else {
-            return unreadable
-        }
-        let offset = size > maxBytes ? size - maxBytes : 0
-        try? handle.seek(toOffset: offset)
-        guard let data = try? handle.readToEnd() else {
-            return unreadable
-        }
-
-        // Lossy decode: a truncated read can start mid-multibyte-character, which would
-        // make String(data:encoding:) fail for the whole chunk.
-        var tail = String(decoding: data, as: UTF8.self).components(separatedBy: .newlines)
-        if offset > 0 {
-            tail = Array(tail.dropFirst()) // first line of a truncated read is partial
-        }
-        // Drop empties (including the artifact of a trailing newline) and filtered spam.
-        tail = tail.filter { line in
-            guard !line.isEmpty else { return false }
-            guard let filter else { return true }
-            return !line.contains(filter)
-        }
-        var result = Array(tail.suffix(maxLines))
-        if offset > 0 {
-            result.insert("(… older output truncated: tail window is the last \(maxBytes / 1024)KB of the file)", at: 0)
-        }
-        return result
-    }
 
     /// Load average, core count, and the top CPU consumers — the leading MAL-57
     /// hypothesis is CPU-starvation-induced heartbeat misses, so each capture
@@ -367,7 +290,7 @@ private struct DiagnosticSnapshotData: Sendable {
     let correlation: InvestigationSystemEventCorrelation
     let tracker: InvestigationReloadSnapshot
     let lastIncidentDescription: String
-    let evidence: StuckKeyRecoveryService.RuntimeEvidence
+    let worker: StuckKeyRecoveryService.WorkerEvidence
 }
 
 extension Notification.Name {

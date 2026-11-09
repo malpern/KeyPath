@@ -10,8 +10,8 @@ import KeyPathRulesCore
 final class SessionConfigurationRefusalTests: KeyPathTestCase {
     private var directory: URL!
     private var manager: RuleCollectionsManager!
-    private let allowAll = BackendCapabilityProfile(backend: .session) { _ in true }
-    private let noMedia = BackendCapabilityProfile(backend: .session) { !BackendCapabilityProfile.fallbackConsumerKeys.contains($0) }
+    private let allowAll = BackendCapabilityProfile { _ in true }
+    private let noMedia = BackendCapabilityProfile { !BackendCapabilityProfile.fallbackConsumerKeys.contains($0) }
 
     override func setUp() async throws {
         try await super.setUp()

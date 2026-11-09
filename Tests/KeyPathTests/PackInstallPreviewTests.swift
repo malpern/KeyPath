@@ -12,7 +12,7 @@ final class PackInstallPreviewTests: KeyPathTestCase {
     private var directory: URL!
     private var manager: RuleCollectionsManager!
     private var tracker: InstalledPackTracker!
-    private let allowAll = BackendCapabilityProfile(backend: .session) { _ in true }
+    private let allowAll = BackendCapabilityProfile { _ in true }
 
     override func setUp() async throws {
         try await super.setUp()
