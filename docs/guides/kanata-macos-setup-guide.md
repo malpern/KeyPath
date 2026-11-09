@@ -361,17 +361,8 @@ python3 ./Scripts/verify-kanata-host-bridge.py \
   ./build/kanata-host-bridge/libkeypath_kanata_host_bridge.dylib
 ```
 
-For the experimental bundled-host runtime path, `kanata-launcher` now supports an
-opt-in in-process mode:
-
-```bash
-KEYPATH_EXPERIMENTAL_HOST_RUNTIME=1 \
-  ./.build/debug/KeyPathKanataLauncher --port 37001
-```
-
-This bypasses the legacy `exec(/Library/KeyPath/bin/kanata)` handoff and runs the
-Kanata startup sequence inside the bundled host process instead. Keep it as a
-development-only path until the in-process runtime becomes the default.
+The in-process runtime now runs in KeyPath's session worker; the experimental
+`kanata-launcher` host that first exercised it was removed in ADR-047 step 2f.
 
 ## Architecture Notes
 

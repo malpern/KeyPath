@@ -184,9 +184,8 @@ MACOS="${CONTENTS}/MacOS"
 	mkdir -p "$FRAMEWORKS"
 	mkdir -p "$CONTENTS/Library/KeyPath"
 
-	# Build only the distributable app components. Helper and launcher targets
-	# remain in Package.swift for the existing installer architecture, but are
-	# intentionally not built into this driverless experiment.
+	# Build only the distributable app components: the app, the CLI, and the
+	# Insights plugin.
 	for product in KeyPath keypath-cli KeyPathInsights; do
 	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product "$product"
 	done

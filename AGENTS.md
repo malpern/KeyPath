@@ -50,7 +50,7 @@ Notes:
 - For visual SwiftUI/AppKit iteration, prefer `./Scripts/ui-deploy.sh`. It
   builds only the KeyPath app product, deploys to `/Applications/KeyPath.app`,
   signs locally, and restarts the app if needed. It intentionally does not
-  notarize and does not refresh the CLI, helper, or Rust host bridge.
+  notarize and does not refresh the CLI or Rust host bridge.
 - `quick-deploy.sh` updates `/Applications/KeyPath.app`, re-signs locally, and
   restarts KeyPath only if it was running. Its default scope is app-only; set
   `KEYPATH_QUICK_DEPLOY_BUILD_SCOPE=full` when you need the older broad package
@@ -69,12 +69,12 @@ Notes:
   Keep each build machine's `xcode-select` on the Xcode you want builds and CI
   to use, not a beta. Signed builds record `XcodeVersion` and `XcodeBuild` in
   `BuildInfo.plist`.
-- It does **not** deploy the retired privileged helper unless
-  `KEYPATH_DEPLOY_HELPER=1` is set. Current builds do not need it, and it accepts
-  only Developer ID signatures.
+- The retired privileged helper, `kanata-launcher`, and LaunchDaemon plist are
+  gone from the package (ADR-047); `quick-deploy.sh` removes any copies an older
+  deploy left in `/Applications/KeyPath.app`.
 - Use Poltergeist only for focused single-agent Swift/UI iteration:
   `poltergeist start`, edit, then `poltergeist wait keypath`. Stop it before
-  release work, helper/service work, broad tests, or parallel agents.
+  release work, runtime/service work, broad tests, or parallel agents.
 - Near PR time, run the full safe gate once with `./Scripts/test-full.sh` (or
   `KEYPATH_SNAPSHOTS=1 ./Scripts/run-tests-safe.sh`). Do not run the full safe
   suite after every small edit.
@@ -361,10 +361,6 @@ with `ServiceLifecycleCoordinator` as owner.
   - If state is `.enabled` but launchd cannot load/run the daemon, recovery install/register logic must run even inside the normal throttle window.
 - **(Retired stack)** **Registration is not liveness.**
   - Treat `SMAppService.status == .enabled` as registration metadata only; never infer runtime health from it without process + TCP evidence.
-- **(Retired stack)** **Helper responsiveness is not helper freshness.**
-  - After helper deploys or helper behavior changes, verify version/path or force
-    the unregister/register repair path instead of treating an XPC response as
-    proof that the running helper is current.
 - **Stale diagnostics must not outrank current runtime state.**
   - Log-derived input-capture issues only apply to a live current runtime. If
     Kanata is missing or stopped, install/start runtime services first.
@@ -433,7 +429,7 @@ Watches source files, auto-builds, deploys to /Applications, and restarts. Insta
 | `poltergeist stop` | Stop watching |
 | `poltergeist wait keypath` | Block until build completes |
 
-**Workflow tip:** Use `poltergeist start` only during focused single-agent app/UI iteration. After any watched Swift file edit, it runs `./Scripts/quick-deploy.sh`, deploys to `/Applications`, and restarts. Stop it before release builds, helper/service work, broad tests, or parallel agents.
+**Workflow tip:** Use `poltergeist start` only during focused single-agent app/UI iteration. After any watched Swift file edit, it runs `./Scripts/quick-deploy.sh`, deploys to `/Applications`, and restarts. Stop it before release builds, runtime/service work, broad tests, or parallel agents.
 
 ### Computer Use (Preferred UI QA)
 
@@ -482,7 +478,7 @@ peekaboo hotkey "cmd+s"              # Save
 3. Make code edits.
 4. `poltergeist wait keypath` before testing.
 5. Use Computer Use for UI verification.
-6. `poltergeist stop` before release work, helper/service work, broad tests, or handing off.
+6. `poltergeist stop` before release work, runtime/service work, broad tests, or handing off.
 
 See `docs/guides/llm-vision-ui-automation.md` for detailed architecture.
 

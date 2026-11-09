@@ -23,20 +23,6 @@ final class KanataHostBridgeTests: XCTestCase {
         )
     }
 
-    func testRunResultLogSummaryFormatsFailure() {
-        XCTAssertEqual(
-            KanataHostBridgeRunResult.failed(reason: "permission denied").logSummary,
-            "Host bridge runtime failed: permission denied"
-        )
-    }
-
-    func testRunResultLogSummaryFormatsUnavailable() {
-        XCTAssertEqual(
-            KanataHostBridgeRunResult.unavailable(reason: "missing symbol").logSummary,
-            "Host bridge runtime unavailable: missing symbol"
-        )
-    }
-
     func testCreatePassthruRuntimeReturnsUnavailableWhenLibraryMissing() {
         let runtimeHost = KanataRuntimeHost(
             launcherPath: "/tmp/kanata-launcher",

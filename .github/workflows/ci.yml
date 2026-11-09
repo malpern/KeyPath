@@ -216,11 +216,6 @@ jobs:
         chmod +x ./Scripts/parse-installer-matrix.sh
         ./Scripts/parse-installer-matrix.sh test_output.safe.txt
 
-    - name: Verify SMAppService plist wrapper
-      run: |
-        echo "Verifying com.keypath.kanata.plist points at kanata-launcher"
-        ./Scripts/verify-kanata-plist.sh Sources/KeyPathApp/com.keypath.kanata.plist
-
     - name: Upload Test Results
       if: always()
       uses: actions/upload-artifact@v4

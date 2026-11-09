@@ -362,25 +362,10 @@ if [[ "$BUILD_SCOPE" == "full" && -f "$CLI_BIN" ]]; then
     cp "$CLI_BIN" "$MACOS_DIR/keypath-cli"
 fi
 
-# Do not hot-swap the embedded privileged helper by default.
-#
-# The helper is registered via SMAppService and launchd keeps launch constraints
-# tied to the previously blessed bundle contents. Replacing the helper binary
-# inside /Applications during quick iteration can leave the registered helper in
-# a spawn-failed state until it is explicitly re-registered. Opt in only when
-# you intend to follow with a helper reinstall/repair flow.
-if [[ "${KEYPATH_DEPLOY_HELPER:-0}" == "1" ]]; then
-    ./Scripts/build-helper.sh >/dev/null
-
-    HELPER_BIN="$PROJECT_DIR/.build/arm64-apple-macosx/release/KeyPathHelper"
-    HELPER_DST="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
-    if [[ -f "$HELPER_BIN" ]]; then
-        mkdir -p "$(dirname "$HELPER_DST")"
-        cp "$HELPER_BIN" "$HELPER_DST"
-        chmod 755 "$HELPER_DST"
-        echo "⚠️  Deployed embedded helper. Re-register the privileged helper before testing XPC."
-    fi
-fi
+# Remove retired privileged-stack payload left in an older deployed bundle
+# (ADR-047): the session runtime ships no helper, launcher, or LaunchDaemon plist.
+rm -rf "$APP_BUNDLE/Contents/Library/HelperTools" "$APP_BUNDLE/Contents/Library/LaunchDaemons"
+rm -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher"
 
 # Ensure "Kanata Engine.app" bundle structure exists around the kanata binary.
 # The full build creates this; quick-deploy just ensures it's present.
@@ -424,15 +409,6 @@ _MAIN_VER=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleShortVe
 _MAIN_BUILD=$(defaults read "$PROJECT_DIR/Sources/KeyPathApp/Info" CFBundleVersion 2>/dev/null || echo "1")
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
-
-# Sync the current bundled runtime host executable.
-KANATA_LAUNCHER_BIN="$BIN_DIR/KeyPathKanataLauncher"
-KANATA_LAUNCHER_DST="$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher"
-if [[ "$BUILD_SCOPE" == "full" && -f "$KANATA_LAUNCHER_BIN" ]]; then
-    mkdir -p "$(dirname "$KANATA_LAUNCHER_DST")"
-    cp "$KANATA_LAUNCHER_BIN" "$KANATA_LAUNCHER_DST"
-    chmod 755 "$KANATA_LAUNCHER_DST"
-fi
 
 # Rebuild the Rust host bridge only for full deploys or explicit opt-in. UI-only
 # changes do not need to pay this cost on every cycle.
@@ -526,31 +502,19 @@ fi
 echo "✍️  Signing..."
 # PREFERRED_SIGNING_IDENTITY and SIGNING_IDENTITY were chosen, and a non-Developer
 # ID identity refused, at the top of this script.
-HELPER_EXEC="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
-HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlements"
 CLI_EXEC="$APP_BUNDLE/Contents/MacOS/keypath-cli"
 LOCAL_CODESIGN_FLAGS=(--timestamp=none)
 
-# Re-sign the embedded privileged helper with its REQUIRED signing identifier and
-# re-seal the app afterwards. `codesign --deep` on the app re-signs nested
-# executables with a filename-derived identifier ("KeyPathHelper"), but the app's
-# SMPrivilegedExecutables entry requires identifier "com.keypath.helper". A mismatch
-# makes the helper fail validation — the setup wizard reports a privileged-helper
-# error it "can't fix". So after the --deep pass we re-sign the helper with the
-# correct identifiers, then re-seal the OUTER app WITHOUT --deep so the corrected
-# nested signatures are preserved. $1 = signing identity ("-" for ad-hoc).
+# Re-sign nested executables that need a stable signing identifier and re-seal the
+# app afterwards. `codesign --deep` on the app re-signs nested executables with a
+# filename-derived identifier ("keypath-cli"), so after the --deep pass we re-sign
+# them with the correct identifiers, then re-seal the OUTER app WITHOUT --deep so
+# the corrected nested signatures are preserved. $1 = signing identity ("-" for ad-hoc).
 resign_nested_identifiers() {
     local sign_id="$1"
     # Ad-hoc test binaries have no team identity for hardened library validation.
     local runtime_flags=(--options=0)
     if [[ "$sign_id" != "-" ]]; then runtime_flags=(--options=runtime); fi
-    if [[ -f "$HELPER_EXEC" && -f "$HELPER_ENTITLEMENTS" ]]; then
-        codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" \
-            --identifier "com.keypath.helper" \
-            --entitlements "$HELPER_ENTITLEMENTS" \
-            --sign "$sign_id" \
-            "$HELPER_EXEC" || echo "⚠️  Failed to re-sign helper with com.keypath.helper identifier"
-    fi
     if [[ -f "$CLI_EXEC" ]]; then
         codesign --force "${runtime_flags[@]}" "${LOCAL_CODESIGN_FLAGS[@]}" \
             --identifier "com.keypath.KeyPath.CLI" \
@@ -563,17 +527,11 @@ resign_nested_identifiers() {
 if [[ -n "$SIGNING_IDENTITY" ]]; then
     if [[ "$SIGNING_IDENTITY" != "$PREFERRED_SIGNING_IDENTITY" ]]; then
         echo "ℹ️  $PREFERRED_SIGNING_IDENTITY not found; signing with Apple Development ($SIGNING_IDENTITY)."
-        echo "   Permissions persist across deploys, but the privileged helper rejects this build."
-    fi
-    if [[ -f "$HELPER_EXEC" ]]; then
-        codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" "$HELPER_EXEC" 2>/dev/null || true
+        echo "   Permissions persist across deploys."
     fi
     if [[ -d "$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app" ]]; then
         codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" || echo "⚠️  Failed to sign Kanata Engine kanata binary"
         codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/Kanata Engine.app" || echo "⚠️  Failed to sign Kanata Engine.app bundle"
-    fi
-    if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" ]]; then
-        codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher" 2>/dev/null || true
     fi
     if [[ -f "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" ]]; then
         codesign --force --options=runtime "${LOCAL_CODESIGN_FLAGS[@]}" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" 2>/dev/null || true
@@ -585,7 +543,7 @@ if [[ -n "$SIGNING_IDENTITY" ]]; then
     resign_nested_identifiers "$SIGNING_IDENTITY"
 else
     echo "⚠️  No Developer ID or Apple Development identity found; using ad-hoc signing."
-    echo "   macOS will drop Accessibility and Input Monitoring on every deploy, and the helper may reject this build."
+    echo "   macOS will drop Accessibility and Input Monitoring on every deploy."
     codesign --force "${LOCAL_CODESIGN_FLAGS[@]}" --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
     resign_nested_identifiers "-"
 fi

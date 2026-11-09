@@ -15,7 +15,6 @@ uuids=(
     11111111-1111-4111-8111-111111111111
     22222222-2222-4222-8222-222222222222
     33333333-3333-4333-8333-333333333333
-    44444444-4444-4444-8444-444444444444
 )
 
 mkdir -p \
@@ -26,7 +25,7 @@ mkdir -p \
     "$bin"
 printf 'Device' > "$base/state/nanomdm/dbkv/enrollments/1D/C7/$enrollment_id.type"
 printf 'machine nanomdm login test password test\n' > "$base/secrets/nanomdm.netrc"
-for profile in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig; do
+for profile in keypath-pppc.mobileconfig keypath-service-management.mobileconfig; do
     printf '<plist version="1.0"><dict/></plist>\n' > "$profiles/$profile"
 done
 printf '{"lane":"managed-functional"}\n' > "$profiles/manifest.json"
@@ -48,7 +47,6 @@ case \$index in
   0) uuid=${uuids[0]} ;;
   1) uuid=${uuids[1]} ;;
   2) uuid=${uuids[2]} ;;
-  3) uuid=${uuids[3]} ;;
   *) exit 9 ;;
 esac
 echo \$((index + 1)) > "\$counter"
@@ -65,7 +63,7 @@ base = Path(sys.argv[1])
 enrollment = sys.argv[2]
 uuids = sys.argv[3:]
 queue = base / "state/nanomdm/dbkv/queue/1D/C7"
-for uuid in uuids[:3]:
+for uuid in uuids[:2]:
     report = {
         "CommandUUID": uuid,
         "Status": "Acknowledged",
@@ -74,16 +72,15 @@ for uuid in uuids[:3]:
     with (queue / f"{enrollment}.{uuid}.queueitem.report").open("wb") as handle:
         plistlib.dump(report, handle)
 profile_list = {
-    "CommandUUID": uuids[3],
+    "CommandUUID": uuids[2],
     "Status": "Acknowledged",
     "UDID": enrollment,
     "ProfileList": [
         {"PayloadIdentifier": "com.keypath.lab.pppc"},
-        {"PayloadIdentifier": "com.keypath.lab.system-extension"},
         {"PayloadIdentifier": "com.keypath.lab.service-management"},
     ],
 }
-with (queue / f"{enrollment}.{uuids[3]}.queueitem.report").open("wb") as handle:
+with (queue / f"{enrollment}.{uuids[2]}.queueitem.report").open("wb") as handle:
     plistlib.dump(profile_list, handle)
 PY
 
@@ -97,8 +94,8 @@ result=$(
         --profile-dir "$profiles" \
         --evidence-dir "$evidence"
 )
-[[ $result == *$'profile_count\t3'* ]]
-[[ $result == *$'verification\tpassed'* ]]
+[[ $result == *$'profile_count\t2'* ]] || { echo "unexpected publish result: $result" >&2; exit 1; }
+[[ $result == *$'verification\tpassed'* ]] || { echo "unexpected publish result: $result" >&2; exit 1; }
 [[ -f $evidence/responses/profile-list-report.plist ]]
 [[ -f $evidence/manifest.json ]]
 

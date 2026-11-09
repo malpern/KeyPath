@@ -24,7 +24,7 @@ Quick Validation Checklist
 - Local machine has a valid Developer ID Application identity (see "Signing Identity Check").
 
 Diagnostic Script
-- Run `Scripts/diagnose-helper.sh` (no root required). It prints:
+- `Scripts/diagnose-helper.sh` (deleted in ADR-047 step 2f; see git history) printed:
   - App + helper code-signing details and requirements
   - Signature validity for both app and helper
   - Available codesigning identities in the local keychain

@@ -8,7 +8,6 @@ trap 'rm -rf "$TMP"' EXIT
 
 app="$TMP/KeyPath.app"
 mkdir -p "$app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS"
-touch "$app/Contents/Library/KeyPath/kanata-launcher"
 touch "$app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"
 
 cat > "$TMP/codesign" <<'EOF'
@@ -22,7 +21,7 @@ if [[ $1 == -dv ]]; then
     fi
     echo 'TeamIdentifier=X2RKZ5TG99' >&2
 else
-    if [[ $target == *kanata-launcher ]]; then id=kanata-launcher; elif [[ $target == *"Kanata Engine.app" ]]; then id=com.keypath.kanata-engine; else id=com.keypath.KeyPath; fi
+    if [[ $target == *"Kanata Engine.app" ]]; then id=com.keypath.kanata-engine; else id=com.keypath.KeyPath; fi
     echo "designated => identifier \"$id\" and anchor apple generic and certificate leaf[subject.OU] = X2RKZ5TG99" >&2
 fi
 EOF
@@ -48,20 +47,20 @@ from pathlib import Path
 root = Path(sys.argv[1])
 manifest = json.loads((root / "manifest.json").read_text())
 assert manifest["supportedMacOSMajorVersions"] == [15, 26]
-assert len(manifest["profiles"]) == 3
+assert set(manifest["profiles"]) == {"com.keypath.lab.pppc", "com.keypath.lab.service-management"}
+assert "kanataLauncher" not in manifest and "virtualHID" not in manifest
 
 pppc = plistlib.load(open(root / "keypath-pppc.mobileconfig", "rb"))
 services = pppc["PayloadContent"][0]["Services"]
 assert {"Accessibility", "ListenEvent", "SystemPolicyAllFiles"} == set(services)
-assert [item["IdentifierType"] for item in services["Accessibility"]] == ["bundleID", "path", "bundleID"]
+assert [item["IdentifierType"] for item in services["Accessibility"]] == ["bundleID", "bundleID"]
+assert [item["IdentifierType"] for item in services["ListenEvent"]] == ["bundleID", "bundleID"]
 assert {item["Authorization"] for item in services["Accessibility"]} == {"Allow"}
 assert {item["Authorization"] for item in services["ListenEvent"]} == {"AllowStandardUserToSetSystemService"}
 assert {item["Authorization"] for item in services["SystemPolicyAllFiles"]} == {"Allow"}
 assert all("Allowed" not in item for items in services.values() for item in items)
 
-system_extension = plistlib.load(open(root / "keypath-system-extension.mobileconfig", "rb"))
-payload = system_extension["PayloadContent"][0]
-assert payload["AllowedSystemExtensions"]["G43BCU2T37"] == ["org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"]
+assert not (root / "keypath-system-extension.mobileconfig").exists()
 
 service_management = plistlib.load(open(root / "keypath-service-management.mobileconfig", "rb"))
 assert service_management["PayloadContent"][0]["Rules"][0]["TeamIdentifier"] == "X2RKZ5TG99"
@@ -72,21 +71,3 @@ CODESIGN_BIN="$TMP/codesign" SW_VERS_BIN="$TMP/sw_vers" \
 
 echo "profile-generator-tests: passed"
 
-# A driverless build ships no kanata-launcher: the policy grants only the app and
-# the engine, and names no launcher.
-rm "$app/Contents/Library/KeyPath/kanata-launcher"
-CODESIGN_BIN="$TMP/codesign" "$MDM_DIR/generate-keypath-profiles" --app "$app" --output "$TMP/driverless" >/dev/null
-/usr/bin/python3 - "$TMP/driverless" <<'PY'
-import json
-import plistlib
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-manifest = json.loads((root / "manifest.json").read_text())
-assert manifest["kanataLauncher"] is None
-services = plistlib.load(open(root / "keypath-pppc.mobileconfig", "rb"))["PayloadContent"][0]["Services"]
-assert [item["IdentifierType"] for item in services["Accessibility"]] == ["bundleID", "bundleID"]
-assert [item["IdentifierType"] for item in services["ListenEvent"]] == ["bundleID", "bundleID"]
-PY
-echo "driverless profile generator test passed"

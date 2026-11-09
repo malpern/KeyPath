@@ -107,29 +107,6 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
         )
     }
 
-    func testLauncherServiceDelegatesPgrepDiscoveryToSystemStateProvider() throws {
-        let service = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathKanataLauncher/LauncherService.swift")
-
-        let violations = try matchingLines(
-            in: service,
-            patterns: [
-                #"SubprocessRunner\.shared\.pgrep"#,
-                #"subprocessRunner\.pgrep"#,
-                #"/usr/bin/pgrep"#
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            LauncherService must delegate process discovery to \
-            SystemStateProvider instead of calling pgrep directly:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
     func testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider() throws {
         let manager = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathDaemonLifecycle/ProcessLifecycleManager.swift")
@@ -148,31 +125,6 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
             violations.isEmpty,
             """
             ProcessLifecycleManager must delegate process discovery to \
-            SystemStateProvider instead of calling pgrep directly:
-            \(violations.sorted().joined(separator: "\n"))
-            """
-        )
-    }
-
-    func testHelperServiceDelegatesPgrepDiscoveryToSystemStateProvider() throws {
-        let service = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathHelper/HelperService.swift")
-
-        let violations = try matchingLines(
-            in: service,
-            patterns: [
-                #"SubprocessRunner\.shared\.pgrep"#,
-                #"SubprocessRunner\.shared\.run\("/usr/bin/pgrep"#,
-                #"subprocessRunner\.pgrep"#,
-                #"run\("/usr/bin/pgrep"#,
-                #"/usr/bin/pgrep"#
-            ]
-        )
-
-        XCTAssertTrue(
-            violations.isEmpty,
-            """
-            HelperService must delegate process discovery to \
             SystemStateProvider instead of calling pgrep directly:
             \(violations.sorted().joined(separator: "\n"))
             """

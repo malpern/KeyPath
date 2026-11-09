@@ -66,14 +66,6 @@ echo "📝 New version: $NEW_VERSION"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_VERSION" "$INFO_PLIST"
 echo "✅ Updated: $INFO_PLIST"
 
-# Update helper Info.plist if it exists
-HELPER_PLIST="$REPO_ROOT/Sources/KeyPathHelper/Info.plist"
-if [ -f "$HELPER_PLIST" ]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$HELPER_PLIST" 2>/dev/null || true
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_VERSION" "$HELPER_PLIST" 2>/dev/null || true
-    echo "✅ Updated: $HELPER_PLIST"
-fi
-
 echo ""
 echo "🎉 Version bumped to $NEW_VERSION"
 echo ""
