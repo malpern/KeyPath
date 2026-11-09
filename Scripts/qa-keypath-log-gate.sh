@@ -49,8 +49,6 @@ capture_command() {
 }
 
 capture_file_tail "$HOME/Library/Logs/KeyPath/keypath-debug.log" "keypath-debug.log"
-capture_file_tail "/var/log/com.keypath.kanata.stdout.log" "kanata-stdout.log"
-capture_file_tail "/var/log/com.keypath.kanata.stderr.log" "kanata-stderr.log"
 
 if [[ -x "$CLI" ]]; then
   capture_command "keypath-cli-service-logs.log" "$CLI" service logs --lines "$LOG_LINES" --no-json --quiet

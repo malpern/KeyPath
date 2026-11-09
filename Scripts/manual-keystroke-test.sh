@@ -23,7 +23,7 @@ set -euo pipefail
 
 PRESET="high"
 RECONNECT_AFTER=0
-RECONNECT_COMMAND='sudo -n launchctl kickstart -k system/com.keypath.kanata'
+RECONNECT_COMMAND='/Applications/KeyPath.app/Contents/MacOS/keypath-cli restart'
 
 usage() {
     cat <<'USAGE'
@@ -87,8 +87,6 @@ TEST_DIR="${TMPDIR:-/tmp}/keypath-manual-test-$TIMESTAMP"
 mkdir -p "$TEST_DIR"
 
 LOG_FILE="$HOME/Library/Logs/KeyPath/keypath-debug.log"
-KANATA_STDOUT_LOG="/var/log/com.keypath.kanata.stdout.log"
-KANATA_STDERR_LOG="/var/log/com.keypath.kanata.stderr.log"
 SCRATCH_FILE="$TEST_DIR/typed-output.txt"
 REFERENCE_FILE="$TEST_DIR/reference.txt"
 ANALYSIS_FILE="$TEST_DIR/analysis.txt"
@@ -97,8 +95,6 @@ SESSION_MARKERS_FILE="$TEST_DIR/session-markers.txt"
 RECONNECT_EVENTS_FILE="$TEST_DIR/reconnect-events.txt"
 UNMATCHED_AUTOREPEAT_FILE="$TEST_DIR/unmatched-autorepeat-events.txt"
 MONITOR_CAPTURE_FILE="$TEST_DIR/monitored-log.txt"
-KANATA_STDOUT_CAPTURE_FILE="$TEST_DIR/kanata-stdout.log"
-KANATA_STDERR_CAPTURE_FILE="$TEST_DIR/kanata-stderr.log"
 KANATA_OUTPUT_MARKERS_FILE="$TEST_DIR/kanata-output-markers.txt"
 SUSPICIOUS_SUMMARY_FILE="$TEST_DIR/suspicious-additions-summary.txt"
 REPEATED_CHAR_FILE="$TEST_DIR/repeated-char-windows.txt"
@@ -361,14 +357,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Use time-scoped slice from LOG_START_LINE instead of the full monitor capture,
 # so the analysis only covers events from this test run.
 tail -n +"$((LOG_START_LINE + 1))" "$LOG_FILE" > "$LOG_SLICE_FILE" 2>/dev/null || : > "$LOG_SLICE_FILE"
-cp "$KANATA_STDOUT_LOG" "$KANATA_STDOUT_CAPTURE_FILE" 2>/dev/null || : > "$KANATA_STDOUT_CAPTURE_FILE"
-cp "$KANATA_STDERR_LOG" "$KANATA_STDERR_CAPTURE_FILE" 2>/dev/null || : > "$KANATA_STDERR_CAPTURE_FILE"
 
 KEY_EVENT_COUNT=$(grep -c "KeyInput:" "$LOG_SLICE_FILE" 2>/dev/null || echo "0"); KEY_EVENT_COUNT=$(echo "$KEY_EVENT_COUNT" | tr -d '[:space:]')
 LAYER_EVENT_COUNT=$(grep -c "CurrentLayerName" "$LOG_SLICE_FILE" 2>/dev/null || echo "0"); LAYER_EVENT_COUNT=$(echo "$LAYER_EVENT_COUNT" | tr -d '[:space:]')
 grep "\[INVESTIGATION\]" "$LOG_SLICE_FILE" > "$SESSION_MARKERS_FILE" 2>/dev/null || true
 grep "AutorepeatMismatch" "$LOG_SLICE_FILE" > "$UNMATCHED_AUTOREPEAT_FILE" 2>/dev/null || true
-grep "KEYPATH_INVESTIGATION\|OutputTransition" "$KANATA_STDOUT_CAPTURE_FILE" "$KANATA_STDERR_CAPTURE_FILE" > "$KANATA_OUTPUT_MARKERS_FILE" 2>/dev/null || true
+grep "KEYPATH_INVESTIGATION\|OutputTransition" "$LOG_SLICE_FILE" > "$KANATA_OUTPUT_MARKERS_FILE" 2>/dev/null || true
 
 echo
 echo "  HID Path Validation:"
