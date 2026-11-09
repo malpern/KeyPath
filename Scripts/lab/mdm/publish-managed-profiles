@@ -43,7 +43,6 @@ poll_attempts=${KEYPATH_LAB_MDM_POLL_ATTEMPTS:-20}
 
 profiles=(
     "pppc:keypath-pppc.mobileconfig"
-    "system-extension:keypath-system-extension.mobileconfig"
     "service-management:keypath-service-management.mobileconfig"
 )
 for entry in "${profiles[@]}"; do
@@ -122,7 +121,6 @@ import sys
 
 expected = {
     "com.keypath.lab.pppc",
-    "com.keypath.lab.system-extension",
     "com.keypath.lab.service-management",
 }
 with open(sys.argv[1], "rb") as handle:
@@ -141,5 +139,5 @@ PY
 
 cp "$profile_dir/manifest.json" "$evidence_dir/manifest.json"
 printf 'enrollment_id\t%s\n' "$enrollment_id"
-printf 'profile_count\t3\n'
+printf 'profile_count\t%s\n' "${#profiles[@]}"
 printf 'verification\tpassed\n'

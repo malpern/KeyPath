@@ -32,40 +32,6 @@ public enum KanataHostBridgeValidationResult: Equatable, Sendable {
     }
 }
 
-public enum KanataHostBridgeRuntimeResult: Equatable, Sendable {
-    case created(layerCount: Int)
-    case unavailable(reason: String)
-    case failed(reason: String)
-
-    public var logSummary: String {
-        switch self {
-        case let .created(layerCount):
-            "Host bridge created runtime successfully: layer_count=\(layerCount)"
-        case let .unavailable(reason):
-            "Host bridge runtime creation unavailable: \(reason)"
-        case let .failed(reason):
-            "Host bridge runtime creation failed: \(reason)"
-        }
-    }
-}
-
-public enum KanataHostBridgeRunResult: Equatable, Sendable {
-    case completed
-    case unavailable(reason: String)
-    case failed(reason: String)
-
-    public var logSummary: String {
-        switch self {
-        case .completed:
-            "Host bridge runtime exited cleanly"
-        case let .unavailable(reason):
-            "Host bridge runtime unavailable: \(reason)"
-        case let .failed(reason):
-            "Host bridge runtime failed: \(reason)"
-        }
-    }
-}
-
 public enum KanataHostBridgePassthruRuntimeResult: Equatable, Sendable {
     case created(layerCount: Int)
     case unavailable(reason: String)
@@ -269,7 +235,6 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
 }
 
 public enum KanataHostBridge {
-    private static let rootOnlyVHIDDirectory = KeyPathConstants.VirtualHID.rootOnlyTmp
     private typealias VersionFunction = @convention(c) () -> UnsafePointer<CChar>?
     private typealias DefaultCfgCountFunction = @convention(c) () -> UInt
     private typealias ValidateConfigFunction = @convention(c) (
@@ -277,19 +242,6 @@ public enum KanataHostBridge {
         UnsafeMutablePointer<CChar>?,
         Int
     ) -> Bool
-    private typealias CreateRuntimeFunction = @convention(c) (
-        UnsafePointer<CChar>?,
-        UnsafeMutablePointer<CChar>?,
-        Int
-    ) -> UnsafeMutableRawPointer?
-    private typealias RunRuntimeFunction = @convention(c) (
-        UnsafePointer<CChar>?,
-        UInt16,
-        UnsafeMutablePointer<CChar>?,
-        Int
-    ) -> Bool
-    private typealias RuntimeLayerCountFunction = @convention(c) (UnsafeRawPointer?) -> Int
-    private typealias DestroyRuntimeFunction = @convention(c) (UnsafeMutableRawPointer?) -> Void
     private typealias CreatePassthruRuntimeFunction = @convention(c) (
         UnsafePointer<CChar>?,
         UInt16,
@@ -470,74 +422,6 @@ public enum KanataHostBridge {
         return valid ? .valid : .invalid(reason: decodeCStringBuffer(buffer) ?? "session config rejected")
     }
 
-    public static func createRuntime(
-        runtimeHost: KanataRuntimeHost,
-        configPath: String,
-        fileManager: FileManager = .default
-    ) -> KanataHostBridgeRuntimeResult {
-        guard let handle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else {
-            return .unavailable(reason: unavailableReason(runtimeHost: runtimeHost, fileManager: fileManager))
-        }
-        defer { dlclose(handle) }
-
-        guard let createSymbol = dlsym(handle, "keypath_kanata_bridge_create_runtime"),
-              let layerCountSymbol = dlsym(handle, "keypath_kanata_bridge_runtime_layer_count"),
-              let destroySymbol = dlsym(handle, "keypath_kanata_bridge_destroy_runtime")
-        else {
-            let error = dlerror().map { String(cString: $0) } ?? "missing runtime symbols"
-            return .unavailable(reason: error)
-        }
-
-        let createRuntime = unsafeBitCast(createSymbol, to: CreateRuntimeFunction.self)
-        let runtimeLayerCount = unsafeBitCast(layerCountSymbol, to: RuntimeLayerCountFunction.self)
-        let destroyRuntime = unsafeBitCast(destroySymbol, to: DestroyRuntimeFunction.self)
-        var errorBuffer = [CChar](repeating: 0, count: 2048)
-
-        let runtime = configPath.withCString { configCString in
-            createRuntime(configCString, &errorBuffer, errorBuffer.count)
-        }
-
-        guard let runtime else {
-            return .failed(reason: decodeCStringBuffer(errorBuffer) ?? "unknown runtime creation error")
-        }
-        defer { destroyRuntime(runtime) }
-
-        return .created(layerCount: runtimeLayerCount(runtime))
-    }
-
-    public static func runRuntime(
-        runtimeHost: KanataRuntimeHost,
-        configPath: String,
-        tcpPort: UInt16,
-        fileManager: FileManager = .default
-    ) -> KanataHostBridgeRunResult {
-        if let preflightFailure = preflightRunRuntime(fileManager: fileManager) {
-            return preflightFailure
-        }
-
-        guard let handle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else {
-            return .unavailable(reason: unavailableReason(runtimeHost: runtimeHost, fileManager: fileManager))
-        }
-        defer { dlclose(handle) }
-
-        guard let runSymbol = dlsym(handle, "keypath_kanata_bridge_run_runtime") else {
-            let error = dlerror().map { String(cString: $0) } ?? "missing run-runtime symbol"
-            return .unavailable(reason: error)
-        }
-
-        let runRuntime = unsafeBitCast(runSymbol, to: RunRuntimeFunction.self)
-        var errorBuffer = [CChar](repeating: 0, count: 2048)
-        let success = configPath.withCString { configCString in
-            runRuntime(configCString, tcpPort, &errorBuffer, errorBuffer.count)
-        }
-
-        if success {
-            return .completed
-        }
-
-        return .failed(reason: decodeCStringBuffer(errorBuffer) ?? "unknown runtime failure")
-    }
-
     public static func createPassthruRuntime(
         runtimeHost: KanataRuntimeHost,
         configPath: String,
@@ -595,37 +479,6 @@ public enum KanataHostBridge {
                 .map { unsafeBitCast($0, to: KanataHostBridgePassthruRuntimeHandle.InputMappedFunction.self) }
         )
         return (.created(layerCount: runtimeLayerCount(runtimeHandle)), handle)
-    }
-
-    private static func preflightRunRuntime(
-        fileManager: FileManager
-    ) -> KanataHostBridgeRunResult? {
-        guard geteuid() != 0 else {
-            return nil
-        }
-
-        guard fileManager.fileExists(atPath: rootOnlyVHIDDirectory) else {
-            return nil
-        }
-
-        guard let attributes = try? fileManager.attributesOfItem(atPath: rootOnlyVHIDDirectory),
-              let ownerID = attributes[.ownerAccountID] as? NSNumber,
-              let permissions = attributes[.posixPermissions] as? NSNumber
-        else {
-            return .failed(
-                reason: "could not inspect vhid driver socket directory at \(rootOnlyVHIDDirectory)"
-            )
-        }
-
-        let isRootOwned = ownerID.intValue == 0
-        let isRootOnly = permissions.intValue & 0o077 == 0
-        if isRootOwned, isRootOnly {
-            return .failed(
-                reason: "vhid driver socket directory is root-only at \(rootOnlyVHIDDirectory); bundled host runtime needs a privileged output bridge"
-            )
-        }
-
-        return nil
     }
 
     private static func openBridge(

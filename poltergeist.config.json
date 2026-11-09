@@ -34,23 +34,6 @@
       "enabled": true
     },
     {
-      "name": "helper",
-      "type": "executable",
-      "description": "Privileged helper daemon (debug only)",
-      "buildCommand": "swift build --product KeyPathHelper",
-      "outputPath": ".build/debug/KeyPathHelper",
-      "watchPaths": [
-        "Sources/KeyPathHelper/**/*.swift",
-        "Sources/KeyPathCore/**/*.swift",
-        "Package.swift"
-      ],
-      "ignorePaths": [
-        ".build/**",
-        ".git/**"
-      ],
-      "enabled": false
-    },
-    {
       "name": "tests",
       "type": "test",
       "description": "Run tests on source changes",

@@ -125,9 +125,17 @@ else
 fi
 for forbidden_asset in \
     "Sources/KeyPathApp/Resources/Karabiner-DriverKit-VirtualHIDDevice-8.0.0.pkg" \
-    "Sources/KeyPathApp/Resources/uninstall.sh"; do
+    "Sources/KeyPathApp/Resources/uninstall.sh" \
+    "Sources/KeyPathApp/com.keypath.kanata.plist" \
+    "Sources/KeyPathHelper" \
+    "Sources/KeyPathKanataLauncher"; do
     if [[ -e "$forbidden_asset" ]]; then fail "$forbidden_asset must not be packaged"; else pass "$forbidden_asset is absent"; fi
 done
+if grep -Eq '"(KeyPathHelper|KeyPathKanataLauncher)"' Package.swift; then
+    fail "Package.swift must not declare the retired helper or launcher targets"
+else
+    pass "Package.swift declares no helper or launcher target"
+fi
 
 build_script="Scripts/build-and-sign.sh"
 doctor_script="Scripts/release-doctor.sh"

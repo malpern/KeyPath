@@ -30,7 +30,6 @@ if [[ $1 == show ]]; then
     }
     cat <<'OUT'
 profileIdentifier: com.keypath.lab.pppc
-profileIdentifier: com.keypath.lab.system-extension
 profileIdentifier: com.keypath.lab.service-management
 OUT
 elif [[ $1 == status ]]; then
@@ -47,7 +46,7 @@ SH
 
 chmod +x "$TMP/bin/"*
 
-for profile in keypath-pppc.mobileconfig keypath-system-extension.mobileconfig keypath-service-management.mobileconfig; do
+for profile in keypath-pppc.mobileconfig keypath-service-management.mobileconfig; do
     printf '%s\n' "$profile" > "$TMP/policy/$profile"
 done
 
@@ -61,7 +60,6 @@ root = Path(sys.argv[1])
 profiles = {}
 for identifier, filename in {
     "com.keypath.lab.pppc": "keypath-pppc.mobileconfig",
-    "com.keypath.lab.system-extension": "keypath-system-extension.mobileconfig",
     "com.keypath.lab.service-management": "keypath-service-management.mobileconfig",
 }.items():
     profiles[identifier] = {
@@ -81,7 +79,7 @@ touch "$CALLS"
 output=$(PROFILES_BIN="$TMP/bin/profiles" ID_BIN="$TMP/bin/id" \
     SUDO_BIN="$TMP/bin/sudo" SW_VERS_BIN="$TMP/bin/sw_vers" \
     "$VERIFY" managed-functional --manifest "$TMP/policy/manifest.json")
-grep -Fq $'profile_count\t3' <<<"$output"
+grep -Fq $'profile_count\t2' <<<"$output"
 grep -Fq "sudo -n $TMP/bin/profiles show -type=configuration" "$CALLS"
 
 set +e

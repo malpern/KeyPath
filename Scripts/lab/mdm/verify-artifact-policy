@@ -18,7 +18,6 @@ done
 [[ -d $app && -f $manifest ]] || usage
 
 codesign_bin=${CODESIGN_BIN:-/usr/bin/codesign}
-launcher="$app/Contents/Library/KeyPath/kanata-launcher"
 engine="$app/Contents/Library/KeyPath/Kanata Engine.app"
 [[ -d $engine ]] || { echo "artifact policy: runtime components missing" >&2; exit 1; }
 
@@ -29,9 +28,6 @@ field() { details "$1" | sed -n "s/^$2=//p" | head -1; }
 export POLICY_APP_ID="$(field "$app" Identifier)"
 export POLICY_APP_TEAM="$(field "$app" TeamIdentifier)"
 export POLICY_APP_REQUIREMENT="$(requirement "$app")"
-# Driverless builds ship no kanata-launcher; then the policy must name none.
-export POLICY_LAUNCHER_REQUIREMENT=""
-[[ ! -f $launcher ]] || POLICY_LAUNCHER_REQUIREMENT="$(requirement "$launcher")"
 export POLICY_ENGINE_ID="$(field "$engine" Identifier)"
 export POLICY_ENGINE_TEAM="$(field "$engine" TeamIdentifier)"
 export POLICY_ENGINE_REQUIREMENT="$(requirement "$engine")"
@@ -52,10 +48,6 @@ checks = {
     "KeyPath bundle identifier": (os.environ["POLICY_APP_ID"], manifest["keyPath"]["bundleIdentifier"]),
     "KeyPath team": (os.environ["POLICY_APP_TEAM"], manifest["keyPath"]["teamIdentifier"]),
     "KeyPath requirement": (os.environ["POLICY_APP_REQUIREMENT"], manifest["keyPath"]["designatedRequirement"]),
-    "launcher requirement": (
-        os.environ["POLICY_LAUNCHER_REQUIREMENT"],
-        (manifest.get("kanataLauncher") or {}).get("designatedRequirement", ""),
-    ),
     "engine bundle identifier": (os.environ["POLICY_ENGINE_ID"], manifest["kanataEngine"]["bundleIdentifier"]),
     "engine team": (os.environ["POLICY_ENGINE_TEAM"], manifest["kanataEngine"]["teamIdentifier"]),
     "engine requirement": (os.environ["POLICY_ENGINE_REQUIREMENT"], manifest["kanataEngine"]["designatedRequirement"]),

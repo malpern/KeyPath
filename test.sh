@@ -31,7 +31,6 @@ echo ""
 echo "Running integration tests..."
 ./Scripts/test-scripts/system/test-kanata-system.sh
 ./Scripts/test-hot-reload.sh
-./Scripts/test-service-status.sh
 ./Scripts/test-installer.sh
 
 echo ""

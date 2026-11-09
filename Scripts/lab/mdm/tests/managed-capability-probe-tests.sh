@@ -12,55 +12,50 @@ write_tool() {
     chmod +x "$TMP/$name"
 }
 
-write_tool keypath-cli 'cat <<JSON
-{"apiVersion":1,"data":{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}}
-JSON'
+write_status() {
+    write_tool keypath-cli "cat <<JSON
+$1
+JSON"
+}
+
+write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}}'
 write_tool tcp-probe 'echo "{\"CurrentLayerName\":{\"name\":\"base\"}}"'
-write_tool systemextensionsctl 'echo "activated enabled team org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"'
 write_tool sfltool 'echo "background items available"'
-write_tool launchctl 'echo "state = running"'
 
 run_probe() {
     KEYPATH_LAB_CLI="$TMP/keypath-cli" \
     KEYPATH_LAB_TCP_PROBE="$TMP/tcp-probe" \
-    KEYPATH_LAB_SYSTEMEXTENSIONSCTL="$TMP/systemextensionsctl" \
     KEYPATH_LAB_SFLTOOL="$TMP/sfltool" \
-    KEYPATH_LAB_LAUNCHCTL="$TMP/launchctl" \
         "$MDM_DIR/probe-managed-capabilities" --output "$1"
 }
 
+# A ready session runtime passes without any driver, helper, or LaunchDaemon.
 run_probe "$TMP/pass" >/dev/null
 grep -Fq $'managed_capabilities\tpassed' "$TMP/pass/result.tsv"
 test -s "$TMP/pass/service-status.json"
-test -s "$TMP/pass/system-extensions.txt"
-test -s "$TMP/pass/kanata-launchd.txt"
 test -s "$TMP/pass/tcp-readiness.json"
+test -s "$TMP/pass/background-items.txt"
 
-write_tool keypath-cli 'cat <<JSON
-{"apiVersion":1,"data":{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":false,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}}
-JSON'
+write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":false,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}}'
 if run_probe "$TMP/missing-permission" >"$TMP/missing.stdout" 2>"$TMP/missing.stderr"; then
-    echo "expected missing Kanata Accessibility to fail" >&2
+    echo "expected missing KeyPath Accessibility to fail" >&2
     exit 1
 fi
-grep -Fq 'managed capabilities missing: kanataAccessibility' "$TMP/missing.stderr"
+grep -Fq 'managed capabilities missing: keyPathAccessibility' "$TMP/missing.stderr"
 
-write_tool keypath-cli 'cat <<JSON
-{"isOperational":true,"helperInstalled":true,"helperWorking":true,"helperVersion":"1.2.3","keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":true,"vhidDeviceHealthy":true,"kanataRunning":true,"karabinerDaemonRunning":true,"vhidHealthy":true}
-JSON'
-write_tool systemextensionsctl 'echo "no matching extension"'
-if run_probe "$TMP/missing-extension" >"$TMP/extension.stdout" 2>"$TMP/extension.stderr"; then
-    echo "expected missing VirtualHID extension to fail" >&2
-    exit 1
-fi
-grep -Fq 'VirtualHID system extension is absent' "$TMP/extension.stderr"
-
-write_tool systemextensionsctl 'echo "activated enabled team org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"'
-write_tool launchctl 'echo "state = exited"'
+# The unwrapped payload shape is accepted too; a stopped runtime fails.
+write_status '{"isOperational":false,"keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":false,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":false}'
 if run_probe "$TMP/stopped-runtime" >"$TMP/stopped.stdout" 2>"$TMP/stopped.stderr"; then
-    echo "expected stopped Kanata launchd job to fail" >&2
+    echo "expected a stopped session runtime to fail" >&2
     exit 1
 fi
-grep -Fq 'Kanata launchd job is not running' "$TMP/stopped.stderr"
+grep -Fq 'managed capabilities missing: isOperational, kanataRunning' "$TMP/stopped.stderr"
+
+write_status '{"apiVersion":1,"data":{"isOperational":true,"keyPathAccessibility":true,"keyPathInputMonitoring":true,"kanataAccessibility":true,"kanataInputMonitoring":true,"kanataBinaryInstalled":true,"karabinerDriverInstalled":false,"vhidDeviceHealthy":false,"kanataRunning":true,"karabinerDaemonRunning":false,"vhidHealthy":false,"kanataServiceFreshness":"current","kanataExpectedIdentity":"x","hasConflicts":true}}'
+if run_probe "$TMP/conflict" >"$TMP/conflict.stdout" 2>"$TMP/conflict.stderr"; then
+    echo "expected a conflicting remapper to fail" >&2
+    exit 1
+fi
+grep -Fq 'conflicting remapper detected' "$TMP/conflict.stderr"
 
 echo "managed-capability-probe-tests: passed"

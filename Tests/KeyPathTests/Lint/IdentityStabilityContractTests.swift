@@ -45,7 +45,9 @@ final class IdentityStabilityContractTests: XCTestCase {
         let signingContract = try contents("Scripts/verify-release-signing-contract.sh")
         let package = try contents("Package.swift")
         XCTAssertTrue(build.contains("for product in KeyPath keypath-cli KeyPathInsights"))
-        XCTAssertTrue(package.contains("\"com.keypath.kanata.plist\""))
+        XCTAssertFalse(package.contains("\"com.keypath.kanata.plist\""))
+        XCTAssertFalse(package.contains("\"KeyPathHelper\""))
+        XCTAssertFalse(package.contains("\"KeyPathKanataLauncher\""))
         XCTAssertFalse(build.contains("./Scripts/build-helper.sh"))
         XCTAssertFalse(build.contains("KeyPathHelper"))
         XCTAssertFalse(build.contains("kanata-launcher"))
@@ -61,6 +63,8 @@ final class IdentityStabilityContractTests: XCTestCase {
         XCTAssertNil(mainInfo["SMPrivilegedExecutables"])
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/Resources/Karabiner-DriverKit-VirtualHIDDevice-8.0.0.pkg").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/Resources/uninstall.sh").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathApp/com.keypath.kanata.plist").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources/KeyPathHelper").path))
     }
 
     func testPayloadOnlyVerifierRejectsNestedForbiddenPackageWithoutCodeSigning() throws {

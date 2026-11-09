@@ -26,9 +26,7 @@ done
 
 codesign_bin=${CODESIGN_BIN:-/usr/bin/codesign}
 python_bin=${PYTHON_BIN:-/usr/bin/python3}
-launcher="$app/Contents/Library/KeyPath/kanata-launcher"
 engine="$app/Contents/Library/KeyPath/Kanata Engine.app"
-# Driverless builds no longer ship kanata-launcher; grant it only when present.
 [[ -d $engine ]] || die "Kanata Engine bundle not found: $engine"
 
 signing_field() {
@@ -48,8 +46,6 @@ app_team=$(signing_field "$app" TeamIdentifier)
 engine_id=$(signing_field "$engine" Identifier)
 engine_team=$(signing_field "$engine" TeamIdentifier)
 app_requirement=$(requirement "$app")
-launcher_requirement=""
-[[ ! -f $launcher ]] || launcher_requirement=$(requirement "$launcher")
 engine_requirement=$(requirement "$engine")
 
 [[ $app_id == com.keypath.KeyPath ]] || die "unexpected app identifier: $app_id"
@@ -57,12 +53,10 @@ engine_requirement=$(requirement "$engine")
 [[ $engine_id == com.keypath.kanata-engine ]] || die "unexpected engine identifier: $engine_id"
 [[ $engine_team == X2RKZ5TG99 ]] || die "unexpected engine team: $engine_team"
 [[ -n $app_requirement && -n $engine_requirement ]] || die "empty designated requirement"
-[[ ! -f $launcher || -n $launcher_requirement ]] || die "empty launcher designated requirement"
 
 mkdir -p "$output"
 export KEYPATH_PROFILE_OUTPUT="$output"
 export KEYPATH_APP_REQUIREMENT="$app_requirement"
-export KEYPATH_LAUNCHER_REQUIREMENT="$launcher_requirement"
 export KEYPATH_ENGINE_REQUIREMENT="$engine_requirement"
 export KEYPATH_APP_ID="$app_id"
 export KEYPATH_ENGINE_ID="$engine_id"
@@ -83,7 +77,6 @@ team = os.environ["KEYPATH_TEAM_ID"]
 app_id = os.environ["KEYPATH_APP_ID"]
 engine_id = os.environ["KEYPATH_ENGINE_ID"]
 app_req = os.environ["KEYPATH_APP_REQUIREMENT"]
-launcher_req = os.environ["KEYPATH_LAUNCHER_REQUIREMENT"]
 engine_req = os.environ["KEYPATH_ENGINE_REQUIREMENT"]
 
 namespace = uuid.UUID("91ea6339-6e82-4c77-a167-bf3c42f20dc4")
@@ -125,16 +118,10 @@ def identity(identifier, identifier_type, requirement, authorization):
     }
 
 def identities(authorization):
-    rows = [identity(app_id, "bundleID", app_req, authorization)]
-    if launcher_req:
-        rows.append(identity(
-            "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
-            "path",
-            launcher_req,
-            authorization,
-        ))
-    rows.append(identity(engine_id, "bundleID", engine_req, authorization))
-    return rows
+    return [
+        identity(app_id, "bundleID", app_req, authorization),
+        identity(engine_id, "bundleID", engine_req, authorization),
+    ]
 
 profiles = {
     "keypath-pppc.mobileconfig": profile(
@@ -151,18 +138,6 @@ profiles = {
                     identity(app_id, "bundleID", app_req, "Allow")
                 ],
             }
-        },
-    ),
-    "keypath-system-extension.mobileconfig": profile(
-        "system-extension",
-        "KeyPath Lab VirtualHID System Extension",
-        "com.apple.system-extension-policy",
-        {
-            "AllowUserOverrides": False,
-            "AllowedSystemExtensions": {
-                "G43BCU2T37": ["org.pqrs.Karabiner-DriverKit-VirtualHIDDevice"]
-            },
-            "AllowedSystemExtensionTypes": {"G43BCU2T37": ["DriverExtension"]},
         },
     ),
     "keypath-service-management.mobileconfig": profile(
@@ -190,18 +165,10 @@ manifest = {
         "teamIdentifier": team,
         "designatedRequirement": app_req,
     },
-    "kanataLauncher": {
-        "path": "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
-        "designatedRequirement": launcher_req,
-    } if launcher_req else None,
     "kanataEngine": {
         "bundleIdentifier": engine_id,
         "teamIdentifier": team,
         "designatedRequirement": engine_req,
-    },
-    "virtualHID": {
-        "teamIdentifier": "G43BCU2T37",
-        "systemExtensionIdentifier": "org.pqrs.Karabiner-DriverKit-VirtualHIDDevice",
     },
     "sourceAppTreeSHA256": os.environ["KEYPATH_APP_SHA256"],
     "profiles": {},

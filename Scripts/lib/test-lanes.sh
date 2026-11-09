@@ -52,7 +52,7 @@ keypath_test_lane_reason_for_path() {
         Sources/KeyPathCLI/*|Sources/KeyPathCLIMain/*|Tests/KeyPathTests/CLI/*)
             echo "cli"
             ;;
-        Sources/KeyPathInstallationWizard/*|Sources/KeyPathWizardCore/*|Sources/KeyPathDaemonLifecycle/*|Sources/KeyPathHelper/*|Tests/KeyPathTests/*Installer*|Tests/KeyPathTests/*Wizard*)
+        Sources/KeyPathInstallationWizard/*|Sources/KeyPathWizardCore/*|Sources/KeyPathDaemonLifecycle/*|Tests/KeyPathTests/*Installer*|Tests/KeyPathTests/*Wizard*)
             echo "installer"
             ;;
         Sources/KeyPathLayoutTracer*/*|Tests/KeyPathLayoutTracerTests/*)

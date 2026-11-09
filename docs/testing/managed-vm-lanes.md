@@ -7,7 +7,7 @@ base image is cloned for a test and is never itself used as a test machine.
 
 | Lane | Base state | Purpose |
 | --- | --- | --- |
-| `managed-functional` | MDM enrolled; KeyPath PPPC, system-extension, and service-management profiles installed; KeyPath never installed | Deterministic system-extension, service-management, install, repair, upgrade, and uninstall scenarios; Input Monitoring still uses Apple's approval UI |
+| `managed-functional` | MDM enrolled; KeyPath PPPC and service-management profiles installed; KeyPath never installed | Deterministic service-management, install, repair, upgrade, and uninstall scenarios; Input Monitoring still uses Apple's approval UI |
 | `unmanaged-ui` | No MDM enrollment, lab profiles, KeyPath installation, or KeyPath TCC history | A small set of tests that verify KeyPath correctly explains and responds to real macOS approval prompts |
 
 Do not convert a clone from one lane into the other. Enrollment, TCC,
@@ -30,8 +30,8 @@ test. CrabBox creates disposable clones from the appropriate powered-off base.
      --output /tmp/keypath-profiles
    ```
 
-4. Publish the three profiles through MDM and wait for successful installation.
-5. Copy the three profiles and `manifest.json` into
+4. Publish the two profiles through MDM and wait for successful installation.
+5. Copy the two profiles and `manifest.json` into
    `/Library/KeyPathLab/managed-policy/` in the base. This immutable copy lets
    admission verify the exact policy without depending on a live MDM response.
 6. Run `Scripts/lab/mdm/verify-lane managed-functional --manifest
@@ -46,8 +46,8 @@ not root; inability to read the system inventory is an admission failure.
 
 The generator derives PPPC designated requirements from the signed app. It
 fails if the expected KeyPath identifiers or team change, rather than silently
-creating an overly broad profile. The VirtualHID system extension remains
-restricted to its upstream team and extension identifier.
+creating an overly broad profile. The session runtime needs no system
+extension, so no system-extension profile is generated (ADR-047).
 
 Apple does not allow an MDM profile to grant `ListenEvent` (Input Monitoring).
 The PPPC payload therefore uses `AllowStandardUserToSetSystemService`, which
@@ -74,9 +74,9 @@ until clone personalization and fresh enrollment are proven on macOS 26.
 
 The harness verifies its lane automatically before installing KeyPath:
 
-- `managed-functional` requires active MDM enrollment, all three lab profile
+- `managed-functional` requires active MDM enrollment, both lab profile
   identifiers, and the profile manifest used to build the base.
-- `unmanaged-ui` requires all three managed profile identifiers to be absent.
+- `unmanaged-ui` requires both managed profile identifiers to be absent.
 - A lane mismatch is an infrastructure failure. It must not be reported as a
   KeyPath product failure.
 - Managed admission verifies the policy profile hashes and rejects a signed app
@@ -94,7 +94,7 @@ cannot be changed after creation. Managed macOS 27 creation is rejected until
 that policy has been proven.
 
 For a managed lease, `create` derives a fresh policy set from that exact signed
-installer, copies the manifest into the clone, publishes all three profiles,
+installer, copies the manifest into the clone, publishes both profiles,
 waits for NanoMDM acknowledgements, queries the installed profile inventory,
 and runs system-level lane admission before reporting the lease ready. Policy
 publication routes through the base-specific enrollment identity stored under
@@ -105,16 +105,15 @@ leases that share the same enrollment identity; personalized macOS 15 clones
 do not weaken the shared-identity protection for macOS 26.
 
 After installation, managed tests must still verify behavior: KeyPath and the
-runtime report Accessibility and Input Monitoring, the VirtualHID extension is
-active, background services are approved, Kanata is running, and TCP readiness
-responds. The presence of a profile is preparation, not proof that KeyPath works.
+session runtime report operational with Accessibility granted, no conflicting
+remapper is present, Kanata is running, and TCP readiness responds. The presence of a profile is preparation, not proof that KeyPath works.
 Run `keypath-lab scenario LEASE managed-capabilities` to capture and assert this
 evidence. The scenario fails unless the lease is `managed-functional`.
 
 Runtime readiness is deliberately stricter than registration or an open port.
-The probe requires the Kanata launchd job to report `state = running`, sends a
-real `RequestCurrentLayerName` request to port 37001, and requires a bounded
-layer-bearing JSON response. A registered-but-stopped job, an open-but-silent
+The probe requires `keypath-cli service status --json` to report the session
+runtime operational and Kanata running, sends a real `RequestCurrentLayerName` request to port 37001, and requires a bounded
+layer-bearing JSON response. A stopped runtime, an open-but-silent
 socket, or unrelated JSON is a failure.
 
 The probe contract can be exercised without a VM:

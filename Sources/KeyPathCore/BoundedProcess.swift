@@ -2,14 +2,12 @@ import Foundation
 
 /// Runs a subprocess with a hard deadline, draining stdout+stderr concurrently.
 ///
-/// Shared by the app (`PrivilegedCommandRunner`) and the privileged helper
-/// (`HelperService`, which statically links KeyPathCore): a blocked child
-/// (e.g. `launchctl kickstart -k` on an unrunnable service, #927/#930) must
-/// never hang its caller, and output is read while the child runs so a chatty
-/// command can't deadlock on a full pipe buffer.
+/// Used by `PrivilegedCommandRunner`: a blocked child (e.g. `launchctl
+/// kickstart -k` on an unrunnable service, #927/#930) must never hang its
+/// caller, and output is read while the child runs so a chatty command can't
+/// deadlock on a full pipe buffer.
 ///
-/// Callers do their own logging — this type is used from both NSLog (helper)
-/// and AppLogger (app) contexts.
+/// Callers do their own logging.
 public enum BoundedProcess {
     /// Exit status reported when the child exceeds its deadline and is killed.
     public static let timedOutStatus: Int32 = 124

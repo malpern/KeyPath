@@ -15,15 +15,11 @@ import Foundation
  */
 
 /// Centralized constants for the KeyPath application.
-/// This ensures consistent path usage across the App, Helper, and Daemons.
+/// This ensures consistent path usage across the app, CLI, and session runtime.
 public enum KeyPathConstants {
     public enum Bundle {
         public static let appName = "KeyPath"
         public static let bundleID = "com.keypath.KeyPath"
-        public static let helperID = "com.keypath.helper"
-        public static let daemonID = "com.keypath.kanata"
-        public static let vhidDaemonID = "com.keypath.karabiner-vhiddaemon"
-        public static let vhidManagerID = "com.keypath.karabiner-vhidmanager"
 
         /// Bundle ID for the "Kanata Engine.app" wrapper around the kanata binary.
         /// TCC uses this for bundle-ID based permission tracking (client_type=0).
@@ -111,9 +107,7 @@ public enum KeyPathConstants {
         public static let tcpConnectionTimeout: TimeInterval = 3.0
         public static let toastDuration: TimeInterval = 3.0
         public static let holdLabelCacheTTL: TimeInterval = 5
-        public static let helperRequestTimeout: TimeInterval = 30.0
         public static let kanataReadinessTimeout: TimeInterval = 20
         public static let kanataReadinessPollInterval: TimeInterval = 0.5
-        public static let smAppApprovalThrottle: TimeInterval = 5
     }
 }

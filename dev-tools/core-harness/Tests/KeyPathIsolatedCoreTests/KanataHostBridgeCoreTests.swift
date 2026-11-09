@@ -25,14 +25,6 @@ struct KanataHostBridgeCoreTests {
                 == "Host bridge loaded: version=0.1.0 default_cfg_count=2"
         )
         #expect(
-            KanataHostBridgeRunResult.failed(reason: "permission denied").logSummary
-                == "Host bridge runtime failed: permission denied"
-        )
-        #expect(
-            KanataHostBridgeRunResult.unavailable(reason: "missing symbol").logSummary
-                == "Host bridge runtime unavailable: missing symbol"
-        )
-        #expect(
             KanataHostBridgePassthruRuntimeResult.created(layerCount: 3).logSummary
                 == "Host bridge passthru runtime created successfully: layer_count=3"
         )

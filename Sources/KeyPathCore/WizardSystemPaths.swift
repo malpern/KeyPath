@@ -195,16 +195,6 @@ public enum WizardSystemPaths {
         remapSystemPath("/var/log")
     }
 
-    // MARK: - Service Paths
-
-    /// LaunchDaemon plist file
-    public static var launchDaemonPlist: String {
-        remapSystemPath("/Library/LaunchDaemons/com.keypath.kanata.plist")
-    }
-
-    /// LaunchDaemon service identifier
-    public static let launchDaemonIdentifier = "com.keypath.kanata"
-
     // MARK: - Karabiner Paths
 
     /// Karabiner-Elements VirtualHIDDevice path

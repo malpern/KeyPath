@@ -424,7 +424,7 @@ KeyPath uses a **hybrid approach** for privileged operations that supports both 
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **KeyPathHelper** | `Sources/KeyPathHelper/` | Retired root-privileged helper binary (removed from the app in ADR-047 step 2e; target pending removal in step 2f) |
+| **KeyPathHelper** | (deleted) | Retired root-privileged helper binary; its target and sources were removed in ADR-047 step 2f (see git history) |
 
 ### For Contributors
 

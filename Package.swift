@@ -45,14 +45,6 @@ let package = Package(
             name: "KeyPath",
             targets: ["KeyPath"]
         ),
-        .executable(
-            name: "KeyPathHelper",
-            targets: ["KeyPathHelper"]
-        ),
-        .executable(
-            name: "KeyPathKanataLauncher",
-            targets: ["KeyPathKanataLauncher"]
-        ),
         .library(
             name: "KeyPathLayoutTracerKit",
             targets: ["KeyPathLayoutTracerKit"]
@@ -61,7 +53,6 @@ let package = Package(
             name: "KeyPathLayoutTracer",
             targets: ["KeyPathLayoutTracer"]
         ),
-        // smappservice-poc is a dev-only target (#856) — `swift run smappservice-poc` still works.
         .library(
             name: "KeyPathPluginKit",
             targets: ["KeyPathPluginKit"]
@@ -230,34 +221,11 @@ let package = Package(
             ],
             path: "Sources/KeyPathApp",
             exclude: [
-                "Info.plist",
-                "com.keypath.kanata.plist"
+                "Info.plist"
             ],
             resources: [
                 .process("Resources")
             ],
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
-        ),
-        // Privileged helper executable
-        .executableTarget(
-            name: "KeyPathHelper",
-            dependencies: ["KeyPathCore"],
-            path: "Sources/KeyPathHelper",
-            exclude: [
-                "Info.plist",
-                "com.keypath.helper.plist",
-                "KeyPathHelper.entitlements"
-            ],
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
-        ),
-        .executableTarget(
-            name: "KeyPathKanataLauncher",
-            dependencies: ["KeyPathCore"],
-            path: "Sources/KeyPathKanataLauncher",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
@@ -273,35 +241,6 @@ let package = Package(
             name: "KeyPathLayoutTracer",
             dependencies: ["KeyPathLayoutTracerKit"],
             path: "Sources/KeyPathLayoutTracer",
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
-        ),
-        // SMAppService POC test utility
-        .executableTarget(
-            name: "SMAppServicePOC",
-            dependencies: [],
-            path: "dev-tools/debug",
-            exclude: [
-                "debug-admin-dialog.swift",
-                "debug-admin-prompt.swift",
-                "debug-current-wizard.swift",
-                "debug-fix-button-execution.swift",
-                "debug-fix-button-immediate.swift",
-                "debug-launchdaemon-command.sh",
-                "debug-plist-validation.sh",
-                "debug-service-conflicts.sh",
-                "debug-service-detection.swift",
-                "debug-service-install.swift",
-                "debug-unhealthy-services-fix.swift",
-                "debug-wizard-detection.swift",
-                "debug-wizard-fix-button.swift",
-                "test-migration-scenarios.swift",
-                "test-smappservice-simple.swift",
-                "test-smappservice-standalone.swift",
-                "test-tcc-stability.swift"
-            ],
-            sources: ["smappservice-poc.swift"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

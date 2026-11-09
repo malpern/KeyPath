@@ -13,8 +13,8 @@ swift build
 ```
 
 `quick-deploy.sh` deploys to `/Applications/KeyPath.app`, re-signs locally, and
-restarts KeyPath only if it was already running. It does not redeploy the
-privileged helper unless `KEYPATH_DEPLOY_HELPER=1` is set.
+restarts KeyPath only if it was already running. The retired privileged helper
+and launcher no longer exist (ADR-047).
 
 Supported scripts that mutate `/Applications/KeyPath.app` use a shared
 machine-wide deploy lock at `/tmp/keypath-deploy.lock`. This is intentionally

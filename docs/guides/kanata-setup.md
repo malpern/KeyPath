@@ -44,9 +44,6 @@ sudo ./install-system.sh install
 
 # Test hot reload
 ./test-hot-reload.sh
-
-# Test service status
-./test-service-status.sh
 ```
 
 ## 🔧 Architecture
@@ -138,9 +135,6 @@ sudo launchctl kickstart -k system/com.keypath.kanata
 ```bash
 # Test config generation
 ./test-hot-reload.sh
-
-# Test service management
-./test-service-status.sh
 
 # Test installation readiness
 ./test-installer.sh
