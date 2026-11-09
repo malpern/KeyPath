@@ -28,7 +28,7 @@ codesign_bin=${CODESIGN_BIN:-/usr/bin/codesign}
 python_bin=${PYTHON_BIN:-/usr/bin/python3}
 launcher="$app/Contents/Library/KeyPath/kanata-launcher"
 engine="$app/Contents/Library/KeyPath/Kanata Engine.app"
-[[ -f $launcher ]] || die "runtime launcher not found: $launcher"
+# Driverless builds no longer ship kanata-launcher; grant it only when present.
 [[ -d $engine ]] || die "Kanata Engine bundle not found: $engine"
 
 signing_field() {
@@ -48,14 +48,16 @@ app_team=$(signing_field "$app" TeamIdentifier)
 engine_id=$(signing_field "$engine" Identifier)
 engine_team=$(signing_field "$engine" TeamIdentifier)
 app_requirement=$(requirement "$app")
-launcher_requirement=$(requirement "$launcher")
+launcher_requirement=""
+[[ ! -f $launcher ]] || launcher_requirement=$(requirement "$launcher")
 engine_requirement=$(requirement "$engine")
 
 [[ $app_id == com.keypath.KeyPath ]] || die "unexpected app identifier: $app_id"
 [[ $app_team == X2RKZ5TG99 ]] || die "unexpected KeyPath team: $app_team"
 [[ $engine_id == com.keypath.kanata-engine ]] || die "unexpected engine identifier: $engine_id"
 [[ $engine_team == X2RKZ5TG99 ]] || die "unexpected engine team: $engine_team"
-[[ -n $app_requirement && -n $launcher_requirement && -n $engine_requirement ]] || die "empty designated requirement"
+[[ -n $app_requirement && -n $engine_requirement ]] || die "empty designated requirement"
+[[ ! -f $launcher || -n $launcher_requirement ]] || die "empty launcher designated requirement"
 
 mkdir -p "$output"
 export KEYPATH_PROFILE_OUTPUT="$output"
@@ -123,16 +125,16 @@ def identity(identifier, identifier_type, requirement, authorization):
     }
 
 def identities(authorization):
-    return [
-        identity(app_id, "bundleID", app_req, authorization),
-        identity(
+    rows = [identity(app_id, "bundleID", app_req, authorization)]
+    if launcher_req:
+        rows.append(identity(
             "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
             "path",
             launcher_req,
             authorization,
-        ),
-        identity(engine_id, "bundleID", engine_req, authorization),
-    ]
+        ))
+    rows.append(identity(engine_id, "bundleID", engine_req, authorization))
+    return rows
 
 profiles = {
     "keypath-pppc.mobileconfig": profile(
@@ -191,7 +193,7 @@ manifest = {
     "kanataLauncher": {
         "path": "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher",
         "designatedRequirement": launcher_req,
-    },
+    } if launcher_req else None,
     "kanataEngine": {
         "bundleIdentifier": engine_id,
         "teamIdentifier": team,
