@@ -34,8 +34,8 @@ public enum SystemInspector {
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
                 title: "Keyboard access still needs approval",
-                description: context.permissions.blockingIssue ?? "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath, then quit and reopen KeyPath.",
-                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Enable KeyPath in Input Monitoring, then quit and reopen KeyPath"
+                description: context.permissions.blockingIssue ?? "Quit and reopen KeyPath so it picks up \(AccessibilityPermissionPresentation.current.name).",
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Quit and reopen KeyPath"
             ))
         }
         if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }

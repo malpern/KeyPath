@@ -26,7 +26,7 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
             let result = inspect(workerAX: workerAX ? .denied : .granted,
                                  workerIM: workerAX ? .granted : .denied)
             let issue = try XCTUnwrap(result.1.first)
-            let guidance = "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+            let guidance = "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath."
             XCTAssertEqual(issue.description, guidance)
             XCTAssertEqual(issue.userAction, guidance)
             XCTAssertNil(issue.autoFixAction)

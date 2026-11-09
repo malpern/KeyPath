@@ -203,7 +203,9 @@ public actor PermissionOracle {
             // Kanata's permissions ARE required for remapping.
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
                 if backend == .session {
-                    return "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+                    // macOS 27's Device Control and Data Access covers both reading
+                    // and posting keys, so it is the only permission to ask for.
+                    return "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath."
                 }
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant \(AccessibilityPermissionPresentation.current.name) and Input Monitoring"

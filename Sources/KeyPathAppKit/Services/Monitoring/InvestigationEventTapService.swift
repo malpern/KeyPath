@@ -1,6 +1,7 @@
 @preconcurrency import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 
 @MainActor
 final class InvestigationEventTapService {
@@ -27,18 +28,16 @@ final class InvestigationEventTapService {
         guard !TestEnvironment.isRunningTests else { return }
         guard !isStarted else { return }
         // Opening a tap without access can trigger TCC at launch. Only buttons request it.
-        guard CGPreflightListenEventAccess() else { return }
+        guard SystemStateProvider.shared.keyPathAccessibilityStatus().isReady else { return }
 
         let eventMask =
             (1 << CGEventType.keyDown.rawValue) |
             (1 << CGEventType.keyUp.rawValue) |
             (1 << CGEventType.flagsChanged.rawValue)
 
-        eventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+        eventTap = ObservingEventTap.create(
             place: .tailAppendEventTap,
-            options: .listenOnly,
-            eventsOfInterest: CGEventMask(eventMask),
+            events: CGEventMask(eventMask),
             callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
                 guard let refcon else {
                     return Unmanaged.passUnretained(event)
@@ -49,7 +48,7 @@ final class InvestigationEventTapService {
                 return Unmanaged.passUnretained(event)
             },
             userInfo: Unmanaged.passUnretained(self).toOpaque()
-        )
+        )?.tap
 
         guard let eventTap else {
             AppLogger.shared.error("❌ [InvestigationEventTap] Failed to create investigation event tap")

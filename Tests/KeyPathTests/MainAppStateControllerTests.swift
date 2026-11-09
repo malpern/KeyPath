@@ -662,7 +662,7 @@ struct MainAppStateControllerBehaviorTests {
             #expect(controller.validationState?.hasCriticalIssues == true)
             #expect(controller.lastValidatedSystemContext?.permissions.kanata.inputMonitoring == .denied)
             #expect(controller.lastValidatedSystemContext?.permissions.blockingIssue ==
-                "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath.")
+                "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath.")
             #expect(controller.issues.contains {
                 $0.identifier == .permission(.keyPathInputMonitoring) &&
                     $0.description.contains("quit and reopen KeyPath") &&

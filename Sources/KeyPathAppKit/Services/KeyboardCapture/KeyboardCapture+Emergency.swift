@@ -8,7 +8,6 @@ extension KeyboardCapture {
 
     func startEmergencyMonitoring(callback: @escaping () -> Void) {
         guard !isMonitoringEmergency else { return }
-        guard CGPreflightListenEventAccess() else { return }
 
         // Avoid event taps in test/CI to prevent hangs
         if TestEnvironment.isRunningTests {
@@ -64,11 +63,9 @@ extension KeyboardCapture {
     func setupEmergencyEventTap() {
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
 
-        emergencyEventTap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
+        let created = ObservingEventTap.create(
             place: .headInsertEventTap,
-            options: .listenOnly, // ADR-006: Use listen-only for emergency monitoring
-            eventsOfInterest: CGEventMask(eventMask),
+            events: CGEventMask(eventMask),
             callback: { _, type, event, refcon -> Unmanaged<CGEvent>? in
                 let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon!).takeUnretainedValue()
                 capture.handleEmergencyEvent(event: event, type: type)
@@ -76,6 +73,10 @@ extension KeyboardCapture {
             },
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         )
+        emergencyEventTap = created?.tap
+        if let created {
+            AppLogger.shared.log("🛑 [KeyboardCapture] Emergency stop tap active (passThrough=\(created.passThrough))")
+        }
 
         guard let eventTap = emergencyEventTap else {
             AppLogger.shared.error("❌ [KeyboardCapture] Failed to create emergency event tap")
