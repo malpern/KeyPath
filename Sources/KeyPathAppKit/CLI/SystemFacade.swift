@@ -30,7 +30,7 @@ public struct SystemFacade: Sendable {
 
     @MainActor
     public func runStatus() async -> CLIStatusResult {
-        CLIRuntimeBootstrap.ensureConfigured()
+        await CLIRuntimeBootstrap.ensureConfigured()
         let engine = InstallerEngine()
         let context = await engine.inspectSystem()
 
@@ -57,7 +57,7 @@ public struct SystemFacade: Sendable {
 
     @MainActor
     public func runInstall(dryRun: Bool = false) async -> CLIInstallerReport {
-        CLIRuntimeBootstrap.ensureConfigured()
+        await CLIRuntimeBootstrap.ensureConfigured()
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInstallerReport(bundleIssue: bundleIssue, dryRun: dryRun, title: "Installation")
         }
@@ -83,7 +83,7 @@ public struct SystemFacade: Sendable {
 
     @MainActor
     public func runRepair(dryRun: Bool = false) async -> CLIInstallerReport {
-        CLIRuntimeBootstrap.ensureConfigured()
+        await CLIRuntimeBootstrap.ensureConfigured()
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInstallerReport(bundleIssue: bundleIssue, dryRun: dryRun, title: "Repair")
         }
@@ -130,7 +130,7 @@ public struct SystemFacade: Sendable {
 
     @MainActor
     public func runUninstall(deleteConfig: Bool) async -> CLIInstallerReport {
-        CLIRuntimeBootstrap.ensureConfigured()
+        await CLIRuntimeBootstrap.ensureConfigured()
         let engine = InstallerEngine()
         let report = await engine.uninstall(deleteConfig: deleteConfig)
         return CLIInstallerReport(from: report)
@@ -138,7 +138,7 @@ public struct SystemFacade: Sendable {
 
     @MainActor
     public func runInspect(planIntent: InstallIntent = .repair) async -> CLIInspectResult {
-        CLIRuntimeBootstrap.ensureConfigured()
+        await CLIRuntimeBootstrap.ensureConfigured()
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInspectResult(
                 macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,

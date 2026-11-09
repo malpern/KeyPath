@@ -34,13 +34,18 @@ public class SystemValidator {
 
     private let systemStateProvider: SystemStateProvider
     private weak var kanataManager: RuntimeCoordinator?
+    /// Outside KeyPath.app (the CLI) there is no runtime coordinator; this
+    /// asks the running app instead. True means its session runtime is ready.
+    private let appSessionReady: (@Sendable () async -> Bool)?
 
     init(
         systemStateProvider: SystemStateProvider = .shared,
-        kanataManager: RuntimeCoordinator? = nil
+        kanataManager: RuntimeCoordinator? = nil,
+        appSessionReady: (@Sendable () async -> Bool)? = nil
     ) {
         self.systemStateProvider = systemStateProvider
         self.kanataManager = kanataManager
+        self.appSessionReady = appSessionReady
     }
 
     // MARK: - Main Validation Method
@@ -183,8 +188,13 @@ public class SystemValidator {
 
     private func captureSessionSnapshot(progressCallback: @escaping @Sendable (Double) -> Void) async -> SystemSnapshot {
         let permissions = await systemStateProvider.currentPermissionSnapshot()
-        let report = kanataManager?.serviceLifecycleCoordinator.currentSessionReport()
-        let running = report?.state == .running && report?.tapActive == true
+        let running: Bool
+        if let kanataManager {
+            let report = kanataManager.serviceLifecycleCoordinator.currentSessionReport()
+            running = report?.state == .running && report?.tapActive == true
+        } else {
+            running = await appSessionReady?() ?? false
+        }
         let responding = running ? await systemStateProvider.isTCPPortResponding(port: 37001, timeoutMs: 300) : false
         let host = KanataRuntimeHost.current()
         let payload = FileManager.default.fileExists(atPath: host.bridgeLibraryPath)
