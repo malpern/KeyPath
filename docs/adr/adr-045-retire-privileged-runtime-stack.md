@@ -49,7 +49,7 @@ It must be tested on a clean VM that starts from 1.0.1. Tracked in
 Keep legacy detection after the rest is removed for as long as 1.0.1 installs may
 upgrade directly.
 
-**Upgrade path (2026-11, #1353).** When the refusal stands, Settings → Status
+**Upgrade path (2026-11, #1353).** (Removed in ADR-047 step 2c, with the legacy-daemon refusal; kept as history.) When the refusal stands, Settings → Status
 offers **Remove Old Service**, which calls
 `InstallerEngine.removeLegacyPrivilegedRuntime`. The published refusal issue
 carries `AutoFixAction.removeLegacyPrivilegedRuntime`, and `runSingleAction`

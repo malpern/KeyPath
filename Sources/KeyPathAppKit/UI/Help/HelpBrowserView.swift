@@ -32,7 +32,6 @@ extension HelpTopic {
         HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation-wizard", group: .gettingStarted),
         HelpTopic(id: "concepts", title: "Keyboard Concepts", icon: "keyboard", resource: "concepts", group: .gettingStarted),
         HelpTopic(id: "use-cases", title: "What You Can Build", icon: "hammer", resource: "use-cases", group: .gettingStarted),
-        HelpTopic(id: "upgrading-from-1-0-1", title: "Upgrading from KeyPath 1.0.1", icon: "arrow.up.circle", resource: "upgrading-from-1-0-1", group: .gettingStarted),
         // Core Features
         HelpTopic(id: "home-row-mods", title: "Shortcuts Without Reaching", icon: "hand.raised", resource: "home-row-mods", group: .coreFeatures),
         HelpTopic(id: "vim-navigation", title: "Navigate Like a Keyboard Ninja", icon: "arrow.up.and.down.and.arrow.left.and.right", resource: "vim-navigation", group: .coreFeatures),

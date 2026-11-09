@@ -14,10 +14,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        coordinator = ServiceLifecycleCoordinator(
-            kanataDaemonService: KanataDaemonService(),
-            recoveryCoordinator: RecoveryCoordinator()
-        )
+        coordinator = ServiceLifecycleCoordinator(recoveryCoordinator: RecoveryCoordinator())
         capturedErrors = []
         capturedWarnings = []
         stateChangeCount = 0

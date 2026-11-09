@@ -74,9 +74,6 @@ extension ServiceLifecycleCoordinator {
         return nil
     }
 
-    static let legacyDaemonRefusalMessage =
-        "The keyboard service from KeyPath 1.0.1 is still running. Remove it to start KeyPath."
-
     /// The worker's argv. Uninstall's sweep recognizes workers by these flags,
     /// so a test pins them to SessionWorkerProcess.parse.
     nonisolated static func sessionLaunchArguments(
@@ -110,41 +107,6 @@ extension ServiceLifecycleCoordinator {
         return nil
     }
 
-    private func isLegacyDaemonRunning() async -> Bool {
-        #if DEBUG
-            if let probe = testSessionLegacyDaemonRunning { return await probe() }
-        #endif
-        return await kanataDaemonService.isDaemonRunning()
-    }
-
-    /// Probes only while a refusal stands, so a daemon the user has since stopped
-    /// does not keep blocking the UI until the next start.
-    func legacyDaemonRefusalForStartup() async -> String? {
-        guard sessionLegacyDaemonRefusal != nil else { return nil }
-        if let report = currentSessionReport(), report.state == .running, report.tapActive { return nil }
-        let generation = sessionIntentGeneration
-        let legacyRunning = await isLegacyDaemonRunning()
-        // A newer request owns the refusal now, and this reading predates it.
-        if !legacyRunning, generation == sessionIntentGeneration { clearLegacyDaemonRefusal() }
-        return sessionLegacyDaemonRefusal
-    }
-
-    /// Re-reads the legacy daemon with fresh evidence after the 1.0.1 stack was
-    /// removed, clearing the refusal only if it is really gone. Returns whether a
-    /// refusal still stands.
-    func refreshLegacyDaemonRefusalAfterCleanup() async -> Bool {
-        await kanataDaemonService.invalidateEvidenceCaches()
-        return await legacyDaemonRefusalForStartup() != nil
-    }
-
-    /// The published error goes too, or Settings would keep naming a stopped daemon.
-    func clearLegacyDaemonRefusal() {
-        guard sessionLegacyDaemonRefusal != nil else { return }
-        sessionLegacyDaemonRefusal = nil
-        onError?(nil)
-        onStateChanged?()
-    }
-
     func startSessionRuntime(reason: String, generation: UInt64) async -> Bool {
         guard sessionStartIsCurrent(generation) else { return false }
         #if DEBUG
@@ -158,17 +120,6 @@ extension ServiceLifecycleCoordinator {
             return await adoptRunningSession(generation: generation, responding: responding)
         }
         guard await stopSessionRuntime(), sessionStartIsCurrent(generation) else { return false }
-        // A legacy runtime cannot coexist with a modifying session tap. Do not
-        // terminate or migrate a privileged installation implicitly.
-        let legacyRunning = await isLegacyDaemonRunning()
-        guard sessionStartIsCurrent(generation) else { return false }
-        sessionLegacyDaemonRefusal = legacyRunning
-            ? Self.legacyDaemonRefusalMessage : nil
-        if let sessionLegacyDaemonRefusal {
-            onError?(sessionLegacyDaemonRefusal)
-            onStateChanged?()
-            return false
-        }
         var didLaunch = false
         do {
             sessionLaunchWakeEpoch = sessionWakeEpoch

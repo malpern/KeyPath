@@ -292,10 +292,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configurationManager = ConfigurationManager(configurationService: configurationService)
 
         recoveryCoordinator = RecoveryCoordinator()
-        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(
-            kanataDaemonService: kanataDaemonService,
-            recoveryCoordinator: recoveryCoordinator
-        )
+        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(recoveryCoordinator: recoveryCoordinator)
 
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(

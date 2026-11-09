@@ -150,11 +150,7 @@ extension StatusSettingsTabView {
     }
 
     var primaryIssueDetail: StatusDetail? {
-        // The 1.0.1 refusal explains the Remove Old Service button; nothing outranks it.
-        if Self.offersLegacyRuntimeRemoval(issues: wizardIssues) {
-            return serviceStatusDetail
-        }
-        return statusDetails
+        statusDetails
             .sorted { $0.level.rawValue > $1.level.rawValue }
             .first(where: { $0.level.isIssue })
     }
@@ -175,11 +171,6 @@ extension StatusSettingsTabView {
         }
 
         return details
-    }
-
-    /// The removal is offered exactly when the published refusal names the 1.0.1 service.
-    static func offersLegacyRuntimeRemoval(issues: [WizardIssue]) -> Bool {
-        issues.contains { $0.autoFixAction == .removeLegacyPrivilegedRuntime }
     }
 
     /// A stopped runtime says why when it knows, instead of only how to start it.

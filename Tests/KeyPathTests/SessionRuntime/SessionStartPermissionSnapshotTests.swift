@@ -78,10 +78,7 @@ final class PermissionOracleInvalidationTests: XCTestCase {
 @MainActor
 final class SessionStartPermissionSnapshotTests: KeyPathTestCase {
     func testSuccessfulSessionStartDiscardsPermissionSnapshotSampledBeforeIt() async {
-        let coordinator = ServiceLifecycleCoordinator(
-            kanataDaemonService: KanataDaemonService(),
-            recoveryCoordinator: RecoveryCoordinator()
-        )
+        let coordinator = ServiceLifecycleCoordinator(recoveryCoordinator: RecoveryCoordinator())
         coordinator.testSessionConfigurationValidation = { .valid }
         let counter = SnapshotCounter()
         // Let the coordinator's own provider registration settle first.
