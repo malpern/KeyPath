@@ -1,5 +1,10 @@
 # Installation Wizard
 
+> **Partly historical.** KeyPath now runs only the unprivileged session runtime
+> (ADR-045, ADR-047). The helper, conflicts, Karabiner and communication pages
+> are gone. Sections describing drivers, LaunchDaemons and their auto-fixes are
+> kept as history until the retired code is deleted.
+
 The Installation Wizard is KeyPath's multi-step setup system that automatically detects and resolves system configuration issues. It accounts for **45% of the codebase** (17,985 lines across 44 files) due to the complexity of macOS system integration.
 
 ## Overview
@@ -153,8 +158,8 @@ Pages are shown in priority order when issues are detected:
 All wizard types are defined in `WizardTypes.swift` (433 lines):
 
 ### Pages (`WizardPage` enum)
-- `summary`, `conflicts`, `inputMonitoring`, `accessibility`
-- `communication`, `karabinerComponents`, `kanataComponents`, `service`
+- `welcome`, `summary`, `accessibility`, `inputMonitoring`, `service`
+- `kanataMigration`, `stopExternalKanata`, `karabinerImport` (moving from other tools)
 
 ### System State (`WizardSystemState` enum)
 - `initializing`, `missingPermissions`, `missingComponents`, `serviceNotRunning`, `ready`, `active`
@@ -175,17 +180,13 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
 
 ## How State-Driven Navigation Works
 
-The wizard uses `WizardNavigationEngine.determineCurrentPage()` to calculate the correct page:
+`WizardRouter.route(state:issues:)` picks the page:
 
 ```swift
-// Priority-based navigation (see WizardNavigationEngine.swift:19-149)
-1. Check for conflicts → .conflicts
-2. Check for permission issues → .inputMonitoring or .accessibility
-3. Check for communication issues → .communication
-4. Check for Karabiner issues → .karabinerComponents
-5. Check for Kanata issues → .kanataComponents
-6. Check service state → .service
-7. Default → .summary (all clear)
+1. Blocking Accessibility issue → .accessibility
+2. Blocking Input Monitoring issue → .inputMonitoring
+3. Runtime not running → .service
+4. Default → .summary (all clear)
 ```
 
 This ensures users always see the **most critical issue first** without manual navigation.
@@ -206,13 +207,9 @@ InstallationWizardView.swift (1,020 lines)
 ├── Header (title, close button)
 ├── Page Content (dynamic based on currentPage)
 │   ├── WizardSummaryPage
-│   ├── WizardConflictsPage
-│   ├── WizardInputMonitoringPage
 │   ├── WizardAccessibilityPage
-│   ├── WizardKarabinerComponentsPage
-│   ├── WizardKanataComponentsPage
-│   ├── WizardServicePage
-│   └── WizardCommunicationPage
+│   ├── WizardInputMonitoringPage
+│   └── WizardKanataServicePage
 ├── Page Dots (navigation indicators)
 └── Action Buttons (Next, Previous, Fix)
 ```
