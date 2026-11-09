@@ -4,9 +4,6 @@ import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathWizardCore
 
-@MainActor
-protocol PrivilegedOperationsCoordinating: WizardPrivilegedOperating {}
-
 /// Routes privileged operations through the XPC helper, with direct sudo fallback for tests.
 /// Slim replacement for PrivilegedOperationsCoordinator — pure routing, no domain logic.
 @MainActor
@@ -1099,8 +1096,6 @@ public final class PrivilegedOperationsRouter {
         NotificationCenter.default.post(name: .smAppServiceApprovalRequired, object: nil)
     }
 }
-
-extension PrivilegedOperationsRouter: PrivilegedOperationsCoordinating {}
 
 // MARK: - Test SPI
 

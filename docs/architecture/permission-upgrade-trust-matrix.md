@@ -16,7 +16,7 @@ and wizard loops across normal app upgrades.
 - Used when system state is already healthy and trusted.
 
 2. `softRepair`
-- Run `InstallerEngine().run(intent: .repair, using: broker)`.
+- Run `InstallerEngine().run(intent: .repair)`.
 - Used for recoverable runtime/component drift (helper/services/components not ready).
 
 3. `hardRepair`

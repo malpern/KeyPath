@@ -22,29 +22,19 @@ public extension InstallerEngine {
     func generateRecipes(from actions: [AutoFixAction], context: SystemContext)
         -> [ServiceRecipe]
     {
-        var recipes: [ServiceRecipe] = []
-
-        for action in actions {
-            if let recipe = recipeForAction(action, context: context) {
-                recipes.append(recipe)
-            }
-        }
-
-        return recipes
+        actions.map { recipeForAction($0, context: context) }
     }
 
     /// Convert an AutoFixAction to a ServiceRecipe
-    func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe? {
+    func recipeForAction(_ action: AutoFixAction, context _: SystemContext) -> ServiceRecipe {
         switch action {
         case .restartCommServer:
             ServiceRecipe(
-                id: "start-session-runtime", type: .installComponent,
+                id: InstallerRecipeID.startSessionRuntime, type: .installComponent,
                 expectedPostconditions: [.runtimeReadyOrApprovalPending]
             )
         case .synchronizeConfigPaths:
             ServiceRecipe(id: InstallerRecipeID.synchronizeConfigPaths, type: .checkRequirement)
-        default:
-            nil // Legacy helper, DriverKit, and system-service actions are unavailable.
         }
     }
 
@@ -84,42 +74,8 @@ public extension InstallerEngine {
     /// Map AutoFixAction to recipe ID
     func recipeIDForAction(_ action: AutoFixAction) -> String {
         switch action {
-        case .installRequiredRuntimeServices:
-            InstallerRecipeID.installRequiredRuntimeServices
-        case .installCorrectVHIDDriver:
-            InstallerRecipeID.installCorrectVHIDDriver
-        case .installLogRotation:
-            InstallerRecipeID.installLogRotation
-        case .installPrivilegedHelper:
-            InstallerRecipeID.installPrivilegedHelper
-        case .reinstallPrivilegedHelper:
-            InstallerRecipeID.reinstallPrivilegedHelper
-        case .startKarabinerDaemon:
-            InstallerRecipeID.startKarabinerDaemon
-        case .terminateConflictingProcesses:
-            InstallerRecipeID.terminateConflictingProcesses
-        case .fixDriverVersionMismatch:
-            InstallerRecipeID.fixDriverVersionMismatch
-        case .installMissingComponents:
-            InstallerRecipeID.installMissingComponents
-        case .restartVirtualHIDDaemon:
-            InstallerRecipeID.repairVHIDDaemonServices
-        case .createConfigDirectories:
-            InstallerRecipeID.createConfigDirectories
-        case .activateVHIDDeviceManager:
-            InstallerRecipeID.activateVHIDManager
-        case .repairVHIDDaemonServices:
-            InstallerRecipeID.repairVHIDDaemonServices
-        case .enableTCPServer:
-            InstallerRecipeID.enableTCPServer
-        case .setupTCPAuthentication:
-            InstallerRecipeID.setupTCPAuthentication
-        case .regenerateCommServiceConfiguration:
-            InstallerRecipeID.regenerateCommServiceConfig
-        case .regenerateServiceConfiguration:
-            InstallerRecipeID.regenerateServiceConfig
         case .restartCommServer:
-            "start-session-runtime"
+            InstallerRecipeID.startSessionRuntime
         case .synchronizeConfigPaths:
             InstallerRecipeID.synchronizeConfigPaths
         }

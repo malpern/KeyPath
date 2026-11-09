@@ -195,7 +195,7 @@ let engine = InstallerEngine()
 let context = await engine.inspectSystem()
 
 // Repair/install operations
-let report = await engine.run(intent: .repair, using: broker)
+let report = await engine.run(intent: .repair)
 
 // Health checks (façade methods)
 let status = await engine.getServiceStatus()

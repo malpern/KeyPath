@@ -225,14 +225,6 @@ public struct HealthCheckCriteria: Sendable, Equatable {
 /// Observable state that a recipe declares must hold after the complete plan runs.
 public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIterable {
     case runtimeReadyOrApprovalPending = "runtime-ready-or-approval-pending"
-    case vhidServicesHealthy = "vhid-services-healthy"
-    case karabinerDaemonRunning = "karabiner-daemon-running"
-    case helperReadyOrApprovalPending = "helper-ready-or-approval-pending"
-    case helperFreshOrApprovalPending = "helper-fresh-or-approval-pending"
-    case runtimeFreshOrApprovalPending = "runtime-fresh-or-approval-pending"
-    case virtualHIDDriverInstalled = "virtualhid-driver-installed"
-    case virtualHIDDeviceActivated = "virtualhid-device-activated"
-    case conflictsResolved = "conflicts-resolved"
 
     public func isSatisfied(by context: SystemContext) -> Bool {
         guard context.captureStatus.isComplete else { return false }
@@ -241,25 +233,6 @@ public enum InstallerPostcondition: String, Codable, Sendable, Equatable, CaseIt
         case .runtimeReadyOrApprovalPending:
             return context.services.kanataRuntimeReadiness.isReady
                 || context.services.loginItemsApprovalRequired == true
-        case .vhidServicesHealthy:
-            return context.components.vhidServicesHealthy && context.services.vhidHealthy
-        case .karabinerDaemonRunning:
-            return context.services.karabinerDaemonRunning
-        case .helperReadyOrApprovalPending:
-            return context.helper.isReady || context.helper.requiresApproval
-        case .helperFreshOrApprovalPending:
-            return context.helper.freshness(
-                expectedVersion: WizardHelperConstants.expectedHelperVersion
-            ) == .fresh || context.helper.requiresApproval
-        case .runtimeFreshOrApprovalPending:
-            return context.services.kanataServiceFreshness == .fresh
-                || context.services.loginItemsApprovalRequired == true
-        case .virtualHIDDriverInstalled:
-            return context.components.karabinerDriverInstalled
-        case .virtualHIDDeviceActivated:
-            return context.components.vhidDeviceInstalled
-        case .conflictsResolved:
-            return !context.conflicts.hasConflicts
         }
     }
 }

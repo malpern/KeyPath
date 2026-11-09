@@ -178,7 +178,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // Additional dependencies needed by extensions
     let installerEngine: InstallerEngine
-    let privilegeBroker: PrivilegeBroker
     let kanataDaemonService: KanataDaemonService
     nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
@@ -262,7 +261,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize manager dependencies
         let karabinerConflictService = KarabinerConflictService()
         let diagnosticsService = DiagnosticsService(processLifecycleManager: lifecycleManager)
-        privilegeBroker = PrivilegeBroker()
         installerEngine = InstallerEngine()
         // Store for extensions
         self.kanataDaemonService = kanataDaemonService
@@ -628,20 +626,11 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     private(set) var uninstallCleanupCompleted = false
 
-    func uninstall(
-        deleteConfig: Bool,
-        removeVirtualHID: Bool = false,
-        allowAdminFallback: Bool = false
-    ) async -> InstallerReport {
+    func uninstall(deleteConfig: Bool) async -> InstallerReport {
         // Telemetry has its own debounced writer, outside the config operation
         // gate. Drain it before backup and keep it closed through app termination.
         KindaVimTelemetryStore.shared.suspendForUninstall()
-        let report = await installerEngine.uninstall(
-            deleteConfig: deleteConfig,
-            removeVirtualHID: removeVirtualHID,
-            allowAdminFallback: allowAdminFallback,
-            using: privilegeBroker
-        )
+        let report = await installerEngine.uninstall(deleteConfig: deleteConfig)
         // Successful uninstall already verified runtime cleanup and intentionally
         // leaves configuration admission suspended until process exit.
         uninstallCleanupCompleted = report.success
@@ -996,27 +985,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     func convertToKanataSequence(_ sequence: String) -> String {
         KanataKeyConverter.convertToKanataSequence(sequence)
-    }
-
-    // MARK: - One-click Service Regeneration
-
-    /// Regenerate LaunchDaemon services (rewrite plists, bootstrap, kickstart) using current settings.
-    /// Returns true on success.
-    func regenerateServices() async -> Bool {
-        AppLogger.shared.log("🔧 [Services] One-click regenerate services initiated")
-        let report = await installerEngine
-            .runSingleAction(.regenerateServiceConfiguration, using: privilegeBroker)
-        if report.success {
-            // Refresh status after regeneration to update UI promptly
-            await updateStatus()
-            AppLogger.shared.info("✅ [Services] Regenerate services completed")
-            return true
-        }
-
-        let failureReason = report.failureReason ?? "Unknown error"
-        AppLogger.shared.error("❌ [Services] Regenerate services failed: \(failureReason)")
-        lastError = "Regenerate services failed: \(failureReason)"
-        return false
     }
 
     // MARK: - Enhanced Config Validation and Recovery

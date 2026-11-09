@@ -35,8 +35,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             intent: .install,
             blockedBy: requirement
         )
-        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         XCTAssertFalse(report.success)
         XCTAssertEqual(report.unmetRequirements.count, 1)
@@ -48,10 +47,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     // MARK: - Recipe Execution Failure Tests
 
     func testExecute_StopsOnFirstRecipeFailure() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "installRequiredRuntimeServices"
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let context = SystemContextBuilder.cleanInstall()
         let deterministicEngine = InstallerEngine(
             processLifecycleManager: ProcessLifecycleManager(),
@@ -63,7 +58,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             throw XCTSkip("Plan is blocked — cannot test recipe execution")
         }
 
-        let report = await deterministicEngine.execute(plan: plan, using: broker)
+        let report = await deterministicEngine.execute(plan: plan)
 
         XCTAssertFalse(report.success)
         XCTAssertNotNil(report.failureReason)
@@ -74,10 +69,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     }
 
     func testExecute_FailedRecipeIncludesErrorDescription() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "installRequiredRuntimeServices"
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let context = SystemContextBuilder.cleanInstall()
         let plan = await engine.makePlan(for: .install, context: context)
 
@@ -85,65 +76,11 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             throw XCTSkip("Plan is blocked")
         }
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         let failedRecipe = report.executedRecipes.first(where: { !$0.success })
         XCTAssertNotNil(failedRecipe?.error, "Failed recipe should include error description")
         XCTAssertGreaterThan(failedRecipe?.error?.count ?? 0, 0)
-    }
-
-    // MARK: - Privilege Broker Failure Tests
-
-    func testBroker_ThrowsWhenCoordinatorNotConfigured() async {
-        let saved = WizardDependencies.privilegedOperations
-        WizardDependencies.privilegedOperations = nil
-        defer { WizardDependencies.privilegedOperations = saved }
-
-        let broker = PrivilegeBroker()
-        do {
-            try await broker.installRequiredRuntimeServices()
-            XCTFail("Should throw when coordinator not configured")
-        } catch {
-            XCTAssertTrue(
-                "\(error)".contains("coordinatorNotConfigured"),
-                "Should throw coordinatorNotConfigured, got: \(error)"
-            )
-        }
-    }
-
-    func testBroker_AllMethodsThrowWhenNoCoordinator() async {
-        let saved = WizardDependencies.privilegedOperations
-        WizardDependencies.privilegedOperations = nil
-        defer { WizardDependencies.privilegedOperations = saved }
-
-        let broker = PrivilegeBroker()
-
-        do { try await broker.recoverRequiredRuntimeServices(); XCTFail("Should throw") } catch {}
-        do { try await broker.installNewsyslogConfig(); XCTFail("Should throw") } catch {}
-        do { try await broker.regenerateServiceConfiguration(); XCTFail("Should throw") } catch {}
-        do { try await broker.repairVHIDDaemonServices(); XCTFail("Should throw") } catch {}
-        do { try await broker.downloadAndInstallCorrectVHIDDriver(); XCTFail("Should throw") } catch {}
-        do { try await broker.activateVirtualHIDManager(); XCTFail("Should throw") } catch {}
-        do { try await broker.killAllKanataProcesses(); XCTFail("Should throw") } catch {}
-        do { try await broker.terminateProcess(pid: 1); XCTFail("Should throw") } catch {}
-        do { try await broker.uninstallVirtualHIDDrivers(); XCTFail("Should throw") } catch {}
-        do { try await broker.disableKarabinerGrabber(); XCTFail("Should throw") } catch {}
-        do { try await broker.sudoExecuteCommand("ls", description: "test"); XCTFail("Should throw") } catch {}
-    }
-
-    func testBroker_CoordinatorErrorPropagates() async {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "installRequiredRuntimeServices"
-        let broker = PrivilegeBroker(coordinator: stub)
-
-        do {
-            try await broker.installRequiredRuntimeServices()
-            XCTFail("Should propagate coordinator error")
-        } catch is StubPrivilegedOperationsCoordinator.StubError {
-            // Expected
-        } catch {
-            XCTFail("Expected StubError, got \(error)")
-        }
     }
 
     // MARK: - Empty Plan Tests
@@ -154,8 +91,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             status: .ready,
             intent: .inspectOnly
         )
-        let broker = PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         XCTAssertTrue(report.success)
         XCTAssertNil(report.failureReason)
@@ -176,10 +112,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     // MARK: - Report Structure Tests
 
     func testReport_FailureReasonIncludesRecipeID() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "installRequiredRuntimeServices"
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let context = SystemContextBuilder.cleanInstall()
         let plan = await engine.makePlan(for: .install, context: context)
 
@@ -187,7 +119,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             throw XCTSkip("Plan is blocked")
         }
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         if let reason = report.failureReason {
             XCTAssertTrue(
@@ -198,9 +130,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     }
 
     func testReport_RecipeDurationsAreNonNegative() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let context = SystemContextBuilder.cleanInstall()
         let plan = await engine.makePlan(for: .install, context: context)
 
@@ -208,7 +137,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             throw XCTSkip("Plan is blocked")
         }
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         for result in report.executedRecipes {
             XCTAssertGreaterThanOrEqual(
@@ -219,11 +148,8 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     }
 
     func testReport_SuccessfulExecutionHasNoFailureReason() async {
-        let stub = StubPrivilegedOperationsCoordinator()
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let plan = InstallPlan(recipes: [], status: .ready, intent: .inspectOnly)
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         XCTAssertTrue(report.success)
         XCTAssertNil(report.failureReason)
@@ -233,10 +159,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     // MARK: - Recipe Logs Tests
 
     func testReport_FailedRecipeHasLogs() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "installRequiredRuntimeServices"
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let context = SystemContextBuilder.cleanInstall()
         let plan = await engine.makePlan(for: .install, context: context)
 
@@ -244,7 +166,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             throw XCTSkip("Plan is blocked")
         }
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         let failedRecipe = report.executedRecipes.first(where: { !$0.success })
         XCTAssertNotNil(failedRecipe)
@@ -256,9 +178,6 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
     }
 
     func testReport_AggregatedLogsIncludeAllRecipes() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        let broker = PrivilegeBroker(coordinator: stub)
-
         let context = SystemContextBuilder.cleanInstall()
         let plan = await engine.makePlan(for: .install, context: context)
 
@@ -266,7 +185,7 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
             throw XCTSkip("Need non-empty plan")
         }
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         XCTAssertFalse(report.logs.isEmpty, "Report should have aggregated logs")
     }
@@ -415,60 +334,5 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
         )
 
         XCTAssertTrue(health.kanataRuntimeReadiness.isReady)
-    }
-
-    // MARK: - Stub Coordinator Tests
-
-    func testStubCoordinator_RecordsCalls() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        try await stub.installRequiredRuntimeServices()
-        try await stub.installNewsyslogConfig()
-
-        XCTAssertEqual(stub.calls, [
-            "installRequiredRuntimeServices",
-            "installNewsyslogConfig",
-        ])
-    }
-
-    func testStubCoordinator_FailOnCallThrows() async {
-        let stub = StubPrivilegedOperationsCoordinator()
-        stub.failOnCall = "installNewsyslogConfig"
-
-        try? await stub.installRequiredRuntimeServices()
-        XCTAssertEqual(stub.calls, ["installRequiredRuntimeServices"])
-
-        do {
-            try await stub.installNewsyslogConfig()
-            XCTFail("Should throw on configured failOnCall")
-        } catch is StubPrivilegedOperationsCoordinator.StubError {
-            // Expected
-        } catch {
-            XCTFail("Expected StubError, got \(error)")
-        }
-        XCTAssertEqual(stub.calls.count, 1, "Failed call should not be recorded")
-    }
-
-    func testStubCoordinator_SudoRecordsCommandName() async throws {
-        let stub = StubPrivilegedOperationsCoordinator()
-        try await stub.sudoExecuteCommand("/bin/launchctl bootout system/com.keypath.kanata", description: "Stop service")
-        XCTAssertTrue(stub.calls.first?.contains("sudoExecuteCommand") ?? false)
-        XCTAssertTrue(stub.calls.first?.contains("launchctl") ?? false)
-    }
-}
-
-@MainActor
-private final class StubWizardUninstaller: WizardUninstalling {
-    let result: WizardUninstallResult
-
-    init(result: WizardUninstallResult) {
-        self.result = result
-    }
-
-    func performUninstall(
-        deleteConfig _: Bool,
-        removeVirtualHID _: Bool,
-        allowAdminFallback _: Bool
-    ) async -> WizardUninstallResult {
-        result
     }
 }

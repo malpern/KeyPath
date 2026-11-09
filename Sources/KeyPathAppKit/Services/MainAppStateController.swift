@@ -978,7 +978,7 @@ class MainAppStateController {
     /// validation-state behavior so startup UI does not pessimistically flip red.
     var menuBarSystemHealthy: Bool {
         if let lastInstallerStateMatrixRow {
-            return lastInstallerStateMatrixRow == .runningAndTCPResponding
+            return lastInstallerStateMatrixRow == .sessionRuntimeReady
         }
         return (validationState?.isSuccess ?? true) && issues.isEmpty
     }

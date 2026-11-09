@@ -234,15 +234,12 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     }
 
     func testUnsupportedConfigurationRefusesBeforeLaunchAndPersistsFailure() async {
-        let privileged = StubPrivilegedOperationsCoordinator()
-        WizardDependencies.privilegedOperations = privileged
         var launches = 0
         coordinator.testSessionConfigurationValidation = { .invalid(reason: "Caps Lock remapping requires the advanced driver backend") }
         ServiceLifecycleCoordinator.testSessionStart = { _ in launches += 1; return true }
         let admissionResult1 = await coordinator.startKanata(reason: "unsupported config")
         XCTAssertFalse(admissionResult1)
         XCTAssertEqual(launches, 0)
-        XCTAssertTrue(privileged.calls.isEmpty)
         XCTAssertFalse(coordinator.isStartingKanata)
         let admissionResult2 = await coordinator.isInTransientRuntimeStartupWindow()
         XCTAssertFalse(admissionResult2)
@@ -479,8 +476,6 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     // MARK: - Session lifecycle routing
 
     func testStartUsesSessionOwnerWithoutPrivilegedFallbackOnFailure() async {
-        let privileged = StubPrivilegedOperationsCoordinator()
-        WizardDependencies.privilegedOperations = privileged
         var reasons: [String] = []
         ServiceLifecycleCoordinator.testSessionStart = { reason in
             reasons.append(reason)
@@ -490,7 +485,6 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         let started = await coordinator.startKanata(reason: "session failure")
         XCTAssertFalse(started)
         XCTAssertEqual(reasons, ["session failure"])
-        XCTAssertTrue(privileged.calls.isEmpty)
         XCTAssertFalse(coordinator.isStartingKanata)
     }
 
@@ -505,15 +499,12 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     }
 
     func testStopUsesOnlySessionOwner() async {
-        let privileged = StubPrivilegedOperationsCoordinator()
-        WizardDependencies.privilegedOperations = privileged
         ServiceLifecycleCoordinator.testSessionStop = {
             self.coordinator.onStateChanged?()
             return true
         }
         let stopped = await coordinator.stopKanata(reason: "test")
         XCTAssertTrue(stopped)
-        XCTAssertTrue(privileged.calls.isEmpty)
         XCTAssertGreaterThan(stateChangeCount, 0)
     }
 

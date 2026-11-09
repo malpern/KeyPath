@@ -177,9 +177,8 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
     func testExecuteReturnsInstallerReport() async {
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .install, context: context)
-        let broker = PrivilegeBroker()
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         XCTAssertNotNil(report, "execute() should return an InstallerReport")
         XCTAssertNotNil(report.timestamp, "Report should have timestamp")
@@ -195,13 +194,12 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             intent: .install,
             blockedBy: blockedRequirement,
             metadata: PlanMetadata(
-                stateMatrixRow: InstallerStateMatrixRow.manualApprovalRequired.rawValue,
-                stateMatrixPlan: [InstallerStateMatrixAction.surfaceManualApproval.rawValue]
+                stateMatrixRow: InstallerStateMatrixRow.sessionRuntimeStopped.rawValue,
+                stateMatrixPlan: [InstallerStateMatrixAction.restartOrRecoverKanataRuntime.rawValue]
             )
         )
-        let broker = PrivilegeBroker()
 
-        let report = await engine.execute(plan: blockedPlan, using: broker)
+        let report = await engine.execute(plan: blockedPlan)
 
         XCTAssertFalse(report.success, "Report should indicate failure for blocked plan")
         XCTAssertNotNil(report.failureReason, "Report should have failure reason")
@@ -217,7 +215,7 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         XCTAssertEqual(report.repairTelemetry.first?.intent, "install")
         XCTAssertEqual(
             report.repairTelemetry.first?.stateMatrixRow,
-            InstallerStateMatrixRow.manualApprovalRequired.rawValue
+            InstallerStateMatrixRow.sessionRuntimeStopped.rawValue
         )
         XCTAssertEqual(report.repairTelemetry.first?.postconditionResult, .blocked)
         XCTAssertEqual(report.repairTelemetry.first?.error, "Test requirement")
@@ -234,18 +232,18 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             status: .ready,
             intent: .repair,
             metadata: PlanMetadata(
-                stateMatrixRow: InstallerStateMatrixRow.definitiveUnhealthyState.rawValue,
-                stateMatrixPlan: [InstallerStateMatrixAction.failWithDiagnostics.rawValue]
+                stateMatrixRow: InstallerStateMatrixRow.sessionRuntimeStopped.rawValue,
+                stateMatrixPlan: [InstallerStateMatrixAction.restartOrRecoverKanataRuntime.rawValue]
             )
         )
 
-        let report = await engine.execute(plan: plan, using: PrivilegeBroker())
+        let report = await engine.execute(plan: plan)
 
         XCTAssertFalse(report.success)
         XCTAssertEqual(report.repairTelemetry.count, 1)
         let event = report.repairTelemetry[0]
         XCTAssertEqual(event.intent, "repair")
-        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeStopped.rawValue)
         XCTAssertNil(event.action)
         XCTAssertNil(event.recipeID)
         XCTAssertNil(event.recipeType)
@@ -259,19 +257,19 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             status: .ready,
             intent: .repair,
             metadata: PlanMetadata(
-                stateMatrixRow: InstallerStateMatrixRow.runningAndTCPResponding.rawValue,
+                stateMatrixRow: InstallerStateMatrixRow.sessionRuntimeReady.rawValue,
                 stateMatrixPlan: []
             )
         )
 
-        let report = await engine.execute(plan: plan, using: PrivilegeBroker())
+        let report = await engine.execute(plan: plan)
 
         XCTAssertTrue(report.success)
         XCTAssertEqual(report.completionState, .verifiedNoOp)
         XCTAssertEqual(report.repairTelemetry.count, 1)
         let event = report.repairTelemetry[0]
         XCTAssertEqual(event.intent, "repair")
-        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.runningAndTCPResponding.rawValue)
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeReady.rawValue)
         XCTAssertEqual(event.action, InstallerRecipeID.verifyPostconditions)
         XCTAssertNil(event.recipeID)
         XCTAssertNil(event.recipeType)
@@ -282,9 +280,8 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
         // Create a plan with recipes (may succeed or fail depending on system state)
         let context = await engine.inspectSystem()
         let plan = await engine.makePlan(for: .install, context: context)
-        let broker = PrivilegeBroker()
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         // Verify report structure - execution may succeed or fail depending on system state
         XCTAssertNotNil(report, "Report should exist")
@@ -316,9 +313,8 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
             intent: .inspectOnly,
             blockedBy: nil
         )
-        let broker = PrivilegeBroker()
 
-        let report = await engine.execute(plan: emptyPlan, using: broker)
+        let report = await engine.execute(plan: emptyPlan)
 
         XCTAssertTrue(report.success, "Empty plan should succeed")
         XCTAssertEqual(report.executedRecipes.count, 0, "Empty plan should have no executed recipes")
@@ -327,37 +323,34 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
     // MARK: - run() Tests
 
     func testRunChainsStepsCorrectly() async {
-        let broker = PrivilegeBroker()
-        let report = await engine.run(intent: .repair, using: broker)
+        let report = await engine.run(intent: .repair)
 
         XCTAssertNotNil(report, "run() should return an InstallerReport")
         XCTAssertNotNil(report.timestamp, "Report should have timestamp")
     }
 
     func testRunHandlesAllIntents() async {
-        let broker = PrivilegeBroker()
 
-        let installReport = await engine.run(intent: .install, using: broker)
+        let installReport = await engine.run(intent: .install)
         XCTAssertNotNil(installReport)
         XCTAssertNotNil(installReport.timestamp)
 
-        let repairReport = await engine.run(intent: .repair, using: broker)
+        let repairReport = await engine.run(intent: .repair)
         XCTAssertNotNil(repairReport)
         XCTAssertNotNil(repairReport.timestamp)
 
-        let uninstallReport = await engine.run(intent: .uninstall, using: broker)
+        let uninstallReport = await engine.run(intent: .uninstall)
         XCTAssertNotNil(uninstallReport)
         XCTAssertNotNil(uninstallReport.timestamp)
 
-        let inspectReport = await engine.run(intent: .inspectOnly, using: broker)
+        let inspectReport = await engine.run(intent: .inspectOnly)
         XCTAssertNotNil(inspectReport)
         XCTAssertNotNil(inspectReport.timestamp)
     }
 
     func testRunChainsAllSteps() async {
         // Phase 5: Verify run() chains inspectSystem → makePlan → execute
-        let broker = PrivilegeBroker()
-        let report = await engine.run(intent: .install, using: broker)
+        let report = await engine.run(intent: .install)
 
         // Verify report structure indicates all steps completed
         XCTAssertNotNil(report, "run() should return a report")
@@ -372,8 +365,7 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
     func testRunReturnsCompleteReport() async {
         // Phase 5: Verify run() returns a complete report with all fields
-        let broker = PrivilegeBroker()
-        let report = await engine.run(intent: .repair, using: broker)
+        let report = await engine.run(intent: .repair)
 
         // Verify all report fields are present
         XCTAssertNotNil(report.timestamp, "Report should have timestamp")
@@ -386,8 +378,7 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
 
     func testRunWithInspectOnlyHasNoRecipes() async {
         // Phase 5: Verify inspectOnly intent generates no recipes
-        let broker = PrivilegeBroker()
-        let report = await engine.run(intent: .inspectOnly, using: broker)
+        let report = await engine.run(intent: .inspectOnly)
 
         // InspectOnly should have no executed recipes
         XCTAssertEqual(report.executedRecipes.count, 0, "InspectOnly should have no executed recipes")

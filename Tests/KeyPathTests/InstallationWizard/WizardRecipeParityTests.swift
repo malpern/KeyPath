@@ -32,31 +32,15 @@ final class WizardRecipeParityTests: KeyPathTestCase {
         )
     }
 
-    func testSupportedActionIDsMatchRestrictedRecipes() throws {
+    func testSupportedActionIDsMatchRestrictedRecipes() {
         let engine = InstallerEngine()
         for action in [AutoFixAction.restartCommServer, .synchronizeConfigPaths] {
-            let recipe = try XCTUnwrap(engine.recipeForAction(action, context: context(running: false)))
+            let recipe = engine.recipeForAction(action, context: context(running: false))
             XCTAssertEqual(recipe.id, engine.recipeIDForAction(action))
             XCTAssertTrue(recipe.launchctlActions.isEmpty)
             XCTAssertNil(recipe.serviceID)
             XCTAssertNil(recipe.plistContent)
         }
-    }
-
-    func testLegacyActionsHaveNoExecutableRecipes() {
-        let engine = InstallerEngine()
-        let unsupported: [AutoFixAction] = [
-            .installPrivilegedHelper, .reinstallPrivilegedHelper, .terminateConflictingProcesses,
-            .startKarabinerDaemon, .restartVirtualHIDDaemon, .installMissingComponents,
-            .createConfigDirectories, .activateVHIDDeviceManager, .installRequiredRuntimeServices,
-            .repairVHIDDaemonServices, .installLogRotation, .enableTCPServer,
-            .setupTCPAuthentication, .regenerateCommServiceConfiguration,
-            .regenerateServiceConfiguration, .fixDriverVersionMismatch, .installCorrectVHIDDriver,
-        ]
-        for action in unsupported {
-            XCTAssertNil(engine.recipeForAction(action, context: context(running: false)), "\(action) must be unavailable")
-        }
-        XCTAssertTrue(engine.generateRecipes(from: unsupported, context: context(running: false)).isEmpty)
     }
 
     func testInstallAndRepairPlansOnlyStartMissingSession() async {

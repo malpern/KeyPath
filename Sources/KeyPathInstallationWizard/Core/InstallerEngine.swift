@@ -31,13 +31,6 @@ private enum InstallerTransactionContext {
     @TaskLocal static var isOwned = false
 }
 
-/// Protocol for privileged routing used by Services to allow test stubs
-public protocol InstallerEnginePrivilegedRouting: AnyObject {
-    func uninstallVirtualHIDDrivers(using broker: PrivilegeBroker) async throws
-    func disableKarabinerGrabber(using broker: PrivilegeBroker) async throws
-    func restartKarabinerDaemon(using broker: PrivilegeBroker) async throws -> Bool
-}
-
 /// Façade for installer operations.
 ///
 /// - Provides a stable, unified API for install/repair/uninstall flows.
@@ -225,20 +218,18 @@ public final class InstallerEngine {
     /// If the plan was blocked by unmet requirements, execution stops immediately and the report indicates which requirement failed.
     public func execute(
         plan: InstallPlan,
-        using broker: PrivilegeBroker,
         trigger: InstallerRepairTelemetryTrigger = .executePlan
     ) async -> InstallerReport {
         await withInstallerTransaction {
-            await executeWithinTransaction(plan: plan, using: broker, trigger: trigger)
+            await executeWithinTransaction(plan: plan, trigger: trigger)
         }
     }
 
     private func executeWithinTransaction(
         plan: InstallPlan,
-        using broker: PrivilegeBroker,
         trigger: InstallerRepairTelemetryTrigger
     ) async -> InstallerReport {
-        AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:, using:)")
+        AppLogger.shared.log("⚙️ [InstallerEngine] Starting execute(plan:)")
         let runID = UUID()
 
         if plan.intent == .uninstall || (plan.intent == .inspectOnly && !plan.recipes.isEmpty) {
@@ -322,7 +313,7 @@ public final class InstallerEngine {
 
             do {
                 // Execute recipe based on type, capturing execution details
-                let executionResult = try await executeRecipeWithDetails(recipe, using: broker)
+                let executionResult = try await executeRecipeWithDetails(recipe)
                 recipeLogs.append(contentsOf: executionResult.logs)
                 commandsRun.append(contentsOf: executionResult.commands)
 
@@ -632,7 +623,7 @@ public final class InstallerEngine {
               recipe.dependencies.isEmpty, recipe.conflictsToResolve.isEmpty
         else { return false }
         switch recipe.id {
-        case "start-session-runtime":
+        case InstallerRecipeID.startSessionRuntime:
             return recipe.type == .installComponent
                 && recipe.expectedPostconditions == [.runtimeReadyOrApprovalPending]
         case InstallerRecipeID.synchronizeConfigPaths:
@@ -642,22 +633,24 @@ public final class InstallerEngine {
         }
     }
 
+    /// The session runtime never waits on service approval, so its postcondition
+    /// requires a ready runtime.
     private func sessionPostconditionSatisfied(
         _ postcondition: InstallerPostcondition, by context: SystemContext
     ) -> Bool {
-        if postcondition == .runtimeReadyOrApprovalPending {
-            return context.captureStatus.isComplete && context.services.kanataRuntimeReadiness.isReady
+        switch postcondition {
+        case .runtimeReadyOrApprovalPending:
+            context.captureStatus.isComplete && context.services.kanataRuntimeReadiness.isReady
         }
-        return postcondition.isSatisfied(by: context)
     }
 
-    /// Execute without a privileged broker or any system-service fallback.
-    private func executeRecipeWithDetails(_ recipe: ServiceRecipe, using _: PrivilegeBroker) async throws -> RecipeExecutionResult {
+    /// Execute a session recipe; there is no system-service fallback.
+    private func executeRecipeWithDetails(_ recipe: ServiceRecipe) async throws -> RecipeExecutionResult {
         guard isSupportedSessionRecipe(recipe) else {
             throw InstallerError.unknownRecipe("Recipe unavailable in the driverless build: \(recipe.id)")
         }
         switch recipe.id {
-        case "start-session-runtime":
+        case InstallerRecipeID.startSessionRuntime:
             guard await WizardDependencies.runtimeCoordinator?.startKanata(reason: "Driverless setup") == true else {
                 throw InstallerError.healthCheckFailed("Session runtime did not become ready")
             }
@@ -704,142 +697,77 @@ public final class InstallerEngine {
 
     /// Convenience wrapper that chains inspectSystem() → makePlan() → execute() internally.
     /// Useful for CLI "one-button repair" automation or simple GUI flows.
-    public func run(intent: InstallIntent, using broker: PrivilegeBroker) async -> InstallerReport {
+    public func run(intent: InstallIntent) async -> InstallerReport {
         await withInstallerTransaction {
-            await runWithinTransaction(intent: intent, using: broker)
+            await runWithinTransaction(intent: intent)
         }
     }
 
-    private func runWithinTransaction(
-        intent: InstallIntent,
-        using broker: PrivilegeBroker
-    ) async -> InstallerReport {
-        AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent), using:)")
+    private func runWithinTransaction(intent: InstallIntent) async -> InstallerReport {
+        AppLogger.shared.log("🚀 [InstallerEngine] Starting run(intent: \(intent))")
 
         if intent == .uninstall {
             AppLogger.shared.log(
-                "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:, using:)"
+                "🗑️ [InstallerEngine] Delegating uninstall intent to uninstall(deleteConfig:)"
             )
-            return await uninstallWithinTransaction(
-                deleteConfig: false,
-                removeVirtualHID: false,
-                allowAdminFallback: false
-            )
+            return await uninstallWithinTransaction(deleteConfig: false)
         }
 
         // Chain the steps
         let context = await inspectSystem()
         let plan = await makePlan(for: intent, context: context)
-        let report = await executeWithinTransaction(plan: plan, using: broker, trigger: .run)
+        let report = await executeWithinTransaction(plan: plan, trigger: .run)
 
         AppLogger.shared.log("✅ [InstallerEngine] run() complete - success: \(report.success)")
         return report
     }
 
-    /// Execute uninstall via the existing coordinator.
-    /// - Parameter removeVirtualHID: when true, also tears down the Karabiner VirtualHID
-    ///   driver. Off by default because the driver is a shared component other tools may use.
-    public func uninstall(
-        deleteConfig: Bool,
-        removeVirtualHID: Bool = false,
-        allowAdminFallback: Bool = false,
-        using _: PrivilegeBroker
-    ) async -> InstallerReport {
+    /// Execute uninstall via the session uninstall coordinator.
+    /// The session uninstaller always backs up and removes the user's configuration.
+    public func uninstall(deleteConfig: Bool) async -> InstallerReport {
         await withInstallerTransaction {
-            await uninstallWithinTransaction(
-                deleteConfig: deleteConfig,
-                removeVirtualHID: removeVirtualHID,
-                allowAdminFallback: allowAdminFallback
-            )
+            await uninstallWithinTransaction(deleteConfig: deleteConfig)
         }
     }
 
-    private func uninstallWithinTransaction(
-        deleteConfig: Bool,
-        removeVirtualHID: Bool,
-        allowAdminFallback: Bool
-    ) async -> InstallerReport {
-        guard deleteConfig, !removeVirtualHID, !allowAdminFallback,
+    private func uninstallWithinTransaction(deleteConfig: Bool) async -> InstallerReport {
+        guard deleteConfig,
               let coordinator = WizardDependencies.createUninstallCoordinator?()
         else {
             return InstallerReport(success: false, failureReason: "Use Uninstall KeyPath in Settings to back up and remove this user's installation.")
         }
-        let result = await coordinator.performUninstall(
-            deleteConfig: true, removeVirtualHID: false, allowAdminFallback: false
-        )
+        let result = await coordinator.performUninstall(deleteConfig: true)
         return InstallerReport(success: result.success, failureReason: result.failureReason, logs: result.logs)
     }
 
     /// Execute a single AutoFixAction by generating a plan that includes that specific action
     /// This is useful for GUI single-action fixes where the user clicks a specific "Fix" button
-    /// Note: Some actions (like installRequiredRuntimeServices) are only in install plans, not repair plans.
-    public func runSingleAction(_ action: AutoFixAction, using broker: PrivilegeBroker) async
-        -> InstallerReport
-    {
+    public func runSingleAction(_ action: AutoFixAction) async -> InstallerReport {
         await withInstallerTransaction {
-            await runSingleActionWithinTransaction(action, using: broker)
+            await runSingleActionWithinTransaction(action)
         }
     }
 
-    private func runSingleActionWithinTransaction(
-        _ action: AutoFixAction,
-        using broker: PrivilegeBroker
-    ) async -> InstallerReport {
-        AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action), using:) starting")
+    private func runSingleActionWithinTransaction(_ action: AutoFixAction) async -> InstallerReport {
+        AppLogger.shared.log("🔧 [InstallerEngine] runSingleAction(\(action)) starting")
         let context = await inspectSystem()
-
-        // Determine which intent would include this action.
-        let intent: InstallIntent = action == .installRequiredRuntimeServices ? .install : .repair
-
-        let basePlan = await makePlan(for: intent, context: context)
+        let basePlan = await makePlan(for: .repair, context: context)
 
         // Filter recipes to only include ones matching the action
         let actionRecipeID = recipeIDForAction(action)
         let filteredRecipes = basePlan.recipes.filter { $0.id == actionRecipeID }
 
+        // If the repair plan does not include the action, generate its recipe directly.
         let finalRecipes: [ServiceRecipe]
         if filteredRecipes.isEmpty {
-            // If not found in the plan, generate a recipe directly for this action
-            // This handles edge cases where the action isn't included in the intent's plan
-            if let directRecipe = recipeForAction(action, context: context) {
-                AppLogger.shared.log("🔧 [InstallerEngine] Generating direct recipe for action: \(action)")
-                finalRecipes = [directRecipe]
-            } else {
-                AppLogger.shared.log("⚠️ [InstallerEngine] No recipe available for action: \(action)")
-                let runID = UUID()
-                let error = "No recipe available for action: \(action)"
-                let telemetry = InstallerRepairTelemetryEvent(
-                    runID: runID,
-                    planID: basePlan.id,
-                    beforeSnapshotID: context.snapshotID,
-                    trigger: .singleAction,
-                    intent: basePlan.intent.telemetryValue,
-                    stateMatrixRow: basePlan.metadata.stateMatrixRow,
-                    stateMatrixPlan: basePlan.metadata.stateMatrixPlan,
-                    action: String(describing: action),
-                    recipeID: nil,
-                    recipeType: nil,
-                    postconditionResult: .failed,
-                    error: error
-                )
-                return InstallerReport(
-                    runID: runID,
-                    planID: basePlan.id,
-                    beforeSnapshotID: context.snapshotID,
-                    success: false,
-                    completionState: .executionFailed,
-                    failureReason: error,
-                    executedRecipes: [],
-                    logs: [],
-                    repairTelemetry: [telemetry]
-                )
-            }
+            AppLogger.shared.log("🔧 [InstallerEngine] Generating direct recipe for action: \(action)")
+            finalRecipes = [recipeForAction(action, context: context)]
         } else {
             finalRecipes = filteredRecipes
         }
 
         // Create a filtered plan with just the matching recipes. If the recipe came from a
-        // direct single-action fallback, do not inherit a broad install/repair blocker that
+        // direct single-action fallback, do not inherit a broad repair blocker that
         // can belong to a different wizard step; the recipe execution still enforces its
         // own failure and postcondition checks.
         let shouldPreserveBaseBlocker = !filteredRecipes.isEmpty
@@ -858,37 +786,14 @@ public final class InstallerEngine {
 
         let report = await executeWithinTransaction(
             plan: filteredPlan,
-            using: broker,
             trigger: .singleAction
         )
         AppLogger.shared.log(
-            "✅ [InstallerEngine] runSingleAction(\(action), using:) complete - success: \(report.success)"
+            "✅ [InstallerEngine] runSingleAction(\(action)) complete - success: \(report.success)"
         )
         return report
     }
-
-    // MARK: - Unavailable compatibility APIs
-
-    public func uninstallVirtualHIDDrivers(using _: PrivilegeBroker) async throws {
-        throw InstallerError.unknownRecipe("VirtualHID uninstall is unavailable in the driverless build")
-    }
-
-    public func disableKarabinerGrabber(using _: PrivilegeBroker) async throws {
-        throw InstallerError.unknownRecipe("Karabiner mutation is unavailable in the driverless build")
-    }
-
-    public func restartKarabinerDaemon(using _: PrivilegeBroker) async throws -> Bool {
-        throw InstallerError.unknownRecipe("Karabiner restart is unavailable in the driverless build")
-    }
-
-    public func sudoExecuteCommand(
-        _: String, description _: String, using _: PrivilegeBroker
-    ) async throws {
-        throw InstallerError.unknownRecipe("Privileged commands are unavailable in the driverless build")
-    }
 }
-
-extension InstallerEngine: InstallerEnginePrivilegedRouting {}
 
 // MARK: - Installer Errors
 

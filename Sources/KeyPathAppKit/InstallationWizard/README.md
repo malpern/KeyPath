@@ -171,8 +171,9 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
 - Severities: `info`, `warning`, `error`, `critical`
 
 ### Auto-Fix Actions (`AutoFixAction` enum)
-- 16 different auto-fix capabilities (see WizardTypes.swift:151-172)
-- Examples: `terminateConflictingProcesses`, `installMissingComponents`, `fixDriverVersionMismatch`
+- Two session-runtime actions (see `WizardTypes.swift`): `restartCommServer`
+  (starts the session runtime) and `synchronizeConfigPaths` (confirms the user
+  config exists). The privileged-stack actions were removed (ADR-047).
 
 ### Requirements
 - `PermissionRequirement` - TCC permissions (Input Monitoring, Accessibility)
@@ -263,11 +264,8 @@ Each page is 400-600 lines and follows a consistent pattern:
 ## Known Issues & Future Work
 
 ### ✅ Completed (November 2025)
-- **ADR-012**: Driver version detection fully wired to Fix button
-  - Detection: `VHIDDeviceManager.hasVersionMismatch()` → `SystemContext.components.vhidVersionMismatch`
-  - Action: `InstallerDecisionPipeline` adds `.fixDriverVersionMismatch` when version mismatch detected
-  - Dialog: `WizardAutoFixer.fixDriverVersionMismatch()` shows confirmation dialog
-  - Install: Downloads and installs v5.0.0 via `PrivilegedOperationsCoordinator`
+- **ADR-012**: Driver version detection was wired to the Fix button; that action was
+  removed with the privileged stack (ADR-047).
 
 ### Pending Work
 - ✅ DONE: Updated `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift (Kanata v1.10.0 released Nov 2025)

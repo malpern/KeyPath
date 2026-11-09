@@ -267,9 +267,9 @@ final class CLIOutputContractTests: KeyPathTestCase {
             userActionRequired: false,
             promptsNeeded: true,
             issues: [issue],
-            stateMatrixRow: InstallerStateMatrixRow.helperMissing.rawValue,
+            stateMatrixRow: InstallerStateMatrixRow.sessionRuntimeStopped.rawValue,
             stateMatrixPlan: [
-                InstallerStateMatrixAction.installHelper.rawValue,
+                InstallerStateMatrixAction.restartOrRecoverKanataRuntime.rawValue,
             ]
         )
 
@@ -283,8 +283,8 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
         let data = try encoder.encode(result)
         let decoded = try decoder.decode(CLIInspectResult.self, from: data)
-        XCTAssertEqual(decoded.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
-        XCTAssertEqual(decoded.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
+        XCTAssertEqual(decoded.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeStopped.rawValue)
+        XCTAssertEqual(decoded.stateMatrixPlan, [InstallerStateMatrixAction.restartOrRecoverKanataRuntime.rawValue])
     }
 
     func testPermissionGuidanceUsesOSPaneNameWithoutChangingPolicyOrDeepLink() {

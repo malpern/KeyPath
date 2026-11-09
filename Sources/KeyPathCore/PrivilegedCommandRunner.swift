@@ -109,7 +109,7 @@ public enum PrivilegedCommandRunner {
     }
 
     /// Direct entry points for callers that must force one mechanism
-    /// (e.g. PrivilegedExecutor delegation). Same bounded execution as
+    /// (e.g. AdminCommandExecutor delegation). Same bounded execution as
     /// `execute(command:prompt:)`.
     public static func executeSudoDirect(command: String) -> Result {
         executeWithSudo(command: command)

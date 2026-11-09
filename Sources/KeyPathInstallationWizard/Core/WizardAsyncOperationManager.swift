@@ -605,44 +605,10 @@ public struct WizardError: LocalizedError {
 public extension AutoFixAction {
     var displayName: String {
         switch self {
-        case .installPrivilegedHelper:
-            "Install Privileged Helper"
-        case .reinstallPrivilegedHelper:
-            "Reinstall Privileged Helper"
-        case .terminateConflictingProcesses:
-            "Terminate Conflicting Processes"
-        case .startKarabinerDaemon:
-            "Start Karabiner Daemon"
-        case .restartVirtualHIDDaemon:
-            "Restart Virtual HID Daemon"
-        case .installMissingComponents:
-            "Install Missing Components"
-        case .createConfigDirectories:
-            "Create Config Directories"
-        case .activateVHIDDeviceManager:
-            "Activate VirtualHIDDevice Manager"
-        case .installRequiredRuntimeServices:
-            "Install Required Runtime Services"
-        case .repairVHIDDaemonServices:
-            "Repair VHID Daemon Services"
         case .synchronizeConfigPaths:
             "Synchronize Config Paths"
-        case .installLogRotation:
-            "Install Log Rotation"
-        case .enableTCPServer:
-            "Enable TCP Server"
-        case .setupTCPAuthentication:
-            "Setup TCP Authentication"
-        case .regenerateCommServiceConfiguration:
-            "Regenerate TCP Service Configuration"
-        case .regenerateServiceConfiguration:
-            "Regenerate Service Configuration"
         case .restartCommServer:
             "Restart TCP Server"
-        case .fixDriverVersionMismatch:
-            "Fix Karabiner Driver Version"
-        case .installCorrectVHIDDriver:
-            "Install Karabiner Driver"
         }
     }
 }

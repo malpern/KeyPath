@@ -403,7 +403,7 @@ struct AboutView: View {
         isRepairing = true
         statusMessage = "Running repair..."
 
-        let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        let report = await InstallerEngine().run(intent: .repair)
         if report.success {
             statusMessage = "Repair completed successfully."
         } else {

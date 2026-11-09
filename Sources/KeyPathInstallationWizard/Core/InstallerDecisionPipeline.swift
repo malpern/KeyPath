@@ -73,18 +73,7 @@ public enum InstallerDecisionPipeline {
 
     /// Determine actions for uninstall
     public static func determineUninstallActions(context _: SystemContext) -> [AutoFixAction] {
-        // Uninstall is handled differently - logic is in UninstallCoordinator
+        // Uninstall is handled differently - logic is in SessionUninstallCoordinator
         []
-    }
-}
-
-public extension SystemContext {
-    var requiresManualVHIDDriverApproval: Bool {
-        // Matrix row: DriverKit approval pending. The specific activation
-        // reason is treated as current macOS approval state when the driver is
-        // installed, even if Kanata is also stopped.
-        components.karabinerDriverInstalled
-            && !services.vhidHealthy
-            && services.kanataInputCaptureIssue == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
     }
 }

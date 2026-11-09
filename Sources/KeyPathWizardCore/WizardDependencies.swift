@@ -10,7 +10,6 @@ import SwiftUI
 /// Usage in KeyPathAppKit startup:
 ///     WizardDependencies.configure(
 ///         runtimeCoordinator: runtimeCoordinator,
-///         helperManager: HelperManager.shared,
 ///         daemonManager: KanataDaemonManager.shared,
 ///         ...
 ///     )
@@ -21,9 +20,6 @@ public enum WizardDependencies {
     /// RuntimeCoordinator instance
     public static var runtimeCoordinator: (any RuntimeCoordinating)?
 
-    /// HelperManager instance
-    public static var helperManager: (any WizardHelperManaging)?
-
     /// KanataDaemonManager instance
     public static var daemonManager: (any WizardDaemonManaging)?
 
@@ -32,14 +28,8 @@ public enum WizardDependencies {
     /// SystemValidator instance
     public static var systemValidator: (any WizardSystemValidating)?
 
-    /// HelperMaintenance instance
-    public static var helperMaintenance: (any WizardHelperMaintaining)?
-
     /// PermissionRequestService instance
     public static var permissionRequestService: (any WizardPermissionRequesting)?
-
-    /// PrivilegedOperationsCoordinator instance
-    public static var privilegedOperations: (any WizardPrivilegedOperating)?
 
     // MARK: - Page View Factories (for pages implemented in KeyPathAppKit)
 
@@ -53,14 +43,8 @@ public enum WizardDependencies {
 
     // MARK: - Type-Erased Closures
 
-    /// Check if the helper needs Login Items approval in System Settings
-    public static var helperNeedsApproval: (() -> Bool)?
-
     /// UninstallCoordinator factory (type-erased, creates new instance each call)
     public static var createUninstallCoordinator: (() -> any WizardUninstalling)?
-
-    /// AdminCommandExecutor - execute(batch:) for privileged commands
-    public static var executePrivilegedBatch: ((PrivilegedCommandRunner.Batch) async throws -> (exitCode: Int32, output: String))?
 
     /// KeyPathAppKitResources bundle accessor
     public static var resourceBundle: Bundle?
@@ -89,17 +73,12 @@ public enum WizardDependencies {
     /// Call from KeyPathTestCase.tearDown() within `MainActor.assumeIsolated` or `MainActor.run`.
     public static func reset() {
         runtimeCoordinator = nil
-        helperManager = nil
         daemonManager = nil
         systemValidator = nil
-        helperMaintenance = nil
         permissionRequestService = nil
-        privilegedOperations = nil
         makeKanataMigrationPage = nil
         makeKarabinerImportPage = nil
-        helperNeedsApproval = nil
         createUninstallCoordinator = nil
-        executePrivilegedBatch = nil
         resourceBundle = nil
         getExternalKanataInfo = nil
         stopExternalKanata = nil

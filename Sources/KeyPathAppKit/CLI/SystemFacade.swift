@@ -199,8 +199,7 @@ public struct SystemFacade: Sendable {
                 title: "Installation"
             )
         }
-        let broker = PrivilegeBroker()
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
         return CLIInstallerReport(
             from: report,
             initialContext: context,
@@ -247,8 +246,7 @@ public struct SystemFacade: Sendable {
             )
         }
 
-        let broker = PrivilegeBroker()
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
         return CLIInstallerReport(
             from: report,
             initialContext: context,
@@ -262,8 +260,7 @@ public struct SystemFacade: Sendable {
     public func runUninstall(deleteConfig: Bool) async -> CLIInstallerReport {
         CLIRuntimeBootstrap.ensureConfigured()
         let engine = InstallerEngine()
-        let broker = PrivilegeBroker()
-        let report = await engine.uninstall(deleteConfig: deleteConfig, using: broker)
+        let report = await engine.uninstall(deleteConfig: deleteConfig)
         return CLIInstallerReport(from: report)
     }
 
@@ -560,7 +557,7 @@ public struct SystemFacade: Sendable {
             to: &issues
         )
         if !context.services.kanataInputCaptureReady {
-            let needsManualVHIDApproval = context.requiresManualVHIDDriverApproval
+            let needsManualVHIDApproval = requiresManualVHIDDriverApproval(context)
             issues.append(.init(
                 title: needsManualVHIDApproval
                     ? "Karabiner VirtualHIDDevice driver is not activated"
@@ -576,6 +573,14 @@ public struct SystemFacade: Sendable {
                     : KeyPathConstants.URLs.terminalInputCaptureTroubleshooting
             ))
         }
+    }
+
+    /// DriverKit approval pending: the driver is installed but macOS has not
+    /// activated it, so a retry cannot help.
+    private static func requiresManualVHIDDriverApproval(_ context: SystemContext) -> Bool {
+        context.components.karabinerDriverInstalled
+            && !context.services.vhidHealthy
+            && context.services.kanataInputCaptureIssue == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
     }
 
     private static func appendPermissionIssue(

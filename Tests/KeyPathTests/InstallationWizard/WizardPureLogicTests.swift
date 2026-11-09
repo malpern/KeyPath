@@ -65,7 +65,7 @@ final class WizardPureLogicTests: XCTestCase {
     }
 
     private var healthyHelper: HelperStatus {
-        HelperStatus(isInstalled: true, version: WizardHelperConstants.expectedHelperVersion, isWorking: true)
+        HelperStatus(isInstalled: true, version: KeyPathHelperContract.version, isWorking: true)
     }
 
     private var defaultSystem: EngineSystemInfo {
@@ -121,7 +121,7 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertTrue(blocking.isEmpty, "Healthy system should have no blocking issues")
     }
 
-    func test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture() {
+    func test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCaptureAsStopped() {
         let context = makeContext(
             services: HealthStatus(backend: .driverKit,
                                    kanataLaunchdLoaded: true,
@@ -136,8 +136,8 @@ final class WizardPureLogicTests: XCTestCase {
                                    loginItemsApprovalRequired: false)
         )
 
-        XCTAssertEqual(context.installerStateMatrixRow, .staleInputCaptureIssueWithKanataStopped)
-        XCTAssertEqual(context.installerStateMatrixPlan, [.installRequiredRuntimeServices])
+        XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeStopped)
+        XCTAssertEqual(context.installerStateMatrixPlan, [.restartOrRecoverKanataRuntime])
     }
 
     func test_systemStateProjectionPublishesStateMatrixMetadata() {
@@ -145,9 +145,9 @@ final class WizardPureLogicTests: XCTestCase {
 
         let result = SystemStateResult.projecting(context)
 
-        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.helperMissing.rawValue)
-        XCTAssertEqual(result.stateMatrixPlan, [InstallerStateMatrixAction.installHelper.rawValue])
-        XCTAssertEqual(result.autoFixActions, [], "Historical helper classification must not produce an executable helper repair")
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeReady.rawValue)
+        XCTAssertEqual(result.stateMatrixPlan, [])
+        XCTAssertEqual(result.autoFixActions, [], "A missing retired helper must not produce an executable repair")
     }
 
     func test_systemStateProjectionPreservesCaptureStatus() {
@@ -156,7 +156,7 @@ final class WizardPureLogicTests: XCTestCase {
         let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(result.captureStatus, .cancelled)
-        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeStopped.rawValue)
         XCTAssertEqual(result.state, .serviceNotRunning, "An incomplete capture is never reported as a running runtime")
         XCTAssertTrue(result.issues.isEmpty, "An incomplete capture must not invent a consent or runtime fault")
     }
@@ -167,7 +167,7 @@ final class WizardPureLogicTests: XCTestCase {
         let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(result.captureStatus, .failed)
-        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.definitiveUnhealthyState.rawValue)
+        XCTAssertEqual(result.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeStopped.rawValue)
         XCTAssertEqual(result.state, .serviceNotRunning)
         XCTAssertTrue(result.issues.isEmpty)
     }
@@ -234,40 +234,40 @@ final class WizardPureLogicTests: XCTestCase {
                 name: "healthy repair",
                 intent: .repair,
                 context: makeContext(),
-                assessment: .runningAndTCPResponding,
+                assessment: .sessionRuntimeReady,
                 matrixActions: [],
                 autoFixActions: []
             ),
             DecisionFixture(
-                name: "missing helper repair",
+                name: "missing retired helper does not affect repair",
                 intent: .repair,
                 context: makeContext(helper: .empty),
-                assessment: .helperMissing,
-                matrixActions: [.installHelper],
+                assessment: .sessionRuntimeReady,
+                matrixActions: [],
                 autoFixActions: []
             ),
             DecisionFixture(
-                name: "fresh install missing component",
+                name: "fresh install missing engine",
                 intent: .install,
                 context: makeContext(components: missingComponents),
-                assessment: .freshInstallMissingComponents,
-                matrixActions: [.installMissingComponents],
+                assessment: .sessionRuntimeStopped,
+                matrixActions: [.restartOrRecoverKanataRuntime],
                 autoFixActions: []
             ),
             DecisionFixture(
                 name: "stale diagnostic after stopped runtime",
                 intent: .repair,
                 context: makeContext(services: stoppedWithStaleDiagnostic),
-                assessment: .staleInputCaptureIssueWithKanataStopped,
-                matrixActions: [.installRequiredRuntimeServices],
+                assessment: .sessionRuntimeStopped,
+                matrixActions: [.restartOrRecoverKanataRuntime],
                 autoFixActions: [.restartCommServer]
             ),
             DecisionFixture(
-                name: "driver approval pending",
+                name: "retired driver approval signal with stopped runtime",
                 intent: .repair,
                 context: makeContext(services: driverApprovalPending),
-                assessment: .driverKitApprovalPendingWithKanataStopped,
-                matrixActions: [.surfaceDriverKitApproval],
+                assessment: .sessionRuntimeStopped,
+                matrixActions: [.restartOrRecoverKanataRuntime],
                 autoFixActions: [.restartCommServer]
             ),
         ]
@@ -498,24 +498,9 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_recipeIDs_areUniqueStrings() {
         let allIDs = [
-            InstallerRecipeID.installRequiredRuntimeServices,
-            InstallerRecipeID.installCorrectVHIDDriver,
-            InstallerRecipeID.installLogRotation,
-            InstallerRecipeID.installPrivilegedHelper,
-            InstallerRecipeID.reinstallPrivilegedHelper,
-            InstallerRecipeID.startKarabinerDaemon,
-            InstallerRecipeID.terminateConflictingProcesses,
-            InstallerRecipeID.fixDriverVersionMismatch,
-            InstallerRecipeID.installMissingComponents,
-            InstallerRecipeID.createConfigDirectories,
-            InstallerRecipeID.activateVHIDManager,
-            InstallerRecipeID.repairVHIDDaemonServices,
-            InstallerRecipeID.enableTCPServer,
-            InstallerRecipeID.setupTCPAuthentication,
-            InstallerRecipeID.regenerateCommServiceConfig,
-            InstallerRecipeID.regenerateServiceConfig,
-            InstallerRecipeID.restartCommServer,
+            InstallerRecipeID.startSessionRuntime,
             InstallerRecipeID.synchronizeConfigPaths,
+            InstallerRecipeID.verifyPostconditions,
         ]
         let uniqueIDs = Set(allIDs)
         XCTAssertEqual(allIDs.count, uniqueIDs.count, "All recipe IDs should be unique")
@@ -523,24 +508,9 @@ final class WizardPureLogicTests: XCTestCase {
 
     func test_recipeIDs_areKebabCase() {
         let allIDs = [
-            InstallerRecipeID.installRequiredRuntimeServices,
-            InstallerRecipeID.installCorrectVHIDDriver,
-            InstallerRecipeID.installLogRotation,
-            InstallerRecipeID.installPrivilegedHelper,
-            InstallerRecipeID.reinstallPrivilegedHelper,
-            InstallerRecipeID.startKarabinerDaemon,
-            InstallerRecipeID.terminateConflictingProcesses,
-            InstallerRecipeID.fixDriverVersionMismatch,
-            InstallerRecipeID.installMissingComponents,
-            InstallerRecipeID.createConfigDirectories,
-            InstallerRecipeID.activateVHIDManager,
-            InstallerRecipeID.repairVHIDDaemonServices,
-            InstallerRecipeID.enableTCPServer,
-            InstallerRecipeID.setupTCPAuthentication,
-            InstallerRecipeID.regenerateCommServiceConfig,
-            InstallerRecipeID.regenerateServiceConfig,
-            InstallerRecipeID.restartCommServer,
+            InstallerRecipeID.startSessionRuntime,
             InstallerRecipeID.synchronizeConfigPaths,
+            InstallerRecipeID.verifyPostconditions,
         ]
         for id in allIDs {
             XCTAssertFalse(id.isEmpty, "Recipe ID should not be empty")

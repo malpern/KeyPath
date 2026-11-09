@@ -1,5 +1,6 @@
 import Foundation
 import KeyPathAppKit
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
@@ -10,7 +11,7 @@ struct SystemContextBuilder {
     var permissionsStatus: PermissionOracle.Status = .granted
     var helperReady: Bool = true
     var helperRequiresApproval: Bool = false
-    var helperVersion: String? = WizardHelperConstants.expectedHelperVersion
+    var helperVersion: String? = KeyPathHelperContract.version
     var servicesHealthy: Bool = false
     var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?

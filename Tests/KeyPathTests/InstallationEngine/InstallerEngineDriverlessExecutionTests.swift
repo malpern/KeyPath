@@ -26,7 +26,6 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let previous = WizardDependencies.runtimeCoordinator
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
-        let coordinator = StubPrivilegedOperationsCoordinator()
         let final = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
                                      systemValidator: StubSystemValidator(context: final))
@@ -46,8 +45,6 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
             ServiceRecipe(id: "start-session-runtime", type: .installComponent,
                           healthCheck: .init(serviceID: "system-service", shouldBeRunning: true),
                           expectedPostconditions: [.runtimeReadyOrApprovalPending]),
-            ServiceRecipe(id: "start-session-runtime", type: .installComponent,
-                          expectedPostconditions: [.helperReadyOrApprovalPending]),
             ServiceRecipe(id: "start-session-runtime", type: .installComponent),
             ServiceRecipe(id: "start-session-runtime", type: .installComponent, dependencies: ["injected"],
                           expectedPostconditions: [.runtimeReadyOrApprovalPending]),
@@ -57,16 +54,14 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         ]
         for recipe in recipes {
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: .repair,
-                                   initialPostconditionStates: [.runtimeReadyOrApprovalPending: false,
-                                                                .helperReadyOrApprovalPending: false])
-            let report = await engine.execute(plan: plan, using: PrivilegeBroker(coordinator: coordinator))
+                                   initialPostconditionStates: [.runtimeReadyOrApprovalPending: false])
+            let report = await engine.execute(plan: plan)
             XCTAssertFalse(report.success, "Malformed recipe must never execute")
             XCTAssertTrue(report.failureReason?.contains("unavailable in the driverless build") ?? false)
             XCTAssertTrue(report.executedRecipes.isEmpty)
             XCTAssertNotNil(report.finalContext)
         }
         XCTAssertEqual(runtime.starts, 0)
-        XCTAssertTrue(coordinator.calls.isEmpty)
     }
 
     func testMixedPlanRefusesBeforePermittedSessionStart() async {
@@ -74,18 +69,16 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let previous = WizardDependencies.runtimeCoordinator
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
-        let coordinator = StubPrivilegedOperationsCoordinator()
         let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
                                      systemValidator: StubSystemValidator(context: context))
-        let permitted = engine.recipeForAction(.restartCommServer, context: context)!
+        let permitted = engine.recipeForAction(.restartCommServer, context: context)
         let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-helper", type: .repairPrivilegedHelper)],
                                status: .ready, intent: .repair)
-        let report = await engine.execute(plan: plan, using: PrivilegeBroker(coordinator: coordinator))
+        let report = await engine.execute(plan: plan)
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.executedRecipes.isEmpty)
         XCTAssertEqual(runtime.starts, 0)
-        XCTAssertTrue(coordinator.calls.isEmpty)
         XCTAssertEqual(report.planID, plan.id)
         XCTAssertEqual(report.finalContext?.snapshotID, context.snapshotID)
     }
@@ -95,18 +88,16 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let previous = WizardDependencies.runtimeCoordinator
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
-        let coordinator = StubPrivilegedOperationsCoordinator()
         let engine = InstallerEngine()
-        let recipe = engine.recipeForAction(.restartCommServer, context: .empty)!
+        let recipe = engine.recipeForAction(.restartCommServer, context: .empty)
         for intent in [InstallIntent.inspectOnly, .uninstall] {
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: intent)
-            let report = await engine.execute(plan: plan, using: PrivilegeBroker(coordinator: coordinator))
+            let report = await engine.execute(plan: plan)
             XCTAssertFalse(report.success)
             XCTAssertEqual(report.planID, plan.id)
             XCTAssertTrue(report.executedRecipes.isEmpty)
         }
         XCTAssertEqual(runtime.starts, 0)
-        XCTAssertTrue(coordinator.calls.isEmpty)
     }
 
     func testSessionStartRequiresFreshCompleteRuntimeReadiness() async {
@@ -114,15 +105,14 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let previous = WizardDependencies.runtimeCoordinator
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
-        let coordinator = StubPrivilegedOperationsCoordinator()
         let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         let stoppedWithLegacyApproval = SystemContextBuilder(loginItemsApprovalRequired: true).build()
         for final in [ready, stoppedWithLegacyApproval] {
             let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
                                          systemValidator: StubSystemValidator(context: final))
-            let recipe = engine.recipeForAction(.restartCommServer, context: final)!
+            let recipe = engine.recipeForAction(.restartCommServer, context: final)
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: .repair)
-            let report = await engine.execute(plan: plan, using: PrivilegeBroker(coordinator: coordinator))
+            let report = await engine.execute(plan: plan)
             XCTAssertEqual(report.success, final.services.kanataRuntimeReadiness.isReady)
             XCTAssertEqual(report.finalContext?.snapshotID, final.snapshotID)
             if !report.success {
@@ -131,7 +121,6 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
             }
         }
         XCTAssertEqual(runtime.starts, 2)
-        XCTAssertTrue(coordinator.calls.isEmpty)
     }
 }
 

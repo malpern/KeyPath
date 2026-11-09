@@ -315,8 +315,8 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 
 ### InstallerEngine Façade
 - **Use `InstallerEngine`** for ANY system modification task:
-  - Installation: `InstallerEngine().run(intent: .install, using: broker)`
-  - Repair/Fix: `InstallerEngine().run(intent: .repair, using: broker)`
+  - Installation: `InstallerEngine().run(intent: .install)`
+  - Repair/Fix: `InstallerEngine().run(intent: .repair)`
   - Uninstall: `InstallerEngine().uninstall(...)`
   - System Check: `InstallerEngine().inspectSystem()`
 - **Do NOT use**:
