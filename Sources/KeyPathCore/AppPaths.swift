@@ -34,12 +34,6 @@ public enum AppPaths {
         userDirectory(".config/keypath")
     }
 
-    /// Append-only crash/service-failure log shared by the app-state and
-    /// daemon monitors: `<logsDirectory>/crashes.log`.
-    public static var crashLogFile: URL {
-        logsDirectory.appendingPathComponent("crashes.log")
-    }
-
     /// Cached: isRunningTests scans Bundle.allBundles on every call and its
     /// result cannot change within a process. The mutable
     /// TestEnvironment.forceTestMode is intentionally excluded — flipping it

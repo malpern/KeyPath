@@ -121,10 +121,6 @@ enum CompositionRoot {
 
             UserNotificationService.shared.requestAuthorizationIfNeeded()
 
-            // Start Kanata error monitoring
-            KanataErrorMonitor.shared.startMonitoring()
-            AppLogger.shared.info("🔍 [App] Started Kanata error monitoring")
-
             // Initialize Sparkle update service
             UpdateService.shared.initialize()
             AppLogger.shared.info("🔄 [App] Sparkle update service initialized")

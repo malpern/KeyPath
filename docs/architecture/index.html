@@ -228,7 +228,7 @@
 <section>
   <div class="section-label">At a Glance</div>
   <h2>What KeyPath Does</h2>
-  <div class="section-desc">KeyPath gives users a visual way to remap their keyboard without writing config files. Under the hood, it generates Kanata configuration and manages a LaunchDaemon that runs the Kanata engine.</div>
+  <div class="section-desc">KeyPath gives users a visual way to remap their keyboard without writing config files. Under the hood, it generates Kanata configuration and runs the Kanata engine in an unprivileged worker in the user's session.</div>
 
   <div class="pillars">
     <div class="pillar">
@@ -270,7 +270,7 @@
         </svg>
       </div>
       <h4>Install</h4>
-      <p>Guided wizard for permissions, helper, and daemon setup</p>
+      <p>Guided wizard for permissions and runtime setup</p>
     </div>
     <div class="pillar">
       <div class="pillar-icon">
@@ -347,13 +347,13 @@
       <text x="312" y="43" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">FACADE</text>
       <text x="312" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">InstallerEngine</text>
 
-      <!-- Arrow to LaunchDaemon -->
+      <!-- Arrow to session worker -->
       <line x1="392" y1="48" x2="448" y2="48" stroke="#0071e3" stroke-width="1.5" marker-end="url(#arr-b)"/>
 
-      <!-- LaunchDaemon -->
+      <!-- Session worker -->
       <rect x="452" y="20" width="160" height="56" rx="10" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1.2"/>
-      <text x="532" y="43" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">SYSTEM SERVICE</text>
-      <text x="532" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">LaunchDaemon</text>
+      <text x="532" y="43" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">USER SESSION</text>
+      <text x="532" y="59" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">Session worker</text>
 
       <!-- Arrow down to Kanata -->
       <line x1="532" y1="76" x2="532" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
@@ -384,12 +384,12 @@
       <line x1="312" y1="76" x2="312" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
 
       <!-- Footer -->
-      <text x="310" y="220" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">The app generates Kanata config, the daemon runs it, and TCP events flow back for visualization.</text>
+      <text x="310" y="220" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">The app generates Kanata config, a session worker runs it, and TCP events flow back for visualization.</text>
     </svg>
   </div>
 
   <div class="prose">
-    <strong>The core loop is simple:</strong> the user remaps keys in the SwiftUI UI, KeyPath generates a Kanata config file, the LaunchDaemon picks it up (via TCP reload), and key events flow back through the overlay for visualization. The installation wizard ensures all system components (privileged helper, daemon plist, permissions) are in place before any of this can work.
+    <strong>The core loop is simple:</strong> the user remaps keys in the SwiftUI UI, KeyPath generates a Kanata config file, the session worker (a second copy of KeyPath.app hosting Kanata through <code>libkeypath_kanata_host_bridge.dylib</code>) picks it up via TCP reload, and key events flow back through the overlay for visualization. Nothing runs as root. The installation wizard makes sure Accessibility is granted and the runtime is ready before any of this can work.
   </div>
 </section>
 
@@ -453,7 +453,7 @@
         <span class="doc-name">Runtime & Service Lifecycle</span>
         <span class="doc-badge ready">Ready</span>
       </div>
-      <div class="doc-desc">How Kanata starts, stops, and recovers. The <code>RuntimeCoordinator</code>, <code>ServiceLifecycleCoordinator</code>, <code>ServiceHealthChecker</code>, and <code>KanataDaemonService</code>. Health polling, TCP readiness, crash recovery, and the "installer success requires verified runtime readiness" invariant.</div>
+      <div class="doc-desc">How Kanata starts, stops, and recovers. The <code>RuntimeCoordinator</code>, <code>ServiceLifecycleCoordinator</code>, and <code>ServiceHealthChecker</code>. Health polling, TCP readiness, crash recovery, and the "installer success requires verified runtime readiness" invariant.</div>
     </a>
 
     <a href="permissions-architecture.html" class="doc-card">
@@ -484,9 +484,9 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12 L12 5 L19 12 L12 19 Z" fill="#e8e8ed" stroke="#3d4852" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.5" fill="#f5f5f7" stroke="#3d4852" stroke-width="1"/></svg>
         </div>
         <span class="doc-name">Privileged Helper & XPC</span>
-        <span class="doc-badge ready">Ready</span>
+        <span class="doc-badge planned">Historical</span>
       </div>
-      <div class="doc-desc">The privileged helper tool that installs the LaunchDaemon. <code>SMAppService</code> registration, XPC communication, code signing requirements, and the <code>HelperProtocol.swift</code> duplication invariant (ADR-018).</div>
+      <div class="doc-desc">Historical: the privileged helper retired by ADR-045 and ADR-047. <code>SMAppService</code> registration, XPC communication, code signing requirements, and the <code>HelperProtocol.swift</code> duplication invariant (ADR-018).</div>
     </a>
 
     <a href="layouts-architecture.html" class="doc-card">
@@ -550,8 +550,8 @@
       <div class="ref-val"><code>~/Library/Logs/KeyPath/keypath-debug.log</code></div>
     </div>
     <div class="ref-row">
-      <div class="ref-key">Daemon plist</div>
-      <div class="ref-val"><code>com.keypath.kanata</code> &mdash; managed via <code>SMAppService</code></div>
+      <div class="ref-key">Runtime</div>
+      <div class="ref-val"><code>SessionRuntimeWorker</code>, started by <code>ServiceLifecycleCoordinator+SessionRuntime</code>; logs to the debug log</div>
     </div>
     <div class="ref-row">
       <div class="ref-key">ADRs</div>

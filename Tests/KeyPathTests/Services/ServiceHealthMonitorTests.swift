@@ -151,40 +151,6 @@ class ServiceHealthMonitorTests: XCTestCase {
         XCTAssertEqual(cooldownState.attemptsSinceLastSuccess, 0, "Should reset attempt counter")
     }
 
-    // MARK: - Connection Failure Tracking Tests
-
-    func testRecordConnectionFailure_CountsFailures() async {
-        for i in 1 ... 5 {
-            let shouldTrigger = await monitor.recordConnectionFailure()
-            XCTAssertFalse(shouldTrigger, "Should not trigger recovery at \(i) failures")
-        }
-    }
-
-    func testRecordConnectionFailure_TriggersRecoveryAtMax() async {
-        // Record 9 failures
-        for _ in 1 ... 9 {
-            _ = await monitor.recordConnectionFailure()
-        }
-
-        // 10th failure should trigger recovery
-        let shouldTrigger = await monitor.recordConnectionFailure()
-        XCTAssertTrue(shouldTrigger, "Should trigger recovery at max failures (10)")
-    }
-
-    func testRecordConnectionSuccess_ResetCounter() async {
-        // Record some failures
-        _ = await monitor.recordConnectionFailure()
-        _ = await monitor.recordConnectionFailure()
-        _ = await monitor.recordConnectionFailure()
-
-        // Record success should reset
-        await monitor.recordConnectionSuccess()
-
-        // Next failure should start from 1
-        let shouldTrigger = await monitor.recordConnectionFailure()
-        XCTAssertFalse(shouldTrigger, "Should not trigger after reset")
-    }
-
     // MARK: - Recovery Strategy Tests
 
     func testDetermineRecoveryAction_HealthyService() async {
@@ -226,31 +192,11 @@ class ServiceHealthMonitorTests: XCTestCase {
         }
     }
 
-    func testDetermineRecoveryAction_ConnectionFailures() async {
-        // Trigger max connection failures
-        for _ in 1 ... 10 {
-            _ = await monitor.recordConnectionFailure()
-        }
-
-        let healthStatus = ServiceHealthStatus.unhealthy(
-            reason: "Connection issues", shouldRestart: true
-        )
-        let action = await monitor.determineRecoveryAction(healthStatus: healthStatus)
-
-        if case .fullRecovery = action {
-            // Success
-        } else {
-            XCTFail("Should recommend full recovery for connection failures")
-        }
-    }
-
     // MARK: - State Reset Tests
 
     func testResetMonitoringState() async {
         // Set up some state
         await monitor.recordStartAttempt(timestamp: Date())
-        _ = await monitor.recordConnectionFailure()
-        _ = await monitor.recordConnectionFailure()
 
         var cooldownState = await monitor.canRestartService()
         XCTAssertGreaterThan(

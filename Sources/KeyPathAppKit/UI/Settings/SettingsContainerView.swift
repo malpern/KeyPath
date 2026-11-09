@@ -136,12 +136,6 @@ struct SettingsContainerView: View {
             selection = .general
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsLogs)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .showDiagnostics)) { _ in
-            selection = .advanced
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                NotificationCenter.default.post(name: .showErrorsTab, object: nil)
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsRules)) { notification in
             selection = .rules
             SettingsNavigationCoordinator.shared.clearIfMatches(.openSettingsRules)

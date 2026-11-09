@@ -23,10 +23,7 @@ sw_vers > "$OUTPUT_ROOT/sw-vers.txt"
 date -u +%Y-%m-%dT%H:%M:%SZ > "$OUTPUT_ROOT/captured-at.txt"
 
 "$CLI" system inspect --json > "$OUTPUT_ROOT/system-inspect.json"
-systemextensionsctl list > "$OUTPUT_ROOT/system-extensions.txt" 2>&1 || true
-launchctl print system/com.keypath.kanata > "$OUTPUT_ROOT/kanata-launchd.txt" 2>&1 || true
-launchctl print system/com.keypath.karabiner-vhiddaemon > "$OUTPUT_ROOT/vhid-daemon-launchd.txt" 2>&1 || true
-launchctl print system/com.keypath.karabiner-vhidmanager > "$OUTPUT_ROOT/vhid-manager-launchd.txt" 2>&1 || true
+"$CLI" status --json > "$OUTPUT_ROOT/runtime-status.json" 2>&1 || true
 
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" > "$OUTPUT_ROOT/codesign.txt" 2>&1
 if [[ ${KEYPATH_MACOS27_QA_REQUIRE_DISTRIBUTION_TRUST:-1} == 1 ]]; then
@@ -38,14 +35,10 @@ else
 fi
 
 pgrep -fl "$APP_PATH/Contents/MacOS/KeyPath" > "$OUTPUT_ROOT/keypath-process.txt" || true
-pgrep -fl "$APP_PATH/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" \
-    > "$OUTPUT_ROOT/kanata-process.txt" || true
 nc -vz 127.0.0.1 37001 > "$OUTPUT_ROOT/tcp-readiness.txt" 2>&1
 
 mkdir -p "$OUTPUT_ROOT/logs"
 cp "$HOME/Library/Logs/KeyPath/keypath-debug.log" "$OUTPUT_ROOT/logs/" 2>/dev/null || true
-cp /var/log/com.keypath.kanata.stdout.log "$OUTPUT_ROOT/logs/" 2>/dev/null || true
-cp /var/log/com.keypath.kanata.stderr.log "$OUTPUT_ROOT/logs/" 2>/dev/null || true
 
 cat > "$OUTPUT_ROOT/operator-checklist.md" <<'EOF'
 # macOS 27 operator checkpoints

@@ -44,12 +44,6 @@ final class RecoveryCoordinator {
         case .configuration:
             return .resetConfig
 
-        case .process:
-            if diagnostic.title == "Process Terminated" {
-                return .restartService
-            }
-            return nil
-
         default:
             return nil
         }

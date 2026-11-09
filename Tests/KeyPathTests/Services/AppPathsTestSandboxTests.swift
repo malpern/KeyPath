@@ -63,11 +63,6 @@ final class AppPathsTestSandboxTests: XCTestCase {
         assertSandboxed(AppPaths.applicationSupportDirectory)
     }
 
-    func testCrashLogFileIsSandboxed() {
-        assertSandboxed(AppPaths.crashLogFile)
-        XCTAssertEqual(AppPaths.crashLogFile.lastPathComponent, "crashes.log")
-    }
-
     func testKindaVimTelemetryDefaultFileIsSandboxed() {
         let url = KindaVimTelemetryStore.defaultFileURL
         assertSandboxed(url)

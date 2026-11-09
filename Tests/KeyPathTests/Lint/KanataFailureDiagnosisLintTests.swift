@@ -19,7 +19,6 @@ final class KanataFailureDiagnosisLintTests: XCTestCase {
             in: runtimeCoordinator,
             patterns: [
                 #"attemptRecovery:\s*\{"#,
-                #"diagnoseKanataFailure[\s\S]*attemptKeyboardRecovery"#,
             ]
         )
 

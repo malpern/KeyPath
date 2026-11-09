@@ -115,7 +115,6 @@ class MainAppStateController {
 
     // MARK: - Service Health Monitoring (Fix for stale overlay state)
 
-    @ObservationIgnored private var errorDetectionTask: Task<Void, Never>?
     @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
     @ObservationIgnored private var lastKnownRecoveryRevision: UInt64?
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
@@ -197,83 +196,8 @@ class MainAppStateController {
             )
         } else {
             subscribeToServiceHealth()
-            subscribeToErrorDetection()
             startPeriodicRefresh()
         }
-    }
-
-    /// Subscribe to KanataErrorMonitor crash detection to trigger immediate revalidation.
-    /// This ensures crashes are detected even if service state hasn't transitioned yet.
-    private func subscribeToErrorDetection() {
-        errorDetectionTask?.cancel()
-        errorDetectionTask = Task { @MainActor [weak self] in
-            for await notification in NotificationCenter.default.notifications(named: .kanataErrorDetected) {
-                guard let self, !Task.isCancelled else { break }
-
-                // Log crash for later analysis
-                if let error = notification.object as? KanataError {
-                    logCrashEvent(error)
-
-                    // Critical errors should bypass cooldown and revalidate immediately
-                    if error.severity == .critical {
-                        AppLogger.shared.error(
-                            "🚨 [MainAppStateController] Critical error detected - triggering immediate revalidation"
-                        )
-                        await revalidate()
-                    }
-                }
-            }
-        }
-
-        AppLogger.shared.log("🔔 [MainAppStateController] Subscribed to crash/error detection")
-    }
-
-    /// Log crash events to persistent storage for later analysis.
-    /// Crashes are logged to ~/Library/Logs/KeyPath/crashes.log
-    /// (redirected to a temp sandbox during tests via AppPaths).
-    private func logCrashEvent(_ error: KanataError) {
-        let crashLogDir = AppPaths.logsDirectory
-        let crashLogPath = AppPaths.crashLogFile
-
-        // Ensure directory exists
-        do {
-            try Foundation.FileManager().createDirectory(at: crashLogDir, withIntermediateDirectories: true)
-        } catch {
-            AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to create crash log directory: \(error.localizedDescription)")
-        }
-
-        // Format crash entry
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let timestamp = formatter.string(from: error.timestamp)
-
-        let entry = """
-        [\(timestamp)] [\(error.severity.rawValue.uppercased())] \(error.message)
-        Pattern: \(error.pattern ?? "unknown")
-        Raw: \(error.rawLine)
-        ---
-
-        """
-
-        // Append to log file
-        if let data = entry.data(using: .utf8) {
-            do {
-                if Foundation.FileManager().fileExists(atPath: crashLogPath.path) {
-                    let handle = try FileHandle(forWritingTo: crashLogPath)
-                    try handle.seekToEnd()
-                    try handle.write(contentsOf: data)
-                    try handle.close()
-                } else {
-                    try data.write(to: crashLogPath)
-                }
-            } catch {
-                AppLogger.shared.warn("⚠️ [MainAppStateController] Failed to write crash log: \(error.localizedDescription)")
-            }
-        }
-
-        AppLogger.shared.error(
-            "💥 [CrashLog] Logged crash event: \(error.severity.rawValue) - \(error.message)"
-        )
     }
 
     // MARK: - Service Health Monitoring

@@ -44,9 +44,6 @@ enum DiagnosticCategory: String, CaseIterable, Sendable {
 
 /// Service responsible for generating and analyzing system diagnostics
 protocol DiagnosticsServiceProtocol: Sendable {
-    /// Analyze a Kanata failure and return diagnostics
-    func diagnoseKanataFailure(exitCode: Int32, output: String) -> [KanataDiagnostic]
-
     /// Get comprehensive system diagnostics
     func getSystemDiagnostics() async -> [KanataDiagnostic]
     /// Overload used by managers expecting to pass an engine client
@@ -54,9 +51,6 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
     /// Check for Kanata process conflicts
     func checkProcessConflicts() async -> [KanataDiagnostic]
-
-    /// Analyze log file for issues
-    func analyzeLogFile(path: String) async -> [KanataDiagnostic]
 }
 
 // MARK: - Implementation
@@ -78,153 +72,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
         await getSystemDiagnostics()
-    }
-
-    // MARK: - Failure Analysis
-
-    nonisolated func diagnoseKanataFailure(exitCode: Int32, output: String) -> [KanataDiagnostic] {
-        var diagnostics: [KanataDiagnostic] = []
-
-        // Analyze exit code
-        switch exitCode {
-        case 1:
-            if output.contains("IOHIDDeviceOpen error") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .permissions,
-                        title: "Permission Denied",
-                        description: "Kanata cannot access keyboard devices due to missing permissions.",
-                        technicalDetails: "IOHIDDeviceOpen error: exclusive access denied",
-                        suggestedAction: "Use the Installation Wizard to grant required permissions",
-                        canAutoFix: false
-                    )
-                )
-            } else if output.contains("Error in configuration") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .configuration,
-                        title: "Invalid Configuration",
-                        description: "The Kanata configuration file contains syntax errors.",
-                        technicalDetails: output,
-                        suggestedAction: "Review and fix the configuration file, or reset to default",
-                        canAutoFix: true
-                    )
-                )
-            } else if output.contains("device already open") {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .conflict,
-                        title: "Device Conflict",
-                        description: "Another process is already using the keyboard device.",
-                        technicalDetails: output,
-                        suggestedAction:
-                        "Check for conflicting keyboard software (Karabiner-Elements grabber, other keyboard tools)",
-                        canAutoFix: false
-                    )
-                )
-            }
-        case -9:
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .process,
-                    title: "Process Terminated",
-                    description: "Kanata was forcefully terminated (SIGKILL).",
-                    technicalDetails: "Exit code: -9",
-                    suggestedAction: "This usually happens during shutdown or restart. Try starting again.",
-                    canAutoFix: true
-                )
-            )
-        case -15:
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .info,
-                    category: .process,
-                    title: "Process Stopped",
-                    description: "Kanata was gracefully terminated (SIGTERM).",
-                    technicalDetails: "Exit code: -15",
-                    suggestedAction: "This is normal shutdown behavior.",
-                    canAutoFix: false
-                )
-            )
-        case 6:
-            // Exit code 6 has different causes - check for VirtualHID connection issues
-            if output.contains("connect_failed asio.system:61")
-                || output.contains("connect_failed asio.system:2")
-            {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .conflict,
-                        title: "VirtualHID Connection Failed",
-                        description:
-                        "Kanata captured keyboard input but failed to connect to VirtualHID driver, causing unresponsive keyboard.",
-                        technicalDetails: "Exit code: 6 (VirtualHID connection failure)\nOutput: \(output)",
-                        suggestedAction:
-                        "Restart Karabiner-VirtualHIDDevice daemon or try starting KeyPath again",
-                        canAutoFix: true
-                    )
-                )
-            } else {
-                // Generic exit code 6 - permission issues
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .permissions,
-                        title: "Access Denied",
-                        description: "Kanata cannot access system resources (exit code 6).",
-                        technicalDetails: "Exit code: 6\nOutput: \(output)",
-                        suggestedAction: "Use the Installation Wizard to check and grant required permissions",
-                        canAutoFix: false
-                    )
-                )
-            }
-        default:
-            // For unknown exit codes, check if it might be permission-related
-            let isPermissionRelated =
-                output.contains("permission") || output.contains("access") || output.contains("denied")
-                    || output.contains("IOHIDDeviceOpen") || output.contains("privilege")
-
-            if isPermissionRelated {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .permissions,
-                        title: "Possible Permission Issue",
-                        description: "Kanata exited with code \(exitCode), possibly due to permission issues.",
-                        technicalDetails: "Exit code: \(exitCode)\nOutput: \(output)",
-                        suggestedAction: "Use the Installation Wizard to check and grant required permissions",
-                        canAutoFix: false
-                    )
-                )
-            } else {
-                diagnostics.append(
-                    KanataDiagnostic(
-                        timestamp: Date(),
-                        severity: .error,
-                        category: .process,
-                        title: "Unexpected Exit",
-                        description: "Kanata exited unexpectedly with code \(exitCode).",
-                        technicalDetails: "Exit code: \(exitCode)\nOutput: \(output)",
-                        suggestedAction: "Check the logs for more details or try restarting Kanata",
-                        canAutoFix: false
-                    )
-                )
-            }
-        }
-
-        return diagnostics
     }
 
     // MARK: - System Diagnostics
@@ -278,9 +125,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
         let processConflicts = await checkProcessConflicts()
         diagnostics.append(contentsOf: processConflicts)
 
-        // Note: Some Kanata builds do not implement a Status command.
-        // Keep TCP diagnostics driven by HelloOk + log analysis instead.
-
         // TCP handshake summary (protocol/capabilities)
         if let hello = await fetchTcpHello() {
             let caps = hello.capabilities.joined(separator: ", ")
@@ -301,10 +145,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
             // Protocol numbers are not stable across Kanata forks; prefer capability checks.
             // Keep this informational to avoid false "old version" errors.
         }
-
-        // Include log-based integration health (Diagnostics-only, non-blocking)
-        let logDiagnostics = await analyzeLogFile(path: WizardSystemPaths.kanataLogFile)
-        diagnostics.append(contentsOf: logDiagnostics)
 
         return diagnostics
     }
@@ -331,104 +171,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     technicalDetails: conflictDetails,
                     suggestedAction: "Terminate conflicting processes or let KeyPath auto-fix them",
                     canAutoFix: true
-                )
-            )
-        }
-
-        return diagnostics
-    }
-
-    // MARK: - Log Analysis
-
-    func analyzeLogFile(path: String) async -> [KanataDiagnostic] {
-        var diagnostics: [KanataDiagnostic] = []
-
-        guard Foundation.FileManager().fileExists(atPath: path) else {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .warning,
-                    category: .system,
-                    title: "Log File Not Found",
-                    description: "Log file does not exist at \(path)",
-                    technicalDetails: "Path: \(path)",
-                    suggestedAction: "Ensure Kanata has been started at least once",
-                    canAutoFix: false
-                )
-            )
-            return diagnostics
-        }
-
-        do {
-            let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
-            defer { try? handle.close() }
-            let fileSize = (try? handle.seekToEnd()) ?? 0
-            let tailWindow = min(fileSize, 64 * 1024)
-            try handle.seek(toOffset: fileSize - tailWindow)
-            let logData = try handle.readToEnd() ?? Data()
-            guard let logContent = String(data: logData, encoding: .utf8) else {
-                throw NSError(
-                    domain: "KeyPath.Diagnostics",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "Log file is not valid UTF-8"]
-                )
-            }
-            let lines = logContent.components(separatedBy: .newlines)
-
-            // Look for common error patterns
-            for line in lines.suffix(100) { // Check last 100 lines
-                if line.contains("IOHIDDeviceOpen error") {
-                    diagnostics.append(
-                        KanataDiagnostic(
-                            timestamp: Date(),
-                            severity: .error,
-                            category: .permissions,
-                            title: "Permission Error in Logs",
-                            description: "Kanata cannot access keyboard devices",
-                            technicalDetails: line,
-                            suggestedAction: "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name), then quit and reopen KeyPath",
-                            canAutoFix: false
-                        )
-                    )
-                } else if line.contains("connect_failed") {
-                    diagnostics.append(
-                        KanataDiagnostic(
-                            timestamp: Date(),
-                            severity: .error,
-                            category: .conflict,
-                            title: "VirtualHID Connection Error in Logs",
-                            description: "Failed to connect to VirtualHID driver",
-                            technicalDetails: line,
-                            suggestedAction: "Restart Karabiner-VirtualHIDDevice daemon",
-                            canAutoFix: true
-                        )
-                    )
-                } else if line.contains("ERROR") || line.contains("FATAL") {
-                    diagnostics.append(
-                        KanataDiagnostic(
-                            timestamp: Date(),
-                            severity: .error,
-                            category: .process,
-                            title: "Error Found in Logs",
-                            description: "Kanata encountered an error",
-                            technicalDetails: line,
-                            suggestedAction: "Check the full logs for details",
-                            canAutoFix: false
-                        )
-                    )
-                }
-            }
-        } catch {
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .error,
-                    category: .system,
-                    title: "Failed to Read Log File",
-                    description: "Could not read log file at \(path)",
-                    technicalDetails: error.localizedDescription,
-                    suggestedAction: "Check file permissions",
-                    canAutoFix: false
                 )
             )
         }

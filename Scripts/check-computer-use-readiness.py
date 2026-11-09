@@ -79,7 +79,6 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         '"settings-capture-mode-picker"',
         '"settings-recording-behavior-picker"',
         '"settings-open-keypath-log-button"',
-        '"settings-open-kanata-log-button"',
         '"settings-layer-indicator-toggle"',
         '"settings-verbose-logging-toggle"',
     ],

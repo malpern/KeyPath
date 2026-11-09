@@ -146,22 +146,6 @@
         }
       }
     },
-    " - Virtual keyboard driver for input capture": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " - 入力キャプチャ用仮想キーボードドライバ"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": " - Virtual keyboard driver for input capture"
-          }
-        }
-      }
-    },
     "(Press all three keys at the same time)": {
       "localizations": {
         "ja": {
@@ -1906,22 +1890,6 @@
         }
       }
     },
-    "Helper Health": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ヘルパーの状態"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Helper Health"
-          }
-        }
-      }
-    },
     "Helpful Tools:": {
       "localizations": {
         "ja": {
@@ -2338,22 +2306,6 @@
         }
       }
     },
-    "Kanata log": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kanataログ"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kanata log"
-          }
-        }
-      }
-    },
     "Kanata refused to load the generated config. KeyPath left the previous configuration in place until you fix the issues below.": {
       "localizations": {
         "ja": {
@@ -2398,22 +2350,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kanata will immediately stop all remapping"
-          }
-        }
-      }
-    },
-    "Karabiner Driver": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Karabinerドライバ"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Karabiner Driver"
           }
         }
       }
@@ -2814,22 +2750,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mac (CAGS: Cmd on index)"
-          }
-        }
-      }
-    },
-    "Monitoring Kanata stderr for critical errors. Only severe issues are shown here.": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kanataのstderrを監視中。重大な問題のみ表示されます。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monitoring Kanata stderr for critical errors. Only severe issues are shown here."
           }
         }
       }
@@ -3394,38 +3314,6 @@
         }
       }
     },
-    "Privileged Helper": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "特権ヘルパー"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Privileged Helper"
-          }
-        }
-      }
-    },
-    "Privileged Helper Ready": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "特権ヘルパー準備完了"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Privileged Helper Ready"
-          }
-        }
-      }
-    },
     "Process Details": {
       "localizations": {
         "ja": {
@@ -3502,22 +3390,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ready to Start KeyPath"
-          }
-        }
-      }
-    },
-    "Recent Helper Logs": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "最近のヘルパーログ"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recent Helper Logs"
           }
         }
       }
@@ -4338,22 +4210,6 @@
         }
       }
     },
-    "This will install Kanata and set up the LaunchDaemon service.": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "これによりKanataがインストールされ、LaunchDaemonサービスが設定されます。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This will install Kanata and set up the LaunchDaemon service."
-          }
-        }
-      }
-    },
     "This will remove all custom rules and restore the keyboard to its default mappings.": {
       "localizations": {
         "ja": {
@@ -4366,22 +4222,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "This will remove all custom rules and restore the keyboard to its default mappings."
-          }
-        }
-      }
-    },
-    "This will remove all services, helpers, and the app. Your configuration file will be preserved.": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "これによりすべてのサービス、ヘルパー、アプリが削除されます。設定ファイルは保持されます。"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This will remove all services, helpers, and the app. Your configuration file will be preserved."
           }
         }
       }
@@ -4974,38 +4814,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "sudo ./install-system.sh install"
-          }
-        }
-      }
-    },
-    "• Karabiner-Elements Non-Privileged Agents.app": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "• Karabiner-Elements Non-Privileged Agents.app"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "• Karabiner-Elements Non-Privileged Agents.app"
-          }
-        }
-      }
-    },
-    "• Karabiner-Elements Privileged Daemons.app": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "• Karabiner-Elements Privileged Daemons.app"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "• Karabiner-Elements Privileged Daemons.app"
           }
         }
       }

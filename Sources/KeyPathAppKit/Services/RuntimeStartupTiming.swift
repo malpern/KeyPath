@@ -9,7 +9,8 @@ import Foundation
 enum RuntimeStartupTiming {
     /// How long the startup gate polls before declaring a definitive failure.
     /// Used by `MainAppStateController.evaluateKanataStartupGate`.
-    /// Must cover DriverKit virtual keyboard initialization (30-90s on fresh install).
+    /// Must cover session runtime startup (worker launch, event tap, TCP readiness).
+    /// The value predates the session runtime and has not been retuned for it.
     static let gatePollingWindow: TimeInterval = 130.0
 
     /// How long to treat a missing runtime as "starting" in user-facing UI.

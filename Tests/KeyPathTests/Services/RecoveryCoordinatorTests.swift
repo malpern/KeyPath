@@ -69,8 +69,10 @@ struct RecoveryCoordinatorAutoFixTests {
         #expect(actionType == .resetConfig)
     }
 
-    @Test("autoFixActionType returns restartService for process terminated")
-    func autoFixReturnsRestartServiceForProcessTerminated() {
+    /// The daemon exit diagnosis that produced "Process Terminated" is gone;
+    /// process diagnostics no longer map to an automatic restart.
+    @Test("autoFixActionType returns nil for process diagnostics")
+    func autoFixReturnsNilForProcessDiagnostics() {
         let coordinator = RecoveryCoordinator()
         let diagnostic = makeDiagnostic(
             category: .process,
@@ -79,7 +81,7 @@ struct RecoveryCoordinatorAutoFixTests {
         )
 
         let actionType = coordinator.autoFixActionType(diagnostic)
-        #expect(actionType == .restartService)
+        #expect(actionType == nil)
     }
 
     @Test("autoFixActionType returns nil when canAutoFix is false")

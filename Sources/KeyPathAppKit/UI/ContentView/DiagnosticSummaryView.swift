@@ -126,8 +126,8 @@ struct DiagnosticSummaryView: View {
                 severity: .error,
                 category: .process,
                 title: "Service Not Running",
-                description: "kanata launch daemon is not active.",
-                technicalDetails: "launchctl returned status 3",
+                description: "The KeyPath runtime is not running.",
+                technicalDetails: "Session worker exited",
                 suggestedAction: "Restart service",
                 canAutoFix: true
             ),
