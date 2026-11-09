@@ -156,9 +156,9 @@ keypath export collection "My Rules"        # Export one collection
 keypath system inspect                    # Read local permission/configuration diagnostics
 ```
 
-`system inspect` reads diagnostics available to the CLI process. `keypath doctor`
-asks the running app instead, so it sees the permissions and remapping the app
-actually has; prefer it. Its `Rules:` section (`admission` in `--json`) lists
+`system inspect` reads diagnostics from the CLI process and asks the running app
+whether remapping is running. `keypath doctor` runs the whole check inside the
+app, so it sees the permissions and remapping the app actually has; prefer it. Its `Rules:` section (`admission` in `--json`) lists
 what the admission engine says about the rules now on: a block (`✗`, a key this
 backend can't send, Caps Lock held by another app), a choice (`!`, a key two
 rules both map), or something KeyPath resolves by itself (`•`, the Caps Lock

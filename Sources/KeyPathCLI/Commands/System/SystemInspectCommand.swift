@@ -28,7 +28,7 @@ struct SystemInspect: AsyncParsableCommand {
         CLIOutput.write(result, context: ctx) {
             var lines = [
                 "=== System Inspection ===",
-                "Session runtime state comes from the running KeyPath.app (not running reads as stopped).",
+                "Runtime state comes from the running KeyPath.app; permissions are checked from this CLI process.",
                 "macOS Version: \(result.macOSVersion)",
                 "Driver Compatible: \(result.driverCompatible ? "Yes" : "No")",
                 "",
