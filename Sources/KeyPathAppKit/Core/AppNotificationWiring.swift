@@ -1,6 +1,5 @@
 import AppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 
 /// Centralizes notification observer registration that previously lived in
 /// `AppDelegate.applicationDidFinishLaunching`.

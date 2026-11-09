@@ -42,7 +42,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
 
     override func setUp() async throws {
         try await super.setUp()
-        coordinator = ServiceLifecycleCoordinator(recoveryCoordinator: RecoveryCoordinator())
+        coordinator = ServiceLifecycleCoordinator()
     }
 
     private func nextRequest(_ operation: @escaping @MainActor () async -> Bool) async -> Task<Bool, Never> {

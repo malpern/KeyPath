@@ -22,10 +22,6 @@ let package = Package(
             targets: ["KeyPathPermissions"]
         ),
         .library(
-            name: "KeyPathDaemonLifecycle",
-            targets: ["KeyPathDaemonLifecycle"]
-        ),
-        .library(
             name: "KeyPathRulesCore",
             targets: ["KeyPathRulesCore"]
         ),
@@ -111,15 +107,6 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
-        // Daemon lifecycle library
-        .target(
-            name: "KeyPathDaemonLifecycle",
-            dependencies: ["KeyPathCore"],
-            path: "Sources/KeyPathDaemonLifecycle",
-            swiftSettings: [
-                .swiftLanguageMode(.v6)
-            ]
-        ),
         // Pure rule/configuration domain models.
         .target(
             name: "KeyPathRulesCore",
@@ -132,7 +119,7 @@ let package = Package(
         // Wizard core library (pure models/types)
         .target(
             name: "KeyPathWizardCore",
-            dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle"],
+            dependencies: ["KeyPathCore", "KeyPathPermissions"],
             path: "Sources/KeyPathWizardCore",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
@@ -168,7 +155,7 @@ let package = Package(
         // Installation wizard (extracted from KeyPathAppKit for incremental compilation)
         .target(
             name: "KeyPathInstallationWizard",
-            dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathDaemonLifecycle", "KeyPathWizardCore"],
+            dependencies: ["KeyPathCore", "KeyPathPermissions", "KeyPathWizardCore"],
             path: "Sources/KeyPathInstallationWizard",
             resources: [
                 .process("Resources")
@@ -184,7 +171,6 @@ let package = Package(
                 "KeyPathSessionNative",
                 "KeyPathCore",
                 "KeyPathPermissions",
-                "KeyPathDaemonLifecycle",
                 "KeyPathRulesCore",
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard",
@@ -334,7 +320,6 @@ let package = Package(
                 "KeyPathCore",
                 "KeyPathInsights",
                 "KeyPathPermissions",
-                "KeyPathDaemonLifecycle",
                 "KeyPathRulesCore",
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard"

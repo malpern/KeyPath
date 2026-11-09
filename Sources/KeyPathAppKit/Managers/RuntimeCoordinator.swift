@@ -3,7 +3,6 @@ import ApplicationServices
 import Foundation
 import IOKit.hidsystem
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathRulesCore
@@ -21,7 +20,7 @@ import Network
 // - **ServiceLifecycleCoordinator**: start/stop/restart Kanata, runtime status
 // - **ConfigReloadCoordinator**: TCP-based config reload, safety checks
 // - **SaveCoordinator**: Save operations with rollback
-// - **RecoveryCoordinator**: VirtualHID recovery, keyboard recovery
+// - **RecoveryCoordinator**: recording pause/resume, diagnostic auto-fix
 // - **RuleCollectionsCoordinator**: Rule collection CRUD and persistence
 // - **ConfigurationManager**: Config file management (create, validate, backup)
 // - **DiagnosticsManager**: System diagnostics and health checks
@@ -172,9 +171,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Manager dependencies (exposed for extensions that need direct access)
     let engineClient: EngineClient
 
-    // Legacy dependencies (kept for backward compatibility during transition)
     let configurationService: ConfigurationService
-    let processLifecycleManager: ProcessLifecycleManager
 
     // Additional dependencies needed by extensions
     let installerEngine: InstallerEngine
@@ -241,8 +238,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
         }
 
-        let lifecycleManager = ProcessLifecycleManager()
-        processLifecycleManager = lifecycleManager
+        let processDetector = KanataProcessDetector()
 
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
@@ -253,7 +249,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
 
         // Initialize manager dependencies
-        let diagnosticsService = DiagnosticsService(processLifecycleManager: lifecycleManager)
+        let diagnosticsService = DiagnosticsService(processDetector: processDetector)
         installerEngine = InstallerEngine()
         // Store for extensions
         self.diagnosticsService = diagnosticsService
@@ -269,13 +265,13 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             configurationService: configurationService,
             configFileWatcher: configFileWatcher
         )
-        serviceHealthMonitor = ServiceHealthMonitor(processLifecycle: lifecycleManager)
+        serviceHealthMonitor = ServiceHealthMonitor(processDetector: processDetector)
 
         // Initialize ConfigurationManager
         configurationManager = ConfigurationManager(configurationService: configurationService)
 
         recoveryCoordinator = RecoveryCoordinator()
-        serviceLifecycleCoordinator = ServiceLifecycleCoordinator(recoveryCoordinator: recoveryCoordinator)
+        serviceLifecycleCoordinator = ServiceLifecycleCoordinator()
 
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
@@ -301,7 +297,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             healthStatusProvider: { [diagnosticsManager] tcpPort in
                 await diagnosticsManager.checkHealth(tcpPort: tcpPort)
             },
-            processLifecycleManager: lifecycleManager,
             isRuntimeTransitioning: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.isRuntimeTransitionInProgress
             },
@@ -340,12 +335,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Prefer structured concurrency; a plain Task{} runs off the main actor by default
         if !TestEnvironment.isRunningTests, !isOneShotProbeMode {
             Task { [weak self] in
-                // Clean up any orphaned processes first
-                do {
-                    try await self?.processLifecycleManager.cleanupOrphanedProcesses()
-                } catch {
-                    AppLogger.shared.log("❌ [RuntimeCoordinator] Orphaned process cleanup failed: \(error)")
-                }
                 await self?.performInitialization()
             }
         } else {
@@ -388,7 +377,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             self?.serviceLifecycleCoordinator.lastSessionReportForDiagnostics()
         }
         StuckKeyRecoveryService.shared.runtimeIsRemapping = { [weak self] in
-            guard KanataRuntimeBackend.selected == .session else { return true }
             guard let report = self?.serviceLifecycleCoordinator.currentSessionReport() else { return false }
             return report.state == .running && report.tapActive
         }
@@ -418,7 +406,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                     throw KeyPathError.process(.notRunning)
                 }
             },
-            restartKarabinerDaemon: { false },
             restartService: { [weak serviceLifecycleCoordinator] reason in
                 await serviceLifecycleCoordinator?.startKanata(reason: reason) ?? false
             }
@@ -625,36 +612,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         return report
     }
 
-    private func captureRecentKanataErrorMessage() -> String? {
-        let stderrPath = KeyPathConstants.Logs.kanataStderr
-        let contents: String
-        do {
-            contents = try String(contentsOfFile: stderrPath, encoding: .utf8)
-        } catch {
-            AppLogger.shared.debug("⚠️ [RuntimeCoordinator] Could not read stderr log at \(stderrPath): \(error.localizedDescription)")
-            return nil
-        }
-
-        let lines =
-            contents
-                .split(separator: "\n", omittingEmptySubsequences: false)
-                .map { stripANSICodes(from: String($0)) }
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-
-        for line in lines.reversed() {
-            let lower = line.lowercased()
-            if lower.contains("error") || lower.contains("could not") {
-                return line
-            }
-        }
-        return lines.last
-    }
-
-    private func stripANSICodes(from text: String) -> String {
-        text.replacingOccurrences(of: #"\u001B\[[0-9;]*m"#, with: "", options: .regularExpression)
-    }
-
     /// Persist exact-device Caps consent only after admitted runtime restoration.
     /// The change stops the runtime to release the Caps lease; if it was running,
     /// it is started again afterwards, whether the change committed or was refused.
@@ -710,35 +667,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         let stopped = await stopKanata(reason: "App termination cleanup")
         if !stopped {
             AppLogger.shared.warn("⚠️ [RuntimeCoordinator] Failed to stop runtime during cleanup")
-        }
-    }
-
-    /// Synchronous cleanup for app termination - blocks until process is killed
-    func cleanupSync() {
-        AppLogger.shared.log("🛝 [Cleanup] Performing synchronous cleanup...")
-
-        // LaunchDaemon service management - synchronous cleanup not directly supported
-        // The LaunchDaemon service will handle process lifecycle automatically
-        AppLogger.shared.log(
-            "ℹ️ [Cleanup] LaunchDaemon service will handle process cleanup automatically"
-        )
-
-        // Clean up PID file
-        do {
-            try PIDFileManager.removePID()
-        } catch {
-            AppLogger.shared.log("❌ [Cleanup] Failed to remove PID file: \(error)")
-        }
-        AppLogger.shared.info("✅ [Cleanup] Synchronous cleanup complete")
-    }
-
-    private func checkExternalKanataProcess() async -> Bool {
-        do {
-            let conflicts = try await processLifecycleManager.detectConflicts()
-            return !conflicts.externalProcesses.isEmpty
-        } catch {
-            AppLogger.shared.log("❌ [RuntimeCoordinator] Process detection failed: \(error)")
-            return false
         }
     }
 
@@ -1629,14 +1557,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     func diagnoseKanataFailure(_ exitCode: Int32, _ output: String) {
         let diagnostics = diagnosticsManager.diagnoseFailure(exitCode: exitCode, output: output)
 
-        recoveryCoordinator.diagnoseKanataFailure(
-            exitCode: exitCode,
-            output: output,
-            diagnostics: diagnostics,
-            addDiagnostic: { [weak self] diagnostic in
-                self?.addDiagnostic(diagnostic)
-            }
-        )
+        for diagnostic in diagnostics {
+            addDiagnostic(diagnostic)
+        }
     }
 
     // MARK: - Auto-Fix Capabilities

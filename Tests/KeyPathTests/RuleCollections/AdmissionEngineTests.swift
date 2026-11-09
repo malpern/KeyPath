@@ -10,7 +10,7 @@ import KeyPathRulesCore
 /// Caps Lock, and pack conflicts and requirements.
 @MainActor
 final class AdmissionEngineTests: XCTestCase {
-    private let allowAll = BackendCapabilityProfile(backend: .session) { _ in true }
+    private let allowAll = BackendCapabilityProfile { _ in true }
 
     private func collection(_ name: String, _ mappings: [(String, String)], layer: RuleCollectionLayer = .base,
                             enabled: Bool = true, activator: MomentaryActivator? = nil) -> RuleCollection
@@ -115,14 +115,11 @@ final class AdmissionEngineTests: XCTestCase {
     // MARK: - New: environment needs
 
     func testMediaOutputIsBlockingOnTheSessionBackend() {
-        let profile = BackendCapabilityProfile(backend: .session) { !["volu", "mute"].contains($0) }
+        let profile = BackendCapabilityProfile { !["volu", "mute"].contains($0) }
         let media = collection("Media", [("f12", "volu"), ("f10", "mute"), ("f1", "f1")])
         let verdicts = evaluate(.init(collections: [media]), profile: profile)
         XCTAssertEqual(Set(verdicts.map(\.reason)), [.unmetNeed(.emits(key: "volu")), .unmetNeed(.emits(key: "mute"))])
         XCTAssertTrue(verdicts.allSatisfy { $0.severity == .blocking && $0.subject == .collection(media.id) })
-        // The same rules on a driver backend are fine.
-        let driver = BackendCapabilityProfile(backend: .driverKit) { _ in false }
-        XCTAssertTrue(evaluate(.init(collections: [media]), profile: driver).isEmpty)
     }
 
     func testOtherAppHoldingCapsBlocksCapsRulesOnly() {
@@ -184,7 +181,7 @@ final class AdmissionEngineTests: XCTestCase {
     func testFreshDefaultProfileAdmitsCleanlyAgainstTheRealBridge() throws {
         try SessionBridgeTestFixture.requireAvailable()
         let host = SessionBridgeTestFixture.runtimeHost
-        let profile = BackendCapabilityProfile(backend: .session) { key in
+        let profile = BackendCapabilityProfile { key in
             KanataHostBridge.sessionOutputKeySupported(runtimeHost: host, keyName: key,
                                                        supportedUsages: SessionKeyMap.sessionOutputUsages)
         }

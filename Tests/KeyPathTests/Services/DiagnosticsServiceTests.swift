@@ -1,18 +1,17 @@
 @testable import KeyPathAppKit
 @testable import KeyPathCore
-@testable import KeyPathDaemonLifecycle
 @preconcurrency import XCTest
 
 @MainActor
 final class DiagnosticsServiceTests: XCTestCase {
     var service: DiagnosticsService!
-    var processManager: ProcessLifecycleManager!
+    var processManager: KanataProcessDetector!
 
     @MainActor
     override func setUp() async throws {
         try await super.setUp()
-        processManager = ProcessLifecycleManager()
-        service = DiagnosticsService(processLifecycleManager: processManager)
+        processManager = KanataProcessDetector()
+        service = DiagnosticsService(processDetector: processManager)
     }
 
     @MainActor
@@ -144,7 +143,7 @@ final class DiagnosticsServiceTests: XCTestCase {
     // MARK: - Process Conflict Tests
 
     func testCheckProcessConflictsReturnsNonNilResult() async {
-        // Since ProcessLifecycleManager is final and can't be mocked,
+        // KanataProcessDetector skips process discovery under tests,
         // we test that the method returns a valid result
         let diagnostics = await service.checkProcessConflicts()
 
@@ -160,7 +159,7 @@ final class DiagnosticsServiceTests: XCTestCase {
 
         let provider = SystemStateProvider(probes: runner.systemProbeClient())
         let service = DiagnosticsService(
-            processLifecycleManager: processManager,
+            processDetector: processManager,
             systemStateProvider: provider
         )
 

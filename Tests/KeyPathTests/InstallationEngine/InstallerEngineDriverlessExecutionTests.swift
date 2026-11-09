@@ -1,6 +1,5 @@
 @testable import KeyPathAppKit
 import KeyPathCore
-import KeyPathDaemonLifecycle
 @testable import KeyPathInstallationWizard
 import KeyPathWizardCore
 import XCTest
@@ -27,8 +26,7 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
         let final = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-        let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
-                                     systemValidator: StubSystemValidator(context: final))
+        let engine = InstallerEngine(systemValidator: StubSystemValidator(context: final))
         let recipes = [
             ServiceRecipe(id: "forged-component", type: .installComponent),
             ServiceRecipe(id: "start-session-runtime", type: .checkRequirement,
@@ -55,8 +53,7 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
         let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-        let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
-                                     systemValidator: StubSystemValidator(context: context))
+        let engine = InstallerEngine(systemValidator: StubSystemValidator(context: context))
         let permitted = engine.recipeForAction(.restartCommServer, context: context)
         let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-recipe", type: .installComponent)],
                                status: .ready, intent: .repair)
@@ -91,10 +88,9 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
         let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-        let stoppedWithLegacyApproval = SystemContextBuilder(loginItemsApprovalRequired: true).build()
-        for final in [ready, stoppedWithLegacyApproval] {
-            let engine = InstallerEngine(processLifecycleManager: ProcessLifecycleManager(),
-                                         systemValidator: StubSystemValidator(context: final))
+        let stopped = SystemContextBuilder.cleanInstall()
+        for final in [ready, stopped] {
+            let engine = InstallerEngine(systemValidator: StubSystemValidator(context: final))
             let recipe = engine.recipeForAction(.restartCommServer, context: final)
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: .repair)
             let report = await engine.execute(plan: plan)

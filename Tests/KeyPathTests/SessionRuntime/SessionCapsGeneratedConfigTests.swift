@@ -89,7 +89,7 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: path) }
         try config.write(to: path, atomically: true, encoding: .utf8)
         let current = KanataRuntimeHost.current()
-        let host = KanataRuntimeHost(launcherPath: current.launcherPath, bridgeLibraryPath: bridge,
+        let host = KanataRuntimeHost(bridgeLibraryPath: bridge,
                                      bundledCorePath: current.bundledCorePath, kanataEngineBundlePath: current.kanataEngineBundlePath)
         let admission = SessionCapsRuntimeSupport.validate(configPath: path.path, runtimeHost: host, requireSelection: false)
         guard case .valid = admission.result else {
@@ -108,7 +108,7 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
         let config = KanataConfiguration.generateFromCollections(custom + RuleCollectionCatalog().defaultCollections(), inputs: KanataGenerationInputs(leaderKeyPreference: .default))
         try config.write(to: path, atomically: true, encoding: .utf8)
         let current = KanataRuntimeHost.current()
-        let host = KanataRuntimeHost(launcherPath: current.launcherPath, bridgeLibraryPath: bridge,
+        let host = KanataRuntimeHost(bridgeLibraryPath: bridge,
                                      bundledCorePath: current.bundledCorePath, kanataEngineBundlePath: current.kanataEngineBundlePath)
         let admission = SessionCapsRuntimeSupport.validate(configPath: path.path, runtimeHost: host, requireSelection: false)
         guard case .valid = admission.result else {
@@ -138,7 +138,7 @@ final class SessionCapsGeneratedConfigTests: XCTestCase {
         XCTAssertTrue(config.contains("(deflayer arrows"), "The layer must actually be generated")
         try config.write(to: path, atomically: true, encoding: .utf8)
         let current = KanataRuntimeHost.current()
-        let host = KanataRuntimeHost(launcherPath: current.launcherPath, bridgeLibraryPath: bridge,
+        let host = KanataRuntimeHost(bridgeLibraryPath: bridge,
                                      bundledCorePath: current.bundledCorePath, kanataEngineBundlePath: current.kanataEngineBundlePath)
         let admission = SessionCapsRuntimeSupport.validate(configPath: path.path, runtimeHost: host, requireSelection: false)
         guard case .valid = admission.result else {

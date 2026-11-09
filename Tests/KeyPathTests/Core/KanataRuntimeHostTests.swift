@@ -4,19 +4,15 @@ import XCTest
 final class KanataRuntimeHostTests: XCTestCase {
     func testCurrentUsesBundleRelativePaths() {
         let host = KanataRuntimeHost.current(bundlePath: "/Applications/KeyPath.app")
-
-        XCTAssertEqual(host.launcherPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher")
         XCTAssertEqual(host.bridgeLibraryPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib")
         XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata")
         XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app")
     }
 
-    func testCurrentNormalizesLauncherExecutableDirectoryToAppBundleRoot() {
+    func testCurrentNormalizesLibraryDirectoryToAppBundleRoot() {
         let host = KanataRuntimeHost.current(
             bundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath"
         )
-
-        XCTAssertEqual(host.launcherPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/kanata-launcher")
         XCTAssertEqual(host.bridgeLibraryPath, "/Applications/KeyPath.app/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib")
         XCTAssertEqual(host.bundledCorePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata")
         XCTAssertEqual(host.kanataEngineBundlePath, "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app")
@@ -33,7 +29,6 @@ final class KanataRuntimeHostTests: XCTestCase {
 
     func testPreferredCoreBinaryAlwaysReturnsBundledPath() {
         let host = KanataRuntimeHost(
-            launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/tmp/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
             kanataEngineBundlePath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app"

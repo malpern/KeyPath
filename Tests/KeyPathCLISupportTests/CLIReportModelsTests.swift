@@ -19,15 +19,9 @@ final class CLIReportModelsTests: XCTestCase {
             keyPathAccessibility: true,
             runtimeKeyAccess: true,
             kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            vhidDeviceHealthy: true,
             kanataRunning: true,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
             activeRuntimePathTitle: "test",
             activeRuntimePathDetail: "detail",
-            kanataServiceFreshness: "stale",
-            kanataExpectedIdentity: "com.keypath.KeyPath build 4 · Contents/Library/KeyPath/kanata-launcher",
             hasConflicts: false,
             timestamp: Date()
         )
@@ -35,9 +29,7 @@ final class CLIReportModelsTests: XCTestCase {
         let required: Set = [
             "isOperational",
             "keyPathAccessibility", "runtimeKeyAccess",
-            "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
-            "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
-            "kanataServiceFreshness", "kanataExpectedIdentity",
+            "kanataBinaryInstalled", "kanataRunning",
             "hasConflicts", "timestamp",
         ]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
@@ -122,11 +114,11 @@ final class CLIReportModelsTests: XCTestCase {
 
     func testInspectResultJSONShape() throws {
         let json = """
-        {"macOSVersion":"15.0","driverCompatible":true,"planStatus":"ready","blockedBy":"helper","plannedRecipes":["step1"]}
+        {"macOSVersion":"27.0","planStatus":"ready","blockedBy":"helper","plannedRecipes":["step1"]}
         """
         let result = try decoder.decode(CLIInspectResult.self, from: Data(json.utf8))
         let keys = try jsonKeys(result)
-        let required: Set = ["driverCompatible", "macOSVersion", "planStatus", "plannedRecipes"]
+        let required: Set = ["macOSVersion", "planStatus", "plannedRecipes"]
         XCTAssertTrue(required.isSubset(of: keys), "Missing required keys: \(required.subtracting(keys))")
         XCTAssertNil(result.stateMatrixRow)
         XCTAssertNil(result.stateMatrixPlan)

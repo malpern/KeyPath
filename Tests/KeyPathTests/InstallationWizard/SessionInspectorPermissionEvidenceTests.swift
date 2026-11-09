@@ -87,16 +87,12 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
                 runtimeKeyAccess: .init(status: runtime, source: "test", confidence: .high, timestamp: now),
                 timestamp: now
             ),
-            services: HealthStatus(backend: .session, kanataProcessRunning: true,
+            services: HealthStatus(kanataProcessRunning: true,
                                    kanataTCPResponding: true, kanataRunning: true,
-                                   karabinerDaemonRunning: false, vhidHealthy: false,
                                    kanataInputCaptureReady: tapActive),
             conflicts: .empty,
-            components: ComponentStatus(kanataBinaryInstalled: payloadPresent, requiredRuntimePayloadPresent: payloadPresent,
-                                        karabinerDriverInstalled: false, karabinerDaemonRunning: false,
-                                        vhidDeviceInstalled: false, vhidDeviceHealthy: false,
-                                        vhidServicesHealthy: false, vhidVersionMismatch: false),
-            system: EngineSystemInfo(macOSVersion: "26.0", driverCompatible: false), timestamp: now
+            components: ComponentStatus(kanataBinaryInstalled: payloadPresent, requiredRuntimePayloadPresent: payloadPresent),
+            system: EngineSystemInfo(macOSVersion: "26.0"), timestamp: now
         ))
     }
 }

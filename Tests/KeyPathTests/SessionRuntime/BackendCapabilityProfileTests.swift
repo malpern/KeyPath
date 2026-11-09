@@ -15,7 +15,7 @@ final class BackendCapabilityProfileTests: XCTestCase {
     private func bridgeProfile() throws -> BackendCapabilityProfile {
         try SessionBridgeTestFixture.requireAvailable()
         let host = SessionBridgeTestFixture.runtimeHost
-        return BackendCapabilityProfile(backend: .session) { key in
+        return BackendCapabilityProfile { key in
             KanataHostBridge.sessionOutputKeySupported(
                 runtimeHost: host, keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
             )
@@ -32,7 +32,6 @@ final class BackendCapabilityProfileTests: XCTestCase {
         }
         // Consumer page, but not a key the worker posts.
         XCTAssertFalse(profile.canEmit(kanataKey: "calc"))
-        XCTAssertFalse(profile.supportsDeviceTargeting)
     }
 
     func testFormerHardCodedListsGiveTheSameAnswersThroughTheBridge() throws {
@@ -58,22 +57,16 @@ final class BackendCapabilityProfileTests: XCTestCase {
     }
 
     func testNoBridgeAnswerKeepsPreviousBehaviour() {
-        let profile = BackendCapabilityProfile(backend: .session) { _ in nil }
+        let profile = BackendCapabilityProfile { _ in nil }
         XCTAssertTrue(profile.canEmit(kanataKey: "home"))
         XCTAssertFalse(profile.canEmit(kanataKey: "volu"))
         XCTAssertFalse(profile.canEmit(kanataKey: "brdn"))
     }
 
-    func testOnlyTheSessionBackendHasLimits() {
-        let profile = BackendCapabilityProfile(backend: .driverKit) { _ in false }
-        XCTAssertTrue(profile.canEmit(kanataKey: "volu"))
-        XCTAssertTrue(profile.supportsDeviceTargeting)
-    }
-
     func testAnswersAreCachedPerKey() {
         final class Counter: @unchecked Sendable { var calls = 0 }
         let counter = Counter()
-        let profile = BackendCapabilityProfile(backend: .session) { _ in counter.calls += 1; return true }
+        let profile = BackendCapabilityProfile { _ in counter.calls += 1; return true }
         _ = profile.canEmit(kanataKey: "a")
         _ = profile.canEmit(kanataKey: "C-a")
         XCTAssertEqual(counter.calls, 1)

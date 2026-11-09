@@ -1,16 +1,9 @@
 import Foundation
 
-/// Shared description of the current macOS Kanata runtime host layout.
-///
-/// This centralizes the app-bundled runtime host identity (`kanata-launcher`)
-/// and the core binary paths it can execute. The current architecture still
-/// hands off to the raw kanata binary, but callers should stop hardcoding
-/// those paths independently so the eventual in-process host migration only
-/// needs to change this model.
+/// Shared description of the app-bundled Kanata runtime layout: the host
+/// bridge library the session worker loads, and the bundled Kanata engine.
+/// Callers use this model instead of hardcoding the paths.
 public struct KanataRuntimeHost: Sendable, Equatable {
-    public static let launcherBundleRelativePath = "Contents/Library/KeyPath/kanata-launcher"
-
-    public let launcherPath: String
     public let bridgeLibraryPath: String
     public let bundledCorePath: String
 
@@ -18,19 +11,11 @@ public struct KanataRuntimeHost: Sendable, Equatable {
     /// macOS TCC tracks this by CFBundleIdentifier instead of raw path.
     public let kanataEngineBundlePath: String
 
-    /// Deprecated: system binary is no longer installed. Returns bundledCorePath.
-    @available(*, deprecated, message: "System binary removed; use bundledCorePath directly")
-    public var systemCorePath: String {
-        bundledCorePath
-    }
-
     public init(
-        launcherPath: String,
         bridgeLibraryPath: String,
         bundledCorePath: String,
         kanataEngineBundlePath: String
     ) {
-        self.launcherPath = launcherPath
         self.bridgeLibraryPath = bridgeLibraryPath
         self.bundledCorePath = bundledCorePath
         self.kanataEngineBundlePath = kanataEngineBundlePath
@@ -47,7 +32,6 @@ public struct KanataRuntimeHost: Sendable, Equatable {
         let resolvedBundlePath = appBundlePath(containing: bundlePath)
         let engineBundlePath = "\(resolvedBundlePath)/Contents/Library/KeyPath/Kanata Engine.app"
         return KanataRuntimeHost(
-            launcherPath: "\(resolvedBundlePath)/\(launcherBundleRelativePath)",
             bridgeLibraryPath: "\(resolvedBundlePath)/Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "\(engineBundlePath)/Contents/MacOS/kanata",
             kanataEngineBundlePath: engineBundlePath

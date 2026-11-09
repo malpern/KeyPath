@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathPermissions
 import SwiftUI
 
@@ -133,8 +132,6 @@ public enum WizardSystemState: Equatable, Sendable {
 public enum SystemConflict: Equatable, Sendable {
     case kanataProcessRunning(pid: Int, command: String)
     case karabinerGrabberRunning(pid: Int)
-    case karabinerVirtualHIDDeviceRunning(pid: Int, processName: String)
-    case karabinerVirtualHIDDaemonRunning(pid: Int)
     case exclusiveDeviceAccess(device: String)
 }
 
@@ -310,28 +307,6 @@ public struct SystemStateResult: Sendable {
     }
 }
 
-/// Result of conflict detection
-public struct ConflictDetectionResult {
-    public let conflicts: [SystemConflict]
-    public let canAutoResolve: Bool
-    public let description: String
-    public let managedProcesses: [ProcessLifecycleManager.ProcessInfo]
-
-    public init(
-        conflicts: [SystemConflict], canAutoResolve: Bool, description: String,
-        managedProcesses: [ProcessLifecycleManager.ProcessInfo] = []
-    ) {
-        self.conflicts = conflicts
-        self.canAutoResolve = canAutoResolve
-        self.description = description
-        self.managedProcesses = managedProcesses
-    }
-
-    public var hasConflicts: Bool {
-        !conflicts.isEmpty
-    }
-}
-
 /// Result of permission checks
 public struct PermissionCheckResult {
     public let missing: [PermissionRequirement]
@@ -405,45 +380,9 @@ public struct ConfigPathMismatch {
 // MARK: - Constants
 
 public enum WizardConstants {
-    public enum Titles {
-        public static let accessibility = "Accessibility"
-        public static let conflictingProcesses = "Conflicting Processes Detected"
-        public static let karabinerGrabberConflict = "Karabiner Grabber Conflict"
-        public static let daemonNotRunning = "Karabiner Daemon Not Running"
-        public static let driverExtensionDisabled = "Driver Extension Disabled"
-        public static let backgroundServicesDisabled = "Background Services Disabled"
-        public static let kanataBinaryMissing = "Kanata Binary Missing"
-        public static let karabinerDriverMissing = "Karabiner Driver Missing"
-    }
-
-    public enum Messages {
-        public static let permissionRequired = "Permission required for keyboard remapping"
-        public static let conflictDetected = "Conflicting process detected"
-        public static let componentMissing = "Required component is missing"
-        public static let daemonRequired = "Daemon required for virtual HID functionality"
-    }
-
     public enum Actions {
         public static let fixInSetup = "Fix in Setup"
     }
-}
-
-// MARK: - Protocols
-
-/// Protocol for objects that can automatically fix issues
-public protocol AutoFixCapable {
-    func canAutoFix(_ action: AutoFixAction) -> Bool
-    func performAutoFix(_ action: AutoFixAction) async -> Bool
-}
-
-/// Protocol for wizard navigation management
-@MainActor
-public protocol WizardNavigating {
-    /// Primary navigation method using structured issue identifiers for type-safe navigation
-    func determineCurrentPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage
-    func canNavigate(from: WizardPage, to: WizardPage, given state: WizardSystemState) -> Bool
-    func nextPage(from current: WizardPage, given state: WizardSystemState, issues: [WizardIssue])
-        async -> WizardPage?
 }
 
 // MARK: - Helper Extensions

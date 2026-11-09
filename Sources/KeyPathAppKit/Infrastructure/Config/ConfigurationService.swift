@@ -1,7 +1,6 @@
 import CryptoKit
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathRulesCore
 import Network
 
@@ -75,7 +74,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             {
                 let current = KanataRuntimeHost.current()
                 return KanataRuntimeHost(
-                    launcherPath: current.launcherPath, bridgeLibraryPath: bridgePath,
+                    bridgeLibraryPath: bridgePath,
                     bundledCorePath: current.bundledCorePath,
                     kanataEngineBundlePath: current.kanataEngineBundlePath
                 )

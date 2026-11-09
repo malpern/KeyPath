@@ -15,7 +15,7 @@ final class RuleEnvironmentNeedsTests: XCTestCase {
     private func sessionProfile() throws -> BackendCapabilityProfile {
         try SessionBridgeTestFixture.requireAvailable()
         let host = SessionBridgeTestFixture.runtimeHost
-        return BackendCapabilityProfile(backend: .session) { key in
+        return BackendCapabilityProfile { key in
             KanataHostBridge.sessionOutputKeySupported(
                 runtimeHost: host, keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
             )
@@ -61,10 +61,8 @@ final class RuleEnvironmentNeedsTests: XCTestCase {
                                  deviceOverrides: [DeviceKeyOverride(deviceHash: "cl80", output: .keystroke(key: "c"))])
         let needs = RuleCollectionNeedsExtractor.needs(for: [mapping])
         XCTAssertTrue(needs.contains(.deviceTargeting))
-        let session = BackendCapabilityProfile(backend: .session) { _ in true }
+        let session = BackendCapabilityProfile { _ in true }
         XCTAssertEqual(RuleCollectionNeedsExtractor.unmet(needs, profile: session), [.deviceTargeting])
-        let driver = BackendCapabilityProfile(backend: .driverKit) { _ in true }
-        XCTAssertEqual(RuleCollectionNeedsExtractor.unmet(needs, profile: driver), [])
     }
 
     func testOnlyNonInferableNeedsAreDeclaredOnPacks() {

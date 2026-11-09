@@ -10,7 +10,7 @@ keypath_test_lane_filter() {
             echo "KeyAction|MappingBehavior|ConfigApply|GenericPackConfig|HomeRowModsConfig|MapperKanataFormat|LabelMetadata|PackRegistry|RuleCollection|CustomRule|KeymapMappingGenerator|RecommendationEngine|JapaneseInputMode|LayerKeyInfoExtraction|PackDependency|PackOwnership|PackSummary"
             ;;
         integration|integrations)
-            echo "Integration|Golden|PackInstall|TCPClient|TcpServer|ProcessLifecycle|InstallerEngine|ServiceBootstrapper|PermissionOracle|FDADetection|SystemRequirements|RuntimeCoordinator"
+            echo "Integration|Golden|PackInstall|TCPClient|TcpServer|KanataProcessDetector|InstallerEngine|ServiceBootstrapper|PermissionOracle|FDADetection|SystemRequirements|RuntimeCoordinator"
             ;;
         visual|snapshot|snapshots)
             echo "KeyPathSnapshotTests|Snapshot"
@@ -37,7 +37,7 @@ keypath_test_lane_filter() {
             echo "ViewModel|Overlay|KeyboardVisualization|ContentView|PackDetailWindow|MapperViewModel|WindowManager"
             ;;
         tcp|runtime|daemon)
-            echo "TCP|Tcp|RuntimeCoordinator|ProcessLifecycle|ServiceHealth|KanataDaemon"
+            echo "TCP|Tcp|RuntimeCoordinator|KanataProcessDetector|ServiceHealth|KanataDaemon"
             ;;
         *)
             return 1
@@ -52,7 +52,7 @@ keypath_test_lane_reason_for_path() {
         Sources/KeyPathCLI/*|Sources/KeyPathCLIMain/*|Tests/KeyPathTests/CLI/*)
             echo "cli"
             ;;
-        Sources/KeyPathInstallationWizard/*|Sources/KeyPathWizardCore/*|Sources/KeyPathDaemonLifecycle/*|Tests/KeyPathTests/*Installer*|Tests/KeyPathTests/*Wizard*)
+        Sources/KeyPathInstallationWizard/*|Sources/KeyPathWizardCore/*|Tests/KeyPathTests/*Installer*|Tests/KeyPathTests/*Wizard*)
             echo "installer"
             ;;
         Sources/KeyPathLayoutTracer*/*|Tests/KeyPathLayoutTracerTests/*)

@@ -87,17 +87,6 @@ public enum WizardSystemPaths {
         return currentRuntimeHost().bundledCorePath
     }
 
-    /// Bundled kanata runtime host path.
-    /// This is the app-bundled executable currently launched by SMAppService.
-    public static var bundledKanataLauncherPath: String {
-        if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_LAUNCHER_OVERRIDE"],
-           !override.isEmpty
-        {
-            return override
-        }
-        return currentRuntimeHost().launcherPath
-    }
-
     /// Bundled kanata simulator binary path (for dry-run simulation)
     /// This binary outputs structured JSON instead of sending real HID events
     public static var bundledSimulatorPath: String {

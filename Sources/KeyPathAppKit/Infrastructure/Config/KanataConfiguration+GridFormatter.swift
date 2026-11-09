@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import Network
 
 extension KanataConfiguration {

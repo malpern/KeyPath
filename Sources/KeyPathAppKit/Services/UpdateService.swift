@@ -91,7 +91,7 @@ public final class UpdateService: NSObject {
 
     /// Session releases use manual replacement until updater shutdown is qualified.
     public var usesManualDownloads: Bool {
-        KanataRuntimeBackend.selected == .session
+        true
     }
 
     @ObservationIgnored var openDownloadPage: @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }

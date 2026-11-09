@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
@@ -31,7 +30,6 @@ class MainAppStateController {
     /// Adapted wizard state from the last validation — consumed by Settings Status tab.
     private(set) var lastAdaptedState: WizardSystemState = .initializing
     /// TCP configuration status from the last validation — consumed by Settings Status tab.
-    private(set) var lastTCPConfigured: Bool?
     /// Latest shared installer state-matrix row — consumed by CLI/status/menu surfaces.
     var lastInstallerStateMatrixRow: InstallerStateMatrixRow?
     /// Latest shared installer state-matrix plan — consumed by CLI/status/menu surfaces.
@@ -606,12 +604,6 @@ class MainAppStateController {
             "📊 [MainAppStateController] Health.kanataRunning: \(snapshot.health.kanataRunning)"
         )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Health.daemonRunning: \(snapshot.health.karabinerDaemonRunning)"
-        )
-        AppLogger.shared.debug(
-            "📊 [MainAppStateController] Health.vhidHealthy: \(snapshot.health.vhidHealthy)"
-        )
-        AppLogger.shared.debug(
             "📊 [MainAppStateController] Permissions.accessibility: \(snapshot.permissions.accessibility)"
         )
         AppLogger.shared.debug(
@@ -619,9 +611,6 @@ class MainAppStateController {
         )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Components.kanataBinary: \(snapshot.components.kanataBinaryInstalled)"
-        )
-        AppLogger.shared.debug(
-            "📊 [MainAppStateController] Components.vhidHealthy: \(snapshot.components.vhidDeviceHealthy)"
         )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Blocking issues: \(snapshot.blockingIssues.count)"
@@ -634,9 +623,6 @@ class MainAppStateController {
         // Update published state
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
-        // Preserve missing evidence as unknown. An incomplete/fallback capture
-        // must not become a proven TCP configuration failure in presentation.
-        lastTCPConfigured = snapshot.health.kanataTCPConfigured
         let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
         lastInstallerStateMatrixRow = decision.assessment
         lastInstallerStateMatrixPlan = decision.matrixActions
@@ -661,35 +647,18 @@ class MainAppStateController {
         switch adapted.state {
         case .active:
             // Kanata is running - but check if there are blocking issues that prevent proper operation
-            guard let tcpConfigured = lastTCPConfigured else {
-                validationState = .checking
-                AppLogger.shared.info(
-                    "⏳ [MainAppStateController] Validation inconclusive - TCP configuration evidence unavailable"
-                )
-                return
-            }
-
-            if blockingIssues.isEmpty, tcpConfigured {
+            if blockingIssues.isEmpty {
                 validationState = .success
                 // Clear stale diagnostics when system is healthy
                 onSystemHealthy?()
                 resetValidationFailureLogState()
                 AppLogger.shared.info(
-                    "✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues, TCP configured"
+                    "✅ [MainAppStateController] Validation SUCCESS - adapter state is .active (kanata running), no blocking issues"
                 )
             } else {
-                var reasons: [String] = []
-                if !blockingIssues.isEmpty {
-                    reasons.append("\(blockingIssues.count) blocking issues")
-                }
-                if !tcpConfigured {
-                    reasons.append("TCP communication not configured")
-                }
+                let reasons = ["\(blockingIssues.count) blocking issues"]
 
-                validationState = .failed(
-                    blockingCount: blockingIssues.count + (tcpConfigured ? 0 : 1),
-                    totalCount: issues.count
-                )
+                validationState = .failed(blockingCount: blockingIssues.count, totalCount: issues.count)
                 let signature = "active:\(reasons.joined(separator: ",")):\(blockingIssues.map(\.title).joined(separator: ","))"
                 if shouldLogValidationFailureInDetail(site: .validationFailure, signature: signature) {
                     AppLogger.shared.errorUnlessQuietTest(
@@ -697,9 +666,6 @@ class MainAppStateController {
                     )
                     for (index, issue) in blockingIssues.enumerated() {
                         AppLogger.shared.log("   Blocking \(index + 1): \(issue.title)")
-                    }
-                    if !tcpConfigured {
-                        AppLogger.shared.log("   TCP: Communication server not properly configured")
                     }
                 } else {
                     // .info, not .debug: repeat failures must stay visible in release-build
@@ -797,7 +763,6 @@ class MainAppStateController {
         validationState = .failed(blockingCount: 1, totalCount: 1)
         lastValidatedSystemContext = nil
         lastAdaptedState = .serviceNotRunning
-        lastTCPConfigured = nil
         lastInstallerStateMatrixRow = nil
         lastInstallerStateMatrixPlan = []
         lastValidationDate = Date()
@@ -814,9 +779,7 @@ class MainAppStateController {
     }
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
-        if KanataRuntimeBackend.selected == .session,
-           let refusal = serviceLifecycle?.configurationRefusalForStartup()
-        {
+        if let refusal = serviceLifecycle?.configurationRefusalForStartup() {
             return .invalidSessionConfiguration(refusal)
         }
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
@@ -834,21 +797,19 @@ class MainAppStateController {
                 return .sessionRecoveryRefused(refusal)
             }
             if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
-            if KanataRuntimeBackend.selected == .session {
-                let permissions: PermissionOracle.Snapshot
-                #if DEBUG
-                    if let override = startupGatePermissionsOverride {
-                        permissions = await override()
-                    } else {
-                        permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
-                    }
-                #else
+            let permissions: PermissionOracle.Snapshot
+            #if DEBUG
+                if let override = startupGatePermissionsOverride {
+                    permissions = await override()
+                } else {
                     permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
-                #endif
-                if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
-                if Self.hasDefinitiveSessionPermissionFailure(permissions) {
-                    return .missingSessionPermissions
                 }
+            #else
+                permissions = await SystemStateProvider.shared.currentPermissionSnapshot()
+            #endif
+            if serviceLifecycle?.isRecoveringFromSystemWake == true { return .recoveringFromWake }
+            if Self.hasDefinitiveSessionPermissionFailure(permissions) {
+                return .missingSessionPermissions
             }
             let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
             let health = await currentKanataStartupHealth()

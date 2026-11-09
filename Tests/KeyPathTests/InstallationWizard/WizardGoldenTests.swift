@@ -23,25 +23,16 @@ final class WizardGoldenTests: XCTestCase {
 
     private var allComponentsHealthy: ComponentStatus {
         ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
+            kanataBinaryInstalled: true
         )
     }
 
     private var healthyServices: HealthStatus {
-        HealthStatus(backend: .driverKit,
-                     kanataRunning: true,
-                     karabinerDaemonRunning: true,
-                     vhidHealthy: true)
+        HealthStatus(kanataRunning: true)
     }
 
     private var defaultSystem: EngineSystemInfo {
-        EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true)
+        EngineSystemInfo(macOSVersion: "15.0")
     }
 
     private func makeContext(
@@ -94,7 +85,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_kanataNotRunning_daemonRunning_stateIsServiceNotRunning() {
         let context = makeContext(
-            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
+            services: HealthStatus(kanataRunning: false)
         )
         let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .serviceNotRunning)
@@ -218,7 +209,7 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_e2e_kanataNotRunning_routesToService() {
         let context = makeContext(
-            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: true, vhidHealthy: true)
+            services: HealthStatus(kanataRunning: false)
         )
         let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(

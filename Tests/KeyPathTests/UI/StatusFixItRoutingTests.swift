@@ -7,27 +7,23 @@ import XCTest
 @MainActor
 final class StatusFixItRoutingTests: XCTestCase {
     private func route(
-        driverless: Bool = true, capsPaused: Bool = true, runtimeHealthy: Bool = true,
-        tcpConfigured: Bool? = true, permissionsReady: Bool = true,
+        capsPaused: Bool = true, runtimeHealthy: Bool = true, permissionsReady: Bool = true,
         wizardSeverities: [WizardIssue.IssueSeverity] = []
     ) -> Bool {
         StatusSettingsTabView.capsPausedIsOnlyIssue(
-            driverless: driverless, capsPaused: capsPaused, runtimeHealthy: runtimeHealthy,
-            tcpConfigured: tcpConfigured, permissionsReady: permissionsReady, wizardSeverities: wizardSeverities
+            capsPaused: capsPaused, runtimeHealthy: runtimeHealthy,
+            permissionsReady: permissionsReady, wizardSeverities: wizardSeverities
         )
     }
 
     func testPausedCapsAloneOpensGeneral() {
         XCTAssertTrue(route())
-        XCTAssertTrue(route(tcpConfigured: nil))
         XCTAssertTrue(route(wizardSeverities: [.info]))
     }
 
     func testEachOtherProblemOpensTheWizard() {
-        XCTAssertFalse(route(driverless: false))
         XCTAssertFalse(route(capsPaused: false))
         XCTAssertFalse(route(runtimeHealthy: false))
-        XCTAssertFalse(route(tcpConfigured: false))
         XCTAssertFalse(route(permissionsReady: false))
         XCTAssertFalse(route(wizardSeverities: [.warning]))
         XCTAssertFalse(route(wizardSeverities: [.error]))

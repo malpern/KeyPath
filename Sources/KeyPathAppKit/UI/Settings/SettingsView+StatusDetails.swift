@@ -30,20 +30,19 @@ extension StatusSettingsTabView {
     /// Settings > General, where the Caps Lock controls live.
     var capsPausedIsOnlyIssue: Bool {
         Self.capsPausedIsOnlyIssue(
-            driverless: isDriverless, capsPaused: kanataManager.capsPausedMessage != nil,
+            capsPaused: kanataManager.capsPausedMessage != nil,
             runtimeHealthy: systemContext.map { $0.services.kanataRunning && $0.services.isHealthy } ?? false,
-            tcpConfigured: tcpConfigured, permissionsReady: permissionSnapshot?.isSystemReady ?? false,
+            permissionsReady: permissionSnapshot?.isSystemReady ?? false,
             wizardSeverities: wizardIssues.map(\.severity)
         )
     }
 
-    /// Any wizard issue above `info` sends Fix it to the wizard instead. An
-    /// unknown TCP state counts as healthy, as it does for the status level.
+    /// Any wizard issue above `info` sends Fix it to the wizard instead.
     static func capsPausedIsOnlyIssue(
-        driverless: Bool, capsPaused: Bool, runtimeHealthy: Bool, tcpConfigured: Bool?,
+        capsPaused: Bool, runtimeHealthy: Bool,
         permissionsReady: Bool, wizardSeverities: [WizardIssue.IssueSeverity]
     ) -> Bool {
-        driverless && capsPaused && runtimeHealthy && tcpConfigured != false && permissionsReady
+        capsPaused && runtimeHealthy && permissionsReady
             && !wizardSeverities.contains { $0 != .info }
     }
 
@@ -64,17 +63,13 @@ extension StatusSettingsTabView {
             return .critical
         }
 
-        if context.services.kanataRunning, tcpConfigured == false {
-            return .critical
-        }
-
         // Extra app copies are housekeeping advice, not runtime health evidence.
 
         if !context.services.isHealthy || !(permissionSnapshot?.isSystemReady ?? false) {
             return .warning
         }
 
-        if isDriverless, kanataManager.capsPausedMessage != nil {
+        if kanataManager.capsPausedMessage != nil {
             return .warning
         }
 
@@ -119,9 +114,6 @@ extension StatusSettingsTabView {
         if !context.services.kanataRunning {
             return kanataServiceStatus
         }
-        if tcpConfigured == false {
-            return "TCP Communication Required"
-        }
         if !(permissionSnapshot?.isSystemReady ?? false) {
             // Distinguish "not verified" (no FDA) from actual missing permissions
             if let snapshot = permissionSnapshot {
@@ -132,7 +124,7 @@ extension StatusSettingsTabView {
             }
             return "Permissions Required"
         }
-        if isDriverless, kanataManager.capsPausedMessage != nil {
+        if kanataManager.capsPausedMessage != nil {
             return "Caps Lock Needs Attention"
         }
         return overallHealthLevel == .success ? "Everything's Working" : "Setup Needed"
@@ -140,13 +132,7 @@ extension StatusSettingsTabView {
 
     var kanataServiceStatus: String {
         guard let context = systemContext else { return "Checking…" }
-        if context.services.kanataRunning {
-            return "Service Running"
-        }
-        if context.services.karabinerDaemonRunning {
-            return "Service Starting"
-        }
-        return "Service Stopped"
+        return context.services.kanataRunning ? "Service Running" : "Service Stopped"
     }
 
     var primaryIssueDetail: StatusDetail? {
@@ -182,7 +168,7 @@ extension StatusSettingsTabView {
     var serviceStatusDetail: StatusDetail {
         guard let context = systemContext else {
             return StatusDetail(
-                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
+                title: "Keyboard remapping",
                 message: "Checking current status…",
                 icon: "ellipsis.circle",
                 level: .info
@@ -191,7 +177,7 @@ extension StatusSettingsTabView {
 
         if isIntentionallyDisabled {
             return StatusDetail(
-                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
+                title: "Keyboard remapping",
                 message: "Turned off. Flip the switch above to resume remapping.",
                 icon: "power",
                 level: .info
@@ -205,7 +191,7 @@ extension StatusSettingsTabView {
                 } else {
                     "Running normally."
                 }
-            if isDriverless, let paused = kanataManager.capsPausedMessage {
+            if let paused = kanataManager.capsPausedMessage {
                 return StatusDetail(
                     title: "Keyboard remapping",
                     message: "\(runtimeMessage) \(paused)",
@@ -214,30 +200,21 @@ extension StatusSettingsTabView {
                 )
             }
             return StatusDetail(
-                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
+                title: "Keyboard remapping",
                 message: "\(runtimeMessage) Powered by Kanata.",
                 icon: "bolt.fill",
                 level: .success
             )
         }
 
-        if context.services.karabinerDaemonRunning {
-            return StatusDetail(
-                title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
-                message: "Starting…",
-                icon: "hourglass.circle",
-                level: .info
-            )
-        }
-
         return StatusDetail(
-            title: isDriverless ? "Keyboard remapping" : "KeyPath Runtime",
+            title: "Keyboard remapping",
             message: Self.stoppedMessage(lastError: kanataManager.lastError),
             icon: "pause.circle",
             level: .warning,
             actions: [
-                StatusDetailAction(title: isDriverless ? "Open System Settings" : "Open Login Items", icon: "list.bullet") {
-                    SystemDiagnostics.open(isDriverless ? .systemSettings : .loginItems)
+                StatusDetailAction(title: "Open System Settings", icon: "list.bullet") {
+                    SystemDiagnostics.open(.systemSettings)
                 },
                 StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
                     wizardInitialPage = .summary
@@ -324,17 +301,13 @@ extension StatusSettingsTabView {
         guard !isIntentionallyDisabled else { return nil }
         guard serviceStatusDetail.level != .success else { return nil }
         return StatusDetail(
-            title: isDriverless ? "KeyPath Logs" : "Kanata Logs",
-            message: isDriverless ? "Open KeyPath’s log for remapping startup errors and permission failures." : "Open the daemon stderr log for startup errors and permission failures.",
+            title: "KeyPath Logs",
+            message: "Open KeyPath’s log for remapping startup errors and permission failures.",
             icon: "doc.text.magnifyingglass",
             level: .info,
             actions: [
                 StatusDetailAction(title: "Open", icon: "doc.text") {
-                    if isDriverless {
-                        openFileInPreferredEditor(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/KeyPath/keypath-debug.log"))
-                    } else {
-                        SystemDiagnostics.openKanataLogsInEditor()
-                    }
+                    openFileInPreferredEditor(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/KeyPath/keypath-debug.log"))
                 }
             ]
         )

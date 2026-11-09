@@ -2,7 +2,6 @@ import AppKit
 import Foundation
 import KeyPathCLISupport
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
@@ -39,15 +38,9 @@ public struct SystemFacade: Sendable {
             keyPathAccessibility: context.permissions.accessibility.isReady,
             runtimeKeyAccess: context.permissions.runtimeKeyAccess.status.isReady,
             kanataBinaryInstalled: context.components.kanataBinaryInstalled,
-            karabinerDriverInstalled: context.components.karabinerDriverInstalled,
-            vhidDeviceHealthy: context.components.vhidDeviceHealthy,
             kanataRunning: context.services.kanataRunning,
-            karabinerDaemonRunning: context.services.karabinerDaemonRunning,
-            vhidHealthy: context.services.vhidHealthy,
             activeRuntimePathTitle: context.services.activeRuntimePathTitle,
             activeRuntimePathDetail: context.services.activeRuntimePathDetail,
-            kanataServiceFreshness: context.services.kanataServiceFreshness.rawValue,
-            kanataExpectedIdentity: RuntimeIdentity.expectedKeyPathKanata().diagnosticDescription,
             hasConflicts: context.conflicts.hasConflicts,
             timestamp: context.timestamp
         )
@@ -142,7 +135,6 @@ public struct SystemFacade: Sendable {
         if let bundleIssue = Self.systemRepairBundleIssue() {
             return CLIInspectResult(
                 macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-                driverCompatible: false,
                 planStatus: "blocked",
                 blockedBy: "Valid KeyPath.app bundle",
                 plannedRecipes: [],
@@ -169,7 +161,6 @@ public struct SystemFacade: Sendable {
 
         return CLIInspectResult(
             macOSVersion: context.system.macOSVersion,
-            driverCompatible: context.system.driverCompatible,
             planStatus: planStatus,
             blockedBy: blockedBy,
             plannedRecipes: plan.recipes.map { "\($0.id) (\($0.type))" },
@@ -194,24 +185,12 @@ public struct SystemFacade: Sendable {
     }
 
     static func isOperational(_ context: SystemContext) -> Bool {
-        if context.services.backend == .session { return context.isReady }
-        return context.permissions.isSystemReady
-            && context.components.hasAllRequired
-            && context.services.isHealthy
-            && !context.conflicts.hasConflicts
+        context.isReady
     }
 
     fileprivate static func systemRepairBundleIssue() -> CLISystemIssue? {
         let bundlePath = Bundle.main.bundlePath
-        let requiredPaths = KanataRuntimeBackend.selected == .session
-            ? sessionRepairRequiredPaths(bundlePath: bundlePath)
-            : [
-                "\(bundlePath)/Contents/MacOS/keypath-cli",
-                "\(bundlePath)/Contents/Library/LaunchDaemons/com.keypath.kanata.plist",
-                "\(bundlePath)/Contents/Library/HelperTools/KeyPathHelper",
-                WizardSystemPaths.bundledKanataPath,
-                WizardSystemPaths.bundledKanataLauncherPath,
-            ]
+        let requiredPaths = sessionRepairRequiredPaths(bundlePath: bundlePath)
         if requiredPaths.allSatisfy({ FileManager.default.fileExists(atPath: $0) }) {
             return nil
         }
@@ -230,93 +209,6 @@ public struct SystemFacade: Sendable {
     }
 
     static func issues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation = .current) -> [CLISystemIssue] {
-        if context.services.backend == .session { return sessionIssues(from: context, accessibility: accessibility) }
-        var issues: [CLISystemIssue] = []
-
-        appendPermissionIssues(from: context, accessibility: accessibility, to: &issues)
-
-        for conflict in context.conflicts.conflicts {
-            issues.append(.init(
-                title: Self.conflictTitle(conflict),
-                category: "conflict",
-                action: "Terminate conflicting process",
-                canAutoFix: context.conflicts.canAutoResolve
-            ))
-        }
-
-        if !context.components.kanataBinaryInstalled {
-            issues.append(.init(
-                title: "Kanata binary not installed",
-                category: "component",
-                action: "Reinstall KeyPath; the bundled Kanata engine is missing",
-                canAutoFix: false,
-                remediationURL: KeyPathConstants.URLs.bundledKanataTroubleshooting
-            ))
-        }
-        if !context.components.karabinerDriverInstalled {
-            issues.append(.init(
-                title: "Karabiner VirtualHID driver not installed",
-                category: "component",
-                action: "Install the bundled VirtualHID driver",
-                canAutoFix: true
-            ))
-        }
-        if context.components.vhidVersionMismatch {
-            issues.append(.init(
-                title: "Karabiner VirtualHID driver version incompatible",
-                category: "component",
-                action: "Install the compatible bundled VirtualHID driver",
-                canAutoFix: true
-            ))
-        }
-        if !context.components.vhidDeviceHealthy {
-            issues.append(.init(
-                title: "VirtualHID device unhealthy",
-                category: "component",
-                action: "Repair VirtualHID services",
-                canAutoFix: true
-            ))
-        }
-
-        if !context.services.isHealthy {
-            if !context.services.kanataRunning, let configError = context.services.configParseError {
-                issues.append(.init(
-                    title: "Configuration error prevents remapping",
-                    category: "configuration",
-                    action: configError,
-                    canAutoFix: false,
-                    remediationURL: KeyPathConstants.URLs.configurationTroubleshooting
-                ))
-            } else if !context.services.kanataRunning, context.services.kanataPermissionRejected {
-                issues.append(.init(
-                    title: "Kanata needs \(AccessibilityPermissionPresentation.current.name) permission",
-                    category: "permissions",
-                    action: "Re-grant \(AccessibilityPermissionPresentation.current.name) for Kanata Engine in System Settings",
-                    canAutoFix: false,
-                    remediationURL: WizardSystemPaths.accessibilitySettings
-                ))
-            } else if !context.services.kanataRunning {
-                issues.append(.init(
-                    title: "Kanata service not running",
-                    category: "service",
-                    action: "Start or reinstall the Kanata service",
-                    canAutoFix: true
-                ))
-            }
-            if !context.services.karabinerDaemonRunning {
-                issues.append(.init(
-                    title: "Karabiner VirtualHID daemon not running",
-                    category: "service",
-                    action: "Start or repair the VirtualHID daemon",
-                    canAutoFix: true
-                ))
-            }
-        }
-
-        return issues
-    }
-
-    private static func sessionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation) -> [CLISystemIssue] {
         var issues: [CLISystemIssue] = []
         appendSinglePermissionIssues(from: context, accessibility: accessibility, to: &issues)
         for conflict in context.conflicts.conflicts {
@@ -385,35 +277,6 @@ public struct SystemFacade: Sendable {
         )
     }
 
-    private static func appendPermissionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation, to issues: inout [CLISystemIssue]) {
-        appendSinglePermissionIssues(from: context, accessibility: accessibility, to: &issues)
-        if !context.services.kanataInputCaptureReady {
-            let needsManualVHIDApproval = requiresManualVHIDDriverApproval(context)
-            issues.append(.init(
-                title: needsManualVHIDApproval
-                    ? "Karabiner VirtualHIDDevice driver is not activated"
-                    : "Kanata cannot capture keyboard input",
-                category: "service",
-                action: needsManualVHIDApproval
-                    ? "Open System Settings > General > Login Items & Extensions > Driver Extensions, enable Karabiner-VirtualHIDDevice, then retry repair"
-                    : context.services.kanataInputCaptureIssue
-                    ?? "Restart or repair the keyboard service",
-                canAutoFix: !needsManualVHIDApproval,
-                remediationURL: needsManualVHIDApproval
-                    ? WizardSystemPaths.loginItemsSettings
-                    : KeyPathConstants.URLs.terminalInputCaptureTroubleshooting
-            ))
-        }
-    }
-
-    /// DriverKit approval pending: the driver is installed but macOS has not
-    /// activated it, so a retry cannot help.
-    private static func requiresManualVHIDDriverApproval(_ context: SystemContext) -> Bool {
-        context.components.karabinerDriverInstalled
-            && !context.services.vhidHealthy
-            && context.services.kanataInputCaptureIssue == ServiceHealthChecker.inputCaptureVHIDDriverNotActivatedReason
-    }
-
     private static func appendPermissionIssue(
         status: PermissionOracle.Status,
         subject: String,
@@ -452,10 +315,6 @@ public struct SystemFacade: Sendable {
             "Conflicting Kanata process running (PID \(pid))"
         case let .karabinerGrabberRunning(pid):
             "Karabiner Grabber running (PID \(pid))"
-        case let .karabinerVirtualHIDDeviceRunning(pid, _):
-            "Karabiner VirtualHID process running (PID \(pid))"
-        case let .karabinerVirtualHIDDaemonRunning(pid):
-            "Karabiner VirtualHID daemon running (PID \(pid))"
         case let .exclusiveDeviceAccess(device):
             "Device in exclusive use: \(device)"
         }

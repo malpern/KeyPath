@@ -53,15 +53,6 @@ public enum KeyPathConstants {
         public static var userDebugLog: String {
             "\(NSHomeDirectory())/Library/Logs/KeyPath/keypath-debug.log"
         }
-
-        /// Standard output log for the kanata daemon
-        public static let kanataStdout = "/var/log/com.keypath.kanata.stdout.log"
-
-        /// Standard error log for the kanata daemon
-        public static let kanataStderr = "/var/log/com.keypath.kanata.stderr.log"
-
-        /// Log directory for Karabiner (used during setup)
-        public static let karabinerDir = "/var/log/karabiner"
     }
 
     public enum Binaries {
@@ -69,17 +60,11 @@ public enum KeyPathConstants {
         public static let kanataName = "kanata"
     }
 
-    public enum VirtualHID {
-        public static let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
-        public static let tmpDir = "/Library/Application Support/org.pqrs/tmp"
-    }
-
     public enum System {
         public static let osascript = "/usr/bin/osascript"
         public static let pkill = "/usr/bin/pkill"
         public static let launchctl = "/bin/launchctl"
         public static let securityPrefPane = "/System/Library/PreferencePanes/Security.prefPane"
-        public static let launchDaemonsDir = "/Library/LaunchDaemons"
     }
 
     public enum Networking {
@@ -96,9 +81,7 @@ public enum KeyPathConstants {
     public enum URLs {
         public static let accessibilityPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         public static let kanataTroubleshooting = "https://github.com/malpern/KeyPath/blob/master/docs/troubleshooting/debugging-kanata.md"
-        public static let terminalInputCaptureTroubleshooting = "\(kanataTroubleshooting)#terminal-input-capture-failures"
         public static let configurationTroubleshooting = "\(kanataTroubleshooting)#configuration-errors"
-        public static let bundledKanataTroubleshooting = "\(kanataTroubleshooting)#bundled-kanata-engine-missing"
     }
 
     public enum Timing {

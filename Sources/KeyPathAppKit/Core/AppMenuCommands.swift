@@ -180,28 +180,26 @@ struct AppMenuCommands: Commands {
             }
             .keyboardShortcut("?", modifiers: .command)
 
-            if FirstSuccessOnboardingGate.supportsTour() {
-                Divider()
+            Divider()
 
-                Button(
-                    action: {
-                        replayFirstSuccessTour()
-                    },
-                    label: {
-                        Text(
-                            "Replay KeyPath Tour…",
-                            bundle: KeyPathAppKitResources.bundle,
-                            comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
-                        )
-                    }
-                )
-                .accessibilityIdentifier("menu-replay-keypath-tour")
-
-                Button("Preview KeyPath Tour…") {
-                    FirstSuccessTourPreviewWindowController.show()
+            Button(
+                action: {
+                    replayFirstSuccessTour()
+                },
+                label: {
+                    Text(
+                        "Replay KeyPath Tour…",
+                        bundle: KeyPathAppKitResources.bundle,
+                        comment: "Help menu command that reopens KeyPath's optional keyboard onboarding tour."
+                    )
                 }
-                .accessibilityIdentifier("menu-preview-keypath-tour")
+            )
+            .accessibilityIdentifier("menu-replay-keypath-tour")
+
+            Button("Preview KeyPath Tour…") {
+                FirstSuccessTourPreviewWindowController.show()
             }
+            .accessibilityIdentifier("menu-preview-keypath-tour")
         }
     }
 

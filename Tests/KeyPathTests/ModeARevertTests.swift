@@ -75,58 +75,20 @@ final class ModeARevertTests: XCTestCase {
     // MARK: - HealthStatus kanataPermissionRejected propagation
 
     func testHealthStatusPermissionRejectedDefaultsFalse() {
-        let health = HealthStatus(backend: .driverKit,
-                                  kanataRunning: false,
-                                  karabinerDaemonRunning: true,
-                                  vhidHealthy: true)
+        let health = HealthStatus(kanataRunning: false)
         XCTAssertFalse(health.kanataPermissionRejected)
     }
 
     func testHealthStatusPermissionRejectedPropagates() {
-        let health = HealthStatus(backend: .driverKit,
-                                  kanataRunning: false,
-                                  karabinerDaemonRunning: true,
-                                  vhidHealthy: true,
+        let health = HealthStatus(kanataRunning: false,
                                   kanataPermissionRejected: true)
         XCTAssertTrue(health.kanataPermissionRejected)
     }
 
     // MARK: - SystemSnapshot.blockingIssues
 
-    func testBlockingIssuesEmitPermissionWhenRejected() {
-        let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: true)
-
-        let permIssues = snapshot.blockingIssues.filter {
-            if case let .permissionMissing(app, perm, _) = $0 {
-                return app == "Kanata" && perm == "Accessibility"
-            }
-            return false
-        }
-        XCTAssertFalse(permIssues.isEmpty, "blockingIssues must contain Kanata Accessibility permission issue")
-
-        let serviceIssues = snapshot.blockingIssues.filter {
-            if case let .serviceNotRunning(name, _) = $0 {
-                return name == "Kanata Service"
-            }
-            return false
-        }
-        XCTAssertTrue(serviceIssues.isEmpty, "blockingIssues must NOT contain serviceNotRunning when permission was rejected")
-    }
-
-    func testBlockingIssuesEmitServiceNotRunningWithoutRejection() {
-        let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: false)
-
-        let serviceIssues = snapshot.blockingIssues.filter {
-            if case let .serviceNotRunning(name, _) = $0 {
-                return name == "Kanata Service"
-            }
-            return false
-        }
-        XCTAssertFalse(serviceIssues.isEmpty, "blockingIssues must contain serviceNotRunning when no permission rejection")
-    }
-
     func testSessionStoppedWithLegacyRejectionUsesCurrentRuntimeEvidence() {
-        let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: true, backend: .session)
+        let snapshot = makeSnapshot(kanataRunning: false, kanataPermissionRejected: true)
         XCTAssertTrue(snapshot.blockingIssues.contains {
             if case .componentUnhealthy(name: "Session keyboard runtime", autoFix: true) = $0 { return true }
             return false
@@ -140,7 +102,7 @@ final class ModeARevertTests: XCTestCase {
     func testSessionDeniedCapabilitiesReportKeyPathPermissionSubject() {
         let snapshot = makeSnapshot(
             kanataRunning: false, kanataPermissionRejected: false,
-            backend: .session, accessibility: .denied
+            accessibility: .denied
         )
         XCTAssertFalse(snapshot.isReady)
         XCTAssertTrue(snapshot.blockingIssues.contains {
@@ -161,23 +123,14 @@ final class ModeARevertTests: XCTestCase {
 
         return SystemContext(
             permissions: PermissionOracle.Snapshot.fixture(runtimeKeyAccess: status, timestamp: now),
-            services: HealthStatus(backend: .driverKit,
-                                   kanataRunning: kanataRunning,
-                                   karabinerDaemonRunning: true,
-                                   vhidHealthy: true,
+            services: HealthStatus(kanataRunning: kanataRunning,
                                    kanataInputCaptureReady: true,
                                    kanataPermissionRejected: kanataPermissionRejected),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
             components: ComponentStatus(
-                kanataBinaryInstalled: true,
-                karabinerDriverInstalled: true,
-                karabinerDaemonRunning: true,
-                vhidDeviceInstalled: true,
-                vhidDeviceHealthy: true,
-                vhidServicesHealthy: true,
-                vhidVersionMismatch: false
+                kanataBinaryInstalled: true
             ),
-            system: EngineSystemInfo(macOSVersion: "test", driverCompatible: true),
+            system: EngineSystemInfo(macOSVersion: "test"),
             timestamp: now
         )
     }
@@ -185,29 +138,19 @@ final class ModeARevertTests: XCTestCase {
     private func makeSnapshot(
         kanataRunning: Bool,
         kanataPermissionRejected: Bool,
-        backend: KanataRuntimeBackend = .driverKit,
         accessibility: PermissionOracle.Status = .granted
     ) -> SystemSnapshot {
         let now = Date()
         return SystemSnapshot(
             permissions: PermissionOracle.Snapshot.fixture(accessibility: accessibility, timestamp: now),
             components: ComponentStatus(
-                kanataBinaryInstalled: true,
-                karabinerDriverInstalled: true,
-                karabinerDaemonRunning: true,
-                vhidDeviceInstalled: true,
-                vhidDeviceHealthy: true,
-                vhidServicesHealthy: true,
-                vhidVersionMismatch: false
+                kanataBinaryInstalled: true
             ),
             conflicts: ConflictStatus(conflicts: [], canAutoResolve: false),
-            health: HealthStatus(backend: backend,
-                                 kanataRunning: kanataRunning,
-                                 karabinerDaemonRunning: true,
-                                 vhidHealthy: true,
+            health: HealthStatus(kanataRunning: kanataRunning,
                                  kanataInputCaptureReady: true,
                                  kanataPermissionRejected: kanataPermissionRejected),
-            compatibility: SystemCompatibilityStatus(macOSVersion: "test", driverCompatible: true),
+            compatibility: SystemCompatibilityStatus(macOSVersion: "test"),
             timestamp: now
         )
     }

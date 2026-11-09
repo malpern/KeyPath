@@ -17,11 +17,6 @@ struct StatusSettingsTabView: View {
     @State var systemContext: SystemContext?
     @State var wizardSystemState: WizardSystemState = .initializing
     @State var wizardIssues: [WizardIssue] = []
-    var isDriverless: Bool {
-        KanataRuntimeBackend.selected == .session
-    }
-
-    @State var tcpConfigured: Bool?
     @State var duplicateAppCopies: [String] = []
     @State private var capsManaged = false
     @State private var lastDuplicateScan: Date?
@@ -185,27 +180,6 @@ struct StatusSettingsTabView: View {
                             Text(effectiveServiceRunning ? "ON" : "OFF")
                                 .font(.body.weight(.medium))
                                 .foregroundColor(effectiveServiceRunning ? .green : .secondary)
-                        }
-
-                        if !isDriverless, let runtimePathTitle = kanataManager.activeRuntimePathTitle {
-                            VStack(spacing: 4) {
-                                Text(runtimePathTitle)
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundColor(.secondary)
-
-                                if let runtimePathDetail = kanataManager.activeRuntimePathDetail {
-                                    Text(runtimePathDetail)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .multilineTextAlignment(.center)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                            .frame(maxWidth: 220)
-                            .accessibilityIdentifier("status-runtime-path")
-                            .accessibilityLabel(
-                                "Active runtime path: \(runtimePathTitle)\(kanataManager.activeRuntimePathDetail.map { ", \($0)" } ?? "")"
-                            )
                         }
                     }
                     .frame(minWidth: 220)
@@ -430,9 +404,7 @@ struct StatusSettingsTabView: View {
         systemContext = context
         wizardSystemState = controller.lastAdaptedState
         wizardIssues = controller.issues
-        tcpConfigured = controller.lastTCPConfigured
         showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
-            || (context.services.kanataRunning && controller.lastTCPConfigured == false)
         duplicateAppCopies = duplicates
         capsManaged = kanataManager.underlyingManager.serviceLifecycleCoordinator.sessionManagedCapsActive
         Task { await launchAtLogin.refresh() }
@@ -499,8 +471,6 @@ struct StatusSettingsTabView: View {
             wizardSystemState: wizardSystemState,
             wizardIssues: wizardIssues,
             systemContext: systemContext,
-            tcpConfigured: tcpConfigured,
-            driverless: isDriverless,
             intentionallyOff: isIntentionallyDisabled
         )
     }

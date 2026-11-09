@@ -28,7 +28,7 @@ EOF
 chmod +x "$TMP/codesign"
 cat > "$TMP/sw_vers" <<'EOF'
 #!/bin/bash
-[[ $1 == -productVersion ]] && echo 26.5.2
+[[ $1 == -productVersion ]] && echo 27.2
 EOF
 chmod +x "$TMP/sw_vers"
 
@@ -46,7 +46,7 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 manifest = json.loads((root / "manifest.json").read_text())
-assert manifest["supportedMacOSMajorVersions"] == [15, 26]
+assert manifest["supportedMacOSMajorVersions"] == [27]
 assert set(manifest["profiles"]) == {"com.keypath.lab.pppc", "com.keypath.lab.service-management"}
 assert "kanataLauncher" not in manifest and "virtualHID" not in manifest
 

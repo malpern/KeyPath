@@ -12,19 +12,10 @@ final class WizardStateRegressionTests: XCTestCase {
         // Build a healthy SystemContext (Kanata running, no blocking issues)
         let perms = PermissionOracle.Snapshot.fixture()
 
-        let health = HealthStatus(backend: .driverKit,
-                                  kanataRunning: true,
-                                  karabinerDaemonRunning: true,
-                                  vhidHealthy: true)
+        let health = HealthStatus(kanataRunning: true)
 
         let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
+            kanataBinaryInstalled: true
         )
 
         let context = SystemContext(
@@ -32,7 +23,7 @@ final class WizardStateRegressionTests: XCTestCase {
             services: health,
             conflicts: .init(conflicts: [], canAutoResolve: false),
             components: components,
-            system: EngineSystemInfo(macOSVersion: "26.0.1", driverCompatible: true),
+            system: EngineSystemInfo(macOSVersion: "26.0.1"),
             timestamp: Date()
         )
 
@@ -51,18 +42,14 @@ final class WizardStateRegressionTests: XCTestCase {
         let context = SystemContext(
             permissions: .fixture(source: "independent-session", timestamp: now),
             services: HealthStatus(
-                backend: .session, kanataProcessRunning: true, kanataTCPResponding: true,
-                kanataRunning: true, karabinerDaemonRunning: false, vhidHealthy: false,
-                kanataInputCaptureReady: false,
+                kanataProcessRunning: true, kanataTCPResponding: true,
+                kanataRunning: true, kanataInputCaptureReady: false,
                 kanataInputCaptureIssue: "kanata-cannot-open-built-in-keyboard"
             ),
             conflicts: .empty,
             components: ComponentStatus(
-                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
-                karabinerDriverInstalled: false, karabinerDaemonRunning: false,
-                vhidDeviceInstalled: false, vhidDeviceHealthy: false,
-                vhidServicesHealthy: false, vhidVersionMismatch: false
-            ), system: EngineSystemInfo(macOSVersion: "27.0", driverCompatible: false),
+                kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true
+            ), system: EngineSystemInfo(macOSVersion: "27.0"),
             timestamp: now
         )
         let result = SystemStateResult.projecting(context)

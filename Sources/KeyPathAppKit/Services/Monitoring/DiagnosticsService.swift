@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 
 // MARK: - Diagnostic Types
@@ -62,18 +61,18 @@ protocol DiagnosticsServiceProtocol: Sendable {
 
 // MARK: - Implementation
 
-// SAFETY: @unchecked Sendable — all stored state (processLifecycleManager) is itself
+// SAFETY: @unchecked Sendable — all stored state (processDetector) is itself
 // Sendable (@MainActor final class). Methods are stateless diagnostic queries.
 final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable {
     /// Dependencies
-    private let processLifecycleManager: ProcessLifecycleManager
+    private let processDetector: KanataProcessDetector
     private let systemStateProvider: SystemStateProvider
 
     init(
-        processLifecycleManager: ProcessLifecycleManager,
+        processDetector: KanataProcessDetector,
         systemStateProvider: SystemStateProvider = .shared
     ) {
-        self.processLifecycleManager = processLifecycleManager
+        self.processDetector = processDetector
         self.systemStateProvider = systemStateProvider
     }
 
@@ -314,33 +313,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
 
     func checkProcessConflicts() async -> [KanataDiagnostic] {
         var diagnostics: [KanataDiagnostic] = []
-        let conflicts: ProcessLifecycleManager.ConflictResolution
-        do {
-            conflicts = try await processLifecycleManager.detectConflicts()
-        } catch {
-            AppLogger.shared.log("❌ [Diagnostics] Process conflict detection failed: \(error)")
-            return diagnostics
-        }
-
-        // Show managed processes (informational)
-        if !conflicts.managedProcesses.isEmpty {
-            let processDetails = conflicts.managedProcesses.map { process in
-                "PID \(process.pid): \(process.command)"
-            }.joined(separator: "\n")
-
-            diagnostics.append(
-                KanataDiagnostic(
-                    timestamp: Date(),
-                    severity: .info,
-                    category: .system,
-                    title: "KeyPath Managed Processes (\(conflicts.managedProcesses.count))",
-                    description: "Kanata processes currently managed by KeyPath",
-                    technicalDetails: processDetails,
-                    suggestedAction: "",
-                    canAutoFix: false
-                )
-            )
-        }
+        let conflicts = await processDetector.detectConflicts()
 
         // Show external conflicts (errors that need attention)
         if !conflicts.externalProcesses.isEmpty {

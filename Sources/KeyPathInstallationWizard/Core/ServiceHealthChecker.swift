@@ -14,10 +14,6 @@ import os.lock
 public final class ServiceHealthChecker: @unchecked Sendable {
     @MainActor public static let shared = ServiceHealthChecker()
 
-    /// Reason code for an input-capture failure reported by the runtime.
-    public nonisolated static let inputCaptureVHIDDriverNotActivatedReason =
-        "karabiner-vhid-driver-not-activated"
-
     public struct KanataServiceRuntimeSnapshot: Sendable, Equatable {
         public let isRunning: Bool
         public let isResponding: Bool

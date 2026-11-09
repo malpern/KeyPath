@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 
 /// Manages diagnostics, health monitoring, and log monitoring
 @MainActor

@@ -373,16 +373,6 @@ public struct WizardError: LocalizedError {
                 ]
             )
 
-        case let op where op.contains("Auto Fix: Install Missing Components"):
-            return (
-                "Failed to install required keyboard remapping components",
-                [
-                    "Check your internet connection",
-                    "Make sure you have administrator privileges",
-                    "Use KeyPath's Installation Wizard to install Kanata automatically"
-                ]
-            )
-
         case let op where op.contains("Auto Fix: Start KeyPath Runtime"):
             return (
                 "The keyboard remapping service won't start",
@@ -390,16 +380,6 @@ public struct WizardError: LocalizedError {
                     "Grant necessary permissions in System Settings",
                     "Check that no conflicting keyboard apps are running",
                     "Try restarting your Mac"
-                ]
-            )
-
-        case let op where op.contains("Auto Fix: Activating Driver Extensions"):
-            return (
-                "Driver extensions need manual approval for security",
-                [
-                    "Open System Settings → Privacy & Security → Driver Extensions",
-                    "Find 'Karabiner-VirtualHIDDevice-Manager.app' and enable it",
-                    "You may need to restart your Mac after enabling"
                 ]
             )
 
@@ -420,26 +400,6 @@ public struct WizardError: LocalizedError {
                     "Open System Settings → Privacy & Security",
                     "Find the '\(AccessibilityPermissionPresentation.current.name)' section",
                     "Make sure KeyPath is enabled, then quit and reopen KeyPath"
-                ]
-            )
-
-        case let op where op.contains("Privileged Helper"):
-            return (
-                "Couldn't install the background helper",
-                [
-                    "Open System Settings → General → Login Items & Extensions",
-                    "Make sure KeyPath's background item is enabled",
-                    "Try clicking Fix again"
-                ]
-            )
-
-        case let op where op.contains("Karabiner"):
-            return (
-                "Couldn't configure the Karabiner driver",
-                [
-                    "Make sure Karabiner VirtualHIDDevice is installed",
-                    "Check System Settings → Privacy & Security for approval prompts",
-                    "Try restarting your Mac"
                 ]
             )
 
@@ -479,16 +439,6 @@ public struct WizardError: LocalizedError {
                     "Check that all required permissions are granted",
                     "Look for error messages in the wizard",
                     "Try restarting your Mac if the problem persists"
-                ]
-            )
-
-        case let op where op.contains("Restart Virtual HID"):
-            return (
-                "Couldn't restart the virtual keyboard driver",
-                [
-                    "The Karabiner driver may need to be reinstalled",
-                    "Try clicking Fix again",
-                    "Restart your Mac if the problem persists"
                 ]
             )
 

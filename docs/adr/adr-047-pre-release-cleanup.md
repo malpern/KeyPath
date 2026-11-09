@@ -41,7 +41,13 @@ runtime or by the macOS 27 minimum.
    Accessibility grant and the runtime's key-access report; see the follow-up in
    `docs/bugs/2026-11-08-input-monitoring-not-required-on-macos27.md`.)
 4. Collapse manager and coordinator layers that existed only to switch between
-   backends.
+   backends. (Done: `KanataRuntimeBackend` is gone and the session runtime is
+   the only path; the VirtualHID/Karabiner-driver fields left `ComponentStatus`,
+   `HealthStatus` and the CLI status/inspect JSON; the `KeyPathDaemonLifecycle`
+   target was deleted, its external-Kanata detection moving to
+   `KanataProcessDetector` in KeyPathAppKit; the launcher path, runtime
+   identity/freshness, and orphaned `kanata.entitlements` were removed; the
+   managed lab lane supports macOS 27 only.)
 
 Each step is its own PR, is merged and deployed to the mini and the Air before
 the next starts, keeps CI green, and removes its tests with its code.

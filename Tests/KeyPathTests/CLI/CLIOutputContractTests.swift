@@ -120,7 +120,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
     func testInstallerReportPreservesStructuredAwaitingApprovalOutcome() {
         let context = SystemContextBuilder(
-            loginItemsApprovalRequired: true
         ).build()
         let plan = InstallPlan(
             sourceSnapshotID: context.snapshotID,
@@ -168,24 +167,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertEqual(report.completionState, "blocked")
     }
 
-    func testInstallerReportLinksTerminalInputCaptureFailureToTroubleshooting() {
-        let context = historicalDriverContext(
-            permissionsStatus: .granted,
-            servicesHealthy: true,
-            kanataInputCaptureReady: false,
-            kanataInputCaptureIssue: "kanata-failed-to-grab-keyboard",
-            componentsInstalled: true
-        )
-        let report = CLIInstallerReport(
-            dryRunPlan: InstallPlan(recipes: [], status: .ready, intent: .repair),
-            context: context,
-            title: "Repair"
-        )
-
-        let issue = report.issues?.first { $0.title == "Kanata cannot capture keyboard input" }
-        XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.terminalInputCaptureTroubleshooting)
-    }
-
     func testInstallerReportLinksTerminalConfigFailureToTroubleshooting() {
         let context = SystemContextBuilder(
             permissionsStatus: .granted,
@@ -196,8 +177,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
         ).build()
         let services = HealthStatus(
             kanataRunning: false,
-            karabinerDaemonRunning: true,
-            vhidHealthy: true,
             kanataInputCaptureReady: true,
             configParseError: "expected defcfg"
         )
@@ -219,23 +198,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.configurationTroubleshooting)
     }
 
-    func testInstallerReportLinksMissingBundledKanataToTroubleshooting() {
-        let context = historicalDriverContext(
-            permissionsStatus: .granted,
-            servicesHealthy: false,
-            kanataInputCaptureReady: true,
-            componentsInstalled: false
-        )
-        let report = CLIInstallerReport(
-            dryRunPlan: InstallPlan(recipes: [], status: .ready, intent: .repair),
-            context: context,
-            title: "Repair"
-        )
-
-        let issue = report.issues?.first { $0.title == "Kanata binary not installed" }
-        XCTAssertEqual(issue?.remediationURL, KeyPathConstants.URLs.bundledKanataTroubleshooting)
-    }
-
     func testValidationResultJSONShape() throws {
         let result = CLIValidationResult(isValid: true, errors: [])
         let keys = try jsonKeys(result)
@@ -252,7 +214,6 @@ final class CLIOutputContractTests: KeyPathTestCase {
         )
         let result = CLIInspectResult(
             macOSVersion: "26.5.0",
-            driverCompatible: true,
             planStatus: "ready",
             blockedBy: nil,
             plannedRecipes: ["reinstall-privileged-helper (installService)"],
@@ -269,7 +230,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
 
         let keys = try jsonKeys(result)
         let required: Set = [
-            "driverCompatible", "issues", "isOperational", "macOSVersion", "planIntent",
+            "issues", "isOperational", "macOSVersion", "planIntent",
             "planStatus", "plannedRecipes", "promptsNeeded", "stateMatrixPlan",
             "stateMatrixRow", "userActionRequired",
         ]
@@ -286,7 +247,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         let presentation = AccessibilityPermissionPresentation()
         let contexts = [
             sessionContext(appAX: .denied),
-            historicalDriverContext(
+            explicitContext(
                 permissionsStatus: .denied,
                 servicesHealthy: true, componentsInstalled: true
             )
@@ -303,7 +264,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
     }
 
     func testPermissionIssuesPreserveTriModeSemantics() {
-        let granted = historicalDriverContext(
+        let granted = explicitContext(
             permissionsStatus: .granted,
             servicesHealthy: true,
             componentsInstalled: true
@@ -311,7 +272,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertFalse(SystemFacade.issues(from: granted).contains { $0.category == "permissions" })
         XCTAssertTrue(SystemFacade.isOperational(granted))
 
-        let denied = historicalDriverContext(
+        let denied = explicitContext(
             permissionsStatus: .denied,
             servicesHealthy: true,
             componentsInstalled: true
@@ -323,7 +284,7 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertFalse(deniedIssues.contains { $0.title.contains("Input Monitoring") })
         XCTAssertFalse(SystemFacade.isOperational(denied))
 
-        let unknown = historicalDriverContext(
+        let unknown = explicitContext(
             permissionsStatus: .unknown,
             servicesHealthy: true,
             componentsInstalled: true
@@ -351,12 +312,11 @@ final class CLIOutputContractTests: KeyPathTestCase {
         XCTAssertEqual(decoded.changeset?.customRules, ["caps → esc"])
     }
 
-    func testSessionIsOperationalWithoutHelperOrDriver() {
+    func testSessionIsOperationalWhenRuntimeIsReady() {
         let context = sessionContext()
         XCTAssertTrue(SystemFacade.isOperational(context))
         let issues = SystemFacade.issues(from: context)
         XCTAssertTrue(issues.isEmpty)
-        XCTAssertFalse(context.components.karabinerDriverInstalled)
     }
 
     func testSessionDeniedRuntimeKeyAccessAsksForRelaunch() {
@@ -430,15 +390,11 @@ final class CLIOutputContractTests: KeyPathTestCase {
             accessibility: appAX, runtimeKeyAccess: runtimeKeyAccess, source: "test.session", timestamp: now
         )
         let components = ComponentStatus(
-            kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true,
-            karabinerDriverInstalled: false, karabinerDaemonRunning: false,
-            vhidDeviceInstalled: false, vhidDeviceHealthy: false,
-            vhidServicesHealthy: false, vhidVersionMismatch: false
+            kanataBinaryInstalled: true, requiredRuntimePayloadPresent: true
         )
         let health = HealthStatus(
-            backend: .session, kanataProcessRunning: running, kanataTCPResponding: responding,
-            kanataRunning: running && responding, karabinerDaemonRunning: false,
-            vhidHealthy: false, configParseError: configError
+            kanataProcessRunning: running, kanataTCPResponding: responding,
+            kanataRunning: running && responding, configParseError: configError
         )
         return SystemContext(snapshot: SystemSnapshot(
             permissions: permissions, components: components,
@@ -455,9 +411,9 @@ final class CLIOutputContractTests: KeyPathTestCase {
         return Set(dict.keys)
     }
 
-    /// Historical driver diagnostics are explicit fixtures, independent of the
-    /// product's selected backend and the default session context builder.
-    private func historicalDriverContext(
+    /// A context built directly from permission, service and component facts,
+    /// independent of the default session context builder.
+    private func explicitContext(
         permissionsStatus: PermissionOracle.Status = .granted,
         servicesHealthy: Bool = true,
         kanataInputCaptureReady: Bool = true,
@@ -467,28 +423,21 @@ final class CLIOutputContractTests: KeyPathTestCase {
         let now = Date()
         let permissions = PermissionOracle.Snapshot.fixture(
             accessibility: permissionsStatus, runtimeKeyAccess: permissionsStatus,
-            source: "test.driverKit", timestamp: now
+            source: "test.explicit", timestamp: now
         )
         let components = ComponentStatus(
             kanataBinaryInstalled: componentsInstalled,
-            requiredRuntimePayloadPresent: componentsInstalled,
-            karabinerDriverInstalled: componentsInstalled,
-            karabinerDaemonRunning: componentsInstalled && servicesHealthy,
-            vhidDeviceInstalled: componentsInstalled,
-            vhidDeviceHealthy: componentsInstalled && servicesHealthy,
-            vhidServicesHealthy: componentsInstalled && servicesHealthy,
-            vhidVersionMismatch: false
+            requiredRuntimePayloadPresent: componentsInstalled
         )
         let services = HealthStatus(
-            backend: .driverKit, kanataRunning: servicesHealthy,
-            karabinerDaemonRunning: servicesHealthy, vhidHealthy: servicesHealthy,
+            kanataRunning: servicesHealthy,
             kanataInputCaptureReady: kanataInputCaptureReady,
             kanataInputCaptureIssue: kanataInputCaptureIssue
         )
-        return SystemContext(
-            permissions: permissions,
-            services: services, conflicts: .empty, components: components,
-            system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: true), timestamp: now
-        )
+        return SystemContext(snapshot: SystemSnapshot(
+            permissions: permissions, components: components, conflicts: .empty,
+            health: services, compatibility: SystemCompatibilityStatus(macOSVersion: "27.0"),
+            timestamp: now
+        ))
     }
 }

@@ -107,9 +107,9 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
         )
     }
 
-    func testProcessLifecycleManagerDelegatesPgrepDiscoveryToSystemStateProvider() throws {
+    func testKanataProcessDetectorDelegatesPgrepDiscoveryToSystemStateProvider() throws {
         let manager = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathDaemonLifecycle/ProcessLifecycleManager.swift")
+            .appendingPathComponent("Sources/KeyPathAppKit/Services/Monitoring/KanataProcessDetector.swift")
 
         let violations = try matchingLines(
             in: manager,
@@ -124,7 +124,7 @@ final class PgrepProcessDiscoveryLintTests: XCTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             """
-            ProcessLifecycleManager must delegate process discovery to \
+            KanataProcessDetector must delegate process discovery to \
             SystemStateProvider instead of calling pgrep directly:
             \(violations.sorted().joined(separator: "\n"))
             """

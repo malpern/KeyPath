@@ -10,24 +10,16 @@ struct SystemContextBuilder {
     var snapshotID = UUID()
     var permissionsStatus: PermissionOracle.Status = .granted
     var servicesHealthy: Bool = false
-    var kanataLaunchdLoaded: Bool?
     var kanataProcessRunning: Bool?
     var kanataTCPResponding: Bool?
-    var kanataTCPConfigured: Bool?
-    var kanataSMAppServiceRegistered: Bool?
     var kanataRunning: Bool?
-    var karabinerDaemonRunning: Bool?
-    var vhidHealthy: Bool?
-    var loginItemsApprovalRequired: Bool?
     var kanataInputCaptureReady: Bool = true
-    var kanataServiceFreshness: RuntimeFreshness = .unknown
     /// The input-capture failure reason surfaced when not ready (#624 attribution).
     /// Defaults to the built-in-keyboard permission reason; set to a grab-failure
     /// reason, or explicitly nil, to exercise the other branches.
     var kanataInputCaptureIssue: String? = "kanata-cannot-open-built-in-keyboard"
     var componentsInstalled: Bool = false
     var conflicts: [SystemConflict] = []
-    var driverCompatible: Bool = true
     var captureStatus: SystemSnapshotCaptureStatus = .complete
 
     func build() -> SystemContext {
@@ -36,32 +28,17 @@ struct SystemContextBuilder {
         )
 
         let components: ComponentStatus = if componentsInstalled {
-            ComponentStatus(
-                kanataBinaryInstalled: true,
-                karabinerDriverInstalled: true,
-                karabinerDaemonRunning: servicesHealthy,
-                vhidDeviceInstalled: true,
-                vhidDeviceHealthy: servicesHealthy,
-                vhidServicesHealthy: servicesHealthy,
-                vhidVersionMismatch: false
-            )
+            ComponentStatus(kanataBinaryInstalled: true)
         } else {
             .empty
         }
 
         let services = HealthStatus(
-            kanataLaunchdLoaded: kanataLaunchdLoaded,
             kanataProcessRunning: kanataProcessRunning,
             kanataTCPResponding: kanataTCPResponding,
-            kanataTCPConfigured: kanataTCPConfigured,
             kanataRunning: kanataRunning ?? servicesHealthy,
-            karabinerDaemonRunning: karabinerDaemonRunning ?? servicesHealthy,
-            vhidHealthy: vhidHealthy ?? servicesHealthy,
             kanataInputCaptureReady: kanataInputCaptureReady,
-            kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue,
-            kanataServiceFreshness: kanataServiceFreshness,
-            kanataSMAppServiceRegistered: kanataSMAppServiceRegistered,
-            loginItemsApprovalRequired: loginItemsApprovalRequired
+            kanataInputCaptureIssue: kanataInputCaptureReady ? nil : kanataInputCaptureIssue
         )
 
         let conflictStatus = ConflictStatus(conflicts: conflicts, canAutoResolve: !conflicts.isEmpty)
@@ -72,7 +49,7 @@ struct SystemContextBuilder {
             services: services,
             conflicts: conflictStatus,
             components: components,
-            system: EngineSystemInfo(macOSVersion: "15.0", driverCompatible: driverCompatible),
+            system: EngineSystemInfo(macOSVersion: "27.0"),
             timestamp: Date(),
             captureStatus: captureStatus
         )

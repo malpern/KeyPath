@@ -402,27 +402,17 @@ public struct WizardKanataServicePage: View {
         processStatus: ServiceProcessStatus,
         isInTransientStartupWindow: Bool
     ) {
-        var derivedStatus: ServiceStatus
-
-        switch runtimeStatus {
+        var derivedStatus: ServiceStatus = switch runtimeStatus {
         case .running:
-            derivedStatus = .running
+            .running
         case .stopped:
-            derivedStatus = isInTransientStartupWindow ? .starting : .stopped
+            isInTransientStartupWindow ? .starting : .stopped
         case let .failed(reason):
-            // Try to get more detailed config error from stderr log
-            let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-            if KanataRuntimeBackend.selected.requiresPrivilegedServices,
-               let configError = Self.extractConfigError(from: stderrPath)
-            {
-                derivedStatus = .failed(error: configError)
-            } else {
-                derivedStatus = .failed(error: reason)
-            }
+            .failed(error: reason)
         case .starting:
-            derivedStatus = .starting
+            .starting
         case .unknown:
-            derivedStatus = .unknown
+            .unknown
         }
 
         switch processStatus {
@@ -440,10 +430,7 @@ public struct WizardKanataServicePage: View {
 
         if case .stopped = derivedStatus {
             serviceStatus = .stopped
-            AppLogger.shared.log("🔍 [ServiceStatus] Service stopped - checking for crash indicators")
-            Task {
-                await checkForCrashAsync()
-            }
+            AppLogger.shared.log("🔍 [ServiceStatus] Service stopped")
             return
         }
 
@@ -454,171 +441,6 @@ public struct WizardKanataServicePage: View {
         }
 
         serviceStatus = derivedStatus
-    }
-
-    private func checkForCrashAsync() async {
-        // Session runtime failures come from the current worker report. Daemon
-        // logs can belong to an entirely different installation or launch.
-        guard KanataRuntimeBackend.selected.requiresPrivilegedServices else { return }
-        // First check stderr log for config parsing errors (more detailed)
-        let stderrPath = "/var/log/com.keypath.kanata.stderr.log"
-        let logPath = WizardSystemPaths.kanataLogFile
-        let errorMessage = await (Task.detached {
-            Self.extractCrashError(stderrPath: stderrPath, logPath: logPath)
-        }).value
-
-        await MainActor.run {
-            guard case .stopped = serviceStatus else { return }
-            if let errorMessage {
-                serviceStatus = .failed(error: errorMessage)
-            } else {
-                serviceStatus = .stopped
-            }
-        }
-    }
-
-    private nonisolated static func extractCrashError(stderrPath: String, logPath: String) -> String? {
-        if let configError = extractConfigError(from: stderrPath) {
-            return configError
-        }
-
-        if let logData = readRecentLogData(from: logPath, maxBytes: 64 * 1024) {
-            let logString = String(decoding: logData, as: UTF8.self)
-            let lines = logString.components(separatedBy: .newlines)
-            let recentLines = lines.suffix(40) // Check last 40 lines
-
-            for line in recentLines.reversed() {
-                if isLikelyActionableCrashLine(line) {
-                    return extractErrorMessage(from: line)
-                }
-            }
-        }
-
-        return nil
-    }
-
-    public nonisolated static func isLikelyActionableCrashLine(_ line: String) -> Bool {
-        let lower = line.lowercased()
-        let hasErrorSignal = lower.contains("error") || lower.contains("fatal") || lower.contains("panic")
-        guard hasErrorSignal else { return false }
-
-        // Ignore known non-fatal runtime noise that should not drive wizard crash UI.
-        if lower.contains("error writing reloadresult: broken pipe") {
-            return false
-        }
-        if lower.contains("broken pipe (os error 32)") {
-            return false
-        }
-        if lower.contains("connection reset by peer") {
-            return false
-        }
-        if lower.contains("client sent an invalid message") {
-            return false
-        }
-        if lower.contains("iohiddeviceopen error: (iokit/common) exclusive access and device already open") {
-            return false
-        }
-        if lower.contains("iohiddeviceopen error: (iokit/common) not permitted apple internal keyboard / trackpad") {
-            return false
-        }
-
-        return true
-    }
-
-    private nonisolated static func readRecentLogData(from path: String, maxBytes: Int) -> Data? {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
-        defer {
-            try? handle.close()
-        }
-
-        do {
-            let endOffset = try handle.seekToEnd()
-            let startOffset = max(0, Int64(endOffset) - Int64(maxBytes))
-            try handle.seek(toOffset: UInt64(startOffset))
-            return try handle.readToEnd()
-        } catch {
-            return nil
-        }
-    }
-
-    /// Extract config parsing error from kanata stderr log
-    /// Returns a user-friendly error message if a recent config error is found
-    private nonisolated static func extractConfigError(from stderrPath: String) -> String? {
-        // Ignore stale stderr logs so old config errors don't surface after reinstalls.
-        let maxLogAge: TimeInterval = 10 * 60
-        if let attributes = try? Foundation.FileManager().attributesOfItem(atPath: stderrPath),
-           let modifiedAt = attributes[Foundation.FileAttributeKey.modificationDate] as? Date,
-           Date().timeIntervalSince(modifiedAt) > maxLogAge
-        {
-            return nil
-        }
-
-        guard let logData = try? String(contentsOfFile: stderrPath, encoding: .utf8) else {
-            return nil
-        }
-
-        let lines = logData.components(separatedBy: .newlines)
-        let recentLines = Array(lines.suffix(100)) // Check last 100 lines for config errors
-
-        // Look for config error patterns
-        var foundConfigError = false
-        var errorFile: String?
-        var errorLine: String?
-        var helpMessage: String?
-
-        for line in recentLines.reversed() {
-            // Check for "Error in configuration" marker
-            if line.contains("Error in configuration") {
-                foundConfigError = true
-            }
-
-            // Extract file and line info: ╭─[keypath-apps.kbd:14:1]
-            if foundConfigError, errorFile == nil,
-               let match = line.range(of: #"\[([^\]]+\.kbd):(\d+)"#, options: .regularExpression)
-            {
-                let matchStr = String(line[match])
-                // Extract filename and line number
-                let parts = matchStr.dropFirst().dropLast().split(separator: ":")
-                if parts.count >= 2 {
-                    errorFile = String(parts[0])
-                    errorLine = String(parts[1])
-                }
-            }
-
-            // Extract the help message which contains the actual error
-            if foundConfigError, helpMessage == nil, line.contains("help:") {
-                if let helpRange = line.range(of: "help:") {
-                    helpMessage = String(line[helpRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-                }
-            }
-
-            // Extract "failed to parse file" as fallback
-            if line.contains("failed to parse file") {
-                foundConfigError = true
-            }
-
-            // If we have all the info we need, build the message
-            if foundConfigError, helpMessage != nil {
-                break
-            }
-        }
-
-        // Build user-friendly message
-        if foundConfigError {
-            var message = "Config error"
-            if let file = errorFile {
-                message += " in \(file)"
-                if let lineNum = errorLine {
-                    message += " line \(lineNum)"
-                }
-            }
-            if let help = helpMessage {
-                message += ": \(help)"
-            }
-            return message
-        }
-
-        return nil
     }
 
     private func navigateToNextStep() {
@@ -664,19 +486,6 @@ public struct WizardKanataServicePage: View {
                 action: restartService,
                 disabled: isPerformingAction
             )
-        }
-    }
-
-    private nonisolated static func extractErrorMessage(from logLine: String) -> String {
-        // Extract meaningful error message from log line
-        if logLine.contains("Permission denied") {
-            "Permission denied - check \(AccessibilityPermissionPresentation.current.name) for KeyPath"
-        } else if logLine.contains("Config error") {
-            "Configuration error - check your keypath.kbd file"
-        } else if logLine.contains("Device not found") {
-            "Keyboard device not found"
-        } else {
-            "Check log file for details"
         }
     }
 }

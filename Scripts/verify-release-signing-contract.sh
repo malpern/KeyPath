@@ -101,22 +101,20 @@ done
 cd "$PROJECT_DIR"
 
 require_file "KeyPath.entitlements"
-require_file "kanata.entitlements"
 require_file "Scripts/build-and-sign.sh"
 require_file "Scripts/release-doctor.sh"
 require_executable "Scripts/verify-release-signing-contract.sh"
 
-for plist in \
-    "KeyPath.entitlements" \
-    "kanata.entitlements"; do
-    require_valid_plist "$plist"
-done
+require_valid_plist "KeyPath.entitlements"
 
 require_plist_key "KeyPath.entitlements" "com.apple.security.app-sandbox" "false"
 require_plist_key "KeyPath.entitlements" "com.apple.security.network.client" "true"
 require_plist_key "KeyPath.entitlements" "com.apple.security.automation.apple-events" "true"
-require_plist_key "kanata.entitlements" "com.apple.security.device.hid" "true"
-require_plist_key "kanata.entitlements" "com.apple.security.device.input-monitoring" "true"
+if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.device.input-monitoring' KeyPath.entitlements >/dev/null 2>&1; then
+    fail "KeyPath.entitlements must not claim Input Monitoring; the session runtime does not need it"
+else
+    pass "KeyPath.entitlements claims no Input Monitoring"
+fi
 
 if /usr/libexec/PlistBuddy -c 'Print :SMPrivilegedExecutables' Sources/KeyPathApp/Info.plist >/dev/null 2>&1; then
     fail "main app Info.plist must not declare SMPrivilegedExecutables in the driverless experiment"
@@ -127,6 +125,7 @@ for forbidden_asset in \
     "Sources/KeyPathApp/Resources/Karabiner-DriverKit-VirtualHIDDevice-8.0.0.pkg" \
     "Sources/KeyPathApp/Resources/uninstall.sh" \
     "Sources/KeyPathApp/com.keypath.kanata.plist" \
+    "kanata.entitlements" \
     "Sources/KeyPathHelper" \
     "Sources/KeyPathKanataLauncher"; do
     if [[ -e "$forbidden_asset" ]]; then fail "$forbidden_asset must not be packaged"; else pass "$forbidden_asset is absent"; fi

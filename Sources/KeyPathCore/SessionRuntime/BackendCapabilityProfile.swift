@@ -1,8 +1,8 @@
 import Foundation
 
-/// What the active runtime backend can emit, in one place.
+/// What the session runtime can emit, in one place.
 ///
-/// For the driverless session backend the answer comes from the Kanata host
+/// The answer comes from the Kanata host
 /// bridge, which applies the same output rule as session validation (keyboard
 /// page only, within `SessionKeyMap`). Swift keeps no list of its own, so the
 /// UI, catalog and pack checks cannot drift from what the runtime accepts.
@@ -20,28 +20,25 @@ public final class BackendCapabilityProfile: @unchecked Sendable {
         public nonisolated(unsafe) static var testOverride: BackendCapabilityProfile?
     #endif
 
-    private static let live = BackendCapabilityProfile(backend: .selected) { key in
+    private static let live = BackendCapabilityProfile { key in
         KanataHostBridge.sessionOutputKeySupported(
             runtimeHost: .current(), keyName: key, supportedUsages: SessionKeyMap.sessionOutputUsages
         )
     }
 
-    public let backend: KanataRuntimeBackend
     private let query: @Sendable (String) -> Bool?
     private let lock = NSLock()
     private var cache: [String: Bool] = [:]
     private var knownCache: [String: Bool] = [:]
 
     /// `query` answers for one base key name: true/false, or nil for "no answer".
-    public init(backend: KanataRuntimeBackend, query: @escaping @Sendable (String) -> Bool?) {
-        self.backend = backend
+    public init(query: @escaping @Sendable (String) -> Bool?) {
         self.query = query
     }
 
     /// Whether a Kanata keystroke output (optionally with modifier prefixes such
-    /// as `C-S-` or `M-`) can be emitted. Only the session backend has limits.
+    /// as `C-S-` or `M-`) can be emitted by the session runtime.
     public func canEmit(kanataKey: String) -> Bool {
-        guard backend == .session else { return true }
         let base = Self.baseKey(of: kanataKey)
         guard !base.isEmpty else { return true }
         lock.lock()
@@ -75,11 +72,6 @@ public final class BackendCapabilityProfile: @unchecked Sendable {
         }
         lock.lock(); knownCache[key] = answer; lock.unlock()
         return answer
-    }
-
-    /// Device-specific rules (`macos-dev-names-*`) are refused by the session backend.
-    public var supportsDeviceTargeting: Bool {
-        backend != .session
     }
 
     /// Strip Kanata modifier prefixes: `C-S-n` → `n`, `RA-x` → `x`, `C-down` → `down`.

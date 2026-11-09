@@ -1,6 +1,5 @@
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathPermissions
 
 /// Manages configuration reload operations via TCP.
@@ -16,7 +15,6 @@ final class ConfigReloadCoordinator {
     private let engineClient: EngineClient
     private let reloadSafetyMonitor: ReloadSafetyMonitor
     private let healthStatusProvider: @MainActor @Sendable (Int) async -> ServiceHealthStatus
-    private let processLifecycleManager: ProcessLifecycleManager
     private let isRuntimeTransitioning: @MainActor @Sendable () -> Bool
     private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
     private let transitionRetryMaximumPolls: Int
@@ -50,7 +48,6 @@ final class ConfigReloadCoordinator {
         engineClient: EngineClient,
         reloadSafetyMonitor: ReloadSafetyMonitor,
         healthStatusProvider: @escaping @MainActor @Sendable (Int) async -> ServiceHealthStatus,
-        processLifecycleManager: ProcessLifecycleManager,
         isRuntimeTransitioning: @escaping @MainActor @Sendable () -> Bool = { false },
         tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
@@ -74,7 +71,6 @@ final class ConfigReloadCoordinator {
         self.engineClient = engineClient
         self.reloadSafetyMonitor = reloadSafetyMonitor
         self.healthStatusProvider = healthStatusProvider
-        self.processLifecycleManager = processLifecycleManager
         self.isRuntimeTransitioning = isRuntimeTransitioning
         self.tcpReloadOverride = tcpReloadOverride
         self.transitionRetryMaximumPolls = transitionRetryMaximumPolls
@@ -464,10 +460,7 @@ final class ConfigReloadCoordinator {
         }
 
         // Check reload safety first
-        let currentPID = processLifecycleManager.ownedPID
-        let safetyCheck = await reloadSafetyMonitor.checkReloadSafety(
-            currentPID: currentPID.map { Int($0) }
-        )
+        let safetyCheck = await reloadSafetyMonitor.checkReloadSafety()
 
         if !safetyCheck.isSafe {
             let reason = safetyCheck.reason ?? "Safety check failed"
@@ -486,10 +479,7 @@ final class ConfigReloadCoordinator {
         let mapped = mapEngineToTCP(res)
 
         // Record the reload attempt for safety monitoring
-        await reloadSafetyMonitor.recordReloadAttempt(
-            succeeded: mapped.isSuccess,
-            daemonPID: currentPID.map { Int($0) }
-        )
+        await reloadSafetyMonitor.recordReloadAttempt(succeeded: mapped.isSuccess)
 
         return finished(mapped)
     }

@@ -67,7 +67,7 @@ final class ManagedCapsBridgeValidationTests: XCTestCase {
         guard let path = ProcessInfo.processInfo.environment["KEYPATH_SESSION_LEGACY_TEST_BRIDGE_PATH"] else {
             throw XCTSkip("Supply an explicit older bridge to verify missing-symbol refusal")
         }
-        let host = KanataRuntimeHost(launcherPath: "/unused", bridgeLibraryPath: path,
+        let host = KanataRuntimeHost(bridgeLibraryPath: path,
                                      bundledCorePath: "/unused", kanataEngineBundlePath: "/unused")
         guard case let .unavailable(reason) = try validate("(defsrc caps)(deflayer base esc)", managed: true, host: host) else {
             return XCTFail("Older bridge must refuse managed admission")

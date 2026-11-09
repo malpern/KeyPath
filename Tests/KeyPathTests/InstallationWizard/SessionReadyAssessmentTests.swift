@@ -9,11 +9,8 @@ final class SessionReadyAssessmentTests: KeyPathTestCase {
     func testReadySessionProducesHealthyAssessmentWithoutHelperRecipe() {
         let context = SystemContextBuilder(
             servicesHealthy: true,
-            kanataLaunchdLoaded: true,
             kanataProcessRunning: true,
             kanataTCPResponding: true,
-            kanataSMAppServiceRegistered: true,
-            loginItemsApprovalRequired: false,
             componentsInstalled: true
         ).build()
         let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)

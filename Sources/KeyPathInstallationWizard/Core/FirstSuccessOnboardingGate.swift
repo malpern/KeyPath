@@ -10,11 +10,6 @@ import KeyPathWizardCore
 public enum FirstSuccessOnboardingGate {
     public static let hasShownKey = "onboarding_first_success_shown"
 
-    /// Both backends support the tour; session startup prepares the Caps Lock mapping.
-    public static func supportsTour(backend _: KanataRuntimeBackend = .selected) -> Bool {
-        true
-    }
-
     /// Survives quitting during permission setup. Runtime readiness must not
     /// skip the wizard's verified handoff while this learning path is pending.
     public static func isPending(defaults: UserDefaults = .standard) -> Bool {
@@ -30,11 +25,9 @@ public enum FirstSuccessOnboardingGate {
         didShowWelcomePage: Bool,
         wizardState: WizardSystemState,
         issues: [WizardIssue],
-        backend: KanataRuntimeBackend = .selected,
         defaults: UserDefaults = .standard
     ) -> Bool {
-        guard supportsTour(backend: backend),
-              wizardState == .active,
+        guard wizardState == .active,
               issues.isEmpty,
               didShowWelcomePage || defaults.bool(forKey: WizardWelcomeGate.hasSeenWelcomeKey),
               !defaults.bool(forKey: hasShownKey)

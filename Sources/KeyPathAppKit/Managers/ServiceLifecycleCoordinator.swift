@@ -1,7 +1,6 @@
 import AppKit
 import Foundation
 import KeyPathCore
-import KeyPathDaemonLifecycle
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
@@ -183,7 +182,7 @@ final class ServiceLifecycleCoordinator {
 
     // MARK: - Init
 
-    init(recoveryCoordinator _: RecoveryCoordinator) {
+    init() {
         for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
                      NSWorkspace.sessionDidBecomeActiveNotification]
         {
