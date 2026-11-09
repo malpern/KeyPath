@@ -73,6 +73,21 @@ final class DeploymentScriptContractTests: XCTestCase {
         }
     }
 
+    /// A KeyPath signed with anything but Developer ID claims the
+    /// com.keypath.KeyPath privacy rows, after which Developer ID builds read as
+    /// denied while their switches show on (2026-11-08). quick-deploy must refuse
+    /// such a build before it stops or replaces the installed app.
+    func testQuickDeployRefusesNonDeveloperIDSigningBeforeTouchingTheApp() throws {
+        let quickDeploy = try contents(of: repositoryRoot().appendingPathComponent("Scripts/quick-deploy.sh"))
+        let guardCheck = try XCTUnwrap(quickDeploy.range(
+            of: #"if [[ "$SIGNING_IDENTITY" != "$PREFERRED_SIGNING_IDENTITY" && "${KEYPATH_ALLOW_DEV_SIGNING:-0}" != "1" ]]; then"#
+        ), "quick-deploy must refuse a signing identity other than the preferred Developer ID.")
+        let stop = try XCTUnwrap(quickDeploy.range(of: #"pkill -x "$APP_NAME""#))
+        let copy = try XCTUnwrap(quickDeploy.range(of: #"echo "📦 Deploying...""#))
+        XCTAssertLessThan(guardCheck.lowerBound, stop.lowerBound, "Refuse before stopping the running app.")
+        XCTAssertLessThan(guardCheck.lowerBound, copy.lowerBound, "Refuse before replacing the installed app.")
+    }
+
     func testInstalledAppDeployScriptsUseCrossWorktreeLock() throws {
         let root = repositoryRoot()
         let lockScript = try contents(of: root.appendingPathComponent("Scripts/lib/deploy-lock.sh"))
