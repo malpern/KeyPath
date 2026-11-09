@@ -312,7 +312,9 @@ final class AutoDetectKeyboardController {
                 UserDefaults.standard.set(layoutId, forKey: LayoutPreferences.layoutIdKey)
             }
         }
-        SoundPlayer.shared.playDeviceDisconnectedSound()
+        if feedbackVisible {
+            SoundPlayer.shared.playDeviceDisconnectedSound()
+        }
     }
 
     #if DEBUG
