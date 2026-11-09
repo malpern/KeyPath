@@ -39,7 +39,7 @@ struct Uninstall: AsyncParsableCommand {
             "Back up rules and settings to ~/Downloads/KeyPath-Uninstall-Backup-…",
             "Remove ~/.config/keypath, ~/Library/Application Support/KeyPath, its caches and preferences",
             "Turn off Launch at Login and move \(RuntimeControlClient.appURL.path) to the Trash",
-        ] + (resetPermissions ? ["Clear KeyPath's Accessibility and Input Monitoring entries"] : [])
+        ] + (resetPermissions ? ["Clear KeyPath's \(AccessibilityPermissionPresentation.current.name) and Input Monitoring entries"] : [])
         guard yes, !globals.dryRun else {
             CLIOutput.write(Plan(applied: false, plan: plan), context: ctx) {
                 (["Uninstall would:"] + plan.map { "  - \($0)" } + ["", "Nothing changed. Re-run with --yes to uninstall."])

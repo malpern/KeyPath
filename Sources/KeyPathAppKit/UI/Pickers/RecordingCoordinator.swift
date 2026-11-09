@@ -715,9 +715,9 @@ extension RecordingCoordinator {
         switch reason {
         case "permissionFailure":
             RecordingFailureDisplayInfo(
-                displayMessage: "⚠️ Accessibility permission required for recording",
+                displayMessage: "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required for recording",
                 bannerMessage:
-                "❌ Recording requires Accessibility permission. Open the Installation Wizard to grant access.",
+                "❌ Recording requires \(AccessibilityPermissionPresentation.current.name) permission. Open the Installation Wizard to grant access.",
                 shouldShowBanner: true
             )
         case "captureInitializationFailure":

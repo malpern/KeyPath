@@ -293,13 +293,24 @@ private struct AccessibilityManualFallbackCard: View {
                 .font(.headline)
 
             Text(
-                "On some macOS versions the automatic prompt doesn't appear. You can add KeyPath to Accessibility yourself:"
+                "On some macOS versions the automatic prompt doesn't appear. You can add KeyPath to \(AccessibilityPermissionPresentation.current.name) yourself:"
             )
             .font(.callout)
             .foregroundColor(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-            Button("Add KeyPath to Accessibility") {
+            // A switch that is already on can belong to another copy of KeyPath (a
+            // development build, an old copy in the Trash). macOS ties the grant to
+            // that copy's signature, so this one still reads as denied. Only
+            // removing the row and adding it again replaces the signature.
+            Text(
+                "If KeyPath is already switched on there, select it, remove it with −, then add it again. The switch can belong to another copy of KeyPath."
+            )
+            .font(.callout)
+            .foregroundColor(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Button("Add KeyPath to \(AccessibilityPermissionPresentation.current.name)") {
                 DragToAuthorizeController.shared.present(for: .accessibility, subject: .keyPath)
             }
             .buttonStyle(WizardDesign.Component.SecondaryButton())

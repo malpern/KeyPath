@@ -1,4 +1,5 @@
 @testable import KeyPathAppKit
+import KeyPathCore
 import KeyPathPermissions
 @preconcurrency import XCTest
 
@@ -16,7 +17,7 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
         // which is the harness flake tracked in #922.
         let recordingFailed = expectation(description: "input recording failed")
         fixture.statusHandler = { message in
-            if message.contains("Accessibility") { recordingFailed.fulfill() }
+            if message.contains(AccessibilityPermissionPresentation.current.name) { recordingFailed.fulfill() }
         }
 
         fixture.coordinator.toggleInputRecording()
@@ -24,9 +25,9 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
 
         XCTAssertFalse(fixture.coordinator.isInputRecording())
         XCTAssertEqual(
-            fixture.coordinator.inputDisplayText(), "⚠️ Accessibility permission required for recording"
+            fixture.coordinator.inputDisplayText(), "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required for recording"
         )
-        XCTAssertTrue(fixture.statusMessages.contains { $0.contains("Accessibility") })
+        XCTAssertTrue(fixture.statusMessages.contains { $0.contains(AccessibilityPermissionPresentation.current.name) })
     }
 
     func testInputRecordingCompletesWhenCaptureCallbackFires() async {
@@ -61,7 +62,7 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
         // applied failure rather than the permission snapshot being queried (#922).
         let recordingFailed = expectation(description: "output recording failed")
         fixture.statusHandler = { message in
-            if message.contains("Accessibility") { recordingFailed.fulfill() }
+            if message.contains(AccessibilityPermissionPresentation.current.name) { recordingFailed.fulfill() }
         }
 
         fixture.coordinator.toggleOutputRecording()
@@ -69,9 +70,9 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
 
         XCTAssertFalse(fixture.coordinator.isOutputRecording())
         XCTAssertEqual(
-            fixture.coordinator.outputDisplayText(), "⚠️ Accessibility permission required for recording"
+            fixture.coordinator.outputDisplayText(), "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required for recording"
         )
-        XCTAssertTrue(fixture.statusMessages.contains { $0.contains("Accessibility") })
+        XCTAssertTrue(fixture.statusMessages.contains { $0.contains(AccessibilityPermissionPresentation.current.name) })
     }
 
     fileprivate static func snapshot(accessibility: PermissionOracle.Status) -> PermissionOracle.Snapshot {

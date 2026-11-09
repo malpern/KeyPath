@@ -225,7 +225,7 @@ public struct SystemSnapshot: Sendable {
                     .permissionMissing(
                         app: "Kanata",
                         permission: "Accessibility",
-                        action: "Re-grant Accessibility permission after rebuild — remove and re-add Kanata Engine in System Settings"
+                        action: "Re-grant \(AccessibilityPermissionPresentation.current.name) permission after rebuild — remove and re-add Kanata Engine in System Settings"
                     )
                 )
             } else if !health.kanataRunning {

@@ -30,7 +30,7 @@ public final class DragToAuthorizeController {
 
         var displayName: String {
             switch self {
-            case .accessibility: "Accessibility"
+            case .accessibility: AccessibilityPermissionPresentation.current.name
             case .inputMonitoring: "Input Monitoring"
             }
         }

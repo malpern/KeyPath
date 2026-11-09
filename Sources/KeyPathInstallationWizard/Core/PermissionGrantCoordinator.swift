@@ -12,7 +12,7 @@ public enum CoordinatorPermissionType: String, CaseIterable {
     public var displayName: String {
         switch self {
         case .accessibility:
-            "Accessibility"
+            AccessibilityPermissionPresentation.current.name
         case .inputMonitoring:
             "Input Monitoring"
         }

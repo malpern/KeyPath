@@ -363,7 +363,7 @@ public enum PermissionType: String {
     public var displayName: String {
         switch self {
         case .inputMonitoring: "Input Monitoring"
-        case .accessibility: "Accessibility"
+        case .accessibility: AccessibilityPermissionPresentation.current.name
         }
     }
 }
@@ -488,7 +488,7 @@ public struct WizardError: LocalizedError {
                 "KeyPath needs additional system permissions to work properly",
                 [
                     "Open System Settings → Privacy & Security",
-                    "Find 'Input Monitoring' and 'Accessibility' sections",
+                    "Find 'Input Monitoring' and '\(AccessibilityPermissionPresentation.current.name)' sections",
                     "Make sure KeyPath and Kanata are both enabled"
                 ]
             )

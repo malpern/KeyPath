@@ -38,9 +38,9 @@ enum PermissionGatedFeature {
         case .keyboardRemapping:
             "KeyPath needs permission to remap your keyboard keys."
         case .emergencyStop:
-            "KeyPath needs Accessibility permission to detect the emergency stop and keep you safe."
+            "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission to detect the emergency stop and keep you safe."
         case .keyCapture:
-            "KeyPath needs Accessibility permission to capture keyboard input for configuration."
+            "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission to capture keyboard input for configuration."
         case .configurationReload:
             "KeyPath sends configuration changes to the running remapping engine."
         }
@@ -114,7 +114,7 @@ final class PermissionGate {
         // If Kanata permissions are not verifiable (unknown), do NOT label them "required".
         // Surface this as "not verified" and send the user to the setup verification flow.
         if eval.missingKeyPath.isEmpty, !eval.kanataBlocking.isEmpty {
-            let perms = Array(eval.kanataBlocking).map { $0 == .inputMonitoring ? "Input Monitoring" : "Accessibility" }
+            let perms = Array(eval.kanataBlocking).map { $0 == .inputMonitoring ? "Input Monitoring" : AccessibilityPermissionPresentation.current.name }
                 .joined(separator: ", ")
             let approved = await PermissionRequestDialog.show(
                 title: snapshot.backend == .session
@@ -135,7 +135,7 @@ final class PermissionGate {
         }
 
         if eval.missingKeyPath.isEmpty, !eval.kanataNotVerified.isEmpty {
-            let perms = Array(eval.kanataNotVerified).map { $0 == .inputMonitoring ? "Input Monitoring" : "Accessibility" }
+            let perms = Array(eval.kanataNotVerified).map { $0 == .inputMonitoring ? "Input Monitoring" : AccessibilityPermissionPresentation.current.name }
                 .joined(separator: ", ")
             let approved = await PermissionRequestDialog.show(
                 title: snapshot.backend == .session

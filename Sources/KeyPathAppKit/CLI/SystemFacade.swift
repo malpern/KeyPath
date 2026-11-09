@@ -439,9 +439,9 @@ public struct SystemFacade: Sendable {
                 ))
             } else if !context.services.kanataRunning, context.services.kanataPermissionRejected {
                 issues.append(.init(
-                    title: "Kanata needs Accessibility permission",
+                    title: "Kanata needs \(AccessibilityPermissionPresentation.current.name) permission",
                     category: "permissions",
-                    action: "Re-grant Accessibility for Kanata Engine in System Settings",
+                    action: "Re-grant \(AccessibilityPermissionPresentation.current.name) for Kanata Engine in System Settings",
                     canAutoFix: false,
                     remediationURL: WizardSystemPaths.accessibilitySettings
                 ))
@@ -510,7 +510,7 @@ public struct SystemFacade: Sendable {
                     : "KeyPath session cannot capture keyboard input",
                 category: "service",
                 action: context.services.kanataPermissionRejected
-                    ? "Open KeyPath.app to verify current-session Accessibility permission"
+                    ? "Open KeyPath.app to verify current-session \(AccessibilityPermissionPresentation.current.name) permission"
                     : context.services.kanataInputCaptureIssue
                     ?? "Open KeyPath.app to verify permissions and restart the session",
                 canAutoFix: false

@@ -107,7 +107,7 @@ public class KeyboardCapture {
                         keyboardCapture.startCaptureAfterPermissions(callback: callback)
                     },
                     onDenied: {
-                        callback("⚠️ Accessibility permission required")
+                        callback("⚠️ \(AccessibilityPermissionPresentation.current.name) permission required")
                     }
                 )
             }
@@ -124,7 +124,7 @@ public class KeyboardCapture {
             // Notify that we need permissions - this should trigger the wizard
             isCapturing = false
             captureCallback = nil
-            callback("⚠️ Accessibility permission required")
+            callback("⚠️ \(AccessibilityPermissionPresentation.current.name) permission required")
 
             // In unit tests, avoid posting UI-triggering notifications
             if !TestEnvironment.isRunningTests {
@@ -132,7 +132,7 @@ public class KeyboardCapture {
                 NotificationCenter.default.post(
                     name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
                     object: nil,
-                    userInfo: ["reason": "Accessibility permission required for keyboard capture"]
+                    userInfo: ["reason": "\(AccessibilityPermissionPresentation.current.name) permission required for keyboard capture"]
                 )
 
                 AppLogger.shared.log(
@@ -183,14 +183,14 @@ public class KeyboardCapture {
             isCapturing = false
             isContinuous = false
             captureCallback = nil
-            callback("⚠️ Accessibility permission required")
+            callback("⚠️ \(AccessibilityPermissionPresentation.current.name) permission required")
 
             if !TestEnvironment.isRunningTests {
                 // Trigger the wizard to help user fix permissions
                 NotificationCenter.default.post(
                     name: NSNotification.Name("KeyboardCapturePermissionNeeded"),
                     object: nil,
-                    userInfo: ["reason": "Accessibility permission required for continuous keyboard capture"]
+                    userInfo: ["reason": "\(AccessibilityPermissionPresentation.current.name) permission required for continuous keyboard capture"]
                 )
 
                 AppLogger.shared.log(
