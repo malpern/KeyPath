@@ -12,6 +12,8 @@ enum CLIRuntimeBootstrap {
 
     static func ensureConfigured() async {
         guard !isConfigured else { return }
+        // Set before the first await so a concurrent caller cannot configure twice.
+        isConfigured = true
 
         // The CLI owns stdout/stderr. Keep app-internal logs in the log file so
         // JSON output remains machine-parseable in debug builds.
@@ -27,7 +29,6 @@ enum CLIRuntimeBootstrap {
         }
 
         configureCLIWizardDependencies(systemValidator: validator)
-        isConfigured = true
     }
 }
 
