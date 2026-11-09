@@ -11,7 +11,6 @@ public enum PermissionRowReset {
     /// The `tccutil` service names for the rows KeyPath can ask to reset.
     public enum Service: String, Sendable {
         case accessibility = "Accessibility"
-        case inputMonitoring = "ListenEvent"
     }
 
     public static let tccutilPath = "/usr/bin/tccutil"

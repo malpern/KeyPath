@@ -31,8 +31,8 @@ final class SessionRawPermissionReportTests: XCTestCase {
         let sample = snapshot(.granted, .granted, .denied)
         XCTAssertEqual(sample.rawPermissions.eventListening, .granted)
         XCTAssertEqual(sample.rawPermissions.eventPosting, .denied)
-        XCTAssertFalse(sample.effective.inputMonitoring.isReady)
-        XCTAssertFalse(sample.effective.hasAllPermissions)
+        XCTAssertFalse(sample.effective.keyAccess.isReady)
+        XCTAssertFalse(sample.effective.isReady)
     }
 
     func testEachPassiveReaderRunsExactlyOnceInOrder() {
@@ -44,7 +44,7 @@ final class SessionRawPermissionReportTests: XCTestCase {
         )
         XCTAssertEqual(calls, ["AX", "listen", "post"])
         XCTAssertEqual(sample.rawPermissions, .init(accessibility: .denied, eventListening: .denied, eventPosting: .denied))
-        XCTAssertFalse(sample.effective.hasAllPermissions)
+        XCTAssertFalse(sample.effective.isReady)
     }
 
     func testExistingEffectivePermissionPolicyIsUnchangedForEveryCombination() {
@@ -53,20 +53,20 @@ final class SessionRawPermissionReportTests: XCTestCase {
             for listen in statuses {
                 for post in statuses {
                     let sample = snapshot(ax, listen, post)
-                    let previous = PermissionOracle.sessionPermissionSet(
+                    let previous = PermissionOracle.sessionCapabilities(
                         accessibility: ax, eventListening: listen, eventPosting: post,
                         timestamp: sample.effective.timestamp
                     )
                     XCTAssertEqual(sample.effective.accessibility, previous.accessibility)
-                    XCTAssertEqual(sample.effective.inputMonitoring, previous.inputMonitoring)
+                    XCTAssertEqual(sample.effective.keyAccess, previous.keyAccess)
                     XCTAssertEqual(sample.effective.source, previous.source)
                     XCTAssertEqual(sample.effective.confidence, previous.confidence)
-                    XCTAssertEqual(sample.effective.hasAllPermissions, previous.hasAllPermissions)
+                    XCTAssertEqual(sample.effective.isReady, previous.isReady)
                 }
             }
         }
         let granted = snapshot(.granted, .granted, .granted)
-        XCTAssertTrue(granted.effective.hasAllPermissions)
+        XCTAssertTrue(granted.effective.isReady)
         XCTAssertEqual(granted.rawPermissions, .init(accessibility: .granted, eventListening: .granted, eventPosting: .granted))
     }
 

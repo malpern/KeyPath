@@ -42,7 +42,6 @@ public protocol RuntimeCoordinating: AnyObject, Sendable {
 
     // MARK: - Settings
 
-    func openInputMonitoringSettings()
     func openAccessibilitySettings()
 
     // MARK: - State

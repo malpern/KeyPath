@@ -76,7 +76,7 @@ final class UnitTestSuite: XCTestCase {
     func testWizardPageAccessibilityIdentifiers() {
         XCTAssertEqual(WizardPage.summary.accessibilityIdentifier, "overview")
         XCTAssertEqual(WizardPage.accessibility.accessibilityIdentifier, "accessibility")
-        XCTAssertEqual(WizardPage.inputMonitoring.accessibilityIdentifier, "input-monitoring")
+        XCTAssertFalse(WizardPage.allCases.contains { $0.accessibilityIdentifier == "input-monitoring" })
     }
 
     // MARK: - Path Utilities Tests

@@ -6,55 +6,51 @@ import KeyPathWizardCore
 import XCTest
 
 final class SessionInspectorPermissionEvidenceTests: XCTestCase {
-    func testUnknownAndFailedWorkerChecksRequestRuntimeEvidenceInsteadOfConsent() throws {
+    func testUnknownAndFailedRuntimeChecksRequestRuntimeEvidenceInsteadOfConsent() throws {
         for status: PermissionOracle.Status in [.unknown, .error("worker unavailable")] {
-            for workerAX in [true, false] {
-                let result = inspect(workerAX: workerAX ? status : .granted,
-                                     workerIM: workerAX ? .granted : status)
-                XCTAssertEqual(result.0, .serviceNotRunning)
-                let issue = try XCTUnwrap(result.1.first)
-                XCTAssertEqual(issue.identifier, .daemon)
-                XCTAssertEqual(issue.autoFixAction, .restartCommServer)
-                XCTAssertFalse(issue.description.contains("approval"))
-                XCTAssertFalse(issue.description.contains("Full Disk Access"))
-            }
+            let result = inspect(runtime: status)
+            XCTAssertEqual(result.0, .serviceNotRunning)
+            let issue = try XCTUnwrap(result.1.first)
+            XCTAssertEqual(issue.identifier, .daemon)
+            XCTAssertEqual(issue.autoFixAction, .restartCommServer)
+            XCTAssertFalse(issue.description.contains("approval"))
+            XCTAssertFalse(issue.description.contains("Full Disk Access"))
         }
     }
 
-    func testConfirmedWorkerDenialPublishesCanonicalConsentAndReopenGuidance() throws {
-        for workerAX in [true, false] {
-            let result = inspect(workerAX: workerAX ? .denied : .granted,
-                                 workerIM: workerAX ? .granted : .denied)
+    func testConfirmedDenialsPublishCanonicalConsentAndReopenGuidance() throws {
+        let name = AccessibilityPermissionPresentation.current.name
+        let cases: [(PermissionOracle.Status, PermissionOracle.Status, PermissionRequirement, String)] = [
+            (.denied, .granted, .keyPathAccessibility,
+             "Enable KeyPath in \(name) in System Settings, then quit and reopen KeyPath."),
+            (.granted, .denied, .runtimeKeyAccess, "Quit and reopen KeyPath so it can use \(name)."),
+        ]
+        for (appAX, runtime, requirement, guidance) in cases {
+            let result = inspect(appAX: appAX, runtime: runtime)
             let issue = try XCTUnwrap(result.1.first)
-            let guidance = workerAX
-                ? "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath."
-                : "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name)."
             XCTAssertEqual(issue.description, guidance)
             XCTAssertEqual(issue.userAction, guidance)
             XCTAssertNil(issue.autoFixAction)
-            XCTAssertEqual(issue.identifier, .permission(workerAX ? .keyPathAccessibility : .keyPathInputMonitoring))
+            XCTAssertEqual(issue.identifier, .permission(requirement))
+            XCTAssertEqual(result.0, .missingPermissions(missing: [requirement]))
         }
     }
 
-    func testConfirmedAppAccessibilityDenialOutranksUnknownWorkerEvidence() {
-        let result = inspect(appAX: .denied, workerAX: .unknown, workerIM: .unknown)
+    func testConfirmedAppAccessibilityDenialOutranksUnknownRuntimeEvidence() {
+        let result = inspect(appAX: .denied, runtime: .unknown)
         XCTAssertEqual(result.0, .missingPermissions(missing: [.keyPathAccessibility]))
         XCTAssertEqual(result.1.first?.identifier, .permission(.keyPathAccessibility))
         XCTAssertNil(result.1.first?.autoFixAction)
     }
 
-    func testMissingPayloadOutranksUnavailableWorkerEvidence() {
+    func testMissingPayloadOutranksUnavailableRuntimeEvidence() {
         for status: PermissionOracle.Status in [.unknown, .error("worker unavailable")] {
-            for workerAX in [true, false] {
-                let result = inspect(workerAX: workerAX ? status : .granted,
-                                     workerIM: workerAX ? .granted : status,
-                                     payloadPresent: false)
-                XCTAssertEqual(result.0, .missingComponents(missing: [.bundledKanataMissing]))
-                XCTAssertEqual(result.1.first?.identifier, .component(.bundledKanataMissing))
-                XCTAssertNil(result.1.first?.autoFixAction)
-            }
+            let result = inspect(runtime: status, payloadPresent: false)
+            XCTAssertEqual(result.0, .missingComponents(missing: [.bundledKanataMissing]))
+            XCTAssertEqual(result.1.first?.identifier, .component(.bundledKanataMissing))
+            XCTAssertNil(result.1.first?.autoFixAction)
         }
-        let appDenied = inspect(appAX: .denied, workerAX: .unknown, workerIM: .unknown, payloadPresent: false)
+        let appDenied = inspect(appAX: .denied, runtime: .unknown, payloadPresent: false)
         XCTAssertEqual(appDenied.0, .missingPermissions(missing: [.keyPathAccessibility]))
     }
 
@@ -65,15 +61,6 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
         XCTAssertEqual(result.1.first?.autoFixAction, .restartCommServer)
     }
 
-    func testConfirmedWorkerDenialsStillRequestConsent() {
-        let ax = inspect(workerAX: .denied)
-        XCTAssertEqual(ax.0, .missingPermissions(missing: [.keyPathAccessibility]))
-        XCTAssertEqual(ax.1.first?.identifier, .permission(.keyPathAccessibility))
-        let im = inspect(workerIM: .denied)
-        XCTAssertEqual(im.0, .missingPermissions(missing: [.keyPathInputMonitoring]))
-        XCTAssertEqual(im.1.first?.identifier, .permission(.keyPathInputMonitoring))
-    }
-
     func testGrantedChecksWithInactiveTapRequestRuntimeRepair() {
         let result = inspect(tapActive: false)
         XCTAssertEqual(result.0, .serviceNotRunning)
@@ -81,7 +68,7 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
         XCTAssertEqual(result.1.first?.autoFixAction, .restartCommServer)
     }
 
-    func testGrantedEffectiveInputWithReadyRuntimeIsActiveDespiteRawAppInputDenial() {
+    func testGrantedPermissionsWithReadyRuntimeAreActive() {
         let result = inspect()
         XCTAssertEqual(result.0, .active)
         XCTAssertTrue(result.1.isEmpty)
@@ -89,18 +76,17 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
 
     private func inspect(
         appAX: PermissionOracle.Status = .granted,
-        workerAX: PermissionOracle.Status = .granted,
-        workerIM: PermissionOracle.Status = .granted,
+        runtime: PermissionOracle.Status = .granted,
         tapActive: Bool = true,
         payloadPresent: Bool = true
     ) -> (WizardSystemState, [WizardIssue]) {
         let now = Date()
-        func permissions(_ ax: PermissionOracle.Status, _ im: PermissionOracle.Status) -> PermissionOracle.PermissionSet {
-            .init(accessibility: ax, inputMonitoring: im, source: "test", confidence: .high, timestamp: now)
-        }
         return SystemInspector.inspect(context: SystemContext(
-            permissions: .init(keyPath: permissions(appAX, .denied),
-                               kanata: permissions(workerAX, workerIM), timestamp: now, backend: .session),
+            permissions: PermissionOracle.Snapshot(
+                accessibility: appAX,
+                runtimeKeyAccess: .init(status: runtime, source: "test", confidence: .high, timestamp: now),
+                timestamp: now
+            ),
             services: HealthStatus(backend: .session, kanataProcessRunning: true,
                                    kanataTCPResponding: true, kanataRunning: true,
                                    karabinerDaemonRunning: false, vhidHealthy: false,

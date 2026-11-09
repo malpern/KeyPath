@@ -14,13 +14,6 @@ final class PermissionRowResetTests: XCTestCase {
         XCTAssertEqual(calls.first?.1, ["reset", "Accessibility", "com.keypath.KeyPath"])
     }
 
-    func testInputMonitoringUsesTheListenEventService() {
-        XCTAssertEqual(
-            PermissionRowReset.arguments(for: .inputMonitoring, bundleID: "com.keypath.KeyPath"),
-            ["reset", "ListenEvent", "com.keypath.KeyPath"]
-        )
-    }
-
     func testRefusesWithoutABundleIDRatherThanResettingEveryApp() {
         var ran = false
         XCTAssertFalse(PermissionRowReset.reset(.accessibility, bundleID: nil) { _, _ in ran = true; return 0 })

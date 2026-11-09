@@ -612,16 +612,10 @@ class MainAppStateController {
             "📊 [MainAppStateController] Health.vhidHealthy: \(snapshot.health.vhidHealthy)"
         )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Permissions.keyPath.IM.isReady: \(snapshot.permissions.keyPath.inputMonitoring.isReady)"
+            "📊 [MainAppStateController] Permissions.accessibility: \(snapshot.permissions.accessibility)"
         )
         AppLogger.shared.debug(
-            "📊 [MainAppStateController] Permissions.keyPath.IM.isBlocking: \(snapshot.permissions.keyPath.inputMonitoring.isBlocking)"
-        )
-        AppLogger.shared.debug(
-            "📊 [MainAppStateController] Permissions.kanata.IM.isReady: \(snapshot.permissions.kanata.inputMonitoring.isReady)"
-        )
-        AppLogger.shared.debug(
-            "📊 [MainAppStateController] Permissions.kanata.IM.isBlocking: \(snapshot.permissions.kanata.inputMonitoring.isBlocking)"
+            "📊 [MainAppStateController] Permissions.runtimeKeyAccess: \(snapshot.permissions.runtimeKeyAccess.status)"
         )
         AppLogger.shared.debug(
             "📊 [MainAppStateController] Components.kanataBinary: \(snapshot.components.kanataBinaryInstalled)"
@@ -790,11 +784,7 @@ class MainAppStateController {
     /// A known permission denial cannot recover by waiting for runtime startup.
     /// Unknown evidence retains the existing grace period until validation resolves it.
     static func hasDefinitiveSessionPermissionFailure(_ permissions: PermissionOracle.Snapshot) -> Bool {
-        permissions.backend == .session && (
-            permissions.keyPath.accessibility.isBlocking ||
-                permissions.kanata.accessibility.isBlocking ||
-                permissions.kanata.inputMonitoring.isBlocking
-        )
+        permissions.accessibility.isBlocking || permissions.runtimeKeyAccess.status.isBlocking
     }
 
     private func publishSessionConfigurationRefusal(_ reason: String, kind: SessionRefusal = .configuration) {

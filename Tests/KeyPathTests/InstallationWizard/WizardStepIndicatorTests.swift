@@ -35,16 +35,16 @@ final class WizardStepIndicatorTests: XCTestCase {
 
     func testPageNotInSequenceHasNoStepPosition() {
         // .service is not part of a custom sequence that omits it.
-        let customSequence: [WizardPage] = [.summary, .inputMonitoring, .accessibility]
+        let customSequence: [WizardPage] = [.summary, .karabinerImport, .accessibility]
         XCTAssertNil(WizardPage.service.stepPosition(in: customSequence))
     }
 
     func testCustomSequenceRecomputesStepsIndependently() {
         // A "skip green pages" custom sequence with only 2 non-summary steps.
-        let customSequence: [WizardPage] = [.summary, .accessibility, .inputMonitoring]
+        let customSequence: [WizardPage] = [.summary, .accessibility, .service]
 
         let first = WizardPage.accessibility.stepPosition(in: customSequence)
-        let second = WizardPage.inputMonitoring.stepPosition(in: customSequence)
+        let second = WizardPage.service.stepPosition(in: customSequence)
 
         XCTAssertEqual(first, WizardPage.StepPosition(step: 1, total: 2))
         XCTAssertEqual(second, WizardPage.StepPosition(step: 2, total: 2))

@@ -154,21 +154,14 @@ public struct WizardSystemStatusOverview: View {
         statusItems.map { "\($0.id):\($0.status)" }.joined(separator: "|")
     }
 
-    /// The session runtime requires only the app's two consent checks and the
+    /// The session runtime requires only KeyPath's Accessibility grant and the
     /// runtime itself.
     static func sessionStatusItems(
         systemState: WizardSystemState,
         issues: [WizardIssue],
         permissions: PermissionOracle.Snapshot? = nil
     ) -> [StatusItemModel] {
-        let accessibilityIssues = issues.filter { issue in
-            guard case let .permission(requirement) = issue.identifier else { return false }
-            return requirement == .keyPathAccessibility || requirement == .kanataAccessibility
-        }
-        let inputMonitoringIssues = issues.filter { issue in
-            guard case let .permission(requirement) = issue.identifier else { return false }
-            return requirement == .keyPathInputMonitoring || requirement == .kanataInputMonitoring
-        }
+        let accessibilityIssues = issues.filter(\.identifier.isPermission)
         let runtimeIssues = issues.filter { issue in
             if issue.identifier == .daemon { return true }
             if case .component(.bundledKanataMissing) = issue.identifier { return true }
@@ -188,26 +181,12 @@ public struct WizardSystemStatusOverview: View {
 
         return [
             StatusItemModel(
-                id: "input-monitoring",
-                icon: "eye",
-                title: "Input Monitoring",
-                status: status(
-                    for: inputMonitoringIssues,
-                    permissionReady: permissions?.kanata.inputMonitoring.isReady
-                ),
-                isNavigable: true,
-                targetPage: .inputMonitoring,
-                relatedIssues: inputMonitoringIssues
-            ),
-            StatusItemModel(
                 id: "accessibility",
                 icon: "accessibility",
                 title: AccessibilityPermissionPresentation.current.name,
                 status: status(
                     for: accessibilityIssues,
-                    permissionReady: permissions.map {
-                        $0.keyPath.accessibility.isReady && $0.kanata.accessibility.isReady
-                    }
+                    permissionReady: permissions?.isSystemReady
                 ),
                 isNavigable: true,
                 targetPage: .accessibility,

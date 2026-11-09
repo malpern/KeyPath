@@ -60,3 +60,16 @@ Monitoring, which on macOS 27 is everyone who follows setup.
   read keys.
 - The oracle still records KeyPath's own Input Monitoring as a raw fact for
   diagnostics. Settings no longer lists it in driverless mode.
+
+## Follow-up: Input Monitoring removed (ADR-047 step 3)
+
+The permission model is now one snapshot: KeyPath's own Device Control and Data
+Access grant plus the running runtime's key-access report
+(`PermissionOracle.Snapshot.accessibility` and `.runtimeKeyAccess`). The Input
+Monitoring wizard page, Settings rows, prompts, deep links, notification
+action, `NSInputMonitoringUsageDescription`, and the CLI's `*InputMonitoring`
+and `kanataAccessibility` status fields are gone; `keypath status --json` now
+reports `keyPathAccessibility` and `runtimeKeyAccess`. When the runtime reports
+it cannot read keys, setup asks the user to quit and reopen KeyPath. The raw
+listen preflight survives only behind `keyPathCanCreateListenOnlyTap()`, and the
+worker still records raw listen/post facts in its report for diagnostics.

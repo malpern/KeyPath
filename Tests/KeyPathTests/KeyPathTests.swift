@@ -574,11 +574,11 @@ final class KeyPathTests: KeyPathTestCase {
         XCTAssertTrue(true, "Auto-stop timer should be implemented in continuous capture")
     }
 
-    func testInputMonitoringPermissionDetection() async {
+    func testAccessibilityPermissionDetection() async {
         let manager = RuntimeCoordinator()
 
         // Test that permission detection works
-        let hasPermission = await manager.hasInputMonitoringPermission()
+        let hasPermission = await manager.hasAccessibilityPermission()
 
         // Should return a boolean value
         XCTAssertTrue(
@@ -591,7 +591,7 @@ final class KeyPathTests: KeyPathTestCase {
             // Should have appropriate error messaging
             if let error = manager.lastError {
                 XCTAssertTrue(
-                    error.contains("permission") || error.contains("Input Monitoring")
+                    error.contains("permission")
                         || error.contains("crash") || error.lowercased().contains("install"),
                     "Should indicate permission issue: \(error)"
                 )

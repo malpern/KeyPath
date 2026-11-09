@@ -130,10 +130,9 @@ profiles = {
         "com.apple.TCC.configuration-profile-policy",
         {
             "Services": {
+                # Accessibility (Device Control and Data Access) is the only
+                # remapping permission; KeyPath needs no ListenEvent grant.
                 "Accessibility": identities("Allow"),
-                # Apple does not permit MDM to grant ListenEvent directly.
-                # This makes the setting user-configurable without admin auth.
-                "ListenEvent": identities("AllowStandardUserToSetSystemService"),
                 "SystemPolicyAllFiles": [
                     identity(app_id, "bundleID", app_req, "Allow")
                 ],

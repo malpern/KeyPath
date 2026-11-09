@@ -76,16 +76,7 @@ final class RecordingCoordinatorTests: KeyPathTestCase {
     }
 
     fileprivate static func snapshot(accessibility: PermissionOracle.Status) -> PermissionOracle.Snapshot {
-        let permissionSet = PermissionOracle.PermissionSet(
-            accessibility: accessibility,
-            inputMonitoring: .granted,
-            source: "tests",
-            confidence: .high,
-            timestamp: Date()
-        )
-        return PermissionOracle.Snapshot(
-            keyPath: permissionSet, kanata: permissionSet, timestamp: Date()
-        )
+        .fixture(accessibility: accessibility, source: "tests")
     }
 }
 

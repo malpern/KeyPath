@@ -170,53 +170,7 @@ Screenshot — Using the + button and Go to Folder to find kanata:
 
 ---
 
-## Step 4: Input Monitoring
-
-**Why:** Input Monitoring lets KeyPath **read** which keys you press. This is the counterpart to Accessibility — together they form the read/write pair that makes remapping work. For a deeper look at why both are needed, see [Privacy & Permissions]({{ '/guides/privacy/' | relative_url }}).
-
-Same two-component process as Accessibility:
-
-### 4a: KeyPath.app
-
-KeyPath.app should appear in the Input Monitoring list. Toggle it **ON**.
-
-### 4b: The kanata binary (same + button process)
-
-Same process as Accessibility — kanata is a system binary and won't appear automatically.
-
-1. Click **Fix** next to "kanata" in the wizard
-2. System Settings opens to Input Monitoring; Finder reveals the kanata binary for reference
-3. Click the **+** button in System Settings
-4. Press **Cmd+Shift+G**, type `/Library/KeyPath/bin/kanata`, press Enter
-5. Click **Open**, then toggle kanata **ON**
-6. Return to KeyPath
-
-
-![Screenshot]({{ '/images/help/screenshot-input-monitoring.png' | relative_url }})
-Screenshot — System Settings > Privacy & Security > Input Monitoring after adding both:
-```
-  ┌──────────────────────────────────────────────┐
-  │  Privacy & Security > Input Monitoring       │
-  │                                              │
-  │  Allow the apps below to monitor             │
-  │  input from your keyboard.                   │
-  │                                              │
-  │  ┌──────────────────────────────────┐        │
-  │  │ 🔑 KeyPath.app          [  ●  ] │ ← ON   │
-  │  │ ⚙  kanata               [  ●  ] │ ← ON   │
-  │  └──────────────────────────────────┘        │
-  │                                              │
-  │          [ + ]                               │
-  └──────────────────────────────────────────────┘
-```
-
-> ⚠️ **Watch out:** macOS cannot grant these permissions automatically. No app can flip its own toggles — Apple requires you to do it manually in System Settings. The wizard opens the right pane and shows you the binary, but the clicking and dragging is up to you.
-
-> 💡 **Tip:** After granting permissions, macOS sometimes needs KeyPath to restart before it recognizes the change. If the wizard still shows a warning after toggling, try quitting KeyPath (Cmd+Q) and reopening it.
-
----
-
-## Step 5: Kanata Engine Setup
+## Step 4: Kanata Engine Setup
 
 The wizard verifies that the kanata remapping engine is properly installed at `/Library/KeyPath/bin/kanata`. This step is usually automatic — the privileged helper installed it in Step 1.
 
@@ -224,7 +178,7 @@ If something went wrong (file missing or corrupted), click **Fix** and the wizar
 
 ---
 
-## Step 6: Start KeyPath Runtime
+## Step 5: Start KeyPath Runtime
 
 The final step. The wizard starts the KeyPath Runtime, powered by the Kanata engine in the background. Once it is running, your key remappings are active system-wide.
 
@@ -283,7 +237,6 @@ You're set up! Here are the best places to go from here:
 
 ## Resources
 
-- [Apple: Control access to Input Monitoring on Mac](https://support.apple.com/guide/mac-help/control-access-to-input-monitoring-on-mac-mchl4cedafb6/mac) ↗
 - [Apple: Allow Accessibility apps to access your Mac](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac) ↗
 - [Karabiner-Elements: Uninstalling](https://karabiner-elements.pqrs.org/docs/manual/uninstall/) ↗
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)**

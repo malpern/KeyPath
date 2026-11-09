@@ -24,10 +24,6 @@ struct UserNotificationServiceTests {
         #expect(UserNotificationService.Action.openWizard.rawValue == "KP_ACTION_OPEN_WIZARD")
         #expect(UserNotificationService.Action.retryStart.rawValue == "KP_ACTION_RETRY_START")
         #expect(
-            UserNotificationService.Action.openInputMonitoring.rawValue
-                == "KP_ACTION_OPEN_INPUT_MONITORING"
-        )
-        #expect(
             UserNotificationService.Action.openAccessibility.rawValue == "KP_ACTION_OPEN_ACCESSIBILITY"
         )
         #expect(UserNotificationService.Action.openApp.rawValue == "KP_ACTION_OPEN_APP")
@@ -87,7 +83,7 @@ struct NotificationDeduplicationTests {
     @Test("Different failure messages generate different keys")
     func differentKeysForDifferentMessages() {
         let status1 = LaunchFailureStatus.permissionDenied("Accessibility required")
-        let status2 = LaunchFailureStatus.permissionDenied("Input Monitoring required")
+        let status2 = LaunchFailureStatus.permissionDenied("Keyboard access required")
 
         #expect(status1.shortMessage != status2.shortMessage)
     }

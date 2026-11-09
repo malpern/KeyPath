@@ -346,7 +346,7 @@ final class RecordingCoordinator {
         Task {
             let snapshot = await permissionProvider.currentSnapshot()
 
-            guard snapshot.keyPath.accessibility.isReady else {
+            guard snapshot.accessibility.isReady else {
                 await MainActor.run {
                     self.failInputRecording(with: "permissionFailure")
                 }
@@ -491,7 +491,7 @@ final class RecordingCoordinator {
         Task {
             let snapshot = await permissionProvider.currentSnapshot()
 
-            guard snapshot.keyPath.accessibility.isReady else {
+            guard snapshot.accessibility.isReady else {
                 await MainActor.run {
                     self.failOutputRecording(with: "permissionFailure")
                 }

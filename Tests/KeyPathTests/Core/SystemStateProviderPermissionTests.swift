@@ -9,10 +9,9 @@ final class SystemStateProviderPermissionTests: XCTestCase {
 
         let snapshot = await provider.currentPermissionSnapshot()
 
-        XCTAssertEqual(snapshot.keyPath.source, "test.placeholder")
-        XCTAssertEqual(snapshot.kanata.source, "test.placeholder")
-        XCTAssertEqual(snapshot.keyPath.confidence, .low)
-        XCTAssertEqual(snapshot.kanata.confidence, .low)
+        XCTAssertEqual(snapshot.accessibility, .unknown)
+        XCTAssertEqual(snapshot.runtimeKeyAccess.source, "test.placeholder")
+        XCTAssertEqual(snapshot.runtimeKeyAccess.confidence, .low)
     }
 
     func testPermissionSnapshotRefreshBypassesCachedSnapshot() async {

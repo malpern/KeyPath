@@ -84,7 +84,7 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
                 userAction: nil
             ),
             WizardIssue(
-                identifier: .permission(.kanataInputMonitoring),
+                identifier: .permission(.runtimeKeyAccess),
                 severity: .warning,
                 category: .permissions,
                 title: "Permission Warning",

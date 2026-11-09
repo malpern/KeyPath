@@ -75,20 +75,20 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         XCTAssertEqual(overview.getServiceStatus(), .completed)
     }
 
-    func testSessionBackendShowsOnlyItsTwoPermissionsAndRuntime() {
+    func testSessionBackendShowsOnlyItsPermissionAndRuntime() {
         let items = WizardSystemStatusOverview.sessionStatusItems(systemState: .active, issues: [])
 
-        XCTAssertEqual(items.map(\.id), ["input-monitoring", "accessibility", "kanata-service"])
+        XCTAssertEqual(items.map(\.id), ["accessibility", "kanata-service"])
         XCTAssertTrue(items.allSatisfy { $0.status == .completed })
         XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 0)
     }
 
     func testSessionUnknownPermissionEvidenceRemainsVisibleAndCounted() {
         let warning = WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .warning,
             category: .permissions,
-            title: "Input access not verified",
+            title: "Keyboard access not verified",
             description: "Runtime permission evidence is unavailable.",
             autoFixAction: nil,
             userAction: "Retry keyboard access verification"
@@ -99,14 +99,13 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             issues: [warning]
         )
 
-        XCTAssertEqual(items.first(where: { $0.id == "input-monitoring" })?.status, .warning)
-        XCTAssertEqual(items.first(where: { $0.id == "accessibility" })?.status, .notStarted)
+        XCTAssertEqual(items.first(where: { $0.id == "accessibility" })?.status, .warning)
         XCTAssertEqual(items.first(where: { $0.id == "kanata-service" })?.status, .notStarted)
-        XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 3)
+        XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 2)
     }
 
     func testSessionRuntimeStoppedPreservesGrantedPermissionEvidence() {
-        let permissions = sessionPermissions(accessibility: .granted, inputMonitoring: .granted)
+        let permissions = sessionPermissions(accessibility: .granted, runtimeKeyAccess: .granted)
         let runtimeIssue = WizardIssue(
             identifier: .daemon,
             severity: .error,
@@ -123,14 +122,13 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             permissions: permissions
         )
 
-        XCTAssertEqual(items.first(where: { $0.id == "input-monitoring" })?.status, .completed)
         XCTAssertEqual(items.first(where: { $0.id == "accessibility" })?.status, .completed)
         XCTAssertEqual(items.first(where: { $0.id == "kanata-service" })?.status, .failed)
         XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 1)
     }
 
     func testWizardSnapshotRetainsCanonicalPermissionFacts() {
-        let permissions = sessionPermissions(accessibility: .granted, inputMonitoring: .granted)
+        let permissions = sessionPermissions(accessibility: .granted, runtimeKeyAccess: .granted)
         let result = SystemStateResult(
             state: .serviceNotRunning,
             issues: [],
@@ -141,26 +139,30 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         let stateMachine = WizardStateMachine()
         stateMachine.updateWizardState(from: result)
 
-        XCTAssertEqual(stateMachine.lastWizardSnapshot?.permissions?.backend, .session)
-        XCTAssertTrue(stateMachine.lastWizardSnapshot?.permissions?.kanata.inputMonitoring.isReady == true)
+        XCTAssertTrue(stateMachine.lastWizardSnapshot?.permissions?.accessibility.isReady == true)
+        XCTAssertTrue(stateMachine.lastWizardSnapshot?.permissions?.runtimeKeyAccess.status.isReady == true)
     }
 
     func testSessionIncompleteCaptureDoesNotPromoteMissingPermissionFacts() {
         let items = WizardSystemStatusOverview.sessionStatusItems(systemState: .serviceNotRunning, issues: [])
-
-        XCTAssertEqual(items.first(where: { $0.id == "input-monitoring" })?.status, .notStarted)
         XCTAssertEqual(items.first(where: { $0.id == "accessibility" })?.status, .notStarted)
 
         let unknownPermissions = WizardSystemStatusOverview.sessionStatusItems(
             systemState: .serviceNotRunning,
             issues: [],
-            permissions: sessionPermissions(accessibility: .unknown, inputMonitoring: .unknown)
+            permissions: sessionPermissions(accessibility: .unknown, runtimeKeyAccess: .unknown)
         )
-        XCTAssertEqual(unknownPermissions.first(where: { $0.id == "input-monitoring" })?.status, .notStarted)
         XCTAssertEqual(unknownPermissions.first(where: { $0.id == "accessibility" })?.status, .notStarted)
+
+        let unreportedRuntime = WizardSystemStatusOverview.sessionStatusItems(
+            systemState: .serviceNotRunning,
+            issues: [],
+            permissions: sessionPermissions(accessibility: .granted, runtimeKeyAccess: .unknown)
+        )
+        XCTAssertEqual(unreportedRuntime.first(where: { $0.id == "accessibility" })?.status, .notStarted)
     }
 
-    func testSessionDeniedPermissionsStayFailedAndNavigateToTheirConsentPages() {
+    func testSessionDeniedPermissionsStayFailedAndNavigateToTheAccessibilityPage() {
         let axIssue = WizardIssue(
             identifier: .permission(.keyPathAccessibility),
             severity: .error,
@@ -170,28 +172,26 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             autoFixAction: nil,
             userAction: "Open Accessibility settings"
         )
-        let imIssue = WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring),
+        let runtimeIssue = WizardIssue(
+            identifier: .permission(.runtimeKeyAccess),
             severity: .error,
             category: .permissions,
             title: "Keyboard access still needs approval",
-            description: "Input Monitoring permission is denied.",
+            description: "Quit and reopen KeyPath.",
             autoFixAction: nil,
-            userAction: "Open Input Monitoring settings"
+            userAction: "Quit and reopen KeyPath"
         )
         let items = WizardSystemStatusOverview.sessionStatusItems(
-            systemState: .missingPermissions(missing: [.keyPathAccessibility, .keyPathInputMonitoring]),
-            issues: [axIssue, imIssue],
-            permissions: sessionPermissions(accessibility: .denied, inputMonitoring: .denied)
+            systemState: .missingPermissions(missing: [.keyPathAccessibility, .runtimeKeyAccess]),
+            issues: [axIssue, runtimeIssue],
+            permissions: sessionPermissions(accessibility: .denied, runtimeKeyAccess: .denied)
         )
 
-        let input = items.first(where: { $0.id == "input-monitoring" })
         let accessibility = items.first(where: { $0.id == "accessibility" })
-        XCTAssertEqual(input?.status, .failed)
-        XCTAssertEqual(input?.targetPage, .inputMonitoring)
         XCTAssertEqual(accessibility?.status, .failed)
         XCTAssertEqual(accessibility?.targetPage, .accessibility)
-        XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 3)
+        XCTAssertEqual(accessibility?.relatedIssues.count, 2)
+        XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 2)
     }
 
     func testSessionRuntimeFailureIsCountedWithoutLegacyPrerequisites() {
@@ -210,9 +210,9 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             issues: [runtimeIssue]
         )
 
-        XCTAssertEqual(items.map(\.id), ["input-monitoring", "accessibility", "kanata-service"])
+        XCTAssertEqual(items.map(\.id), ["accessibility", "kanata-service"])
         XCTAssertEqual(items.first(where: { $0.id == "kanata-service" })?.status, .failed)
-        XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 3)
+        XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 2)
     }
 
     func testOverviewShowsOnlySessionRows() {
@@ -230,30 +230,18 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
 
         XCTAssertEqual(
             overview.statusItems.map(\.id),
-            ["input-monitoring", "accessibility", "kanata-service"],
-            "Only the two permissions and the runtime are shown"
+            ["accessibility", "kanata-service"],
+            "Only the permission and the runtime are shown"
         )
     }
 
     private func sessionPermissions(
         accessibility: PermissionOracle.Status,
-        inputMonitoring: PermissionOracle.Status
+        runtimeKeyAccess: PermissionOracle.Status
     ) -> PermissionOracle.Snapshot {
-        let timestamp = Date(timeIntervalSince1970: 1)
-        func set() -> PermissionOracle.PermissionSet {
-            PermissionOracle.PermissionSet(
-                accessibility: accessibility,
-                inputMonitoring: inputMonitoring,
-                source: "test",
-                confidence: .high,
-                timestamp: timestamp
-            )
-        }
-        return PermissionOracle.Snapshot(
-            keyPath: set(),
-            kanata: set(),
-            timestamp: timestamp,
-            backend: .session
+        .fixture(
+            accessibility: accessibility, runtimeKeyAccess: runtimeKeyAccess,
+            timestamp: Date(timeIntervalSince1970: 1)
         )
     }
 }

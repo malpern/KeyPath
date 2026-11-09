@@ -4,7 +4,7 @@
 # Wizard page IDs from WizardTypes.swift (wizard-page-{accessibilityIdentifier}):
 #   wizard-page-overview, wizard-page-privileged-helper,
 #   wizard-page-full-disk-access, wizard-page-conflicts,
-#   wizard-page-input-monitoring, wizard-page-accessibility,
+#   wizard-page-accessibility,
 #   wizard-page-karabiner-components, wizard-page-kanata-components,
 #   wizard-page-kanata-migration, wizard-page-stop-external-kanata,
 #   wizard-page-communication, wizard-page-service
@@ -91,7 +91,6 @@ for page_id in \
     "wizard-page-privileged-helper" \
     "wizard-page-full-disk-access" \
     "wizard-page-conflicts" \
-    "wizard-page-input-monitoring" \
     "wizard-page-accessibility" \
     "wizard-page-karabiner-components" \
     "wizard-page-kanata-components" \

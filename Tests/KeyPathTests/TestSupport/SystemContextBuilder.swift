@@ -31,17 +31,8 @@ struct SystemContextBuilder {
     var captureStatus: SystemSnapshotCaptureStatus = .complete
 
     func build() -> SystemContext {
-        let permissionSet = PermissionOracle.PermissionSet(
-            accessibility: permissionsStatus,
-            inputMonitoring: permissionsStatus,
-            source: "test",
-            confidence: .high,
-            timestamp: Date()
-        )
-        let permissions = PermissionOracle.Snapshot(
-            keyPath: permissionSet,
-            kanata: permissionSet,
-            timestamp: Date()
+        let permissions = PermissionOracle.Snapshot.fixture(
+            accessibility: permissionsStatus, runtimeKeyAccess: permissionsStatus
         )
 
         let components: ComponentStatus = if componentsInstalled {

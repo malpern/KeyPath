@@ -4,39 +4,34 @@ import Foundation
 import IOKit.hid
 import KeyPathCore
 
-// (Removed deprecated OracleError - now using KeyPathError directly)
-
 /// 🔮 THE ORACLE - Single source of truth for all permission detection in KeyPath
 ///
-/// This actor eliminates the chaos of multiple conflicting permission detection methods.
-/// It provides deterministic, hierarchical permission checking with clear source precedence.
+/// KeyPath runs Kanata in an unprivileged session worker launched from
+/// KeyPath.app, so the app bundle is the only permission identity. A snapshot
+/// therefore holds one model: KeyPath's Accessibility grant (shown to the user
+/// as `AccessibilityPermissionPresentation.current.name`) and the running
+/// runtime's own report of whether it can read and post keys.
 public actor PermissionOracle {
     public static let shared = PermissionOracle()
 
-    private var sessionCapabilityProvider: (@Sendable () async -> PermissionSet?)?
+    private var runtimeKeyAccessProvider: (@Sendable () async -> RuntimeKeyAccess?)?
 
-    public func configureSessionCapabilityProvider(_ provider: @escaping @Sendable () async -> PermissionSet?) {
-        sessionCapabilityProvider = provider
+    /// Bind the session runtime's capability report as the source of
+    /// `Snapshot.runtimeKeyAccess`.
+    public func configureRuntimeKeyAccessProvider(_ provider: @escaping @Sendable () async -> RuntimeKeyAccess?) {
+        runtimeKeyAccessProvider = provider
         invalidateCache()
     }
 
-    /// Raw non-prompting AX and Input Monitoring facts for this process.
-    public nonisolated func currentProcessCapabilities() -> PermissionSet {
-        PermissionSet(
-            accessibility: Self.rawAccessibilityStatus(),
-            inputMonitoring: Self.checkKeyPathInputMonitoringStatus(),
-            source: "current-process.apple-api", confidence: .high, timestamp: Date()
-        )
-    }
-
-    /// Passive authorization checks for keyboard capture and synthesized output.
-    /// Posting authorization alone can yield a modifying tap containing only
-    /// flagsChanged, so it cannot establish keyboard input readiness.
-    public func currentProcessSessionCapabilities() -> PermissionSet {
-        Self.sessionPermissionSet(
+    /// Passive capabilities of the calling process, as the session worker
+    /// samples them for its report. Posting authorization alone can yield a
+    /// modifying tap containing only flagsChanged, so it cannot establish
+    /// keyboard input readiness by itself.
+    public func currentProcessSessionCapabilities() -> ProcessCapabilities {
+        Self.sessionCapabilities(
             accessibility: Self.checkKeyPathAccessibilityStatus(),
-            eventListening: Self.checkKeyPathInputMonitoringStatus(),
-            eventPosting: currentProcessEventPostingStatus(), timestamp: Date()
+            eventListening: Self.rawEventListeningStatus(),
+            eventPosting: Self.rawEventPostingStatus(), timestamp: Date()
         )
     }
 
@@ -45,14 +40,14 @@ public actor PermissionOracle {
     public func currentProcessSessionCapabilitySnapshot() -> SessionCapabilitySnapshot {
         Self.sampleSessionCapabilities(
             accessibility: Self.rawAccessibilityStatus,
-            eventListening: Self.checkKeyPathInputMonitoringStatus,
-            eventPosting: currentProcessEventPostingStatus,
+            eventListening: Self.rawEventListeningStatus,
+            eventPosting: Self.rawEventPostingStatus,
             verifyExternalAccess: Self.verifyExternalAccessibilityAccess
         )
     }
 
     public struct SessionCapabilitySnapshot: Sendable {
-        public let effective: PermissionSet
+        public let effective: ProcessCapabilities
         public let rawPermissions: SessionRuntimeReport.RawPermissions
     }
 
@@ -73,7 +68,7 @@ public actor PermissionOracle {
             }
         }
         return SessionCapabilitySnapshot(
-            effective: sessionPermissionSet(
+            effective: sessionCapabilities(
                 accessibility: accessibility == .denied
                     ? resolveAccessibilityStatus(trusted: false, verifyExternalAccess: verifyExternalAccess)
                     : accessibility,
@@ -86,21 +81,14 @@ public actor PermissionOracle {
         )
     }
 
-    /// Raw posting authorization, kept separate from combined session readiness.
-    public func currentProcessEventPostingStatus() -> Status {
-        switch IOHIDCheckAccess(kIOHIDRequestTypePostEvent) {
-        case kIOHIDAccessTypeGranted: .granted
-        case kIOHIDAccessTypeDenied: .denied
-        default: .unknown
-        }
-    }
-
-    nonisolated static func sessionPermissionSet(
+    /// Key access is the listen grant when present, else the posting grant: a
+    /// modifying tap works with posting access alone on macOS 27.
+    nonisolated static func sessionCapabilities(
         accessibility: Status, eventListening: Status, eventPosting: Status, timestamp: Date
-    ) -> PermissionSet {
-        PermissionSet(
+    ) -> ProcessCapabilities {
+        ProcessCapabilities(
             accessibility: accessibility,
-            inputMonitoring: eventListening.isReady ? eventPosting : eventListening,
+            keyAccess: eventListening.isReady ? eventPosting : eventListening,
             source: "current-process.apple-api.listen-and-post-event",
             confidence: .high, timestamp: timestamp
         )
@@ -134,88 +122,96 @@ public actor PermissionOracle {
         }
     }
 
-    public struct PermissionSet: Sendable {
+    /// What one process can do, sampled with passive Apple APIs. The session
+    /// worker samples this about itself and writes it into its report.
+    public struct ProcessCapabilities: Sendable {
         public let accessibility: Status
-        public let inputMonitoring: Status
+        /// Whether the process can read and post keys through a modifying tap.
+        public let keyAccess: Status
         public let source: String
         public let confidence: Confidence
         public let timestamp: Date
 
         public init(
-            accessibility: Status, inputMonitoring: Status, source: String, confidence: Confidence,
+            accessibility: Status, keyAccess: Status, source: String, confidence: Confidence,
             timestamp: Date
         ) {
             self.accessibility = accessibility
-            self.inputMonitoring = inputMonitoring
+            self.keyAccess = keyAccess
             self.source = source
             self.confidence = confidence
             self.timestamp = timestamp
         }
 
-        public var hasAllPermissions: Bool {
-            accessibility.isReady && inputMonitoring.isReady
+        public var isReady: Bool {
+            accessibility.isReady && keyAccess.isReady
+        }
+    }
+
+    /// The running session runtime's own report of whether it can remap keys.
+    /// `status` is `.unknown` with low confidence until a runtime has reported.
+    public struct RuntimeKeyAccess: Sendable {
+        public let status: Status
+        public let source: String
+        public let confidence: Confidence
+        public let timestamp: Date
+
+        public init(status: Status, source: String, confidence: Confidence, timestamp: Date) {
+            self.status = status
+            self.source = source
+            self.confidence = confidence
+            self.timestamp = timestamp
+        }
+
+        /// Combines a runtime report's Accessibility and key-access facts into
+        /// one status: a runtime without Accessibility cannot remap either.
+        public init(
+            runtimeAccessibility: Bool, keyAccess: Bool, source: String, timestamp: Date
+        ) {
+            self.init(
+                status: runtimeAccessibility && keyAccess ? .granted : .denied,
+                source: source, confidence: .high, timestamp: timestamp
+            )
+        }
+
+        public static func notReported(timestamp: Date = Date()) -> RuntimeKeyAccess {
+            RuntimeKeyAccess(
+                status: .unknown, source: "session-runtime.not-reported", confidence: .low,
+                timestamp: timestamp
+            )
         }
     }
 
     public struct Snapshot: Sendable {
-        public let backend: KanataRuntimeBackend
-        public let keyPath: PermissionSet
-        public let kanata: PermissionSet
+        /// KeyPath.app's own Accessibility grant (Device Control and Data Access on macOS 27).
+        public let accessibility: Status
+        /// The session runtime's report of whether it can read and post keys.
+        public let runtimeKeyAccess: RuntimeKeyAccess
         public let timestamp: Date
 
-        public init(keyPath: PermissionSet, kanata: PermissionSet, timestamp: Date, backend: KanataRuntimeBackend = .selected) {
-            self.backend = backend
-            self.keyPath = keyPath
-            self.kanata = kanata
+        public init(accessibility: Status, runtimeKeyAccess: RuntimeKeyAccess, timestamp: Date) {
+            self.accessibility = accessibility
+            self.runtimeKeyAccess = runtimeKeyAccess
             self.timestamp = timestamp
         }
 
-        /// System is ready when both apps have all required permissions
+        /// Remapping works when KeyPath has Accessibility and the runtime confirms key access.
         public var isSystemReady: Bool {
-            // Kanata's AX + IM are the hard requirement for remapping to work.
-            // KeyPath's own IM (now queried authoritatively via IOHIDCheckAccess —
-            // see checkKeyPathPermissions) powers the live keyboard overlay, not
-            // core remapping, so it is surfaced via blockingIssue but intentionally
-            // kept out of this hard readiness gate to avoid flipping a
-            // working-remap system to "not ready".
-            keyPath.accessibility.isReady && kanata.hasAllPermissions
+            accessibility.isReady && runtimeKeyAccess.status.isReady
         }
 
-        /// Get the first blocking permission issue (user-facing error message)
+        /// The first blocking permission issue, as user-facing guidance.
         public var blockingIssue: String? {
-            // KeyPath's own Accessibility is required (event posting / overlay).
-            if keyPath.accessibility.isBlocking {
-                return
-                    "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission - enable in \(AccessibilityPermissionPresentation.current.settingsPath)"
+            if accessibility.isBlocking {
+                return Self.sessionBlockingGuidance(accessibilityBlocking: true, presentation: .current)
             }
-
-            // NOTE: KeyPath's OWN Input Monitoring is intentionally NOT a blocking
-            // issue. It powers only seize-mode features (the live overlay / key
-            // recording), never core remapping — which is kanata's job (see
-            // CompositionRoot's HID-monitor comment and isSystemReady). This must
-            // stay consistent with isSystemReady, which also excludes it: before
-            // IOHIDCheckAccess made this signal authoritative (#931) it was
-            // perpetually .unknown and never blocked; treating it as blocking now
-            // would newly pop the wizard for a working-remap system. The wizard's
-            // Input Monitoring page still surfaces it per-row for users who want
-            // the overlay.
-
-            // Kanata's permissions ARE required for remapping.
-            if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
-                if backend == .session {
-                    return Self.sessionBlockingGuidance(
-                        accessibilityBlocking: kanata.accessibility.isBlocking,
-                        presentation: .current
-                    )
-                }
-                return
-                    "Kanata needs permissions - use the Installation Wizard to grant \(AccessibilityPermissionPresentation.current.name) and Input Monitoring"
+            if runtimeKeyAccess.status.isBlocking {
+                return Self.sessionBlockingGuidance(accessibilityBlocking: false, presentation: .current)
             }
-
             return nil
         }
 
-        /// What to tell the user when the session runtime lacks key access.
+        /// What to tell the user when remapping lacks access.
         /// Device Control and Data Access covers reading keys, so once it is on
         /// the runtime only needs a fresh launch.
         public static func sessionBlockingGuidance(
@@ -232,13 +228,8 @@ public actor PermissionOracle {
             """
             🔮 Permission Oracle Snapshot (\(String(format: "%.3f", Date().timeIntervalSince(timestamp)))s ago)
 
-            KeyPath [\(keyPath.source), \(keyPath.confidence)]:
-              • Accessibility: \(keyPath.accessibility)
-              • Input Monitoring: \(keyPath.inputMonitoring)
-
-            Kanata [\(kanata.source), \(kanata.confidence)]:
-              • Accessibility: \(kanata.accessibility)
-              • Input Monitoring: \(kanata.inputMonitoring)
+            • KeyPath \(AccessibilityPermissionPresentation.current.name): \(accessibility)
+            • Runtime key access [\(runtimeKeyAccess.source), \(runtimeKeyAccess.confidence)]: \(runtimeKeyAccess.status)
 
             System Ready: \(isSystemReady)
             """
@@ -302,7 +293,8 @@ public actor PermissionOracle {
 
     /// Whether this process may create a listen-only event tap. Non-prompting.
     /// Observers prefer such a tap and otherwise fall back to a pass-through one,
-    /// because requesting a listen-only tap without access prompts for Input Monitoring.
+    /// because requesting a listen-only tap without access makes macOS prompt for
+    /// a separate permission KeyPath does not otherwise need.
     public nonisolated func keyPathCanCreateListenOnlyTap() -> Bool {
         CGPreflightListenEventAccess()
     }
@@ -333,14 +325,13 @@ public actor PermissionOracle {
             }
 
             let now = Date()
-            let placeholder = PermissionSet(
+            let snap = Snapshot(
                 accessibility: .unknown,
-                inputMonitoring: .unknown,
-                source: "test.placeholder",
-                confidence: .low,
+                runtimeKeyAccess: RuntimeKeyAccess(
+                    status: .unknown, source: "test.placeholder", confidence: .low, timestamp: now
+                ),
                 timestamp: now
             )
-            let snap = Snapshot(keyPath: placeholder, kanata: placeholder, timestamp: now)
             lastSnapshot = snap
             lastSnapshotTime = now
             AppLogger.shared.log("🔮 [Oracle] Test mode snapshot generated (non-blocking)")
@@ -394,24 +385,10 @@ public actor PermissionOracle {
         AppLogger.shared.log("🔮 [Oracle] Generating fresh permission snapshot")
         let start = Date()
 
-        // Get KeyPath permissions (local, always authoritative)
-        let keyPathSet = await checkKeyPathPermissions()
-
-        // Use effective session-process facts, or retain legacy-process uncertainty.
-        let backend = KanataRuntimeBackend.selected
-        let kanataSet: PermissionSet = if backend == .session {
-            await sessionCapabilityProvider?() ?? PermissionSet(
-                accessibility: .unknown, inputMonitoring: .unknown,
-                source: "session-process-not-verified", confidence: .low, timestamp: Date()
-            )
-        } else {
-            await checkKanataPermissions()
-        }
-
+        let accessibility = checkKeyPathAccessibility()
+        let runtimeKeyAccess = await runtimeKeyAccessProvider?() ?? .notReported()
         let snapshot = Snapshot(
-            keyPath: keyPathSet,
-            kanata: kanataSet,
-            timestamp: Date(), backend: backend
+            accessibility: accessibility, runtimeKeyAccess: runtimeKeyAccess, timestamp: Date()
         )
 
         let duration = Date().timeIntervalSince(start)
@@ -423,7 +400,7 @@ public actor PermissionOracle {
             AppLogger.shared.log("🔮 [Oracle] Blocking issue: \(issue)")
         }
 
-        // Log transitions for AX/IM across KeyPath and Kanata
+        // Log transitions for Accessibility and runtime key access
         if let previous = lastSnapshot {
             logPermissionTransitions(from: previous, to: snapshot)
         }
@@ -448,41 +425,19 @@ public actor PermissionOracle {
         return await currentSnapshot()
     }
 
-    // MARK: - KeyPath Permission Detection (Always Authoritative)
+    // MARK: - KeyPath Permission Detection
 
-    /// Check KeyPath's own permissions using non-prompting Apple APIs, per ADR-006.
-    ///
-    /// Both APIs used here are passive (they never show a system prompt — only
-    /// `IOHIDRequestAccess()`, used exclusively by the wizard's
-    /// `PermissionRequestService`, prompts):
-    /// - `AXIsProcessTrusted()` for Accessibility
-    /// - `IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)` for Input Monitoring
-    ///
-    /// Apple APIs are authoritative for this process. An inconclusive result
-    /// stays unknown; permission detection never reads protected databases.
-    private func checkKeyPathPermissions() async -> PermissionSet {
+    /// KeyPath.app's own Accessibility grant, via the non-prompting
+    /// `AXIsProcessTrusted()` (ADR-006). An inconclusive result stays unknown;
+    /// permission detection never reads protected databases.
+    private func checkKeyPathAccessibility() -> Status {
         let start = Date()
-
-        // Accessibility check via official Apple API (no prompt)
         let accessibility = Self.checkKeyPathAccessibilityStatus()
-
-        let resolved = Self.resolveKeyPathInputMonitoring(apiStatus: Self.checkKeyPathInputMonitoringStatus())
-        let inputMonitoring = resolved.status
-        let source = resolved.source
-        let confidence = resolved.confidence
-
         let duration = Date().timeIntervalSince(start)
         AppLogger.shared.log(
-            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), raw AX trust: \(Self.rawAccessibilityStatus()), IM: \(inputMonitoring) (source: \(source))"
+            "🔮 [Oracle] KeyPath permission check completed in \(String(format: "%.3f", duration))s - AX: \(accessibility), raw AX trust: \(Self.rawAccessibilityStatus())"
         )
-
-        return PermissionSet(
-            accessibility: accessibility,
-            inputMonitoring: inputMonitoring,
-            source: source,
-            confidence: confidence,
-            timestamp: Date()
-        )
+        return accessibility
     }
 
     private nonisolated static func rawAccessibilityStatus() -> Status {
@@ -519,13 +474,9 @@ public actor PermissionOracle {
         return verifyExternalAccess() ? .granted : .denied
     }
 
-    /// Input Monitoring status for KeyPath's own process via IOHIDCheckAccess.
-    ///
-    /// This is a non-prompting query (it returns the current access level; only
-    /// `IOHIDRequestAccess()` shows the system dialog) and it is scoped to the
-    /// calling process, so it is authoritative only for KeyPath.app — never for
-    /// another process such as the legacy kanata-launcher.
-    private nonisolated static func checkKeyPathInputMonitoringStatus() -> Status {
+    /// Raw listen-event authorization for this process. Non-prompting; only the
+    /// session worker's capability sample uses it, as one input to key access.
+    private nonisolated static func rawEventListeningStatus() -> Status {
         switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
         case kIOHIDAccessTypeGranted: .granted
         case kIOHIDAccessTypeDenied: .denied
@@ -533,29 +484,13 @@ public actor PermissionOracle {
         }
     }
 
-    /// A passive Apple-API fact never implies a grant for another process.
-    nonisolated static func resolveKeyPathInputMonitoring(
-        apiStatus: Status
-    ) -> (status: Status, source: String, confidence: Confidence) {
-        switch apiStatus {
-        case .granted, .denied:
-            (apiStatus, "keypath.ax-api+im-api", .high)
-        case .unknown, .error:
-            (.unknown, "keypath.ax-api-only", .low)
+    /// Raw posting authorization for this process. Non-prompting.
+    private nonisolated static func rawEventPostingStatus() -> Status {
+        switch IOHIDCheckAccess(kIOHIDRequestTypePostEvent) {
+        case kIOHIDAccessTypeGranted: .granted
+        case kIOHIDAccessTypeDenied: .denied
+        default: .unknown
         }
-    }
-
-    /// The legacy daemon cannot be checked through this process's Apple APIs.
-    /// Retain uncertainty rather than infer a grant from files or runtime state.
-    nonisolated static func legacyKanataPermissions(timestamp: Date) -> PermissionSet {
-        PermissionSet(
-            accessibility: .unknown, inputMonitoring: .unknown,
-            source: "kanata.unknown", confidence: .low, timestamp: timestamp
-        )
-    }
-
-    private func checkKanataPermissions() async -> PermissionSet {
-        Self.legacyKanataPermissions(timestamp: Date())
     }
 
     /// Log granular permission transitions for observability
@@ -575,23 +510,9 @@ public actor PermissionOracle {
             }
         }
 
-        // KeyPath
+        logChange(subject: "KeyPath Accessibility", old: old.accessibility, new: new.accessibility)
         logChange(
-            subject: "KeyPath Accessibility", old: old.keyPath.accessibility,
-            new: new.keyPath.accessibility
-        )
-        logChange(
-            subject: "KeyPath Input Monitoring", old: old.keyPath.inputMonitoring,
-            new: new.keyPath.inputMonitoring
-        )
-
-        // Kanata
-        logChange(
-            subject: "Kanata Accessibility", old: old.kanata.accessibility, new: new.kanata.accessibility
-        )
-        logChange(
-            subject: "Kanata Input Monitoring", old: old.kanata.inputMonitoring,
-            new: new.kanata.inputMonitoring
+            subject: "Runtime key access", old: old.runtimeKeyAccess.status, new: new.runtimeKeyAccess.status
         )
 
         if old.isSystemReady != new.isSystemReady {

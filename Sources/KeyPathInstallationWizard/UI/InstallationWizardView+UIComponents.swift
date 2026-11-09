@@ -72,21 +72,6 @@ extension InstallationWizardView {
                     issues: stateMachine.wizardIssues
                 )
             )
-        case .inputMonitoring:
-            if let coordinator = kanataManager {
-                WizardInputMonitoringPage(
-                    onRefresh: { refreshSystemState() },
-                    onNavigateToPage: { page in
-                        stateMachine.navigateToPage(page)
-                    },
-                    onDismiss: {
-                        dismissAndRefreshMainScreen()
-                    },
-                    kanataManager: coordinator
-                )
-            } else {
-                unconfiguredView(page: "inputMonitoring")
-            }
         case .accessibility:
             if let coordinator = kanataManager {
                 WizardAccessibilityPage(

@@ -2,13 +2,12 @@ import Foundation
 
 /// Pure decision logic for how a wizard permission page should guide **KeyPath.app's
 /// own** grant of a permission it can request via an automatic system prompt
-/// (Input Monitoring via `IOHIDRequestAccess`, Accessibility via the AX prompt).
+/// (Accessibility via the AX prompt).
 /// Extracted so the escalation behavior can be unit-tested without a running UI
 /// (mirrors the pure resolvers added for the Oracle signal in #931/#937).
 ///
 /// The logic is permission-agnostic — it only reasons about "is it granted", "was
-/// the automatic prompt attempted", and "how long ago" — so a single resolver backs
-/// both the Input Monitoring and Accessibility pages (#933).
+/// the automatic prompt attempted", and "how long ago" (#933).
 ///
 /// Background (#931): clicking "Turn On" fires the automatic prompt, but on
 /// macOS 26/27 tccd can silently produce nothing — no system prompt, no TCC row,

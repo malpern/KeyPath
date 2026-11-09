@@ -32,7 +32,7 @@ SIGNING_IDENTITY="$(kp_dev_signing_identity "$PREFERRED_SIGNING_IDENTITY")"
 if [[ "$SIGNING_IDENTITY" != "$PREFERRED_SIGNING_IDENTITY" && "${KEYPATH_ALLOW_DEV_SIGNING:-0}" != "1" ]]; then
     echo "❌ $PREFERRED_SIGNING_IDENTITY is not in this Mac's keychain; nothing was changed." >&2
     echo "   A KeyPath signed any other way takes over KeyPath's Device Control and Data" >&2
-    echo "   Access and Input Monitoring rows, and Developer ID builds then stay denied." >&2
+    echo "   Access row, and Developer ID builds then stay denied." >&2
     echo "   Deploy from a Mac that has it (Scripts/air-iterate.sh builds on the mini)," >&2
     echo "   or set KEYPATH_ALLOW_DEV_SIGNING=1 if you accept that." >&2
     exit 1
@@ -543,7 +543,7 @@ if [[ -n "$SIGNING_IDENTITY" ]]; then
     resign_nested_identifiers "$SIGNING_IDENTITY"
 else
     echo "⚠️  No Developer ID or Apple Development identity found; using ad-hoc signing."
-    echo "   macOS will drop Accessibility and Input Monitoring on every deploy."
+    echo "   macOS will drop Device Control and Data Access on every deploy."
     codesign --force "${LOCAL_CODESIGN_FLAGS[@]}" --sign - --entitlements "$ENTITLEMENTS" --deep "$APP_BUNDLE"
     resign_nested_identifiers "-"
 fi

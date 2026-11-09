@@ -86,7 +86,7 @@ Default port is `37001`. You can configure a custom port in your `defcfg`:
 ### Keys aren't remapping
 
 1. **Check status indicator** - Look for green checkmarks in the app
-2. **Verify permissions** - Ensure Input Monitoring and Accessibility are granted
+2. **Verify permissions** - Ensure KeyPath is on in Device Control and Data Access (Accessibility before macOS 27), then quit and reopen KeyPath
 3. **Use Fix Issues** - Click "Fix Issues" button in the app
 4. **Check logs** - `tail -f /var/log/com.keypath.kanata.stdout.log`
 
@@ -197,10 +197,9 @@ No. KeyPath works completely offline and collects no telemetry or user data. The
 
 ### What permissions does KeyPath need?
 
-- **Input Monitoring** - To detect key presses
-- **Accessibility** - To send remapped keys
+- **Device Control and Data Access** (called **Accessibility** before macOS 27) - to read key presses and send remapped keys
 
-These are standard permissions required for keyboard remapping on macOS.
+That is the only privacy permission KeyPath needs on macOS 27.
 
 ### Does KeyPath need Full Disk Access?
 

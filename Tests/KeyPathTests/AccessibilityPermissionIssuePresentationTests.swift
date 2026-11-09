@@ -17,8 +17,8 @@ final class AccessibilityPermissionIssuePresentationTests: XCTestCase {
     }
 
     func testOtherPermissionTitlesAreUnchanged() {
-        let issue = Issue.permissionMissing(app: "KeyPath", permission: "Input Monitoring", action: "")
+        let issue = Issue.permissionMissing(app: "KeyPath", permission: "Screen Recording", action: "")
         XCTAssertEqual(issue.displayTitle(accessibility: .init()),
-                       "KeyPath needs Input Monitoring permission")
+                       "KeyPath needs Screen Recording permission")
     }
 }

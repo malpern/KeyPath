@@ -36,10 +36,8 @@ public struct SystemFacade: Sendable {
 
         return CLIStatusResult(
             isOperational: Self.isOperational(context),
-            keyPathAccessibility: context.permissions.keyPath.accessibility.isReady,
-            keyPathInputMonitoring: context.permissions.keyPath.inputMonitoring.isReady,
-            kanataAccessibility: context.permissions.kanata.accessibility.isReady,
-            kanataInputMonitoring: context.permissions.kanata.inputMonitoring.isReady,
+            keyPathAccessibility: context.permissions.accessibility.isReady,
+            runtimeKeyAccess: context.permissions.runtimeKeyAccess.status.isReady,
             kanataBinaryInstalled: context.components.kanataBinaryInstalled,
             karabinerDriverInstalled: context.components.karabinerDriverInstalled,
             vhidDeviceHealthy: context.components.vhidDeviceHealthy,
@@ -196,10 +194,8 @@ public struct SystemFacade: Sendable {
     }
 
     static func isOperational(_ context: SystemContext) -> Bool {
-        if context.permissions.backend == .session { return context.isReady }
-        return context.permissions.keyPath.accessibility.isReady
-            && context.permissions.kanata.accessibility.isReady
-            && context.permissions.kanata.inputMonitoring.isReady
+        if context.services.backend == .session { return context.isReady }
+        return context.permissions.isSystemReady
             && context.components.hasAllRequired
             && context.services.isHealthy
             && !context.conflicts.hasConflicts
@@ -234,7 +230,7 @@ public struct SystemFacade: Sendable {
     }
 
     static func issues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation = .current) -> [CLISystemIssue] {
-        if context.permissions.backend == .session { return sessionIssues(from: context, accessibility: accessibility) }
+        if context.services.backend == .session { return sessionIssues(from: context, accessibility: accessibility) }
         var issues: [CLISystemIssue] = []
 
         appendPermissionIssues(from: context, accessibility: accessibility, to: &issues)
@@ -322,21 +318,7 @@ public struct SystemFacade: Sendable {
 
     private static func sessionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation) -> [CLISystemIssue] {
         var issues: [CLISystemIssue] = []
-        let appAX = context.permissions.keyPath.accessibility
-        appendPermissionIssue(
-            status: appAX.isReady ? context.permissions.kanata.accessibility : appAX,
-            subject: "KeyPath", permission: accessibility.name,
-            deniedAction: accessibility.grantInstruction,
-            remediationURL: WizardSystemPaths.accessibilitySettings, to: &issues
-        )
-        // This status is effective input access from the process that owns the
-        // session tap. A denied GUI-only IM check must not add another grant.
-        appendPermissionIssue(
-            status: context.permissions.kanata.inputMonitoring,
-            subject: "KeyPath session", permission: "Input Monitoring",
-            deniedAction: "Open KeyPath.app and verify session input access; grant Input Monitoring only if macOS requires it",
-            remediationURL: WizardSystemPaths.inputMonitoringSettings, to: &issues
-        )
+        appendSinglePermissionIssues(from: context, accessibility: accessibility, to: &issues)
         for conflict in context.conflicts.conflicts {
             issues.append(.init(
                 title: conflictTitle(conflict), category: "conflict",
@@ -379,40 +361,32 @@ public struct SystemFacade: Sendable {
         return issues
     }
 
-    private static func appendPermissionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation, to issues: inout [CLISystemIssue]) {
+    /// KeyPath's Accessibility grant, then the runtime's own key-access report.
+    /// The runtime runs from KeyPath.app, so it has no grant of its own: a gap
+    /// there means it needs a fresh launch.
+    private static func appendSinglePermissionIssues(
+        from context: SystemContext, accessibility: AccessibilityPermissionPresentation,
+        to issues: inout [CLISystemIssue]
+    ) {
         appendPermissionIssue(
-            status: context.permissions.keyPath.accessibility,
-            subject: "KeyPath",
-            permission: accessibility.name,
+            status: context.permissions.accessibility,
+            subject: "KeyPath", permission: accessibility.name,
             deniedAction: accessibility.grantInstruction,
-            remediationURL: WizardSystemPaths.accessibilitySettings,
-            to: &issues
+            remediationURL: WizardSystemPaths.accessibilitySettings, to: &issues
         )
+        guard context.permissions.accessibility.isReady else { return }
         appendPermissionIssue(
-            status: context.permissions.keyPath.inputMonitoring,
-            subject: "KeyPath",
-            permission: "Input Monitoring",
-            deniedAction: "Open KeyPath.app and grant Input Monitoring in System Settings > Privacy & Security > Input Monitoring",
-            remediationURL: WizardSystemPaths.inputMonitoringSettings,
-            isBlocking: false,
-            to: &issues
+            status: context.permissions.runtimeKeyAccess.status,
+            subject: "KeyPath runtime", permission: "keyboard access",
+            deniedAction: PermissionOracle.Snapshot.sessionBlockingGuidance(
+                accessibilityBlocking: false, presentation: accessibility
+            ),
+            remediationURL: WizardSystemPaths.accessibilitySettings, to: &issues
         )
-        appendPermissionIssue(
-            status: context.permissions.kanata.accessibility,
-            subject: "Kanata",
-            permission: accessibility.name,
-            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine \(accessibility.name)",
-            remediationURL: WizardSystemPaths.accessibilitySettings,
-            to: &issues
-        )
-        appendPermissionIssue(
-            status: context.permissions.kanata.inputMonitoring,
-            subject: "Kanata",
-            permission: "Input Monitoring",
-            deniedAction: "Open the KeyPath Installation Wizard to grant Kanata Engine Input Monitoring",
-            remediationURL: WizardSystemPaths.inputMonitoringSettings,
-            to: &issues
-        )
+    }
+
+    private static func appendPermissionIssues(from context: SystemContext, accessibility: AccessibilityPermissionPresentation, to issues: inout [CLISystemIssue]) {
+        appendSinglePermissionIssues(from: context, accessibility: accessibility, to: &issues)
         if !context.services.kanataInputCaptureReady {
             let needsManualVHIDApproval = requiresManualVHIDDriverApproval(context)
             issues.append(.init(
@@ -446,7 +420,6 @@ public struct SystemFacade: Sendable {
         permission: String,
         deniedAction: String,
         remediationURL: String,
-        isBlocking: Bool = true,
         to issues: inout [CLISystemIssue]
     ) {
         switch status {
@@ -459,7 +432,7 @@ public struct SystemFacade: Sendable {
                 action: deniedAction,
                 canAutoFix: false,
                 remediationURL: remediationURL,
-                severity: isBlocking ? .error : .warning
+                severity: .error
             ))
         case .unknown:
             issues.append(.init(

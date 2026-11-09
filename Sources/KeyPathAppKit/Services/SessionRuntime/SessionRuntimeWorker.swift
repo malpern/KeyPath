@@ -18,7 +18,7 @@ public final class SessionRuntimeWorker {
     private let nonce: String
     private let ownerPID: Int32
     private let port: UInt16
-    private let capabilities: PermissionOracle.PermissionSet
+    private let capabilities: PermissionOracle.ProcessCapabilities
     private let rawPermissions: SessionRuntimeReport.RawPermissions?
     private var runtime: KanataHostBridgePassthruRuntimeHandle?
     private var tap: CFMachPort?
@@ -67,14 +67,13 @@ public final class SessionRuntimeWorker {
         private var postDelayRegisteredTap: SessionRuntimeReport.RegisteredTapObservation?
         private var postDelayQueryUptimeNanos: UInt64?
         private var startupTapDiagnostics: SessionRuntimeReport.ExperimentalTapDiagnostics?
-        private var experimentalRawCapabilities: PermissionOracle.PermissionSet?
-        private var experimentalRawPosting: PermissionOracle.Status?
+        private var experimentalRawPermissions: SessionRuntimeReport.RawPermissions?
         private var registeredTapObservation: SessionRuntimeReport.RegisteredTapObservation?
     #endif
 
     private init(
         reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
-        capabilities: PermissionOracle.PermissionSet,
+        capabilities: PermissionOracle.ProcessCapabilities,
         rawPermissions: SessionRuntimeReport.RawPermissions? = nil
     ) {
         self.reportURL = reportURL
@@ -125,7 +124,7 @@ public final class SessionRuntimeWorker {
             )
             exit(0)
         }
-        let capabilities = await SystemStateProvider.shared.currentProcessPermissionCapabilities()
+        let capabilities = await SystemStateProvider.shared.currentProcessSessionCapabilities()
         let worker = SessionRuntimeWorker(
             reportURL: URL(fileURLWithPath: path), nonce: nonce,
             ownerPID: ownerPID,
@@ -138,8 +137,8 @@ public final class SessionRuntimeWorker {
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             // Raw API facts remain separate from combined session readiness.
             // Both snapshots are obtained only through the canonical permission owner.
-            worker.experimentalRawCapabilities = SystemStateProvider.shared.currentProcessRawPermissionCapabilities()
-            worker.experimentalRawPosting = await SystemStateProvider.shared.currentProcessRawEventPostingStatus()
+            worker.experimentalRawPermissions = await SystemStateProvider.shared
+                .currentProcessSessionCapabilitySnapshot().rawPermissions
         #endif
         // From here the worker may hold keys or a Caps mapping, so a dead owner
         // retires it on its run loop, which releases them before exiting. A
@@ -194,7 +193,7 @@ public final class SessionRuntimeWorker {
         // Install before any HID mutation. Shutdown waits for the synchronous
         // acquisition to finish, then restores the owned mapping on this run loop.
         installTerminationHandlers()
-        guard capabilities.hasAllPermissions else {
+        guard capabilities.isReady else {
             finish(.failed, reason: "missing-current-process-permission")
         }
         let environmentObserver = SessionRuntimeEnvironmentObserver(expectedUID: getuid()) { [weak self] reason, acknowledge in
@@ -345,10 +344,10 @@ public final class SessionRuntimeWorker {
         guard environmentObserver.check() else { finish(.failed, reason: "console-session-inactive") }
         CGEvent.tapEnable(tap: tap, enable: true)
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
-            if let raw = experimentalRawCapabilities {
+            if let raw = experimentalRawPermissions {
                 registeredTapObservation = Self.observeRegisteredTap(
-                    requestedMask: UInt64(mask), accessibility: Self.fact(raw.accessibility),
-                    posting: Self.fact(experimentalRawPosting ?? .unknown), listening: Self.fact(raw.inputMonitoring)
+                    requestedMask: UInt64(mask), accessibility: raw.accessibility.rawValue,
+                    posting: raw.eventPosting.rawValue, listening: raw.eventListening.rawValue
                 )
             }
             if let failure = Self.registeredTapStartupFailure(registeredTapObservation) {
@@ -1050,15 +1049,6 @@ public final class SessionRuntimeWorker {
                 && MemoryLayout<CGEventTapInformation>.offset(of: \.maxUsecLatency) == 44
         }
 
-        static func fact(_ status: PermissionOracle.Status) -> String {
-            switch status {
-            case .granted: "granted"
-            case .denied: "denied"
-            case .unknown: "unknown"
-            case .error: "error"
-            }
-        }
-
         /// One worker-self query, no input/prompt. Enumeration resets global tap latency extrema.
         /// Permission facts were sampled through the Oracle before starting this worker's tap.
         static func observeRegisteredTap(requestedMask: UInt64, accessibility: String, posting: String,
@@ -1155,7 +1145,7 @@ public final class SessionRuntimeWorker {
         let report = SessionRuntimeReport(
             nonce: nonce, pid: getpid(), uid: getuid(), state: state,
             accessibility: capabilities.accessibility.isReady,
-            effectiveInputAccess: capabilities.inputMonitoring.isReady,
+            effectiveInputAccess: capabilities.keyAccess.isReady,
             tapActive: tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
             tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,

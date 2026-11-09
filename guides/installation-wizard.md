@@ -9,9 +9,10 @@ permalink: /guides/installation-wizard/
 
 # Set up KeyPath
 
-The driverless version runs while you are signed in and uses **Accessibility**
-to apply mappings. Setup does not install a keyboard driver or request Full Disk
-Access. A separate Input Monitoring step is not part of this setup.
+The driverless version runs while you are signed in and needs one permission:
+**Device Control and Data Access** (called **Accessibility** before macOS 27).
+It lets KeyPath read and remap keys. Setup does not install a keyboard driver or
+ask for any other privacy permission.
 
 ## First launch
 

@@ -2,59 +2,38 @@
 import KeyPathWizardCore
 @preconcurrency import XCTest
 
-/// Routing when kanata's permissions are unverifiable (.unknown after retries).
+/// Routing when permissions are unverifiable (.unknown after retries).
 /// Unknown permissions produce only warning-severity issues, which route()
-/// ignores — routeForUnverifiedKanataPermissions must land the wizard on the
-/// first unverified permission page instead of dead-ending on summary.
+/// ignores — routeForUnverifiedPermissions must land the wizard on the
+/// permission page instead of dead-ending on summary.
 @MainActor
 final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
-    func testUnknownAccessibilityComesBeforeInputMonitoring() {
-        let page = WizardRouter.routeForUnverifiedKanataPermissions(
-            base: .summary,
-            inputMonitoringUnknown: true,
-            accessibilityUnknown: true
-        )
-        XCTAssertEqual(page, .accessibility, "Resolve AX before asking for separate input access")
-    }
-
-    func testUnknownAccessibilityOnlyOverridesToAccessibility() {
-        let page = WizardRouter.routeForUnverifiedKanataPermissions(
-            base: .service,
-            inputMonitoringUnknown: false,
-            accessibilityUnknown: true
-        )
-        XCTAssertEqual(page, .accessibility)
-    }
-
-    func testNoUnknownPermissionsLeavesBaseUntouched() {
-        let page = WizardRouter.routeForUnverifiedKanataPermissions(
-            base: .service,
-            inputMonitoringUnknown: false,
-            accessibilityUnknown: false
-        )
-        XCTAssertEqual(page, .service)
-    }
-
-    func testPermissionPagesAreNeverOverridden() {
-        for base in [WizardPage.inputMonitoring, .accessibility] {
-            let page = WizardRouter.routeForUnverifiedKanataPermissions(
-                base: base,
-                inputMonitoringUnknown: true,
-                accessibilityUnknown: true
-            )
-            XCTAssertEqual(page, base, "\(base) must keep priority over unverified permissions")
+    func testUnverifiedPermissionsOverrideToAccessibility() {
+        for base in [WizardPage.summary, .service] {
+            let page = WizardRouter.routeForUnverifiedPermissions(base: base, permissionsUnverified: true)
+            XCTAssertEqual(page, .accessibility)
         }
     }
 
-    func testUnknownPermissionsDoNotAdvancePastPermissionPages() {
+    func testVerifiedPermissionsLeaveBaseUntouched() {
+        let page = WizardRouter.routeForUnverifiedPermissions(base: .service, permissionsUnverified: false)
+        XCTAssertEqual(page, .service)
+    }
+
+    func testPermissionPageIsNeverOverridden() {
+        let page = WizardRouter.routeForUnverifiedPermissions(base: .accessibility, permissionsUnverified: true)
+        XCTAssertEqual(page, .accessibility)
+    }
+
+    func testUnknownPermissionsDoNotAdvancePastPermissionPage() {
         // End-to-end shape of the dead-end fix: route() with only warning-severity
         // "not verified" issues would pick a post-permission page; the override
         // must pull it back to the permission page.
         let warningIssues = [WizardIssue(
-            identifier: .permission(.kanataInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .warning,
             category: .permissions,
-            title: "Kanata Engine Input Monitoring Permission",
+            title: "Keyboard access not verified",
             description: "Not verified",
             autoFixAction: nil,
             userAction: nil
@@ -65,16 +44,12 @@ final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
         )
         XCTAssertEqual(base, .service, "warning-severity permission issues don't route on their own")
 
-        let page = WizardRouter.routeForUnverifiedKanataPermissions(
-            base: base,
-            inputMonitoringUnknown: true,
-            accessibilityUnknown: false
-        )
-        XCTAssertEqual(page, .inputMonitoring)
+        let page = WizardRouter.routeForUnverifiedPermissions(base: base, permissionsUnverified: true)
+        XCTAssertEqual(page, .accessibility)
     }
 
-    func testDeniedAccessibilityComesBeforeDeniedInputMonitoring() {
-        let issues = [PermissionRequirement.kanataInputMonitoring, .kanataAccessibility].map {
+    func testDeniedPermissionsRouteToAccessibility() {
+        let issues = [PermissionRequirement.runtimeKeyAccess, .keyPathAccessibility].map {
             WizardIssue(identifier: .permission($0), severity: .error, category: .permissions,
                         title: "Permission", description: "Denied", autoFixAction: nil, userAction: nil)
         }

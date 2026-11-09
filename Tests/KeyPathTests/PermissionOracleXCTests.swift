@@ -19,8 +19,8 @@ final class PermissionOracleXCTests: XCTestCase {
         let duration = Date().timeIntervalSince(start)
 
         XCTAssertLessThan(duration, 1.0, "Oracle snapshot should be fast in test mode")
-        XCTAssertEqual(snapshot.keyPath.confidence, .low)
-        XCTAssertTrue(snapshot.keyPath.source.contains("test"))
+        XCTAssertEqual(snapshot.accessibility, .unknown)
+        XCTAssertEqual(snapshot.runtimeKeyAccess.confidence, .low)
     }
 
     func testSnapshotCachingHonorsTTLInTestMode() async {

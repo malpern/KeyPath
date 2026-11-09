@@ -16,28 +16,9 @@ final class WizardPureLogicTests: XCTestCase {
 
     private func makePermissions(
         keyPathAX: PermissionOracle.Status = .granted,
-        keyPathIM: PermissionOracle.Status = .granted,
-        kanataAX: PermissionOracle.Status = .granted,
-        kanataIM: PermissionOracle.Status = .granted
+        runtimeKeyAccess: PermissionOracle.Status = .granted
     ) -> PermissionOracle.Snapshot {
-        let now = Date()
-        return PermissionOracle.Snapshot(
-            keyPath: PermissionOracle.PermissionSet(
-                accessibility: keyPathAX,
-                inputMonitoring: keyPathIM,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            kanata: PermissionOracle.PermissionSet(
-                accessibility: kanataAX,
-                inputMonitoring: kanataIM,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            timestamp: now, backend: .driverKit
-        )
+        .fixture(accessibility: keyPathAX, runtimeKeyAccess: runtimeKeyAccess)
     }
 
     private var allComponentsHealthy: ComponentStatus {
@@ -296,14 +277,14 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(axIssue?.category, .permissions)
     }
 
-    func test_inspect_kanataIMDeniedWithAccessibilityGranted_asksToReopenKeyPath() {
-        let context = makeContext(permissions: makePermissions(kanataIM: .denied))
+    func test_inspect_runtimeKeyAccessDeniedWithAccessibilityGranted_asksToReopenKeyPath() {
+        let context = makeContext(permissions: makePermissions(runtimeKeyAccess: .denied))
         let (state, issues) = SystemInspector.inspect(context: context)
-        XCTAssertEqual(state, .missingPermissions(missing: [.keyPathInputMonitoring]))
-        let imIssue = issues.first { $0.identifier == .permission(.keyPathInputMonitoring) }
-        XCTAssertNotNil(imIssue, "The runtime's denied input access is reported as KeyPath's own consent")
-        XCTAssertEqual(imIssue?.severity, .error)
-        XCTAssertEqual(imIssue?.title, "Keyboard access still needs approval")
+        XCTAssertEqual(state, .missingPermissions(missing: [.runtimeKeyAccess]))
+        let runtimeIssue = issues.first { $0.identifier == .permission(.runtimeKeyAccess) }
+        XCTAssertNotNil(runtimeIssue, "The runtime's denied key access asks for a relaunch")
+        XCTAssertEqual(runtimeIssue?.severity, .error)
+        XCTAssertEqual(runtimeIssue?.title, "Keyboard access still needs approval")
     }
 
     // MARK: - WizardRouter: route()
@@ -316,15 +297,15 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(page, .summary)
     }
 
-    func test_route_kanataIMError_routesToInputMonitoring() {
+    func test_route_runtimeKeyAccessError_routesToAccessibility() {
         let issues = [
-            makeIssue(identifier: .permission(.kanataInputMonitoring), severity: .error),
+            makeIssue(identifier: .permission(.runtimeKeyAccess), severity: .error),
         ]
         let page = WizardRouter.route(
-            state: .missingPermissions(missing: [.kanataInputMonitoring]),
+            state: .missingPermissions(missing: [.runtimeKeyAccess]),
             issues: issues
         )
-        XCTAssertEqual(page, .inputMonitoring)
+        XCTAssertEqual(page, .accessibility)
     }
 
     func test_route_keyPathAXDenied_routesToAccessibility() {
@@ -338,16 +319,16 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(page, .accessibility)
     }
 
-    func test_route_accessibilityTakesPriorityOverInputMonitoring() {
+    func test_route_bothPermissionIssuesRouteToAccessibility() {
         let issues = [
-            makeIssue(identifier: .permission(.keyPathInputMonitoring), severity: .error),
+            makeIssue(identifier: .permission(.runtimeKeyAccess), severity: .error),
             makeIssue(identifier: .permission(.keyPathAccessibility), severity: .error),
         ]
         let page = WizardRouter.route(
-            state: .missingPermissions(missing: [.keyPathInputMonitoring, .keyPathAccessibility]),
+            state: .missingPermissions(missing: [.runtimeKeyAccess, .keyPathAccessibility]),
             issues: issues
         )
-        XCTAssertEqual(page, .accessibility, "Resolve AX before requesting separate input access")
+        XCTAssertEqual(page, .accessibility)
     }
 
     func test_route_readyState_routesToService() {
@@ -377,22 +358,6 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(next, .service, "Should skip green pages and land on service")
     }
 
-    func test_nextPage_fromInputMonitoring_withAccessibilityIssue_goesToAccessibility() {
-        let issues = [
-            makeIssue(identifier: .permission(.keyPathAccessibility)),
-        ]
-        // Accessibility comes before inputMonitoring in orderedPages, so nextPage
-        // walks forward from inputMonitoring and won't find accessibility.
-        // It should land on the next relevant page or summary.
-        let next = WizardRouter.nextPage(
-            after: .inputMonitoring,
-            state: .active,
-            issues: issues
-        )
-        // After inputMonitoring comes service (green while active), then end -> summary
-        XCTAssertEqual(next, .summary)
-    }
-
     func test_nextPage_unknownPage_returnsSummary() {
         // If current page is not in orderedPages (shouldn't happen), returns summary
         // All WizardPage cases are in orderedPages, so this tests defensive behavior
@@ -417,36 +382,13 @@ final class WizardPureLogicTests: XCTestCase {
         XCTAssertEqual(next, .summary, "All resolved — should reach summary")
     }
 
-    func test_prereq_permissionsDoNotBlockEachOther() {
-        // AX issue present — should not block advancing past IM
-        let issues = [
-            makeIssue(identifier: .permission(.keyPathAccessibility)),
-        ]
-        let next = WizardRouter.nextPage(
-            after: .inputMonitoring,
-            state: .active,
-            issues: issues
-        )
-        // Accessibility comes before inputMonitoring in page order,
-        // so walking forward from IM won't find it — goes to summary
-        XCTAssertEqual(next, .summary,
-                       "Permission pages don't block each other")
-    }
-
     // MARK: - WizardRouter: pageHasRelevantIssues()
 
-    func test_pageHasRelevantIssues_inputMonitoringPage() {
-        let issues = [
-            makeIssue(identifier: .permission(.kanataInputMonitoring)),
-        ]
-        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.inputMonitoring, issues: issues, state: .active))
-    }
-
     func test_pageHasRelevantIssues_accessibilityPage() {
-        let issues = [
-            makeIssue(identifier: .permission(.kanataAccessibility)),
-        ]
-        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.accessibility, issues: issues, state: .active))
+        for requirement in [PermissionRequirement.keyPathAccessibility, .runtimeKeyAccess] {
+            let issues = [makeIssue(identifier: .permission(requirement))]
+            XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.accessibility, issues: issues, state: .active))
+        }
     }
 
     func test_pageHasRelevantIssues_kanataMigrationAlwaysFalse() {
@@ -480,7 +422,7 @@ final class WizardPureLogicTests: XCTestCase {
     }
 
     func test_shouldNavigateToSummary_hasIssues_returnsFalse() {
-        let issues = [makeIssue(identifier: .permission(.keyPathInputMonitoring))]
+        let issues = [makeIssue(identifier: .permission(.runtimeKeyAccess))]
         XCTAssertFalse(WizardRouter.shouldNavigateToSummary(
             currentPage: .service,
             state: .active,

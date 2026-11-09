@@ -18,7 +18,7 @@ struct StatusSettingsTabView: View {
     @State var wizardSystemState: WizardSystemState = .initializing
     @State var wizardIssues: [WizardIssue] = []
     var isDriverless: Bool {
-        (permissionSnapshot?.backend ?? KanataRuntimeBackend.selected) == .session
+        KanataRuntimeBackend.selected == .session
     }
 
     @State var tcpConfigured: Bool?
@@ -213,30 +213,18 @@ struct StatusSettingsTabView: View {
                     // Right column: one flat status list, then the connected keyboard.
                     VStack(alignment: .leading, spacing: 28) {
                         VStack(alignment: .leading, spacing: 8) {
+                            // KeyPath needs only this permission: it lets the runtime read
+                            // and post keys. The row is ready once the runtime confirms it.
                             PermissionStatusRow(
-                                title: isDriverless ? AccessibilityPermissionPresentation.current.name : "KeyPath \(AccessibilityPermissionPresentation.current.name)",
+                                title: AccessibilityPermissionPresentation.current.name,
                                 icon: "checkmark.shield",
-                                status: isDriverless ? SettingsPermissionSummary.combine(permissionSnapshot?.keyPath.accessibility, permissionSnapshot?.kanata.accessibility) : permissionSnapshot?
-                                    .keyPath.accessibility,
+                                status: SettingsPermissionSummary.combine(
+                                    permissionSnapshot?.accessibility, permissionSnapshot?.runtimeKeyAccess.status
+                                ),
                                 isKanata: false,
                                 onTap: { wizardInitialPage = .accessibility },
-                                identifier: isDriverless ? "settings-status-action-button-accessibility"
-                                    : "settings-status-action-button-keypath-accessibility"
+                                identifier: "settings-status-action-button-accessibility"
                             )
-
-                            // Driverless KeyPath needs only the permission above: it lets the
-                            // runtime read and post keys, so Input Monitoring is not required.
-                            // The runtime's own input access is reported by the remapping row.
-                            if !isDriverless {
-                                PermissionStatusRow(
-                                    title: "KeyPath Input Monitoring",
-                                    icon: "keyboard",
-                                    status: permissionSnapshot?.keyPath.inputMonitoring,
-                                    isKanata: false,
-                                    onTap: { wizardInitialPage = .inputMonitoring }
-                                )
-                                runtimePermissionRows
-                            }
 
                             ForEach(systemStatusRows + summaryRows) { row in
                                 SettingsSystemStatusRow(
@@ -415,28 +403,6 @@ struct StatusSettingsTabView: View {
                 .settingsGroupBackground()
                 .accessibilityIdentifier("status-no-connected-keyboard-panel")
             }
-        }
-    }
-
-    private var runtimePermissionRows: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PermissionStatusRow(
-                title: permissionSnapshot?.backend == .session
-                    ? "KeyPath Runtime \(AccessibilityPermissionPresentation.current.name)" : "Kanata \(AccessibilityPermissionPresentation.current.name)",
-                icon: "checkmark.shield",
-                status: permissionSnapshot?.kanata.accessibility,
-                isKanata: true,
-                onTap: { wizardInitialPage = .accessibility }
-            )
-
-            PermissionStatusRow(
-                title: permissionSnapshot?.backend == .session
-                    ? "KeyPath Runtime Input Monitoring" : "Kanata Input Monitoring",
-                icon: "keyboard",
-                status: permissionSnapshot?.kanata.inputMonitoring,
-                isKanata: true,
-                onTap: { wizardInitialPage = .inputMonitoring }
-            )
         }
     }
 

@@ -1,18 +1,8 @@
 import KeyPathCore
 
 public extension SystemStateProvider {
-    /// Raw capture capabilities, without combining listening and posting access.
-    nonisolated func currentProcessRawPermissionCapabilities() -> PermissionOracle.PermissionSet {
-        PermissionOracle.shared.currentProcessCapabilities()
-    }
-
-    /// Raw posting authorization for bounded runtime diagnostics.
-    func currentProcessRawEventPostingStatus() async -> PermissionOracle.Status {
-        await PermissionOracle.shared.currentProcessEventPostingStatus()
-    }
-
-    /// Passive capabilities of the independently launched remapper executable.
-    func currentProcessPermissionCapabilities() async -> PermissionOracle.PermissionSet {
+    /// Passive capabilities of the calling process, sampled by the session worker.
+    func currentProcessSessionCapabilities() async -> PermissionOracle.ProcessCapabilities {
         await PermissionOracle.shared.currentProcessSessionCapabilities()
     }
 
@@ -21,11 +11,11 @@ public extension SystemStateProvider {
         await PermissionOracle.shared.currentProcessSessionCapabilitySnapshot()
     }
 
-    /// Bind session evidence through the canonical permission snapshot owner.
-    func configureSessionPermissionCapabilityProvider(
-        _ provider: @escaping @Sendable () async -> PermissionOracle.PermissionSet?
+    /// Bind the session runtime's report through the canonical permission snapshot owner.
+    func configureRuntimeKeyAccessProvider(
+        _ provider: @escaping @Sendable () async -> PermissionOracle.RuntimeKeyAccess?
     ) async {
-        await PermissionOracle.shared.configureSessionCapabilityProvider(provider)
+        await PermissionOracle.shared.configureRuntimeKeyAccessProvider(provider)
     }
 
     /// Cached/current permission snapshot for installer and wizard decisions.

@@ -159,23 +159,8 @@ final class ModeARevertTests: XCTestCase {
         let now = Date()
         let status: PermissionOracle.Status = permissionsGranted ? .granted : .denied
 
-        let keyPath = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let kanata = PermissionOracle.PermissionSet(
-            accessibility: status,
-            inputMonitoring: status,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
         return SystemContext(
-            permissions: PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: .driverKit),
+            permissions: PermissionOracle.Snapshot.fixture(runtimeKeyAccess: status, timestamp: now),
             services: HealthStatus(backend: .driverKit,
                                    kanataRunning: kanataRunning,
                                    karabinerDaemonRunning: true,
@@ -204,23 +189,8 @@ final class ModeARevertTests: XCTestCase {
         accessibility: PermissionOracle.Status = .granted
     ) -> SystemSnapshot {
         let now = Date()
-        let keyPath = PermissionOracle.PermissionSet(
-            accessibility: accessibility,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-        let kanata = PermissionOracle.PermissionSet(
-            accessibility: accessibility,
-            inputMonitoring: .granted,
-            source: "test",
-            confidence: .high,
-            timestamp: now
-        )
-
         return SystemSnapshot(
-            permissions: PermissionOracle.Snapshot(keyPath: keyPath, kanata: kanata, timestamp: now, backend: backend),
+            permissions: PermissionOracle.Snapshot.fixture(accessibility: accessibility, timestamp: now),
             components: ComponentStatus(
                 kanataBinaryInstalled: true,
                 karabinerDriverInstalled: true,

@@ -67,8 +67,6 @@ public struct WizardActionSection: View {
 
     private func buttonLabel(for page: WizardPage) -> String {
         switch page {
-        case .inputMonitoring:
-            "Fix Input Monitoring"
         case .accessibility:
             "Fix \(AccessibilityPermissionPresentation.current.name)"
         case .service:

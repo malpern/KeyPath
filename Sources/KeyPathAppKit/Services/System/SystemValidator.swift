@@ -221,16 +221,11 @@ public class SystemValidator {
     /// This provides realistic-looking stub data for tests that don't need real system state
     private static func makeTestSnapshot() -> SystemSnapshot {
         let now = Date()
-        let testPermissions = PermissionOracle.PermissionSet(
-            accessibility: .granted,
-            inputMonitoring: .granted,
-            source: "test-stub",
-            confidence: .high,
-            timestamp: now
-        )
         return SystemSnapshot(
             permissions: PermissionOracle.Snapshot(
-                keyPath: testPermissions, kanata: testPermissions, timestamp: now
+                accessibility: .granted,
+                runtimeKeyAccess: .init(status: .granted, source: "test-stub", confidence: .high, timestamp: now),
+                timestamp: now
             ),
             components: ComponentStatus(
                 kanataBinaryInstalled: true,

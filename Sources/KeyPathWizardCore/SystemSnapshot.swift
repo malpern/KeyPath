@@ -106,7 +106,7 @@ public struct SystemSnapshot: Sendable {
 
     /// System is ready when all critical components are operational
     public var isReady: Bool {
-        if permissions.backend == .session {
+        if health.backend == .session {
             return captureStatus.isComplete && permissions.isSystemReady && !conflicts.hasConflicts
                 && components.requiredRuntimePayloadPresent && health.kanataRuntimeReadiness.isReady
         }
@@ -117,11 +117,10 @@ public struct SystemSnapshot: Sendable {
 
     /// Issues that prevent the system from working
     public var blockingIssues: [Issue] {
-        if permissions.backend == .session {
+        if health.backend == .session {
             var issues: [Issue] = []
-            if !permissions.isSystemReady {
-                issues.append(.permissionMissing(app: "KeyPath", permission: "Accessibility / effective input access",
-                                                 action: "Grant \(AccessibilityPermissionPresentation.current.name) first, then retry the current-process check"))
+            if let permissionIssue {
+                issues.append(permissionIssue)
             }
             if !components.requiredRuntimePayloadPresent {
                 issues.append(.componentMissing(name: "Bundled session runtime", autoFix: false))
@@ -133,57 +132,8 @@ public struct SystemSnapshot: Sendable {
         }
         var issues: [Issue] = []
 
-        // Permission issues
-        if !permissions.keyPath.hasAllPermissions {
-            if !permissions.keyPath.accessibility.isReady {
-                issues.append(
-                    .permissionMissing(
-                        app: "KeyPath",
-                        permission: "Accessibility",
-                        action: "Enable in \(AccessibilityPermissionPresentation.current.settingsPath)"
-                    )
-                )
-            }
-            if !permissions.keyPath.inputMonitoring.isReady {
-                issues.append(
-                    .permissionMissing(
-                        app: "KeyPath",
-                        permission: "Input Monitoring",
-                        action: "Enable in System Settings > Privacy & Security > Input Monitoring"
-                    )
-                )
-            }
-        }
-
-        if !permissions.kanata.hasAllPermissions {
-            if !permissions.kanata.accessibility.isReady {
-                issues.append(
-                    .permissionMissing(
-                        app: "Kanata",
-                        permission: "Accessibility",
-                        action: "Grant permission via Installation Wizard"
-                    )
-                )
-            }
-            if !permissions.kanata.inputMonitoring.isReady {
-                issues.append(
-                    .permissionMissing(
-                        app: "Kanata",
-                        permission: "Input Monitoring",
-                        action: "Grant permission via Installation Wizard"
-                    )
-                )
-            }
-        }
-        if !health.kanataInputCaptureReady {
-            issues.append(
-                .permissionMissing(
-                    app: "Kanata",
-                    permission: "Input Monitoring",
-                    action:
-                    "Regrant Input Monitoring permission for Kanata in System Settings and ensure it can open the built-in keyboard"
-                )
-            )
+        if let permissionIssue {
+            issues.append(permissionIssue)
         }
 
         // Conflict issues
@@ -229,6 +179,16 @@ public struct SystemSnapshot: Sendable {
         return issues
     }
 
+    /// The single permission issue, if KeyPath or its runtime cannot remap keys.
+    private var permissionIssue: Issue? {
+        guard !permissions.isSystemReady else { return nil }
+        return .permissionMissing(
+            app: "KeyPath", permission: AccessibilityPermissionPresentation.current.name,
+            action: permissions.blockingIssue
+                ?? "Grant \(AccessibilityPermissionPresentation.current.name) first, then retry the current-process check"
+        )
+    }
+
     /// All issues including non-blocking warnings
     public var allIssues: [Issue] {
         // For now, same as blocking issues
@@ -266,17 +226,10 @@ public struct SystemSnapshot: Sendable {
         timestamp: Date = Date()
     ) -> SystemSnapshot {
         precondition(!captureStatus.isComplete, "Unavailable snapshot must be incomplete")
-        let unknownSet = PermissionOracle.PermissionSet(
-            accessibility: .unknown,
-            inputMonitoring: .unknown,
-            source: source,
-            confidence: .low,
-            timestamp: timestamp
-        )
         return SystemSnapshot(
             permissions: PermissionOracle.Snapshot(
-                keyPath: unknownSet,
-                kanata: unknownSet,
+                accessibility: .unknown,
+                runtimeKeyAccess: .init(status: .unknown, source: source, confidence: .low, timestamp: timestamp),
                 timestamp: timestamp
             ),
             components: .empty,

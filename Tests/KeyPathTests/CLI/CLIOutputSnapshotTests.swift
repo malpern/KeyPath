@@ -227,9 +227,7 @@ final class CLIOutputSnapshotTests: XCTestCase {
         let value = CLIStatusResult(
             isOperational: true,
             keyPathAccessibility: true,
-            keyPathInputMonitoring: true,
-            kanataAccessibility: true,
-            kanataInputMonitoring: true,
+            runtimeKeyAccess: true,
             kanataBinaryInstalled: true,
             karabinerDriverInstalled: true,
             vhidDeviceHealthy: true,
@@ -247,8 +245,7 @@ final class CLIOutputSnapshotTests: XCTestCase {
         let dict = try JSONSerialization.jsonObject(with: Data(json.utf8)) as! [String: Any]
         let expectedKeys: Set = [
             "isOperational",
-            "keyPathAccessibility", "keyPathInputMonitoring",
-            "kanataAccessibility", "kanataInputMonitoring",
+            "keyPathAccessibility", "runtimeKeyAccess",
             "kanataBinaryInstalled", "karabinerDriverInstalled", "vhidDeviceHealthy",
             "kanataRunning", "karabinerDaemonRunning", "vhidHealthy",
             "activeRuntimePathTitle", "activeRuntimePathDetail",

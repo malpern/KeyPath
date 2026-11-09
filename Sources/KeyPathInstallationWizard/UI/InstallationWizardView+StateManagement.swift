@@ -157,9 +157,9 @@ public extension InstallationWizardView {
                 AppLogger.shared.log("🔍 [Wizard] Initial permission follow-up superseded by a newer system check")
                 return
             }
-            let kanataAccessibilityUnknown = permSnapshot.kanata.accessibility == .unknown
-            let kanataInputMonitoringUnknown = permSnapshot.kanata.inputMonitoring == .unknown
-            if kanataAccessibilityUnknown || kanataInputMonitoringUnknown {
+            let permissionsUnverified = permSnapshot.accessibility == .unknown
+                || permSnapshot.runtimeKeyAccess.status == .unknown
+            if permissionsUnverified {
                 if permissionRetriesRemaining > 0 {
                     // Possibly transient (Oracle racing app startup / slow TCC read):
                     // park on summary and retry with backoff.
@@ -187,21 +187,20 @@ public extension InstallationWizardView {
                 }
                 // Steady-state .unknown (effective runtime facts unavailable) —
                 // retrying won't resolve it. Fall
-                // through and let routing land on the first unverified permission
+                // through and let routing land on the permission
                 // page instead of dead-ending on summary (the pre-#934 gap).
                 AppLogger.shared.log(
-                    "🔍 [Wizard] Permissions unverifiable after retries — routing to first unverified permission page"
+                    "🔍 [Wizard] Permissions unverifiable after retries — routing to the permission page"
                 )
             }
 
             // Auto-navigate to the first page that needs attention
-            let recommended = WizardRouter.routeForUnverifiedKanataPermissions(
+            let recommended = WizardRouter.routeForUnverifiedPermissions(
                 base: WizardRouter.route(
                     state: result.state,
                     issues: issues
                 ),
-                inputMonitoringUnknown: kanataInputMonitoringUnknown,
-                accessibilityUnknown: kanataAccessibilityUnknown
+                permissionsUnverified: permissionsUnverified
             )
             Task { @MainActor in
                 // Never yank the user off the welcome page mid-read; validation has
@@ -325,7 +324,7 @@ public extension InstallationWizardView {
             } onFailure: { error in
                 handleStateCheckFailure(error)
             }
-        case .inputMonitoring, .accessibility:
+        case .accessibility:
             // 🎯 Phase 2: Quick checks removed - SystemValidator does full check
             // The full check is fast enough (<1s) and prevents partial state issues
             // If needed later, can add specific quick methods to SystemValidator

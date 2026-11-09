@@ -4,7 +4,6 @@ import KeyPathCore
 enum SystemDiagnostics {
     enum Target {
         case loginItems
-        case inputMonitoring
         case accessibility
         case systemSettings
 
@@ -12,8 +11,6 @@ enum SystemDiagnostics {
             switch self {
             case .loginItems:
                 URL(string: WizardSystemPaths.loginItemsSettings)
-            case .inputMonitoring:
-                URL(string: WizardSystemPaths.inputMonitoringSettings)
             case .accessibility:
                 URL(string: WizardSystemPaths.accessibilitySettings)
             case .systemSettings:

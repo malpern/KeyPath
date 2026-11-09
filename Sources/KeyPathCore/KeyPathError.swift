@@ -112,7 +112,6 @@ public enum KeyPathError: Error, LocalizedError {
 
     public enum PermissionError: Equatable, Sendable {
         case accessibilityNotGranted
-        case inputMonitoringNotGranted
         case notificationAuthorizationFailed
         case oracleInitializationFailed
         case keychainSaveFailed(status: Int)
@@ -221,8 +220,6 @@ public enum KeyPathError: Error, LocalizedError {
             "Review the configuration syntax and fix any validation errors"
         case .permission(.accessibilityNotGranted):
             "Grant \(AccessibilityPermissionPresentation.current.name) permission in System Settings > Privacy & Security"
-        case .permission(.inputMonitoringNotGranted):
-            "Grant Input Monitoring permission in System Settings > Privacy & Security"
         case .process(.notRunning):
             "Start the Kanata service before performing this operation"
         case .process(.launchAgentNotFound):
@@ -343,8 +340,6 @@ public enum KeyPathError: Error, LocalizedError {
         switch error {
         case .accessibilityNotGranted:
             "\(AccessibilityPermissionPresentation.current.name) permission not granted"
-        case .inputMonitoringNotGranted:
-            "Input Monitoring permission not granted"
         case .notificationAuthorizationFailed:
             "Notification authorization failed"
         case .oracleInitializationFailed:
@@ -445,11 +440,6 @@ public extension KeyPathError {
     /// Create an accessibility permission error
     static var accessibilityNotGranted: KeyPathError {
         .permission(.accessibilityNotGranted)
-    }
-
-    /// Create an input monitoring permission error
-    static var inputMonitoringNotGranted: KeyPathError {
-        .permission(.inputMonitoringNotGranted)
     }
 
     /// Create a UDP timeout error

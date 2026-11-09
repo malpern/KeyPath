@@ -166,7 +166,7 @@ for the actual remapping engine, config, and binary.
 **What it does:** 9-page automated setup handling permissions, drivers, services.
 
 **Why it's so large:** Legitimate complexity of macOS system integration:
-- TCC permissions (Accessibility, Input Monitoring, Full Disk Access)
+- One TCC permission: Device Control and Data Access (Accessibility before macOS 27)
 - Karabiner-Elements VirtualHID driver installation
 - LaunchDaemon service management (requires root)
 - Keyboard conflict detection and resolution

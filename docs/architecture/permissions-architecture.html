@@ -354,7 +354,7 @@
 
       <!-- Checker boxes at bottom-left -->
       <rect x="20" y="348" width="130" height="30" rx="6" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
-      <text x="85" y="367" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f">InputMonitoring</text>
+      <text x="85" y="367" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f">RuntimeKeyAccess</text>
 
       <rect x="160" y="348" width="130" height="30" rx="6" fill="#f5f5f7" stroke="#d2d2d7" stroke-width="1"/>
       <text x="225" y="367" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" fill="#1d1d1f">Accessibility</text>
@@ -451,7 +451,7 @@
       <div class="type-desc">The pull-based entry point for all validation. Gathers a <code>SystemSnapshot</code> (including permission state from <code>PermissionOracle</code>) and returns it as a pure value struct. No component queries permissions on its own.</div>
       <pre><span class="kw">let</span> engine = <span class="tp">InstallerEngine</span>()
 <span class="kw">let</span> context = <span class="kw">await</span> engine.<span class="fn">inspectSystem</span>() <span class="cm">// Pure value struct</span>
-<span class="kw">if</span> context.permissions.inputMonitoring != .granted { <span class="cm">/* show wizard page */</span> }</pre>
+<span class="kw">if</span> !context.permissions.isSystemReady { <span class="cm">/* show wizard page */</span> }</pre>
     </div>
   </div>
 </section>
@@ -470,15 +470,15 @@
     </div>
     <div class="flow-item">
       <div class="flow-event">Apple API returns</div>
-      <div class="flow-desc"><code>IOHIDCheckAccess</code> returns <code>.granted</code> or <code>.denied</code> &mdash; Oracle trusts this immediately and returns</div>
+      <div class="flow-desc"><code>AXIsProcessTrusted</code> and the runtime&rsquo;s key-access report return <code>.granted</code> or <code>.denied</code> &mdash; Oracle trusts these immediately and returns</div>
     </div>
     <div class="flow-item">
       <div class="flow-event">API returns unknown</div>
-      <div class="flow-desc"><code>IOHIDCheckAccess</code> returns <code>.unknown</code> &mdash; Oracle falls back to TCC database query (requires Full Disk Access)</div>
+      <div class="flow-desc">No runtime has reported yet &mdash; runtime key access stays <code>.unknown</code>; the Oracle never reads the TCC database (ADR-044)</div>
     </div>
     <div class="flow-item">
       <div class="flow-event">Wizard page shown</div>
-      <div class="flow-desc"><code>SystemInspector</code> finds missing permission &rarr; <code>WizardRouter</code> returns <code>.inputMonitoring</code> or <code>.accessibility</code> page</div>
+      <div class="flow-desc"><code>SystemInspector</code> finds missing permission &rarr; <code>WizardRouter</code> returns the <code>.accessibility</code> page</div>
     </div>
     <div class="flow-item">
       <div class="flow-event">User grants access</div>

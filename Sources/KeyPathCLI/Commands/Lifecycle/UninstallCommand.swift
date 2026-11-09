@@ -11,7 +11,7 @@ struct Uninstall: AsyncParsableCommand {
         it owns, backs up rules and settings to ~/Downloads/KeyPath-Uninstall-Backup-…, \
         removes its data and moves the app to the Trash.
         Without --yes it shows the plan and exits 2 with nothing changed.
-        --reset-permissions also clears KeyPath's Accessibility and Input Monitoring entries.
+        --reset-permissions also clears KeyPath's macOS privacy permission entries.
         Exit codes: 0 removed, 1 refused or failed (nothing removed unless stated), 2 needs --yes, \
         6 KeyPath.app could not be reached.
         """
@@ -39,7 +39,7 @@ struct Uninstall: AsyncParsableCommand {
             "Back up rules and settings to ~/Downloads/KeyPath-Uninstall-Backup-…",
             "Remove ~/.config/keypath, ~/Library/Application Support/KeyPath, its caches and preferences",
             "Turn off Launch at Login and move \(RuntimeControlClient.appURL.path) to the Trash",
-        ] + (resetPermissions ? ["Clear KeyPath's \(AccessibilityPermissionPresentation.current.name) and Input Monitoring entries"] : [])
+        ] + (resetPermissions ? ["Clear KeyPath's macOS privacy permission entries (\(AccessibilityPermissionPresentation.current.name) and event access)"] : [])
         guard yes, !globals.dryRun else {
             CLIOutput.write(Plan(applied: false, plan: plan), context: ctx) {
                 (["Uninstall would:"] + plan.map { "  - \($0)" } + ["", "Nothing changed. Re-run with --yes to uninstall."])
@@ -48,7 +48,8 @@ struct Uninstall: AsyncParsableCommand {
             throw ExitCode(2)
         }
         // tccutil finds the app by bundle id, which fails once the app is in the
-        // Trash, so clear the entries while it is still installed.
+        // Trash, so clear the entries while it is still installed. ListenEvent
+        // and PostEvent rows may remain from builds or prompts that requested them.
         var reset: [String] = []
         if resetPermissions {
             for service in ["Accessibility", "ListenEvent", "PostEvent"] {

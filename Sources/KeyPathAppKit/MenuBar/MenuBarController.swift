@@ -537,22 +537,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func wizardPage(for issue: WizardIssue) -> WizardPage {
         switch issue.category {
         case .permissions:
-            // Use identifier to determine if it's accessibility or input monitoring
-            if case let .permission(requirement) = issue.identifier {
-                switch requirement {
-                case .kanataAccessibility, .keyPathAccessibility:
-                    return .accessibility
-                case .kanataInputMonitoring, .keyPathInputMonitoring:
-                    return .inputMonitoring
-                }
-            }
-            return .inputMonitoring // Default for permissions
+            // Accessibility is the only permission page.
+            .accessibility
         case .daemon:
-            return .service
+            .service
         case .installation:
-            return .summary
+            .summary
         case .systemRequirements:
-            return .summary
+            .summary
         }
     }
 }

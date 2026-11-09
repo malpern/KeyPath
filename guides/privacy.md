@@ -51,15 +51,15 @@ The remapping engine sits between your keyboard and your apps, transforming keys
 
 ## Permissions in the driverless version
 
-The driverless version asks for **Accessibility**. The remapping runtime runs in your signed-in user session, without installing a virtual keyboard driver or a privileged remapping service.
+The driverless version asks for one permission: **Device Control and Data Access** (called **Accessibility** before macOS 27). The remapping runtime runs in your signed-in user session, without installing a virtual keyboard driver or a privileged remapping service.
 
-### Accessibility
+### Device Control and Data Access
 
 Allows KeyPath to intercept and send remapped keyboard events and support app-specific behavior. Setup guides you to the normal macOS consent screen.
 
 ### Effective keyboard access
 
-KeyPath verifies that its running process can receive and post keyboard events. In the tested driverless flow, Accessibility supplies this access without a separate Input Monitoring grant. Setup checks actual runtime access rather than treating a Settings toggle as proof of readiness.
+KeyPath verifies that its running process can receive and post keyboard events. Device Control and Data Access supplies this access; KeyPath asks for no other privacy permission. Setup checks actual runtime access rather than treating a Settings toggle as proof of readiness. If the toggle is on but remapping still lacks access, quit and reopen KeyPath.
 
 macOS may ask you to authenticate when changing these permissions. Removing a privileged installer does not remove macOS's own authentication requirements.
 

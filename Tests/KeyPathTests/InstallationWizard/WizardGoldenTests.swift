@@ -16,28 +16,9 @@ final class WizardGoldenTests: XCTestCase {
 
     private func makePermissions(
         keyPathAX: PermissionOracle.Status = .granted,
-        keyPathIM: PermissionOracle.Status = .granted,
-        kanataAX: PermissionOracle.Status = .granted,
-        kanataIM: PermissionOracle.Status = .granted
+        runtimeKeyAccess: PermissionOracle.Status = .granted
     ) -> PermissionOracle.Snapshot {
-        let now = Date()
-        return PermissionOracle.Snapshot(
-            keyPath: PermissionOracle.PermissionSet(
-                accessibility: keyPathAX,
-                inputMonitoring: keyPathIM,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            kanata: PermissionOracle.PermissionSet(
-                accessibility: kanataAX,
-                inputMonitoring: kanataIM,
-                source: "test",
-                confidence: .high,
-                timestamp: now
-            ),
-            timestamp: now, backend: .driverKit
-        )
+        .fixture(accessibility: keyPathAX, runtimeKeyAccess: runtimeKeyAccess)
     }
 
     private var allComponentsHealthy: ComponentStatus {
@@ -95,31 +76,20 @@ final class WizardGoldenTests: XCTestCase {
         XCTAssertEqual(result.state, .serviceNotRunning)
     }
 
-    func test_kanataIMDenied_stateIsMissingPermissions() {
+    func test_runtimeKeyAccessDenied_stateIsMissingPermissions() {
         let context = makeContext(
-            permissions: makePermissions(kanataIM: .denied)
+            permissions: makePermissions(runtimeKeyAccess: .denied)
         )
         let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(result.state, .missingPermissions(missing: [.keyPathInputMonitoring]))
+        XCTAssertEqual(result.state, .missingPermissions(missing: [.runtimeKeyAccess]))
     }
 
-    func test_keyPathIMDenied_doesNotBlockReadyRuntime() {
-        // The app's own Input Monitoring is not a session-runtime requirement;
-        // the runtime's effective input access is.
+    func test_keyPathAXDenied_stateIsMissingPermissions() {
         let context = makeContext(
-            permissions: makePermissions(keyPathIM: .denied)
+            permissions: makePermissions(keyPathAX: .denied)
         )
         let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(result.state, .active)
-    }
-
-    func test_kanataAXDenied_stateIsMissingPermissions() {
-        let context = makeContext(
-            permissions: makePermissions(kanataAX: .denied)
-        )
-        let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(result.state, .missingPermissions(missing: [.keyPathAccessibility]),
-                       "Either side's denied Accessibility asks the user to allow KeyPath")
+        XCTAssertEqual(result.state, .missingPermissions(missing: [.keyPathAccessibility]))
     }
 
     func test_kanataNotRunning_daemonRunning_stateIsServiceNotRunning() {
@@ -146,13 +116,13 @@ final class WizardGoldenTests: XCTestCase {
         XCTAssertTrue(result.issues.isEmpty, "A timed-out capture must not invent consent or runtime faults")
     }
 
-    func test_keyPathIMUnknown_doesNotGenerateIssue() {
+    func test_runtimeKeyAccessUnknown_doesNotGeneratePermissionIssue() {
         let context = makeContext(
-            permissions: makePermissions(keyPathIM: .unknown)
+            permissions: makePermissions(runtimeKeyAccess: .unknown)
         )
         let result = SystemStateResult.projecting(context)
-        let imIssue = result.issues.first { $0.identifier == .permission(.keyPathInputMonitoring) }
-        XCTAssertNil(imIssue, "Unknown KeyPath IM should not generate an issue (startup mode)")
+        XCTAssertFalse(result.issues.contains { $0.identifier.isPermission },
+                       "Unreported runtime access is not a denial (startup mode)")
     }
 
     // MARK: - WizardRouter: Page Routing
@@ -165,26 +135,26 @@ final class WizardGoldenTests: XCTestCase {
         XCTAssertEqual(page, .summary)
     }
 
-    func test_route_keyPathIMDenied_returnsInputMonitoring() {
+    func test_route_runtimeKeyAccessDenied_returnsAccessibility() {
         let issues = [WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .error,
             category: .permissions,
-            title: "IM denied",
+            title: "Runtime key access denied",
             description: "",
             autoFixAction: nil,
             userAction: nil
         )]
         let page = WizardRouter.route(
-            state: .missingPermissions(missing: [.keyPathInputMonitoring]),
+            state: .missingPermissions(missing: [.runtimeKeyAccess]),
             issues: issues
         )
-        XCTAssertEqual(page, .inputMonitoring)
+        XCTAssertEqual(page, .accessibility)
     }
 
-    func test_route_kanataAXDenied_returnsAccessibility() {
+    func test_route_keyPathAXDenied_returnsAccessibility() {
         let issues = [WizardIssue(
-            identifier: .permission(.kanataAccessibility),
+            identifier: .permission(.keyPathAccessibility),
             severity: .error,
             category: .permissions,
             title: "AX denied",
@@ -193,15 +163,15 @@ final class WizardGoldenTests: XCTestCase {
             userAction: nil
         )]
         let page = WizardRouter.route(
-            state: .missingPermissions(missing: [.kanataAccessibility]),
+            state: .missingPermissions(missing: [.keyPathAccessibility]),
             issues: issues
         )
         XCTAssertEqual(page, .accessibility)
     }
 
-    func test_route_kanataIMWarning_doesNotRouteToPermissions() {
+    func test_route_permissionWarning_doesNotRouteToPermissions() {
         let issues = [WizardIssue(
-            identifier: .permission(.kanataInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .warning,
             category: .permissions,
             title: "Not verified",
@@ -236,14 +206,14 @@ final class WizardGoldenTests: XCTestCase {
         XCTAssertEqual(page, .summary)
     }
 
-    func test_e2e_kanataIMDenied_routesToInputMonitoring() {
-        let context = makeContext(permissions: makePermissions(kanataIM: .denied))
+    func test_e2e_runtimeKeyAccessDenied_routesToAccessibility() {
+        let context = makeContext(permissions: makePermissions(runtimeKeyAccess: .denied))
         let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
             issues: result.issues
         )
-        XCTAssertEqual(page, .inputMonitoring)
+        XCTAssertEqual(page, .accessibility)
     }
 
     func test_e2e_kanataNotRunning_routesToService() {
@@ -262,20 +232,20 @@ final class WizardGoldenTests: XCTestCase {
 
     func test_nextPage_skipsGreenPages() {
         let issues = [WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .error,
             category: .permissions,
-            title: "IM denied",
+            title: "Runtime key access denied",
             description: "",
             autoFixAction: nil,
             userAction: nil
         )]
         let next = WizardRouter.nextPage(
             after: .kanataMigration,
-            state: .missingPermissions(missing: [.keyPathInputMonitoring]),
+            state: .missingPermissions(missing: [.runtimeKeyAccess]),
             issues: issues
         )
-        XCTAssertEqual(next, .inputMonitoring, "Should skip green pages and land on inputMonitoring")
+        XCTAssertEqual(next, .accessibility, "Should skip green pages and land on accessibility")
     }
 
     func test_nextPage_allGreen_returnsSummary() {

@@ -413,7 +413,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                             title: "Permission Error in Logs",
                             description: "Kanata cannot access keyboard devices",
                             technicalDetails: line,
-                            suggestedAction: "Grant Input Monitoring permission",
+                            suggestedAction: "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name), then quit and reopen KeyPath",
                             canAutoFix: false
                         )
                     )

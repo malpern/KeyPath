@@ -76,7 +76,6 @@ final class WizardPollingNoNavigationTests: XCTestCase {
                             // bound to the ready, one-shot, cancellation-checked branch.
                             let readyGuard: String? = switch fileName {
                             case "WizardAccessibilityPage.swift": "if accessibilityReady, !hasEverCelebrated {"
-                            case "WizardInputMonitoringPage.swift": "if inputReady, !hasEverCelebrated {"
                             default: nil
                             }
                             if navCall == "navigateToNextStep()", let readyGuard,

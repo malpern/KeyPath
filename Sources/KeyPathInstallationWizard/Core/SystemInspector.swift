@@ -12,7 +12,7 @@ public enum SystemInspector {
         guard context.captureStatus.isComplete else { return (.serviceNotRunning, []) }
         var issues: [WizardIssue] = []
         var missing: [PermissionRequirement] = []
-        if context.permissions.keyPath.accessibility == .denied || context.permissions.kanata.accessibility == .denied {
+        if context.permissions.accessibility == .denied {
             missing.append(.keyPathAccessibility)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
@@ -20,13 +20,12 @@ public enum SystemInspector {
                 description: context.permissions.blockingIssue ?? "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name), then quit and reopen KeyPath.",
                 autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Open \(AccessibilityPermissionPresentation.current.name) in System Settings"
             ))
-        } else if context.permissions.keyPath.accessibility.isReady,
-                  context.permissions.kanata.accessibility.isReady,
-                  context.permissions.kanata.inputMonitoring == .denied
+        } else if context.permissions.accessibility.isReady,
+                  context.permissions.runtimeKeyAccess.status == .denied
         {
-            missing.append(.keyPathInputMonitoring)
+            missing.append(.runtimeKeyAccess)
             issues.append(WizardIssue(
-                identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
+                identifier: .permission(.runtimeKeyAccess), severity: .error, category: .permissions,
                 title: "Keyboard access still needs approval",
                 description: context.permissions.blockingIssue ?? "Quit and reopen KeyPath so it picks up \(AccessibilityPermissionPresentation.current.name).",
                 autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Quit and reopen KeyPath"
@@ -39,10 +38,7 @@ public enum SystemInspector {
                 title: "Bundled runtime missing", description: "Reinstall this KeyPath build.", autoFixAction: nil, userAction: "Reinstall KeyPath"
             )])
         }
-        if !context.permissions.keyPath.accessibility.isReady
-            || !context.permissions.kanata.accessibility.isReady
-            || !context.permissions.kanata.inputMonitoring.isReady
-        {
+        if !context.permissions.isSystemReady {
             return sessionPermissionEvidenceUnavailable()
         }
         if context.services.kanataRuntimeReadiness.isReady { return (.active, []) }

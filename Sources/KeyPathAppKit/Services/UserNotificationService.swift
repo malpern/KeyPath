@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathWizardCore
 import UserNotifications
 
@@ -29,7 +30,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     enum Action: String {
         case openWizard = "KP_ACTION_OPEN_WIZARD"
         case retryStart = "KP_ACTION_RETRY_START"
-        case openInputMonitoring = "KP_ACTION_OPEN_INPUT_MONITORING"
         case openAccessibility = "KP_ACTION_OPEN_ACCESSIBILITY"
         case openApp = "KP_ACTION_OPEN_APP"
     }
@@ -79,10 +79,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         let retryStart = UNNotificationAction(
             identifier: Action.retryStart.rawValue, title: "Start Service", options: []
         )
-        let openIM = UNNotificationAction(
-            identifier: Action.openInputMonitoring.rawValue, title: "Open Input Monitoring",
-            options: [.foreground]
-        )
         let openAX = UNNotificationAction(
             identifier: Action.openAccessibility.rawValue, title: AccessibilityPermissionPresentation.current.openTitle,
             options: [.foreground]
@@ -101,7 +97,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         )
         let permission = UNNotificationCategory(
             identifier: Category.permission.rawValue,
-            actions: [openIM, openAX, openWizard], intentIdentifiers: [], options: []
+            actions: [openAX, openWizard], intentIdentifiers: [], options: []
         )
         let info = UNNotificationCategory(
             identifier: Category.info.rawValue,
@@ -187,16 +183,13 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
 
     func notifyPermissionRequired(_ missing: [PermissionRequirement]) {
         guard !missing.isEmpty else { return }
-        let names = missing.map { req -> String in
-            switch req {
-            case .kanataInputMonitoring, .keyPathInputMonitoring: return "Input Monitoring"
-            case .kanataAccessibility, .keyPathAccessibility: return AccessibilityPermissionPresentation.current.name
-            }
-        }
-        let summary = Array(Set(names)).joined(separator: ", ")
+        let blocking = PermissionOracle.Snapshot.sessionBlockingGuidance(
+            accessibilityBlocking: missing.contains(.keyPathAccessibility), presentation: .current
+        )
+        let summary = AccessibilityPermissionPresentation.current.name
         sendNotification(
             title: "Permission Required",
-            body: "Grant: \(summary)",
+            body: blocking,
             category: .permission,
             key: "perm.\(summary)",
             ttl: 1800
@@ -248,8 +241,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             NotificationCenter.default.post(name: .openInstallationWizard, object: nil)
         case Action.retryStart.rawValue:
             NotificationCenter.default.post(name: .retryStartService, object: nil)
-        case Action.openInputMonitoring.rawValue:
-            NotificationCenter.default.post(name: .openInputMonitoringSettings, object: nil)
         case Action.openAccessibility.rawValue:
             NotificationCenter.default.post(name: .openAccessibilitySettings, object: nil)
         case Action.openApp.rawValue:

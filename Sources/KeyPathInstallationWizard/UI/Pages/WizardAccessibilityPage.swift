@@ -15,7 +15,7 @@ public struct WizardAccessibilityPage: View {
     @State private var permissionSnapshot: PermissionOracle.Snapshot?
     /// When the automatic Accessibility prompt for KeyPath.app was last triggered.
     /// Drives escalation to the drag-to-authorize helper if the grant never
-    /// registers, mirroring the Input Monitoring page (#933).
+    /// registers (#933).
     @State private var keyPathRequestAttemptedAt: Date?
 
     @Environment(WizardStateMachine.self) private var stateMachine
@@ -108,6 +108,17 @@ public struct WizardAccessibilityPage: View {
                         Label(AccessibilityPermissionPresentation.current.enabledTitle, systemImage: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                             .accessibilityIdentifier("wizard_accessibility_enabled")
+
+                        // Granted, but the running runtime still lacks key access: it
+                        // needs a fresh launch to pick up the grant.
+                        if let guidance = runtimeRelaunchGuidance {
+                            Text(guidance)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 560)
+                                .accessibilityIdentifier("wizard_accessibility_relaunch_guidance")
+                        }
                     }
                 }
                 .padding(.horizontal, 40)
@@ -135,7 +146,7 @@ public struct WizardAccessibilityPage: View {
                     let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
                     permissionSnapshot = snapshot
 
-                    let accessibilityReady = snapshot.keyPath.accessibility.isReady
+                    let accessibilityReady = snapshot.accessibility.isReady
                     if accessibilityReady, !hasEverCelebrated {
                         hasEverCelebrated = true
                         _ = await WizardSleep.ms(1500)
@@ -171,9 +182,14 @@ public struct WizardAccessibilityPage: View {
         return appPath.hasPrefix("/Applications/") || appPath.hasPrefix(userApplications + "/")
     }
 
+    private var runtimeRelaunchGuidance: String? {
+        guard let snapshot = permissionSnapshot, snapshot.runtimeKeyAccess.status.isBlocking else { return nil }
+        return snapshot.blockingIssue
+    }
+
     private var keyPathAccessibilityStatus: InstallationStatus {
         guard let snapshot = permissionSnapshot else { return .inProgress }
-        return installationStatus(for: snapshot.keyPath.accessibility)
+        return installationStatus(for: snapshot.accessibility)
     }
 
     /// Escalation state for KeyPath.app's own Accessibility grant. Uses the shared
@@ -183,7 +199,7 @@ public struct WizardAccessibilityPage: View {
     private var keyPathAccessibilityGuidance: AutomaticPromptGuidance {
         resolveAutomaticPromptGuidance(
             AutomaticPromptGuidanceInput(
-                keyPathReady: permissionSnapshot?.keyPath.accessibility.isReady ?? false,
+                keyPathReady: permissionSnapshot?.accessibility.isReady ?? false,
                 requestAttempted: keyPathRequestAttemptedAt != nil,
                 secondsSinceRequest: keyPathRequestAttemptedAt.map { Date().timeIntervalSince($0) }
             )
@@ -250,23 +266,9 @@ public struct WizardAccessibilityPage: View {
     }
 
     private func navigateToNextStep() {
-        // Check if Input Monitoring is already granted - if so, we can close System Settings early
-        // since the user won't need to visit it again for permissions
+        // Accessibility is the only permission, so System Settings is no longer needed.
         Task { @MainActor in
-            let snapshot = await SystemStateProvider.shared.refreshPermissionSnapshot()
-            let inputMonitoringGranted = snapshot.keyPath.inputMonitoring.isReady || snapshot.kanata.inputMonitoring.isReady
-
-            if !inputMonitoringGranted {
-                stateMachine.navigateToPage(.inputMonitoring)
-                return
-            }
-            if inputMonitoringGranted {
-                // User already has Input Monitoring - clean up now since they won't need Settings again
-                AppLogger.shared.log(
-                    "🧹 [WizardAccessibilityPage] Input Monitoring already granted - cleaning up early"
-                )
-                WizardWindowManager.shared.performFullCleanup()
-            }
+            WizardWindowManager.shared.performFullCleanup()
 
             if allIssues.isEmpty {
                 stateMachine.navigateToPage(.summary)
@@ -289,7 +291,7 @@ public struct WizardAccessibilityPage: View {
 /// Shown when the automatic Accessibility prompt for KeyPath.app never registers a
 /// grant. Offers the drag-to-authorize helper — opens System Settings and floats a
 /// tile the user drags KeyPath into — instead of leaving them at a "Turn On" button
-/// that appeared to do nothing. Mirrors the Input Monitoring fallback card.
+/// that appeared to do nothing.
 private struct AccessibilityManualFallbackCard: View {
     @State private var resetMessage: String?
 

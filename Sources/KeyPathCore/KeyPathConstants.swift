@@ -94,7 +94,6 @@ public enum KeyPathConstants {
     }
 
     public enum URLs {
-        public static let inputMonitoringPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
         public static let accessibilityPrivacy = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         public static let kanataTroubleshooting = "https://github.com/malpern/KeyPath/blob/master/docs/troubleshooting/debugging-kanata.md"
         public static let terminalInputCaptureTroubleshooting = "\(kanataTroubleshooting)#terminal-input-capture-failures"

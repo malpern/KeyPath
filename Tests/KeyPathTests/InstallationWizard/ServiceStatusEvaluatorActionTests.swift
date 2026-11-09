@@ -1,3 +1,4 @@
+import KeyPathCore
 @testable import KeyPathInstallationWizard
 import KeyPathWizardCore
 import XCTest
@@ -23,21 +24,21 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
         ), .failed(message: "Kanata Isn't Capturing Keyboard Input"))
     }
 
-    func testDriverlessInputPermissionIssueHasActionableConsentGuidance() {
+    func testRuntimeKeyAccessIssueAsksForRelaunch() {
         let issue = WizardIssue(
-            identifier: .permission(.keyPathInputMonitoring), severity: .error,
-            category: .permissions, title: "Input Monitoring required",
-            description: "Current worker cannot listen to keyboard events",
+            identifier: .permission(.runtimeKeyAccess), severity: .error,
+            category: .permissions, title: "Keyboard access still needs approval",
+            description: "Current worker cannot read keyboard events",
             autoFixAction: nil, userAction: nil
         )
         XCTAssertEqual(
             ServiceStatusEvaluator.blockingIssueMessage(from: [issue]),
-            "Enable Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
+            "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name)."
         )
         XCTAssertEqual(
             ServiceStatusEvaluator.evaluateAfterAction(
                 operationSucceeded: false, kanataIsRunning: false,
-                systemState: .missingPermissions(missing: [.keyPathInputMonitoring]), issues: [issue]
+                systemState: .missingPermissions(missing: [.runtimeKeyAccess]), issues: [issue]
             ),
             .stopped
         )
@@ -132,10 +133,10 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
 
     func testSuccessfulActionSupersedesPreActionPermissionIssue() {
         let permissionIssue = WizardIssue(
-            identifier: .permission(.kanataInputMonitoring),
+            identifier: .permission(.runtimeKeyAccess),
             severity: .error,
             category: .permissions,
-            title: "Input Monitoring permission required",
+            title: "Keyboard access still needs approval",
             description: "Permission remains denied",
             autoFixAction: nil,
             userAction: nil
