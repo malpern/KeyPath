@@ -38,6 +38,18 @@ expected=(
     com.keypath.lab.service-management
 )
 
+# Retired profiles must be absent on every lane: a base still carrying one was
+# built for the retired VirtualHID stack and must be rebuilt (ADR-047).
+retired=(
+    com.keypath.lab.system-extension
+)
+for identifier in "${retired[@]}"; do
+    if grep -Fq "$identifier" <<<"$profiles_output"; then
+        echo "lane verification failed: retired profile $identifier is installed; rebuild the base" >&2
+        exit 1
+    fi
+done
+
 present=0
 for identifier in "${expected[@]}"; do
     if grep -Fq "$identifier" <<<"$profiles_output"; then

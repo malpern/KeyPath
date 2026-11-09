@@ -32,6 +32,7 @@ if [[ $1 == show ]]; then
 profileIdentifier: com.keypath.lab.pppc
 profileIdentifier: com.keypath.lab.service-management
 OUT
+    [[ ${FAKE_RETIRED:-0} == 0 ]] || echo "profileIdentifier: com.keypath.lab.system-extension"
 elif [[ $1 == status ]]; then
     echo "MDM enrollment: Yes (User Approved)"
 else
@@ -88,13 +89,22 @@ failure=$(FAKE_SUDO_FAIL=1 PROFILES_BIN="$TMP/bin/profiles" ID_BIN="$TMP/bin/id"
     "$VERIFY" managed-functional --manifest "$TMP/policy/manifest.json" 2>&1)
 failure_status=$?
 set -e
-[[ $failure_status -ne 0 ]]
+[[ $failure_status -ne 0 ]] || exit 1
 grep -Fq 'system profile inventory requires root or non-interactive sudo' <<<"$failure"
 
 rm -f "$CALLS"
 FAKE_UID=0 PROFILES_BIN="$TMP/bin/profiles" ID_BIN="$TMP/bin/id" \
     SUDO_BIN="$TMP/bin/sudo" SW_VERS_BIN="$TMP/bin/sw_vers" \
     "$VERIFY" managed-functional --manifest "$TMP/policy/manifest.json" >/dev/null
-[[ ! -e $CALLS ]]
+[[ ! -e $CALLS ]] || exit 1
+
+set +e
+retired=$(FAKE_RETIRED=1 FAKE_UID=0 PROFILES_BIN="$TMP/bin/profiles" ID_BIN="$TMP/bin/id" \
+    SUDO_BIN="$TMP/bin/sudo" SW_VERS_BIN="$TMP/bin/sw_vers" \
+    "$VERIFY" unmanaged-ui 2>&1)
+retired_status=$?
+set -e
+[[ $retired_status -ne 0 ]] || exit 1
+grep -Fq 'retired profile com.keypath.lab.system-extension is installed' <<<"$retired"
 
 echo "verify-lane tests: passed"

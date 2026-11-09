@@ -71,7 +71,6 @@ public enum KeyPathConstants {
 
     public enum VirtualHID {
         public static let driverPath = "/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice"
-        public static let rootOnlyTmp = "/Library/Application Support/org.pqrs/tmp/rootonly"
         public static let tmpDir = "/Library/Application Support/org.pqrs/tmp"
     }
 

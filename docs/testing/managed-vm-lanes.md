@@ -20,6 +20,10 @@ test. CrabBox creates disposable clones from the appropriate powered-off base.
 
 ## Managed base build
 
+Bases built before ADR-047 step 2f carry the retired `com.keypath.lab.system-extension`
+profile and a three-profile manifest. `verify-lane` rejects them on every lane; rebuild
+those bases rather than removing the profile by hand.
+
 1. Start from a clean macOS base that has never installed KeyPath.
 2. Enroll the VM in the lab MDM and confirm `profiles status -type enrollment`.
 3. Generate profiles from the exact signed KeyPath release candidate:
