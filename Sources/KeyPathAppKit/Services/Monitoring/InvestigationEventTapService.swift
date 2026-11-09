@@ -1,7 +1,6 @@
 @preconcurrency import AppKit
 import Foundation
 import KeyPathCore
-import KeyPathPermissions
 
 @MainActor
 final class InvestigationEventTapService {
@@ -13,8 +12,9 @@ final class InvestigationEventTapService {
     func startIfNeeded() {
         guard !TestEnvironment.isRunningTests else { return }
         guard !isStarted else { return }
-        // Opening a tap without access can trigger TCC at launch. Only buttons request it.
-        guard SystemStateProvider.shared.keyPathAccessibilityStatus().isReady else { return }
+        // Diagnostic only: runs when listen access already exists, as before, so it
+        // never prompts and is not switched on for everyone by the pass-through fallback.
+        guard CGPreflightListenEventAccess() else { return }
 
         let eventMask =
             (1 << CGEventType.keyDown.rawValue) |
@@ -27,8 +27,9 @@ final class InvestigationEventTapService {
             threadName: "com.keypath.investigation-tap"
         ) { [weak self] type, event in
             guard let copy = event.copy() else { return }
+            let observedAt = Date() // on the tap thread, so a busy main thread cannot skew it
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { self?.handleEvent(copy, type: type) }
+                MainActor.assumeIsolated { self?.handleEvent(copy, type: type, observedAt: observedAt) }
             }
         }
         guard observer != nil else {
@@ -49,7 +50,7 @@ final class InvestigationEventTapService {
         AppLogger.shared.debug("[INVESTIGATION] SystemKeyEvent tap_stopped")
     }
 
-    private func handleEvent(_ event: CGEvent, type: CGEventType) {
+    private func handleEvent(_ event: CGEvent, type: CGEventType, observedAt: Date) {
         guard type == .keyDown || type == .keyUp || type == .flagsChanged else { return }
 
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
@@ -60,7 +61,7 @@ final class InvestigationEventTapService {
             isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) == 1,
             flagsRawValue: event.flags.rawValue,
             sourcePID: sourcePID(from: event),
-            observedAt: Date()
+            observedAt: observedAt
         )
 
         Task.detached(priority: .utility) {

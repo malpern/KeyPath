@@ -204,8 +204,12 @@ public actor PermissionOracle {
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
                 if backend == .session {
                     // macOS 27's Device Control and Data Access covers both reading
-                    // and posting keys, so it is the only permission to ask for.
-                    return "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath."
+                    // and posting keys, so it is the only permission to ask for. With
+                    // it already on, the runtime only needs a fresh launch to use it.
+                    if kanata.accessibility.isBlocking {
+                        return "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath."
+                    }
+                    return "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name)."
                 }
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant \(AccessibilityPermissionPresentation.current.name) and Input Monitoring"
