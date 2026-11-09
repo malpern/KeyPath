@@ -41,8 +41,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         let report = await engine.execute(
-            plan: plan,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            plan: plan
         )
 
         XCTAssertEqual(validator.freshnessRequests, [.fresh])
@@ -72,8 +71,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         let report = await engine.execute(
-            plan: plan,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            plan: plan
         )
 
         XCTAssertEqual(report.planID, plan.id)
@@ -105,8 +103,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         let report = await engine.execute(
-            plan: plan,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            plan: plan
         )
 
         XCTAssertFalse(report.success)
@@ -130,8 +127,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let plan = InstallPlan(recipes: [], status: .ready, intent: .repair)
 
         let report = await engine.execute(
-            plan: plan,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            plan: plan
         )
 
         XCTAssertFalse(report.success)
@@ -153,8 +149,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         let report = await engine.execute(
-            plan: plan,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            plan: plan
         )
 
         XCTAssertTrue(validator.freshnessRequests.isEmpty)
@@ -178,8 +173,7 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         let report = await engine.execute(
-            plan: plan,
-            using: PrivilegeBroker(coordinator: StubPrivilegedOperationsCoordinator())
+            plan: plan
         )
 
         XCTAssertFalse(report.success)

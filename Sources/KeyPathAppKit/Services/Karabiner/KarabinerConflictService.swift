@@ -12,17 +12,9 @@ final class KarabinerConflictService {
 
     // MARK: - Dependencies
 
-    private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
-    private let brokerFactory: () -> PrivilegeBroker
     private let systemStateProvider: SystemStateProvider
 
-    init(
-        engineFactory: @escaping () -> (any InstallerEnginePrivilegedRouting) = { InstallerEngine() },
-        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() },
-        systemStateProvider: SystemStateProvider = .shared
-    ) {
-        self.engineFactory = engineFactory
-        self.brokerFactory = brokerFactory
+    init(systemStateProvider: SystemStateProvider = .shared) {
         self.systemStateProvider = systemStateProvider
     }
 
@@ -176,25 +168,12 @@ final class KarabinerConflictService {
 
     // MARK: - Resolution Methods
 
+    /// The session runtime has no privileged path to stop Karabiner services.
+    private static let karabinerMutationUnavailable = "Karabiner mutation is unavailable in the driverless build"
+
     func killKarabinerGrabber() async -> Bool {
-        AppLogger.shared.log("🔧 [Conflict] Stopping Karabiner conflicting services via InstallerEngine")
-        do {
-            let engine = engineFactory()
-            let broker = brokerFactory()
-            try await engine.disableKarabinerGrabber(using: broker)
-            // Verify no conflicting processes remain
-            try? await Task.sleep(for: .milliseconds(500))
-            let success = await verifyConflictingProcessesStopped()
-            if success {
-                AppLogger.shared.log("✅ [Conflict] Karabiner grabber disabled and processes stopped")
-            } else {
-                AppLogger.shared.log("⚠️ [Conflict] Some conflicting processes may still be running")
-            }
-            return success
-        } catch {
-            AppLogger.shared.log("❌ [Conflict] Disable failed: \(error)")
-            return false
-        }
+        AppLogger.shared.log("❌ [Conflict] Disable failed: \(Self.karabinerMutationUnavailable)")
+        return false
     }
 
     func disableKarabinerElementsPermanently() async -> Bool {
@@ -207,56 +186,18 @@ final class KarabinerConflictService {
             return false
         }
 
-        do {
-            let engine = engineFactory()
-            let broker = brokerFactory()
-            try await engine.disableKarabinerGrabber(using: broker)
-            await verifyKarabinerGrabberRemoval()
-            return true
-        } catch {
-            AppLogger.shared.log("❌ [Karabiner] Disable failed: \(error)")
-            return false
-        }
+        AppLogger.shared.log("❌ [Karabiner] Disable failed: \(Self.karabinerMutationUnavailable)")
+        return false
     }
 
-    /// Restarts the Karabiner daemon with verified kill + start + health check
-    /// Routes through InstallerEngine per AGENTS.md
     func restartKarabinerDaemon() async -> Bool {
-        AppLogger.shared.log("🔄 [Daemon] Restarting VirtualHIDDevice daemon (via InstallerEngine)")
-
-        do {
-            let engine = engineFactory()
-            let broker = brokerFactory()
-            let success = try await engine.restartKarabinerDaemon(using: broker)
-            if success {
-                AppLogger.shared.log("✅ [Daemon] Restart verified via InstallerEngine")
-            } else {
-                AppLogger.shared.log("❌ [Daemon] Restart verification failed via InstallerEngine")
-            }
-            return success
-        } catch {
-            AppLogger.shared.log("❌ [Daemon] Restart failed: \(error)")
-            return false
-        }
+        AppLogger.shared.log("❌ [Daemon] Restart failed: Karabiner restart is unavailable in the driverless build")
+        return false
     }
 
     func startKarabinerDaemon() async -> Bool {
-        // Route through InstallerEngine per AGENTS.md
-        AppLogger.shared.log("🔄 [Daemon] Starting VHID daemon via InstallerEngine")
-        do {
-            let engine = engineFactory()
-            let broker = brokerFactory()
-            let ok = try await engine.restartKarabinerDaemon(using: broker)
-            if ok {
-                AppLogger.shared.log("✅ [Daemon] VHID daemon start verified via InstallerEngine")
-            } else {
-                AppLogger.shared.log("❌ [Daemon] VHID daemon start failed verification")
-            }
-            return ok
-        } catch {
-            AppLogger.shared.log("❌ [Daemon] Start failed: \(error)")
-            return false
-        }
+        AppLogger.shared.log("❌ [Daemon] Start failed: Karabiner restart is unavailable in the driverless build")
+        return false
     }
 
     // MARK: - Utility Methods

@@ -76,8 +76,8 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
         XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [.restartCommServer])
         XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeStopped)
         let recipe = InstallerEngine().recipeForAction(.restartCommServer, context: context)
-        XCTAssertEqual(recipe?.id, "start-session-runtime")
-        XCTAssertEqual(recipe?.expectedPostconditions, [.runtimeReadyOrApprovalPending])
+        XCTAssertEqual(recipe.id, "start-session-runtime")
+        XCTAssertEqual(recipe.expectedPostconditions, [.runtimeReadyOrApprovalPending])
     }
 
     func testSessionPermissionRoutingIsAXFirstWithoutHelperOrFDA() {

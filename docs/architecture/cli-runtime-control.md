@@ -47,8 +47,7 @@ runs the same handler with no result, for Shortcuts, Raycast and Hammerspoon.
   `SystemFacade.issues(from:)` to `RuntimeControl.Issue`, so the CLI sees the same
   issues as `system inspect` but from the process that holds the permissions.
   `ready` = `SystemFacade.isOperational` and the runtime is running.
-- `repair` runs the About window's repair (`InstallerEngine().run(intent: .repair,
-  using: PrivilegeBroker())`), starts the runtime if it is not running, then answers
+- `repair` runs the About window's repair (`InstallerEngine().run(intent: .repair)`), starts the runtime if it is not running, then answers
   with a doctor report. `keypath setup` (alias `repair`) loops: for each issue with
   `needsUser`, open its `settingsURL` once, poll `doctor` every 2 s, and repair again
   once nothing needs the user, until ready or `--wait` passes (exit 7).

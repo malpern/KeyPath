@@ -158,25 +158,10 @@ public enum ComponentRequirement: Equatable, Sendable {
 
 /// Actions that can be automatically fixed by the wizard
 public enum AutoFixAction: Equatable, Sendable {
-    case installPrivilegedHelper // Install and register privileged helper
-    case reinstallPrivilegedHelper // Reinstall helper if unhealthy
-    case terminateConflictingProcesses
-    case startKarabinerDaemon
-    case restartVirtualHIDDaemon
-    case installMissingComponents
-    case createConfigDirectories
-    case activateVHIDDeviceManager
-    case installRequiredRuntimeServices
-    case repairVHIDDaemonServices
-    case synchronizeConfigPaths // Fix config path mismatches
-    case installLogRotation // Install newsyslog config for log rotation to keep logs under 10MB
-    case enableTCPServer // Enable TCP server for communication
-    case setupTCPAuthentication // Generate and configure TCP authentication token
-    case regenerateCommServiceConfiguration // Update LaunchDaemon plist with TCP settings
-    case regenerateServiceConfiguration // Regenerate service configuration (plists + settings)
-    case restartCommServer // Restart service to enable TCP functionality
-    case fixDriverVersionMismatch // Download and install correct Karabiner driver version (v5 for kanata v1.9.0)
-    case installCorrectVHIDDriver // Download and install the correct driver when missing (helper-first)
+    /// Start the user-session runtime (the name predates the session runtime).
+    case restartCommServer
+    /// Confirm KeyPath's configuration file is where the runtime reads it.
+    case synchronizeConfigPaths
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

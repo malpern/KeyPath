@@ -46,7 +46,7 @@ final class WizardStateRegressionTests: XCTestCase {
             components: components,
             helper: HelperStatus(
                 isInstalled: true,
-                version: WizardHelperConstants.expectedHelperVersion,
+                version: KeyPathHelperContract.version,
                 isWorking: true
             ),
             system: EngineSystemInfo(macOSVersion: "26.0.1", driverCompatible: true),

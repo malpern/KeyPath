@@ -9,8 +9,6 @@ import KeyPathInstallationWizard
 final class OrphanDetector {
     // MARK: - Dependencies
 
-    private let engineFactory: () -> (any InstallerEnginePrivilegedRouting)
-    private let brokerFactory: () -> PrivilegeBroker
     private let homeDirectory: URL
     private let creationDate: (URL) -> Date?
     private let launchDate: () -> Date
@@ -20,8 +18,6 @@ final class OrphanDetector {
     static let shared = OrphanDetector()
 
     init(
-        engineFactory: @escaping () -> (any InstallerEnginePrivilegedRouting) = { InstallerEngine() },
-        brokerFactory: @escaping () -> PrivilegeBroker = { PrivilegeBroker() },
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         creationDate: @escaping (URL) -> Date? = { url in
             guard FileManager.default.fileExists(atPath: url.path) else { return nil }
@@ -29,8 +25,6 @@ final class OrphanDetector {
         },
         launchDate: @escaping () -> Date = { NSRunningApplication.current.launchDate ?? Date() }
     ) {
-        self.engineFactory = engineFactory
-        self.brokerFactory = brokerFactory
         self.homeDirectory = homeDirectory
         self.creationDate = creationDate
         self.launchDate = launchDate
@@ -143,8 +137,9 @@ final class OrphanDetector {
         var userFilesCleaned = 0
         var userFilesFailed: [(name: String, reason: String)] = []
         var deferredForNextUninstall = false
-        var daemonsCleaned = false
-        var daemonsError: String?
+        let daemonsError: String? = cleanDaemons
+            ? "VirtualHID uninstall is unavailable in the driverless build"
+            : nil
 
         // Clean user files (no privileges needed)
         // Note: Application Support can't be removed while the app is running —
@@ -180,30 +175,19 @@ final class OrphanDetector {
             }
         }
 
-        // Clean VHID daemons (requires privileges)
-        // Routing via InstallerEngine per AGENTS.md
-        if cleanDaemons {
-            do {
-                AppLogger.shared.log("🧹 [OrphanDetector] Attempting to remove VHID system daemons...")
-                let engine = engineFactory()
-                let broker = brokerFactory()
-                try await engine.uninstallVirtualHIDDrivers(using: broker)
-                daemonsCleaned = true
-                AppLogger.shared.log("✅ [OrphanDetector] Successfully removed VHID system daemons")
-            } catch {
-                AppLogger.shared.log("❌ [OrphanDetector] Failed to remove VHID daemons: \(error)")
-                daemonsError = error.localizedDescription
-            }
+        // The session runtime has no privileged path to remove VHID system daemons.
+        if let daemonsError {
+            AppLogger.shared.log("❌ [OrphanDetector] Failed to remove VHID daemons: \(daemonsError)")
         }
 
         let hasRealFailures = !userFilesFailed.isEmpty || daemonsError != nil
         if hasRealFailures {
             AppLogger.shared
                 .warn(
-                    "🧹 [OrphanDetector] Cleanup partially complete: \(userFilesCleaned) files removed, \(userFilesFailed.count) failed, daemons: \(daemonsCleaned), daemonsError: \(daemonsError ?? "none")"
+                    "🧹 [OrphanDetector] Cleanup partially complete: \(userFilesCleaned) files removed, \(userFilesFailed.count) failed, daemons: false, daemonsError: \(daemonsError ?? "none")"
                 )
         } else {
-            AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: \(daemonsCleaned), deferred: \(deferredForNextUninstall)")
+            AppLogger.shared.info("🧹 [OrphanDetector] Cleanup complete: \(userFilesCleaned) user files, daemons: false, deferred: \(deferredForNextUninstall)")
         }
     }
 }

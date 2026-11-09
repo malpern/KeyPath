@@ -65,7 +65,7 @@ final class CLIReportModelsTests: XCTestCase {
             success: true,
             completionState: .completed,
             executedRecipes: [
-                RecipeResult(recipeID: InstallerRecipeID.createConfigDirectories, success: true),
+                RecipeResult(recipeID: InstallerRecipeID.startSessionRuntime, success: true),
             ],
             repairTelemetry: [
                 InstallerRepairTelemetryEvent(
@@ -76,10 +76,10 @@ final class CLIReportModelsTests: XCTestCase {
                     afterSnapshotID: afterSnapshotID,
                     trigger: .executePlan,
                     intent: "repair",
-                    stateMatrixRow: InstallerStateMatrixRow.freshInstallMissingComponents.rawValue,
-                    stateMatrixPlan: [InstallerStateMatrixAction.installMissingComponents.rawValue],
-                    action: InstallerRecipeID.createConfigDirectories,
-                    recipeID: InstallerRecipeID.createConfigDirectories,
+                    stateMatrixRow: InstallerStateMatrixRow.sessionRuntimeStopped.rawValue,
+                    stateMatrixPlan: [InstallerStateMatrixAction.restartOrRecoverKanataRuntime.rawValue],
+                    action: InstallerRecipeID.startSessionRuntime,
+                    recipeID: InstallerRecipeID.startSessionRuntime,
                     recipeType: "install-component",
                     postconditionResult: .succeeded
                 ),
@@ -105,10 +105,10 @@ final class CLIReportModelsTests: XCTestCase {
         XCTAssertEqual(event.afterSnapshotID, afterSnapshotID.uuidString)
         XCTAssertEqual(event.trigger, "execute-plan")
         XCTAssertEqual(event.intent, "repair")
-        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.freshInstallMissingComponents.rawValue)
-        XCTAssertEqual(event.stateMatrixPlan, [InstallerStateMatrixAction.installMissingComponents.rawValue])
-        XCTAssertEqual(event.action, InstallerRecipeID.createConfigDirectories)
-        XCTAssertEqual(event.recipeID, InstallerRecipeID.createConfigDirectories)
+        XCTAssertEqual(event.stateMatrixRow, InstallerStateMatrixRow.sessionRuntimeStopped.rawValue)
+        XCTAssertEqual(event.stateMatrixPlan, [InstallerStateMatrixAction.restartOrRecoverKanataRuntime.rawValue])
+        XCTAssertEqual(event.action, InstallerRecipeID.startSessionRuntime)
+        XCTAssertEqual(event.recipeID, InstallerRecipeID.startSessionRuntime)
         XCTAssertEqual(event.recipeType, "install-component")
         XCTAssertEqual(event.postconditionResult, "succeeded")
         XCTAssertNil(event.error)

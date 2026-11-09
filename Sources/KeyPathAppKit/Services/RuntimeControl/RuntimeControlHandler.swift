@@ -60,7 +60,7 @@ enum RuntimeControlHandler {
 
     /// The About window's Repair, then start remapping unless a person is needed.
     static func repair(manager: RuntimeCoordinator, reason: String) async -> RuntimeControl.Response {
-        let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+        let report = await InstallerEngine().run(intent: .repair)
         if await !manager.currentRuntimeStatusInternal().isRunning {
             _ = await manager.startKanata(reason: reason)
         }

@@ -21,13 +21,9 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
     }
 
     func testEarlyInstallerExitsPreserveCorrelationEvidence() throws {
+        // Every AutoFixAction has a session recipe, so runSingleAction has no
+        // early no-recipe exit; the CLI's user-action exit is the one left.
         let root = repositoryRoot()
-        let engineSource = try String(
-            contentsOf: root.appendingPathComponent(
-                "Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"
-            ),
-            encoding: .utf8
-        )
         let cliSource = try String(
             contentsOf: root.appendingPathComponent(
                 "Sources/KeyPathAppKit/CLI/SystemFacade.swift"
@@ -35,11 +31,6 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
             encoding: .utf8
         )
 
-        XCTAssertTrue(
-            engineSource.contains("planID: basePlan.id")
-                && engineSource.contains("beforeSnapshotID: context.snapshotID"),
-            "runSingleAction no-recipe failures must preserve plan and snapshot IDs."
-        )
         XCTAssertTrue(
             cliSource.contains("planID: plan.id.uuidString")
                 && cliSource.contains("beforeSnapshotID: context.snapshotID.uuidString"),

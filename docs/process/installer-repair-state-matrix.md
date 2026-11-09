@@ -54,28 +54,14 @@ current missing/stopped runtime.
 
 ## State Matrix
 
+The session runtime has two states. The rows for the retired privileged stack
+(helper, LaunchDaemon, VirtualHID) were removed with that stack (ADR-047); see
+git history for them.
+
 | State | Typical Evidence | Planner Should | Success Postcondition | Test Requirement |
 |-------|------------------|----------------|-----------------------|------------------|
 | Session runtime stopped or not ready | Session backend; current tap/process/TCP or bundled payload evidence is missing | Start/recover through the session lifecycle owner; request AX then effective input approval only if needed | Current tap active, process live, TCP responding and bundled payload present; otherwise explicit failure/pending approval | Session golden fixture with absent optional driver/helper, plus unknown-capture and missing-payload rejection |
 | Session tap active and TCP responding | Session backend; current independently verified tap, process, TCP and bundled payload | No helper/DriverKit install or repair | Runtime ready without inventing optional service health | Session ready golden fixture with absent optional driver/helper |
-| Fresh install, missing components | Kanata binary, VHID driver, or required payload absent | Install missing components before runtime services | Components exist and next action is either runtime install or pending approval | Planner test for missing component order |
-| Kanata not registered | SMAppService not found, no launchd job | Install/register runtime services | `ready` or explicit pending Login Items approval | Router/postcondition test for no false success |
-| Registered but not loaded | `SMAppService.status == enabled`, launchd cannot find/load job | Bypass install throttle and recover registration | `ready` or explicit pending approval | Guard test for stale enabled registration bypassing throttle |
-| Loaded but not running | launchd job exists, process absent | Reinstall/start runtime services, not VHID-only repair | `ready` | Planner test that missing/stopped Kanata schedules `installRequiredRuntimeServices` |
-| Running but TCP not responding | process exists, TCP probe fails | Restart/recover Kanata runtime | `ready` or failed with TCP diagnostics | Postcondition test for timeout/failure when TCP stays down |
-| Running and TCP responding | `ready == true` | No runtime repair unless another current issue exists | No-op or targeted non-runtime action | No-op planner test |
-| Running but input capture failing | process exists, TCP responds, current non-approval input-capture issue | Repair VHID activation/services only after proving runtime is live | input capture ready, or pending VirtualHID approval, or failed with diagnostics | Planner test for live Kanata plus non-approval input-capture issue |
-| Stale/non-approval input-capture issue with Kanata stopped | cached/log issue exists, process absent, no explicit DriverKit approval-pending signal | Ignore stale issue for routing; install/start runtime services first | `ready` before reconsidering input capture | Regression test: stopped Kanata schedules runtime install instead of VHID-only repair |
-| DriverKit approval pending with Kanata stopped | `inputCaptureVHIDDriverNotActivatedReason` and driver is installed | Stop retrying; surface manual approval before runtime repair | report marks user action required | Planner/CLI test that approval-pending returns no autofix loop |
-| VirtualHID driver payload missing | VHID binaries/pkg payload missing | Install driver payload before registering VHID services | Payload present, services repaired, or manual approval | Helper/router test that launchd is not spawn-looped on missing payload |
-| VHID services missing/unhealthy | daemon/manager plist or launchd health bad | Repair VHID services | VHID services loaded/healthy; Kanata `ready` if action also mutates runtime | VHID postcondition test after helper and sudo paths |
-| VirtualHID approval pending | activation fails due to macOS approval | Stop retrying; surface manual action | report marks user action required | CLI JSON contract test for `userActionRequired` |
-| Helper missing | helper not installed/responding | Install helper | helper installed and usable, or pending approval | Helper installation/approval test |
-| Helper responds but may be stale | helper XPC works after helper behavior changed/deployed | Verify helper freshness or force unregister/register | helper fresh, then continue repair | HelperMaintenance force-refresh test |
-| Helper path succeeds | helper reports operation success | Router must still verify postconditions | proven final state, not helper return value | Router test for helper success with failed postcondition |
-| Sudo fallback succeeds | helper failed, sudo path reports success | Router must still verify same postconditions | proven final state, not fallback return value | Router test for sudo fallback postcondition |
-| Manual approval is required | Login Items/System Extension/TCC approval needed | Return terminal manual-action state for this attempt | no retry loop; UI/CLI names approval | CLI/UI contract test |
-| Definitive unhealthy state | repeated launchctl not-found, no process, no TCP | Fail with diagnostics, not optimistic success | failure report includes missing evidence | Failure-path test for no false green |
 
 ## Uninstall State Matrix
 

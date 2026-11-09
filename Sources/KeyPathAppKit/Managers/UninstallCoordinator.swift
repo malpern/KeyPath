@@ -65,7 +65,7 @@ public final class UninstallCoordinator {
         }
         unregisterRuntimeServicesClosure = unregisterRuntimeServices ?? {}
         uninstallVirtualHIDClosure = uninstallVirtualHID ?? {
-            try await InstallerEngine().uninstallVirtualHIDDrivers(using: PrivilegeBroker())
+            throw InstallerError.unknownRecipe("VirtualHID uninstall is unavailable in the driverless build")
         }
         virtualHIDRemovedClosure = virtualHIDRemoved ?? {
             await ServiceHealthChecker.shared.vhidDriverExtensionStatus() == .missing

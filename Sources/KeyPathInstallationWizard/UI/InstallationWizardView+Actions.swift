@@ -21,7 +21,7 @@ public extension InstallationWizardView {
             await MainActor.run { fixInFlight = true }
             defer { Task { @MainActor in fixInFlight = false } }
 
-            let report = await InstallerEngine().run(intent: .repair, using: PrivilegeBroker())
+            let report = await InstallerEngine().run(intent: .repair)
             let evidenceApplied = applyOwnedRunResult(report)
 
             // Show result toast
@@ -93,20 +93,13 @@ public extension InstallationWizardView {
 
         AppLogger.shared.log("🔧 [Wizard] Auto-fix for specific action: \(action)")
 
-        // Give VHID/launch-service operations more time
-        let timeoutSeconds = switch action {
-        case .restartVirtualHIDDaemon, .installCorrectVHIDDriver, .repairVHIDDaemonServices,
-             .installRequiredRuntimeServices:
-            30.0
-        default:
-            12.0
-        }
+        let timeoutSeconds = 12.0
         let actionDescription = getAutoFixActionDescription(action)
 
         let report: InstallerReport
         do {
             report = try await runWithTimeout(seconds: timeoutSeconds) {
-                await InstallerEngine().runSingleAction(action, using: PrivilegeBroker())
+                await InstallerEngine().runSingleAction(action)
             }
         } catch {
             if !suppressToast {

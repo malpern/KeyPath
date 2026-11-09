@@ -474,7 +474,7 @@
     }
 
     <span class="kw">func</span> <span class="fn">fix</span>(_ action: <span class="tp">AutoFixAction</span>) <span class="kw">async</span> {
-        <span class="kw">await</span> <span class="tp">InstallerEngine</span>().<span class="fn">runSingleAction</span>(action, using: <span class="tp">PrivilegeBroker</span>())
+        <span class="kw">await</span> <span class="tp">InstallerEngine</span>().<span class="fn">runSingleAction</span>(action)
         <span class="kw">await</span> <span class="fn">inspectAndRoute</span>()
     }
 }</pre>
@@ -583,7 +583,7 @@
       <div class="rule-num">3</div>
       <div class="rule-content">
         <div class="rule-title">Fix buttons call InstallerEngine directly</div>
-        <div class="rule-desc">No wrappers, no managers, no operation queues. <code>await InstallerEngine().runSingleAction(action, using: broker)</code></div>
+        <div class="rule-desc">No wrappers, no managers, no operation queues. <code>await InstallerEngine().runSingleAction(action)</code></div>
       </div>
     </div>
     <div class="rule-item">

@@ -36,72 +36,32 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
         }
     }
 
-    func testVirtualHIDApprovalPendingOutranksRetryableLiveInputCaptureRepair() {
-        let snapshot = matrixSnapshot(
-            currentInputCaptureIssue: true,
-            virtualHIDApprovalPending: true
+    func testUnknownRuntimeEvidenceDoesNotDefaultHealthy() {
+        XCTAssertEqual(
+            InstallerStateMatrixPlanner.classify(matrixSnapshot(kanataProcessRunning: .unknown)),
+            .sessionRuntimeStopped
         )
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .virtualHIDApprovalPending)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceVirtualHIDApproval])
-    }
-
-    func testHelperInstalledButUnresponsiveDoesNotFallThroughHealthy() {
-        let snapshot = matrixSnapshot(
-            helperInstalled: true,
-            helperResponding: false,
-            helperFresh: true
+        XCTAssertEqual(
+            InstallerStateMatrixPlanner.classify(matrixSnapshot(kanataTCPResponding: .unknown)),
+            .sessionRuntimeStopped
         )
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .helperMissing)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installHelper])
-    }
-
-    func testReadyRuntimeOutranksGenericManualApprovalRequired() {
-        let snapshot = matrixSnapshot(manualApprovalRequired: true)
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .runningAndTCPResponding)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [])
-    }
-
-    func testStoppedRuntimeWithManualApprovalRemainsTerminalManualAction() {
-        let snapshot = matrixSnapshot(
-            kanataProcessRunning: false,
-            kanataTCPResponding: false,
-            manualApprovalRequired: true
+        XCTAssertEqual(
+            InstallerStateMatrixPlanner.classify(matrixSnapshot(kanataBinaryPresent: .unknown)),
+            .sessionRuntimeStopped
         )
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .manualApprovalRequired)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.surfaceManualApproval])
-    }
-
-    func testUnknownRegistrationEvidenceDoesNotDefaultHealthy() {
-        let snapshot = matrixSnapshot(smAppServiceRegistered: .unknown)
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .kanataNotRegistered)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installOrRegisterRuntimeServices])
-    }
-
-    func testUnknownRuntimeProcessEvidenceDoesNotDefaultHealthy() {
-        let snapshot = matrixSnapshot(kanataProcessRunning: .unknown)
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .loadedButNotRunning)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installRequiredRuntimeServices])
-    }
-
-    func testUnknownVirtualHIDPayloadEvidenceDoesNotDefaultHealthy() {
-        let snapshot = matrixSnapshot(virtualHIDPayloadPresent: .unknown)
-
-        XCTAssertEqual(InstallerStateMatrixPlanner.classify(snapshot), .virtualHIDDriverPayloadMissing)
-        XCTAssertEqual(InstallerStateMatrixPlanner.plan(for: snapshot), [.installVirtualHIDPayload])
+        XCTAssertEqual(
+            InstallerStateMatrixPlanner.classify(matrixSnapshot(captureComplete: false)),
+            .sessionRuntimeStopped,
+            "An incomplete capture is never a ready runtime"
+        )
     }
 
     func testSessionTCPWithoutVerifiedCaptureOrPayloadIsNotReady() {
         XCTAssertEqual(InstallerStateMatrixPlanner.classify(matrixSnapshot(
-            backend: .session, sessionInputCaptureReady: .unknown
+            sessionInputCaptureReady: .unknown
         )), .sessionRuntimeStopped)
         XCTAssertEqual(InstallerStateMatrixPlanner.classify(matrixSnapshot(
-            backend: .session, requiredRuntimePayloadPresent: false
+            requiredRuntimePayloadPresent: false
         )), .sessionRuntimeStopped)
     }
 
@@ -113,52 +73,20 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
     }
 
     private func matrixSnapshot(
-        backend: KanataRuntimeBackend = .driverKit,
+        captureComplete: Evidence<Bool> = .present,
         sessionInputCaptureReady: Evidence<Bool> = .present,
         kanataBinaryPresent: Evidence<Bool> = .present,
         requiredRuntimePayloadPresent: Evidence<Bool> = .present,
-        smAppServiceRegistered: Evidence<Bool> = .present,
-        launchdJobLoaded: Evidence<Bool> = .present,
         kanataProcessRunning: Evidence<Bool> = .present,
-        kanataTCPResponding: Evidence<Bool> = .present,
-        currentInputCaptureIssue: Evidence<Bool> = .absent,
-        staleInputCaptureIssue: Evidence<Bool> = .absent,
-        driverKitApprovalPending: Evidence<Bool> = .absent,
-        virtualHIDDriverPresent: Evidence<Bool> = .present,
-        virtualHIDPayloadPresent: Evidence<Bool> = .present,
-        virtualHIDServicesHealthy: Evidence<Bool> = .present,
-        virtualHIDApprovalPending: Evidence<Bool> = .absent,
-        helperInstalled: Evidence<Bool> = .present,
-        helperResponding: Evidence<Bool> = .present,
-        helperFresh: Evidence<Bool> = .present,
-        helperPathReportedSuccess: Evidence<Bool> = .absent,
-        sudoFallbackReportedSuccess: Evidence<Bool> = .absent,
-        manualApprovalRequired: Evidence<Bool> = .absent,
-        definitiveUnhealthyState: Evidence<Bool> = .absent
+        kanataTCPResponding: Evidence<Bool> = .present
     ) -> InstallerStateMatrixSnapshot {
         InstallerStateMatrixSnapshot(
-            backend: backend,
+            captureComplete: captureComplete,
             sessionInputCaptureReady: sessionInputCaptureReady,
             kanataBinaryPresent: kanataBinaryPresent,
             requiredRuntimePayloadPresent: requiredRuntimePayloadPresent,
-            smAppServiceRegistered: smAppServiceRegistered,
-            launchdJobLoaded: launchdJobLoaded,
             kanataProcessRunning: kanataProcessRunning,
-            kanataTCPResponding: kanataTCPResponding,
-            currentInputCaptureIssue: currentInputCaptureIssue,
-            staleInputCaptureIssue: staleInputCaptureIssue,
-            driverKitApprovalPending: driverKitApprovalPending,
-            virtualHIDDriverPresent: virtualHIDDriverPresent,
-            virtualHIDPayloadPresent: virtualHIDPayloadPresent,
-            virtualHIDServicesHealthy: virtualHIDServicesHealthy,
-            virtualHIDApprovalPending: virtualHIDApprovalPending,
-            helperInstalled: helperInstalled,
-            helperResponding: helperResponding,
-            helperFresh: helperFresh,
-            helperPathReportedSuccess: helperPathReportedSuccess,
-            sudoFallbackReportedSuccess: sudoFallbackReportedSuccess,
-            manualApprovalRequired: manualApprovalRequired,
-            definitiveUnhealthyState: definitiveUnhealthyState
+            kanataTCPResponding: kanataTCPResponding
         )
     }
 
@@ -197,139 +125,17 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
     private var goldenCases: [GoldenCase] {
         [
             GoldenCase(
-                name: "Session runtime stopped without optional driver/helper",
-                snapshot: matrixSnapshot(backend: .session, kanataProcessRunning: false,
-                                         virtualHIDDriverPresent: false, helperInstalled: false),
+                name: "Session runtime stopped or not ready",
+                snapshot: matrixSnapshot(kanataProcessRunning: false, kanataTCPResponding: false),
                 expectedRow: .sessionRuntimeStopped,
                 expectedPlan: [.restartOrRecoverKanataRuntime]
             ),
             GoldenCase(
-                name: "Session tap and TCP ready without optional driver/helper",
-                snapshot: matrixSnapshot(backend: .session, virtualHIDDriverPresent: false,
-                                         helperInstalled: false),
+                name: "Session tap active and TCP responding",
+                snapshot: matrixSnapshot(),
                 expectedRow: .sessionRuntimeReady,
                 expectedPlan: []
             ),
-            GoldenCase(
-                name: "Fresh install, missing components",
-                snapshot: matrixSnapshot(kanataBinaryPresent: false),
-                expectedRow: .freshInstallMissingComponents,
-                expectedPlan: [.installMissingComponents]
-            ),
-            GoldenCase(
-                name: "Kanata not registered",
-                snapshot: matrixSnapshot(smAppServiceRegistered: false),
-                expectedRow: .kanataNotRegistered,
-                expectedPlan: [.installOrRegisterRuntimeServices]
-            ),
-            GoldenCase(
-                name: "Registered but not loaded",
-                snapshot: matrixSnapshot(launchdJobLoaded: false),
-                expectedRow: .registeredButNotLoaded,
-                expectedPlan: [.recoverRuntimeRegistrationBypassingThrottle]
-            ),
-            GoldenCase(
-                name: "Loaded but not running",
-                snapshot: matrixSnapshot(kanataProcessRunning: false, kanataTCPResponding: false),
-                expectedRow: .loadedButNotRunning,
-                expectedPlan: [.installRequiredRuntimeServices]
-            ),
-            GoldenCase(
-                name: "Running but TCP not responding",
-                snapshot: matrixSnapshot(kanataTCPResponding: false),
-                expectedRow: .runningButTCPNotResponding,
-                expectedPlan: [.restartOrRecoverKanataRuntime]
-            ),
-            GoldenCase(
-                name: "Running and TCP responding",
-                snapshot: matrixSnapshot(),
-                expectedRow: .runningAndTCPResponding,
-                expectedPlan: []
-            ),
-            GoldenCase(
-                name: "Running but input capture failing",
-                snapshot: matrixSnapshot(currentInputCaptureIssue: true),
-                expectedRow: .runningButInputCaptureFailing,
-                expectedPlan: [.repairVHIDActivationServices]
-            ),
-            GoldenCase(
-                name: "Stale/non-approval input-capture issue with Kanata stopped",
-                snapshot: matrixSnapshot(
-                    kanataProcessRunning: false,
-                    kanataTCPResponding: false,
-                    staleInputCaptureIssue: true
-                ),
-                expectedRow: .staleInputCaptureIssueWithKanataStopped,
-                expectedPlan: [.installRequiredRuntimeServices]
-            ),
-            GoldenCase(
-                name: "DriverKit approval pending with Kanata stopped",
-                snapshot: matrixSnapshot(
-                    kanataProcessRunning: false,
-                    kanataTCPResponding: false,
-                    driverKitApprovalPending: true
-                ),
-                expectedRow: .driverKitApprovalPendingWithKanataStopped,
-                expectedPlan: [.surfaceDriverKitApproval]
-            ),
-            GoldenCase(
-                name: "VirtualHID driver payload missing",
-                snapshot: matrixSnapshot(virtualHIDPayloadPresent: false),
-                expectedRow: .virtualHIDDriverPayloadMissing,
-                expectedPlan: [.installVirtualHIDPayload]
-            ),
-            GoldenCase(
-                name: "VHID services missing/unhealthy",
-                snapshot: matrixSnapshot(virtualHIDServicesHealthy: false),
-                expectedRow: .vhidServicesMissingUnhealthy,
-                expectedPlan: [.repairVHIDServices]
-            ),
-            GoldenCase(
-                name: "VirtualHID approval pending",
-                snapshot: matrixSnapshot(virtualHIDApprovalPending: true),
-                expectedRow: .virtualHIDApprovalPending,
-                expectedPlan: [.surfaceVirtualHIDApproval]
-            ),
-            GoldenCase(
-                name: "Helper missing",
-                snapshot: matrixSnapshot(helperInstalled: false, helperResponding: false, helperFresh: false),
-                expectedRow: .helperMissing,
-                expectedPlan: [.installHelper]
-            ),
-            GoldenCase(
-                name: "Helper responds but may be stale",
-                snapshot: matrixSnapshot(helperFresh: false),
-                expectedRow: .helperRespondsButMayBeStale,
-                expectedPlan: [.verifyOrRefreshHelper]
-            ),
-            GoldenCase(
-                name: "Helper path succeeds",
-                snapshot: matrixSnapshot(helperPathReportedSuccess: true),
-                expectedRow: .helperPathSucceeds,
-                expectedPlan: [.verifyPostconditions]
-            ),
-            GoldenCase(
-                name: "Sudo fallback succeeds",
-                snapshot: matrixSnapshot(sudoFallbackReportedSuccess: true),
-                expectedRow: .sudoFallbackSucceeds,
-                expectedPlan: [.verifyPostconditions]
-            ),
-            GoldenCase(
-                name: "Manual approval is required",
-                snapshot: matrixSnapshot(
-                    kanataProcessRunning: false,
-                    kanataTCPResponding: false,
-                    manualApprovalRequired: true
-                ),
-                expectedRow: .manualApprovalRequired,
-                expectedPlan: [.surfaceManualApproval]
-            ),
-            GoldenCase(
-                name: "Definitive unhealthy state",
-                snapshot: matrixSnapshot(definitiveUnhealthyState: true),
-                expectedRow: .definitiveUnhealthyState,
-                expectedPlan: [.failWithDiagnostics]
-            )
         ]
     }
 }

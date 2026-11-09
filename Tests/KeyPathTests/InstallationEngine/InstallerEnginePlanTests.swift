@@ -6,52 +6,33 @@ import KeyPathCore
 
 @MainActor
 final class InstallerEnginePlanTests: KeyPathAsyncTestCase {
-    func testHelperFreshPostconditionRejectsWorkingHelperWithUnknownVersion() {
-        let context = SystemContextBuilder(
-            helperReady: true,
-            helperVersion: nil
-        ).build()
+    func testRuntimePostconditionRequiresAReadyRuntime() {
+        let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
+        let stopped = SystemContextBuilder.cleanInstall()
+        let pendingApproval = SystemContextBuilder(loginItemsApprovalRequired: true).build()
 
-        XCTAssertTrue(InstallerPostcondition.helperReadyOrApprovalPending.isSatisfied(by: context))
-        XCTAssertFalse(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: context))
-    }
-
-    func testHelperFreshPostconditionAcceptsExactVersionOrPendingApproval() {
-        let freshContext = SystemContextBuilder(
-            helperReady: true,
-            helperVersion: WizardHelperConstants.expectedHelperVersion
-        ).build()
-        let approvalContext = SystemContextBuilder(
-            helperReady: false,
-            helperRequiresApproval: true,
-            helperVersion: nil
-        ).build()
-
-        XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: freshContext))
-        XCTAssertTrue(InstallerPostcondition.helperFreshOrApprovalPending.isSatisfied(by: approvalContext))
+        XCTAssertTrue(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: ready))
+        XCTAssertFalse(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: stopped))
+        // Login Items approval belonged to the retired daemon; it no longer counts.
+        XCTAssertFalse(InstallerPostcondition.runtimeReadyOrApprovalPending.isSatisfied(by: pendingApproval))
     }
 
     func testExecuteSkipsRecipesAfterFailure() async {
-        let coordinator = StubPrivilegedOperationsCoordinator()
-        coordinator.failOnCall = "installRequiredRuntimeServices"
-        let broker = PrivilegeBroker(coordinator: coordinator)
         let engine = InstallerEngine()
 
         let plan = InstallPlan(
             recipes: [
-                ServiceRecipe(id: InstallerRecipeID.installRequiredRuntimeServices, type: .installComponent),
-                ServiceRecipe(id: InstallerRecipeID.installMissingComponents, type: .installComponent),
-                ServiceRecipe(id: InstallerRecipeID.startKarabinerDaemon, type: .restartService, serviceID: KeyPathConstants.Bundle.vhidDaemonID)
+                ServiceRecipe(id: "install-required-runtime-services", type: .installComponent),
+                ServiceRecipe(id: "install-missing-components", type: .installComponent),
+                ServiceRecipe(id: "start-karabiner-daemon", type: .restartService, serviceID: KeyPathConstants.Bundle.vhidDaemonID)
             ],
             status: .ready,
             intent: .repair
         )
 
-        let report = await engine.execute(plan: plan, using: broker)
+        let report = await engine.execute(plan: plan)
 
         XCTAssertFalse(report.success, "Failure should propagate")
-        XCTAssertFalse(coordinator.calls.contains("downloadAndInstallCorrectVHIDDriver"), "Later recipes should not execute after failure")
-        XCTAssertFalse(coordinator.calls.contains("restartKarabinerDaemonVerified"), "Later recipes should not execute after failure")
         XCTAssertTrue(report.executedRecipes.isEmpty, "Preflight must refuse the whole unsupported plan")
     }
 }

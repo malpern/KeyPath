@@ -341,16 +341,10 @@ public final class ServiceBootstrapper {
         commands: [String],
         prompt: String
     ) async -> (success: Bool, output: String) {
-        let batch = PrivilegedCommandRunner.Batch(label: label, commands: commands, prompt: prompt)
-        guard let executeBatch = WizardDependencies.executePrivilegedBatch else {
-            return (false, "WizardDependencies.executePrivilegedBatch not configured")
-        }
-        do {
-            let result = try await executeBatch(batch)
-            return (result.exitCode == 0, result.output)
-        } catch {
-            return (false, error.localizedDescription)
-        }
+        AppLogger.shared.log(
+            "⚠️ [ServiceBootstrapper] \(label): privileged commands are unavailable in the driverless build (\(commands.count) commands, prompt: \(prompt))"
+        )
+        return (false, "Privileged commands are unavailable in the driverless build")
     }
 
     private func captureVHIDInstallSnapshot() async -> VHIDInstallSnapshot {
@@ -1028,7 +1022,7 @@ public final class ServiceBootstrapper {
         await installAllServices(
             refreshActiveKanataRegistration: refreshActiveKanataRegistration,
             repairVHIDServices: {
-                try await PrivilegeBroker().repairVHIDDaemonServices()
+                throw InstallerError.unknownRecipe("VirtualHID repair is unavailable in the driverless build")
             },
             registerKanataService: { refreshActiveRegistration in
                 await self.registerKanataWithSMAppService(

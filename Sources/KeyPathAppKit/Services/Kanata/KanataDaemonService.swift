@@ -233,7 +233,7 @@ final class KanataDaemonService {
             }
         #endif
 
-        try await PrivilegeBroker().stopKanataDaemonService()
+        throw InstallerError.unknownRecipe("Privileged commands are unavailable in the driverless build")
     }
 
     private func detectProcessState() async -> ProcessSnapshot {

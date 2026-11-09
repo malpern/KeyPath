@@ -54,10 +54,6 @@ extension RuntimeCoordinator: RuntimeCoordinating {
     }
 }
 
-// MARK: - HelperManager + WizardHelperManaging
-
-extension HelperManager: WizardHelperManaging {}
-
 // MARK: - KanataDaemonManager + WizardDaemonManaging
 
 extension KanataDaemonManager: WizardDaemonManaging {
@@ -105,25 +101,13 @@ extension SystemValidator: WizardSystemValidating {
     }
 }
 
-// MARK: - HelperMaintenance + WizardHelperMaintaining
-
-extension HelperMaintenance: WizardHelperMaintaining {}
-
 // MARK: - PermissionRequestService + WizardPermissionRequesting
 
 extension PermissionRequestService: WizardPermissionRequesting {}
 
-// MARK: - PrivilegedOperationsRouter + WizardPrivilegedOperating
-
-extension PrivilegedOperationsRouter: WizardPrivilegedOperating {}
-
 // MARK: - TCPProbe + WizardTCPProbing
 
 extension TCPProbe: WizardTCPProbing {}
-
-// MARK: - UninstallCoordinator + WizardUninstalling
-
-extension UninstallCoordinator: WizardUninstalling {}
 
 // MARK: - WizardDependencies Configuration
 
@@ -132,7 +116,6 @@ extension UninstallCoordinator: WizardUninstalling {}
 public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) {
     WizardDependencies.isRunningAdHoc = WizardSignatureHealthCheck.isRunningAdHoc()
     WizardDependencies.runtimeCoordinator = runtimeCoordinator
-    WizardDependencies.helperManager = HelperManager.shared
     WizardDependencies.daemonManager = KanataDaemonManager.shared
     let sharedValidator = SystemValidator(
         processLifecycleManager: runtimeCoordinator.processLifecycleManager,
@@ -143,13 +126,8 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     // Share the same validator with MainAppStateController so there's only one instance app-wide.
     // This ensures inProgressValidation dedup spans all callers.
     MainAppStateController.shared.setValidator(sharedValidator)
-    WizardDependencies.helperMaintenance = HelperMaintenance.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
-    WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
-    WizardDependencies.helperNeedsApproval = {
-        HelperManager.shared.helperNeedsLoginItemsApproval()
-    }
     WizardDependencies.createUninstallCoordinator = {
         SessionUninstallCoordinator(prepare: {
             runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
@@ -170,10 +148,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             )
             return outcome.result
         })
-    }
-    WizardDependencies.executePrivilegedBatch = { batch in
-        let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
-        return (exitCode: result.exitCode, output: result.output)
     }
     WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 
@@ -213,24 +187,14 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
 @MainActor
 func configureCLIWizardDependencies(systemValidator: SystemValidator) {
     WizardDependencies.runtimeCoordinator = nil
-    WizardDependencies.helperManager = HelperManager.shared
     WizardDependencies.daemonManager = KanataDaemonManager.shared
     WizardDependencies.systemValidator = systemValidator
 
     MainAppStateController.shared.setValidator(systemValidator)
-    WizardDependencies.helperMaintenance = HelperMaintenance.shared
     WizardDependencies.permissionRequestService = PermissionRequestService.shared
-    WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
 
-    WizardDependencies.helperNeedsApproval = {
-        HelperManager.shared.helperNeedsLoginItemsApproval()
-    }
     // CLI must not remove a GUI installation through the legacy system helper.
     WizardDependencies.createUninstallCoordinator = nil
-    WizardDependencies.executePrivilegedBatch = { batch in
-        let result = try await AdminCommandExecutorHolder.shared.execute(batch: batch)
-        return (exitCode: result.exitCode, output: result.output)
-    }
     WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 
     WizardDependencies.getExternalKanataInfo = {

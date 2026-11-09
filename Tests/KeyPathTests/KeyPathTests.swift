@@ -499,7 +499,7 @@ final class KeyPathTests: KeyPathTestCase {
         if manager.isCompletelyInstalled() {
             // If installed, we can test the start process
             let engine = InstallerEngine()
-            _ = await engine.run(intent: .repair, using: PrivilegeBroker())
+            _ = await engine.run(intent: .repair)
 
             // Should complete without crashing
             XCTAssertTrue(true, "Start process should complete")

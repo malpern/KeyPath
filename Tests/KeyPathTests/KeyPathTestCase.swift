@@ -45,7 +45,6 @@ open class KeyPathTestCase: XCTestCase {
         MainActor.assumeIsolated {
             TestSingletonReset.resetAll()
             VHIDDeviceManager.testPIDProvider = { [] }
-            WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
             WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
                 WizardDependencies.systemValidator = SystemValidator(
@@ -73,7 +72,6 @@ open class KeyPathAsyncTestCase: XCTestCase {
         await MainActor.run {
             TestSingletonReset.resetAll()
             VHIDDeviceManager.testPIDProvider = { [] }
-            WizardDependencies.privilegedOperations = PrivilegedOperationsRouter.shared
             WizardDependencies.daemonManager = KanataDaemonManager.shared
             if WizardDependencies.systemValidator == nil {
                 WizardDependencies.systemValidator = SystemValidator(

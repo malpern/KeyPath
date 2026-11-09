@@ -158,7 +158,7 @@ struct MainAppStateControllerTests {
 
         controller.validationState = .success
         controller.issues = []
-        controller.lastInstallerStateMatrixRow = .runningButTCPNotResponding
+        controller.lastInstallerStateMatrixRow = .sessionRuntimeStopped
         controller.lastInstallerStateMatrixPlan = [.restartOrRecoverKanataRuntime]
         #expect(controller.menuBarSystemHealthy == false)
 
@@ -174,7 +174,7 @@ struct MainAppStateControllerTests {
                 userAction: nil
             ),
         ]
-        controller.lastInstallerStateMatrixRow = .runningAndTCPResponding
+        controller.lastInstallerStateMatrixRow = .sessionRuntimeReady
         controller.lastInstallerStateMatrixPlan = []
         #expect(controller.menuBarSystemHealthy == true)
     }

@@ -38,10 +38,6 @@ public class PermissionGrantCoordinator {
     /// Prevent double-dismiss race conditions
     @ObservationIgnored private var didFireCompletion = false
 
-    // Service bounce flag keys
-    @ObservationIgnored private static let serviceBounceNeededKey = "keypath_service_bounce_needed"
-    @ObservationIgnored private static let serviceBounceTimestampKey = "keypath_service_bounce_timestamp"
-
     private init() {}
 
     public func initiatePermissionGrant(
@@ -320,62 +316,6 @@ public class PermissionGrantCoordinator {
             let keyPathGranted = snapshot.keyPath.inputMonitoring == .granted
             let kanataGranted = snapshot.kanata.inputMonitoring == .granted
             return keyPathGranted && kanataGranted
-        }
-    }
-
-    // MARK: - Service Bounce Management
-
-    /// Set flag to indicate Kanata service should be bounced on next app restart
-    public func setServiceBounceNeeded(reason: String) {
-        let timestamp = Date().timeIntervalSince1970
-        UserDefaults.standard.set(true, forKey: Self.serviceBounceNeededKey)
-        UserDefaults.standard.set(timestamp, forKey: Self.serviceBounceTimestampKey)
-        UserDefaults.standard.synchronize()
-
-        logger.log("🔄 [ServiceBounce] Bounce scheduled for next restart - reason: \(reason)")
-        logger.log("🔄 [ServiceBounce] Timestamp: \(timestamp)")
-    }
-
-    /// Check if service bounce is needed and return details
-    public func checkServiceBounceNeeded() -> (shouldBounce: Bool, timeSinceScheduled: TimeInterval?) {
-        let needsBounce = UserDefaults.standard.bool(forKey: Self.serviceBounceNeededKey)
-        let timestamp = UserDefaults.standard.double(forKey: Self.serviceBounceTimestampKey)
-
-        guard needsBounce, timestamp > 0 else {
-            return (shouldBounce: false, timeSinceScheduled: nil)
-        }
-
-        let currentTime = Date().timeIntervalSince1970
-        let timeSince = currentTime - timestamp
-
-        // Clear if too old (older than max return time)
-        if timeSince > maxReturnTime {
-            clearServiceBounceFlag()
-            logger.log("🔄 [ServiceBounce] Clearing expired bounce flag (age: \(Int(timeSince))s)")
-            return (shouldBounce: false, timeSinceScheduled: nil)
-        }
-
-        return (shouldBounce: true, timeSinceScheduled: timeSince)
-    }
-
-    /// Clear the service bounce flag
-    public func clearServiceBounceFlag() {
-        UserDefaults.standard.removeObject(forKey: Self.serviceBounceNeededKey)
-        UserDefaults.standard.removeObject(forKey: Self.serviceBounceTimestampKey)
-        UserDefaults.standard.synchronize()
-        logger.log("🔄 [ServiceBounce] Bounce flag cleared")
-    }
-
-    /// Perform the service bounce via the privileged coordinator seam.
-    public func performServiceBounce() async -> Bool {
-        logger.log("🔄 [ServiceBounce] Bounce via PrivilegeBroker.recoverRequiredRuntimeServices")
-        do {
-            try await PrivilegeBroker().recoverRequiredRuntimeServices()
-            logger.log("✅ [ServiceBounce] Bounce completed successfully")
-            return true
-        } catch {
-            logger.log("❌ [ServiceBounce] Bounce failed: \(error.localizedDescription)")
-            return false
         }
     }
 }

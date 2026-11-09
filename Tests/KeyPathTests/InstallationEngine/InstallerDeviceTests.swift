@@ -36,10 +36,9 @@ final class InstallerDeviceTests: KeyPathAsyncTestCase {
 
     func testExecuteInspectOnlyIsSafe() async {
         let engine = InstallerEngine()
-        let broker = PrivilegeBroker()
         let emptyInspectPlan = InstallPlan(recipes: [], status: .ready, intent: .inspectOnly)
 
-        let report = await engine.execute(plan: emptyInspectPlan, using: broker)
+        let report = await engine.execute(plan: emptyInspectPlan)
         XCTAssertTrue(report.success, "inspectOnly execute should be a no-op success")
         XCTAssertEqual(report.executedRecipes.count, 0)
     }

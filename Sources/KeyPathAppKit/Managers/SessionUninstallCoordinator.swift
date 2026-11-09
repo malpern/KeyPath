@@ -45,8 +45,8 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         self.stopSessionWorkers = stopSessionWorkers
     }
 
-    func performUninstall(deleteConfig: Bool, removeVirtualHID: Bool, allowAdminFallback: Bool) async -> WizardUninstallResult {
-        guard deleteConfig, !removeVirtualHID, !allowAdminFallback else {
+    func performUninstall(deleteConfig: Bool) async -> WizardUninstallResult {
+        guard deleteConfig else {
             return WizardUninstallResult(success: false, failureReason: "Driverless uninstall requires a settings backup and does not remove shared system components.")
         }
         guard app.pathExtension == "app", Bundle(url: app)?.bundleIdentifier == "com.keypath.KeyPath" else {

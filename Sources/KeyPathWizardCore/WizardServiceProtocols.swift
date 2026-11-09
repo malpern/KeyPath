@@ -26,20 +26,6 @@ public extension WizardSystemValidating {
     func invalidateCaches() {}
 }
 
-// MARK: - HelperMaintenance Protocol
-
-@MainActor
-public protocol WizardHelperMaintaining: AnyObject, Sendable {
-    func detectDuplicateAppCopies() async -> [String]
-    func installOrRefresh() async -> Bool
-    func runCleanupAndRepair(useAppleScriptFallback: Bool) async -> Bool
-    func runCleanupAndRepair(useAppleScriptFallback: Bool, forceFullRepair: Bool) async -> Bool
-    var logLines: [String] { get }
-    /// Most recent explicit failure line (❌/⚠️-prefixed), excluding the
-    /// "Cleanup & Repair started/finished" bookends. nil when no failure was logged.
-    var lastErrorLine: String? { get }
-}
-
 // MARK: - UninstallCoordinator Protocol
 
 public enum WizardUninstallRecoveryAction: String, Sendable, Equatable {
@@ -82,11 +68,7 @@ public struct WizardUninstallResult: Sendable, Equatable {
 
 @MainActor
 public protocol WizardUninstalling: Sendable {
-    func performUninstall(
-        deleteConfig: Bool,
-        removeVirtualHID: Bool,
-        allowAdminFallback: Bool
-    ) async -> WizardUninstallResult
+    func performUninstall(deleteConfig: Bool) async -> WizardUninstallResult
 }
 
 // MARK: - PermissionRequestService Protocol
@@ -151,27 +133,4 @@ public extension NSNotification.Name {
     static let wizardStartupRevalidate = NSNotification.Name("kp_startupRevalidate")
     static let wizardContentSizeChanged = NSNotification.Name("wizardContentSizeChanged")
     static let wizardOpenInstallationWizard = NSNotification.Name("openInstallationWizard")
-}
-
-// MARK: - PrivilegedOperationsCoordinating Protocol
-
-/// Abstraction for privileged system operations (helper + sudo).
-/// Copied from KeyPathAppKit to avoid circular dependency.
-@MainActor
-public protocol WizardPrivilegedOperating: AnyObject {
-    func cleanupPrivilegedHelper() async throws
-    func installRequiredRuntimeServices() async throws
-    func recoverRequiredRuntimeServices() async throws
-    func installServicesIfUninstalled(context: String) async throws -> Bool
-    func installNewsyslogConfig() async throws
-    func regenerateServiceConfiguration() async throws
-    func repairVHIDDaemonServices() async throws
-    func downloadAndInstallCorrectVHIDDriver() async throws
-    func activateVirtualHIDManager() async throws
-    func terminateProcess(pid: Int32) async throws
-    func killAllKanataProcesses() async throws
-    func restartKarabinerDaemonVerified() async throws -> Bool
-    func uninstallVirtualHIDDrivers() async throws
-    func disableKarabinerGrabber() async throws
-    func sudoExecuteCommand(_ command: String, description: String) async throws
 }

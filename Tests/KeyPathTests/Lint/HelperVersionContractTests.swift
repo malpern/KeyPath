@@ -7,7 +7,6 @@ import KeyPathCore
 final class HelperVersionContractTests: KeyPathTestCase {
     func testAllHelperVersionConsumersUseSharedContract() throws {
         XCTAssertEqual(HelperManager.expectedHelperVersion, KeyPathHelperContract.version)
-        XCTAssertEqual(WizardHelperConstants.expectedHelperVersion, KeyPathHelperContract.version)
 
         let infoURL = repositoryRoot()
             .appendingPathComponent("Sources/KeyPathHelper/Info.plist")
@@ -21,7 +20,6 @@ final class HelperVersionContractTests: KeyPathTestCase {
             "Sources/KeyPathHelper/HelperService.swift",
             "Sources/KeyPathHelper/main.swift",
             "Sources/KeyPathAppKit/Core/HelperManager.swift",
-            "Sources/KeyPathWizardCore/WizardHelperManaging.swift",
         ]
         for relativePath in contractConsumers {
             let source = try String(
