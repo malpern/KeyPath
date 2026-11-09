@@ -9,9 +9,6 @@ public struct WizardSnapshotRecord {
     public let state: WizardSystemState
     public let issues: [WizardIssue]
     public let captureStatus: SystemSnapshotCaptureStatus
-    public let helperInstalled: Bool
-    public let helperNeedsApproval: Bool
-    public let backend: KanataRuntimeBackend
     public let permissions: PermissionOracle.Snapshot?
 }
 
@@ -59,9 +56,6 @@ public class WizardStateMachine {
         _ state: WizardSystemState,
         issues: [WizardIssue],
         captureStatus: SystemSnapshotCaptureStatus = .complete,
-        helperInstalled: Bool = false,
-        helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .selected,
         permissions: PermissionOracle.Snapshot? = nil
     ) {
         wizardState = state
@@ -70,9 +64,6 @@ public class WizardStateMachine {
             state: state,
             issues: issues,
             captureStatus: captureStatus,
-            helperInstalled: helperInstalled,
-            helperNeedsApproval: helperNeedsApproval,
-            backend: backend,
             permissions: permissions
         )
         stateVersion += 1
@@ -83,9 +74,6 @@ public class WizardStateMachine {
             result.state,
             issues: issues ?? result.issues,
             captureStatus: result.captureStatus,
-            helperInstalled: result.helperInstalled,
-            helperNeedsApproval: result.helperNeedsApproval,
-            backend: result.backend,
             permissions: result.permissions
         )
     }
@@ -101,28 +89,16 @@ public class WizardStateMachine {
         }
     }
 
-    /// Get the next logical page (delegates to WizardRouter with prereq enforcement).
+    /// Get the next logical page (delegates to WizardRouter).
     public func getNextPage(for state: WizardSystemState, issues: [WizardIssue]) async -> WizardPage? {
-        let helperInstalled = lastWizardSnapshot?.helperInstalled ?? false
-        let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
-        let next = WizardRouter.nextPage(
-            after: currentPage, state: state, issues: issues,
-            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval,
-            backend: lastWizardSnapshot?.backend ?? .driverKit
-        )
+        let next = WizardRouter.nextPage(after: currentPage, state: state, issues: issues)
         return next != currentPage ? next : nil
     }
 
     /// Navigate to the next page (fire-and-forget).
     public func nextPage() {
         Task { @MainActor in
-            let helperInstalled = lastWizardSnapshot?.helperInstalled ?? false
-            let helperNeedsApproval = lastWizardSnapshot?.helperNeedsApproval ?? false
-            let next = WizardRouter.nextPage(
-                after: currentPage, state: wizardState, issues: wizardIssues,
-                helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval,
-                backend: lastWizardSnapshot?.backend ?? .driverKit
-            )
+            let next = WizardRouter.nextPage(after: currentPage, state: wizardState, issues: wizardIssues)
             if next != currentPage {
                 navigateToPage(next)
             }
@@ -159,13 +135,7 @@ public class WizardStateMachine {
     public func autoNavigateIfNeeded(for state: WizardSystemState, issues: [WizardIssue]) async {
         guard !userInteractionMode else { return }
 
-        let recommended = WizardRouter.route(
-            state: state,
-            issues: issues,
-            helperInstalled: lastWizardSnapshot?.helperInstalled ?? false,
-            helperNeedsApproval: lastWizardSnapshot?.helperNeedsApproval ?? false,
-            backend: lastWizardSnapshot?.backend ?? .driverKit
-        )
+        let recommended = WizardRouter.route(state: state, issues: issues)
 
         guard recommended != currentPage else { return }
 

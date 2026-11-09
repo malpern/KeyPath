@@ -674,14 +674,7 @@ class MainAppStateController {
         lastValidationTime = Date() // Track for cooldown optimization
 
         // Determine validation state
-        let blockingIssues = issues.filter { issue in
-            switch issue.category {
-            case .conflicts:
-                false // Conflicts are resolvable, not blocking
-            case .permissions, .installation, .systemRequirements, .backgroundServices, .daemon:
-                issue.severity == .critical || issue.severity == .error
-            }
-        }
+        let blockingIssues = issues.filter { $0.severity == .critical || $0.severity == .error }
 
         AppLogger.shared.debug("📊 [MainAppStateController] === VALIDATION DECISION ===")
         AppLogger.shared.debug(
@@ -758,7 +751,7 @@ class MainAppStateController {
                 "✅ [MainAppStateController] Validation SUCCESS - adapter state is .ready"
             )
 
-        case .initializing, .serviceNotRunning, .daemonNotRunning:
+        case .initializing, .serviceNotRunning:
             // Service not running but could be starting
             if blockingIssues.isEmpty {
                 validationState = .success
@@ -782,7 +775,7 @@ class MainAppStateController {
                 }
             }
 
-        case .conflictsDetected, .missingPermissions, .missingComponents:
+        case .missingPermissions, .missingComponents:
             // Definite problems that need fixing
             validationState = .failed(
                 blockingCount: blockingIssues.count, totalCount: issues.count

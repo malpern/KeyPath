@@ -48,15 +48,6 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
                 autoFixAction: nil,
                 userAction: nil
             ),
-            WizardIssue(
-                identifier: .conflict(.kanataProcessRunning(pid: 1, command: "test")),
-                severity: .error,
-                category: .conflicts,
-                title: "Conflict",
-                description: "Resolvable conflict",
-                autoFixAction: nil,
-                userAction: nil
-            ),
         ]
         controller.validationState = .success
 
@@ -101,17 +92,8 @@ final class OverlayHealthIndicatorObserverTests: KeyPathTestCase {
                 autoFixAction: nil,
                 userAction: nil
             ),
-            WizardIssue(
-                identifier: .conflict(.kanataProcessRunning(pid: 1, command: "test")),
-                severity: .error,
-                category: .conflicts,
-                title: "Conflict",
-                description: "Resolvable",
-                autoFixAction: nil,
-                userAction: nil
-            ),
         ]
-        controller.validationState = .failed(blockingCount: 1, totalCount: 3)
+        controller.validationState = .failed(blockingCount: 1, totalCount: 2)
 
         observer.startObserving(controller: controller)
         await flushObserverTasks()

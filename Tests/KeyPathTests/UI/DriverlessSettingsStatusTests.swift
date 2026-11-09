@@ -30,7 +30,7 @@ final class DriverlessSettingsStatusTests: XCTestCase {
     /// row must not go red or tell the user to start what they just stopped.
     func testIntentionallyOffShowsNeutralRowNotAFailure() {
         let rows = SettingsSystemStatusRowsBuilder.rows(
-            wizardSystemState: .daemonNotRunning, wizardIssues: [], systemContext: nil, tcpConfigured: nil,
+            wizardSystemState: .serviceNotRunning, wizardIssues: [], systemContext: nil, tcpConfigured: nil,
             driverless: true, intentionallyOff: true
         )
         let service = rows.first { $0.id == "kanata-service" }

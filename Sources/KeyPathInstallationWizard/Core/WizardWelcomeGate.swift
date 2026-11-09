@@ -13,21 +13,15 @@ public enum WizardWelcomeGate {
     /// QA/debug override: forces the Welcome page on machines that are already set up.
     public static let forceWelcomeKey = "wizard_force_welcome"
 
-    /// Pure decision: show Welcome on fresh installs (helper not yet installed)
-    /// until the user has clicked Get Started. `forced` is a QA override.
-    public static func shouldShowWelcome(
-        helperInstalled: Bool,
-        hasSeenWelcome: Bool,
-        forced: Bool
-    ) -> Bool {
-        if forced { return true }
-        return !helperInstalled && !hasSeenWelcome
+    /// Pure decision: show Welcome until the user has clicked Get Started.
+    /// `forced` is a QA override.
+    public static func shouldShowWelcome(hasSeenWelcome: Bool, forced: Bool) -> Bool {
+        forced || !hasSeenWelcome
     }
 
     /// Convenience wrapper reading the persisted flags from UserDefaults.
-    public static func shouldShowWelcome(helperInstalled: Bool, defaults: UserDefaults = .standard) -> Bool {
+    public static func shouldShowWelcome(defaults: UserDefaults = .standard) -> Bool {
         shouldShowWelcome(
-            helperInstalled: helperInstalled,
             hasSeenWelcome: defaults.bool(forKey: hasSeenWelcomeKey),
             forced: defaults.bool(forKey: forceWelcomeKey)
         )

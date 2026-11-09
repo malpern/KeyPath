@@ -15,12 +15,12 @@ final class WizardNavigationHeuristicsTests: XCTestCase {
 
     func testDoesNotNavigateWhenIssuesPresent() {
         let issue = WizardIssue(
-            identifier: .component(.karabinerDriver),
+            identifier: .component(.bundledKanataMissing),
             severity: .critical,
             category: .installation,
-            title: "Karabiner driver missing",
+            title: "Bundled runtime missing",
             description: "",
-            autoFixAction: .installMissingComponents,
+            autoFixAction: nil,
             userAction: nil
         )
 

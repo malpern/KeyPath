@@ -117,15 +117,8 @@ final class OverlayHealthIndicatorObserver {
         dismissTask?.cancel()
         dismissTask = nil
 
-        // Only count blocking issues (critical/error severity, excluding conflicts which are resolvable)
-        let blockingIssues = issues.filter { issue in
-            switch issue.category {
-            case .conflicts:
-                false // Conflicts are resolvable, not blocking
-            case .permissions, .installation, .systemRequirements, .backgroundServices, .daemon:
-                issue.severity == .critical || issue.severity == .error
-            }
-        }
+        // Only count blocking issues (critical/error severity)
+        let blockingIssues = issues.filter { $0.severity == .critical || $0.severity == .error }
 
         switch state {
         case nil, .checking:

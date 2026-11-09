@@ -21,16 +21,11 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         let overview = WizardSystemStatusOverview(
             systemState: .serviceNotRunning,
             issues: [warningIssue],
-            backend: .driverKit,
             onNavigateToPage: nil,
             kanataIsRunning: false,
             showAllItems: true,
             navSequence: .constant(nav),
-            visibleIssueCount: .constant(visible),
-            // Supply the value rather than reading @State: this view is never
-            // installed in a hierarchy, and an uninstalled read warns and hands
-            // back a fresh instance each time.
-            duplicateCopiesOverride: []
+            visibleIssueCount: .constant(visible)
         )
 
         let items = overview.statusItems
@@ -45,17 +40,15 @@ final class WizardSystemStatusOverviewPermissionVisibilityTests: XCTestCase {
         )
     }
 
-    func testAbsentLegacyPermissionEvidenceDoesNotShowCompletedRows() {
+    func testAbsentPermissionEvidenceDoesNotShowCompletedRows() {
         let overview = WizardSystemStatusOverview(
             systemState: .serviceNotRunning,
             issues: [],
-            backend: .driverKit,
             onNavigateToPage: nil,
             kanataIsRunning: false,
             showAllItems: true,
             navSequence: .constant([]),
-            visibleIssueCount: .constant(0),
-            duplicateCopiesOverride: []
+            visibleIssueCount: .constant(0)
         )
         let permissionItems = overview.statusItems.filter {
             $0.id == "input-monitoring" || $0.id == "accessibility"

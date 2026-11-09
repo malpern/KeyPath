@@ -93,34 +93,15 @@ public extension InstallationWizardView {
         guard let cachedState = stateMachine.lastWizardSnapshot else { return nil }
         let page = WizardRouter.route(
             state: cachedState.state,
-            issues: cachedState.issues,
-            helperInstalled: cachedState.helperInstalled,
-            helperNeedsApproval: cachedState.helperNeedsApproval,
-            backend: cachedState.backend
+            issues: cachedState.issues
         )
         return page != .summary ? page : nil
     }
 
-    func sanitizedIssues(from issues: [WizardIssue], for state: WizardSystemState)
-        -> [WizardIssue]
-    {
-        guard shouldSuppressCommunicationIssues(for: state) else {
-            return issues
-        }
-
-        let filtered = issues.filter { !isCommunicationIssue($0) }
-        if filtered.count != issues.count {
-            AppLogger.shared.log(
-                "🔇 [Wizard] Suppressing \(issues.count - filtered.count) communication issue(s) because Kanata service is not running"
-            )
-        }
-        return filtered
-    }
-
     @MainActor
     func applySystemStateResult(_ result: SystemStateResult) -> [WizardIssue] {
-        let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-        stateMachine.updateWizardState(from: result, issues: filteredIssues)
+        let issues = result.issues
+        stateMachine.updateWizardState(from: result)
 
         // Only auto-navigate if user hasn't been interacting with the wizard
         // This prevents jarring navigation away from a page after a fix completes
@@ -129,24 +110,21 @@ public extension InstallationWizardView {
         if WizardRouter.shouldNavigateToSummary(
             currentPage: stateMachine.currentPage,
             state: result.state,
-            issues: filteredIssues
+            issues: issues
         ) {
             AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
             stateMachine.navigateToPage(.summary, userInitiated: false)
         } else if shouldAutoNavigate {
             let currentPageHasIssues = WizardRouter.pageHasRelevantIssues(
                 stateMachine.currentPage,
-                issues: filteredIssues,
+                issues: issues,
                 state: result.state
             )
             if !currentPageHasIssues {
                 Task {
                     let recommended = WizardRouter.route(
                         state: result.state,
-                        issues: filteredIssues,
-                        helperInstalled: result.helperInstalled,
-                        helperNeedsApproval: result.helperNeedsApproval,
-                        backend: result.backend
+                        issues: issues
                     )
                     if recommended != stateMachine.currentPage {
                         AppLogger.shared.log("🔄 [Wizard] Skipping green page \(stateMachine.currentPage) → \(recommended)")
@@ -157,34 +135,10 @@ public extension InstallationWizardView {
         }
 
         AppLogger.shared.log(
-            "🔍 [Wizard] State applied - Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
+            "🔍 [Wizard] State applied - Issues: \(issues.map { "\($0.category)-\($0.title)" })"
         )
 
-        return filteredIssues
-    }
-
-    func shouldSuppressCommunicationIssues(for state: WizardSystemState) -> Bool {
-        if case .active = state {
-            return false
-        }
-        return true
-    }
-
-    func isCommunicationIssue(_ issue: WizardIssue) -> Bool {
-        guard case let .component(component) = issue.identifier else {
-            return false
-        }
-
-        switch component {
-        case .kanataTCPServer,
-             .communicationServerConfiguration,
-             .communicationServerNotResponding,
-             .tcpServerConfiguration,
-             .tcpServerNotResponding:
-            return true
-        default:
-            return false
-        }
+        return issues
     }
 
     func startKeyPathRuntime() {
@@ -241,10 +195,7 @@ public extension InstallationWizardView {
         stateMachine.updateWizardState(from: result)
         guard result.state == .active, result.issues.isEmpty else {
             stateMachine.navigateToPage(WizardRouter.route(
-                state: result.state, issues: result.issues,
-                helperInstalled: result.helperInstalled,
-                helperNeedsApproval: result.helperNeedsApproval,
-                backend: result.backend
+                state: result.state, issues: result.issues
             ), userInitiated: false)
             return
         }

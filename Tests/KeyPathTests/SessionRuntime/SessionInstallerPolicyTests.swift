@@ -23,7 +23,7 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
         WizardDependencies.systemValidator = Validator(snapshot(running: false, ax: .denied, input: .denied))
         let machine = WizardStateMachine()
         let result = try await WizardOperations.stateDetection(stateMachine: machine).execute { _ in }
-        XCTAssertEqual(result.backend, .session)
+        XCTAssertEqual(result.permissions?.backend, .session)
         machine.updateWizardState(from: result)
         let next = await machine.getNextPage(for: result.state, issues: result.issues)
         XCTAssertEqual(next, .accessibility)
@@ -83,18 +83,14 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
     func testSessionPermissionRoutingIsAXFirstWithoutHelperOrFDA() {
         let context = SystemContext(snapshot: snapshot(running: false, ax: .denied, input: .denied))
         let result = SystemStateResult.projecting(context)
-        XCTAssertFalse(result.helperInstalled)
-        XCTAssertEqual(result.backend, .session)
-        XCTAssertEqual(WizardRouter.route(state: result.state, issues: result.issues,
-                                          helperInstalled: false, helperNeedsApproval: false, backend: result.backend), .accessibility)
+        XCTAssertEqual(WizardRouter.route(state: result.state, issues: result.issues), .accessibility)
         XCTAssertFalse(result.issues.contains { $0.description.contains("Full Disk Access") })
     }
 
     func testEffectiveInputDenialStillRequiresConditionalApproval() {
         let context = SystemContext(snapshot: snapshot(running: false, input: .denied))
         let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(WizardRouter.route(state: result.state, issues: result.issues,
-                                          helperInstalled: false, helperNeedsApproval: false, backend: result.backend), .inputMonitoring)
+        XCTAssertEqual(WizardRouter.route(state: result.state, issues: result.issues), .inputMonitoring)
         XCTAssertFalse(snapshot(running: true, input: .denied).isReady)
     }
 }

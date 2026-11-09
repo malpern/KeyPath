@@ -157,12 +157,12 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
 - `communication`, `karabinerComponents`, `kanataComponents`, `service`
 
 ### System State (`WizardSystemState` enum)
-- `initializing`, `conflictsDetected`, `missingPermissions`, `missingComponents`
-- `daemonNotRunning`, `serviceNotRunning`, `ready`, `active`
+- `initializing`, `missingPermissions`, `missingComponents`, `serviceNotRunning`, `ready`, `active`
+- Produced by `SystemInspector`, which describes only the session runtime (ADR-045)
 
 ### Issues (`WizardIssue` struct)
 - Structured issue representation with severity, category, auto-fix action
-- Categories: `conflicts`, `permissions`, `backgroundServices`, `installation`, `daemon`, `systemRequirements`
+- Categories: `permissions`, `installation`, `daemon`, `systemRequirements`
 - Severities: `info`, `warning`, `error`, `critical`
 
 ### Auto-Fix Actions (`AutoFixAction` enum)
@@ -170,9 +170,8 @@ All wizard types are defined in `WizardTypes.swift` (433 lines):
 - Examples: `terminateConflictingProcesses`, `installMissingComponents`, `fixDriverVersionMismatch`
 
 ### Requirements
-- `SystemConflict` - Conflicting processes (Karabiner-Grabber, orphaned Kanata, etc.)
 - `PermissionRequirement` - TCC permissions (Input Monitoring, Accessibility)
-- `ComponentRequirement` - System components (drivers, binaries, services)
+- `ComponentRequirement` - `bundledKanataMissing` and `keyPathRuntime`
 
 ## How State-Driven Navigation Works
 
@@ -253,7 +252,7 @@ Each page is 400-600 lines and follows a consistent pattern:
 4. Update navigation logic if needed
 
 ### Adding a New Issue Type
-1. Add requirement to appropriate enum (`SystemConflict`, `PermissionRequirement`, `ComponentRequirement`)
+1. Add requirement to appropriate enum (`PermissionRequirement`, `ComponentRequirement`)
 2. Add detection logic in `SystemValidator`
 3. Generate `WizardIssue` in `IssueGenerator`
 4. Map to page in `WizardNavigationEngine`

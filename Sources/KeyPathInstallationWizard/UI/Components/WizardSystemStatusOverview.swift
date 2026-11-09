@@ -8,8 +8,6 @@ import SwiftUI
 public struct WizardSystemStatusOverview: View {
     public let systemState: WizardSystemState
     public let issues: [WizardIssue]
-    /// Runtime backend represented by the current wizard snapshot.
-    public let backend: KanataRuntimeBackend
     /// Permission facts captured with the same wizard snapshot, when available.
     public let permissions: PermissionOracle.Snapshot?
     public let onNavigateToPage: ((WizardPage) -> Void)?
@@ -22,44 +20,24 @@ public struct WizardSystemStatusOverview: View {
     /// Number of visible items that are not completed (used by summary header)
     @Binding public var visibleIssueCount: Int
 
-    @State private var duplicateCopies: [String] = []
-
-    /// Stands in for the detected copies when this view is evaluated outside a
-    /// rendered hierarchy. Reading `@State` on an uninstalled view produces a
-    /// SwiftUI runtime warning and yields a fresh instance each time, so tests
-    /// that read the status items directly supply the value instead. Nil in the
-    /// app, where the state is real.
-    private let duplicateCopiesOverride: [String]?
-
-    private var resolvedDuplicateCopies: [String] {
-        duplicateCopiesOverride ?? duplicateCopies
-    }
-
-    /// Cache heavy probes so SwiftUI re-renders don’t hammer the filesystem/network
-    private static var cache = ProbeCache()
-
     public init(
         systemState: WizardSystemState,
         issues: [WizardIssue],
-        backend: KanataRuntimeBackend = .selected,
         permissions: PermissionOracle.Snapshot? = nil,
         onNavigateToPage: ((WizardPage) -> Void)?,
         kanataIsRunning: Bool,
         showAllItems: Bool,
         navSequence: Binding<[WizardPage]>,
-        visibleIssueCount: Binding<Int>,
-        duplicateCopiesOverride: [String]? = nil
+        visibleIssueCount: Binding<Int>
     ) {
         self.systemState = systemState
         self.issues = issues
-        self.backend = backend
         self.permissions = permissions
         self.onNavigateToPage = onNavigateToPage
         self.kanataIsRunning = kanataIsRunning
         self.showAllItems = showAllItems
         _navSequence = navSequence
         _visibleIssueCount = visibleIssueCount
-        self.duplicateCopiesOverride = duplicateCopiesOverride
     }
 
     public var body: some View {
@@ -130,16 +108,9 @@ public struct WizardSystemStatusOverview: View {
         .onAppear {
             updateNavSequence()
         }
-        .task {
-            // .task, not a Task in .onAppear: dismissing the page cancels the scan
-            // (and SubprocessRunner kills its mdfind) instead of leaving it running.
-            guard backend != .session else { return }
-            duplicateCopies = await WizardDependencies.helperMaintenance?.detectDuplicateAppCopies() ?? []
-        }
         .onChange(of: showAllItems) { _, _ in updateNavSequence() }
         .onChange(of: issues.count) { _, _ in updateNavSequence() }
         .onChange(of: systemState) { _, _ in updateNavSequence() }
-        .onChange(of: backend) { _, _ in updateNavSequence() }
         .onChange(of: statusFingerprint) { _, _ in updateNavSequence() }
         // Scroll fade overlays removed — they created visible grey stripe artifacts
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -179,14 +150,12 @@ public struct WizardSystemStatusOverview: View {
         Self.sessionStatusItems(systemState: systemState, issues: issues, permissions: permissions)
     }
 
-    private var statusFingerprint: String? {
-        guard backend == .session else { return nil }
-        return statusItems.map { "\($0.id):\($0.status)" }.joined(separator: "|")
+    private var statusFingerprint: String {
+        statusItems.map { "\($0.id):\($0.status)" }.joined(separator: "|")
     }
 
-    /// Driverless sessions require only the app's two consent checks and the
-    /// session runtime. Helper, conflict, and VirtualHID checks describe
-    /// the legacy DriverKit installation and must not appear for this backend.
+    /// The session runtime requires only the app's two consent checks and the
+    /// runtime itself.
     static func sessionStatusItems(
         systemState: WizardSystemState,
         issues: [WizardIssue],
@@ -286,72 +255,6 @@ public struct WizardSystemStatusOverview: View {
         )
     }
 
-    // MARK: - Dependency Logic
-
-    private struct DependencyVisibility {
-        let showCommunicationItem: Bool
-    }
-
-    // MARK: - Lightweight probe caching
-
-    /// Keeps recent probe results so the SwiftUI body doesn't hammer disk/network on every recompute.
-    private struct ProbeCache {
-        private static let ttl: TimeInterval = 1.5
-
-        private var comm: (value: InstallationStatus, port: Int, kanataRunning: Bool, ts: Date)?
-
-        mutating func communicationStatusIfFresh(
-            port: Int,
-            kanataRunning: Bool
-        ) -> InstallationStatus? {
-            guard let comm,
-                  comm.port == port,
-                  comm.kanataRunning == kanataRunning,
-                  Date().timeIntervalSince(comm.ts) < Self.ttl
-            else { return nil }
-            return comm.value
-        }
-
-        mutating func updateCommunication(
-            status: InstallationStatus,
-            port: Int,
-            kanataRunning: Bool
-        ) {
-            comm = (status, port, kanataRunning, Date())
-        }
-    }
-
-    private func shouldShowDependentItems() -> DependencyVisibility {
-        // Communication item shown when Kanata is running
-        DependencyVisibility(
-            showCommunicationItem: kanataIsRunning
-        )
-    }
-
-    // MARK: - Dependency-aware filtering
-
-    /// Declarative dependency map for wizard items.
-    /// Keys are status item IDs used in `statusItems`.
-    private var itemDependencies: [String: [String]] {
-        [
-            // Must have helper before anything privileged
-            "kanata-service": ["privileged-helper", "karabiner-components"],
-            "communication-server": ["kanata-service"],
-            "background-services": ["privileged-helper"],
-            "karabiner-components": ["privileged-helper"]
-        ]
-    }
-
-    /// Helper to see if all dependencies are satisfied (completed) given the current items.
-    private func dependenciesSatisfied(
-        for item: StatusItemModel,
-        in allItems: [StatusItemModel]
-    ) -> Bool {
-        guard let deps = itemDependencies[item.id], !deps.isEmpty else { return true }
-        let statusByID = Dictionary(uniqueKeysWithValues: allItems.map { ($0.id, $0.status) })
-        return deps.allSatisfy { statusByID[$0] == .completed }
-    }
-
     // MARK: - Filtering helper (shared with tests)
 
     public static func filteredDisplayItems(_ items: [StatusItemModel], showAllItems: Bool)
@@ -406,88 +309,6 @@ public struct WizardSystemStatusOverview: View {
 
     // MARK: - Status Helpers
 
-    private func getInputMonitoringStatus() -> InstallationStatus {
-        if systemState == .initializing {
-            return .notStarted
-        }
-
-        let inputMonitoringIssues = issues.filter { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathInputMonitoring || permissionType == .kanataInputMonitoring
-            }
-            return false
-        }
-
-        // This process's Apple APIs do not establish a legacy daemon's grant.
-        let kanataIssues = inputMonitoringIssues.filter { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .kanataInputMonitoring
-            }
-            return false
-        }
-        let keyPathIssues = inputMonitoringIssues.filter { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .keyPathInputMonitoring
-            }
-            return false
-        }
-
-        // If KeyPath has issues, show failed (we can verify this via Apple API)
-        if !keyPathIssues.isEmpty {
-            return .failed
-        }
-
-        if !kanataIssues.isEmpty {
-            return issueStatus(for: kanataIssues) == .failed ? .failed : .unverified
-        }
-        guard let facts = permissions,
-              facts.keyPath.inputMonitoring.isReady,
-              facts.kanata.inputMonitoring.isReady
-        else { return .unverified }
-        return .completed
-    }
-
-    private func getAccessibilityStatus() -> InstallationStatus {
-        if systemState == .initializing {
-            return .notStarted
-        }
-
-        let accessibilityIssues = issues.filter { issue in
-            if case let .permission(permissionType) = issue.identifier {
-                return permissionType == .keyPathAccessibility || permissionType == .kanataAccessibility
-            }
-            return false
-        }
-
-        // This process's Apple APIs do not establish a legacy daemon's grant.
-        let kanataIssues = accessibilityIssues.filter { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .kanataAccessibility
-            }
-            return false
-        }
-        let keyPathIssues = accessibilityIssues.filter { issue in
-            if case let .permission(p) = issue.identifier {
-                return p == .keyPathAccessibility
-            }
-            return false
-        }
-
-        // If KeyPath has issues, show failed (we can verify this via Apple API)
-        if !keyPathIssues.isEmpty {
-            return .failed
-        }
-
-        if !kanataIssues.isEmpty {
-            return issueStatus(for: kanataIssues) == .failed ? .failed : .unverified
-        }
-        guard let facts = permissions,
-              facts.keyPath.accessibility.isReady,
-              facts.kanata.accessibility.isReady
-        else { return .unverified }
-        return .completed
-    }
-
     public func getServiceStatus() -> InstallationStatus {
         if systemState == .initializing {
             return .inProgress
@@ -507,35 +328,6 @@ public struct WizardSystemStatusOverview: View {
         }
 
         return .notStarted
-    }
-
-    private func getServiceNavigationTarget() -> (page: WizardPage, reason: String) {
-        // When service fails, navigate to the most critical missing permission
-        let hasBlockingInputMonitoring = issues.contains { issue in
-            guard issue.severity == .critical || issue.severity == .error else { return false }
-            if case let .permission(permission) = issue.identifier {
-                return permission == .kanataInputMonitoring
-            }
-            return false
-        }
-
-        let hasBlockingAccessibility = issues.contains { issue in
-            guard issue.severity == .critical || issue.severity == .error else { return false }
-            if case let .permission(permission) = issue.identifier {
-                return permission == .kanataAccessibility
-            }
-            return false
-        }
-
-        // Navigate to the first blocking permission page
-        if hasBlockingInputMonitoring {
-            return (.inputMonitoring, "Input Monitoring permission required")
-        } else if hasBlockingAccessibility {
-            return (.accessibility, "\(AccessibilityPermissionPresentation.current.name) permission required")
-        } else {
-            // Default to service page if no specific permission issue
-            return (.service, "Check service status")
-        }
     }
 
     private func issueStatus(for issues: [WizardIssue]) -> InstallationStatus {

@@ -425,7 +425,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // A reinstall can retain macOS grants and regenerate a valid config.
         // Runtime health alone must not bypass the fresh-install Welcome page.
         guard hasExistingConfig,
-              !WizardWelcomeGate.shouldShowWelcome(helperInstalled: false),
+              !WizardWelcomeGate.shouldShowWelcome(),
               !FirstSuccessOnboardingGate.isPending()
         else {
             LiveKeyboardOverlayController.shared.setOnboardingCompleted(false)

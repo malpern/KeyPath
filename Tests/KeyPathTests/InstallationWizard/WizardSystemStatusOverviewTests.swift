@@ -50,10 +50,10 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
 
     func testServiceStatusIgnoresStaleDaemonIssueWhenRunning() {
         let staleIssue = WizardIssue(
-            identifier: .component(.karabinerDaemon),
+            identifier: .component(.keyPathRuntime),
             severity: .error,
             category: .daemon,
-            title: "Daemon not running",
+            title: "KeyPath Runtime Not Running",
             description: "",
             autoFixAction: nil,
             userAction: ""
@@ -136,7 +136,6 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
             issues: [],
             autoFixActions: [],
             detectionTimestamp: Date(timeIntervalSince1970: 1),
-            backend: .session,
             permissions: permissions
         )
         let stateMachine = WizardStateMachine()
@@ -216,25 +215,23 @@ final class WizardSystemStatusOverviewTests: XCTestCase {
         XCTAssertEqual(WizardSystemStatusOverview.incompleteItemCount(items), 3)
     }
 
-    func testDriverKitBackendShowsOnlySessionRows() {
+    func testOverviewShowsOnlySessionRows() {
         let nav: [WizardPage] = []
         let visible = 0
         let overview = WizardSystemStatusOverview(
             systemState: .active,
             issues: [],
-            backend: .driverKit,
             onNavigateToPage: nil,
             kanataIsRunning: true,
             showAllItems: true,
             navSequence: .constant(nav),
-            visibleIssueCount: .constant(visible),
-            duplicateCopiesOverride: []
+            visibleIssueCount: .constant(visible)
         )
 
         XCTAssertEqual(
             overview.statusItems.map(\.id),
             ["input-monitoring", "accessibility", "kanata-service"],
-            "Helper, conflict and Karabiner rows are retired for every backend"
+            "Only the two permissions and the runtime are shown"
         )
     }
 

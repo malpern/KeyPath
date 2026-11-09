@@ -5,8 +5,7 @@ import KeyPathWizardCore
 /// Routing when kanata's permissions are unverifiable (.unknown after retries).
 /// Unknown permissions produce only warning-severity issues, which route()
 /// ignores — routeForUnverifiedKanataPermissions must land the wizard on the
-/// first unverified permission page instead of dead-ending on summary, while
-/// never overriding higher-priority blocking pages (conflicts/helper).
+/// first unverified permission page instead of dead-ending on summary.
 @MainActor
 final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
     func testUnknownAccessibilityComesBeforeInputMonitoring() {
@@ -62,9 +61,7 @@ final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
         )]
         let base = WizardRouter.route(
             state: .serviceNotRunning,
-            issues: warningIssues,
-            helperInstalled: true,
-            helperNeedsApproval: false
+            issues: warningIssues
         )
         XCTAssertEqual(base, .service, "warning-severity permission issues don't route on their own")
 
@@ -81,7 +78,6 @@ final class WizardRouterUnverifiedPermissionsTests: XCTestCase {
             WizardIssue(identifier: .permission($0), severity: .error, category: .permissions,
                         title: "Permission", description: "Denied", autoFixAction: nil, userAction: nil)
         }
-        XCTAssertEqual(WizardRouter.route(state: .serviceNotRunning, issues: issues,
-                                          helperInstalled: true, helperNeedsApproval: false), .accessibility)
+        XCTAssertEqual(WizardRouter.route(state: .serviceNotRunning, issues: issues), .accessibility)
     }
 }

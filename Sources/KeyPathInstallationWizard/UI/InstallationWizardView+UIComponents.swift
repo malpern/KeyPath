@@ -28,13 +28,7 @@ extension InstallationWizardView {
     private var actionablePage: WizardPage {
         guard stateMachine.currentPage == .summary,
               !stateMachine.wizardIssues.isEmpty else { return stateMachine.currentPage }
-        let snapshot = stateMachine.lastWizardSnapshot
-        return WizardRouter.route(
-            state: stateMachine.wizardState, issues: stateMachine.wizardIssues,
-            helperInstalled: snapshot?.helperInstalled ?? false,
-            helperNeedsApproval: snapshot?.helperNeedsApproval ?? false,
-            backend: snapshot?.backend ?? .selected
-        )
+        return WizardRouter.route(state: stateMachine.wizardState, issues: stateMachine.wizardIssues)
     }
 
     @ViewBuilder
@@ -49,21 +43,15 @@ extension InstallationWizardView {
                     if let snapshot = stateMachine.lastWizardSnapshot {
                         stateMachine.navigateToPage(WizardRouter.route(
                             state: snapshot.state,
-                            issues: snapshot.issues,
-                            helperInstalled: snapshot.helperInstalled,
-                            helperNeedsApproval: snapshot.helperNeedsApproval,
-                            backend: snapshot.backend
+                            issues: snapshot.issues
                         ))
                         return
                     }
                     result = await stateMachine.detectCurrentState()
                     guard !isForceClosing else { return }
-                    stateMachine.updateWizardState(from: result, issues: sanitizedIssues(from: result.issues, for: result.state))
+                    stateMachine.updateWizardState(from: result)
                     stateMachine.navigateToPage(WizardRouter.route(
-                        state: result.state, issues: stateMachine.wizardIssues,
-                        helperInstalled: result.helperInstalled,
-                        helperNeedsApproval: result.helperNeedsApproval,
-                        backend: result.backend
+                        state: result.state, issues: stateMachine.wizardIssues
                     ))
                 }
             })
