@@ -1,6 +1,8 @@
 # ADR-045: Retire the Privileged Runtime Stack
 
-**Status:** Accepted
+**Status:** Accepted. The Upgrade Constraint is withdrawn by
+[ADR-047](adr-047-pre-release-cleanup.md): KeyPath will not support upgrading
+from 1.0.1.
 **Date:** 2026-10-31
 
 ## Context

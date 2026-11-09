@@ -216,19 +216,15 @@ public actor PermissionOracle {
         }
 
         /// What to tell the user when the session runtime lacks key access.
-        /// On macOS 27 Device Control and Data Access covers reading keys, so once it
-        /// is on the runtime only needs a fresh launch. Earlier versions also need
-        /// Input Monitoring.
+        /// Device Control and Data Access covers reading keys, so once it is on
+        /// the runtime only needs a fresh launch.
         public static func sessionBlockingGuidance(
             accessibilityBlocking: Bool, presentation: AccessibilityPermissionPresentation
         ) -> String {
             if accessibilityBlocking {
                 return "Enable KeyPath in \(presentation.name) in System Settings, then quit and reopen KeyPath."
             }
-            if presentation.coversInputMonitoring {
-                return "Quit and reopen KeyPath so it can use \(presentation.name)."
-            }
-            return "Enable KeyPath in Input Monitoring in System Settings, then quit and reopen KeyPath."
+            return "Quit and reopen KeyPath so it can use \(presentation.name)."
         }
 
         /// Diagnostic information for troubleshooting

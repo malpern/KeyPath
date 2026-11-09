@@ -148,25 +148,10 @@ struct LayoutTracerCanvasView: View {
         }
     }
 
-    @ViewBuilder
     private var canvasBackground: some View {
-        // .glassEffect ships in the macOS 26 SDK (Swift 6.2+). Gate at compile
-        // time so the module still builds on older SDKs — the runtime
-        // #available check alone isn't enough because the compiler can't
-        // type-check the call on older SDKs even inside the guarded branch.
-        #if compiler(>=6.2)
-            if #available(macOS 26, *) {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.clear)
-                    .glassEffect(.regular.tint(.white.opacity(0.02)), in: .rect(cornerRadius: 22))
-            } else {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.black.opacity(0.12))
-            }
-        #else
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color.black.opacity(0.12))
-        #endif
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(.clear)
+            .glassEffect(.regular.tint(.white.opacity(0.02)), in: .rect(cornerRadius: 22))
     }
 
     private var checkerboard: some View {

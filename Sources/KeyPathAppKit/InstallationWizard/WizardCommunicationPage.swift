@@ -464,11 +464,7 @@ struct WizardCommunicationPage: View {
 
 private struct BounceIfAvailable: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 15.0, *) {
-            content.modifier(AvailabilitySymbolBounce())
-        } else {
-            content
-        }
+        content.modifier(AvailabilitySymbolBounce())
     }
 }
 

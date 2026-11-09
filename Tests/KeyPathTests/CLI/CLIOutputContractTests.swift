@@ -288,8 +288,9 @@ final class CLIOutputContractTests: KeyPathTestCase {
     }
 
     func testPermissionGuidanceUsesOSPaneNameWithoutChangingPolicyOrDeepLink() {
-        for (major, name) in [(26, "Accessibility"), (27, "Device Control and Data Access")] {
-            let presentation = AccessibilityPermissionPresentation(macOSMajorVersion: major)
+        do {
+            let name = "Device Control and Data Access"
+            let presentation = AccessibilityPermissionPresentation()
             let contexts = [
                 sessionContext(appAX: .denied),
                 historicalDriverContext(
