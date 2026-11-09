@@ -1,6 +1,8 @@
 @preconcurrency import CoreFoundation
 @preconcurrency import CoreGraphics
 import Foundation
+import KeyPathCore
+import KeyPathPermissions
 
 /// A tap that observes keys without changing them, on its own thread.
 ///
@@ -37,7 +39,7 @@ final class ObservingEventTap: @unchecked Sendable {
         threadName: String,
         handler: @escaping Handler
     ) -> ObservingEventTap? {
-        for options in preferredOptions(listenAllowed: CGPreflightListenEventAccess()) {
+        for options in preferredOptions(listenAllowed: SystemStateProvider.shared.keyPathCanCreateListenOnlyTap()) {
             let observer = ObservingEventTap(passThrough: options == .defaultTap, handler: handler)
             let userInfo = Unmanaged.passUnretained(observer).toOpaque()
             guard let tap = CGEvent.tapCreate(

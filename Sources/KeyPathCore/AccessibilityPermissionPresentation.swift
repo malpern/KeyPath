@@ -9,8 +9,12 @@ public struct AccessibilityPermissionPresentation: Sendable {
 
     public let name: String
     public let openButtonTitle: String
+    /// On macOS 27, Device Control and Data Access lets a process both read and
+    /// post keys, so Input Monitoring is not needed alongside it.
+    public let coversInputMonitoring: Bool
 
     public init(macOSMajorVersion: Int) {
+        coversInputMonitoring = macOSMajorVersion >= 27
         openButtonTitle = macOSMajorVersion >= 27 ? "Open Settings" : "Open Accessibility"
         name = macOSMajorVersion >= 27 ? "Device Control and Data Access" : "Accessibility"
     }

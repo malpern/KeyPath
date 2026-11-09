@@ -1,6 +1,7 @@
 @preconcurrency import AppKit
 import Foundation
 import KeyPathCore
+import KeyPathPermissions
 
 @MainActor
 final class InvestigationEventTapService {
@@ -14,7 +15,7 @@ final class InvestigationEventTapService {
         guard !isStarted else { return }
         // Diagnostic only: runs when listen access already exists, as before, so it
         // never prompts and is not switched on for everyone by the pass-through fallback.
-        guard CGPreflightListenEventAccess() else { return }
+        guard SystemStateProvider.shared.keyPathCanCreateListenOnlyTap() else { return }
 
         let eventMask =
             (1 << CGEventType.keyDown.rawValue) |

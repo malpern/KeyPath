@@ -1,5 +1,6 @@
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathPermissions
 import XCTest
 
 final class RegistryKeyboardsTests: XCTestCase {
@@ -49,5 +50,27 @@ final class RegistryKeyboardsTests: XCTestCase {
         // Requesting a listen-only tap without access can prompt for Input Monitoring.
         XCTAssertEqual(ObservingEventTap.preferredOptions(listenAllowed: false), [.defaultTap])
         XCTAssertEqual(ObservingEventTap.preferredOptions(listenAllowed: true), [.listenOnly, .defaultTap])
+    }
+}
+
+final class SessionBlockingGuidanceTests: XCTestCase {
+    func testMacOS27AsksOnlyForDeviceControl() {
+        let presentation = AccessibilityPermissionPresentation(macOSMajorVersion: 27)
+        XCTAssertEqual(
+            PermissionOracle.Snapshot.sessionBlockingGuidance(accessibilityBlocking: false, presentation: presentation),
+            "Quit and reopen KeyPath so it can use Device Control and Data Access."
+        )
+        XCTAssertEqual(
+            PermissionOracle.Snapshot.sessionBlockingGuidance(accessibilityBlocking: true, presentation: presentation),
+            "Enable KeyPath in Device Control and Data Access in System Settings, then quit and reopen KeyPath."
+        )
+    }
+
+    func testEarlierMacOSStillNamesInputMonitoringWhenListeningIsDenied() {
+        let presentation = AccessibilityPermissionPresentation(macOSMajorVersion: 26)
+        XCTAssertEqual(
+            PermissionOracle.Snapshot.sessionBlockingGuidance(accessibilityBlocking: false, presentation: presentation),
+            "Enable KeyPath in Input Monitoring in System Settings, then quit and reopen KeyPath."
+        )
     }
 }

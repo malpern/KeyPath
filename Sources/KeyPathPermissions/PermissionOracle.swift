@@ -203,19 +203,32 @@ public actor PermissionOracle {
             // Kanata's permissions ARE required for remapping.
             if kanata.accessibility.isBlocking || kanata.inputMonitoring.isBlocking {
                 if backend == .session {
-                    // macOS 27's Device Control and Data Access covers both reading
-                    // and posting keys, so it is the only permission to ask for. With
-                    // it already on, the runtime only needs a fresh launch to use it.
-                    if kanata.accessibility.isBlocking {
-                        return "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name) in System Settings, then quit and reopen KeyPath."
-                    }
-                    return "Quit and reopen KeyPath so it can use \(AccessibilityPermissionPresentation.current.name)."
+                    return Self.sessionBlockingGuidance(
+                        accessibilityBlocking: kanata.accessibility.isBlocking,
+                        presentation: .current
+                    )
                 }
                 return
                     "Kanata needs permissions - use the Installation Wizard to grant \(AccessibilityPermissionPresentation.current.name) and Input Monitoring"
             }
 
             return nil
+        }
+
+        /// What to tell the user when the session runtime lacks key access.
+        /// On macOS 27 Device Control and Data Access covers reading keys, so once it
+        /// is on the runtime only needs a fresh launch. Earlier versions also need
+        /// Input Monitoring.
+        public static func sessionBlockingGuidance(
+            accessibilityBlocking: Bool, presentation: AccessibilityPermissionPresentation
+        ) -> String {
+            if accessibilityBlocking {
+                return "Enable KeyPath in \(presentation.name) in System Settings, then quit and reopen KeyPath."
+            }
+            if presentation.coversInputMonitoring {
+                return "Quit and reopen KeyPath so it can use \(presentation.name)."
+            }
+            return "Enable KeyPath in Input Monitoring in System Settings, then quit and reopen KeyPath."
         }
 
         /// Diagnostic information for troubleshooting
@@ -289,6 +302,13 @@ public actor PermissionOracle {
         lastSnapshot = nil
         lastSnapshotTime = nil
         inFlightSnapshot = nil
+    }
+
+    /// Whether this process may create a listen-only event tap. Non-prompting.
+    /// Observers prefer such a tap and otherwise fall back to a pass-through one,
+    /// because requesting a listen-only tap without access prompts for Input Monitoring.
+    public nonisolated func keyPathCanCreateListenOnlyTap() -> Bool {
+        CGPreflightListenEventAccess()
     }
 
     /// Synchronous, non-prompting Accessibility status for call sites that cannot

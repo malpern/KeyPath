@@ -378,7 +378,7 @@ public class KeyboardCapture {
         } else {
             // Observing only. Recording is short-lived, so this tap stays on the
             // main run loop; listen-only when allowed, so it cannot delay typing.
-            for options in ObservingEventTap.preferredOptions(listenAllowed: CGPreflightListenEventAccess()) {
+            for options in ObservingEventTap.preferredOptions(listenAllowed: SystemStateProvider.shared.keyPathCanCreateListenOnlyTap()) {
                 eventTap = CGEvent.tapCreate(
                     tap: location, place: .headInsertEventTap, options: options,
                     eventsOfInterest: CGEventMask(eventMask), callback: callback, userInfo: userInfo
