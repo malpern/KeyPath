@@ -501,11 +501,11 @@ extension StatusSettingsTabView {
             }
         }
 
-        append(status: snapshot.keyPath.accessibility, label: "KeyPath Accessibility")
+        append(status: snapshot.keyPath.accessibility, label: "KeyPath \(AccessibilityPermissionPresentation.current.name)")
         // Use the runtime's independent capture evidence for this gap summary.
         // The session worker uses KeyPath's consent; it is not another app to grant.
         let runtimeName = snapshot.backend == .session ? "KeyPath Runtime" : "Kanata"
-        append(status: snapshot.kanata.accessibility, label: "\(runtimeName) Accessibility")
+        append(status: snapshot.kanata.accessibility, label: "\(runtimeName) \(AccessibilityPermissionPresentation.current.name)")
         append(status: snapshot.kanata.inputMonitoring, label: "\(runtimeName) Input Monitoring")
 
         return (missingOrDenied, unknown, hasErrors)

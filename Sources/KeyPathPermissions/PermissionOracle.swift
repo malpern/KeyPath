@@ -206,7 +206,7 @@ public actor PermissionOracle {
                     return "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
                 }
                 return
-                    "Kanata needs permissions - use the Installation Wizard to grant Accessibility and Input Monitoring"
+                    "Kanata needs permissions - use the Installation Wizard to grant \(AccessibilityPermissionPresentation.current.name) and Input Monitoring"
             }
 
             return nil

@@ -33,7 +33,7 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
         case .helper: "Privileged Helper Installation"
         case .conflicts: "Resolve System Conflicts"
         case .inputMonitoring: "Input Monitoring Permission"
-        case .accessibility: "Accessibility Permission"
+        case .accessibility: "\(AccessibilityPermissionPresentation.current.name) Permission"
         case .karabinerComponents: "Karabiner Driver Setup"
         case .kanataMigration: "Migrate Existing Kanata Config"
         case .stopExternalKanata: "Stop External Kanata"

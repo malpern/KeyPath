@@ -124,7 +124,7 @@ struct AboutView: View {
                     )
 
                     statusRow(
-                        label: "Accessibility",
+                        label: AccessibilityPermissionPresentation.current.name,
                         value: context.permissions.keyPath.accessibility.description,
                         color: context.permissions.keyPath.accessibility.isReady ? .green : .orange
                     )

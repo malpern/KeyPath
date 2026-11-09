@@ -220,7 +220,7 @@ public enum KeyPathError: Error, LocalizedError {
         case .configuration(.validationFailed):
             "Review the configuration syntax and fix any validation errors"
         case .permission(.accessibilityNotGranted):
-            "Grant Accessibility permission in System Settings > Privacy & Security"
+            "Grant \(AccessibilityPermissionPresentation.current.name) permission in System Settings > Privacy & Security"
         case .permission(.inputMonitoringNotGranted):
             "Grant Input Monitoring permission in System Settings > Privacy & Security"
         case .process(.notRunning):
@@ -342,7 +342,7 @@ public enum KeyPathError: Error, LocalizedError {
     private func permissionErrorDescription(_ error: PermissionError) -> String {
         switch error {
         case .accessibilityNotGranted:
-            "Accessibility permission not granted"
+            "\(AccessibilityPermissionPresentation.current.name) permission not granted"
         case .inputMonitoringNotGranted:
             "Input Monitoring permission not granted"
         case .notificationAuthorizationFailed:

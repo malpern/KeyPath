@@ -70,7 +70,7 @@ public struct WizardActionSection: View {
         case .inputMonitoring:
             "Fix Input Monitoring"
         case .accessibility:
-            "Fix Accessibility"
+            "Fix \(AccessibilityPermissionPresentation.current.name)"
         case .service:
             "Start KeyPath Runtime"
         case .helper:

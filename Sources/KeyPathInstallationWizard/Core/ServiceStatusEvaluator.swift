@@ -157,11 +157,11 @@ public enum ServiceStatusEvaluator {
                 case .keyPathInputMonitoring:
                     return "Enable Input Monitoring for KeyPath in System Settings, then quit and reopen KeyPath."
                 case .keyPathAccessibility:
-                    return "Enable Accessibility for KeyPath in System Settings, then quit and reopen KeyPath."
+                    return "Enable \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings, then quit and reopen KeyPath."
                 case .kanataInputMonitoring:
                     return "Input Monitoring permission required"
                 case .kanataAccessibility:
-                    return "Accessibility permission required"
+                    return "\(AccessibilityPermissionPresentation.current.name) permission required"
                 default:
                     continue
                 }

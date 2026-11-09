@@ -441,7 +441,7 @@ struct StatusSettingsTabView: View {
         VStack(alignment: .leading, spacing: 8) {
             PermissionStatusRow(
                 title: permissionSnapshot?.backend == .session
-                    ? "KeyPath Runtime Accessibility" : "Kanata Accessibility",
+                    ? "KeyPath Runtime \(AccessibilityPermissionPresentation.current.name)" : "Kanata \(AccessibilityPermissionPresentation.current.name)",
                 icon: "checkmark.shield",
                 status: permissionSnapshot?.kanata.accessibility,
                 isKanata: true,

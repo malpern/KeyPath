@@ -99,7 +99,7 @@ struct KeyPathErrorTests {
     @Test("Permission error descriptions")
     func permissionErrorDescriptions() {
         let accessibility = KeyPathError.permission(.accessibilityNotGranted)
-        #expect(accessibility.errorDescription == "Accessibility permission not granted")
+        #expect(accessibility.errorDescription == "\(AccessibilityPermissionPresentation.current.name) permission not granted")
         #expect(accessibility.failureReason == "Permission or security check failed")
 
         let inputMonitoring = KeyPathError.permission(.inputMonitoringNotGranted)
@@ -252,7 +252,7 @@ struct KeyPathErrorTests {
         #expect(processStartFailed.errorDescription?.contains("permission denied") == true)
 
         let accessibilityError = KeyPathError.accessibilityNotGranted
-        #expect(accessibilityError.errorDescription?.contains("Accessibility") == true)
+        #expect(accessibilityError.errorDescription?.contains(AccessibilityPermissionPresentation.current.name) == true)
 
         let inputMonitoringError = KeyPathError.inputMonitoringNotGranted
         #expect(inputMonitoringError.errorDescription?.contains("Input Monitoring") == true)

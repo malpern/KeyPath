@@ -705,7 +705,7 @@ public struct WizardSystemStatusOverview: View {
         if hasBlockingInputMonitoring {
             return (.inputMonitoring, "Input Monitoring permission required")
         } else if hasBlockingAccessibility {
-            return (.accessibility, "Accessibility permission required")
+            return (.accessibility, "\(AccessibilityPermissionPresentation.current.name) permission required")
         } else {
             // Default to service page if no specific permission issue
             return (.service, "Check service status")

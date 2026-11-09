@@ -90,8 +90,8 @@ struct DiagnosticSummarySection: View {
                 timestamp: Date(),
                 severity: .critical,
                 category: .permissions,
-                title: "Accessibility Missing",
-                description: "Accessibility permission is required.",
+                title: "\(AccessibilityPermissionPresentation.current.name) Missing",
+                description: "\(AccessibilityPermissionPresentation.current.name) permission is required.",
                 technicalDetails: "AX API denied",
                 suggestedAction: "Enable in System Settings",
                 canAutoFix: false

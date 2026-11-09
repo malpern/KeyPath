@@ -22,8 +22,9 @@ public enum SystemInspector {
             missing.append(.keyPathAccessibility)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
-                title: "Allow KeyPath to remap keys", description: context.permissions.blockingIssue ?? "Enable KeyPath in Accessibility, then quit and reopen KeyPath.",
-                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Open Accessibility in System Settings"
+                title: "Allow KeyPath to remap keys",
+                description: context.permissions.blockingIssue ?? "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name), then quit and reopen KeyPath.",
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Open \(AccessibilityPermissionPresentation.current.name) in System Settings"
             ))
         } else if context.permissions.keyPath.accessibility.isReady,
                   context.permissions.kanata.accessibility.isReady,
@@ -33,7 +34,7 @@ public enum SystemInspector {
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathInputMonitoring), severity: .error, category: .permissions,
                 title: "Keyboard access still needs approval",
-                description: context.permissions.blockingIssue ?? "Enable Accessibility and Input Monitoring for KeyPath, then quit and reopen KeyPath.",
+                description: context.permissions.blockingIssue ?? "Enable \(AccessibilityPermissionPresentation.current.name) and Input Monitoring for KeyPath, then quit and reopen KeyPath.",
                 autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Enable KeyPath in Input Monitoring, then quit and reopen KeyPath"
             ))
         }
@@ -179,9 +180,9 @@ public enum SystemInspector {
         appendPermissionIssue(
             context.permissions.keyPath.accessibility,
             identifier: .permission(.keyPathAccessibility),
-            title: "Accessibility Permission Required",
-            deniedDescription: "KeyPath needs Accessibility permission to function",
-            userAction: "Grant Accessibility permission in System Settings",
+            title: "\(AccessibilityPermissionPresentation.current.name) Permission Required",
+            deniedDescription: "KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission to function",
+            userAction: "Grant \(AccessibilityPermissionPresentation.current.name) permission in System Settings",
             includeUnknown: false,
             into: &issues
         )
@@ -197,9 +198,9 @@ public enum SystemInspector {
         appendPermissionIssue(
             context.permissions.kanata.accessibility,
             identifier: .permission(.kanataAccessibility),
-            title: "Kanata Engine Accessibility Permission",
-            deniedDescription: "The Kanata engine used by KeyPath needs Accessibility permission",
-            userAction: "Grant Accessibility permission to the Kanata engine binary in System Settings",
+            title: "Kanata Engine \(AccessibilityPermissionPresentation.current.name) Permission",
+            deniedDescription: "The Kanata engine used by KeyPath needs \(AccessibilityPermissionPresentation.current.name) permission",
+            userAction: "Grant \(AccessibilityPermissionPresentation.current.name) permission to the Kanata engine binary in System Settings",
             includeUnknown: true,
             into: &issues
         )
@@ -388,10 +389,10 @@ public enum SystemInspector {
                     identifier: .permission(.kanataAccessibility),
                     severity: .error,
                     category: .permissions,
-                    title: "Kanata Engine Accessibility Permission",
+                    title: "Kanata Engine \(AccessibilityPermissionPresentation.current.name) Permission",
                     description: "macOS rejected Kanata Engine after a rebuild. Remove and re-add the Kanata Engine entry in \(AccessibilityPermissionPresentation.current.settingsPath).",
                     autoFixAction: nil,
-                    userAction: "Re-grant Accessibility permission for Kanata Engine in System Settings"
+                    userAction: "Re-grant \(AccessibilityPermissionPresentation.current.name) permission for Kanata Engine in System Settings"
                 ))
             } else {
                 issues.append(WizardIssue(
