@@ -38,7 +38,7 @@ public extension InstallationWizardView {
             }
         }
 
-        refreshTask = Task { [previousPage, showSpinner] in
+        refreshTask = Task { [showSpinner] in
             // Wait for in-flight operations to complete (only when showing validating state)
             if showSpinner, await MainActor.run(body: { asyncOperationManager.hasRunningOperations }) {
                 AppLogger.shared.log("🔍 [Wizard] Refresh waiting for in-flight operations")
@@ -53,19 +53,14 @@ public extension InstallationWizardView {
 
             // Run state detection
             await MainActor.run {
-                performStateDetection(
-                    previousPage: previousPage,
-                    attempt: 0,
-                    showSpinner: showSpinner,
-                    requestID: requestID
-                )
+                performStateDetection(requestID: requestID)
             }
         }
     }
 
     /// Internal: Performs state detection
     @MainActor
-    func performStateDetection(previousPage: WizardPage?, attempt: Int, showSpinner: Bool, requestID: UUID) {
+    func performStateDetection(requestID: UUID) {
         guard !isForceClosing, !Task.isCancelled,
               stateMachine.inspectionRequestID == requestID else { return }
 
@@ -74,7 +69,7 @@ public extension InstallationWizardView {
             progressCallback: { _ in }
         )
 
-        asyncOperationManager.execute(operation: operation) { [previousPage, attempt, showSpinner] (result: SystemStateResult) in
+        asyncOperationManager.execute(operation: operation) { (result: SystemStateResult) in
             guard stateMachine.inspectionRequestID == requestID else { return }
             _ = applySystemStateResult(result)
 

@@ -126,12 +126,11 @@ final class WizardAsyncOperationManagerTests: XCTestCase {
         await fulfillment(of: [failed], timeout: 2)
     }
 
-    func testDelayedRetryCannotStartAfterANewerRefreshRequest() {
+    func testStaleDetectionCannotStartAfterANewerRefreshRequest() {
         let view = InstallationWizardView()
         let oldRequest = UUID()
         view.stateMachine.inspectionRequestID = UUID()
-        view.performStateDetection(previousPage: .service, attempt: 1,
-                                   showSpinner: true, requestID: oldRequest)
+        view.performStateDetection(requestID: oldRequest)
         XCTAssertFalse(view.asyncOperationManager.hasRunningOperations)
         XCTAssertEqual(view.stateMachine.stateVersion, 0)
     }
