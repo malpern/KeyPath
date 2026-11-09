@@ -20,6 +20,23 @@ source "$SCRIPT_DIR/lib/deploy-lock.sh"
 source "$SCRIPT_DIR/lib/build-cache.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
 keypath_use_selected_xcode
+
+# Only a Developer ID build may replace /Applications/KeyPath.app. macOS keeps one
+# privacy row per bundle ID and binds it to the signature it first saw, so a
+# build signed any other way (Apple Development, ad-hoc) claims the
+# com.keypath.KeyPath row. Every later Developer ID build then reads as denied
+# while its switch shows on, and re-adding it does not help (2026-11-08, the
+# Air). Decide before anything is stopped or copied.
+PREFERRED_SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
+SIGNING_IDENTITY="$(kp_dev_signing_identity "$PREFERRED_SIGNING_IDENTITY")"
+if [[ "$SIGNING_IDENTITY" != "$PREFERRED_SIGNING_IDENTITY" && "${KEYPATH_ALLOW_DEV_SIGNING:-0}" != "1" ]]; then
+    echo "❌ $PREFERRED_SIGNING_IDENTITY is not in this Mac's keychain; nothing was changed." >&2
+    echo "   A KeyPath signed any other way takes over KeyPath's Device Control and Data" >&2
+    echo "   Access and Input Monitoring rows, and Developer ID builds then stay denied." >&2
+    echo "   Deploy from a Mac that has it (Scripts/air-iterate.sh builds on the mini)," >&2
+    echo "   or set KEYPATH_ALLOW_DEV_SIGNING=1 if you accept that." >&2
+    exit 1
+fi
 APP_NAME="KeyPath"
 APP_BUNDLE="/Applications/${APP_NAME}.app"
 MACOS_DIR="$APP_BUNDLE/Contents/MacOS"
@@ -507,8 +524,8 @@ if [ -f "$BUILD_INFO" ]; then
 fi
 
 echo "✍️  Signing..."
-PREFERRED_SIGNING_IDENTITY="${CODESIGN_IDENTITY:-Developer ID Application: Micah Alpern (X2RKZ5TG99)}"
-SIGNING_IDENTITY="$(kp_dev_signing_identity "$PREFERRED_SIGNING_IDENTITY")"
+# PREFERRED_SIGNING_IDENTITY and SIGNING_IDENTITY were chosen, and a non-Developer
+# ID identity refused, at the top of this script.
 HELPER_EXEC="$APP_BUNDLE/Contents/Library/HelperTools/KeyPathHelper"
 HELPER_ENTITLEMENTS="$PROJECT_DIR/Sources/KeyPathHelper/KeyPathHelper.entitlements"
 CLI_EXEC="$APP_BUNDLE/Contents/MacOS/keypath-cli"

@@ -218,7 +218,11 @@ public struct WizardAccessibilityPage: View {
         if keyPathRequestAttemptedAt == nil { keyPathRequestAttemptedAt = Date() }
         Task { @MainActor in
             if let service = WizardDependencies.permissionRequestService {
-                _ = await service.requestAccessibilityPermission(ignoreCooldown: true)
+                // Keep the service's cooldown: macOS shows its dialog on every
+                // request, so a user pressing this button again while the grant
+                // has not taken effect would get the same dialog each time.
+                // Later presses only open Settings.
+                _ = await service.requestAccessibilityPermission(ignoreCooldown: false)
             }
             openAccessibilitySettings()
         }
@@ -287,6 +291,8 @@ public struct WizardAccessibilityPage: View {
 /// tile the user drags KeyPath into — instead of leaving them at a "Turn On" button
 /// that appeared to do nothing. Mirrors the Input Monitoring fallback card.
 private struct AccessibilityManualFallbackCard: View {
+    @State private var resetMessage: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Didn't see a permission prompt?", systemImage: "hand.raised.circle")
@@ -316,6 +322,21 @@ private struct AccessibilityManualFallbackCard: View {
             .buttonStyle(WizardDesign.Component.SecondaryButton())
             .accessibilityIdentifier("wizard_accessibility_manual_fallback")
             .padding(.top, 4)
+
+            // Re-adding with + keeps the old row's signature, so offer to delete
+            // KeyPath's own row and ask macOS again for this build.
+            Button("Reset KeyPath's Permission") {
+                resetKeyPathRow()
+            }
+            .buttonStyle(WizardDesign.Component.SecondaryButton())
+            .accessibilityIdentifier("wizard_accessibility_reset_row")
+
+            if let resetMessage {
+                Text(resetMessage)
+                    .font(.callout)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(WizardDesign.Spacing.cardPadding)
@@ -323,5 +344,20 @@ private struct AccessibilityManualFallbackCard: View {
             WizardDesign.Colors.warning.opacity(0.06),
             in: RoundedRectangle(cornerRadius: WizardDesign.Layout.cornerRadius)
         )
+    }
+
+    private func resetKeyPathRow() {
+        AppLogger.shared.log("🔐 [WizardAccessibilityPage] Resetting KeyPath's own Accessibility row")
+        guard PermissionRowReset.reset(.accessibility) else {
+            resetMessage = "macOS did not reset KeyPath's entry. Remove KeyPath with − in System Settings, then add it again."
+            return
+        }
+        resetMessage = "Reset. Allow KeyPath when macOS asks, then turn it on in System Settings."
+        Task { @MainActor in
+            if let service = WizardDependencies.permissionRequestService {
+                // The row is gone, so this asks for a fresh row bound to this build.
+                _ = await service.requestAccessibilityPermission(ignoreCooldown: true)
+            }
+        }
     }
 }

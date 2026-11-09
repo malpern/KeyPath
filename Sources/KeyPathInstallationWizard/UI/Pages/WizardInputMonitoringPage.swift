@@ -361,7 +361,9 @@ public struct WizardInputMonitoringPage: View {
         if keyPathRequestAttemptedAt == nil { keyPathRequestAttemptedAt = Date() }
         Task { @MainActor in
             if let service = WizardDependencies.permissionRequestService {
-                _ = await service.requestInputMonitoringPermission(ignoreCooldown: true)
+                // Keep the cooldown, as on the Accessibility page: repeated presses
+                // must not bring the system dialog back each time.
+                _ = await service.requestInputMonitoringPermission(ignoreCooldown: false)
             }
             openInputMonitoringPreferencesPanel()
         }
