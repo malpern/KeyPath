@@ -1,4 +1,4 @@
-# Keyboard attribution spike (paused 2026-11-09)
+# Keyboard attribution spike (2026-11-09)
 
 **Question:** can KeyPath tell which physical keyboard each key came from,
 so per-keyboard remapping could return as an opt-in feature?
@@ -56,10 +56,33 @@ It needs Input Monitoring for whatever launches it (Terminal, or a wrapper
 - **Deployment target:** build for the guest's macOS version. A binary built on
   27.3 fails to launch on 27.0 with LaunchServices error -10825.
 
+## Results on the mini (2026-11-09, KBAttribution.app with Input Monitoring)
+
+| Run | Tap events | Matched to a keyboard | Ambiguous | Repeats credited | Tap minus HID (p50 / p95 / max) |
+|---|---|---|---|---|---|
+| Fixture only | 41 | 41 (100%) | 0 | 29 of 29 | 1.1 / 6.1 / 10.2 ms |
+| Fixture and a person typing on the cl80 | 923 | 923 (100%) | 0 | 152 of 152 | 1.1 / 5.4 / 9.2 ms |
+
+**Ground truth.** The fixture sends only arrow keys, and all 606 events credited to it
+were arrows. All 317 events credited to the cl80 came from typing: 292 other keys and 25
+arrows.
+
+**Event timestamps and callback arrival times give the same answer**, so either clock
+works. The tap stream trails the HID stream by about 1 ms, and by at most about 10 ms.
+
+**Not exercised: the same key pressed on two keyboards within a few milliseconds.** The
+person's arrow presses were at least 9.3 s from the fixture's. That case is physically
+rare, but the matcher would have to choose between the two candidates by timestamp, so it
+should be tested deliberately before any feature ships.
+
+**Open question, separate from attribution.** In the fixture-only run, 202 USB reports
+produced only 41 key presses, and both streams agreed on that count. In the two-keyboard
+run, 3×202 reports produced all 606 events.
+
 ## To finish
 
-Run it where a person can grant Input Monitoring: either the Air with two real
-keyboards, or a VM where someone enters the guest password. Report:
+Test the same-key overlap case on purpose: hold an arrow key on a real keyboard while the
+fixture taps the same arrow. Then decide on the opt-in per-keyboard feature. Report:
 - attribution rate
 - ambiguous matches
 - repeat handling
