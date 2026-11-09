@@ -101,50 +101,22 @@ final class WizardGoldenTests: XCTestCase {
         XCTAssertEqual(result.state, .serviceNotRunning)
     }
 
-    func test_conflictsPresent_stateIsConflictsDetected() {
+    func test_kanataIMDenied_stateIsMissingPermissions() {
         let context = makeContext(
-            conflicts: ConflictStatus(
-                conflicts: [.kanataProcessRunning(pid: 123, command: "kanata")],
-                canAutoResolve: true
-            )
+            permissions: makePermissions(kanataIM: .denied)
         )
         let result = SystemStateResult.projecting(context)
-        if case .conflictsDetected = result.state {
-            // pass
-        } else {
-            XCTFail("Expected .conflictsDetected, got \(result.state)")
-        }
+        XCTAssertEqual(result.state, .missingPermissions(missing: [.keyPathInputMonitoring]))
     }
 
-    func test_missingKarabinerDriver_stateIsMissingComponents() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: false,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: false
-        )
-        let context = makeContext(components: components)
-        let result = SystemStateResult.projecting(context)
-        if case let .missingComponents(missing) = result.state {
-            XCTAssertTrue(missing.contains(.karabinerDriver))
-        } else {
-            XCTFail("Expected .missingComponents, got \(result.state)")
-        }
-    }
-
-    func test_keyPathIMDenied_stateIsMissingPermissions() {
+    func test_keyPathIMDenied_doesNotBlockReadyRuntime() {
+        // The app's own Input Monitoring is not a session-runtime requirement;
+        // the runtime's effective input access is.
         let context = makeContext(
             permissions: makePermissions(keyPathIM: .denied)
         )
         let result = SystemStateResult.projecting(context)
-        if case let .missingPermissions(missing) = result.state {
-            XCTAssertTrue(missing.contains(.keyPathInputMonitoring))
-        } else {
-            XCTFail("Expected .missingPermissions, got \(result.state)")
-        }
+        XCTAssertEqual(result.state, .active)
     }
 
     func test_kanataAXDenied_stateIsMissingPermissions() {
@@ -152,19 +124,8 @@ final class WizardGoldenTests: XCTestCase {
             permissions: makePermissions(kanataAX: .denied)
         )
         let result = SystemStateResult.projecting(context)
-        if case let .missingPermissions(missing) = result.state {
-            XCTAssertTrue(missing.contains(.kanataAccessibility))
-        } else {
-            XCTFail("Expected .missingPermissions, got \(result.state)")
-        }
-    }
-
-    func test_kanataIMUnknown_stateStaysActive() {
-        let context = makeContext(
-            permissions: makePermissions(kanataIM: .unknown)
-        )
-        let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(result.state, .active, "Unknown kanata IM should NOT block — it's 'not verified', not denied")
+        XCTAssertEqual(result.state, .missingPermissions(missing: [.keyPathAccessibility]),
+                       "Either side's denied Accessibility asks the user to allow KeyPath")
     }
 
     func test_kanataNotRunning_daemonRunning_stateIsServiceNotRunning() {
@@ -173,14 +134,6 @@ final class WizardGoldenTests: XCTestCase {
         )
         let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .serviceNotRunning)
-    }
-
-    func test_daemonNotRunning_stateIsDaemonNotRunning() {
-        let context = makeContext(
-            services: HealthStatus(backend: .driverKit, kanataRunning: false, karabinerDaemonRunning: false, vhidHealthy: true)
-        )
-        let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(result.state, .daemonNotRunning)
     }
 
     // MARK: - SystemStateResult projection: Issue Generation
@@ -192,73 +145,11 @@ final class WizardGoldenTests: XCTestCase {
         XCTAssertTrue(blocking.isEmpty, "Healthy system should have no blocking issues, got: \(blocking.map(\.title))")
     }
 
-    func test_helperNotInstalled_generatesHelperIssue() {
-        let context = makeContext(helper: HelperStatus(isInstalled: false, version: nil, isWorking: false))
-        let result = SystemStateResult.projecting(context)
-        XCTAssertTrue(
-            result.issues.contains { $0.identifier == .component(.privilegedHelper) },
-            "Should generate privilegedHelper issue"
-        )
-    }
-
-    func test_helperInstalledButBroken_generatesUnhealthyIssue() {
-        let context = makeContext(helper: HelperStatus(isInstalled: true, version: "1.0", isWorking: false))
-        let result = SystemStateResult.projecting(context)
-        XCTAssertTrue(
-            result.issues.contains { $0.identifier == .component(.privilegedHelperUnhealthy) },
-            "Should generate privilegedHelperUnhealthy issue"
-        )
-    }
-
-    func test_vhidVersionMismatch_generatesIssueWithAutoFix() {
-        let components = ComponentStatus(
-            kanataBinaryInstalled: true,
-            karabinerDriverInstalled: true,
-            karabinerDaemonRunning: true,
-            vhidDeviceInstalled: true,
-            vhidDeviceHealthy: true,
-            vhidServicesHealthy: true,
-            vhidVersionMismatch: true
-        )
-        let context = makeContext(components: components)
-        let result = SystemStateResult.projecting(context)
-        let issue = result.issues.first { $0.identifier == .component(.vhidDriverVersionMismatch) }
-        XCTAssertNotNil(issue, "Should generate version mismatch issue")
-        XCTAssertEqual(issue?.autoFixAction, .fixDriverVersionMismatch)
-    }
-
-    func test_timedOut_generatesSingleWarningIssue() {
+    func test_timedOut_generatesNoInventedIssues() {
         let context = makeContext(timedOut: true)
         let result = SystemStateResult.projecting(context)
-        XCTAssertEqual(result.issues.count, 1)
-        XCTAssertEqual(result.issues.first?.identifier, .validationTimeout)
-        XCTAssertEqual(result.issues.first?.severity, .warning)
-    }
-
-    func test_conflictsPresent_generatesConflictIssues() {
-        let context = makeContext(
-            conflicts: ConflictStatus(
-                conflicts: [
-                    .kanataProcessRunning(pid: 123, command: "kanata"),
-                    .karabinerGrabberRunning(pid: 456),
-                ],
-                canAutoResolve: true
-            )
-        )
-        let result = SystemStateResult.projecting(context)
-        let conflictIssues = result.issues.filter { $0.category == .conflicts }
-        XCTAssertEqual(conflictIssues.count, 2)
-        XCTAssertEqual(conflictIssues.first?.autoFixAction, .terminateConflictingProcesses)
-    }
-
-    func test_kanataIMUnknown_generatesWarningNotError() {
-        let context = makeContext(
-            permissions: makePermissions(kanataIM: .unknown)
-        )
-        let result = SystemStateResult.projecting(context)
-        let imIssue = result.issues.first { $0.identifier == .permission(.kanataInputMonitoring) }
-        XCTAssertNotNil(imIssue, "Should generate issue for unknown kanata IM")
-        XCTAssertEqual(imIssue?.severity, .warning, "Unknown should be warning, not error")
+        XCTAssertEqual(result.captureStatus, .timedOut)
+        XCTAssertTrue(result.issues.isEmpty, "A timed-out capture must not invent consent or runtime faults")
     }
 
     func test_keyPathIMUnknown_doesNotGenerateIssue() {
@@ -275,42 +166,9 @@ final class WizardGoldenTests: XCTestCase {
     func test_route_allHealthy_returnsSummary() {
         let page = WizardRouter.route(
             state: .active,
-            issues: [],
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: []
         )
         XCTAssertEqual(page, .summary)
-    }
-
-    func test_route_helperStateDoesNotAffectRouting() {
-        for (installed, needsApproval) in [(false, false), (true, true), (false, true)] {
-            let page = WizardRouter.route(
-                state: .active,
-                issues: [],
-                helperInstalled: installed,
-                helperNeedsApproval: needsApproval, backend: .driverKit
-            )
-            XCTAssertEqual(page, .summary, "The retired helper must not gate routing")
-        }
-    }
-
-    func test_route_conflictIssues_fallThroughToSummary() {
-        let issues = [WizardIssue(
-            identifier: .conflict(.kanataProcessRunning(pid: 1, command: "kanata")),
-            severity: .error,
-            category: .conflicts,
-            title: "Conflict",
-            description: "",
-            autoFixAction: nil,
-            userAction: nil
-        )]
-        let page = WizardRouter.route(
-            state: .conflictsDetected(conflicts: []),
-            issues: issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
-        )
-        XCTAssertEqual(page, .summary, "There is no conflicts page; conflict issues are shown on summary")
     }
 
     func test_route_keyPathIMDenied_returnsInputMonitoring() {
@@ -325,9 +183,7 @@ final class WizardGoldenTests: XCTestCase {
         )]
         let page = WizardRouter.route(
             state: .missingPermissions(missing: [.keyPathInputMonitoring]),
-            issues: issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: issues
         )
         XCTAssertEqual(page, .inputMonitoring)
     }
@@ -344,9 +200,7 @@ final class WizardGoldenTests: XCTestCase {
         )]
         let page = WizardRouter.route(
             state: .missingPermissions(missing: [.kanataAccessibility]),
-            issues: issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: issues
         )
         XCTAssertEqual(page, .accessibility)
     }
@@ -363,9 +217,7 @@ final class WizardGoldenTests: XCTestCase {
         )]
         let page = WizardRouter.route(
             state: .active,
-            issues: issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: issues
         )
         XCTAssertEqual(page, .summary, "Warning-level permission issues should NOT route to permission pages")
     }
@@ -373,19 +225,7 @@ final class WizardGoldenTests: XCTestCase {
     func test_route_serviceNotRunning_returnsService() {
         let page = WizardRouter.route(
             state: .serviceNotRunning,
-            issues: [],
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
-        )
-        XCTAssertEqual(page, .service)
-    }
-
-    func test_route_daemonNotRunning_returnsService() {
-        let page = WizardRouter.route(
-            state: .daemonNotRunning,
-            issues: [],
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: []
         )
         XCTAssertEqual(page, .service)
     }
@@ -397,21 +237,17 @@ final class WizardGoldenTests: XCTestCase {
         let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
-            issues: result.issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: result.issues
         )
         XCTAssertEqual(page, .summary)
     }
 
-    func test_e2e_keyPathIMDenied_routesToInputMonitoring() {
-        let context = makeContext(permissions: makePermissions(keyPathIM: .denied))
+    func test_e2e_kanataIMDenied_routesToInputMonitoring() {
+        let context = makeContext(permissions: makePermissions(kanataIM: .denied))
         let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
-            issues: result.issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: result.issues
         )
         XCTAssertEqual(page, .inputMonitoring)
     }
@@ -423,29 +259,9 @@ final class WizardGoldenTests: XCTestCase {
         let result = SystemStateResult.projecting(context)
         let page = WizardRouter.route(
             state: result.state,
-            issues: result.issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: result.issues
         )
         XCTAssertEqual(page, .service)
-    }
-
-    func test_e2e_multipleIssues_routesByPriority() {
-        let context = makeContext(
-            permissions: makePermissions(keyPathIM: .denied),
-            conflicts: ConflictStatus(
-                conflicts: [.kanataProcessRunning(pid: 1, command: "kanata")],
-                canAutoResolve: true
-            )
-        )
-        let result = SystemStateResult.projecting(context)
-        let page = WizardRouter.route(
-            state: result.state,
-            issues: result.issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
-        )
-        XCTAssertEqual(page, .inputMonitoring, "Permissions route ahead of conflicts, which have no page")
     }
 
     // MARK: - WizardRouter: nextPage
@@ -463,49 +279,24 @@ final class WizardGoldenTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .kanataMigration,
             state: .missingPermissions(missing: [.keyPathInputMonitoring]),
-            issues: issues, backend: .driverKit
+            issues: issues
         )
         XCTAssertEqual(next, .inputMonitoring, "Should skip green pages and land on inputMonitoring")
     }
 
     func test_nextPage_allGreen_returnsSummary() {
-        let next = WizardRouter.nextPage(after: .accessibility, state: .active, issues: [], backend: .driverKit)
+        let next = WizardRouter.nextPage(after: .accessibility, state: .active, issues: [])
         XCTAssertEqual(next, .summary)
     }
 
     // MARK: - WizardRouter: pageHasRelevantIssues
 
-    func test_pageHasRelevantIssues_conflictIssuesOnlyRelevantToSummary() {
-        let issues = [WizardIssue(
-            identifier: .conflict(.kanataProcessRunning(pid: 1, command: "kanata")),
-            severity: .error,
-            category: .conflicts,
-            title: "Conflict",
-            description: "",
-            autoFixAction: nil,
-            userAction: nil
-        )]
-        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.summary, issues: issues, state: .active))
-        XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.inputMonitoring, issues: issues, state: .active))
-        XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.accessibility, issues: issues, state: .active))
-        XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.service, issues: issues, state: .active))
-    }
-
     func test_pageHasRelevantIssues_servicePage() {
         XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.service, issues: [], state: .serviceNotRunning))
-        XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.service, issues: [], state: .daemonNotRunning))
         XCTAssertFalse(WizardRouter.pageHasRelevantIssues(.service, issues: [], state: .active))
     }
 
     func test_pageHasRelevantIssues_summaryAlwaysTrue() {
         XCTAssertTrue(WizardRouter.pageHasRelevantIssues(.summary, issues: [], state: .active))
-    }
-
-    // MARK: - WizardRouter: isBlockingPage
-
-    func test_isBlockingPage_noPageBlocks() {
-        for page in WizardPage.allCases {
-            XCTAssertFalse(WizardRouter.isBlockingPage(page, helperInstalled: false, helperNeedsApproval: true))
-        }
     }
 }

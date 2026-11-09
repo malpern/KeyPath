@@ -57,8 +57,7 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".config/keypath").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Library/Application Support/KeyPath").path))
         XCTAssertFalse(defaults.bool(forKey: "wizard_has_seen_welcome"))
-        XCTAssertTrue(WizardWelcomeGate.shouldShowWelcome(helperInstalled: false,
-                                                          hasSeenWelcome: defaults.bool(forKey: "wizard_has_seen_welcome"), forced: false))
+        XCTAssertTrue(WizardWelcomeGate.shouldShowWelcome(hasSeenWelcome: defaults.bool(forKey: "wizard_has_seen_welcome"), forced: false))
         XCTAssertTrue(result.logs.first?.contains("KeyPath-Uninstall-Backup-") == true)
     }
 

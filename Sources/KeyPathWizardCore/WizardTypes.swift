@@ -126,10 +126,8 @@ public enum LaunchFailureStatus: Equatable {
 /// Represents the overall system state for the wizard
 public enum WizardSystemState: Equatable, Sendable {
     case initializing
-    case conflictsDetected(conflicts: [SystemConflict])
     case missingPermissions(missing: [PermissionRequirement])
     case missingComponents(missing: [ComponentRequirement])
-    case daemonNotRunning
     case serviceNotRunning
     case ready
     case active
@@ -150,30 +148,12 @@ public enum PermissionRequirement: Equatable, Sendable {
     case kanataAccessibility
     case keyPathInputMonitoring
     case keyPathAccessibility
-    case driverExtensionEnabled
-    case backgroundServicesEnabled
 }
 
 /// Component requirements that need installation
 public enum ComponentRequirement: Equatable, Sendable {
-    case privilegedHelper // Privileged helper for system-level operations
-    case privilegedHelperUnhealthy // Helper installed but not responding/working
     case bundledKanataMissing // CRITICAL: Bundled kanata binary missing from app bundle (packaging issue)
     case keyPathRuntime
-    case karabinerDriver
-    case karabinerDaemon
-    case vhidDeviceManager
-    case vhidDeviceActivation
-    case vhidDeviceRunning
-    case vhidDaemonMisconfigured
-    case vhidDriverVersionMismatch // Karabiner driver version incompatible with kanata version
-    case kanataTCPServer // TCP server for Kanata communication and config validation
-    case orphanedKanataProcess // External Kanata runtime is conflicting with KeyPath runtime
-    case communicationServerConfiguration // Communication server enabled but not configured in service
-    case communicationServerNotResponding // Communication server configured but not responding
-    case tcpServerConfiguration // TCP enabled but not configured in service
-    case tcpServerNotResponding // TCP configured but not responding
-    case logRotation // Log rotation via newsyslog to manage Kanata logs
 }
 
 /// Actions that can be automatically fixed by the wizard
@@ -204,15 +184,8 @@ public enum AutoFixAction: Equatable, Sendable {
 public enum IssueIdentifier: Equatable, Sendable {
     case permission(PermissionRequirement)
     case component(ComponentRequirement)
-    case conflict(SystemConflict)
     case daemon
     case validationTimeout
-
-    /// Check if this identifier represents a conflict
-    public var isConflict: Bool {
-        if case .conflict = self { return true }
-        return false
-    }
 
     /// Check if this identifier represents a permission issue
     public var isPermission: Bool {
@@ -230,22 +203,6 @@ public enum IssueIdentifier: Equatable, Sendable {
     public var isDaemon: Bool {
         if case .daemon = self { return true }
         return false
-    }
-
-    /// Check if this identifier is related to VirtualHIDDevice issues
-    public var isVHIDRelated: Bool {
-        switch self {
-        case let .component(component):
-            switch component {
-            case .vhidDeviceManager, .vhidDeviceActivation, .vhidDeviceRunning, .vhidDaemonMisconfigured,
-                 .vhidDriverVersionMismatch:
-                true
-            default:
-                false
-            }
-        default:
-            false
-        }
     }
 }
 
@@ -304,9 +261,7 @@ public struct WizardIssue: Identifiable, Equatable, Sendable {
     }
 
     public enum IssueCategory: Equatable, Sendable {
-        case conflicts
         case permissions
-        case backgroundServices
         case installation
         case daemon
         case systemRequirements
@@ -337,7 +292,6 @@ public struct WizardNavigationState: Sendable {
 
 /// Result of system state detection
 public struct SystemStateResult: Sendable {
-    public let backend: KanataRuntimeBackend
     public let state: WizardSystemState
     public let issues: [WizardIssue]
     public let autoFixActions: [AutoFixAction]
@@ -345,10 +299,6 @@ public struct SystemStateResult: Sendable {
     public let stateMatrixRow: String?
     public let stateMatrixPlan: [String]
     public let captureStatus: SystemSnapshotCaptureStatus
-    /// Routing facts captured with the same system snapshot as `state` and
-    /// `issues`; wizard clients must not re-probe helper state while routing.
-    public let helperInstalled: Bool
-    public let helperNeedsApproval: Bool
     /// Permission facts from the same canonical capture as `state` and `issues`.
     /// Optional for synthetic/error results that have no permission snapshot.
     public let permissions: PermissionOracle.Snapshot?
@@ -359,9 +309,6 @@ public struct SystemStateResult: Sendable {
         stateMatrixRow: String? = nil,
         stateMatrixPlan: [String] = [],
         captureStatus: SystemSnapshotCaptureStatus = .complete,
-        helperInstalled: Bool = false,
-        helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .selected,
         permissions: PermissionOracle.Snapshot? = nil
     ) {
         self.state = state
@@ -371,9 +318,6 @@ public struct SystemStateResult: Sendable {
         self.stateMatrixRow = stateMatrixRow
         self.stateMatrixPlan = stateMatrixPlan
         self.captureStatus = captureStatus
-        self.helperInstalled = helperInstalled
-        self.helperNeedsApproval = helperNeedsApproval
-        self.backend = backend
         self.permissions = permissions
     }
 

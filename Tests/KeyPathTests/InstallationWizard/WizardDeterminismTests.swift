@@ -17,8 +17,8 @@ final class WizardDeterminismTests: XCTestCase {
         )]
         let state: WizardSystemState = .missingPermissions(missing: [.keyPathInputMonitoring])
 
-        let first = WizardRouter.route(state: state, issues: issues, helperInstalled: true, helperNeedsApproval: false)
-        let second = WizardRouter.route(state: state, issues: issues, helperInstalled: true, helperNeedsApproval: false)
+        let first = WizardRouter.route(state: state, issues: issues)
+        let second = WizardRouter.route(state: state, issues: issues)
 
         XCTAssertEqual(first, second, "Routing should be deterministic for identical inputs")
     }
@@ -36,15 +36,11 @@ final class WizardDeterminismTests: XCTestCase {
 
         let permissionPage = WizardRouter.route(
             state: .missingPermissions(missing: [.keyPathAccessibility]),
-            issues: permissionIssues,
-            helperInstalled: true,
-            helperNeedsApproval: false
+            issues: permissionIssues
         )
         let readyPage = WizardRouter.route(
             state: .active,
-            issues: [],
-            helperInstalled: true,
-            helperNeedsApproval: false
+            issues: []
         )
 
         XCTAssertEqual(permissionPage, .accessibility)

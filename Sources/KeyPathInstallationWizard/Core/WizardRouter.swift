@@ -10,10 +10,7 @@ public enum WizardRouter {
     /// Determine the appropriate page given system state and detected issues.
     public static func route(
         state: WizardSystemState,
-        issues: [WizardIssue],
-        helperInstalled _: Bool,
-        helperNeedsApproval _: Bool,
-        backend _: KanataRuntimeBackend = .selected
+        issues: [WizardIssue]
     ) -> WizardPage {
         // 1. Permissions (blocking only — warnings like "not verified" don't route here)
         // Accessibility may already provide effective input access. Resolve it
@@ -31,7 +28,7 @@ public enum WizardRouter {
 
         // 2. Service readiness
         switch state {
-        case .serviceNotRunning, .ready, .daemonNotRunning:
+        case .serviceNotRunning, .ready:
             return .service
         default:
             break
@@ -64,32 +61,14 @@ public enum WizardRouter {
         }
     }
 
-    // MARK: - Next Page (skipping resolved pages, enforcing prerequisites)
+    // MARK: - Next Page (skipping resolved pages)
 
     /// Find the next page that needs attention after the current one.
-    /// Enforces prerequisites: if route() says we should be on an earlier
-    /// blocking page (e.g. helper not installed), go there instead of forward.
     public static func nextPage(
         after current: WizardPage,
         state: WizardSystemState,
-        issues: [WizardIssue],
-        helperInstalled: Bool = true,
-        helperNeedsApproval: Bool = false,
-        backend: KanataRuntimeBackend = .selected
+        issues: [WizardIssue]
     ) -> WizardPage {
-        // Check if a blocking prerequisite page needs attention first.
-        // This catches cases where the helper page is behind us in the order
-        // but must be resolved before we can advance.
-        let target = route(
-            state: state, issues: issues,
-            helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval, backend: backend
-        )
-        if target != current,
-           isBlockingPage(target, helperInstalled: helperInstalled, helperNeedsApproval: helperNeedsApproval)
-        {
-            return target
-        }
-
         // Walk forward, skipping resolved pages
         let pageOrder = WizardPage.orderedPages
         guard let currentIndex = pageOrder.firstIndex(of: current) else {
@@ -136,7 +115,7 @@ public enum WizardRouter {
             }
         case .service:
             switch state {
-            case .serviceNotRunning, .ready, .daemonNotRunning:
+            case .serviceNotRunning, .ready:
                 true
             default:
                 false
@@ -144,18 +123,6 @@ public enum WizardRouter {
         case .welcome, .kanataMigration, .stopExternalKanata, .karabinerImport:
             false
         }
-    }
-
-    // MARK: - Blocking Pages
-
-    /// Whether a page represents a blocking issue that must be resolved before proceeding.
-    public static func isBlockingPage(
-        _: WizardPage,
-        helperInstalled _: Bool,
-        helperNeedsApproval _: Bool
-    ) -> Bool {
-        // The helper, conflicts and Karabiner pages were the blocking ones; all are retired.
-        false
     }
 
     // MARK: - Summary Navigation

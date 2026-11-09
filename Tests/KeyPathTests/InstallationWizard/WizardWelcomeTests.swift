@@ -11,7 +11,7 @@ final class WizardWelcomeTests: XCTestCase {
     func testFreshInstallUnseenShowsWelcome() {
         XCTAssertTrue(
             WizardWelcomeGate.shouldShowWelcome(
-                helperInstalled: false, hasSeenWelcome: false, forced: false
+                hasSeenWelcome: false, forced: false
             )
         )
     }
@@ -19,15 +19,7 @@ final class WizardWelcomeTests: XCTestCase {
     func testSeenWelcomeNeverShowsAgain() {
         XCTAssertFalse(
             WizardWelcomeGate.shouldShowWelcome(
-                helperInstalled: false, hasSeenWelcome: true, forced: false
-            )
-        )
-    }
-
-    func testInstalledHelperSkipsWelcome() {
-        XCTAssertFalse(
-            WizardWelcomeGate.shouldShowWelcome(
-                helperInstalled: true, hasSeenWelcome: false, forced: false
+                hasSeenWelcome: true, forced: false
             )
         )
     }
@@ -35,25 +27,25 @@ final class WizardWelcomeTests: XCTestCase {
     func testForceOverrideAlwaysShowsWelcome() {
         XCTAssertTrue(
             WizardWelcomeGate.shouldShowWelcome(
-                helperInstalled: true, hasSeenWelcome: true, forced: true
+                hasSeenWelcome: true, forced: true
             )
         )
     }
 
     @MainActor
-    func testWizardWithoutHelperHonorsPersistedWelcomeAcrossRelaunch() {
+    func testWizardHonorsPersistedWelcomeAcrossRelaunch() {
         let suite = "KeyPath.welcome-resume.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
-        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: defaults))
+        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(defaults: defaults))
 
         defaults.set(true, forKey: WizardWelcomeGate.hasSeenWelcomeKey)
         let relaunchedDefaults = UserDefaults(suiteName: suite)!
-        XCTAssertFalse(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: relaunchedDefaults))
+        XCTAssertFalse(InstallationWizardView().shouldShowWelcomePage(defaults: relaunchedDefaults))
 
         relaunchedDefaults.set(true, forKey: WizardWelcomeGate.forceWelcomeKey)
-        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(helperInstalled: false, defaults: relaunchedDefaults))
+        XCTAssertTrue(InstallationWizardView().shouldShowWelcomePage(defaults: relaunchedDefaults))
     }
 
     // MARK: - Welcome stays out of the step sequence
@@ -77,38 +69,19 @@ final class WizardWelcomeTests: XCTestCase {
         )
     }
 
-    func testWelcomeIsNotABlockingPage() {
-        XCTAssertFalse(
-            WizardRouter.isBlockingPage(.welcome, helperInstalled: false, helperNeedsApproval: false)
-        )
-    }
-
-    func testNextPageFromWelcomeHistoricalDriverKitInstallSkipsRetiredHelper() {
-        let next = WizardRouter.nextPage(
-            after: .welcome,
-            state: .initializing,
-            issues: [],
-            helperInstalled: false,
-            helperNeedsApproval: false, backend: .driverKit
-        )
-        XCTAssertEqual(next, .summary, "There is no helper page; with nothing to fix Get Started lands on summary")
-    }
-
-    func testWelcomeSessionDoesNotUseLegacyHelperPrerequisite() {
+    func testNextPageFromWelcomeWithStoppedRuntimeLandsOnSummary() {
         let runtimeIssue = WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
             title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
             autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
         )
         let next = WizardRouter.nextPage(
-            after: .welcome, state: .serviceNotRunning, issues: [runtimeIssue],
-            helperInstalled: false, helperNeedsApproval: true, backend: .session
+            after: .welcome, state: .serviceNotRunning, issues: [runtimeIssue]
         )
         // Welcome is outside the ordered steps, so Get Started reaches the summary.
         XCTAssertEqual(next, .summary)
         XCTAssertEqual(WizardRouter.route(
-            state: .serviceNotRunning, issues: [runtimeIssue],
-            helperInstalled: false, helperNeedsApproval: true, backend: .session
+            state: .serviceNotRunning, issues: [runtimeIssue]
         ), .service)
     }
 
@@ -116,9 +89,7 @@ final class WizardWelcomeTests: XCTestCase {
         let next = WizardRouter.nextPage(
             after: .welcome,
             state: .active,
-            issues: [],
-            helperInstalled: true,
-            helperNeedsApproval: false
+            issues: []
         )
         XCTAssertEqual(next, .summary, "With nothing to fix (e.g. forced QA runs), Get Started should land on summary")
     }

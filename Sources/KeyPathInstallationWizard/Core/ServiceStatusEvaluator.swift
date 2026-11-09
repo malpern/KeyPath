@@ -162,8 +162,6 @@ public enum ServiceStatusEvaluator {
                     return "Input Monitoring permission required"
                 case .kanataAccessibility:
                     return "\(AccessibilityPermissionPresentation.current.name) permission required"
-                default:
-                    continue
                 }
             }
             // Any error/critical daemon issue is a true service failure (e.g. the

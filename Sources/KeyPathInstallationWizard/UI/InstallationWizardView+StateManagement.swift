@@ -19,14 +19,12 @@ public extension InstallationWizardView {
         }
 
         // Determine initial page based on cached system snapshot (if available)
-        // Skip summary on initial run - go directly to helper page to start the wizard flow
-        let cachedSnapshot = stateMachine.lastWizardSnapshot
         let preferredPage = await cachedPreferredPage()
         if initialPage == nil,
-           shouldShowWelcomePage(helperInstalled: cachedSnapshot?.helperInstalled ?? false)
+           shouldShowWelcomePage()
         {
             // Fresh install, Get Started never clicked: open on the one-time
-            // welcome page (issue #932) using the already captured helper fact.
+            // welcome page (issue #932).
             // Validation still runs underneath; performInitialStateCheck()
             // leaves the welcome page alone.
             AppLogger.shared.log("👋 [Wizard] Fresh install — starting at welcome page")
@@ -65,10 +63,10 @@ public extension InstallationWizardView {
         }
     }
 
-    /// Honor the persisted Welcome choice even when no helper is installed.
+    /// Honor the persisted Welcome choice.
     /// Get Started dismisses it for this setup session while validation continues.
-    internal func shouldShowWelcomePage(helperInstalled: Bool, defaults: UserDefaults = .standard) -> Bool {
-        !didShowWelcomePage && WizardWelcomeGate.shouldShowWelcome(helperInstalled: helperInstalled, defaults: defaults)
+    internal func shouldShowWelcomePage(defaults: UserDefaults = .standard) -> Bool {
+        !didShowWelcomePage && WizardWelcomeGate.shouldShowWelcome(defaults: defaults)
     }
 
     func performInitialStateCheck(
@@ -124,11 +122,11 @@ public extension InstallationWizardView {
                 return
             }
 
-            let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-            stateMachine.updateWizardState(from: result, issues: filteredIssues)
+            let issues = result.issues
+            stateMachine.updateWizardState(from: result)
             if initialPage == nil,
                stateMachine.currentPage != .welcome,
-               shouldShowWelcomePage(helperInstalled: result.helperInstalled)
+               shouldShowWelcomePage()
             {
                 AppLogger.shared.log("👋 [Wizard] Fresh install snapshot — presenting welcome page")
                 stateMachine.navigateToPage(.welcome, userInitiated: false)
@@ -142,10 +140,10 @@ public extension InstallationWizardView {
             }
 
             AppLogger.shared.log(
-                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(filteredIssues.count), Target Page: \(stateMachine.currentPage)"
+                "🔍 [Wizard] Initial setup - State: \(result.state), Issues: \(issues.count), Target Page: \(stateMachine.currentPage)"
             )
             AppLogger.shared.log(
-                "🔍 [Wizard] Issue details: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
+                "🔍 [Wizard] Issue details: \(issues.map { "\($0.category)-\($0.title)" })"
             )
 
             // Ensure permissions are verified before auto-advancing.
@@ -200,10 +198,7 @@ public extension InstallationWizardView {
             let recommended = WizardRouter.routeForUnverifiedKanataPermissions(
                 base: WizardRouter.route(
                     state: result.state,
-                    issues: filteredIssues,
-                    helperInstalled: result.helperInstalled,
-                    helperNeedsApproval: result.helperNeedsApproval,
-                    backend: result.backend
+                    issues: issues
                 ),
                 inputMonitoringUnknown: kanataInputMonitoringUnknown,
                 accessibilityUnknown: kanataAccessibilityUnknown
@@ -217,7 +212,7 @@ public extension InstallationWizardView {
                 if WizardRouter.shouldNavigateToSummary(
                     currentPage: stateMachine.currentPage,
                     state: result.state,
-                    issues: filteredIssues
+                    issues: issues
                 ) {
                     AppLogger.shared.log("🟢 [Wizard] Healthy system detected; routing to summary")
                     stateMachine.navigateToPage(.summary, userInitiated: false)
@@ -299,11 +294,11 @@ public extension InstallationWizardView {
                     return
                 }
 
-                let filteredIssues = sanitizedIssues(from: result.issues, for: result.state)
-                stateMachine.updateWizardState(from: result, issues: filteredIssues)
+                let issues = result.issues
+                stateMachine.updateWizardState(from: result)
 
                 AppLogger.shared.log(
-                    "🔍 [Navigation] Current: \(stateMachine.currentPage), Issues: \(filteredIssues.map { "\($0.category)-\($0.title)" })"
+                    "🔍 [Navigation] Current: \(stateMachine.currentPage), Issues: \(issues.map { "\($0.category)-\($0.title)" })"
                 )
 
                 // No auto-navigation - stay on current page
@@ -313,7 +308,7 @@ public extension InstallationWizardView {
                     if WizardRouter.shouldNavigateToSummary(
                         currentPage: stateMachine.currentPage,
                         state: result.state,
-                        issues: filteredIssues
+                        issues: issues
                     ) {
                         AppLogger.shared.log(
                             "🟢 [Wizard] Healthy system detected during monitor; routing to summary"

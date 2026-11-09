@@ -12,7 +12,7 @@ import KeyPathWizardCore
 final class ModeARevertTests: XCTestCase {
     // MARK: - Permission Rejection Detection via SystemStateResult Projection
 
-    func testAdapterRoutesToPermissionsWhenPermissionRejected() {
+    func testAdapterIgnoresLegacyDaemonRejectionAndRequestsRuntimeStart() {
         let context = makeContext(
             kanataRunning: false,
             kanataPermissionRejected: true,
@@ -22,24 +22,11 @@ final class ModeARevertTests: XCTestCase {
         let result = SystemStateResult.projecting(context)
 
         XCTAssertEqual(
-            result.state, .missingPermissions(missing: [.kanataAccessibility]),
-            "Adapter must route to missingPermissions when kanataPermissionRejected is true"
+            result.state, .serviceNotRunning,
+            "A historical daemon rejection must not override granted session capabilities"
         )
-    }
-
-    func testAdapterIssuesContainPermissionWhenRejected() {
-        let context = makeContext(
-            kanataRunning: false,
-            kanataPermissionRejected: true,
-            permissionsGranted: true
-        )
-
-        let result = SystemStateResult.projecting(context)
-
-        let axIssue = result.issues.first { $0.identifier == .permission(.kanataAccessibility) }
-        XCTAssertNotNil(axIssue, "Issues must include kanataAccessibility permission issue")
-        XCTAssertEqual(axIssue?.severity, .error)
-        XCTAssertEqual(axIssue?.category, .permissions)
+        XCTAssertFalse(result.issues.contains { $0.identifier.isPermission })
+        XCTAssertEqual(result.issues.first { $0.identifier == .daemon }?.autoFixAction, .restartCommServer)
     }
 
     func testAdapterDoesNotEmitRuntimeIssueWhenPermissionRejected() {

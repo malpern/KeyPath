@@ -188,7 +188,6 @@ public struct WizardSummaryPage: View {
                         WizardSystemStatusOverview(
                             systemState: systemState,
                             issues: issues,
-                            backend: stateMachine.lastWizardSnapshot?.backend ?? .selected,
                             permissions: stateMachine.lastWizardSnapshot?.permissions,
                             onNavigateToPage: onNavigateToPage,
                             kanataIsRunning: systemState == .active,

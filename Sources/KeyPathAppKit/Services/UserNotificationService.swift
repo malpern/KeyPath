@@ -191,8 +191,6 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             switch req {
             case .kanataInputMonitoring, .keyPathInputMonitoring: return "Input Monitoring"
             case .kanataAccessibility, .keyPathAccessibility: return AccessibilityPermissionPresentation.current.name
-            case .driverExtensionEnabled: return "Driver Extension"
-            case .backgroundServicesEnabled: return "Background Services"
             }
         }
         let summary = Array(Set(names)).joined(separator: ", ")

@@ -536,8 +536,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// Maps an issue to the appropriate wizard page for navigation
     private func wizardPage(for issue: WizardIssue) -> WizardPage {
         switch issue.category {
-        case .conflicts:
-            return .summary
         case .permissions:
             // Use identifier to determine if it's accessibility or input monitoring
             if case let .permission(requirement) = issue.identifier {
@@ -546,14 +544,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     return .accessibility
                 case .kanataInputMonitoring, .keyPathInputMonitoring:
                     return .inputMonitoring
-                case .driverExtensionEnabled:
-                    return .summary
-                case .backgroundServicesEnabled:
-                    return .service
                 }
             }
             return .inputMonitoring // Default for permissions
-        case .backgroundServices, .daemon:
+        case .daemon:
             return .service
         case .installation:
             return .summary

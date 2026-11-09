@@ -6,10 +6,10 @@ import KeyPathWizardCore
 @preconcurrency import XCTest
 
 /// End-to-end tests that validate the path:
-/// SystemContext -> SystemStateResult projection/SystemInspector -> WizardIssue severities.
+/// SystemContext -> SystemStateResult projection/SystemInspector -> WizardIssue and page.
 @MainActor
 final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
-    func testKanataUnknownPermissionBecomesWarningIssueAndWarningPageStatus() {
+    func testKanataUnknownPermissionRequestsRuntimeEvidenceNotConsent() {
         let now = Date()
 
         let keyPath = PermissionOracle.PermissionSet(
@@ -51,26 +51,21 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
 
         let result = SystemStateResult.projecting(context)
 
-        let kanataIMIssue = result.issues.first { $0.identifier == .permission(.kanataInputMonitoring) }
-        XCTAssertNotNil(kanataIMIssue, "Projection should surface a kanata input monitoring issue")
-        XCTAssertEqual(kanataIMIssue?.severity, .warning, "Unknown/not-verified kanata permission should be a warning")
-        XCTAssertNotNil(kanataIMIssue?.description)
-        XCTAssertTrue(kanataIMIssue?.description.localizedCaseInsensitiveContains("not verified") ?? false)
+        XCTAssertEqual(result.state, .serviceNotRunning, "Unverified runtime input access is not proof of a denial")
+        XCTAssertFalse(result.issues.contains { $0.identifier.isPermission },
+                       "An unverified permission must not be presented as a consent the user has to give")
+        let evidenceIssue = result.issues.first { $0.identifier == .daemon }
+        XCTAssertNotNil(evidenceIssue, "Projection should ask the runtime for fresh evidence")
+        XCTAssertEqual(evidenceIssue?.autoFixAction, .restartCommServer)
         XCTAssertFalse(
-            kanataIMIssue?.description.localizedCaseInsensitiveContains("required") ?? false,
-            "Unknown/not verified should not claim permission is required"
-        )
-        XCTAssertFalse(
-            kanataIMIssue?.description.localizedCaseInsensitiveContains("denied") ?? false,
+            evidenceIssue?.description.localizedCaseInsensitiveContains("denied") ?? true,
             "Unknown/not verified should not claim permission is denied"
         )
 
         let page = WizardRouter.route(
             state: result.state,
-            issues: result.issues,
-            helperInstalled: true,
-            helperNeedsApproval: false, backend: .driverKit
+            issues: result.issues
         )
-        XCTAssertNotEqual(page, .inputMonitoring, "Warning-only permission should NOT route to input monitoring page")
+        XCTAssertEqual(page, .service, "Unverified permission evidence routes to the runtime, not the input monitoring page")
     }
 }
