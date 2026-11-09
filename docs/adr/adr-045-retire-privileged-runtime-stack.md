@@ -47,7 +47,7 @@ It must be tested on a clean VM that starts from 1.0.1. Tracked in
 [#1353](https://github.com/malpern/KeyPath/issues/1353).
 
 Keep legacy detection after the rest is removed for as long as 1.0.1 installs may
-upgrade directly.
+upgrade directly. (Superseded by ADR-047: legacy detection was removed in step 2c.)
 
 **Upgrade path (2026-11, #1353).** (Removed in ADR-047 step 2c, with the legacy-daemon refusal; kept as history.) When the refusal stands, Settings → Status
 offers **Remove Old Service**, which calls
