@@ -12,6 +12,15 @@ enum TestSingletonReset {
     /// Reset all known mutable singletons to their default state.
     /// Call this in setUp() of any test that touches shared state.
     static func resetAll() {
+        // Negative-path tests log expected [ERROR]/[WARN] lines, and the test
+        // log guardrail counts them. Keep app logs in the log file unless the
+        // run asks for verbose output. (This used to happen by accident: the
+        // first CLI test configured CLIRuntimeBootstrap, which turns console
+        // logging off process-wide.)
+        AppLogger.shared.setConsoleLoggingEnabled(
+            ProcessInfo.processInfo.environment["KEYPATH_TEST_VERBOSE_LOGS"] == "1"
+        )
+
         #if DEBUG
             // All configuration-writing harnesses exercise the same fresh real
             // bridge, including services constructed indirectly by managers.
