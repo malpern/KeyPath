@@ -330,7 +330,6 @@ final class InstallerEngineTests: KeyPathAsyncTestCase {
     }
 
     func testRunHandlesAllIntents() async {
-
         let installReport = await engine.run(intent: .install)
         XCTAssertNotNil(installReport)
         XCTAssertNotNil(installReport.timestamp)
