@@ -63,6 +63,8 @@
 	<false/>
 
 	<!-- Privacy Usage Descriptions -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>KeyPath runs the AppleScript actions you add to your rules, and closes the Finder window it opened during setup.</string>
 	<key>NSAccessibilityUsageDescription</key>
 	<string>KeyPath needs Accessibility access to remap your keyboard shortcuts and monitor key events.</string>
 

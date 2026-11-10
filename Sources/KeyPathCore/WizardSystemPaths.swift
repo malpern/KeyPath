@@ -362,12 +362,13 @@ public enum WizardSystemPaths {
 
         do {
             try task.run()
-            task.waitUntilExit()
         } catch {
             return nil
         }
-
+        // Read before waiting: `ps -eo pid,args` often exceeds the 64 KB pipe
+        // buffer, and ps then blocks until it is read, so waiting first hung.
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
         guard let output = String(data: data, encoding: .utf8) else { return nil }
 
         // Known KeyPath-managed binary paths

@@ -156,10 +156,13 @@ public enum ExternalKanataService: Sendable {
         task.standardError = stderrPipe
 
         try task.run()
-        task.waitUntilExit()
-
+        // Drain both pipes before waiting: a child that fills a 64 KB pipe
+        // buffer blocks until it is read, so waiting first can deadlock.
+        let stderrHandle = stderrPipe.fileHandleForReading
+        let stderrRead = Task.detached { stderrHandle.readDataToEndOfFile() }
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        let stderrData = await stderrRead.value
+        task.waitUntilExit()
 
         return CommandResult(
             status: task.terminationStatus,

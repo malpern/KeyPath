@@ -59,21 +59,13 @@ public final class WizardWindowManager {
             return
         }
 
-        let script = """
-        tell application "System Settings"
-            quit
-        end tell
-        """
-
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script) {
-            appleScript.executeAndReturnError(&error)
-            if let error {
-                AppLogger.shared.warn("⚠️ [WizardWindowManager] Failed to close System Settings: \(error)")
-            } else {
-                AppLogger.shared.log("🧹 [WizardWindowManager] Closed System Settings")
-                didOpenSystemSettings = false
-            }
+        // A plain quit request: unlike an AppleScript "quit", it sends no Apple
+        // Event, so it needs no Automation consent and cannot be silently denied.
+        if runningApps.map({ $0.terminate() }).contains(true) {
+            AppLogger.shared.log("🧹 [WizardWindowManager] Asked System Settings to quit")
+            didOpenSystemSettings = false
+        } else {
+            AppLogger.shared.warn("⚠️ [WizardWindowManager] System Settings did not accept the quit request")
         }
     }
 
