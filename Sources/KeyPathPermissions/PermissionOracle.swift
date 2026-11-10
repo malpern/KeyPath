@@ -299,6 +299,18 @@ public actor PermissionOracle {
         CGPreflightListenEventAccess()
     }
 
+    /// Input Monitoring for this process, non-prompting. Only opt-in keyboard
+    /// attribution needs it (ADR-048); nothing else asks for it.
+    public nonisolated func keyPathInputMonitoringStatus() -> Status {
+        Self.rawEventListeningStatus()
+    }
+
+    /// Shows the Input Monitoring prompt once. Call it only when the person turns
+    /// on keyboard attribution, never at setup (ADR-047, ADR-048).
+    public nonisolated func requestKeyPathInputMonitoring() {
+        _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+    }
+
     /// Synchronous, non-prompting Accessibility status for call sites that cannot
     /// await a full permission snapshot.
     public nonisolated func keyPathAccessibilityStatus() -> Status {

@@ -233,7 +233,12 @@ questions this ADR left open:
 1. ~~Rerun the overlap test and settle the open question.~~ Done 2026-11-10.
 2. Attribution in the worker plus its unit tests, behind the Settings switch,
    with no engine change (log-only: count attributed, unattributed and
-   fallback events).
+   fallback events). Built 2026-11-10: `KeyboardAttributionMonitor`
+   (worker) and `KeyboardAttributionLog` (counting, unit-tested), switched by
+   Settings → Experimental → Developer Feature Flags → "Keyboard Attribution
+   (log only)". It logs `⌨️ [Attribution]` totals every ten minutes and when the
+   worker stops; no key or timing is logged. Turning it on asks for Input
+   Monitoring; the worker reads the switch when it starts.
 3. Bridge device index and the `supported` change; turn on the switch aliases.
 4. UI: the switch, the optional permission, hiding device conditions while off,
    and the Connected Keyboard panel. A guide in `guides/` for the feature.

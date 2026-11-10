@@ -58,6 +58,11 @@ public final class SessionRuntimeWorker {
     private var physicalPassthroughFlags: UInt64 = 0
     private var physicalModifiers = SessionPhysicalModifierState()
     private var environmentObserver: SessionRuntimeEnvironmentObserver?
+    /// Opt-in, log-only keyboard attribution (ADR-048). Nil when off.
+    private var attribution: KeyboardAttributionMonitor?
+    /// The key managed Caps remaps Caps Lock to, while it is active. HID still
+    /// reports Caps Lock itself, so attribution maps this back.
+    private var capsIntermediateUsage: UInt32?
     #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
         private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
         private var tapTimeoutInitialization: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.Initialization?
@@ -323,6 +328,7 @@ public final class SessionRuntimeWorker {
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
                 if capsRecord != nil {
                     capsInput.activate(generation: owner.generation, intermediateUsage: admission.intermediateUsage)
+                    capsIntermediateUsage = admission.intermediateUsage
                 }
                 capsConfigPath = configPath
                 capsAdmittedDigest = capsDigest
@@ -358,6 +364,7 @@ public final class SessionRuntimeWorker {
             }
         #endif
 
+        attribution = KeyboardAttributionMonitor.startIfEnabled()
         timer = Timer(timeInterval: 0.005, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -490,6 +497,11 @@ public final class SessionRuntimeWorker {
         guard let capturedUsage = SessionKeyMap.keyCodeToUsage[UInt16(event.getIntegerValueField(.keyboardEventKeycode))] else {
             return original
         }
+        // Observation only: nothing below depends on it. A remapped Caps Lock
+        // reaches the tap as the intermediate key but HID as Caps Lock (57).
+        attribution?.observe(type: type, event: event,
+                             usage: Self.attributionUsage(captured: capturedUsage,
+                                                          capsIntermediate: capsRecord == nil ? nil : capsIntermediateUsage))
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.delayIfAdmitted(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)), keyDown: type == .keyDown,
@@ -535,6 +547,13 @@ public final class SessionRuntimeWorker {
     }
 
     static let systemDefinedEventType: UInt32 = 14
+
+    /// The usage attribution should match against HID for a tap event. While
+    /// managed Caps is active the tap sees its intermediate key, but HID still
+    /// reports the keyboard's own Caps Lock (57).
+    nonisolated static func attributionUsage(captured: UInt32, capsIntermediate: UInt32?) -> UInt32 {
+        captured == capsIntermediate ? 57 : captured
+    }
 
     /// A media key from the built-in or an Apple keyboard. Mapped ones go to
     /// Kanata and are consumed; everything else passes through untouched.
@@ -586,6 +605,7 @@ public final class SessionRuntimeWorker {
         #endif
         guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled-observed") }
         guard let runtime else { finish(.failed, reason: "runtime-unavailable") }
+        attribution?.tick()
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.prepare(now: Date().timeIntervalSince1970)
         #endif
@@ -923,10 +943,14 @@ public final class SessionRuntimeWorker {
                         let input = Self.capsInputChange(previous: previous, current: current)
                         if input == .activate {
                             self.capsInput.activate(generation: owner.generation, intermediateUsage: usage)
+                            self.capsIntermediateUsage = usage
                         }
                         self.capsFleetRecords = coverage.records
                         self.capsRecord = coverage.records.first
-                        if input == .revoke { self.capsInput.revoke() }
+                        if input == .revoke {
+                            self.capsInput.revoke()
+                            self.capsIntermediateUsage = nil
+                        }
                         self.capsFleetRetryAfter = Self.nextBackoffs(
                             self.capsFleetRetryAfter, covered: current, failed: Set(coverage.failures.keys),
                             departed: coverage.departed, now: Date()
@@ -1200,6 +1224,9 @@ public final class SessionRuntimeWorker {
         finished = true
         // The orderly path owns shutdown from here; no hard exit may cut it off.
         SessionShutdownFallback.shared.shutdownBegins()
+        // Before the flush below, so its final totals reach the log.
+        attribution?.stop()
+        attribution = nil
         // Every exit records why, so a stop with no failure is still explainable.
         AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
         AppLogger.shared.flushBuffer()
@@ -1222,6 +1249,7 @@ public final class SessionRuntimeWorker {
                         try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
                     }
                     capsRecord = nil
+                    capsIntermediateUsage = nil
                     capsOwner = nil
                     capsDirectory = nil
                 } catch {
