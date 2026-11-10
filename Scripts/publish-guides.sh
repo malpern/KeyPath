@@ -13,8 +13,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GHPAGES_WORKTREE="$REPO_ROOT/.worktrees/gh-pages"
 
-# Pages outside guides/ that the site also serves. They have no other
-# publishing path, so the site kept stale copies until they were added here.
+# Pages outside guides/ that the site also serves. Like guides/, the copy is
+# additive: a page deleted or renamed on master must also be removed from
+# gh-pages in the publication commit.
 SITE_PAGE_DIRS=(getting-started migration)
 
 PUBLISH_PATHS=(docs.md images/help "${SITE_PAGE_DIRS[@]}")
@@ -86,7 +87,7 @@ if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --other
     exit 0
 fi
 
-git add guides/ docs.md images/help/ offline-help/ "${SITE_PAGE_DIRS[@]/%//}"
+git add guides/ docs.md images/help/ offline-help/ "${SITE_PAGE_DIRS[@]}"
 CHANGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
 git commit -m "Publish $CHANGED file(s) from master $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 git push origin gh-pages
