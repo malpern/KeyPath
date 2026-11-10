@@ -1,6 +1,7 @@
 import Foundation
 import KeyPathCore
 import KeyPathPermissions
+import Security
 
 // MARK: - SystemValidator Protocol
 
@@ -102,21 +103,18 @@ public enum WizardPermissionAnalyzing {
 public enum WizardSignatureHealthCheck {
     /// Check if the current app is running ad-hoc signed (not notarized)
     public static func isRunningAdHoc() -> Bool {
-        guard let bundlePath = Bundle.main.bundlePath as String? else { return false }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-        task.arguments = ["-dvvv", bundlePath]
-        let pipe = Pipe()
-        task.standardError = pipe
-        do {
-            try task.run()
-            task.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8) ?? ""
-            return output.contains("adhoc")
-        } catch {
-            return false
-        }
+        // Ask the Security framework about this process directly. This used to
+        // run `codesign -dvvv` synchronously at launch, on the main actor.
+        var code: SecCode?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return false }
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return false }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info)
+            == errSecSuccess, let info = info as? [String: Any],
+            let flags = info[kSecCodeInfoFlags as String] as? UInt32
+        else { return false }
+        return flags & SecCodeSignatureFlags.adhoc.rawValue != 0
     }
 }
 

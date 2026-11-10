@@ -139,13 +139,13 @@ public enum ExternalKanataService: Sendable {
         return label
     }
 
-    private struct CommandResult {
+    struct CommandResult {
         let status: Int32
         let stdout: String
         let stderr: String
     }
 
-    private static func runCommand(_ executable: String, arguments: [String]) async throws -> CommandResult {
+    static func runCommand(_ executable: String, arguments: [String]) async throws -> CommandResult {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: executable)
         task.arguments = arguments
@@ -156,10 +156,13 @@ public enum ExternalKanataService: Sendable {
         task.standardError = stderrPipe
 
         try task.run()
-        task.waitUntilExit()
-
+        // Drain both pipes before waiting: a child that fills a 64 KB pipe
+        // buffer blocks until it is read, so waiting first can deadlock.
+        let stderrHandle = stderrPipe.fileHandleForReading
+        let stderrRead = Task.detached { stderrHandle.readDataToEndOfFile() }
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        let stderrData = await stderrRead.value
+        task.waitUntilExit()
 
         return CommandResult(
             status: task.terminationStatus,
