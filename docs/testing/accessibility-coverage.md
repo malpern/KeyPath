@@ -3,6 +3,11 @@
 **Last Updated:** December 24, 2025  
 **Total Accessibility Identifiers:** 50+ across all major UI screens
 
+> **Note (2026-11-10):** This list predates several UI changes, and some
+> identifiers below belong to views that no longer exist (for example the
+> old main popover). `python3 Scripts/check-accessibility.py` and the
+> `accessibilityIdentifier` calls in `Sources/` are the source of truth.
+
 ## Overview
 
 KeyPath now has comprehensive accessibility identifiers across all major screens, enabling full automation via tools like Peekaboo, XCUITest, and other accessibility-based automation frameworks.

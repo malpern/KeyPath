@@ -15,7 +15,7 @@
   - `dist/sparkle/appcast.xml` is verified before the build may continue.
 - `./Scripts/release.sh <version>` — Public distribution release flow. Run `./Scripts/release-doctor.sh --ship` first.
 - `./Scripts/cleanup-local-build-artifacts.sh` — Dry-run cleanup of generated `.build`/`dist`/test artifacts across local worktrees. Add `--apply` to delete.
-- `./test.sh` — Run the full test suite (root)
+- `./Scripts/test-full.sh` — Run the full safe test suite
 - `./Scripts/test-lane.sh <lane>` — Run a named SwiftPM test lane (`smoke`,
   `core-isolated`, `smoke-root`, `unit`, `cli`, `runtime`, `appkit-ui`,
   `appkit-config`, `appkit`, `installer`, `snapshot`, `device`, or `full`).
@@ -34,9 +34,6 @@
 - `run-tests-safe.sh` - The safe test runner implementation
 - `run-installer-reliability-matrix.sh` - Runs installer scenario lanes and writes `matrix-summary.md` + `matrix-results.json`
 - `uninstall.sh` - Uninstaller script
-- `archive/` - Deprecated or historical scripts. Do not invoke these from
-  current documentation or automation; see
-  `docs/process/script-surface-audit.md` for the retention audit.
 - `lib/signing.sh` - Thin wrappers around codesign/notarytool/stapler with `KP_SIGN_DRY_RUN=1` for safe local runs; CI overrides hook into this.
 - `lib/sparkle.sh` - Resolves the pinned Sparkle tools, verifies the `keypath`
   Keychain identity against `SUPublicEDKey`, and keeps private-key environment
@@ -50,7 +47,6 @@
 - `test-installer-device.sh` - Opt-in device smoke for InstallerEngine (requires `KEYPATH_E2E_DEVICE=1`; non-destructive).
 
 ## Testing
-- `test.sh` (in root) - All tests
 - `test-*.sh` (in Scripts/) - Individual test suites
 - `./Scripts/test-lane.sh smoke` - Fast isolated product-level sanity lane.
 - `./Scripts/test-lane.sh core-isolated` - Isolated Core harness that builds
@@ -95,5 +91,5 @@
 
 ## Development Setup
 
-Use the supported commands above. The scripts in `archive/` are retained only
-as historical investigation artifacts and are not supported entry points.
+Use the supported commands above. Historical scripts were removed; git history
+keeps them.

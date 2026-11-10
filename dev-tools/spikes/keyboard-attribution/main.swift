@@ -68,6 +68,14 @@ let usageToKeyCode: [Int: Int] = [
     0x26: 25, 0x27: 29, 0x28: 36, 0x29: 53, 0x2A: 51, 0x2B: 48, 0x2C: 49, 0x2D: 27,
     0x2E: 24, 0x2F: 33, 0x30: 30, 0x31: 42, 0x33: 41, 0x34: 39, 0x35: 50, 0x36: 43,
     0x37: 47, 0x38: 44, 0x4F: 124, 0x50: 123, 0x51: 125, 0x52: 126,
+    // Modifiers: left/right Control, Shift, Option, Command.
+    0xE0: 59, 0xE1: 56, 0xE2: 58, 0xE3: 55, 0xE4: 62, 0xE5: 60, 0xE6: 61, 0xE7: 54,
+]
+
+/// Device-dependent flag bit (NX_DEVICE*KEYMASK) for each modifier keycode. A
+/// flagsChanged event is a press when its key's bit is set.
+let modifierFlagBit: [Int: UInt64] = [
+    59: 0x1, 56: 0x2, 60: 0x4, 55: 0x8, 54: 0x10, 58: 0x20, 61: 0x40, 62: 0x2000,
 ]
 
 // MARK: - HID side
@@ -117,6 +125,7 @@ if openResult != kIOReturnSuccess {
 // MARK: - Tap side (listen-only)
 
 let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
+    | (1 << CGEventType.flagsChanged.rawValue)
 guard let tap = CGEvent.tapCreate(
     tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
     eventsOfInterest: CGEventMask(mask),
@@ -131,6 +140,13 @@ guard let tap = CGEvent.tapCreate(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)),
                 down: type == .keyDown,
                 autorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+                eventRaw: event.timestamp, receivedNs: nowNs()
+            ))
+        } else if type == .flagsChanged {
+            let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
+            guard let bit = modifierFlagBit[keyCode] else { return Unmanaged.passUnretained(event) }
+            tapRecords.append(TapRecord(
+                keyCode: keyCode, down: event.flags.rawValue & bit != 0, autorepeat: false,
                 eventRaw: event.timestamp, receivedNs: nowNs()
             ))
         }
@@ -241,11 +257,17 @@ func finish() -> Never {
     print("\nHID key events: \(hidRecords.count) (unmapped usages skipped: \(unmappedHIDUsages)), tap key events: \(tapRecords.count)")
     if tapDisabledCount > 0 { print("WARNING: the tap was disabled \(tapDisabledCount) time(s); tap counts are incomplete") }
     // The event timestamps' clocks are not documented to agree, so report both
-    // the event-timestamp match and the callback-arrival match.
-    report("by event timestamps (CGEvent timestamp as ns vs HID timestamp)",
-           match(tapTime: { $0.eventRaw }, hidTime: { $0.eventNs }, windowNs: 50_000_000, slackNs: 5_000_000))
-    report("by callback arrival time (both mach_absolute_time)",
-           match(tapTime: { $0.receivedNs }, hidTime: { $0.receivedNs }, windowNs: 50_000_000, slackNs: 50_000_000))
+    // clocks, each with the same windows: ADR-048's 30 ms behind / 5 ms ahead,
+    // and a wide 50 / 50 ms.
+    for (behind, ahead) in [(30, 5), (50, 50)] as [(UInt64, UInt64)] {
+        let w = "\(behind) ms behind, \(ahead) ms ahead"
+        report("by event timestamps (CGEvent timestamp vs HID timestamp), \(w)",
+               match(tapTime: { $0.eventRaw }, hidTime: { $0.eventNs },
+                     windowNs: behind * 1_000_000, slackNs: ahead * 1_000_000))
+        report("by callback arrival (both mach_absolute_time), \(w)",
+               match(tapTime: { $0.receivedNs }, hidTime: { $0.receivedNs },
+                     windowNs: behind * 1_000_000, slackNs: ahead * 1_000_000))
+    }
     if let csvPath {
         var lines = ["source,device,name,keycode,down,autorepeat,event,received"]
         for h in hidRecords {
