@@ -219,8 +219,8 @@ struct ExperimentalSettingsSection: View {
                 isOn: $keyboardAttributionEnabled,
                 onChange: { enabled in
                     UserDefaults.standard.set(enabled, forKey: KeyboardAttributionMonitor.enabledKey)
-                    if enabled, PermissionOracle.shared.keyPathInputMonitoringStatus() != .granted {
-                        PermissionOracle.shared.requestKeyPathInputMonitoring()
+                    if enabled, SystemStateProvider.shared.keyPathInputMonitoringStatus() != .granted {
+                        SystemStateProvider.shared.requestKeyPathInputMonitoring()
                     }
                 },
                 identifier: "feature-flag-keyboard-attribution"

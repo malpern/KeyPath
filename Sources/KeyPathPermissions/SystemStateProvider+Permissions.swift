@@ -49,4 +49,15 @@ public extension SystemStateProvider {
     nonisolated func keyPathCanCreateListenOnlyTap() -> Bool {
         PermissionOracle.shared.keyPathCanCreateListenOnlyTap()
     }
+
+    /// Input Monitoring for this process, without prompting. Only opt-in
+    /// keyboard attribution (ADR-048) uses it.
+    nonisolated func keyPathInputMonitoringStatus() -> PermissionOracle.Status {
+        PermissionOracle.shared.keyPathInputMonitoringStatus()
+    }
+
+    /// Shows the Input Monitoring prompt; only when keyboard attribution is turned on.
+    nonisolated func requestKeyPathInputMonitoring() {
+        PermissionOracle.shared.requestKeyPathInputMonitoring()
+    }
 }

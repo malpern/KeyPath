@@ -144,7 +144,7 @@ final class KeyboardAttributionMonitor {
     /// be opened. Each refusal is logged once; the worker carries on unchanged.
     static func startIfEnabled() -> KeyboardAttributionMonitor? {
         guard isEnabled() else { return nil }
-        guard PermissionOracle.shared.keyPathInputMonitoringStatus() == .granted else {
+        guard SystemStateProvider.shared.keyPathInputMonitoringStatus() == .granted else {
             AppLogger.shared.log("⌨️ [Attribution] On, but Input Monitoring is not granted; not attributing")
             return nil
         }
