@@ -200,14 +200,17 @@ The scored overlap rerun (spike README, "Same-key overlap rerun") settles the
 questions this ADR left open:
 
 - **Window:** 30 ms behind, 5 ms ahead, and a 5 ms hold deadline. Every press
-  found its HID value inside it except one.
+  found its HID value inside it except one. The margin is thin (the extremes
+  were 29.7 ms and 4.7 ms) and the window was judged on the same run, so the
+  log-only rollout step must report the no-match rate; widen the look-behind
+  if it is more than rare. A miss falls back, so it is safe but invisible.
 - **Two keyboards within the window fall back every time.** All 10 such presses
   had the other keyboard's press under 5 ms away. Presses 5–30 ms apart had
   only one candidate left by then and were all credited correctly (32 of 32).
   No press was credited to the wrong keyboard, so crediting the closest
   candidate would gain little and adds a way to be wrong.
 - **Clock:** event timestamps (see Clock above).
-- **Modifiers are attributed like any other key.** The fixture's Left Shift,
+- **A modifier pressed on one keyboard is attributed like any other key.** The fixture's Left Shift,
   seen as `flagsChanged`, was credited correctly every time (528 presses and
   releases over two runs). Not measured: one modifier held on two keyboards at
   once, because the person's key in both attempts sent a different usage. Until

@@ -165,6 +165,15 @@ consumed, two keyboards fall back, a release follows its press):
 | Releases credited to the press's keyboard although the other keyboard's release ended it | 20 (by design: the engine must see press and release on one keyboard) |
 | Releases that fell back because their press did | 14 |
 
+Releases outnumber presses (415 against 413) because merging does not pair them
+one to one: a release of a merged press can be the other keyboard's, and the
+20 tap events with no truth label include presses whose release did get one.
+That is also why 14 releases fell back after only 11 presses did.
+
+The scorer is `score.py` (`python3 -I score.py run.csv KEYCODE`, 124 for Right
+arrow, 56 for Left Shift). The raw rows were deleted after scoring, so these
+numbers are a one-off measurement; rerun the test to check them.
+
 **How close is too close.** Every press, by distance to the other keyboard's
 nearest press of the same key:
 
