@@ -347,7 +347,8 @@ need no POSIX fallback either; that was read from the SDK, not exercised.
    overflows both fails with the clear error. Fail with a clear error only
    if both are too long. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
-   reports the socket path in its owned report instead of `tcpPort`.
+   adds the socket path to its owned report; `tcpPort` stays until phase 3
+   moves readiness checks to the socket.
 3. **Phase 3, Swift clients.** One transport change: `KanataTCPClient+Connection` and
    `KanataEventListener.connectAndStream` build `NWConnection`s from host and
    port. They move to `NWEndpoint.unix(path:)` (confirm availability on the
@@ -378,7 +379,7 @@ leaves the app working:
 |---|---|---|---|
 | 1 | `malpern/kanata` | Generic stream server, Unix listener, peer check (uid, PID, PID version) behind an injectable reader, the option A command removals as a session feature, connection cap, write timeout, bind error instead of panic, Rust tests | Fast-forward into `keypath/bundled` |
 | 2 | KeyPath | Submodule bump, bridge takes a socket path and expected peer **in addition to** the port, worker creates and checks the directory, `NOTE_EXIT` owner watch, socket path in the worker report, `cargo test` added to a required CI job. The TCP listener stays, so every client keeps working | Phases 1–2 |
-| 3 | KeyPath | `KanataTCPClient` and `KanataEventListener` on `NWEndpoint.unix`, CLI engine commands routed through runtime control, then **the worker starts with no TCP port**, port preference and migration retired, `verify-installed-app.sh` checks the socket | Phase 3; closes #1354 |
+| 3 | KeyPath | `KanataTCPClient` and `KanataEventListener` on `NWEndpoint.unix`, CLI engine commands routed through runtime control, readiness checks (`ServiceLifecycleCoordinator`) moved from `tcpPort` to the socket, then **the worker starts with no TCP port** and `SessionRuntimeReport.tcpPort` is removed, port preference and migration retired, `verify-installed-app.sh` checks the socket | Phase 3; closes #1354 |
 | 4 | KeyPath | ADR-013 superseded, `guides/privacy.md` TCP section rewritten and published, architecture docs, release-notes entry | Phase 5 |
 
 Phase 4 (signature check) is a fifth PR, before or after release depending on
