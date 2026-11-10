@@ -9,7 +9,6 @@ excluded:
   - dist
   - dev-tools
   - Scripts
-  - ScrollTest
   - Tests/InstallationWizardTests.disabled
   - "*.generated.swift"
   - peekaboo  # Exclude nested peekaboo project
