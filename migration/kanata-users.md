@@ -73,9 +73,8 @@ When you click "Use This Config":
 1. **Backup** — Creates a timestamped backup before any changes
 2. **Symlink** — Links to your original file (no copying)
 3. **Include line** — Adds `(include keypath-apps.kbd)` if missing
-4. **Permissions** — Guides you through Input Monitoring and Accessibility
-5. **Driver** — Installs Karabiner VirtualHID if needed
-6. **Service** — Configures LaunchDaemon for boot-time remapping
+4. **Permissions** — Guides you through Accessibility (Device Control and Data Access on macOS 27)
+5. **Runtime** — Runs Kanata in your user session; there is no driver to install and no system service. Turn on **Launch at login** to start it when you sign in
 
 ---
 
@@ -170,7 +169,7 @@ If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies 
 KeyPath doesn't parse your Kanata config — it uses TCP and a simulator to understand what's running. This means your custom rules work perfectly at the engine level, but the UI only shows rules created through KeyPath's interface.
 
 **What KeyPath handles for you (even with BYOC):**
-- Service management, permissions wizard, driver installation
+- Starting and stopping the runtime, the permissions wizard
 - Hot reload (config changes detected and applied via TCP)
 - Conflict detection, health monitoring, emergency stop (`Ctrl + Space + Esc`)
 
@@ -210,7 +209,7 @@ If you use a custom TCP port:
 
 ### Service Not Starting?
 
-1. **Check permissions** - Run setup wizard to verify Input Monitoring and Accessibility
+1. **Check permissions** - Run setup wizard to verify Accessibility
 2. **Check conflicts** - Wizard detects conflicting processes (Karabiner, orphaned Kanata)
 3. **Check logs** - View system logs for error messages
 4. **Use Fix button** - Wizard's Fix button resolves most issues automatically

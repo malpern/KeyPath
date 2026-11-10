@@ -119,7 +119,7 @@ custom_rules:
   require_accessibility_identifier:
     name: "Missing Accessibility Identifier"
     regex: '(Button|Toggle|Picker)\s*\([^)]*\)[^.]*\.(buttonStyle|toggleStyle|pickerStyle)'
-    message: "Interactive UI element (Button/Toggle/Picker) should have .accessibilityIdentifier() modifier. See ACCESSIBILITY_COVERAGE.md"
+    message: "Interactive UI element (Button/Toggle/Picker) should have .accessibilityIdentifier() modifier. Check with: python3 Scripts/check-accessibility.py"
     severity: warning
     excluded:
       - ".*/.*Test.*\\.swift"  # Tests may not need identifiers

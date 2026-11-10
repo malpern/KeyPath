@@ -103,7 +103,6 @@ theme: parchment
 <li><a href="{{ '/architecture/runtime-architecture.html' | relative_url }}">Runtime & Service Lifecycle</a></li>
 <li><a href="{{ '/architecture/permissions-architecture.html' | relative_url }}">PermissionOracle</a></li>
 <li><a href="{{ '/architecture/rules-architecture.html' | relative_url }}">Rule Collections & Config</a></li>
-<li><a href="{{ '/architecture/xpc-architecture.html' | relative_url }}">Privileged Helper & XPC</a></li>
 <li><a href="{{ '/architecture/layouts-architecture.html' | relative_url }}">Keyboard Layouts</a></li>
 <li><a href="{{ '/architecture/kindavim-architecture.html' | relative_url }}">KindaVim Integration</a></li>
 </ul>

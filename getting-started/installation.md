@@ -10,7 +10,11 @@ permalink: /getting-started/installation/
 
 # Setting Up KeyPath
 
-In two minutes, your keyboard will be able to launch apps, tile windows, fire shortcuts without reaching, and remap any key — all from the home row. This guide walks you through each step of the setup wizard and explains what's happening behind the scenes.
+In two minutes, your keyboard will be able to launch apps, tile windows, fire shortcuts without reaching, and remap any key — all from the home row. This guide walks you through setup and explains what's happening at each step.
+
+Setup asks for **one permission** and installs nothing outside the app: no keyboard driver, no background system service, and no admin-level helper.
+
+> This page describes current builds. KeyPath 1.0.1 and earlier used a different setup that installed a privileged helper and asked for more permissions.
 
 ---
 
@@ -31,77 +35,35 @@ Want to see what's possible before you start? Check out [What You Can Build]({{ 
 
 ## Before You Start
 
-- **macOS 15 (Sequoia) or later** is required
+- **macOS 27 or later** is required
 - **An Apple Silicon (M-series) Mac** is required; Intel Macs are not supported
-- If you're running **Karabiner-Elements**, quit it first — it conflicts with KeyPath
+- If you run **Karabiner-Elements** or another keyboard remapper, quit it first
 
-> ⚠️ **Watch out:** Karabiner-Elements grabs the same low-level keyboard APIs that KeyPath needs. Quit it from the menu bar icon before continuing. You can always switch back later — see [From Karabiner-Elements]({{ '/migration/karabiner-users/' | relative_url }}).
-
----
-
-## The Setup Wizard
-
-KeyPath's wizard opens automatically on first launch. It detects what's needed, walks you through each step, and checks your progress. This guide explains **what's happening and why** so nothing feels mysterious.
-
-The wizard shows a **Setup Overview** with status indicators for each step. Green checkmarks mean done; orange or red icons mean action needed. Click **Fix** on any item to start that step.
+> ⚠️ **Watch out:** Two remappers working on the same keys interfere with each other. Quit the other one before continuing. You can always switch back later — see [From Karabiner-Elements]({{ '/migration/karabiner-users/' | relative_url }}).
 
 ---
 
-## Step 1: Privileged Helper Installation
+## Step 1: Put KeyPath in Applications
 
-The wizard's first action step. KeyPath needs to install a small privileged helper service that runs in the background and manages the keyboard remapping engine. This requires your admin password.
+1. Open the downloaded disk image and drag **KeyPath** to **Applications**.
+2. Open KeyPath from Applications and choose **Get Started**.
 
-**What happens:** macOS shows an authorization prompt. Enter your password and click **Install**. This is a one-time step — you won't be asked again unless you uninstall and reinstall.
-
-
-![Screenshot]({{ '/images/help/permissions-login-items.png' | relative_url }})
-Screenshot — macOS authorization prompt:
-```
-  ┌─────────────────────────────────────┐
-  │  KeyPath wants to install a         │
-  │  privileged helper.                 │
-  │                                     │
-  │  [Username]                         │
-  │  [••••••••••]                       │
-  │                                     │
-  │      [ Cancel ]    [ Install ]      │
-  └─────────────────────────────────────┘
-```
-
-> ⚠️ **Watch out:** Clicking **Cancel** stops the installation. KeyPath can't remap keys without the helper. If this happens, re-run the wizard from **File > Install wizard...** (Shift+Cmd+N).
-
-After installation, macOS may also ask you to approve KeyPath in **Login Items** under System Settings. If prompted, find KeyPath under "Allow in the Background" and toggle it ON.
+> ⚠️ **Watch out:** If you opened KeyPath from Downloads or straight from the disk image, move it to Applications and reopen it **before** granting access. macOS ties the permission to the app's location.
 
 ---
 
-## Step 2: Enhanced Diagnostics (Optional)
+## Step 2: Allow Accessibility
 
-The wizard calls this **"Enhanced Diagnostics."** Under the hood, it's macOS Full Disk Access — it lets KeyPath read the system permission database so it can accurately verify that all permissions are correctly set.
+**Why:** This permission lets KeyPath read the keys you press and send the remapped ones to your apps. On macOS 27 it appears in System Settings as **Device Control and Data Access**; earlier versions called it **Accessibility**.
 
-**Without it:** KeyPath still works, but some permission checks may show as "unverified" instead of a clear green checkmark or red X.
-
-**With it:** Permission verification is precise, error messages are more helpful, and KeyPath can proactively detect issues.
-
-> 💡 **Tip:** You can **Skip** this step. It's optional and you can always enable it later from System Settings > Privacy & Security > Full Disk Access.
-
----
-
-## Step 3: Accessibility
-
-**Why:** Accessibility permission lets KeyPath **send** remapped keystrokes to your apps. Without it, KeyPath can read your keys but can't write the new ones back.
-
-This step has **two components** — both need to be granted:
-
-### 3a: KeyPath.app
-
-KeyPath.app usually appears in the Accessibility list automatically. Toggle it **ON**.
+The setup wizard opens the right pane in System Settings. Turn **KeyPath** on. macOS may ask for your password or Touch ID — that is macOS confirming the change, not KeyPath installing anything.
 
 
 ![Screenshot]({{ '/images/help/screenshot-accessibility-settings.png' | relative_url }})
-Screenshot — System Settings > Privacy & Security > Accessibility:
+Screenshot — System Settings > Privacy & Security > Device Control and Data Access (Accessibility before macOS 27):
 ```
   ┌──────────────────────────────────────────────┐
-  │  Privacy & Security > Accessibility          │
+  │  Privacy & Security > Device Control …       │
   │                                              │
   │  Allow the apps below to control             │
   │  your computer.                              │
@@ -109,90 +71,26 @@ Screenshot — System Settings > Privacy & Security > Accessibility:
   │  ┌──────────────────────────────────┐        │
   │  │ 🔑 KeyPath.app          [  ●  ] │ ← ON   │
   │  └──────────────────────────────────┘        │
-  │                                              │
-  │          [ + ]                               │
   └──────────────────────────────────────────────┘
 ```
 
-### 3b: The kanata binary (the tricky part)
+Only **KeyPath** needs to be in this list. You do not add any other program.
 
-KeyPath uses a separate engine called **kanata** to do the actual keyboard remapping. Because kanata is a system binary (not a regular .app), it **does not appear** in the Accessibility list automatically. You have to add it manually.
-
-**When you click Fix** in the wizard, two things happen:
-1. System Settings opens to the Accessibility pane
-2. A Finder window opens showing the kanata binary so you can see where it lives
-
-**Step by step:**
-
-1. Click **Fix** next to "kanata" in the wizard
-2. System Settings opens to Accessibility; Finder reveals the kanata binary at `/Library/KeyPath/bin/`
-3. In System Settings, click the **+** button at the bottom of the app list
-4. A file picker opens (it defaults to /Applications — kanata isn't there)
-5. Press **Cmd+Shift+G** to open the "Go to Folder" sheet
-6. Type `/Library/KeyPath/bin/kanata` and press **Enter**
-7. Click **Open** to add kanata to the list
-8. Toggle kanata **ON** in the list
-9. Return to KeyPath — the wizard detects the change automatically
-
-
-![Screenshot]({{ '/images/help/permissions-login-items.png' | relative_url }})
-Screenshot — Using the + button and Go to Folder to find kanata:
-```
-  ┌─ System Settings ──────────────────────────────┐
-  │                                                 │
-  │  Privacy & Security > Accessibility             │
-  │                                                 │
-  │  ┌───────────────────────────────────────┐      │
-  │  │ 🔑 KeyPath.app              [  ●  ]  │      │
-  │  └───────────────────────────────────────┘      │
-  │                                                 │
-  │  [ + ] ◄── 1. Click this                        │
-  │                                                 │
-  │  ┌─ File Picker ──────────────────────────┐     │
-  │  │                                        │     │
-  │  │  Go to Folder: [/Library/KeyPath/bin/] │     │
-  │  │                 ▲                      │     │
-  │  │                 2. Cmd+Shift+G,        │     │
-  │  │                    type this path      │     │
-  │  │                                        │     │
-  │  │  ┌────────────────────────────┐        │     │
-  │  │  │ ⚙ kanata  ◄── 3. Select   │        │     │
-  │  │  └────────────────────────────┘        │     │
-  │  │                                        │     │
-  │  │              [ Open ] ◄── 4. Click     │     │
-  │  └────────────────────────────────────────┘     │
-  └─────────────────────────────────────────────────┘
-```
-
-> ⚠️ **Watch out:** The kanata binary looks like a plain executable icon, not like an app. That's normal — it's a command-line binary, not a .app bundle. After you add it, it may appear as "kanata" with a generic Terminal-style icon in the list.
-
-> 💡 **Tip:** The wizard also opens a Finder window showing kanata's location. This is for reference so you know you're adding the right file. The actual adding happens through the **+** button in System Settings.
+KeyPath does not ask for Input Monitoring or Full Disk Access. Later, if you add an action that controls another app (for example an AppleScript action), macOS may ask once for Automation permission for that app.
 
 ---
 
-## Step 4: Kanata Engine Setup
+## Step 3: Return to KeyPath
 
-The wizard verifies that the kanata remapping engine is properly installed at `/Library/KeyPath/bin/kanata`. This step is usually automatic — the privileged helper installed it in Step 1.
+Switch back to KeyPath. It checks that it can actually read and send keys, then starts remapping on its own. There is no separate "start" step.
 
-If something went wrong (file missing or corrupted), click **Fix** and the wizard reinstalls it.
-
----
-
-## Step 5: Start KeyPath Runtime
-
-The final step. The wizard starts the KeyPath Runtime, powered by the Kanata engine in the background. Once it is running, your key remappings are active system-wide.
-
-The wizard shows a live status indicator:
-
-- **Green checkmark** — Service is running
-- **Orange** — Service is stopped
-- **Red** — Service failed (check logs in **File > Logs...**)
+The keyboard tour then walks you through your first mapping. It can set up Caps Lock to act as Escape on a quick tap and as a Hyper key when held — see [Caps Lock and F18]({{ '/guides/driverless-caps-lock/' | relative_url }}) for details.
 
 ---
 
 ## Verify It's Working
 
-After the wizard completes and returns to the **Setup Overview** with all green checkmarks, look at the overlay in the bottom-center of your screen:
+Look at the overlay in the bottom-center of your screen:
 
 
 ![Screenshot]({{ '/images/help/install-overlay-health-green.png' | relative_url }})
@@ -202,10 +100,24 @@ Screenshot — Overlay header with green health indicator:
   │  ● KeyPath                    Base Layer      │
   └──────────────────────────────────────────────┘
        ▲
-       Green dot = service running, permissions OK
+       Green dot = remapping is running
 ```
 
-**Quick test:** The default configuration maps **Caps Lock to Escape**. Press Caps Lock — if it fires Escape (try it in a text field or Terminal), remapping is active.
+**Quick test:** Press a key you mapped in the tour and confirm it does what you chose.
+
+---
+
+## Keep It Running After Login (Optional)
+
+Turn on **Launch at login** in **Settings → General → Startup**. If macOS needs approval, KeyPath offers **Open Login Items**.
+
+This starts KeyPath after you sign in. It does not remap the login screen.
+
+---
+
+## Where Remapping Doesn't Apply
+
+KeyPath does not remap keys in password fields and other Secure Input contexts, or at the login screen. Don't rely on a remapped key to type a password.
 
 ---
 
@@ -213,15 +125,22 @@ Screenshot — Overlay header with green health indicator:
 
 | Problem | Fix |
 |---------|-----|
-| Kanata doesn't appear in Finder when clicking Fix | The binary may not be installed yet. Go back to the Kanata Engine Setup step and click Fix to install it first. |
-| Dragged kanata to the list but it didn't appear | Try the **+** button instead: click +, press Cmd+Shift+G, type `/Library/KeyPath/bin/kanata`, press Enter, click Open. |
-| Toggle is ON but wizard still shows a warning | Quit KeyPath completely (Cmd+Q), reopen it. macOS sometimes needs a fresh app launch to recognize new permissions. |
-| Service not starting (red indicator) | Open **File > Install wizard...** and re-run the Privileged Helper step. |
-| Karabiner conflict detected | The wizard's Resolve Conflicts step handles this — click Fix to quit conflicting processes. Or quit Karabiner-Elements from its menu bar icon manually. |
-| KeyPath.app doesn't appear in permission lists | Restart your Mac. In rare cases macOS needs a reboot to register new apps in Privacy settings. |
-| Permissions granted but keys aren't remapped | Check the overlay — is it showing "Base Layer"? If so, the service is running but your config may not have rules yet. Try the Caps Lock to Escape test above. |
+| The toggle is on but setup still shows a warning | Quit KeyPath completely (Cmd+Q) and reopen it. macOS sometimes needs a fresh launch to apply a new permission. |
+| KeyPath doesn't appear in the Accessibility list | Make sure KeyPath is in Applications and was opened from there, then run setup again. |
+| Remapping doesn't start | Choose **File → Set Up KeyPath…**. Setup shows what is missing and offers recovery steps. |
+| Keys behave strangely with another remapper installed | Quit Karabiner-Elements or the other remapper, then run setup again. |
+| Permission granted but a key isn't remapped | Check that the rule is turned on, and that you aren't in a password field. |
 
-> 💡 **Tip:** You can always re-run the setup wizard from **File > Install wizard...** (Shift+Cmd+N). It picks up where you left off and only shows steps that still need attention.
+> 💡 **Tip:** You can re-run setup any time from **File → Set Up KeyPath…** or from KeyPath's menu-bar menu. It only shows what still needs attention.
+
+---
+
+## Updating and Removing
+
+- **Update:** choose **Download Update** to open the releases page. Quit KeyPath before replacing the app. Your rules are stored separately and are kept.
+- **Remove:** use **Settings → Repair/Remove → Uninstall KeyPath**. It saves a backup of your settings to Downloads, removes your rules and preferences, and moves the app to the Trash. Diagnostic logs in `~/Library/Logs/KeyPath/` stay, and so does the Accessibility grant (remove it in System Settings). If you installed the command-line tool, remove its link with `sudo rm /usr/local/bin/keypath-cli`.
+
+If you upgraded from KeyPath 1.0.1 or earlier, files from the old system service may remain; see [Privacy & Permissions]({{ '/guides/privacy/' | relative_url }}) for where they are.
 
 ---
 
@@ -232,11 +151,11 @@ You're set up! Here are the best places to go from here:
 - [Keyboard Concepts]({{ '/guides/concepts/' | relative_url }}) — Layers, tap-hold, and the ideas behind modern keyboard customization
 - [What You Can Build]({{ '/guides/use-cases/' | relative_url }}) — Real examples: app launching, window tiling, Vim-style navigation
 - [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) — Turn your home row into modifier keys so you never leave home position
+- [Privacy & Permissions]({{ '/guides/privacy/' | relative_url }}) — Exactly what KeyPath accesses and why
 
 ---
 
 ## Resources
 
 - [Apple: Allow Accessibility apps to access your Mac](https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac) ↗
-- [Karabiner-Elements: Uninstalling](https://karabiner-elements.pqrs.org/docs/manual/uninstall/) ↗
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)**

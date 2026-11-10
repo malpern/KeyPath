@@ -103,9 +103,9 @@ KeyPath runs Kanata in your user session, with no system service or driver. The 
 ## Safety
 
 - **Emergency stop** — Press **Ctrl + Space + Esc** to instantly disable all remappings
-- **No internet required** — works completely offline
+- **Works offline** — remapping needs no internet; see [PRIVACY.md](PRIVACY.md) for the optional network features
 - **No telemetry** — zero data collection
-- **No kernel extensions** — uses Apple's modern driver framework
+- **No drivers or system services** — KeyPath runs in your user session, with no kernel extension, keyboard driver or root helper
 - **Signed and notarized** — passes all macOS security checks
 
 ---

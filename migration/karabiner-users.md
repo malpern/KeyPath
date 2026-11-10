@@ -133,7 +133,7 @@ This is where the difference is most noticeable. If you use home row mods in Kar
 
 KeyPath's installer wizard will detect running Karabiner processes and warn you if there's a conflict.
 
-**Note:** KeyPath uses the same [Karabiner VirtualHIDDevice driver](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice) for its virtual keyboard. If you already have Karabiner installed, this driver is already present and approved.
+**Note:** KeyPath does not use the Karabiner VirtualHIDDevice driver or any other driver. If you keep Karabiner-Elements installed, leave its driver alone; KeyPath neither needs it nor removes it.
 
 ---
 
@@ -153,7 +153,7 @@ cp ~/.config/karabiner/karabiner.json ~/Desktop/karabiner-backup.json
 
 ### 2. Install KeyPath
 
-Follow the [Installation guide]({{ '/getting-started/installation/' | relative_url }}). KeyPath's wizard handles permissions and driver setup.
+Follow the [Installation guide]({{ '/getting-started/installation/' | relative_url }}). KeyPath's setup asks for one permission, Accessibility, and installs no driver.
 
 ### 3. Quit Karabiner
 
