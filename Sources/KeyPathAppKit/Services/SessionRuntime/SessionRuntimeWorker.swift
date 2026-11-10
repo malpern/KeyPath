@@ -500,7 +500,8 @@ public final class SessionRuntimeWorker {
         // Observation only: nothing below depends on it. A remapped Caps Lock
         // reaches the tap as the intermediate key but HID as Caps Lock (57).
         attribution?.observe(type: type, event: event,
-                             usage: capsRecord != nil && capturedUsage == capsIntermediateUsage ? 57 : capturedUsage)
+                             usage: Self.attributionUsage(captured: capturedUsage,
+                                                          capsIntermediate: capsRecord == nil ? nil : capsIntermediateUsage))
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.delayIfAdmitted(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)), keyDown: type == .keyDown,
@@ -546,6 +547,13 @@ public final class SessionRuntimeWorker {
     }
 
     static let systemDefinedEventType: UInt32 = 14
+
+    /// The usage attribution should match against HID for a tap event. While
+    /// managed Caps is active the tap sees its intermediate key, but HID still
+    /// reports the keyboard's own Caps Lock (57).
+    nonisolated static func attributionUsage(captured: UInt32, capsIntermediate: UInt32?) -> UInt32 {
+        captured == capsIntermediate ? 57 : captured
+    }
 
     /// A media key from the built-in or an Apple keyboard. Mapped ones go to
     /// Kanata and are consumed; everything else passes through untouched.
@@ -939,7 +947,10 @@ public final class SessionRuntimeWorker {
                         }
                         self.capsFleetRecords = coverage.records
                         self.capsRecord = coverage.records.first
-                        if input == .revoke { self.capsInput.revoke() }
+                        if input == .revoke {
+                            self.capsInput.revoke()
+                            self.capsIntermediateUsage = nil
+                        }
                         self.capsFleetRetryAfter = Self.nextBackoffs(
                             self.capsFleetRetryAfter, covered: current, failed: Set(coverage.failures.keys),
                             departed: coverage.departed, now: Date()

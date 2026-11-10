@@ -131,6 +131,23 @@ final class KeyboardAttributionLogTests: XCTestCase {
                        .unusable)
     }
 
+    func testManagedCapsIntermediateIsAttributedAsCapsLock() {
+        // F18 (0x6D) standing in for Caps Lock while managed Caps is active.
+        XCTAssertEqual(SessionRuntimeWorker.attributionUsage(captured: 0x6D, capsIntermediate: 0x6D), 57)
+        XCTAssertEqual(SessionRuntimeWorker.attributionUsage(captured: letterA, capsIntermediate: 0x6D), letterA)
+        XCTAssertEqual(SessionRuntimeWorker.attributionUsage(captured: 0x6D, capsIntermediate: nil), 0x6D,
+                       "without managed Caps, F18 is just F18")
+    }
+
+    func testRemovedKeyboardsPressIsNoLongerACandidate() {
+        var log = KeyboardAttributionLog()
+        log.record(hid(external, letterA, down: true, at: 100), nowNs: ms(100))
+        log.removeDevice(external)
+        log.observe(tap(letterA, down: true, at: 101), nowNs: ms(101))
+        log.resolve(nowNs: ms(110))
+        XCTAssertEqual(log.counts.noMatch, 1)
+    }
+
     func testSwitchIsOffByDefault() throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "KeyboardAttributionLogTests"))
         defaults.removePersistentDomain(forName: "KeyboardAttributionLogTests")
