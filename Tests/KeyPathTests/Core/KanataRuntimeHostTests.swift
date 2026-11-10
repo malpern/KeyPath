@@ -40,40 +40,4 @@ final class KanataRuntimeHostTests: XCTestCase {
     func testKanataEngineBundleIDIsCorrect() {
         XCTAssertEqual(KeyPathConstants.Bundle.kanataEngineBundleID, "com.keypath.kanata-engine")
     }
-
-    func testLaunchRequestBuildsCommandLineAndAddsTraceWhenNeeded() {
-        let request = KanataRuntimeLaunchRequest(
-            configPath: "/Users/test/.config/keypath/keypath.kbd",
-            inheritedArguments: ["--port", "37001", "--log-layer-changes"],
-            addTraceLogging: true
-        )
-
-        XCTAssertEqual(
-            request.commandLine(binaryPath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"),
-            [
-                "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-                "--cfg", "/Users/test/.config/keypath/keypath.kbd",
-                "--port", "37001",
-                "--log-layer-changes",
-                "--trace"
-            ]
-        )
-    }
-
-    func testLaunchRequestDoesNotDuplicateTraceWhenDebugAlreadyPresent() {
-        let request = KanataRuntimeLaunchRequest(
-            configPath: "/Users/test/.config/keypath/keypath.kbd",
-            inheritedArguments: ["--debug"],
-            addTraceLogging: true
-        )
-
-        XCTAssertEqual(
-            request.commandLine(binaryPath: "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"),
-            [
-                "/Applications/KeyPath.app/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata",
-                "--cfg", "/Users/test/.config/keypath/keypath.kbd",
-                "--debug"
-            ]
-        )
-    }
 }

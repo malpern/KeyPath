@@ -40,7 +40,7 @@ the mini:
   keyboard holds a key, the other keyboard's press of that key produces no tap
   event, and autorepeats appear that neither keyboard caused. 13% of matches
   had two candidates. Per-press correctness in this case is not yet scored
-  (see Open question).
+  (see Measurements).
 
 ## Decision
 
@@ -74,18 +74,16 @@ Accessibility permission from ADR-047.
   (the worker's main run loop), so their callbacks never run concurrently and
   the buffer needs no lock. Nothing ever blocks waiting for the other callback;
   that would deadlock on a shared run loop.
-- **Clock.** Compare HID and tap times in one clock. Event timestamps and
-  callback arrival times gave the same answers for separate keys, but not in
-  the overlap run (122 against 316 ambiguous), where the spike also let
-  arrival times look further ahead (50 ms against 5 ms). `CGEvent.timestamp`'s unit is
-  not documented either. The rerun compares both clocks with the same window
-  and settles the choice (see Open question). Whichever is chosen, the worker
-  checks the timestamp unit once at start.
+- **Clock.** Compare HID and tap times in one clock: event timestamps
+  (`CGEvent.timestamp` against the HID value's timestamp). With the same window,
+  event timestamps and callback arrival times gave identical per-press results
+  in the 2026-11-10 rerun; event timestamps do not depend on when a callback got
+  to run. `CGEvent.timestamp`'s unit is not documented, so the worker checks it
+  once at start.
 - **Matching.** For a tap event, the candidates are the unconsumed HID entries
   with the same key and direction whose time is within a window of the tap
-  event's: 30 ms behind it to 5 ms ahead of it to start with, because the tap
-  trailed HID by up to 27 ms and ran ahead by up to 3.9 ms in the overlap run.
-  The rerun sets the final numbers. If every candidate comes from one keyboard,
+  event's: 30 ms behind it to 5 ms ahead of it. In the overlap runs the tap
+  trailed HID by up to 29.7 ms and ran ahead by up to 4.7 ms. If every candidate comes from one keyboard,
   the event is credited to that keyboard. If candidates come from more than one
   keyboard, the event falls back (below). Either way the candidate closest in
   time is consumed, which is the rule the spike measured, so a second
@@ -117,11 +115,15 @@ Accessibility permission from ADR-047.
   treated as coming from *no particular keyboard* and gets the default output.
   That covers: no HID match before the deadline, candidates from two keyboards
   within the window, and an autorepeat while the same key is down on more than
-  one keyboard. The fallback is meant to make a wrong-keyboard rule rare;
-  whether it is rare enough is what the rerun measures.
+  one keyboard. In the scored rerun no press was credited to the wrong
+  keyboard; 11 of 413 fell back.
 - Releases and repeats follow the press: a release is credited to the keyboard
   that pressed the key, so the engine never sees a press on one device and a
-  release on another.
+  release on another. macOS ends a merged press on the first release from
+  either keyboard, so that release may physically come from the other one.
+- **The worker ignores its own output.** KeyPath re-posts keys, and the spike's
+  separate tap saw each key twice, 4–6 ms apart. The worker's tap already skips
+  events carrying its output tag; attribution runs only on the originals.
 
 ### 3. Engine
 
@@ -192,28 +194,32 @@ last-connected behaviour from #1391. This is the only other use of the signal.
   callbacks share a run loop, so the HID callback could never run while the tap
   waits.
 
-## Open question
+## Measurements (settled 2026-11-10)
 
-**How close must two same-key presses be before attribution is wrong?** The
-first overlap run shows merging and 13% two-candidate matches, but its per-press
-scoring was lost. The rerun (spike README, "To finish") decides two numbers here:
+The scored overlap rerun (spike README, "Same-key overlap rerun") settles the
+questions this ADR left open:
 
-- the matching window (30 ms behind, 5 ms ahead, proposed above) and the 5 ms
-  hold deadline;
-- whether candidates from two keyboards should credit the closest one or fall
-  back every time. This ADR assumes fall back every time until the data says
-  otherwise;
-- which clock to match in, from both clocks compared with the same window.
-
-**Modifier keys are not measured yet.** The spike recorded key down and up only,
-and its table skips the modifier usages (0xE0–0xE7). Swapping modifiers per
-keyboard (Caps Lock, Control, Command) is probably the most common request, so
-the rerun adds `flagsChanged` events and the modifier usages before this ADR
-claims evidence for them.
+- **Window:** 30 ms behind, 5 ms ahead, and a 5 ms hold deadline. Every press
+  found its HID value inside it except one. The margin is thin (the extremes
+  were 29.7 ms and 4.7 ms) and the window was judged on the same run, so the
+  log-only rollout step must report the no-match rate; widen the look-behind
+  if it is more than rare. A miss falls back, so it is safe but invisible.
+- **Two keyboards within the window fall back every time.** All 10 such presses
+  had the other keyboard's press under 5 ms away. Presses 5–30 ms apart had
+  only one candidate left by then and were all credited correctly (32 of 32).
+  No press was credited to the wrong keyboard, so crediting the closest
+  candidate would gain little and adds a way to be wrong.
+- **Clock:** event timestamps (see Clock above).
+- **A modifier pressed on one keyboard is attributed like any other key.** The fixture's Left Shift,
+  seen as `flagsChanged`, was credited correctly every time (528 presses and
+  releases over two runs). Not measured: one modifier held on two keyboards at
+  once, because the person's key in both attempts sent a different usage. Until
+  that is measured, a modifier held on two keyboards is assumed to
+  merge like other keys, and the existing fallback covers it.
 
 ## Rollout
 
-1. Rerun the overlap test and settle the open question.
+1. ~~Rerun the overlap test and settle the open question.~~ Done 2026-11-10.
 2. Attribution in the worker plus its unit tests, behind the Settings switch,
    with no engine change (log-only: count attributed, unattributed and
    fallback events).

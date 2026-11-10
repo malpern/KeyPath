@@ -108,18 +108,6 @@ class ContentViewDebounceTests: KeyPathTestCase {
 
         AppLogger.shared.log("✅ [Test] Concurrent saves handled successfully")
     }
-
-    // MARK: - Helper Methods
-
-    private func createTestRecordingSection() -> RecordingSection? {
-        // Create a test RecordingSection with minimal bindings
-        // This tests that the structure can be instantiated
-
-        // Note: SwiftUI view testing requires more complex setup
-        // For Phase 1, we focus on the underlying logic
-
-        nil // Placeholder for now
-    }
 }
 
 // MARK: - Logging and Monitoring Tests
