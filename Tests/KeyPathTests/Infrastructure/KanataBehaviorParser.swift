@@ -1,4 +1,5 @@
 import Foundation
+@testable import KeyPathAppKit
 import KeyPathRulesCore
 
 // MARK: - Kanata Behavior Parser
@@ -26,14 +27,14 @@ import KeyPathRulesCore
 /// - Does not parse nested behaviors (e.g., tap-hold inside tap-dance)
 /// - Does not handle Kanata's full action syntax (macros, layers, etc.)
 /// - Returns `nil` for any unrecognized syntax
-public enum KanataBehaviorParser {
+enum KanataBehaviorParser {
     /// Attempt to parse a Kanata action string into a `MappingBehavior`.
     ///
     /// - Parameter action: The Kanata action string (e.g., `"(tap-hold 200 200 a lctl)"`)
     /// - Returns: A `MappingBehavior` if the syntax is recognized, `nil` otherwise.
     ///
     /// Simple keys (e.g., `"esc"`, `"M-c"`) return `nil` since they don't have advanced behavior.
-    public static func parse(_ action: String) -> MappingBehavior? {
+    static func parse(_ action: String) -> MappingBehavior? {
         let trimmed = action.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Must start with ( to be a complex action
