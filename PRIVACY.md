@@ -243,12 +243,13 @@ Terminal (each asks for an administrator password):
 ```bash
 sudo launchctl bootout system/com.keypath.kanata
 sudo rm -f /Library/LaunchDaemons/com.keypath.kanata.plist
-sudo rm -rf /Library/KeyPath
+sudo rm -f /Library/KeyPath/bin/kanata
+sudo rmdir /Library/KeyPath/bin /Library/KeyPath
 sudo rm -f /var/log/com.keypath.kanata.*.log
 ```
 
-The first command reports an error if the service is not running; that is
-fine. A Full Disk Access or Input Monitoring grant made for an earlier version
+The first command reports an error if the service is not running, and
+`rmdir` refuses if a folder still holds other files; both are fine. A Full Disk Access or Input Monitoring grant made for an earlier version
 is not revoked automatically. You can remove it in System Settings.
 
 ---

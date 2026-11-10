@@ -23,8 +23,8 @@ migration, no dead availability checks.
 The problems are around the core:
 
 - **Security.** The engine's control port is unauthenticated (already tracked
-  as #1354 / ADR-046). Further unfixed findings, including some not covered
-  by that ADR, are tracked privately and are not described here.
+  as #1354 / ADR-046). Other unfixed findings are tracked privately and are
+  not described here.
 - **Over-engineering.** The installer's plan/recipe/state-matrix machinery now
   encodes a single `if`. UI state is copied through four layers by hand.
 - **Bloat.** About 34,000 lines of scripts, docs, tests and dead Swift can be
@@ -68,13 +68,9 @@ any local process, including other users' processes and sandboxed apps with
 network-client, can receive every `KeyInput` event and the config text, press
 virtual keys, move the mouse and load any readable file as the config.
 
-Two things to add to the ADR's scope:
-
-- The app does not check that the listener on 37001 is its own worker. Only
-  `Scripts/verify-installed-app.sh` does. A process that binds the port first
-  can feed `MessagePush` events into `ActionDispatcher`.
-- `docs/adr/adr-013` and any user-facing text that says the port only handles
-  config reloads should be corrected.
+ADR-046 describes the attack scenarios. One documentation item to add: correct
+`docs/adr/adr-013` and any user-facing text that says the port only handles
+config reloads.
 
 **Fix:** ADR-046 options C and A together. This should block the first
 session-runtime release.
