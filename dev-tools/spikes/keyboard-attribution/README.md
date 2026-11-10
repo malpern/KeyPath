@@ -194,9 +194,33 @@ and release came through as `flagsChanged` and was credited to the fixture:
 398 of 398 presses and releases in one run, 130 of 130 in a second. Tap minus HID
 was p50 2.4 ms, max 7.8 ms, never negative.
 
-**Not measured: Shift held on two keyboards at once.** Both attempts recorded the
-person's key on the cl80 as Left arrow (usage 0x50), not Shift, so nothing
-overlapped. How macOS merges `flagsChanged` from two keyboards is still unknown.
+**Shift on two keyboards at once (rerun the same day).** The fixture tapped Left
+Shift on the same schedule while the person tapped Left Shift on the cl80. Two
+earlier attempts recorded the cl80's key as Left arrow; after the person released
+every modifier it sent Shift normally, so the cause was a stuck key state on the
+keyboard, not the tool.
+
+| | Count |
+|---|---|
+| Presses credited to the right keyboard | 414 of 430 |
+| Presses credited to the wrong keyboard | **0** |
+| Presses that fell back: candidates from both keyboards | 16 |
+| Releases credited to the right keyboard | 359 |
+| Releases credited to the press's keyboard although the other keyboard's release ended it | 50 |
+| Releases that fell back because their press did | 21 |
+
+| Other keyboard's press | Presses | Fell back | Wrong |
+|---|---|---|---|
+| under 5 ms away | 15 | 15 | 0 |
+| 5–15 ms | 21 | 1 | 0 |
+| 15–30 ms | 25 | 0 | 0 |
+| 30 ms or more | 369 | 0 | 0 |
+
+macOS merges Shift from two keyboards the way it merges other keys: the first
+release from either one ends the press (the "every keyboard released" rule left
+343 tap events unexplained, against 43). Both clocks gave identical results. Tap
+minus HID was p50 2.4 ms, max 10.3 ms, min −4.3 ms. Raw rows were deleted after
+scoring.
 
 **Fixture note.** The ESP32 fixture stopped playing partway through two of five
 runs while its Wi-Fi was dropping packets (90% ping loss at worst). Playback was
