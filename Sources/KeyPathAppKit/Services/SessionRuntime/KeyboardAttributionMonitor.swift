@@ -179,7 +179,7 @@ final class KeyboardAttributionMonitor {
         }, context)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
         guard IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone)) == kIOReturnSuccess else {
-            IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+            Self.detach(manager)
             return false
         }
         self.manager = manager
@@ -218,11 +218,15 @@ final class KeyboardAttributionMonitor {
             return
         }
         let now = Self.nowNs()
-        if tapClock == nil {
-            tapClock = .classify(eventTimestamp: event.timestamp, nowNs: now, ticksToNs: Self.ticksToNs)
-            if tapClock == .unusable {
-                AppLogger.shared.warn("⌨️ [Attribution] Tap timestamps are in an unknown unit; not attributing")
+        // Classified from events until one fits; a single late or odd event
+        // must not turn attribution off for the whole run.
+        if tapClock == nil || tapClock == .unusable {
+            let clock = KeyboardAttributionTapClock.classify(eventTimestamp: event.timestamp, nowNs: now,
+                                                             ticksToNs: Self.ticksToNs)
+            if clock == .unusable, tapClock == nil {
+                AppLogger.shared.warn("⌨️ [Attribution] A tap timestamp fits no known unit; skipping until one does")
             }
+            tapClock = clock
         }
         let timeNs: UInt64
         switch tapClock {
@@ -250,10 +254,18 @@ final class KeyboardAttributionMonitor {
             AppLogger.shared.log("⌨️ [Attribution] Final: \(log.summary())")
         }
         if let manager {
-            IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+            Self.detach(manager)
             IOHIDManagerClose(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         }
         manager = nil
+    }
+
+    /// The callbacks hold an unretained pointer to the monitor, so they are
+    /// cleared before it can be freed, not just unscheduled.
+    private static func detach(_ manager: IOHIDManager) {
+        IOHIDManagerRegisterInputValueCallback(manager, nil, nil)
+        IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
+        IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
     }
 
     private nonisolated static func registryID(_ device: IOHIDDevice) -> UInt64 {

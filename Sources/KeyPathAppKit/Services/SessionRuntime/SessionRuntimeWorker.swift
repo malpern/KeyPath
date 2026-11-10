@@ -60,6 +60,9 @@ public final class SessionRuntimeWorker {
     private var environmentObserver: SessionRuntimeEnvironmentObserver?
     /// Opt-in, log-only keyboard attribution (ADR-048). Nil when off.
     private var attribution: KeyboardAttributionMonitor?
+    /// The key managed Caps remaps Caps Lock to, while it is active. HID still
+    /// reports Caps Lock itself, so attribution maps this back.
+    private var capsIntermediateUsage: UInt32?
     #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
         private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
         private var tapTimeoutInitialization: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.Initialization?
@@ -325,6 +328,7 @@ public final class SessionRuntimeWorker {
                 try SessionCapsRuntimeSupport.requirePhysicalAllUp()
                 if capsRecord != nil {
                     capsInput.activate(generation: owner.generation, intermediateUsage: admission.intermediateUsage)
+                    capsIntermediateUsage = admission.intermediateUsage
                 }
                 capsConfigPath = configPath
                 capsAdmittedDigest = capsDigest
@@ -493,8 +497,10 @@ public final class SessionRuntimeWorker {
         guard let capturedUsage = SessionKeyMap.keyCodeToUsage[UInt16(event.getIntegerValueField(.keyboardEventKeycode))] else {
             return original
         }
-        // Observation only: nothing below depends on it.
-        attribution?.observe(type: type, event: event, usage: capturedUsage)
+        // Observation only: nothing below depends on it. A remapped Caps Lock
+        // reaches the tap as the intermediate key but HID as Caps Lock (57).
+        attribution?.observe(type: type, event: event,
+                             usage: capsRecord != nil && capturedUsage == capsIntermediateUsage ? 57 : capturedUsage)
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.delayIfAdmitted(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)), keyDown: type == .keyDown,
@@ -929,6 +935,7 @@ public final class SessionRuntimeWorker {
                         let input = Self.capsInputChange(previous: previous, current: current)
                         if input == .activate {
                             self.capsInput.activate(generation: owner.generation, intermediateUsage: usage)
+                            self.capsIntermediateUsage = usage
                         }
                         self.capsFleetRecords = coverage.records
                         self.capsRecord = coverage.records.first
