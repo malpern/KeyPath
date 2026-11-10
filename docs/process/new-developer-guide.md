@@ -30,7 +30,7 @@ cd /path/to/KeyPath
 swift build
 
 # Run tests (may prompt for passwords depending on local setup)
-./test.sh
+./Scripts/test-full.sh
 
 # Build the app bundle for testing
 ./build.sh
@@ -362,7 +362,7 @@ tail -f /var/log/com.keypath.kanata.stderr.log
 
 ```bash
 # All tests (may prompt for sudo depending on local setup)
-./test.sh
+./Scripts/test-full.sh
 
 # Tests related to the current diff
 ./Scripts/test-fast.sh --changed
@@ -439,7 +439,7 @@ In DEBUG builds (default for `swift build`), all privileged operations use direc
 # Development workflow - no certificate needed
 swift build
 swift test
-./test.sh
+./Scripts/test-full.sh
 ```
 
 ### For Release Builds

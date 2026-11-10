@@ -4,6 +4,10 @@ This inventory records the reference audit required before pruning scripts. It
 is a snapshot of the tracked `Scripts/` tree on July 12, 2026; the repository
 and its workflow files remain the source of truth as the tree evolves.
 
+> **Note (2026-11-10):** `Scripts/archive/`, `Scripts/test-scripts/`,
+> `Scripts/ui-tests/` and the unreferenced scripts listed below were removed
+> after this audit. Git history keeps them.
+
 ## Supported surface by purpose
 
 | Area | Tracked files | Purpose |
