@@ -210,12 +210,23 @@ questions this ADR left open:
   No press was credited to the wrong keyboard, so crediting the closest
   candidate would gain little and adds a way to be wrong.
 - **Clock:** event timestamps (see Clock above).
-- **A modifier pressed on one keyboard is attributed like any other key.** The fixture's Left Shift,
-  seen as `flagsChanged`, was credited correctly every time (528 presses and
-  releases over two runs). Not measured: one modifier held on two keyboards at
-  once, because the person's key in both attempts sent a different usage. Until
-  that is measured, a modifier held on two keyboards is assumed to
-  merge like other keys, and the existing fallback covers it.
+- **Modifiers are attributed like any other key.** The fixture's Left Shift,
+  seen as `flagsChanged`, was credited correctly every time alone (528 presses
+  and releases). With Left Shift tapped on both keyboards at once, 414 of 430
+  presses were credited correctly, none wrongly, and 16 fell back (15 with the
+  other keyboard's press under 5 ms away). These counts cover the tap events
+  that had ground truth; 43 of 473 had none and are not in them. macOS merges a
+  modifier held on two keyboards like any other key: the first release ends it.
+- **Known limitation, observed from macOS:** hold a key on keyboard B, tap the
+  same key on keyboard A, and A's release ends B's press, because the tap stream
+  has only one press to end. The evidence is the 50 Shift releases (20 Right
+  arrow) where the other keyboard's release ended the press, and the "first
+  release" merge rule fitting the tap stream far better than "every keyboard
+  released". The release is credited to the press's keyboard on
+  purpose (B in this example), so the engine sees a consistent press and
+  release. B's rule therefore stops before B lets go, exactly as it would
+  without KeyPath. A per-keyboard rule cannot fix this; the guide for the
+  feature should say so.
 
 ## Rollout
 
