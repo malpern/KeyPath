@@ -25,9 +25,19 @@ It needs Input Monitoring for whatever launches it (Terminal, or a wrapper
 
 Limits of the tool:
 - Its HID-to-keycode table covers letters, digits, punctuation, Return, Escape,
-  Delete, Tab, Space and the arrows. Other keys (F-keys, Home/End, the keypad,
-  the ISO `#` key) are skipped on the HID side, so their tap events always come
-  out unattributed. The recorded runs used only covered keys.
+  Delete, Tab, Space, the arrows and, since 2026-11-10, the eight modifiers
+  (usages 0xE0–0xE7). Modifier tap events are `flagsChanged`; the tool reads down
+  or up from that key's device flag bit. Caps Lock and other keys (F-keys,
+  Home/End, the keypad, the ISO `#` key) are skipped on the HID side, so their
+  tap events always come out unattributed.
+- The summary it prints matches with two windows (30 ms behind / 5 ms ahead, and
+  50 / 50 ms), each by both clocks, so the clocks are compared fairly.
+- **It sees KeyPath's own re-posts.** With KeyPath's session runtime running,
+  every key reaches the tap twice: the original, then KeyPath's re-post 4–6 ms
+  later. The tool's own summary counts both, so its "unattributed" figure is
+  about half the tap events in that case. Per-press scoring (below) keeps the
+  first of each pair. A real implementation sits inside KeyPath's tap and skips
+  its own tagged output, so it never sees the second copy.
 - If macOS disables the tap (timeout or secure input), the tool re-enables it and
   prints a warning, because tap counts are then incomplete. The 2026-11-09 runs
   used a build without this check; their HID and tap totals agreed except where
@@ -105,7 +115,7 @@ tapped Right arrow on the cl80 for about 25 seconds.
 
 **macOS merges overlapping presses of the same key.** While one keyboard holds Right
 arrow, a press of Right arrow on the other produces no new tap event. A release on
-either keyboard probably ends the press (not yet confirmed from raw rows). That is why HID shows 160 more events than the tap
+either keyboard ends the press (confirmed by the 2026-11-10 rerun below). That is why HID shows 160 more events than the tap
 stream, and why 80 autorepeats appear when neither keyboard held the key that long. So
 in this case, the merged stream does not record which keyboard is holding the key.
 
@@ -122,18 +132,64 @@ per-keyboard rules ADR).
 produced only 41 key presses, and both streams agreed on that count. In the two-keyboard
 run, 3×202 reports produced all 606 events.
 
-## To finish
+## Same-key overlap rerun (2026-11-10), scored per press
 
-Rerun the overlap test and keep the CSV until the per-press scoring has run. Report:
-- per-press correctness against the fixture's schedule
-- the cross-device gap below which attribution goes wrong
-- merged and phantom-repeat counts
-- both clocks matched with the same window (the first overlap run let arrival times
-  look 50 ms ahead but event timestamps only 5 ms, so its 122 against 316 is
-  not a fair comparison)
+Same setup as the first attempt: the fixture taps Right arrow 400 times (20 ms
+down, every 50 ms) while a person taps Right arrow on the cl80. This time the raw
+rows were kept until a scorer had run, then deleted.
 
-Before the rerun, extend the tool to record `flagsChanged` events and the
-modifier usages (0xE0–0xE7), so modifier keys are measured too. That needs a
-rebuild of `KBAttribution.app` and a fresh Input Monitoring grant.
+**How truth was rebuilt.** Each keyboard's HID stream says when its key went down
+and up. From the two streams the scorer builds the tap stream macOS should have
+produced under two merge rules, and keeps the one that matches the real tap
+stream:
 
-Then fill in the open section of the per-keyboard rules ADR.
+| Merge rule | Real tap events with no expected event | Expected events that never appeared |
+|---|---|---|
+| The press ends when *every* keyboard has released | 211 | 27 |
+| The press ends on the *first* release from either keyboard | 20 | 10 |
+
+So macOS ends a merged press on the first release. Each real tap event's truth is
+the keyboard that produced its expected event. 828 tap events got a truth label
+(65 from the cl80, 763 from the fixture); 20 did not.
+
+**Result, with the ADR-048 rules** (30 ms behind / 5 ms ahead, closest candidate
+consumed, two keyboards fall back, a release follows its press):
+
+| | Count |
+|---|---|
+| Presses credited to the right keyboard | 402 of 413 |
+| Presses credited to the wrong keyboard | **0** |
+| Presses that fell back: candidates from both keyboards | 10 |
+| Presses that fell back: no HID match | 1 |
+| Releases credited to the right keyboard | 381 |
+| Releases credited to the press's keyboard although the other keyboard's release ended it | 20 (by design: the engine must see press and release on one keyboard) |
+| Releases that fell back because their press did | 14 |
+
+**How close is too close.** Every press, by distance to the other keyboard's
+nearest press of the same key:
+
+| Other keyboard's press | Presses | Fell back | Wrong |
+|---|---|---|---|
+| under 5 ms away | 10 | 10 | 0 |
+| 5–15 ms | 15 | 0 | 0 |
+| 15–30 ms | 17 | 0 | 0 |
+| 30 ms or more | 371 | 1 | 0 |
+
+**Both clocks gave identical results** with the same window. Tap minus HID was
+p50 1.7 ms, p95 4.4 ms, max 29.7 ms, min −4.7 ms (the tap ahead of HID).
+
+## Modifier keys (2026-11-10)
+
+The fixture tapped Left Shift alone 400 times on the same schedule. Every press
+and release came through as `flagsChanged` and was credited to the fixture:
+398 of 398 presses and releases in one run, 130 of 130 in a second. Tap minus HID
+was p50 2.4 ms, max 7.8 ms, never negative.
+
+**Not measured: Shift held on two keyboards at once.** Both attempts recorded the
+person's key on the cl80 as Left arrow (usage 0x50), not Shift, so nothing
+overlapped. How macOS merges `flagsChanged` from two keyboards is still unknown.
+
+**Fixture note.** The ESP32 fixture stopped playing partway through two of five
+runs while its Wi-Fi was dropping packets (90% ping loss at worst). Playback was
+fine again after unplugging and replugging it. A run that matters should check
+that the fixture's HID event count equals its script's.
