@@ -1,8 +1,8 @@
 # Process
 
 Development-process references: the agent PR workflow and its invariants, the
-installer repair state matrix, release process, deployment, linting, the
-new-developer guide, and the help-content writing philosophy.
+installer repair state matrix, release process, deployment, linting,
+onboarding pointers, and the help-content writing philosophy.
 
 ## References
 
@@ -13,5 +13,5 @@ new-developer guide, and the help-content writing philosophy.
 - `release-process.md`: release and release-candidate process.
 - `deployment.md`: deployment details.
 - `linting.md`: formatting and linting process.
-- `new-developer-guide.md`: onboarding reference.
+- Onboarding: see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`](../../AGENTS.md).
 - `help-content-philosophy.md`: user-facing help content style.

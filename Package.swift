@@ -180,7 +180,6 @@ let package = Package(
             ],
             path: "Sources/KeyPathAppKit",
             exclude: [
-                "InstallationWizard/README.md",
                 // Compiled into default.metallib by CompileKeyboardStageMetal.
                 "UI/KeyboardStage/Metal/KeyboardStage.metal"
             ],
