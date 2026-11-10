@@ -1,6 +1,7 @@
 #!/bin/bash
 # Publish guides from master to the gh-pages branch.
-# Copies guide Markdown, the docs landing page, and shared help images.
+# Copies guide Markdown, the getting-started and migration pages, the docs
+# landing page, and shared help images.
 # Every publish keeps those three surfaces in sync from a clean source checkout.
 #
 # Usage:
@@ -12,7 +13,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GHPAGES_WORKTREE="$REPO_ROOT/.worktrees/gh-pages"
 
-PUBLISH_PATHS=(docs.md images/help)
+# Pages outside guides/ that the site also serves. Like guides/, the copy is
+# additive: a page deleted or renamed on master must also be removed from
+# gh-pages in the publication commit.
+SITE_PAGE_DIRS=(getting-started migration)
+
+PUBLISH_PATHS=(docs.md images/help "${SITE_PAGE_DIRS[@]}")
 if [ $# -gt 0 ]; then
     for guide in "$@"; do
         PUBLISH_PATHS+=("guides/$guide")
@@ -56,6 +62,12 @@ else
     echo "  copied all guides/*.md"
 fi
 
+for dir in "${SITE_PAGE_DIRS[@]}"; do
+    mkdir -p "$GHPAGES_WORKTREE/$dir"
+    cp "$REPO_ROOT/$dir/"*.md "$GHPAGES_WORKTREE/$dir/"
+done
+echo "  copied ${SITE_PAGE_DIRS[*]}"
+
 # Keep landing-page navigation and guide artwork in the same publish.
 cp "$REPO_ROOT/docs.md" "$GHPAGES_WORKTREE/docs.md"
 mkdir -p "$GHPAGES_WORKTREE/images/help"
@@ -75,7 +87,7 @@ if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --other
     exit 0
 fi
 
-git add guides/ docs.md images/help/ offline-help/
+git add guides/ docs.md images/help/ offline-help/ "${SITE_PAGE_DIRS[@]}"
 CHANGED=$(git diff --cached --name-only | wc -l | tr -d ' ')
 git commit -m "Publish $CHANGED file(s) from master $(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 git push origin gh-pages
