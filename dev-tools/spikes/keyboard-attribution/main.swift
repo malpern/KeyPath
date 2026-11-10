@@ -133,6 +133,7 @@ guard let tap = CGEvent.tapCreate(
     print("CGEvent.tapCreate failed: grant Input Monitoring (listen) to this terminal app, then rerun.")
     exit(1)
 }
+
 CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
 CGEvent.tapEnable(tap: tap, enable: true)
 
@@ -208,7 +209,9 @@ func report(_ label: String, _ matches: [Match]) {
     tap minus HID time, µs: p50 \(percentile(latencies, 0.5)) p95 \(percentile(latencies, 0.95)) max \(latencies.max() ?? 0) min \(latencies.min() ?? 0)
     """)
     var perDevice: [UInt64: Int] = [:]
-    for m in attributed { perDevice[m.deviceID!, default: 0] += 1 }
+    for m in attributed {
+        perDevice[m.deviceID!, default: 0] += 1
+    }
     for (id, count) in perDevice.sorted(by: { $0.value > $1.value }) {
         print("  \(deviceNames[id] ?? "?") [\(id)]: \(count)")
     }

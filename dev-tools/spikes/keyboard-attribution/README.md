@@ -70,10 +70,39 @@ arrows.
 **Event timestamps and callback arrival times give the same answer**, so either clock
 works. The tap stream trails the HID stream by about 1 ms, and by at most about 10 ms.
 
-**Not exercised: the same key pressed on two keyboards within a few milliseconds.** The
-person's arrow presses were at least 9.3 s from the fixture's. That case is physically
-rare, but the matcher would have to choose between the two candidates by timestamp, so it
-should be tested deliberately before any feature ships.
+**Not exercised in these two runs: the same key pressed on two keyboards within a few
+milliseconds.** The person's arrow presses were at least 9.3 s from the fixture's. The
+overlap run below tests that case on purpose.
+
+## Same-key overlap run (2026-11-09, first attempt)
+
+The fixture tapped Right arrow 400 times (20 ms down, every 50 ms) while a person
+tapped Right arrow on the cl80 for about 25 seconds.
+
+| | Count |
+|---|---|
+| HID events (both keyboards, down + up) | 1093 |
+| Tap events: fresh presses and releases | 933 |
+| Tap events: autorepeat | 80 |
+| Ambiguous, by event timestamp | 122 (13%) |
+| Ambiguous, by callback arrival | 316 |
+| Credited to the fixture / the cl80 | 730 / 203 |
+| Tap minus HID (p50 / max / min) | about 1.3 / 27 / −3.9 ms |
+
+**macOS merges overlapping presses of the same key.** While one keyboard holds Right
+arrow, a press of Right arrow on the other produces no new tap event. A release on
+either keyboard probably ends the press (not yet confirmed from raw rows). That is why HID shows 160 more events than the tap
+stream, and why 80 autorepeats appear when neither keyboard held the key that long. So
+in this case, the merged stream does not record which keyboard is holding the key.
+
+Every tap event was credited to some keyboard, but per-press correctness was not
+scored: the raw CSV was deleted before that analysis ran. A rerun is planned. It will
+score each credited press against the fixture's known schedule and measure how close
+two presses must be before the choice is wrong.
+
+**Consequence for a feature:** a per-keyboard rule cannot be exact when the same key is
+down on two keyboards at once. It needs a defined fallback for that window (see the
+per-keyboard rules ADR).
 
 **Open question, separate from attribution.** In the fixture-only run, 202 USB reports
 produced only 41 key presses, and both streams agreed on that count. In the two-keyboard
@@ -81,9 +110,9 @@ run, 3×202 reports produced all 606 events.
 
 ## To finish
 
-Test the same-key overlap case on purpose: hold an arrow key on a real keyboard while the
-fixture taps the same arrow. Then decide on the opt-in per-keyboard feature. Report:
-- attribution rate
-- ambiguous matches
-- repeat handling
-- tap-minus-HID latency
+Rerun the overlap test and keep the CSV until the per-press scoring has run. Report:
+- per-press correctness against the fixture's schedule
+- the cross-device gap below which attribution goes wrong
+- merged and phantom-repeat counts
+
+Then fill in the open section of the per-keyboard rules ADR.

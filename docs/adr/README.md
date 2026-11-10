@@ -45,6 +45,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-045](adr-045-retire-privileged-runtime-stack.md) | Retire the Privileged Runtime Stack | Accepted |
 | [ADR-046](adr-046-session-engine-control-channel.md) | Session Engine Control Channel | Proposed |
 | [ADR-047](adr-047-pre-release-cleanup.md) | Pre-Release Cleanup Before the First Session-Runtime Release | Accepted |
+| [ADR-048](adr-048-opt-in-per-keyboard-rules.md) | Opt-In Per-Keyboard Rules | Proposed |
 
 ## Key Decisions Summary
 
