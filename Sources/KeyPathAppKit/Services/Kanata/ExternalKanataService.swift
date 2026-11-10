@@ -139,13 +139,13 @@ public enum ExternalKanataService: Sendable {
         return label
     }
 
-    private struct CommandResult {
+    struct CommandResult {
         let status: Int32
         let stdout: String
         let stderr: String
     }
 
-    private static func runCommand(_ executable: String, arguments: [String]) async throws -> CommandResult {
+    static func runCommand(_ executable: String, arguments: [String]) async throws -> CommandResult {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: executable)
         task.arguments = arguments

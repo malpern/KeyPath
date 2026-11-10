@@ -59,8 +59,10 @@ public final class WizardWindowManager {
             return
         }
 
-        // A plain quit request: unlike an AppleScript "quit", it sends no Apple
-        // Event, so it needs no Automation consent and cannot be silently denied.
+        // terminate() sends the standard quit event, which macOS exempts from
+        // Automation consent, so unlike an AppleScript "quit" it cannot be
+        // silently denied. It returns whether the request was sent, not whether
+        // System Settings actually quit.
         if runningApps.map({ $0.terminate() }).contains(true) {
             AppLogger.shared.log("🧹 [WizardWindowManager] Asked System Settings to quit")
             didOpenSystemSettings = false
