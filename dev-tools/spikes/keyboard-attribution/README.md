@@ -128,5 +128,12 @@ Rerun the overlap test and keep the CSV until the per-press scoring has run. Rep
 - per-press correctness against the fixture's schedule
 - the cross-device gap below which attribution goes wrong
 - merged and phantom-repeat counts
+- both clocks matched with the same window (the first overlap run let arrival times
+  look 50 ms ahead but event timestamps only 5 ms, so its 122 against 316 is
+  not a fair comparison)
+
+Before the rerun, extend the tool to record `flagsChanged` events and the
+modifier usages (0xE0–0xE7), so modifier keys are measured too. That needs a
+rebuild of `KBAttribution.app` and a fresh Input Monitoring grant.
 
 Then fill in the open section of the per-keyboard rules ADR.

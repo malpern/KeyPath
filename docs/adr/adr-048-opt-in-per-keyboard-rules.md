@@ -74,11 +74,13 @@ Accessibility permission from ADR-047.
   (the worker's main run loop), so their callbacks never run concurrently and
   the buffer needs no lock. Nothing ever blocks waiting for the other callback;
   that would deadlock on a shared run loop.
-- **Clock.** Compare HID and tap times in one clock. The spike found event
-  timestamps and callback arrival times gave the same answers, but
-  `CGEvent.timestamp`'s unit is not documented. The worker checks it once at
-  start (against `mach_absolute_time` and the HID timestamp of the same press)
-  and otherwise uses arrival times.
+- **Clock.** Compare HID and tap times in one clock. Event timestamps and
+  callback arrival times gave the same answers for separate keys, but not in
+  the overlap run (122 against 316 ambiguous), where the spike also let
+  arrival times look further ahead (50 ms against 5 ms). `CGEvent.timestamp`'s unit is
+  not documented either. The rerun compares both clocks with the same window
+  and settles the choice (see Open question). Whichever is chosen, the worker
+  checks the timestamp unit once at start.
 - **Matching.** For a tap event, the candidates are the unconsumed HID entries
   with the same key and direction whose time is within a window of the tap
   event's: 30 ms behind it to 5 ms ahead of it to start with, because the tap
@@ -94,13 +96,23 @@ Accessibility permission from ADR-047.
   feeds it when the HID callback supplies a match, or when a deadline passes
   (5 ms after the tap event).
 - **Order is kept by holding everything behind a held key.** While a key is
-  held, every later key event is also consumed and queued, including keys with
-  no rule at all. When the held key is released to the engine, the queue
+  held, every later event the worker's tap receives is also consumed and
+  queued: key down and up, modifier changes (`flagsChanged`) and media keys
+  (system-defined events), including keys with no rule at all. Mouse clicks do
+  not pass through this tap, so a click within 5 ms of a held key can reach an
+  app before it. That is accepted as a limitation. When the held key is released to the engine, the queue
   drains in order: keys for the engine go to the engine, and keys KeyPath does
   not map are re-posted unchanged with the output tag. So a key typed within
   5 ms of a held per-keyboard key is delayed by up to the rest of that 5 ms.
   When nothing is held, keys without a per-keyboard rule follow today's path
   unchanged.
+- **Re-posting is a new path, with its own risks.** Today an unmapped key passes
+  through the tap untouched. A re-posted one is a new event: its timestamp is
+  later, its modifier flags must be copied from the original rather than taken
+  from the state at re-post time, and other apps' event taps see it as posted
+  by KeyPath. The worker already stops when secure input turns on; it must
+  drain the queue before it stops, so no key is lost. Tests cover flags carried
+  over, order, and draining on stop.
 - **Fallback rule:** an event that cannot be credited to exactly one keyboard is
   treated as coming from *no particular keyboard* and gets the default output.
   That covers: no HID match before the deadline, candidates from two keyboards
@@ -190,7 +202,14 @@ scoring was lost. The rerun (spike README, "To finish") decides two numbers here
   hold deadline;
 - whether candidates from two keyboards should credit the closest one or fall
   back every time. This ADR assumes fall back every time until the data says
-  otherwise.
+  otherwise;
+- which clock to match in, from both clocks compared with the same window.
+
+**Modifier keys are not measured yet.** The spike recorded key down and up only,
+and its table skips the modifier usages (0xE0–0xE7). Swapping modifiers per
+keyboard (Caps Lock, Control, Command) is probably the most common request, so
+the rerun adds `flagsChanged` events and the modifier usages before this ADR
+claims evidence for them.
 
 ## Rollout
 
