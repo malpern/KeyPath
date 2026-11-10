@@ -31,9 +31,11 @@ tap. IOHIDManager names the device but needs Input Monitoring. Each tap event
 was matched to the HID event for the same key and direction by timestamp. On
 the mini:
 
-- **Separate keys, two keyboards:** 923 of 923 tap events credited correctly
-  (ground truth: the fixture sends only arrows). The tap trails HID by about
-  1 ms (p95 about 5 ms, max about 10 ms).
+- **Separate keys, two keyboards:** 923 of 923 tap events credited to a
+  keyboard, consistent with ground truth: the fixture sends only arrows and no
+  other key was credited to it, and the person's arrows were at least 9.3 s from
+  the fixture's. The tap trails HID by about 1 ms (p95 about 5 ms, max about
+  10 ms).
 - **The same key on two keyboards at once:** macOS merges the presses. While one
   keyboard holds a key, the other keyboard's press of that key produces no tap
   event, and autorepeats appear that neither keyboard caused. 13% of matches
@@ -66,23 +68,33 @@ Accessibility permission from ADR-047.
 
 - When the feature is on and the grant is present, the session worker opens an
   IOHIDManager on keyboard devices (usage page 1, usage 6) and keeps a small
-  ring buffer of recent input values: device, key (HID usage), direction, HID
+  buffer of recent input values: device, key (HID usage), direction, HID
   timestamp. Nothing else is stored, and nothing is logged per key.
-- The tap callback must decide synchronously, so attribution happens there: take
-  the oldest unconsumed HID entry with the same key and direction within a
-  window (start at 15 ms; the spike's max lag was about 10 ms, plus margin).
-  Consume it, so a second keyboard's matching event is left for the next tap
-  event.
-- The tap occasionally runs ahead of HID (min −3.9 ms in the overlap run). If no
-  HID entry is there yet, wait at most 2 ms on a semaphore the HID callback
-  signals, then give up. This bounds the added latency well below the tap
-  timeout.
-- **Fallback rule:** an event that cannot be attributed to exactly one keyboard
-  is treated as coming from *no particular keyboard* and gets the default
-  output. That covers: no HID match, two candidates for one event, and an
-  autorepeat while the same key is down on more than one keyboard. A per-keyboard
-  rule therefore never fires for the wrong keyboard. In the worst case it does
-  not fire.
+- **Threading.** The HID manager and the tap are scheduled on the same run loop
+  (the worker's main run loop), so their callbacks never run concurrently and
+  the buffer needs no lock. Nothing ever blocks waiting for the other callback;
+  that would deadlock on a shared run loop.
+- **Matching.** For a tap event, take the oldest unconsumed HID entry with the
+  same key and direction whose timestamp is within a window of the tap event's
+  timestamp. Consume it, so a second keyboard's matching event is left for the
+  next tap event. The window must cover both directions: the tap trailed HID by
+  up to 27 ms and ran ahead of it by up to 3.9 ms in the overlap run. Start at
+  30 ms behind and 5 ms ahead; the rerun sets the final numbers.
+- **Keys without a per-keyboard rule are not affected.** They follow today's
+  path unchanged and need no attribution.
+- **Keys with a per-keyboard rule wait for their keyboard, without blocking the
+  tap.** The worker already consumes mapped keys in the tap and feeds the engine
+  itself. For such a key it consumes the event, and if no HID entry has matched
+  yet it holds the event in order and feeds it when the HID callback supplies a
+  match, or when a deadline passes (5 ms after the tap event). Later events are
+  queued behind a held one so key order never changes. The added latency is at
+  most the deadline, and only for those keys.
+- **Fallback rule:** an event that cannot be credited to exactly one keyboard is
+  treated as coming from *no particular keyboard* and gets the default output.
+  That covers: no HID match before the deadline, two candidates within the
+  window, and an autorepeat while the same key is down on more than one
+  keyboard. The fallback is meant to make a wrong-keyboard rule rare; whether
+  it is rare enough is what the rerun measures. In the common case it is exact.
 - Releases and repeats follow the press: a release is credited to the keyboard
   that pressed the key, so the engine never sees a press on one device and a
   release on another.
@@ -115,8 +127,9 @@ last-connected behaviour from #1391. This is the only other use of the signal.
 
 - One extra permission, asked for only by people who turn the feature on.
   Everyone else's setup is unchanged.
-- Added latency for people who use it: an IOHID lookup per key (microseconds),
-  plus at most 2 ms when the tap runs ahead of HID.
+- Added latency for people who use it: a buffer lookup per key with a
+  per-keyboard rule (microseconds), plus at most the 5 ms deadline when the tap
+  runs ahead of HID. Keys without such a rule are unaffected.
 - Per-keyboard rules are best-effort in one narrow case: the same key held on
   two keyboards at once. The fallback makes that case behave as if the feature
   were off for that key press, which is safe.
@@ -135,9 +148,11 @@ last-connected behaviour from #1391. This is the only other use of the signal.
 - **Read keys only through IOHIDManager and seize the device.** Rejected:
   seizing keyboards and posting output from them is the privileged path ADR-045
   retired.
-- **Attribute asynchronously and fix up afterwards.** Rejected: by the time a
-  late match arrives, the tap has already passed or consumed the event, and the
-  engine cannot take back output.
+- **Feed the engine at once and correct it when the match arrives.** Rejected:
+  the engine cannot take back output it has already sent.
+- **Block the tap callback until the HID event arrives.** Rejected: both
+  callbacks share a run loop, so the HID callback could never run while the tap
+  waits.
 
 ## Open question
 

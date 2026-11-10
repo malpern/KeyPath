@@ -23,6 +23,16 @@ swiftc -O -target arm64-apple-macos27.0 -o kb-attribution main.swift
 It needs Input Monitoring for whatever launches it (Terminal, or a wrapper
 `.app` with `NSInputMonitoringUsageDescription`).
 
+Limits of the tool:
+- Its HID-to-keycode table covers letters, digits, punctuation, Return, Escape,
+  Delete, Tab, Space and the arrows. Other keys (F-keys, Home/End, the keypad,
+  the ISO `#` key) are skipped on the HID side, so their tap events always come
+  out unattributed. The recorded runs used only covered keys.
+- If macOS disables the tap (timeout or secure input), the tool re-enables it and
+  prints a warning, because tap counts are then incomplete. The 2026-11-09 runs
+  used a build without this check; their HID and tap totals agreed except where
+  same-key merging explains the gap.
+
 ## What happened
 
 1. **First run, on the mini:** inconclusive.

@@ -11,7 +11,7 @@
 // in which the two callbacks arrive does not matter. It changes no input:
 // the tap is listen-only and HID devices are opened without seizing.
 //
-// Build: swiftc -O -o /tmp/kb-attribution main.swift
+// Build: swiftc -O -target arm64-apple-macos27.0 -o /tmp/kb-attribution main.swift
 // Run:   /tmp/kb-attribution [--seconds 120] [--csv out.csv]
 //        Type on each keyboard (alternate, overlap, hold a key to repeat).
 //        Ctrl-C or the timeout ends it and prints the report.
@@ -45,6 +45,8 @@ var hidRecords: [HIDRecord] = []
 var tapRecords: [TapRecord] = []
 var deviceNames: [UInt64: String] = [:]
 var unmappedHIDUsages = 0
+var tapPort: CFMachPort?
+var tapDisabledCount = 0 // macOS disabled the tap (timeout or secure input); events were lost
 
 var timebase = mach_timebase_info_data_t()
 mach_timebase_info(&timebase)
@@ -119,6 +121,11 @@ guard let tap = CGEvent.tapCreate(
     tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
     eventsOfInterest: CGEventMask(mask),
     callback: { _, type, event, _ in
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            tapDisabledCount += 1
+            if let tapPort { CGEvent.tapEnable(tap: tapPort, enable: true) }
+            return Unmanaged.passUnretained(event)
+        }
         if type == .keyDown || type == .keyUp {
             tapRecords.append(TapRecord(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)),
@@ -134,6 +141,7 @@ guard let tap = CGEvent.tapCreate(
     exit(1)
 }
 
+tapPort = tap
 CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
 CGEvent.tapEnable(tap: tap, enable: true)
 
@@ -231,6 +239,7 @@ while let arg = args.next() {
 func finish() -> Never {
     CGEvent.tapEnable(tap: tap, enable: false)
     print("\nHID key events: \(hidRecords.count) (unmapped usages skipped: \(unmappedHIDUsages)), tap key events: \(tapRecords.count)")
+    if tapDisabledCount > 0 { print("WARNING: the tap was disabled \(tapDisabledCount) time(s); tap counts are incomplete") }
     // The event timestamps' clocks are not documented to agree, so report both
     // the event-timestamp match and the callback-arrival match.
     report("by event timestamps (CGEvent timestamp as ns vs HID timestamp)",
