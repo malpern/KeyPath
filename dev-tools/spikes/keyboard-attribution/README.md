@@ -217,8 +217,11 @@ keyboard, not the tool.
 | 30 ms or more | 369 | 0 | 0 |
 
 macOS merges Shift from two keyboards the way it merges other keys: the first
-release from either one ends the press (the "every keyboard released" rule left
-343 tap events unexplained, against 43). Both clocks gave identical results. Tap
+release from either one ends the press. That rule left 43 tap events with no
+matching expected event (not zero); "every keyboard released" left 343. Those 43
+have no ground truth and are left out of both tables, which is also why releases
+fell back 21 times against 16 presses: some of those presses were among the 43.
+Both clocks gave identical results. Tap
 minus HID was p50 2.4 ms, max 10.3 ms, min −4.3 ms. Raw rows were deleted after
 scoring.
 

@@ -216,6 +216,13 @@ questions this ADR left open:
   presses were credited correctly, none wrongly, and 16 fell back (15 with the
   other keyboard's press under 5 ms away). macOS merges a modifier held on two
   keyboards like any other key: the first release ends it.
+- **Known limitation, from macOS itself:** hold a key on keyboard B, tap the same
+  key on keyboard A, and A's release ends B's press, because the tap stream has
+  only one press to end. The release is credited to the press's keyboard on
+  purpose (B in this example), so the engine sees a consistent press and
+  release. B's rule therefore stops before B lets go, exactly as it would
+  without KeyPath. A per-keyboard rule cannot fix this; the guide for the
+  feature should say so.
 
 ## Rollout
 
