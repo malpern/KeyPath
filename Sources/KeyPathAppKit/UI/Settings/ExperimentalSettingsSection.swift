@@ -1,4 +1,5 @@
 import KeyPathCore
+import KeyPathPermissions
 import KeyPathPluginKit
 import SwiftUI
 
@@ -12,6 +13,7 @@ struct ExperimentalSettingsSection: View {
     @State private var uninstallForTesting = FeatureFlags.uninstallForTesting
     @State private var learningTipsMode = FeatureFlags.learningTipsMode
     @State private var contextHUDListEnabled = FeatureFlags.contextHUDListEnabled
+    @State private var keyboardAttributionEnabled = KeyboardAttributionMonitor.isEnabled()
     @State private var qmkSearchEnabled = UserDefaults.standard.object(forKey: LayoutPreferences.qmkSearchEnabledKey) != nil
         ? UserDefaults.standard.bool(forKey: LayoutPreferences.qmkSearchEnabledKey)
         : LayoutPreferences.qmkSearchEnabledDefault
@@ -209,6 +211,19 @@ struct ExperimentalSettingsSection: View {
                 isOn: $contextHUDListEnabled,
                 onChange: { FeatureFlags.setContextHUDListEnabled($0) },
                 identifier: "feature-flag-context-hud-list"
+            )
+
+            featureFlagToggle(
+                title: "Keyboard Attribution (log only)",
+                description: "Count which keyboard each key came from, in the log. Needs Input Monitoring. Applies when the engine next starts.",
+                isOn: $keyboardAttributionEnabled,
+                onChange: { enabled in
+                    UserDefaults.standard.set(enabled, forKey: KeyboardAttributionMonitor.enabledKey)
+                    if enabled, PermissionOracle.shared.keyPathInputMonitoringStatus() != .granted {
+                        PermissionOracle.shared.requestKeyPathInputMonitoring()
+                    }
+                },
+                identifier: "feature-flag-keyboard-attribution"
             )
 
             learningTipsModePicker

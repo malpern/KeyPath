@@ -58,6 +58,8 @@ public final class SessionRuntimeWorker {
     private var physicalPassthroughFlags: UInt64 = 0
     private var physicalModifiers = SessionPhysicalModifierState()
     private var environmentObserver: SessionRuntimeEnvironmentObserver?
+    /// Opt-in, log-only keyboard attribution (ADR-048). Nil when off.
+    private var attribution: KeyboardAttributionMonitor?
     #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
         private var tapTimeoutExperiment: SessionTapTimeoutExperiment?
         private var tapTimeoutInitialization: SessionRuntimeReport.ExperimentalTapTimeoutDiagnostic.Initialization?
@@ -358,6 +360,7 @@ public final class SessionRuntimeWorker {
             }
         #endif
 
+        attribution = KeyboardAttributionMonitor.startIfEnabled()
         timer = Timer(timeInterval: 0.005, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
@@ -490,6 +493,8 @@ public final class SessionRuntimeWorker {
         guard let capturedUsage = SessionKeyMap.keyCodeToUsage[UInt16(event.getIntegerValueField(.keyboardEventKeycode))] else {
             return original
         }
+        // Observation only: nothing below depends on it.
+        attribution?.observe(type: type, event: event, usage: capturedUsage)
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.delayIfAdmitted(
                 keyCode: Int(event.getIntegerValueField(.keyboardEventKeycode)), keyDown: type == .keyDown,
@@ -586,6 +591,7 @@ public final class SessionRuntimeWorker {
         #endif
         guard let tap, CGEvent.tapIsEnabled(tap: tap) else { finish(.failed, reason: "tap-disabled-observed") }
         guard let runtime else { finish(.failed, reason: "runtime-unavailable") }
+        attribution?.tick()
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             tapTimeoutExperiment?.prepare(now: Date().timeIntervalSince1970)
         #endif
@@ -1200,6 +1206,9 @@ public final class SessionRuntimeWorker {
         finished = true
         // The orderly path owns shutdown from here; no hard exit may cut it off.
         SessionShutdownFallback.shared.shutdownBegins()
+        // Before the flush below, so its final totals reach the log.
+        attribution?.stop()
+        attribution = nil
         // Every exit records why, so a stop with no failure is still explainable.
         AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
         AppLogger.shared.flushBuffer()
