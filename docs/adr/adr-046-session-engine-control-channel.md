@@ -207,12 +207,10 @@ directly and asks the app over the existing runtime-control socket, as
   and its PID version (`audit_token_to_pidversion` on its own
   `TASK_AUDIT_TOKEN`) at launch, and the server reads the peer's audit token
   from the accepted socket (`LOCAL_PEERTOKEN`) and requires both to match. The
-  PID version changes when a PID is reused, which closes the race. Confirm
-  during implementation that `LOCAL_PEERTOKEN` and `audit_token_to_pidversion`
-  are usable on KeyPath's minimum macOS (15), as for `NWEndpoint.unix`; if
-  not, the fallback is `LOCAL_PEERPID` plus the `NOTE_EXIT` watch, with the
-  PID-reuse window between owner exit and the watch firing recorded as an
-  accepted risk, and phase 4's signature check moves into the release gate.
+  PID version changes when a PID is reused, which closes the race.
+  `LOCAL_PEERTOKEN` and `audit_token_to_pidversion` work on `AF_UNIX` stream
+  sockets on macOS 27, KeyPath's minimum (see Verification), so the
+  `LOCAL_PEERPID` fallback is not needed.
   The worker
   also watches the owner with a kqueue `NOTE_EXIT` source so it stops
   listening the moment the app exits. Until phase 4 ships, attacker 3 is
@@ -236,8 +234,8 @@ or impersonates the app (attacker 3, partly mitigated in the table below).
 That process already runs as the user, and closing the gap needs the
 signature check. Accepting this ADR means accepting that risk for the first
 release; if it is not acceptable, phase 4 joins the release gate. The
-phase 1–3 mitigation for attacker 3 also assumes `LOCAL_PEERTOKEN` works on
-`AF_UNIX` sockets on macOS 15, which the lab check below must confirm.
+phase 1–3 mitigation for attacker 3 relies on `LOCAL_PEERTOKEN` on `AF_UNIX`
+sockets, which works on macOS 27 (see Verification).
 
 | Attacker | Today | After phases 1–3 (release) | After phase 4 |
 |---|---|---|---|
@@ -246,12 +244,33 @@ phase 1–3 mitigation for attacker 3 also assumes `LOCAL_PEERTOKEN` works on
 | 3. Same user, unsandboxed | Full access | Partly mitigated: direct connection blocked (PID check), but injecting into or impersonating the app is still possible | Blocked unless it injects code into KeyPath (out of scope) |
 | 4. Port squatter | Takes over the channel | Blocked (no TCP port; socket in a directory only this user owns) | Blocked |
 
-**Blocks acceptance:** this ADR stays Proposed until a live install in a lab VM
-confirms the main claims: a second macOS user, and a sandboxed app with the network-client
-entitlement, each connect to the port and receive `KeyInput`. In the same VM,
-check that `LOCAL_PEERTOKEN` returns the peer's audit token on an `AF_UNIX`
-stream socket on macOS 15, since the attacker-3 mitigation depends on it. This
-ADR was written from source alone.
+**Acceptance check:** this ADR was written from source alone, and acceptance
+required its main claims confirmed on a live install. That was done on
+2026-11-10; see Verification. Acceptance now waits only on the phase 4
+decision above.
+
+### Verification (2026-11-10)
+
+On the Mac mini, macOS 27.3, KeyPath master `d7d2ccb3c` installed, engine fork
+still at `d9085a9`. While the ESP32 HID fixture tapped arrow keys, each probe
+connected to `127.0.0.1:37001`, sent nothing, and counted the events it
+received. No key content was printed or kept.
+
+| Attacker | Probe | Received |
+|---|---|---|
+| 3. Same user, no grants | `/usr/bin/nc` from a shell | 1 `LayerChange`, **231 `KeyInput`** |
+| 1. Another macOS user | `nc` as the mini's second account (`clawd`) | 1 `LayerChange`, **233 `KeyInput`** |
+| 2. Sandboxed app | A minimal `.app` signed with only `app-sandbox` and `network.client`; macOS created its container | **231 `KeyInput`** (13 KB) |
+
+So every connected process receives the keystroke stream without
+authenticating, including another user's processes and a sandboxed app.
+
+`LOCAL_PEERTOKEN` on an `AF_UNIX` stream socket returned a 32-byte audit token
+whose PID, PID version and uid matched the connecting child process exactly,
+and `TASK_AUDIT_TOKEN` gave the server's own PID version. `getpeereid` agreed
+on the uid. So phase 1's identity check is implementable as written, with no
+fallback. `NWEndpoint.unix(path:)` is in the macOS 27 SDK, so phase 3 should
+need no POSIX fallback either; that was read from the SDK, not exercised.
 
 ## Migration
 
@@ -328,11 +347,12 @@ ADR was written from source alone.
    overflows both fails with the clear error. Fail with a clear error only
    if both are too long. The worker creates
    and validates the directory (reuse `RuntimeControlServer`'s checks) and
-   reports the socket path in its owned report instead of `tcpPort`.
+   adds the socket path to its owned report; `tcpPort` stays until phase 3
+   moves readiness checks to the socket.
 3. **Phase 3, Swift clients.** One transport change: `KanataTCPClient+Connection` and
    `KanataEventListener.connectAndStream` build `NWConnection`s from host and
    port. They move to `NWEndpoint.unix(path:)` (confirm availability on the
-   minimum macOS during implementation; fall back to a POSIX socket if not).
+   minimum macOS; it is in the macOS 27 SDK).
    The other callers listed above go through those two types and need no
    protocol change. `ConfigFacade.tcpReload`/`tcpGetCurrentLayer` move to a
    runtime-control request handled by the app. `PreferencesService.tcpServerPort`
@@ -351,6 +371,27 @@ ADR was written from source alone.
    `docs/architecture/context-integration-architecture.md`, whose unimplemented
    design has tmux, vim and shell hooks send `ContextUpdate` JSON to
    `nc 127.0.0.1 37001`.
+
+**Pull requests.** One fork PR and three KeyPath PRs, in order. Each KeyPath PR
+leaves the app working:
+
+| # | Repository | Contents | Lands with |
+|---|---|---|---|
+| 1 | `malpern/kanata` | Generic stream server, Unix listener, peer check (uid, PID, PID version) behind an injectable reader, the option A command removals as a session feature, connection cap, write timeout, bind error instead of panic, Rust tests | Fast-forward into `keypath/bundled` |
+| 2 | KeyPath | Submodule bump, bridge takes a socket path and expected peer **in addition to** the port, worker creates and checks the directory, `NOTE_EXIT` owner watch, socket path in the worker report, `cargo test` added to a required CI job. The TCP listener stays, so every client keeps working | Phases 1–2 |
+| 3 | KeyPath | `KanataTCPClient` and `KanataEventListener` on `NWEndpoint.unix`, CLI engine commands routed through runtime control, readiness checks (`ServiceLifecycleCoordinator`) moved from `tcpPort` to the socket, then **the worker starts with no TCP port** and `SessionRuntimeReport.tcpPort` is removed, port preference and migration retired, `verify-installed-app.sh` checks the socket | Phase 3; closes #1354 |
+| 4 | KeyPath | ADR-013 superseded, `guides/privacy.md` TCP section rewritten and published, architecture docs, release-notes entry | Phase 5 |
+
+Phase 4 (signature check) is a fifth PR, before or after release depending on
+the decision above.
+
+**Recheck after PR 3.** Probing the old port only shows it is gone, so check
+both: nothing listens on `127.0.0.1:37001`, and the three probes in
+Verification, pointed at the socket path from the worker's report, get no
+`KeyInput`. The other user and the sandboxed app must fail to reach the path
+(0700 directory, uid check); the same-user `nc` must be refused by the PID and
+PID-version check. Each refusal must happen before the connection receives a
+single event.
 
 **Compatibility:** anyone scripting `localhost:37001` directly (for example
 from Hammerspoon) loses that. So does the context-integration design above:
