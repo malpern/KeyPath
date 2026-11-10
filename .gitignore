@@ -105,3 +105,6 @@ tmp/
 skills/
 skills-lock.json
 __pycache__/
+
+# Golden-config test output written on mismatch
+Tests/KeyPathTests/Integration/GoldenConfigs/*.actual.kbd
