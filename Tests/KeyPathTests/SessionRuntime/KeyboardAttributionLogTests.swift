@@ -1,4 +1,6 @@
+import CoreGraphics
 @testable import KeyPathAppKit
+import KeyPathCore
 import XCTest
 
 final class KeyboardAttributionLogTests: XCTestCase {
@@ -146,6 +148,40 @@ final class KeyboardAttributionLogTests: XCTestCase {
         log.observe(tap(letterA, down: true, at: 101), nowNs: ms(101))
         log.resolve(nowNs: ms(110))
         XCTAssertEqual(log.counts.noMatch, 1)
+    }
+
+    // MARK: - Reading a tap event
+
+    private let leftShift: UInt32 = 0xE1
+    private let rightShift: UInt32 = 0xE5
+
+    private func direction(_ type: CGEventType, _ usage: UInt32, flags: UInt64 = 0,
+                           autorepeat: Bool = false) -> (Bool, Bool)?
+    {
+        KeyboardAttributionMonitor.direction(type: type, usage: usage, flags: flags, autorepeat: autorepeat)
+            .map { ($0.isDown, $0.isRepeat) }
+    }
+
+    func testKeyDownUpAndRepeatAreReadDirectly() {
+        XCTAssertTrue(direction(.keyDown, letterA)! == (true, false))
+        XCTAssertTrue(direction(.keyDown, letterA, autorepeat: true)! == (true, true))
+        XCTAssertTrue(direction(.keyUp, letterA)! == (false, false))
+    }
+
+    func testModifierIsDownOnlyWhileItsOwnDeviceBitIsSet() {
+        let leftBit = SessionKeyMap.deviceModifierFlag(for: leftShift)
+        let rightBit = SessionKeyMap.deviceModifierFlag(for: rightShift)
+        let aggregate = CGEventFlags.maskShift.rawValue
+        XCTAssertTrue(direction(.flagsChanged, leftShift, flags: aggregate | leftBit)! == (true, false))
+        // Right Shift still held: the aggregate bit stays set, but Left Shift is up.
+        XCTAssertTrue(direction(.flagsChanged, leftShift, flags: aggregate | rightBit)! == (false, false))
+        XCTAssertTrue(direction(.flagsChanged, leftShift, flags: 0)! == (false, false))
+    }
+
+    func testFlagsChangedForANonModifierIsIgnored() {
+        XCTAssertNil(direction(.flagsChanged, 57, flags: CGEventFlags.maskAlphaShift.rawValue),
+                     "Caps Lock toggles state, it is not a held modifier")
+        XCTAssertNil(direction(.tapDisabledByTimeout, letterA))
     }
 
     func testSwitchIsOffByDefault() throws {

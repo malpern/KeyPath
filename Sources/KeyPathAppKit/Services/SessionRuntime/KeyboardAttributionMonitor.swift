@@ -20,7 +20,9 @@ struct KeyboardAttributionLog {
         var ambiguous: UInt64 = 0
         var heldOnSeveralKeyboards: UInt64 = 0
         var pressNotCredited: UInt64 = 0
-        /// Waiting events pushed out by `pendingLimit`; should stay zero.
+        /// Waiting events pushed out by `pendingLimit`; should stay zero. A
+        /// dropped press can also turn its release into `pressNotCredited`, so
+        /// read the fallback counts with this one.
         var dropped: UInt64 = 0
 
         var fellBack: UInt64 {
@@ -210,22 +212,10 @@ final class KeyboardAttributionMonitor {
     /// Called from the tap for every physical key event it sees, after the
     /// worker's own output and software keyboards are filtered out.
     func observe(type: CGEventType, event: CGEvent, usage: UInt32) {
-        let isDown: Bool
-        let isRepeat: Bool
-        switch type {
-        case .keyDown:
-            isDown = true
-            isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
-        case .keyUp:
-            isDown = false
-            isRepeat = false
-        case .flagsChanged:
-            guard SessionKeyMap.isModifier(usage) else { return }
-            isDown = event.flags.rawValue & SessionKeyMap.deviceModifierFlag(for: usage) != 0
-            isRepeat = false
-        default:
-            return
-        }
+        guard let (isDown, isRepeat) = Self.direction(
+            type: type, usage: usage, flags: event.flags.rawValue,
+            autorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        ) else { return }
         let now = Self.nowNs()
         // Classified from events until one fits; a single late or odd event
         // must not turn attribution off for the whole run.
@@ -244,6 +234,21 @@ final class KeyboardAttributionMonitor {
         case .unusable, nil: return
         }
         log.observe(.init(usage: usage, isDown: isDown, isRepeat: isRepeat, timeNs: timeNs), nowNs: now)
+    }
+
+    /// Press or release, and whether it is a repeat. A modifier arrives as
+    /// `flagsChanged`; it is down when its own device-dependent bit is set,
+    /// since the aggregate flag stays set while the other side's key is held.
+    nonisolated static func direction(type: CGEventType, usage: UInt32, flags: UInt64,
+                                      autorepeat: Bool) -> (isDown: Bool, isRepeat: Bool)?
+    {
+        switch type {
+        case .keyDown: (true, autorepeat)
+        case .keyUp: (false, false)
+        case .flagsChanged where SessionKeyMap.isModifier(usage):
+            (flags & SessionKeyMap.deviceModifierFlag(for: usage) != 0, false)
+        default: nil
+        }
     }
 
     /// From the worker's 5 ms tick: decides events whose look-ahead has passed

@@ -1249,6 +1249,7 @@ public final class SessionRuntimeWorker {
                         try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
                     }
                     capsRecord = nil
+                    capsIntermediateUsage = nil
                     capsOwner = nil
                     capsDirectory = nil
                 } catch {
