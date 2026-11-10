@@ -10,8 +10,8 @@ published — the end-user site lives on the `gh-pages` branch (see the
 |-----------|----------|
 | [`adr/`](adr/README.md) | Architecture Decision Records |
 | [`architecture/`](architecture/) | System architecture, data flow, subsystem deep-dives |
-| [`guides/`](guides/README.md) | Feature how-to guides (setup, layouts, tap-hold, app intents, FAQ) |
-| [`process/`](process/README.md) | Dev process: PR workflow, release, deployment, linting, contributor guide |
+| [`guides/`](guides/README.md) | Feature how-to guides (layouts, tap-hold, app intents, FAQ) |
+| [`process/`](process/README.md) | Dev process: PR workflow, release, deployment, linting, onboarding pointers |
 | [`troubleshooting/`](troubleshooting/README.md) | Diagnostics and debugging references |
 | [`testing/`](testing/) | Test strategy, coverage, hygiene, and smoke checklists |
 | [`research/`](research/README.md) | Background research and analysis notes |
@@ -21,7 +21,6 @@ published — the end-user site lives on the `gh-pages` branch (see the
 | [`analysis/`](analysis/) | Deep-dive investigations and handoffs |
 | [`code-review/`](code-review/) | Code-review write-ups |
 | [`planning/`](planning/) | Active plans and roadmaps |
-| [`archive/`](archive/README.md) | Superseded/historical docs (links may be stale) |
 
 Top-level loose files: this index, [`keypath-cli-skill.md`](keypath-cli-skill.md).
 

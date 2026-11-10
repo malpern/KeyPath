@@ -1,6 +1,6 @@
 # Guides
 
-User- and developer-facing how-to guides for KeyPath features: setup, layouts,
+User- and developer-facing how-to guides for KeyPath features: layouts,
 tap-hold/tap-dance, app intents, action URIs, safety features, and the FAQ.
 
 These are the developer-facing source guides (master-only). The *published*
