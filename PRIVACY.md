@@ -249,8 +249,10 @@ sudo rm -f /var/log/com.keypath.kanata.*.log
 ```
 
 The first command reports an error if the service is not running, and
-`rmdir` refuses if a folder still holds other files; both are fine. A Full Disk Access or Input Monitoring grant made for an earlier version
-is not revoked automatically. You can remove it in System Settings.
+`rmdir` refuses if a folder still holds other files; both are fine.
+
+A Full Disk Access or Input Monitoring grant made for an earlier version is
+not revoked automatically. You can remove it in System Settings.
 
 ---
 
