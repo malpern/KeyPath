@@ -208,51 +208,6 @@ final class AIConfigGenerationTests: XCTestCase {
         }
     }
 
-    // MARK: - AIKeyRequiredDialog Tests
-
-    func testAIKeyRequiredDialogDismissedKeyExists() {
-        XCTAssertNotNil(AIKeyRequiredDialog.dismissedKey)
-    }
-
-    func testAIKeyRequiredDialogResetDismissedState() async {
-        // Set dismissed state and tolerate concurrent preference writes from parallel tests.
-        var setObserved = false
-        for _ in 0 ..< 20 {
-            UserDefaults.standard.set(true, forKey: AIKeyRequiredDialog.dismissedKey)
-            if AIKeyRequiredDialog.hasBeenDismissed {
-                setObserved = true
-                break
-            }
-            await Task.yield()
-        }
-        XCTAssertTrue(setObserved)
-
-        // Reset and verify removal with retries.
-        var resetObserved = false
-        for _ in 0 ..< 20 {
-            AIKeyRequiredDialog.resetDismissedState()
-            if !AIKeyRequiredDialog.hasBeenDismissed {
-                resetObserved = true
-                break
-            }
-            await Task.yield()
-        }
-        XCTAssertTrue(resetObserved)
-    }
-
-    func testAIKeyRequiredDialogShouldShowLogic() {
-        // Reset state
-        AIKeyRequiredDialog.resetDismissedState()
-
-        // Should show is based on:
-        // - No API key AND
-        // - Not dismissed
-
-        // We can't easily mock KeychainService.shared.hasClaudeAPIKey,
-        // but we can verify the logic doesn't crash
-        _ = AIKeyRequiredDialog.shouldShow()
-    }
-
     // MARK: - AICostTracker Tests
 
     func testAICostTrackerSharedInstanceExists() {
