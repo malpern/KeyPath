@@ -246,8 +246,8 @@ sockets, which works on macOS 27 (see Verification).
 
 **Acceptance check:** this ADR was written from source alone, and acceptance
 required its main claims confirmed on a live install. That was done on
-2026-11-10; see Verification. Acceptance now waits only on the decision about
-phase 4 below.
+2026-11-10; see Verification. Acceptance now waits only on the phase 4
+decision above.
 
 ### Verification (2026-11-10)
 
@@ -269,8 +269,8 @@ authenticating, including another user's processes and a sandboxed app.
 whose PID, PID version and uid matched the connecting child process exactly,
 and `TASK_AUDIT_TOKEN` gave the server's own PID version. `getpeereid` agreed
 on the uid. So phase 1's identity check is implementable as written, with no
-fallback. `NWEndpoint.unix(path:)` is available on macOS 27, so phase 3 needs
-no POSIX fallback either.
+fallback. `NWEndpoint.unix(path:)` is in the macOS 27 SDK, so phase 3 should
+need no POSIX fallback either; that was read from the SDK, not exercised.
 
 ## Migration
 
@@ -351,7 +351,7 @@ no POSIX fallback either.
 3. **Phase 3, Swift clients.** One transport change: `KanataTCPClient+Connection` and
    `KanataEventListener.connectAndStream` build `NWConnection`s from host and
    port. They move to `NWEndpoint.unix(path:)` (confirm availability on the
-   minimum macOS during implementation; it is, on macOS 27).
+   minimum macOS; it is in the macOS 27 SDK).
    The other callers listed above go through those two types and need no
    protocol change. `ConfigFacade.tcpReload`/`tcpGetCurrentLayer` move to a
    runtime-control request handled by the app. `PreferencesService.tcpServerPort`
@@ -377,13 +377,20 @@ leaves the app working:
 | # | Repository | Contents | Lands with |
 |---|---|---|---|
 | 1 | `malpern/kanata` | Generic stream server, Unix listener, peer check (uid, PID, PID version) behind an injectable reader, the option A command removals as a session feature, connection cap, write timeout, bind error instead of panic, Rust tests | Fast-forward into `keypath/bundled` |
-| 2 | KeyPath | Submodule bump, bridge takes a socket path and expected peer instead of a port, worker creates and checks the directory, `NOTE_EXIT` owner watch, socket path in the worker report, `cargo test` added to a required CI job | Phases 1–2 |
-| 3 | KeyPath | `KanataTCPClient` and `KanataEventListener` on `NWEndpoint.unix`, CLI engine commands routed through runtime control, port preference and migration retired, `verify-installed-app.sh` checks the socket | Phase 3; closes #1354 |
+| 2 | KeyPath | Submodule bump, bridge takes a socket path and expected peer **in addition to** the port, worker creates and checks the directory, `NOTE_EXIT` owner watch, socket path in the worker report, `cargo test` added to a required CI job. The TCP listener stays, so every client keeps working | Phases 1–2 |
+| 3 | KeyPath | `KanataTCPClient` and `KanataEventListener` on `NWEndpoint.unix`, CLI engine commands routed through runtime control, then **the worker starts with no TCP port**, port preference and migration retired, `verify-installed-app.sh` checks the socket | Phase 3; closes #1354 |
 | 4 | KeyPath | ADR-013 superseded, `guides/privacy.md` TCP section rewritten and published, architecture docs, release-notes entry | Phase 5 |
 
 Phase 4 (signature check) is a fifth PR, before or after release depending on
-the decision above. Rerun the three probes in Verification after PR 3; each
-must fail to connect.
+the decision above.
+
+**Recheck after PR 3.** Probing the old port only shows it is gone, so check
+both: nothing listens on `127.0.0.1:37001`, and the three probes in
+Verification, pointed at the socket path from the worker's report, get no
+`KeyInput`. The other user and the sandboxed app must fail to reach the path
+(0700 directory, uid check); the same-user `nc` must be refused by the PID and
+PID-version check. Each refusal must happen before the connection receives a
+single event.
 
 **Compatibility:** anyone scripting `localhost:37001` directly (for example
 from Hammerspoon) loses that. So does the context-integration design above:
