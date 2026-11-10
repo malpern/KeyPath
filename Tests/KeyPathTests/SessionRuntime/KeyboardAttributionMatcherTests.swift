@@ -186,6 +186,40 @@ final class KeyboardAttributionMatcherTests: XCTestCase {
         XCTAssertTrue(matcher.unconsumed.isEmpty)
     }
 
+    func testReleaseKeepsAnotherKeyboardsPressThatHIDReportedEarly() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, letterA, down: true, at: 50))
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: true, at: 51), nowNs: ms(51)), .keyboard(laptop))
+        matcher.record(hid(laptop, letterA, down: false, at: 100))
+        matcher.record(hid(external, letterA, down: true, at: 100.5)) // reaches the tap at about 120
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: false, at: 101), nowNs: ms(101)), .keyboard(laptop))
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: true, at: 120), nowNs: ms(120)), .keyboard(external))
+    }
+
+    func testReleaseWhoseHIDReleaseArrivesLaterStillFollowsThePress() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, letterA, down: true, at: 50))
+        _ = matcher.attribute(tap(letterA, down: true, at: 51), nowNs: ms(51))
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: false, at: 90), nowNs: ms(90)), .keyboard(laptop))
+        matcher.record(hid(laptop, letterA, down: false, at: 92)) // late, matches nothing
+        matcher.record(hid(external, letterA, down: true, at: 200))
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: true, at: 201), nowNs: ms(201)), .keyboard(external))
+    }
+
+    func testResetForgetsHeldKeysAndCredits() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, rightArrow, down: true, at: 1000))
+        _ = matcher.attribute(tap(rightArrow, down: true, at: 1001), nowNs: ms(1001))
+        matcher.record(hid(external, rightArrow, down: true, at: 1200)) // its release is lost
+        matcher.reset()
+        XCTAssertTrue(matcher.unconsumed.isEmpty)
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: false, at: 1300), nowNs: ms(1300)), .fallback(.noMatch))
+        XCTAssertEqual(
+            matcher.attribute(tap(rightArrow, down: true, repeat: true, at: 1400), nowNs: ms(1400)),
+            .fallback(.noMatch)
+        )
+    }
+
     // MARK: - Device removal
 
     func testRemovedKeyboardNoLongerBlocksRepeats() {

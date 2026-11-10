@@ -20,9 +20,13 @@ import Foundation
 /// - A press is decided with the candidates present when it is asked about. A
 ///   second keyboard's HID value that arrives after that cannot make it
 ///   ambiguous; the caller does not hold presses that already have a match.
-/// - A release clears that key's other unconsumed HID values up to the release
-///   time. They belong to presses macOS merged or that arrived after their tap
-///   event gave up, and must not be credited to the next press.
+/// - A release clears that key's unconsumed HID presses that happened before
+///   the HID release it pairs with (or before the tap release, when that HID
+///   release has not arrived yet). They belong to presses macOS merged or that
+///   arrived after their tap event gave up, and must not be credited to the
+///   next press. A later keyboard's press that HID reported early is kept.
+/// - Tap events must be asked about in time order (re-asking a waiting press is
+///   fine); debug builds assert it.
 /// - With no candidate yet, the answer is `.wait` until the window's look-ahead
 ///   has passed, then `.fallback(.noMatch)`.
 /// - A release is credited to whatever its press was credited to, so the engine
@@ -87,6 +91,8 @@ struct KeyboardAttributionMatcher {
     /// What the tap's current press of each key was credited to; a nil value
     /// means the press fell back.
     private var pressCredit: [UInt32: UInt64?] = [:]
+    /// The latest tap event time asked about, to check time order.
+    private var lastTapTimeNs: UInt64 = 0
 
     init(configuration: Configuration = Configuration()) {
         self.configuration = configuration
@@ -105,6 +111,15 @@ struct KeyboardAttributionMatcher {
         }
     }
 
+    /// Forgets everything, for when HID or tap events may have been lost (wake
+    /// from sleep, the tap re-enabled after macOS disabled it).
+    mutating func reset() {
+        unconsumed.removeAll()
+        heldBy.removeAll()
+        pressCredit.removeAll()
+        lastTapTimeNs = 0
+    }
+
     /// Forgets a keyboard that was removed, including keys it still held.
     mutating func removeDevice(_ device: UInt64) {
         unconsumed.removeAll { $0.device == device }
@@ -118,6 +133,8 @@ struct KeyboardAttributionMatcher {
         let earliest = event.timeNs > configuration.lookBehindNs ? event.timeNs - configuration.lookBehindNs : 0
         let (sum, overflow) = event.timeNs.addingReportingOverflow(configuration.lookAheadNs)
         let latest = overflow ? UInt64.max : sum
+        assert(event.timeNs >= lastTapTimeNs, "tap events must be attributed in time order")
+        lastTapTimeNs = max(lastTapTimeNs, event.timeNs)
         // Tap events arrive in time order, so nothing older can match again.
         unconsumed.removeAll { $0.timeNs < earliest }
 
@@ -133,8 +150,8 @@ struct KeyboardAttributionMatcher {
 
         if !event.isDown {
             // A release follows its press, whatever HID value it pairs with.
-            consumeClosest(of: candidates, to: event.timeNs)
-            unconsumed.removeAll { $0.usage == event.usage && $0.timeNs <= event.timeNs }
+            let cutoff = consumeClosest(of: candidates, to: event.timeNs)?.timeNs ?? event.timeNs
+            unconsumed.removeAll { $0.usage == event.usage && $0.isDown && $0.timeNs < cutoff }
             guard let credit = pressCredit.removeValue(forKey: event.usage) else {
                 return .fallback(.noMatch)
             }
@@ -164,12 +181,13 @@ struct KeyboardAttributionMatcher {
         return others.isEmpty ? .keyboard(device) : .fallback(.heldOnSeveralKeyboards)
     }
 
-    private mutating func consumeClosest(of candidates: [Int], to timeNs: UInt64) {
+    @discardableResult
+    private mutating func consumeClosest(of candidates: [Int], to timeNs: UInt64) -> HIDValue? {
         func distance(_ index: Int) -> UInt64 {
             let time = unconsumed[index].timeNs
             return time > timeNs ? time - timeNs : timeNs - time
         }
-        guard let closest = candidates.min(by: { distance($0) < distance($1) }) else { return }
-        unconsumed.remove(at: closest)
+        guard let closest = candidates.min(by: { distance($0) < distance($1) }) else { return nil }
+        return unconsumed.remove(at: closest)
     }
 }
