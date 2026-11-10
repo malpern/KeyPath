@@ -1,0 +1,168 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Keyboard Concepts for Mac Users</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-concepts.png" alt="Guide illustration" /></p>
+<h1 id="keyboard-concepts-for-mac-users">Keyboard Concepts for Mac Users</h1>
+<p>If you've never customized a keyboard beyond <strong>System Settings &gt; Keyboard &gt; Modifier Keys</strong>, this page is for you. We'll start with the simplest possible change and build up to more powerful ideas.</p>
+<hr />
+<h2 id="start-here-fix-one-annoying-key">Start here: fix one annoying key</h2>
+<p>Look at your keyboard. Caps Lock sits in prime real estate — right next to the home row, easy to reach with your pinky. But when was the last time you actually <em>wanted</em> Caps Lock?</p>
+<p>Now look at Escape. It's way up in the corner, a full stretch from the home row. But you press it constantly — dismissing dialogs, canceling searches, exiting full-screen video, leaving editing modes.</p>
+<p>The fix: <strong>make Caps Lock send Escape instead.</strong></p>
+<pre><code>  Before:                          After:
+  ┌──────┐                        ┌──────┐
+  │ Caps │  (useless)             │ Esc  │  (useful!)
+  │ Lock │                        │      │
+  └──────┘                        └──────┘
+  ┌──────┐                        ┌──────┐
+  │ Esc  │  (far away)            │ Esc  │  (still there)
+  └──────┘                        └──────┘</code></pre>
+<p>This is a <strong>remap</strong> — making one key behave as another. It's the simplest thing you can do, and it takes about ten seconds in KeyPath.</p>
+<p><img class="help-img" src="../assets/pack-detail-caps-lock-remap.png" alt="Screenshot — The Caps Lock Remap pack detail in KeyPath" /></p>
+<p>That's it. One key remapped. No config files, no JSON, no terminal commands. But this is just the beginning — once you see how easy it is, you'll want to do more.</p>
+<hr />
+<h2 id="what-if-one-key-could-do-two-things">What if one key could do two things?</h2>
+<p>That Caps Lock remap is nice, but now you've lost Caps Lock entirely. What if the key could be <em>both</em> — Escape when you tap it, and something more useful (like Control) when you hold it?</p>
+<p>This is called <strong>tap-hold</strong>: one key, two jobs depending on how you press it.</p>
+<ul>
+<li><strong>Tap</strong> quickly → Escape</li>
+<li><strong>Hold</strong> down → Control</li>
+</ul>
+<pre><code>  ┌──────────┐
+  │ Caps Lock│
+  │          │
+  │ tap: Esc │    Press and release quickly → Escape
+  │hold: Ctrl│    Hold down + press another key → Control
+  └──────────┘</code></pre>
+<p><img class="help-img" src="../assets/concepts-tap-hold.png" alt="Tap-hold — one key, two jobs" /></p>
+<p>Now you get Escape <em>and</em> a conveniently placed Control — from one key. No sacrifices.</p>
+<p>The tricky part is timing — how does KeyPath know if you meant to tap or hold? It watches for a threshold (default: 200ms) and what other keys you press during the decision window. You can tune this to match your typing speed.</p>
+<p><img class="help-img" src="../assets/concepts-tap-hold-timing.png" alt="Tap-hold timing — tap vs hold threshold" /></p>
+<p>See the <a href="help://tap-hold">One Key, Multiple Actions guide</a> for all the options.</p>
+<hr />
+<h2 id="now-imagine-a-whole-second-keyboard">Now imagine a whole second keyboard</h2>
+<p>You just saw one key doing two things. What if you could do that with <em>every</em> key? That's what <strong>layers</strong> are.</p>
+<p>Think of layers like having multiple keyboards stacked on top of each other. You're always typing on one layer, and you can switch between them.</p>
+<p><img class="help-img" src="../assets/concepts-layers.png" alt="Layers — base and navigation" /></p>
+<p><strong>You already use layers on your Mac</strong> — holding Shift gives you a different "layer" of characters (uppercase letters, symbols like ! @ # $). Keyboard remapping just lets you create as many layers as you want.</p>
+<p>For example, a navigation layer puts arrow keys right on the home row — no more reaching for those tiny arrow keys on your MacBook:</p>
+<pre><code>  Base layer (normal typing):      Navigation layer (hold trigger):
+  ┌───┬───┬───┬───┐               ┌───┬───┬───┬───┐
+  │ H │ J │ K │ L │               │ ← │ ↓ │ ↑ │ → │
+  └───┴───┴───┴───┘               └───┴───┴───┴───┘
+
+  Hold a trigger key to enter the nav layer,
+  release to go back to normal typing.</code></pre>
+<p>Common layers:</p>
+<ul>
+<li><strong>Navigation</strong> — arrow keys, Page Up/Down, Home/End on the home row</li>
+<li><strong>Number</strong> — a numpad layout under your right hand</li>
+<li><strong>Symbol</strong> — brackets, braces, and programming symbols within easy reach</li>
+<li><strong>Launcher</strong> — every key launches a different app</li>
+</ul>
+<hr />
+<h2 id="put-modifiers-under-your-fingertips">Put modifiers under your fingertips</h2>
+<p>You use these modifiers every day on your Mac:</p>
+<table>
+<thead>
+<tr>
+<th>macOS name</th>
+<th>Symbol</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Command</strong></td>
+<td>⌘</td>
+<td>The primary modifier — ⌘C to copy, ⌘V to paste</td>
+</tr>
+<tr>
+<td><strong>Option</strong></td>
+<td>⌥</td>
+<td>Secondary modifier — special characters, alternate actions</td>
+</tr>
+<tr>
+<td><strong>Control</strong></td>
+<td>⌃</td>
+<td>Used in Terminal, Emacs-style shortcuts</td>
+</tr>
+<tr>
+<td><strong>Shift</strong></td>
+<td>⇧</td>
+<td>Uppercase letters, alternate toolbar actions</td>
+</tr>
+</tbody>
+</table>
+<p>The problem: they're all in the corners. Every shortcut forces your fingers off the home row. Over a workday, that's thousands of small reaches.</p>
+<p><strong>Home row mods</strong> fix this using the same tap-hold idea — your home row letter keys double as modifiers when held:</p>
+<pre><code>  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐     ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
+  │  A  │ │  S  │ │  D  │ │  F  │     │  J  │ │  K  │ │  L  │ │  ;  │
+  │ ⇧   │ │ ⌃   │ │ ⌥   │ │ ⌘   │     │ ⌘   │ │ ⌥   │ │ ⌃   │ │ ⇧   │
+  └─────┘ └─────┘ └─────┘ └─────┘     └─────┘ └─────┘ └─────┘ └─────┘
+              Tap for letters, hold for modifiers</code></pre>
+<p><img class="help-img" src="../assets/header-home-row-mods.png" alt="Home row mods — modifiers on the home row" /></p>
+<p>Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. Your hands never move.</p>
+<p>The challenge is avoiding misfires during fast typing. KeyPath uses opposite-hand activation (same-hand = letter, cross-hand = modifier), fast typing protection, and per-finger timing to make it reliable. Read the full <a href="help://home-row-mods">Shortcuts Without Reaching guide</a> for details.</p>
+<hr />
+<h2 id="never-run-out-of-shortcuts">Never run out of shortcuts</h2>
+<p>Every modifier combination you try is already taken by some app. The solution: create a modifier that <em>no app uses</em>.</p>
+<ul>
+<li><strong>Hyper</strong> combines Control + Option + Command + Shift into one modifier.</li>
+<li><strong>Meh</strong> = Control + Option + Shift (three modifiers, no Command)</li>
+</ul>
+<p>Apps rarely use all four modifiers together, so Hyper creates dozens of clean shortcuts that are unlikely to conflict. <strong>Caps Lock Remap</strong> provides Hyper by default when you hold Caps Lock — now every letter key can become its own shortcut.</p>
+<p><img class="help-img" src="../assets/concepts-hyper-key.png" alt="Conflict-free shortcuts — Hyper gives you 36+ unique bindings" /></p>
+<hr />
+<h2 id="pack-even-more-into-a-single-key">Pack even more into a single key</h2>
+<p><strong>Tap-dance</strong> takes the dual-role idea further: different actions based on how many <em>times</em> you tap.</p>
+<pre><code>  Caps Lock:
+  1 tap  → Escape
+  2 taps → Caps Lock (when you actually need it)
+  3 taps → Control</code></pre>
+<p><img class="help-img" src="../assets/concepts-tap-dance.png" alt="Tap-dance — multiple taps, multiple actions" /></p>
+<p>This is great for keys you rarely use — pack multiple functions into one key without adding complexity to everyday typing.</p>
+<p>Beyond single keys, you can trigger actions from combinations:</p>
+<ul>
+<li><strong>Chord</strong> — press two keys simultaneously (e.g., J+K together → trigger an action)</li>
+<li><strong>Sequence</strong> — press keys one after another (e.g., Space then S then M → open Messages)</li>
+<li><strong>Leader key</strong> — press a "leader" key, then type a short sequence. Like Vim's leader key but for your whole system.</li>
+</ul>
+<p><img class="help-img" src="../assets/concepts-chords-sequences.png" alt="Chords and sequences" /></p>
+<p>These let you create memorable shortcuts without running out of modifier combinations.</p>
+<h3 id="leader-and-hyper-are-not-the-same-thing">Leader and Hyper are not the same thing</h3>
+<p>Your <strong>Leader key</strong> is the starting key for KeyPath layers and sequences. It is Space by default. <strong>Hyper</strong> is a shortcut modifier made from Control, Option, Command, and Shift together. Apps rarely use all four at once, which makes Hyper shortcuts unlikely to conflict. Caps Lock Remap provides Hyper by default.</p>
+<p>Use Leader when you want a path such as <code>Leader → W → L</code>. Use Hyper when you want a modifier shortcut such as <code>Hyper + S</code>. Some rules, including Quick Launcher, let you choose either style.</p>
+<hr />
+<h2 id="the-big-picture">The big picture</h2>
+<p>Here's how all these concepts build on each other:</p>
+<pre><code>  Simple remap           One key does two things
+  (Caps Lock → Esc)  →   (tap: Esc, hold: Ctrl)
+         │                       │
+         ↓                       ↓
+  A whole second          Modifiers on the
+  keyboard (layers)  →   home row (HRM)
+         │                       │
+         ↓                       ↓
+  Conflict-free           Multiple taps,
+  shortcuts (Hyper)      chords, sequences</code></pre>
+<p>Start with a simple remap. Get comfortable. Then add the next idea when you're ready. There's no rush.</p>
+<hr />
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — Concrete examples of what's possible with KeyPath</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — The most popular advanced technique</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — All the details on dual-role keys</li>
+<li><strong><a href="help://action-uri">Launching Apps</a></strong> — Launch apps, URLs, and folders from your keyboard</li>
+<li><strong><a href="help://alternative-layouts">Alternative Layouts</a></strong> — Colemak, Dvorak, Workman, and other keymaps</li>
+<li><strong><a href="help://keyboard-layouts">Keyboard Layouts</a></strong> — Physical keyboard support (ANSI, split, ergonomic)</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong> — See all available guides</li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<p>These community resources go deeper into keyboard customization concepts:</p>
+<ul>
+<li><strong><a href="https://precondition.github.io/home-row-mods">The Home Row Mods Guide (Precondition)</a></strong> — The definitive community reference on home row mods ↗</li>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc">Kanata documentation</a></strong> — Full configuration reference for the engine behind KeyPath ↗</li>
+<li><strong><a href="https://docs.qmk.fm/">QMK Firmware</a></strong> — If you're interested in firmware-level remapping on custom keyboards ↗</li>
+<li><strong><a href="https://www.reddit.com/r/ErgoMechKeyboards/">r/ErgoMechKeyboards</a></strong> — Active community discussing keyboard layouts, layers, and ergonomics ↗</li>
+<li><strong><a href="https://karabiner-elements.pqrs.org/">Karabiner-Elements</a></strong> — Another macOS remapping tool, if you want to compare approaches ↗</li>
+<li><strong><a href="https://www.youtube.com/watch?v=3zgJLUHQYjY&amp;list=PLCZYyvXAdQpsVKWXVE-7u2w07XXp9NoWI">Ben Vallack's keyboard videos</a></strong> — Advanced keyboard layout exploration and experimentation ↗</li>
+</ul>
+</body></html>

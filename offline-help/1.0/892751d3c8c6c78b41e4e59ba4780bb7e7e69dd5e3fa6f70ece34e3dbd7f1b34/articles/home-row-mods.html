@@ -1,0 +1,194 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Shortcuts Without Reaching</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-home-row-mods.png" alt="Guide illustration" /></p>
+<h1 id="shortcuts-without-reaching">Shortcuts Without Reaching</h1>
+<p>Every keyboard shortcut on your Mac requires a modifier — Command, Shift, Control, Option. Those keys are tucked into the bottom corners of your keyboard, forcing your fingers off the home row dozens of times an hour. Over a full workday, that's thousands of small reaches that slow you down and strain your hands.</p>
+<p>Home row mods fix this by putting modifiers right under your fingertips:</p>
+<pre><code>  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐     ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
+  │  A  │ │  S  │ │  D  │ │  F  │     │  J  │ │  K  │ │  L  │ │  ;  │
+  │ ⇧   │ │ ⌃   │ │ ⌥   │ │ ⌘   │     │ ⌘   │ │ ⌥   │ │ ⌃   │ │ ⇧   │
+  └─────┘ └─────┘ └─────┘ └─────┘     └─────┘ └─────┘ └─────┘ └─────┘
+              Tap for letters, hold for modifiers</code></pre>
+<p>Tap a key normally and you get the letter. Hold it briefly and it becomes a modifier. Your hands never move — every shortcut is one fluid motion from the home row.</p>
+<p>If you're new to keyboard customization, read <a href="help://concepts">Keyboard Concepts</a> first for background on dual-role keys and layers.</p>
+<hr />
+<h2 id="what-are-home-row-mods">What are home row mods?</h2>
+<p>Every home row key gets a second job:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Tap</th>
+<th>Hold</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>a</td>
+<td>Shift (⇧)</td>
+</tr>
+<tr>
+<td>S</td>
+<td>s</td>
+<td>Control (⌃)</td>
+</tr>
+<tr>
+<td>D</td>
+<td>d</td>
+<td>Option (⌥)</td>
+</tr>
+<tr>
+<td>F</td>
+<td>f</td>
+<td>Command (⌘)</td>
+</tr>
+<tr>
+<td>J</td>
+<td>j</td>
+<td>Command (⌘)</td>
+</tr>
+<tr>
+<td>K</td>
+<td>k</td>
+<td>Option (⌥)</td>
+</tr>
+<tr>
+<td>L</td>
+<td>l</td>
+<td>Control (⌃)</td>
+</tr>
+<tr>
+<td>;</td>
+<td>;</td>
+<td>Shift (⇧)</td>
+</tr>
+</tbody>
+</table>
+<p>This is the <strong>CAGS</strong> layout (Command on index, Alt/Option on middle, Control on ring, Shift on pinky) — mirrored on both hands.</p>
+<p>The result: any keyboard shortcut is one fluid motion. Hold F + press C = ⌘C (Copy). Hold A + press tab = ⇧Tab (Shift-Tab). No reaching, no contortion.</p>
+<hr />
+<h2 id="getting-started-with-defaults">Getting started with defaults</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Custom Rules</strong> tab</li>
+<li>Enable the <strong>Home Row Mods</strong> pre-built rule</li>
+<li>Start typing normally</li>
+</ol>
+<p>The defaults use the CAGS layout shown above. Practice for a few days — occasional misfires during fast typing are normal at first and improve as you adjust.</p>
+<p><img class="help-img" src="../assets/pack-detail-home-row-mods.png" alt="Screenshot — Home Row Mods pack detail in KeyPath" /></p>
+<p><strong>Tip:</strong> Start by using home row mods only for shortcuts you already know (⌘C, ⌘V, ⌘Z). Once those feel natural, expand to new shortcuts.</p>
+<hr />
+<h2 id="tuning-your-setup">Tuning your setup</h2>
+<p>Once you've enabled home row mods, you can fine-tune how they feel. Open the rule's settings to access these controls.</p>
+<h3 id="typing-feel-slider">Typing Feel slider</h3>
+<p>KeyPath provides a slider to adjust the tap-hold threshold:</p>
+<p><img class="help-img" src="../assets/hrm-typing-feel-slider.png" alt="Screenshot" /> Screenshot — Typing Feel slider in rule settings:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  Typing Feel                                        │
+  │                                                     │
+  │  More Letters ────────●──────────── More Modifiers   │
+  │                       ↑                             │
+  │                     200 ms                          │
+  │                                                     │
+  │  Tap timeout:  [ 200 ms ]                           │
+  │  Hold timeout: [ 200 ms ]                           │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<ul>
+<li>With <strong>Opposite-hand activation</strong> off, slide toward <strong>"More Letters"</strong> for a longer tap window (fewer accidental modifiers), or toward <strong>"More Modifiers"</strong> for quicker modifier activation.</li>
+<li>With <strong>Opposite-hand activation</strong> on, the same control changes the <strong>Opposite-hand decision window</strong> instead. That is the one timer Kanata uses in this mode: shorter feels more immediate; longer gives you more time before a cross-hand press becomes a modifier.</li>
+</ul>
+<p>The rule settings name the active timer so you can tell what you are adjusting: <strong>Hold activation delay</strong> for ordinary tap-hold behavior, or <strong>Opposite-hand decision window</strong> for opposite-hand behavior. Controls that do not affect the selected mode, including Quick tap, stay out of the way.</p>
+<h3 id="per-finger-sensitivity">Per-finger sensitivity</h3>
+<p>Pinkies are slower than index fingers. KeyPath lets you add extra tolerance for slower fingers to prevent accidental holds:</p>
+<p><img class="help-img" src="../assets/hrm-per-finger-sliders.png" alt="Screenshot" /> Screenshot — Per-finger sensitivity sliders:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  Per-Finger Tolerance                               │
+  │                                                     │
+  │  Pinky   ████████████████████░  +40 ms              │
+  │  Ring    █████████████░░░░░░░░  +25 ms              │
+  │  Middle  █████████░░░░░░░░░░░░  +15 ms              │
+  │  Index   ██████░░░░░░░░░░░░░░░  +0 ms               │
+  │                                                     │
+  │  Slower fingers get more time before                │
+  │  the hold activates.                                │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<h3 id="quick-tap">Quick tap</h3>
+<p>When enabled, a quick tap-and-release always produces the letter, even if another key was pressed during the tap window. This is especially helpful for fast typists.</p>
+<p>Quick tap is available only when opposite-hand activation is off. Opposite-hand behavior has its own decision rule and does not use the tap window or Quick tap term.</p>
+<p><em>Start with defaults, then adjust one parameter at a time.</em></p>
+<hr />
+<h2 id="how-keypath-makes-home-row-mods-reliable">How KeyPath makes home row mods reliable</h2>
+<p>KeyPath uses two powerful features to make home row mods virtually misfire-free:</p>
+<h3 id="opposite-hand-activation">Opposite-hand activation</h3>
+<p>Hold actions (modifiers or layers) only activate when you press a key with the <strong>other hand</strong>. Same-hand typing always produces letters — no accidental modifiers during fast rolls.</p>
+<pre><code>  Left Hand                     Right Hand
+  ┌───┬───┬───┬───┬───┐       ┌───┬───┬───┬───┬───┐
+  │ Q │ W │ E │ R │ T │       │ Y │ U │ I │ O │ P │
+  ├───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┤
+  │ A │ S │ D │ F │ G │       │ H │ J │ K │ L │ ; │
+  ├───┼───┼───┼───┼───┤       ├───┼───┼───┼───┼───┤
+  │ Z │ X │ C │ V │ B │       │ N │ M │ , │ . │ / │
+  └───┴───┴───┴───┴───┘       └───┴───┴───┴───┴───┘
+
+  Same hand   → tap (letter)      Example: F then D → &quot;fd&quot;
+  Cross hand  → hold (modifier)   Example: F then J → ⌘J</code></pre>
+<p>This uses Kanata's native <code>tap-hold-opposite-hand</code> with a global hand definition (<code>defhands</code>), replacing the older per-key workaround.</p>
+<h3 id="stop-accidental-modifiers-during-fast-typing">Stop accidental modifiers during fast typing</h3>
+<p>When you're typing quickly, the last thing you want is for "fd" to become Ctrl+D. Fast typing protection solves this: keys pressed shortly after your last keystroke produce the letter immediately — no hold detection, no waiting state.</p>
+<p><img class="help-img" src="../assets/hrm-fast-typing.png" alt="Screenshot" /> Screenshot — Fast typing protection in rule settings:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  [x] Fast typing protection                        │
+  │                                                     │
+  │  Strict ──────────●──────────── Forgiving           │
+  │                    ↑                                │
+  │                  150 ms                             │
+  │                                                     │
+  │  Keys pressed within 150ms of your last keystroke   │
+  │  skip hold detection entirely.                      │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<p>This is enabled by default at 150ms. Adjust the slider to match your typing speed — faster typists may want a lower value (strict), while slower typists can use a higher value (forgiving).</p>
+<p>The same <strong>Fast typing protection</strong> is available for Home Row Layer Toggles. It keeps a key pressed shortly after normal typing as its letter, rather than unexpectedly activating its layer.</p>
+<h3 id="per-finger-timing">Per-finger timing</h3>
+<p>Different fingers move at different speeds. KeyPath lets you give slower fingers (pinkies) more time before the hold activates, while keeping faster fingers (index) responsive. This eliminates most accidental modifier activations.</p>
+<hr />
+<p><strong>Switching from Karabiner?</strong> See the <a href="help://karabiner-users">From Karabiner-Elements guide</a> for a detailed comparison of how home row mods work in both tools.</p>
+<hr />
+<h2 id="advanced-techniques">Advanced techniques</h2>
+<p>These are techniques being explored in the mechanical keyboard community. Some are in KeyPath today, others are planned or available through custom Kanata config.</p>
+<h3 id="anti-cascade--nomods-layer">Anti-cascade / nomods layer</h3>
+<p>After a tap resolves, temporarily disable all home row mods for the rest of the typing burst, re-enabling them after a brief idle. This prevents chain-reaction misfires.</p>
+<p>Pioneered by <a href="https://sunaku.github.io/home-row-mods.html">Sunaku's home row mods configuration</a>, which implements this via a dedicated "nomods" layer in Kanata.</p>
+<h3 id="typing-streak-detection">Typing streak detection</h3>
+<p>Track sustained typing bursts and suppress modifier activation entirely during the streak. Only re-enable modifiers after a pause. This eliminates nearly all misfires during fast prose typing.</p>
+<p>See <a href="https://sunaku.github.io/home-row-mods.html">Sunaku's bilateral combinations approach</a> for a detailed implementation.</p>
+<h3 id="achordion--chordal-hold">Achordion / Chordal Hold</h3>
+<p>QMK firmware libraries (created by <a href="https://getreuer.info/posts/keyboards/home-row-mods/">Pascal Getreuer</a>) that make the tap/hold decision based on which hand pressed the next key. <strong>Chordal Hold</strong> was merged into QMK core in February 2025, making opposite-hand detection a built-in feature for QMK keyboards.</p>
+<p>KeyPath's opposite-hand activation provides equivalent functionality for standard Mac keyboards via Kanata.</p>
+<h3 id="eager-mods">Eager mods</h3>
+<p>Apply the modifier immediately while the tap-hold decision is still pending. If the key resolves as a tap, the modifier is retroactively canceled. This reduces perceived latency for intentional modifier use.</p>
+<p>Kanata supports eager mode via <code>tap-hold-press</code> and <code>tap-hold-release</code> variants. See the <a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold">Kanata tap-hold documentation</a> for details.</p>
+<h3 id="shift-exemption">Shift exemption</h3>
+<p>Shift is the most frequently used modifier during normal typing (capital letters, punctuation). Advanced configurations exempt Shift from streak suppression and anti-cascade so capitalization works naturally during fast typing, while still suppressing accidental Control, Option, and Command.</p>
+<hr />
+<h2 id="resources">Resources</h2>
+<h3 id="keypath-guides">KeyPath guides</h3>
+<ul>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on tap-hold, layers, and modifiers</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — Detailed guide to all tap-hold options in KeyPath</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See HRM as part of a complete setup with Hyper key, window tiling, and more</li>
+<li><strong><a href="help://alternative-layouts">Alternative Layouts</a></strong> — HRM works with any layout — see what's supported</li>
+<li><strong><a href="help://keyboard-layouts">Keyboard Layouts</a></strong> — Split keyboards and HRM are a natural match</li>
+<li><strong><a href="help://karabiner-users">Switching from Karabiner?</a></strong> — See how KeyPath's HRM compares to Karabiner's approach</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h3 id="external-references">External references</h3>
+<ul>
+<li><strong><a href="https://precondition.github.io/home-row-mods">The Home Row Mods Guide (Precondition)</a></strong> — The definitive community reference on HRM layouts and tuning ↗</li>
+<li><strong><a href="https://getreuer.info/posts/keyboards/home-row-mods/">Pascal Getreuer's home row mods analysis</a></strong> — Technical deep dive on timing, anti-misfire, and Chordal Hold ↗</li>
+<li><strong><a href="https://sunaku.github.io/home-row-mods.html">Sunaku's home row mods</a></strong> — Advanced anti-cascade and bilateral combinations ↗</li>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold">Kanata tap-hold documentation</a></strong> — Full reference for the engine behind KeyPath's tap-hold ↗</li>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/cfg_samples/jtroo.kbd">jtroo's Kanata config</a></strong> — Real-world advanced config from Kanata's creator ↗</li>
+<li><strong><a href="https://docs.qmk.fm/features/chordal_hold">QMK Chordal Hold</a></strong> — Firmware-level opposite-hand detection (same concept KeyPath uses) ↗</li>
+<li><strong><a href="https://www.reddit.com/r/ErgoMechKeyboards/">r/ErgoMechKeyboards</a></strong> — Active community discussing HRM tuning and experiences ↗</li>
+<li><strong><a href="https://www.youtube.com/@BenVallack">Ben Vallack's HRM journey</a></strong> — Practical experiences with home row mods on various layouts ↗</li>
+</ul>
+</body></html>

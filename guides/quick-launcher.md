@@ -95,7 +95,7 @@ Change the activation mode in the pack settings.
 
 - Keys are suggested in home-row-first order for ergonomics — start with the home row and work outward
 - You can map any letter (a–z), number (0–9), or punctuation key
-- The **"Suggest from History"** button scans your browser history and suggests frequently-visited sites to map
+- Add websites by entering their URLs manually; KeyPath does not read browser history
 - Quick Launcher works alongside all other KeyPath features — your home row mods, app-specific rules, and tap-hold keys all coexist
 
 ---

@@ -1,0 +1,146 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Why Text Tools Break in Electron Apps</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><h1 id="why-text-tools-break-in-electron-apps">Why Text Tools Break in Electron Apps</h1>
+<p>If you use <a href="help://kindavim">KindaVim</a>, a text expander, or any other keyboard-driven text tool, you have probably noticed the same thing: it works beautifully in Mail, Notes, and Xcode, then falls apart in Slack.</p>
+<p>This is a research note explaining why. It is written for people who want to fix the problem upstream, not for people configuring KeyPath — if you just want KindaVim working today, the <a href="help://kindavim">KindaVim guide</a> covers the practical workarounds.</p>
+<p><strong>Short version:</strong> the failure is mostly Chromium's, not Apple's, and most of it is ordinary bug-fixing rather than missing API.</p>
+<p>It is also the reason KindaVim runs its degraded Keyboard strategy in apps like Slack instead of the full Accessibility strategy — the accessibility data it would need there isn't trustworthy. See <a href="help://kindavim">KindaVim</a> for what that costs you in practice.</p>
+<hr />
+<h2 id="five-things-have-to-work">Five Things Have to Work</h2>
+<p>Parity with a native macOS text field is not one capability, it is a chain:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Capability</th>
+<th>Native field</th>
+<th>Electron field</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Accessibility tree exists</td>
+<td>Works</td>
+<td>Manual, per app</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Tree is trustworthy</td>
+<td>Works</td>
+<td>Falsely claims support</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Reads are correct</td>
+<td>Works</td>
+<td>Offsets wrong</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Writes propagate to the app</td>
+<td>Works</td>
+<td>Model desync</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Changes are observable</td>
+<td>Works</td>
+<td>Timing unreliable</td>
+</tr>
+</tbody>
+</table>
+<p>Stage 2 is the load-bearing failure. Because Electron answers "yes, I support accessibility" and then returns wrong data, no tool can auto-detect its way out — which is why every assistive tool surveyed ships a hand-curated per-app blocklist instead.</p>
+<hr />
+<h2 id="the-gap-register">The Gap Register</h2>
+<p>Item IDs are stable and intended to be quotable in upstream bug reports.</p>
+<h3 id="chromium--6-gaps-the-bulk-of-the-work">Chromium — 6 gaps, the bulk of the work</h3>
+<p>Almost everything that makes Electron text fields unusable lives here, and almost all of it is ordinary bug-fixing. No Apple dependency.</p>
+<p><strong>C1 — Text offset mapping is wrong.</strong> A line starting with whitespace reports a character range off by one. Selecting exactly to end-of-line silently swallows the following line break. This is Blink's mapping between DOM positions and flat macOS character indices. The reporter shipped a reproducible Swift test case noting native apps don't behave this way.</p>
+<p>For a navigation tool this misplaces the cursor. For a tool that <em>replaces</em> a range, it eats the user's characters — same bug, an order of magnitude more damage. <strong>This is the highest-value fix.</strong></p>
+<p><strong>C2 — Rich <code>contenteditable</code> has no coherent linearization.</strong> Slack's composer, Notion, and Discord are DOM trees, not strings. Mentions, emoji, and code blocks become opaque nodes. There is no stable contract for how a rich editor projects onto a flat <code>AXValue</code> plus character offsets, so the offsets don't correspond to what the user sees. WebKit handles this better, so it's tractable, but this is design work rather than a bug fix — the hardest item on the board.</p>
+<p><strong>C3 — Write-path fidelity.</strong> Setting <code>AXValue</code> or <code>AXSelectedTextRange</code> needs to route through Blink's editing pipeline so <code>beforeinput</code> and <code>input</code> fire and the page's JavaScript observes the change. If it mutates the DOM without that, editors built on React, Lexical, or ProseMirror desync: the visible text changes, the app's model doesn't, the message sends stale, and undo breaks.</p>
+<p><em>Unverified — this is reasoning from observed symptoms, not from reading Blink. Check the source before filing.</em></p>
+<p><strong>C4 — No granular <code>AXMode</code> for runtime clients.</strong> The <code>form-controls</code> bundle already exists, but only as the <code>--force-renderer-accessibility</code> startup flag. A client enabling accessibility at runtime gets all-or-nothing <code>complete</code>. A text tool wants exactly <code>form-controls</code> — cheap enough that the "off by default for performance" objection evaporates. This is what makes always-on politically possible rather than merely technically possible.</p>
+<p><strong>C5 — No tree-readiness signal.</strong> Activation is asynchronous. Enable accessibility, query immediately, get an empty or partial tree. There's no documented "ready" notification, so every tool polls or guesses.</p>
+<p><strong>C6 — No conformance tests for the Mac text APIs.</strong> Without round-trip range tests, C1 regresses forever. The boring item that decides whether the others stay fixed.</p>
+<h3 id="electron--4-gaps-small-surface-decisive-impact">Electron — 4 gaps, small surface, decisive impact</h3>
+<p><strong>E1 — Stop advertising accessibility support until the tree is real.</strong> The cheapest high-leverage change available. It is the reason every assistive tool ships a curated blocklist. Fix it and auto-detection starts working everywhere, for every tool, immediately — no Apple involvement, no performance trade-off, small diff.</p>
+<p><strong>E2 — <code>AXManualAccessibility</code> robustness.</strong> The attribute was silently unsettable for roughly two years: handled internally but never advertised via <code>accessibilityAttributeNames</code>, so setting it returned <code>kAXErrorAttributeUnsupported</code>. Fixed by <a href="https://github.com/electron/electron/pull/38102">electron#38102 ↗</a>, merged April 2023 and backported to the 23/24/25 branches. Still needs a regression test.</p>
+<p><strong>E3 — Expose the granular mode.</strong> <code>app.setAccessibilitySupportEnabled</code> is a boolean. Once C4 exists it should take a level.</p>
+<p><strong>E4 — Own the text layer.</strong> The offset bug was closed as not planned with no determination of whether it was an Electron or a Chromium defect. That triage vacuum — not the difficulty of the fix — is why these sit for years.</p>
+<h3 id="apple--4-gaps-genuinely-nobody-else-can">Apple — 4 gaps, genuinely nobody else can</h3>
+<p>These aren't bugs, they're missing contracts.</p>
+<p><strong>A1 — There is no documented text-position API.</strong> <code>AXTextMarker</code> and <code>AXTextMarkerRange</code> are private, undocumented functions in the HIServices framework. Browsers implement them for VoiceOver precisely because the public character-index APIs are insufficient for web content. The working path is undocumented and the documented path is the broken one. This sets the ceiling on how well any third-party tool can ever handle rich editors.</p>
+<p><strong>A2 — No first-class assistive-technology activation.</strong> <code>AXEnhancedUserInterface</code> means "VoiceOver is running," not "a tool needs data," and it carries side effects — Vimac removed it after it caused window-positioning problems with window managers like Magnet. <code>AXManualAccessibility</code> is Electron's private invention that other frameworks don't honor.</p>
+<p><strong>A3 — Custom attributes have no modern equivalent.</strong> <code>accessibilityAttributeNames</code> and <code>accessibilitySetValue:forAttribute:</code> belong to the deprecated informal protocol, with no <code>NSAccessibility</code> replacement. A2's workaround is built on API Apple deprecated without a successor — which is exactly what made E2's two-year bug possible.</p>
+<p><strong>A4 — No capability negotiation.</strong> Nothing lets an app declare "my text ranges are correct." That's why E1 can only ever be a convention Electron chooses to honor, not a contract the system enforces.</p>
+<hr />
+<h2 id="four-tools-hit-this-independently">Four Tools Hit This Independently</h2>
+<p>None of them fixed it. They all routed around it — and that convergence is the strongest evidence for where the gaps actually are.</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>What they found</th>
+<th>Route around</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KindaVim</td>
+<td>Slack returns line numbers where caret offsets belong; Firefox reports accessibility enabled when it isn't</td>
+<td>Two strategies + curated plist</td>
+</tr>
+<tr>
+<td>Vimac</td>
+<td><code>AXEnhancedUserInterface</code> broke third-party window managers; filed with Apple, Chromium, and Firefox</td>
+<td>Manual attribute, frontmost only</td>
+</tr>
+<tr>
+<td>Espanso</td>
+<td>Keystroke injection fails in VS Code, Slack, and Discord</td>
+<td><code>force_mode: clipboard</code></td>
+</tr>
+<tr>
+<td>Shortcat</td>
+<td>"Effectiveness varies depending on the application's accessibility implementation"</td>
+<td>Documented caveat</td>
+</tr>
+</tbody>
+</table>
+<p>Every project reached the same three conclusions without coordinating: force-enable the tree, don't trust the reads, and mutate through the clipboard or synthesized keys rather than through accessibility writes.</p>
+<p>The contrast with the one serious attempt to fix it upstream is the real finding. Electron <a href="https://github.com/electron/electron/issues/36337">#36337 ↗</a> reported the offset bug with a reproducible Swift test case and was closed as not planned. Working around the gap succeeds; fixing it does not get traction.</p>
+<hr />
+<h2 id="shortest-path-to-parity">Shortest Path to Parity</h2>
+<p><strong>C1 + C3 + E1</strong> gets you correct reads, writes that stick, and honest detection — roughly 90% of the gap, with zero Apple dependency.</p>
+<p><strong>C4</strong> turns that from a per-app opt-in into something shippable on by default. <strong>A1</strong> is the ceiling on rich <code>contenteditable</code>; everything else on Apple's side is ergonomics.</p>
+<p>The practical read for today, while none of this is fixed: Espanso's finding points squarely at paste-based mutation. It routes around C3 entirely, because the app handles paste through its own native path — so the JavaScript model updates correctly without anyone touching Blink.</p>
+<hr />
+<h2 id="confidence">Confidence</h2>
+<ul>
+<li><strong>Cited</strong> — C1, C4, C5, E1–E4, and A1–A2 each rest on a primary source listed below.</li>
+<li><strong>Inference</strong> — Five items are reasoning rather than citation, and should be verified before anyone quotes them upstream. <strong>C3</strong> (write-path fidelity) argues from observed symptoms rather than from reading Blink. <strong>C2</strong>'s claim that WebKit linearizes rich editors better is domain judgement, not a measured comparison. <strong>C6</strong> (absence of conformance tests) is inferred from C1 persisting, not confirmed against Chromium's test suite. <strong>A3</strong>'s claim that <code>NSAccessibility</code> offers no replacement for custom attributes traces to a search-engine summary, not to anything in the source list — electron#10305 itself does not discuss it. <strong>A4</strong> (no capability negotiation) is an observation that no such API exists — easy to falsify if one does.</li>
+<li><strong>Stale</strong> — Most recent activity found is 2023–24. Nothing surfaced for 2025–26 on the text-range side, but that's absence of search results, not proof of inactivity. Check the Chromium tracker before filing against C1.</li>
+</ul>
+<hr />
+<h2 id="sources">Sources</h2>
+<ul>
+<li><a href="https://github.com/electron/electron/issues/36337">electron#36337 ↗</a> — offset bug, closed not planned</li>
+<li><a href="https://github.com/electron/electron/issues/37465">electron#37465 ↗</a> — attribute unsettable</li>
+<li><a href="https://github.com/electron/electron/pull/10305">electron#10305 ↗</a> — <code>AXManualAccessibility</code> added</li>
+<li><a href="https://github.com/nchudleigh/vimac/issues/78">vimac#78 ↗</a> — activation side effects</li>
+<li><a href="https://github.com/godbout/kindaVim.blahblah/issues/70">kindaVim#70 ↗</a> — Firefox false positive</li>
+<li><a href="https://github.com/godbout/kindaVim.blahblah/discussions/43">kindaVim: reaching inputs ↗</a> — author's diagnosis</li>
+<li><a href="https://espanso.org/docs/matches/basics/">Espanso backends ↗</a> — inject vs clipboard</li>
+<li><a href="https://chromium.googlesource.com/chromium/src/+/lkgr/docs/accessibility/overview.md">Chromium accessibility overview ↗</a> — AXMode bundles</li>
+<li><a href="https://www.chromium.org/developers/accessibility/mac-accessibility/">Chromium Mac accessibility ↗</a> — activation model</li>
+<li><a href="https://www.hammerspoon.org/docs/hs.axuielement.axtextmarker.html">hs.axuielement.axtextmarker ↗</a> — private HIServices API</li>
+<li><a href="https://developer.chrome.com/blog/chromium-accessibility-performance">Chromium accessibility performance ↗</a> — the default-off rationale</li>
+<li><a href="https://shortcat.app/">Shortcat ↗</a> — compatibility caveat</li>
+</ul>
+<hr />
+<h2 id="where-to-go-next">Where to Go Next</h2>
+<ul>
+<li><strong><a href="help://kindavim">KindaVim</a></strong> — Real vim modes system-wide, and the practical workarounds for apps like Slack</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>

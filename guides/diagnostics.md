@@ -3,6 +3,7 @@ layout: default
 title: "Diagnostics & Insights"
 description: "Understand what your keyboard is doing — analytics, history, and testing tools"
 theme: parchment
+header_image: header-diagnostics.png
 permalink: /guides/diagnostics/
 ---
 
@@ -38,11 +39,7 @@ Home row mods are the most timing-sensitive feature in KeyPath. The HRM Analytic
 
 Use this data to tune your hold timing. If your misfire rate is high, increase the hold timeout. If holds feel sluggish, decrease it. The analytics take the guesswork out of timing adjustments.
 
-Access HRM Analytics from the **keypath** CLI:
-
-```bash
-keypath service status --json  # Includes HRM stats
-```
+HRM Analytics are shown in KeyPath.app; `keypath status` reports only whether remapping is running.
 
 ---
 

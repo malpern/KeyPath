@@ -48,6 +48,8 @@ The reference content is static — no mode tracking or app detection needed. It
 
 ## Leader-Layer Shortcuts
 
+**Key names.** Neovim Terminal names its keys in Vim terms by default (yank, put, gg, word, back). Under **Key names** on the pack's page, switch to **Plain** (Copy, Paste, Top) if you prefer. The choice applies to the overlay and the Shortcut List.
+
 These shortcuts work in any macOS app while holding the Leader key:
 
 | Key | Action |

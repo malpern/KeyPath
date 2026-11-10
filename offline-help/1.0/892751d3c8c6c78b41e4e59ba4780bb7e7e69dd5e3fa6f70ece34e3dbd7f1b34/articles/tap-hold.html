@@ -1,0 +1,240 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>One Key, Multiple Actions</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-tap-hold.png" alt="Guide illustration" /></p>
+<h1 id="one-key-multiple-actions">One Key, Multiple Actions</h1>
+<p>A standard keyboard gives you about 80 keys, and each one does exactly one thing. That's limiting — you run out of convenient shortcuts fast, especially if you want to launch apps, navigate, and use modifiers without leaving the home row.</p>
+<p>KeyPath lets a single key do different things depending on <em>how</em> you press it:</p>
+<ul>
+<li><strong>Tap-Hold</strong>: Tap for one action, hold for another — like Caps Lock that sends Escape on tap but activates shortcuts on hold</li>
+<li><strong>Tap-Dance</strong>: Different actions for single tap, double tap, triple tap — like a double-click but for any key</li>
+</ul>
+<p>These dual-role keys are the foundation of everything else in KeyPath: <a href="help://home-row-mods">home row modifiers</a>, <a href="help://action-uri">app launching</a>, navigation layers, and more.</p>
+<p>If you're new to these ideas, start with the <a href="help://concepts">Keyboard Concepts</a> page for a beginner-friendly overview.</p>
+<hr />
+<h2 id="quick-start">Quick Start</h2>
+<h3 id="creating-a-tap-hold-key">Creating a Tap-Hold Key</h3>
+<ol type="1">
+<li>Open the <strong>Custom Rules</strong> tab in the inspector panel</li>
+<li>Click <strong>New Rule</strong> (+ button)</li>
+<li>Set your <strong>Start</strong> key and <strong>Finish</strong> key (tap action)</li>
+<li>Enable the <strong>Hold, Double Tap, etc.</strong> toggle</li>
+<li>Set <strong>On Hold</strong> — this is what happens when held</li>
+<li>Choose hold behavior</li>
+<li>Save</li>
+</ol>
+<p><img class="help-img" src="../assets/tap-hold-custom-rules-tab.png" alt="Screenshot" /> Screenshot — Custom Rules tab with new rule form:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  Custom Rules                                       │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  EVERYWHERE (global rules)                     │ │
+  │  │                                                │ │
+  │  │  caps_lock ──→ escape                          │ │
+  │  │  a (hold) ──→ left_shift                       │ │
+  │  │  f (hold) ──→ left_command                     │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  ┌────────────────────────────────────────────────┐ │
+  │  │  🧭 SAFARI (app-specific rules)                │ │
+  │  │                                                │ │
+  │  │  h ──→ left_arrow                              │ │
+  │  │  j ──→ down_arrow                              │ │
+  │  │  k ──→ up_arrow                                │ │
+  │  │  l ──→ right_arrow                             │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │  [ ↺ Reset ]                     [ + New Rule ]     │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<p><img class="help-img" src="../assets/tap-hold-rule-editor.png" alt="Screenshot" /> Screenshot — Rule editor with hold behavior options:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  New Rule                                           │
+  │                                                     │
+  │  Start key:    [ caps_lock      ▾ ]                 │
+  │  Finish key:   [ escape         ▾ ]  (tap action)   │
+  │                                                     │
+  │  ┌ Hold, Double Tap, etc. ─────────────── [ON] ──┐ │
+  │  │                                                │ │
+  │  │  On Hold:   [ left_control   ▾ ]               │ │
+  │  │                                                │ │
+  │  │  Hold Behavior:                                │ │
+  │  │  ┌──────────┐ ┌──────────┐ ┌───────────────┐  │ │
+  │  │  │  Basic   │ │ Activate │ │ Activate hold │  │ │
+  │  │  │          │ │ on press │ │ after release │  │ │
+  │  │  └──────────┘ └──────────┘ └───────────────┘  │ │
+  │  │                                                │ │
+  │  │  Repeat-tap window:     [ 200 ms ]             │ │
+  │  │  Hold activation delay: [ 200 ms ]             │ │
+  │  └────────────────────────────────────────────────┘ │
+  │                                                     │
+  │                              [ Cancel ]  [ Save ]   │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<h3 id="creating-a-tap-dance-key">Creating a Tap-Dance Key</h3>
+<ol type="1">
+<li>Open the <strong>Custom Rules</strong> tab in the inspector panel</li>
+<li>Click <strong>New Rule</strong> (+ button)</li>
+<li>Set your <strong>Start</strong> key (e.g., <code>caps</code>)</li>
+<li>Set your <strong>Finish</strong> key (e.g., <code>esc</code>) — this is the single-tap action</li>
+<li>Enable <strong>Hold, Double Tap, etc.</strong> toggle</li>
+<li>Set <strong>Double Tap</strong> (e.g., <code>caps</code>)</li>
+<li>(Optional) Click <strong>Add Tap Step</strong> for triple-tap, quad-tap, etc.</li>
+<li>Save</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> Hold and Tap-Dance cannot be used together on the same key. If you try to set one when the other is already configured, a dialog will ask which behavior you want to keep.</p>
+</blockquote>
+<hr />
+<h2 id="hold-behavior-options">Hold Behavior Options</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic</td>
+<td>Hold activates after timeout</td>
+</tr>
+<tr>
+<td>Activate hold when another key is pressed</td>
+<td>Pressing another key activates the hold action.</td>
+</tr>
+<tr>
+<td>Activate hold after another key is released</td>
+<td>Releasing another key activates the hold action.</td>
+</tr>
+<tr>
+<td>Custom keys</td>
+<td>Only specific keys trigger early tap</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="common-use-cases">Common Use Cases</h2>
+<h3 id="home-row-modifiers">Home Row Modifiers</h3>
+<p>Map your home row keys to modifiers when held (Mac-optimized CAGS layout):</p>
+<pre><code>a → a (tap) / Left Shift (hold)
+s → s (tap) / Left Control (hold)
+d → d (tap) / Left Option (hold)
+f → f (tap) / Left Command (hold)</code></pre>
+<p><strong>Settings:</strong></p>
+<ul>
+<li>Hold behavior: <strong>Activate hold when another key is pressed</strong></li>
+<li>Repeat-tap window: 200ms</li>
+<li>Hold activation delay: 200ms</li>
+</ul>
+<p>This allows you to press <code>a</code> + <code>j</code> quickly and it triggers <code>Ctrl+J</code> instead of <code>aj</code>.</p>
+<h3 id="caps-lock-replacement">Caps Lock Replacement</h3>
+<p>Replace Caps Lock with Escape on tap, Control on hold:</p>
+<pre><code>caps → esc (tap) / lctl (hold)</code></pre>
+<p><strong>Settings:</strong></p>
+<ul>
+<li>Hold behavior: <strong>Basic</strong></li>
+<li>Repeat-tap window: 200ms</li>
+</ul>
+<h3 id="space-cadet-shift">Space Cadet Shift</h3>
+<p>Space bar that acts as Space on tap, Shift on hold:</p>
+<pre><code>spc → spc (tap) / lsft (hold)</code></pre>
+<p><strong>Settings:</strong></p>
+<ul>
+<li>Hold behavior: <strong>Activate hold after another key is released</strong></li>
+<li>Repeat-tap window: 200ms</li>
+</ul>
+<hr />
+<h2 id="tap-dance-examples">Tap-Dance Examples</h2>
+<h3 id="escape--caps-lock--control">Escape / Caps Lock / Control</h3>
+<p>Caps Lock output toggles the native macOS lock state. This recipe uses physical Caps Lock as its input, so it also needs <a href="help://driverless-caps-lock">compatible keyboard setup</a>.</p>
+<pre><code>caps → esc (single tap) / caps (double tap) / lctl (triple tap)</code></pre>
+<h3 id="function-key-layer-toggle">Function Key Layer Toggle</h3>
+<pre><code>f1 → f1 (single tap) / layer-toggle function (double tap)</code></pre>
+<hr />
+<h2 id="technical-details">Technical Details</h2>
+<h3 id="kanata-variants">Kanata Variants</h3>
+<p>KeyPath generates the appropriate Kanata variant based on your settings:</p>
+<ol type="1">
+<li><strong><code>tap-hold-press</code></strong>: Hold triggers on other key press (<code>activateHoldOnOtherKey = true</code>)</li>
+<li><strong><code>tap-hold-release</code></strong>: Hold activates after another key is released (<code>quickTap = true</code> internally)</li>
+<li><strong><code>tap-hold-release-keys</code></strong>: Early tap on specific keys (<code>customTapKeys</code> non-empty)</li>
+<li><strong><code>tap-hold</code></strong>: Basic timeout-based (default)</li>
+</ol>
+<h3 id="timing-controls">Timing controls</h3>
+<p>The editors use the same names wherever the underlying clock and outcome match:</p>
+<ul>
+<li><strong>Repeat-tap window</strong>: after you press the key, another key can still change how it resolves during this period.</li>
+<li><strong>Hold activation delay</strong>: how long to hold the key before its hold action activates.</li>
+<li><strong>Leader hold delay</strong>: how long to hold the Leader key before KeyPath shows the Shortcut List. This controls the Leader shortcut reference, not the timing of your other tap-hold rules.</li>
+<li><strong>Typing grace period</strong>: the release-order variant's short buffer; another key released during it makes this key a hold. It does not use a separate hold delay.</li>
+<li><strong>Multi-tap window</strong>: tap-dance's window for another tap. The clock starts again after every tap; when it expires, KeyPath resolves the tap count.</li>
+</ul>
+<p>The value is always milliseconds. A longer window gives you more time to perform the required action, while a shorter one resolves sooner. Default dual-role timing is 200ms; adjust it to suit your typing speed.</p>
+<hr />
+<h2 id="tap-dance-multiple-taps-multiple-actions">Tap-Dance: multiple taps, multiple actions</h2>
+<p>Tap-hold gives you two actions per key (tap and hold). Tap-dance goes further — different actions based on how many <em>times</em> you tap.</p>
+<pre><code>  Caps Lock with tap-dance:
+
+  1 tap  → Escape
+  2 taps → Caps Lock (when you actually need it)
+  3 taps → Toggle a layer</code></pre>
+<p>The second tap toggles the native macOS Caps Lock state. Physical Caps Lock input requires <a href="help://driverless-caps-lock">compatible keyboard setup</a>.</p>
+<p>This is great for keys you rarely use in their original form. Pack multiple functions into one key without adding complexity to everyday typing — you only get the multi-tap action when you deliberately tap quickly.</p>
+<h3 id="setting-up-tap-dance">Setting up tap-dance</h3>
+<ol type="1">
+<li>Open the <strong>Custom Rules</strong> tab</li>
+<li>Create or edit a rule</li>
+<li>Enable <strong>Hold, Double Tap, etc.</strong></li>
+<li>Set actions for single tap, double tap, and optionally triple tap</li>
+</ol>
+<p>The <strong>Multi-tap window</strong> starts again after every tap. A shorter window means you need to tap faster; a longer window gives you more time but adds a slight delay before the single-tap action fires (KeyPath has to wait to see if you'll tap again).</p>
+<hr />
+<h2 id="one-shot-modifiers-tap-a-modifier-it-applies-once">One-Shot Modifiers: tap a modifier, it applies once</h2>
+<p>Standard modifiers require holding — hold Shift, press A, release Shift to type "A". One-shot modifiers let you <em>tap</em> a modifier and it applies to just the next key.</p>
+<pre><code>  Standard:                  One-shot:
+  Hold Shift + press A       Tap Shift, then press A
+  = A                        = A (then Shift deactivates)</code></pre>
+<p>This is useful for:</p>
+<ul>
+<li><strong>Accessibility</strong> — easier for users who find holding keys difficult</li>
+<li><strong>One-handed typing</strong> — tap a modifier with one hand, type the key with the other</li>
+<li><strong>Reducing finger strain</strong> — no simultaneous key holding</li>
+</ul>
+<p>One-shot modifiers are configured in the Kanata config. Add them to any key using the <code>one-shot</code> action:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode lisp"><code class="sourceCode commonlisp"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">;; In your Kanata config:</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>(defalias</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  os-sft (one-shot <span class="dv">1500</span> lsft)  <span class="co">;; Tap for one-shot Shift (1.5s timeout)</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  os-ctl (one-shot <span class="dv">1500</span> lctl)  <span class="co">;; Tap for one-shot Control</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>The timeout (1500ms) is how long the one-shot stays active waiting for the next key. If you don't press a key within that window, the modifier deactivates.</p>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="hold-activates-too-quickly">Hold activates too quickly</h3>
+<p>Increase the tap timeout. Try 250ms or 300ms.</p>
+<h3 id="hold-doesnt-activate-reliably">Hold doesn't activate reliably</h3>
+<ul>
+<li>Use <strong>Trigger early</strong> for home-row mods</li>
+<li>Decrease hold timeout</li>
+<li>Check for conflicts with other remappings</li>
+</ul>
+<h3 id="tap-dance-not-working">Tap-Dance not working</h3>
+<p>Ensure you've set at least a double-tap action. Single tap alone won't enable tap-dance behavior.</p>
+<hr />
+<h2 id="advanced-configuration">Advanced Configuration</h2>
+<p>For power users, you can edit the generated Kanata config directly to fine-tune behavior. See the <a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold">Kanata tap-hold documentation</a> for all available options.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — The most popular use of tap-hold</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See tap-hold in action: Hyper key, navigation layers, combined setups</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers, modifiers, and dual-role keys</li>
+<li><strong><a href="help://action-uri">Launching Apps</a></strong> — Trigger actions from your keyboard config</li>
+<li><strong><a href="help://alternative-layouts">Alternative Layouts</a></strong> — Tap-hold works with any layout</li>
+<li><strong><a href="help://karabiner-users">Switching from Karabiner?</a></strong> — See how Karabiner's <code>to_if_alone</code> maps to Kanata tap-hold</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc#tap-hold">Kanata tap-hold documentation</a></strong> — Full reference for all tap-hold variants ↗</li>
+<li><strong><a href="https://precondition.github.io/home-row-mods">The Home Row Mods Guide (Precondition)</a></strong> — Community deep dive on tap-hold for home row mods ↗</li>
+<li><strong><a href="https://getreuer.info/posts/keyboards/home-row-mods/">Pascal Getreuer's home row mods analysis</a></strong> — Technical analysis of tap-hold timing and anti-misfire strategies ↗</li>
+<li><strong><a href="https://docs.qmk.fm/tap_hold">QMK tap-hold documentation</a></strong> — Firmware perspective on the same concepts (useful for understanding the theory) ↗</li>
+<li><strong><a href="https://github.com/jtroo/kanata/discussions">Kanata GitHub Discussions</a></strong> — Community Q&amp;A on tap-hold tuning ↗</li>
+</ul>
+</body></html>

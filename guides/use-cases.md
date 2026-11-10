@@ -28,7 +28,7 @@ Stop reaching for the Dock or Spotlight. Hold one key, press a letter, and your 
 
 One key hold + one letter = instant access to anything on your Mac. No mouse, no Cmd+Space, no typing a name.
 
-![Screenshot — KeyPath with the Rules panel open]({{ '/images/help/full-window-rules-tab.png' | relative_url }})
+![Screenshot — KeyPath with the Rules panel open](full-window-rules-tab.png)
 
 **How to set it up:** Open the **Launchers** tab, click **Add Shortcut**, choose your key and target. See the [Launching Apps guide]({{ '/guides/action-uri/' | relative_url }}) for the full walkthrough.
 
@@ -38,7 +38,7 @@ One key hold + one letter = instant access to anything on your Mac. No mouse, no
 
 Every keyboard shortcut requires a modifier — Command, Shift, Control, Option. Normally those keys are in the corners, forcing your hands off the home row. Home row mods put them right under your fingertips:
 
-![Screenshot — Home Row Mods pack detail]({{ '/images/help/pack-detail-home-row-mods.png' | relative_url }})
+![Screenshot — Home Row Mods pack detail](pack-detail-home-row-mods.png)
 
 Hold F + press C = Copy. Hold A + press Tab = Shift+Tab. Your hands never move.
 
@@ -50,7 +50,14 @@ Hold F + press C = Copy. Hold A + press Tab = Shift+Tab. Your hands never move.
 
 Stop dragging windows around with your mouse. Snap any window to a half, quarter, or full screen with a keystroke:
 
-![Window tiling — halves and quarters with one keystroke]({{ '/images/help/diagram-window-tiling.png' | relative_url }})
+```
+  ┌───────────┬───────────┐     ┌─────┬─────┐
+  │           │           │     │ U   │  I  │  Four corners
+  │   Left    │   Right   │     ├─────┼─────┤  with a single
+  │   half    │   half    │     │ N   │  M  │  keystroke
+  │           │           │     └─────┴─────┘
+  └───────────┴───────────┘
+```
 
 **How to set it up:** Enable the "Window Snapping" pre-built rule, or create custom bindings. See the [Window Management guide]({{ '/guides/window-management/' | relative_url }}).
 
@@ -77,7 +84,14 @@ No manual toggling — just switch apps and your keyboard adapts.
 
 Arrow keys are small, far away, and break your typing flow. Hold a modifier to turn your right hand into full-size navigation — without moving your hands:
 
-![Navigation layer — arrows and page navigation on the home row]({{ '/images/help/diagram-nav-layer.png' | relative_url }})
+```
+  Right hand becomes:
+  ┌─────┬─────┬─────┬─────┐
+  │  ←  │  ↓  │  ↑  │  →  │   Full-size keys
+  ├─────┼─────┼─────┼─────┤   right on the
+  │Home │PgDn │PgUp │ End │   home row
+  └─────┴─────┴─────┴─────┘
+```
 
 Especially helpful on a MacBook where the arrow keys are tiny.
 
@@ -97,7 +111,9 @@ Run out of shortcut combinations? Type short mnemonics instead. Press a leader k
 
 Easy to remember, impossible to run out of.
 
-**How to set it up:** Create sequence rules in the **Custom Rules** tab.
+**How to set it up:** Turn on **Sequences** in the **Rules** tab, then click
+**Customize…**. See [Type Memorable Shortcut Paths]({{ '/guides/sequences/' |
+relative_url }}) for setup and timing guidance.
 
 ---
 

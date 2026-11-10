@@ -73,9 +73,8 @@ When you click "Use This Config":
 1. **Backup** — Creates a timestamped backup before any changes
 2. **Symlink** — Links to your original file (no copying)
 3. **Include line** — Adds `(include keypath-apps.kbd)` if missing
-4. **Permissions** — Guides you through Input Monitoring and Accessibility
-5. **Driver** — Installs Karabiner VirtualHID if needed
-6. **Service** — Configures LaunchDaemon for boot-time remapping
+4. **Permissions** — Guides you through Accessibility (Device Control and Data Access on macOS 27)
+5. **Runtime** — Runs Kanata in your user session; there is no driver to install and no system service. Turn on **Launch at login** to start it when you sign in
 
 ---
 
@@ -136,21 +135,22 @@ Your config should include TCP settings in `defcfg`:
 
 ### Command Execution Requirements
 
-**KeyPath requires `danger-enable-cmd yes`** for app launching and URL opening features. This is Kanata's built-in safety gate — disabled by default so random configs from the internet can't execute arbitrary commands.
+**KeyPath does not require Kanata's `cmd` feature** for app launching, URL opening, or script actions. KeyPath actions are delivered through Kanata `push-msg` events over TCP and executed by the KeyPath app, not by the root-managed Kanata process.
+
+You do **not** need `danger-enable-cmd yes` for KeyPath features:
 
 ```lisp
 (defcfg
   process-unmapped-keys yes
   tcp-server-port 37001
-  danger-enable-cmd yes  ;; Required for KeyPath app/URL launching
 )
 ```
 
-**Why it's named "danger":** Kanata's `cmd` action can execute *any* binary with *any* arguments. The scary name is intentional — it forces you to acknowledge you're enabling command execution. KeyPath uses this for legitimate app launching via macOS's `open` command, but Kanata itself applies no restrictions once enabled.
+Existing configs that still contain `danger-enable-cmd yes` continue to load, but the setting is inert with KeyPath's bundled cmd-less engine. Raw Kanata `(cmd ...)` actions are not supported by the bundled engine; use KeyPath's action URI and script features instead.
 
 ### Script Execution Safety
 
-If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies several safety layers **on top of** Kanata's `cmd`:
+If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies several safety layers:
 
 | Safety Measure | Description |
 |----------------|-------------|
@@ -160,7 +160,7 @@ If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies 
 | **Audit logging** | All script executions logged (last 100 entries) |
 | **No shell injection** | Scripts run via direct interpreter, not shell — no metacharacter attacks |
 
-**Note:** These protections apply only to KeyPath's action system. If you write raw `(cmd ...)` actions in your Kanata config, those bypass KeyPath entirely and run with whatever permissions Kanata has.
+**Note:** These protections apply only to KeyPath's action system. Raw `(cmd ...)` actions are intentionally unavailable in the bundled engine.
 
 ---
 
@@ -169,7 +169,7 @@ If you use KeyPath's `script:{path}` action URI to run scripts, KeyPath applies 
 KeyPath doesn't parse your Kanata config — it uses TCP and a simulator to understand what's running. This means your custom rules work perfectly at the engine level, but the UI only shows rules created through KeyPath's interface.
 
 **What KeyPath handles for you (even with BYOC):**
-- Service management, permissions wizard, driver installation
+- Starting and stopping the runtime, the permissions wizard
 - Hot reload (config changes detected and applied via TCP)
 - Conflict detection, health monitoring, emergency stop (`Ctrl + Space + Esc`)
 
@@ -209,7 +209,7 @@ If you use a custom TCP port:
 
 ### Service Not Starting?
 
-1. **Check permissions** - Run setup wizard to verify Input Monitoring and Accessibility
+1. **Check permissions** - Run setup wizard to verify Accessibility
 2. **Check conflicts** - Wizard detects conflicting processes (Karabiner, orphaned Kanata)
 3. **Check logs** - View system logs for error messages
 4. **Use Fix button** - Wizard's Fix button resolves most issues automatically

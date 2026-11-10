@@ -1,0 +1,96 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Packs &amp; Layers</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-packs.png" alt="Guide illustration" /></p>
+<h1 id="packs--layers">Packs &amp; Layers</h1>
+<p>Packs are pre-built keyboard features you install from the Pack Gallery. Each one adds a specific capability — a new layer, a key behavior, or an integration. Install with one click, customize to fit your workflow, uninstall cleanly if it's not for you.</p>
+<p>Open the Pack Gallery from the KeyPath menu bar icon or the app's main window.</p>
+<hr />
+<h2 id="getting-oriented">Getting Oriented</h2>
+<p>Most packs are standalone — install one and it works immediately. Some build on each other:</p>
+<ul>
+<li><strong>Vim Navigation</strong> is the foundation for layers. It makes Space your Leader key — hold Space, then press another key to access a layer (arrows, window snapping, numpad, etc.)</li>
+<li><strong>Layer packs</strong> (Numpad, Symbol, Function, Window Snapping, Mission Control) require a Leader key, which Vim Navigation provides by default</li>
+<li><strong>Caps Lock Remap</strong> frees up your Caps Lock for more useful duties, and pairs well with almost everything</li>
+</ul>
+<p>A good starting point for most people: install <strong>Caps Lock Remap</strong> and <strong>Vim Navigation</strong>, then explore from there.</p>
+<hr />
+<h2 id="productivity">Productivity</h2>
+<h3 id="caps-lock-remap">Caps Lock Remap</h3>
+<blockquote>
+<p>Driverless KeyPath automatically prepares Caps Lock when exactly one compatible keyboard is available. This reserves F18. See <a href="help://driverless-caps-lock">behavior and limitations</a> before relying on these recipes.</p>
+</blockquote>
+<p>Make Caps Lock actually useful. Tap it for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). Pick your preferred combo in the pack settings.</p>
+<p>Pairs well with everything — most users install this first.</p>
+<h3 id="escape-remap">Escape Remap</h3>
+<p>Move Escape to a closer key like Caps Lock or Backtick. Useful if you've given Caps Lock a different job with the Caps Lock Remap pack.</p>
+<h3 id="delete-enhancement">Delete Enhancement</h3>
+<p>Forward-delete, delete-word, and delete-to-line-start without reaching. Hold your Leader key + Delete for the enhanced variants. Regular Delete still works normally. Requires Vim Navigation.</p>
+<h3 id="backup-caps-lock">Backup Caps Lock</h3>
+<p>Press both Shift keys together to toggle Caps Lock. Handy when you've remapped Caps Lock to something else and occasionally still need it.</p>
+<h3 id="quick-launcher">Quick Launcher</h3>
+<p>Hold Hyper (or Leader + L), press a letter to launch an app or open a URL. Drag apps onto keys to assign them — the overlay shows your assignments visually.</p>
+<p>Works standalone (via Hyper) or as part of the Vim Navigation layer system.</p>
+<p><a href="help://quick-launcher">Full guide →</a></p>
+<h3 id="leader-key">Leader Key</h3>
+<p>Choose which physical key activates your layers — Space (default), Caps Lock, Tab, or Backtick. This is the master switch for Vim Navigation and every layer pack that builds on it.</p>
+<p><a href="help://leader-key">Full guide →</a></p>
+<h3 id="chord-groups">Chord Groups</h3>
+<p>Press two adjacent keys simultaneously for instant actions — no modifier keys needed. Includes presets like S+D for Escape, D+F for Enter, J+K for Up, and more. Inspired by Ben Vallack's chording approach.</p>
+<p><a href="help://chords">Full guide →</a></p>
+<hr />
+<h2 id="navigation">Navigation</h2>
+<h3 id="home-row-arrows">Home Row Arrows</h3>
+<p>Hold F for arrow keys under your right hand — I/J/K/L in an inverted-T layout that matches your physical arrow keys. Plus Home, End, Page Up, and Page Down on surrounding keys. Tap F normally to type.</p>
+<p>Installed by default. This is the simplest way to navigate text without leaving the home row. Conflicts with Home Row Mods (both use F as a hold key) — use one or the other.</p>
+<p><a href="help://remapping">Full guide →</a></p>
+<h3 id="vim-navigation">Vim Navigation</h3>
+<p>Hold Space to enter a navigation layer: H/J/K/L become arrow keys, Y/P are copy/paste, U is undo, / is find. Release Space to type normally. This is the foundation pack — most other layer packs build on top of it.</p>
+<p>Even if you've never used Vim, the arrow key layout is worth learning. Your fingers never leave the home row.</p>
+<p><a href="help://vim-navigation">Full guide →</a></p>
+<h3 id="home-row-navigation-system">Home Row Navigation System</h3>
+<p>A complete navigation system inspired by keyboard minimalist <a href="https://www.youtube.com/@BenVallacksKeyboards">Ben Vallack</a>. Hold an index finger key to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.</p>
+<p>Installs three coordinated collections: Navigation Layer, Top-Row Modifiers, and Index-Finger Layer Toggles. This is an opinionated alternative to the default Vim Navigation — use one or the other, not both.</p>
+<p><a href="help://vallack-nav">Full guide →</a></p>
+<h3 id="window-snapping">Window Snapping</h3>
+<p>Snap windows to halves, corners, or full screen with keyboard shortcuts. Hold Space + W, then pick a position: L/R for halves, U/I/J/K for corners, brackets for displays, comma/period for Spaces.</p>
+<p>Requires Vim Navigation and Accessibility permission.</p>
+<p><a href="help://window-management">Full guide →</a></p>
+<h3 id="mission-control">Mission Control</h3>
+<p>Exposé, Show Desktop, Notification Center, and desktop switching — each one key away. Hold Space + M for Mission Control. Comma and period switch desktops. Requires Vim Navigation.</p>
+<h3 id="fast-navigation">Fast Navigation</h3>
+<p>Arrow keys and Delete at 3x speed. Regular typing stays steady so you don't get accidental repeats. Great for scrolling through code, navigating spreadsheets, and editing long documents.</p>
+<p><a href="help://key-repeat-control">Full guide →</a></p>
+<hr />
+<h2 id="layers">Layers</h2>
+<h3 id="numpad">Numpad</h3>
+<p>Your right hand becomes a number pad (U/I/O = 7/8/9, J/K/L = 4/5/6, M/comma/period = 1/2/3, N = 0). Left hand gets operators (+, −, ×, ÷, Enter). Hold Space + semicolon to activate.</p>
+<p>Great for spreadsheets, calculators, and CSS without reaching for the number row. Requires Vim Navigation.</p>
+<p><a href="help://numpad-layer">Full guide →</a></p>
+<h3 id="symbol">Symbol</h3>
+<p>Programming symbols under your home row — brackets, operators, and the shifted number row. Hold Space + S to activate. Choose from preset layouts. Requires Vim Navigation.</p>
+<p><a href="help://symbol-layer">Full guide →</a></p>
+<h3 id="function">Function</h3>
+<p>The Function pack is unavailable in driverless mode because it includes media and brightness outputs. Ordinary F1–F12 mappings remain supported. See <a href="help://fun-layer">Function pack availability</a>.</p>
+<p><a href="help://fun-layer">Full guide →</a></p>
+<hr />
+<h2 id="ergonomics">Ergonomics</h2>
+<h3 id="home-row-mods">Home Row Mods</h3>
+<p>Tap your home row keys normally. Hold them for modifier keys — A for Control, S for Option, D for Shift, F for Command (and mirrored on the right hand). Every keyboard shortcut stays under your fingers.</p>
+<p>This is one of the most powerful features in KeyPath, but it takes some adjustment. The hold timing slider helps you find the sweet spot between accidental triggers and comfortable activation.</p>
+<p><a href="help://home-row-mods">Full guide →</a></p>
+<h3 id="auto-shift-symbols">Auto Shift Symbols</h3>
+<p>Hold any symbol key slightly longer to type its shifted variant — tap hyphen for <code>-</code>, hold for <code>_</code>. Tap apostrophe for <code>'</code>, hold for <code>"</code>. No Shift key needed.</p>
+<p><a href="help://auto-shift">Full guide →</a></p>
+<hr />
+<h2 id="fun">Fun</h2>
+<h3 id="typing-sounds">Typing Sounds</h3>
+<p>Make your keyboard sound like a mechanical keyboard. Choose from five switch profiles — Cherry MX Blue (clicky), Cherry MX Brown (tactile), Cherry MX Red (linear), NK Cream (thocky), or Bubble Pop (playful). Each profile plays authentic audio samples on every keypress.</p>
+<p>Enable in <strong>Settings &gt; Typing Sounds</strong> and pick your profile. No pack install needed — it's a built-in setting.</p>
+<hr />
+<h2 id="integrations">Integrations</h2>
+<h3 id="kindavim">KindaVim</h3>
+<p>Shows your <a href="https://kindavim.app">KindaVim</a> mode (Normal, Insert, Visual) in the keyboard overlay header. The overlay adapts automatically — Vim key hints in Normal mode, clean keyboard in Insert mode.</p>
+<p>Display only — no key remapping. Requires the KindaVim app.</p>
+<p><a href="help://kindavim">Full guide →</a></p>
+<h3 id="keystroke-history">Keystroke History</h3>
+<p>A live timeline of every keypress, tap-hold decision, and layer change. Useful for tuning timing, debugging remaps, and understanding what Kanata is actually doing with your keystrokes.</p>
+<p>Display only — no key remapping.</p>
+</body></html>

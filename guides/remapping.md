@@ -3,6 +3,7 @@ layout: default
 title: "Remapping Keys"
 description: "Change what any key does — from fixing one annoying key to redesigning your whole keyboard"
 theme: parchment
+header_image: header-remapping.png
 permalink: /guides/remapping/
 ---
 
@@ -65,9 +66,6 @@ KeyPath installs Home Row Arrows by default. If it's already running, try it:
 3. Press **J, K, I, or L** to move the cursor
 4. **Release F** to go back to normal typing
 
-<!-- Screenshot: Overlay showing Home Row Arrows layer active, IJKL highlighted as arrows -->
-![Screenshot — Home Row Arrows active in the overlay]({{ '/images/help/placeholder-overlay-home-row-arrows.png' | relative_url }})
-
 That's it. Your hand never left the home row. No reaching, no looking down, no tiny arrow keys.
 
 ### Prefer Vim-style HJKL?
@@ -87,17 +85,11 @@ If you're a developer who already knows Vim's HJKL navigation, you can switch la
   └───┴───┴───┴───┘               └───┴───┴───┴───┘
 ```
 
-<!-- Screenshot: Pack detail showing layout picker with Inverted-T and Vim options -->
-![Screenshot — Home Row Arrows layout picker]({{ '/images/help/placeholder-pack-detail-arrows-picker.png' | relative_url }})
-
 ### If it's not installed yet
 
 1. Open KeyPath from the menu bar
 2. Open the **Pack Gallery**
 3. Find **Home Row Arrows** and click **Install**
-
-<!-- Screenshot: Pack Gallery showing Home Row Arrows pack -->
-![Screenshot — Home Row Arrows in the Pack Gallery]({{ '/images/help/placeholder-pack-gallery-home-row-arrows.png' | relative_url }})
 
 Or from the command line:
 
@@ -162,10 +154,7 @@ keypath remap right_option delete
 
 The keyboard overlay shows you what every key does right now. Remapped keys are highlighted so you can always tell what's been changed.
 
-<!-- Screenshot: Overlay showing remapped keys highlighted -->
-![Screenshot — The overlay highlighting remapped keys]({{ '/images/help/placeholder-overlay-remapped-keys.png' | relative_url }})
-
-Click any key to see its current mapping. If you ever forget what you've changed, the overlay is your map.
+To see or change what a key does, right-click it and choose **Remap**. The settings drawer opens with that key selected, even if the drawer was closed. With the drawer already open, a plain click selects a key too. If you ever forget what you've changed, the overlay is your map.
 
 ---
 
@@ -174,7 +163,7 @@ Click any key to see its current mapping. If you ever forget what you've changed
 Changed your mind? Nothing is permanent:
 
 - **Pack Gallery** — click **Uninstall** on the pack
-- **Overlay** — click the key, set it back to its original output
+- **Overlay** — right-click the key and choose **Reset to Default** (shown for remaps you made on the current layer)
 - **CLI** — `keypath unmap caps_lock`
 
 Experiment freely.
@@ -227,3 +216,15 @@ keypath rule list                  # See all active rules
 | Right Control | `right_control` |
 | Right Command | `right_command` |
 | Backtick | `grave_accent` |
+
+## App-specific edits and hand-written configurations
+
+If KeyPath says your configuration was preserved, it could not safely reproduce
+your current configuration from the rules in the visual editor. The attempted
+app-specific edit has not been saved. Your configuration files remain unchanged.
+
+This can happen with hand-written configurations, manual changes to generated
+files, or stored rules that differ from the generated configuration. App-specific
+editing requires an explicit conversion with a backup first. KeyPath does not
+perform that conversion automatically. Keep using your existing configuration;
+this editing limit does not stop it from running.

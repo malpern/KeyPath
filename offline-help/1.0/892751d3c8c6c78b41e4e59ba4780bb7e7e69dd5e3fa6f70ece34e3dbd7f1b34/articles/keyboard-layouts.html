@@ -1,0 +1,228 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Works With Your Keyboard</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-keyboard-layouts.png" alt="Guide illustration" /></p>
+<h1 id="works-with-your-keyboard">Works With Your Keyboard</h1>
+<p>Whether you type on a MacBook, a full-size desktop keyboard, or a 34-key split ergonomic board, KeyPath adapts to match. Select your keyboard and the overlay shows your actual layout — the right keys in the right positions, so your rules and visual feedback always make sense.</p>
+<hr />
+<h2 id="why-it-matters">Why it matters</h2>
+<p>Your keyboard's physical layout determines which keys exist, where they are, and how KeyPath's overlay and remapping rules map onto them. A rule configured for a full-size keyboard might reference keys that don't exist on a 40% board. KeyPath handles this by tailoring the overlay and rule display to your selected physical layout.</p>
+<pre><code>  Full-size (100%):
+  ┌───────────────────────────────────────────────────────────┐
+  │ Esc  F1 F2 F3 F4  F5 F6 F7 F8  F9 F10 F11 F12  │ Ins │
+  │                                                    │ Del │
+  │ `  1  2  3  4  5  6  7  8  9  0  -  =  Backspace │     │
+  │ Tab  Q  W  E  R  T  Y  U  I  O  P  [  ]  \       │     │
+  │ Caps  A  S  D  F  G  H  J  K  L  ;  &#39;  Enter     │     │
+  │ Shift  Z  X  C  V  B  N  M  ,  .  /  Shift   ↑   │     │
+  │ Ctrl  Opt  Cmd    Space       Cmd  Opt  ←  ↓  →   │ Num │
+  └───────────────────────────────────────────────────────────┘
+
+  60%:                          40%:
+  ┌───────────────────────┐     ┌─────────────────┐
+  │ `  1  2  3  4  5  ... │     │ Q  W  E  R  T   │
+  │ Tab  Q  W  E  R  T  . │     │ A  S  D  F  G   │
+  │ Caps  A  S  D  F  G . │     │ Z  X  C  V  B   │
+  │ Shift  Z  X  C  V  .. │     └─────────────────┘
+  │ Ctrl  Opt  Cmd  Space  │     No number row,
+  └───────────────────────┘     no function keys —
+  No function row,              everything through
+  no arrow cluster              layers</code></pre>
+<hr />
+<h2 id="supported-keyboards">Supported keyboards</h2>
+<p>KeyPath includes layouts for 12 keyboards across three categories:</p>
+<h3 id="standard-ansi">Standard ANSI</h3>
+<p>Traditional staggered-row keyboards in various sizes. These are what most people use.</p>
+<table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Keys</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ANSI 100%</strong></td>
+<td>~104</td>
+<td>Full-size with number pad, function row, and navigation cluster</td>
+</tr>
+<tr>
+<td><strong>ANSI 80% (TKL)</strong></td>
+<td>~87</td>
+<td>Tenkeyless — drops the number pad, keeps everything else</td>
+</tr>
+<tr>
+<td><strong>ANSI 75%</strong></td>
+<td>~84</td>
+<td>Compact with function row and arrow keys, minimal gaps</td>
+</tr>
+<tr>
+<td><strong>ANSI 65%</strong></td>
+<td>~68</td>
+<td>No function row, keeps arrow keys and a few nav keys</td>
+</tr>
+<tr>
+<td><strong>ANSI 60%</strong></td>
+<td>~61</td>
+<td>No function row, no arrows — a popular minimalist choice</td>
+</tr>
+<tr>
+<td><strong>ANSI 40%</strong></td>
+<td>~40</td>
+<td>Letters and modifiers only — everything else on layers</td>
+</tr>
+<tr>
+<td><strong>HHKB</strong></td>
+<td>60</td>
+<td>Happy Hacking Keyboard — Unix-inspired 60% with Control where Caps Lock is</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="split--ergonomic">Split &amp; Ergonomic</h3>
+<p>Split keyboards place each hand on its own half, allowing a natural shoulder-width typing position. Most use columnar (non-staggered) key columns, which align better with how fingers naturally move.</p>
+<pre><code>  Traditional staggered:         Columnar (split):
+  ┌───┬───┬───┬───┬───┐         ┌───┬───┬───┬───┬───┐
+  │ Q │ W │ E │ R │ T │         │ Q │ W │ E │ R │ T │
+  └─┬─┴─┬─┴─┬─┴─┬─┴─┬─┘       ├───┼───┼───┼───┼───┤
+    │ A │ S │ D │ F │ G │       │ A │ S │ D │ F │ G │
+    └─┬─┴─┬─┴─┬─┴─┬─┴─┬─┘     ├───┼───┼───┼───┼───┤
+      │ Z │ X │ C │ V │ B │     │ Z │ X │ C │ V │ B │
+      └───┴───┴───┴───┴───┘     └───┴───┴───┴───┴───┘
+   Keys offset diagonally        Keys in straight columns
+   (follows typewriter legacy)   (follows finger movement)</code></pre>
+<table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Keys</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Corne</strong></td>
+<td>42</td>
+<td>Popular 3x6 split with 3 thumb keys per side. The go-to starter split keyboard</td>
+</tr>
+<tr>
+<td><strong>Cornix</strong></td>
+<td>40</td>
+<td>Compact 3x5+3 variant of the Corne with fewer outer columns</td>
+</tr>
+<tr>
+<td><strong>Ferris Sweep</strong></td>
+<td>34</td>
+<td>Ultra-minimalist 3x5+2 split — only 34 keys total, heavy layer use</td>
+</tr>
+<tr>
+<td><strong>Sofle</strong></td>
+<td>58</td>
+<td>4x6 split with encoder knobs and an extra row — more keys for easier transition</td>
+</tr>
+<tr>
+<td><strong>Kinesis Advantage 360</strong></td>
+<td>76</td>
+<td>Premium split ergonomic with sculpted keywells that cup your hands</td>
+</tr>
+</tbody>
+</table>
+<pre><code>  Kinesis Advantage 360:
+
+      ┌───┬───┬───┬───┬───┬───┐          ┌───┬───┬───┬───┬───┬───┐
+      │ = │ 1 │ 2 │ 3 │ 4 │ 5 │          │ 6 │ 7 │ 8 │ 9 │ 0 │ - │
+      ├───┼───┼───┼───┼───┼───┤          ├───┼───┼───┼───┼───┼───┤
+      │Tab│ Q │ W │ E │ R │ T │          │ Y │ U │ I │ O │ P │ \ │
+      ├───┼───┼───┼───┼───┼───┤          ├───┼───┼───┼───┼───┼───┤
+      │Cap│ A │ S │ D │ F │ G │          │ H │ J │ K │ L │ ; │ &#39; │
+      ├───┼───┼───┼───┼───┼───┤          ├───┼───┼───┼───┼───┼───┤
+      │Sft│ Z │ X │ C │ V │ B │          │ N │ M │ , │ . │ / │Sft│
+      └───┴───┴───┼───┼───┼───┘          └───┼───┼───┼───┴───┴───┘
+                  │Del│Hom│                    │End│Bsp│
+              ┌───┼───┼───┤              ┌────┼───┼───┐
+              │Bsp│Del│End│              │PgUp│Ent│Spc│
+              │   │   ├───┤              ├────┤   │   │
+              │   │   │Hom│              │PgDn│   │   │
+              └───┴───┴───┘              └────┴───┴───┘
+
+    Sculpted keywells — keys are concave to match your fingers&#39; natural arc.
+    Each hand gets a dedicated thumb cluster.</code></pre>
+<hr />
+<h2 id="how-to-change-your-layout-in-keypath">How to change your layout in KeyPath</h2>
+<ol type="1">
+<li>Open KeyPath — the keyboard overlay appears</li>
+<li>Click the <strong>gear icon</strong> on the overlay to reveal the settings tabs</li>
+<li>Click the <strong>Layout</strong> tab</li>
+<li>Click your keyboard — the overlay updates instantly</li>
+</ol>
+<p><img class="help-img" src="../assets/kb-layouts-layout-picker.png" alt="Screenshot" /> Screenshot — Physical Layout picker (2-column grid):</p>
+<pre><code>  ┌─────────────────────────────────────────────────────┐
+  │  Physical Layout                                    │
+  │                                                     │
+  │  STANDARD                                           │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │  ▣ ANSI 100% │  │  ANSI 80%    │                 │
+  │  │  (selected)  │  │  (TKL)       │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │  ANSI 75%    │  │  ANSI 65%    │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │  ANSI 60%    │  │  ANSI 40%    │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐                                   │
+  │  │     HHKB     │                                   │
+  │  └──────────────┘                                   │
+  │                                                     │
+  │  SPLIT &amp; ERGONOMIC                                  │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │    Corne     │  │   Cornix     │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐  ┌──────────────┐                 │
+  │  │ Ferris Sweep │  │    Sofle     │                 │
+  │  └──────────────┘  └──────────────┘                 │
+  │  ┌──────────────┐                                   │
+  │  │ Kinesis 360  │                                   │
+  │  └──────────────┘                                   │
+  └─────────────────────────────────────────────────────┘</code></pre>
+<p>KeyPath uses your physical layout selection to:</p>
+<ul>
+<li><strong>Shape the overlay</strong> — keys appear in the right positions for your board</li>
+<li><strong>Display rules visually</strong> — see your remapping rules on an accurate representation of your keyboard</li>
+<li><strong>Show the right keys</strong> — a 40% board won't show function keys that don't exist</li>
+</ul>
+<p>You can combine any physical layout with any <a href="help://alternative-layouts">logical keymap</a>. For example, select "Corne" as your physical layout and "Colemak-DH" as your keymap to see Colemak-DH labels on a Corne board.</p>
+<hr />
+<h2 id="choosing-a-keyboard">Choosing a keyboard</h2>
+<p>If you're thinking about a new keyboard, here's a rough guide:</p>
+<p><strong>If you want a familiar layout but smaller:</strong> Start with a 65% or 75%. You keep arrow keys and most shortcuts work unchanged.</p>
+<p><strong>If you're curious about ergonomics:</strong> The <strong>Sofle</strong> is a great first split — it has an extra row compared to the Corne, so the transition from a standard board is gentler.</p>
+<p><strong>If you want maximum efficiency:</strong> The <strong>Corne</strong> (42 keys) is the community favorite for a balance of minimalism and usability. Pair it with <a href="help://home-row-mods">Shortcuts Without Reaching</a> and layers.</p>
+<p><strong>If comfort is the priority:</strong> The <strong>Kinesis Advantage 360</strong> has sculpted keywells that match your fingers' natural arc. It's a significant investment but widely loved for long typing sessions.</p>
+<p><strong>If you want the smallest possible:</strong> The <strong>Ferris Sweep</strong> (34 keys) is as minimal as it gets. Everything beyond letters and basic modifiers lives on layers. Not for beginners, but extremely efficient once learned.</p>
+<hr />
+<h2 id="split-keyboards-and-keypath">Split keyboards and KeyPath</h2>
+<p>Split keyboards benefit especially from KeyPath's features:</p>
+<ul>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Split-hand detection is a natural fit when your hands are physically separated. Cross-hand keypresses reliably activate modifiers.</li>
+<li><strong>Layers</strong> — Smaller boards rely heavily on layers. KeyPath's <a href="help://tap-hold">tap-hold</a> system makes layer switching smooth and customizable.</li>
+<li><strong><a href="help://alternative-layouts">Alternative layouts</a></strong> — Colemak-DH was specifically designed with columnar keyboards in mind. The DH modification moves D and H to more comfortable positions on non-staggered boards.</li>
+</ul>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://alternative-layouts">Alternative Layouts</a></strong> — Colemak, Dvorak, Workman, and other keymaps</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Layers, modifiers, and tap-hold fundamentals</li>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Modifiers on the home row — especially powerful on split boards</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — Fine-tune layer-switching keys</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — All KeyPath features at a glance</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://kinesis-ergo.com/keyboards/advantage360/">Kinesis Advantage 360</a></strong> — Kinesis's flagship split ergonomic keyboard</li>
+<li><strong><a href="https://github.com/foostan/crkbd">Corne keyboard</a></strong> — Open-source 42-key split design</li>
+<li><strong><a href="https://github.com/davidphilipbarr/Sweep">Ferris Sweep</a></strong> — Ultra-minimal 34-key split</li>
+<li><strong><a href="https://josefadamcik.github.io/SofleKeyboard/">Sofle keyboard</a></strong> — Beginner-friendly split with encoders</li>
+<li><strong><a href="https://splitkb.com/">splitkb.com</a></strong> — Split keyboard vendor and community resources</li>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc">Kanata configuration reference</a></strong> — Advanced config reference for power users</li>
+</ul>
+</body></html>

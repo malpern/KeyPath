@@ -226,7 +226,7 @@ Screenshot — Keymap picker (2-column grid of layout cards):
   └─────────────────────────────────────────────────────┘
 ```
 
-KeyPath doesn't change your operating system's input method — it works alongside it. The overlay shows you which physical key produces which character under your chosen layout, and your remapping rules adapt automatically.
+KeyPath doesn't change your operating system's input method. The overlay's geometry follows your selected physical keyboard layout, and its labels follow your selected keymap. Driverless rules use physical key positions; the characters your apps receive also depend on the macOS input source and any input method. Changing the overlay alone does not verify an OS layout or IME combination.
 
 **Tip:** If you're learning a new layout, keep the KeyPath overlay visible on your desktop as a cheat sheet. As you build muscle memory, you'll glance at it less.
 
@@ -238,7 +238,7 @@ KeyPath doesn't change your operating system's input method — it works alongsi
 2. **Use KeyPath's overlay** as a visual reference. It shows the layout on your actual keyboard.
 3. **Expect 2-4 weeks** of slower typing before you start to feel comfortable. Most people reach their QWERTY speed in 1-3 months.
 4. **Keep shortcuts familiar.** Layouts like Colemak preserve Z/X/C/V positions, so Cut/Copy/Paste still work. On Dvorak, consider remapping shortcuts separately.
-5. **Combine with Home Row Mods.** [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) work with any layout — the modifier positions adapt to wherever the home row letters are.
+5. **Combine with Home Row Mods.** [Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }}) can be configured for your home row positions. Verify modifier shortcuts with your macOS input source and apps; not every layout or IME combination has physical compatibility evidence.
 
 ---
 

@@ -115,6 +115,7 @@ The overlay vanishes back to its normal state the instant KindaVim flips to Inse
 - **[Keyboard Concepts]({{ '/guides/concepts/' | relative_url }})** — Layers, modifiers, and dual-role keys explained
 - **[Shortcuts Without Reaching]({{ '/guides/home-row-mods/' | relative_url }})** — Combine KindaVim with home row modifiers
 - **[Neovim in the Terminal]({{ '/guides/neovim-terminal/' | relative_url }})** — Lighter alternative: Leader-layer shortcuts with a HUD reference card
+- **[Why Text Tools Break in Electron Apps]({{ '/guides/electron-text-parity/' | relative_url }})** — Research note on why the Keyboard fallback is needed in Slack, and what would have to change upstream
 - **[One Key, Multiple Actions]({{ '/guides/tap-hold/' | relative_url }})** — Tap-hold for the rare key you want to remap *outside* of vim mode
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 

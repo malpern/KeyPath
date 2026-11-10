@@ -3,20 +3,27 @@ layout: default
 title: "Command Line"
 description: "Control KeyPath from Terminal with the keypath CLI"
 theme: parchment
+header_image: header-cli.png
 permalink: /guides/cli/
 ---
 
 # Command Line
 
-KeyPath includes a CLI tool (`keypath`) for managing your keyboard from Terminal. Everything you can do in the app — remapping keys, managing layers, controlling the service — you can also do from the command line.
+KeyPath includes a CLI tool (`keypath-cli`) for managing your keyboard from Terminal. Opening KeyPath.app remains the primary way to launch KeyPath; the CLI is a separate terminal entry point.
 
-Install it with Homebrew:
+For DMG installs, open KeyPath and choose **File > Install Command Line Tool**. That installs:
 
 ```bash
-brew install keypath
+keypath-cli
 ```
 
-Or use the CLI bundled with the app at `/Applications/KeyPath.app/Contents/MacOS/keypath-cli`.
+The installed command points at the signed CLI inside `/Applications/KeyPath.app`, so configuration validation and simulation use the same bundled engine as the app. Installing this command-line tool is separate from installing system services.
+
+You can also run the bundled CLI directly:
+
+```bash
+/Applications/KeyPath.app/Contents/MacOS/keypath-cli config check
+```
 
 All commands support `--json` for machine-readable output, making them easy to use in scripts, Shortcuts, and automation tools.
 
@@ -24,14 +31,52 @@ All commands support `--json` for machine-readable output, making them easy to u
 
 ## Quick reference
 
-### Service control
+### Remapping on and off
+
+These ask the running KeyPath app, which owns remapping, so the answer is the app's own view.
 
 ```bash
-keypath status                    # System health check
-keypath start                     # Start the remapping service
-keypath stop                      # Stop the remapping service
-keypath restart                   # Restart the service
-keypath logs                      # Show recent service logs
+keypath status                    # Is remapping running? Also shows the current layer
+keypath start                     # Start remapping (opens KeyPath in the background if needed)
+keypath stop                      # Stop remapping; KeyPath keeps running
+keypath restart                   # Stop and start again
+keypath status --json             # The same, for scripts
+```
+
+`start`, `stop` and `restart` wait until KeyPath has finished before they return. The same commands also live under `keypath service` (`keypath service status`, and so on).
+
+| Exit code | Meaning |
+|-----------|---------|
+| `0` | Done, or remapping is running |
+| `1` | Remapping is not running, or KeyPath could not do what you asked (the output says why) |
+| `6` | KeyPath isn't running, or didn't answer in time (try a longer `--timeout`) |
+
+`keypath stop` succeeds when KeyPath isn't running, since remapping is already off.
+
+### Setup and health
+
+```bash
+keypath doctor                    # Check permissions, remapping and config, with the fix for each problem
+keypath setup                     # Repair, ask for missing permissions, then start remapping
+keypath setup --no-open           # Just report what's needed; don't open System Settings
+keypath uninstall                 # Show what uninstalling would do (add --yes to do it)
+```
+
+macOS only lets a person turn on Device Control and Data Access (Accessibility before macOS 27). When it is off, `keypath setup` opens that pane in System Settings and waits up to five minutes (`--wait`) for you to switch KeyPath on, then finishes. `keypath repair` is the same command.
+
+| Exit code | `doctor` and `setup` |
+|-----------|----------------------|
+| `0` | Ready and remapping |
+| `7` | A macOS permission still needs you |
+| `1` | Another problem (the output says what) |
+| `6` | KeyPath couldn't be reached (`doctor` doesn't open the app; `setup` does) |
+
+`keypath uninstall` exits `2` without `--yes`, with nothing changed. See [Uninstall KeyPath]({{ '/guides/uninstall/' | relative_url }}).
+
+### Configuration reload and logs
+
+```bash
+keypath logs                      # Show recent app logs
 keypath service reload            # Hot-reload config without restart
 ```
 
@@ -108,11 +153,16 @@ keypath export collection "My Rules"        # Export one collection
 ### System
 
 ```bash
-keypath system inspect            # Inspect system state
-keypath system install            # Install services
-keypath system repair             # Fix broken services
-keypath system uninstall          # Remove everything
+keypath system inspect                    # Read local permission/configuration diagnostics
 ```
+
+`system inspect` reads diagnostics from the CLI process and asks the running app
+whether remapping is running. `keypath doctor` runs the whole check inside the
+app, so it sees the permissions and remapping the app actually has; prefer it. Its `Rules:` section (`admission` in `--json`) lists
+what the admission engine says about the rules now on: a block (`✗`, a key this
+backend can't send, Caps Lock held by another app), a choice (`!`, a key two
+rules both map), or something KeyPath resolves by itself (`•`, the Caps Lock
+intermediate moving to a free key).
 
 ### Simulation
 
@@ -127,7 +177,7 @@ keypath simulate "caps h"         # Simulate a key sequence
 Every command supports `--json` for machine-readable output:
 
 ```bash
-keypath status --json
+keypath config check --json
 keypath layer current --json
 keypath rule list --json
 keypath layer list --json
@@ -136,14 +186,6 @@ keypath layer list --json
 This makes the CLI a first-class integration point for scripts, Shortcuts, Hammerspoon, and any other automation tool.
 
 ### Scripting examples
-
-Check if service is running:
-
-```bash
-if keypath status --json | jq -e '.kanataRunning' > /dev/null 2>&1; then
-    echo "KeyPath is running"
-fi
-```
 
 Get the current layer in a script:
 
@@ -176,13 +218,6 @@ if currentLayer is "nav" then
     display notification "Navigation layer active" with title "KeyPath"
 end if
 
--- Check if service is running
-try
-    do shell script "/usr/local/bin/keypath status --json"
-    -- service is reachable
-on error
-    -- service is down
-end try
 ```
 
 Send actions to KeyPath from AppleScript:

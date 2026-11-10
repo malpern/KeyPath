@@ -90,6 +90,28 @@ open "keypath://notify?title=Saved&sound=false"
 
 ---
 
+### `keypath://overlay/{toggle|show|hide}`
+
+Show or hide the keyboard overlay. Bind it to a key to get a "show me my layout" key.
+
+```bash
+open "keypath://overlay/toggle"
+open "keypath://overlay/show"
+```
+
+From a Kanata config, use the short form: `(push-msg "overlay:toggle")`.
+
+---
+
+### `keypath://runtime/{start|stop|restart}`
+
+Turn remapping on or off, or restart it. This does the same thing as `keypath start`, `keypath stop` and `keypath restart`, but reports no result; use the CLI when a script needs to know whether it worked.
+
+```bash
+open "keypath://runtime/stop"      # Pause remapping
+open "keypath://runtime/start"     # Resume it
+```
+
 ### `keypath://fakekey/{name}`
 
 Trigger a virtual key press.

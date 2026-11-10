@@ -1,0 +1,133 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Press Two Keys at Once</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-chords.png" alt="Guide illustration" /></p>
+<h1 id="press-two-keys-at-once">Press Two Keys at Once</h1>
+<p>Reaching for Escape, Backspace, or Enter means leaving the home row. Chords let you press two adjacent keys simultaneously to produce any of these — no reaching required. Press <code>S</code> and <code>D</code> together for Escape. Press <code>J</code> and <code>K</code> for Enter. Your fingers barely move.</p>
+<p>This technique was popularized by <a href="https://www.youtube.com/@BenVallack">Ben Vallack</a> for ultra-efficient home-row-centric typing on small keyboards, but it works just as well on a full-size board.</p>
+<hr />
+<h2 id="quick-start">Quick Start</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Chord Groups</strong> and toggle it <strong>on</strong></li>
+<li>Choose <strong>Load Home-Row Chords (Ben Vallack preset)</strong> for a ready-made starting point, or <strong>Create Custom</strong> to build your own</li>
+</ol>
+<p>The preset gives you:</p>
+<ul>
+<li><code>S + D</code> → Escape</li>
+<li><code>D + F</code> → Enter</li>
+<li><code>J + K</code> → Up Arrow</li>
+<li><code>K + L</code> → Down Arrow</li>
+<li><code>A + S</code> → Backspace</li>
+</ul>
+<p><img class="help-img" src="../assets/chords-collection-view.png" alt="Screenshot" /></p>
+<hr />
+<h2 id="how-chords-work">How Chords Work</h2>
+<p>The <strong>Chord press window</strong> starts when you press the first participating key. Press the last required key before that window expires and the chord fires. If the window expires first, those keys use their normal layer actions.</p>
+<pre><code>  Press S alone → types &quot;s&quot;
+  Press D alone → types &quot;d&quot;
+  Press S + D together (within 250 ms) → fires Escape</code></pre>
+<p>Order doesn't matter — pressing S then D, or D then S, both trigger the same chord as long as the last key arrives before the Chord press window closes.</p>
+<hr />
+<h2 id="the-chord-editor">The Chord Editor</h2>
+<p>Click <strong>Open Full Editor</strong> to configure your chords in detail:</p>
+<p><strong>Left sidebar</strong> — Your chord groups (you can have multiple groups organized by purpose)</p>
+<p><strong>Right panel</strong> — The selected group's settings:</p>
+<ul>
+<li><strong>Group name</strong> — identifier (letters, numbers, hyphens only)</li>
+<li><strong>Category</strong> — Navigation, Editing, Symbols, Modifiers, or Custom</li>
+<li><strong>Chord press window</strong> — the maximum time from the first chord key to the last required key</li>
+<li><strong>Chord list</strong> — each chord showing its keys, output, and an ergonomic score</li>
+</ul>
+<h3 id="speed-presets">Speed presets</h3>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Chord press window</th>
+<th>Felt effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lightning Fast</td>
+<td>150 ms</td>
+<td>Fastest normal-action fallback; requires the most precise press</td>
+</tr>
+<tr>
+<td>Fast</td>
+<td>250 ms</td>
+<td>Quick fallback with a tight, practiced press</td>
+</tr>
+<tr>
+<td>Moderate</td>
+<td>400 ms</td>
+<td>More time to finish the chord; fallback waits longer</td>
+</tr>
+<tr>
+<td>Deliberate</td>
+<td>600 ms</td>
+<td>Most forgiving press; normal-action fallback waits longest</td>
+</tr>
+</tbody>
+</table>
+<p>Start with <strong>Fast</strong> (250 ms) and adjust once you develop muscle memory.</p>
+<hr />
+<h2 id="choosing-good-chord-keys">Choosing Good Chord Keys</h2>
+<p>Not all key pairs are equally comfortable. KeyPath shows an <strong>ergonomic score</strong> for each chord:</p>
+<ul>
+<li><strong>Excellent</strong> — Adjacent home row keys (S+D, D+F, J+K, K+L). Easiest to press together.</li>
+<li><strong>Good</strong> — Same hand, all home row (e.g., S+F)</li>
+<li><strong>Moderate</strong> — Same hand, mixed rows</li>
+<li><strong>Fair</strong> — Cross-hand combinations</li>
+<li><strong>Poor</strong> — Awkward stretches</li>
+</ul>
+<p>Stick to adjacent home row pairs for your most-used chords.</p>
+<hr />
+<h2 id="organizing-with-groups">Organizing with Groups</h2>
+<p>Chord groups let you organize chords by purpose and set a different Chord press window for each group:</p>
+<ul>
+<li><strong>Navigation</strong> (250 ms) — arrows, page up/down, home/end</li>
+<li><strong>Editing</strong> (400 ms) — backspace, delete, cut, undo</li>
+<li><strong>Symbols</strong> (150 ms) — quick symbol access</li>
+<li><strong>Modifiers</strong> (600 ms) — deliberate modifier combos</li>
+</ul>
+<p>Each group generates its own detection window, so navigation chords can be fast while editing chords give you more time.</p>
+<hr />
+<h2 id="conflict-detection">Conflict Detection</h2>
+<p>KeyPath warns you when:</p>
+<ul>
+<li>The same key pair is used in multiple chords (within a group)</li>
+<li>A chord's keys overlap with another chord (e.g., <code>S+D</code> and <code>S+D+F</code> — the two-key chord always fires first)</li>
+<li>Keys are shared across groups (the first group in the list takes priority)</li>
+</ul>
+<p>Orange warning indicators appear in the editor when conflicts are detected.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li><strong>Start small</strong> — Begin with 2–3 chords for your most common reaches (Escape, Enter, Backspace) and add more as they become automatic</li>
+<li><strong>Adjacent keys win</strong> — S+D, D+F, J+K are the easiest combos because your fingers are already there</li>
+<li><strong>Don't chord letters</strong> — Avoid mapping common bigrams (like T+H, I+N) as chords — they'll misfire during fast typing</li>
+<li><strong>Combine with home row mods</strong> — Chords and <a href="help://home-row-mods">home row mods</a> complement each other: HRM gives you modifiers, chords give you editing keys</li>
+</ul>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="chord-fires-when-im-just-typing-fast">Chord fires when I'm just typing fast</h3>
+<p>Lower the Chord press window (try 150 ms), or choose key pairs that aren't common bigrams in English.</p>
+<h3 id="chord-doesnt-fire-reliably">Chord doesn't fire reliably</h3>
+<p>Increase the Chord press window (try 400 ms), or practice pressing both keys more simultaneously.</p>
+<h3 id="individual-keys-feel-delayed">Individual keys feel delayed</h3>
+<p>This is the tradeoff: after the first chord key, KeyPath waits through the Chord press window for the remaining keys. A lower value returns to normal actions sooner but requires a more precise chord. A higher value makes chords easier but delays normal-action fallback. Start at 250 ms and adjust for how you type.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://home-row-mods">Shortcuts Without Reaching</a></strong> — Combine chords with home row modifiers for a complete home-row setup</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — Tap-hold for keys that need two roles</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See chords as part of a full keyboard workflow</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers and dual-role keys</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://www.youtube.com/@BenVallack">Ben Vallack's chord workflow</a></strong> — The popularizer of home-row chords, with practical demos ↗</li>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc#chords">Kanata defchords documentation</a></strong> — Full reference for the chord engine ↗</li>
+</ul>
+</body></html>
