@@ -2,34 +2,30 @@
 
 Welcome! KeyPath is a macOS keyboard remapping app that makes Kanata easy to use. This guide will get you started in **10 minutes**.
 
-Development requires an **Apple Silicon (M-series) Mac** running **macOS 15.0 (Sequoia) or later**. Intel Macs are not supported.
+Development requires an **Apple Silicon (M-series) Mac** running **macOS 27 or later** and a full **Xcode** install (Command Line Tools alone are not enough; the build needs the Metal toolchain). Intel Macs are not supported.
 
 ## Quick Start (5 minutes)
 
 ```bash
-# 1. Clone
-git clone https://github.com/malpern/KeyPath.git
+# 1. Clone (the Kanata engine is a submodule)
+git clone --recurse-submodules https://github.com/malpern/KeyPath.git
 cd KeyPath
 
-# 2. Build & sign (recommended for accurate testing)
-./Scripts/build-and-sign.sh
-
-# 3. Deploy & run
-mkdir -p ~/Applications
-cp -R dist/KeyPath.app ~/Applications/
-osascript -e 'tell application "KeyPath" to quit' || true
-open ~/Applications/KeyPath.app
-```
-
-### Dev-only quick preview
-If you just want a fast local preview (unsigned), you can run the debug app. Note this may not reflect real permissions/signing behavior.
-
-```bash
+# 2. Build and run the fast tests
 swift build
-open .build/debug/KeyPath.app
+./Scripts/test-fast.sh --changed
+
+# 3. Deploy to /Applications and run
+./Scripts/quick-deploy.sh
 ```
 
-That's it! You're ready to contribute.
+`quick-deploy.sh` signs with a Developer ID or Apple Development certificate if
+you have one, and falls back to ad-hoc signing if you don't. With ad-hoc
+signing macOS forgets the Accessibility grant on every deploy, so you will
+re-grant it each time.
+
+That's it! You're ready to contribute. [`AGENTS.md`](AGENTS.md) has the full
+build, test and release workflow.
 
 ## Security Reporting
 
@@ -47,15 +43,15 @@ Community contributors can run most checks without signing credentials:
 
 ```bash
 swift build
-KEYPATH_USE_SUDO=0 swift test
+./Scripts/test-fast.sh --changed
 ./Scripts/run-tests-safe.sh
 ```
 
 Release/distribution validation requires signed/notarized artifacts and Apple credentials:
 
-- `./build.sh` release pipeline
+- `./Scripts/release-candidate.sh` release pipeline
 - notarization + signature checks
-- final privileged install validation on real machines
+- installed-app verification (`./Scripts/verify-installed-app.sh`)
 
 ## I Want To...
 
@@ -92,13 +88,15 @@ Release/distribution validation requires signed/notarized artifacts and Apple cr
 KeyPath has three main layers:
 
 ### 1. Services Layer
-Services handle specific responsibilities: `ConfigurationService` manages config files, `PermissionOracle` detects permissions, `KanataManager` coordinates everything. **Pattern:** One service = one responsibility.
+Services handle specific responsibilities: `ConfigurationService` manages config files, `PermissionOracle` detects permissions, `RuntimeCoordinator` orchestrates the runtime, and `ServiceLifecycleCoordinator` starts, stops and restarts Kanata. **Pattern:** One service = one responsibility.
 
-### 2. UI Layer (SwiftUI + MVVM)
-Views (`ContentView`, `InstallationWizardView`) talk to `KanataViewModel`, which talks to `KanataManager`. **Pattern:** Views never access KanataManager directly—they go through the ViewModel.
+### 2. UI Layer (SwiftUI + Observation)
+Views talk to `KanataViewModel`, which talks to `RuntimeCoordinator`. View models are `@Observable`.
 
 ### 3. Kanata Integration
-KeyPath starts Kanata as a LaunchDaemon service and supports live config reloads. File watching enables hot‑reload.
+KeyPath has one runtime: Kanata runs as an unprivileged worker in the user's session, launched from KeyPath.app. There is no privileged helper, LaunchDaemon or keyboard driver; that stack was retired ([ADR-045](docs/adr/adr-045-retire-privileged-runtime-stack.md), [ADR-047](docs/adr/adr-047-pre-release-cleanup.md)) and must not be reintroduced. Config changes are applied with a reload over a local TCP connection, through `ConfigReloadCoordinator`. File watching enables hot‑reload.
+
+Install, repair and uninstall go through `InstallerEngine`. See the responsibility map in [`AGENTS.md`](AGENTS.md).
 
 ## Common Patterns
 
@@ -118,27 +116,29 @@ final class MyService: MyServiceProtocol {
     }
 }
 
-// 3. Add to KanataManager
+// 3. Inject it where it is used
 private let myService: MyServiceProtocol
 
-init() {
-    myService = MyService()
+init(myService: MyServiceProtocol = MyService()) {
+    self.myService = myService
 }
 ```
 
+Before adding a new Manager, Coordinator or Service, check whether an existing
+owner should take the responsibility
+([ADR-043](docs/adr/adr-043-opportunistic-manager-consolidation.md)).
+
 ### Pattern 2: Updating UI from service
 ```swift
-// In KanataManager (business logic)
-func startService() async {
-    isRunning = true  // Internal state
-}
+// UI state lives in an @Observable type; views read it directly.
+@Observable
+@MainActor
+final class MyViewModel {
+    var isRunning = false
 
-// In KanataViewModel (UI layer)
-@Published var isRunning = false  // UI state
-
-func startService() async {
-    await manager.startService()
-    await syncFromManager()  // Sync UI from manager
+    func refresh(from status: RuntimeStatus) {
+        isRunning = status.isRunning
+    }
 }
 ```
 
@@ -161,11 +161,12 @@ do {
 ```swift
 // Always use PermissionOracle (single source of truth)
 let snapshot = await PermissionOracle.shared.currentSnapshot()
-if snapshot.keyPath.inputMonitoring.isReady {
-    // Permission granted
+if snapshot.isSystemReady {
+    // KeyPath has Accessibility and the runtime confirms key access
 }
 
-// NEVER check permissions directly via IOHIDCheckAccess or AXIsProcessTrusted
+// NEVER check permissions directly via IOHIDCheckAccess or AXIsProcessTrusted,
+// and never read the TCC database (ADR-044)
 ```
 
 ### Pattern 5: Logging
@@ -255,36 +256,29 @@ func testAsyncOperation() async throws {
 ## File Organization
 
 ```
-Sources/KeyPath/
-├── Core/               # Core types and protocols
-│   ├── KeyPathError.swift
-│   └── Contracts/      # Protocol definitions
-├── Services/           # Business logic services
-│   ├── ConfigurationService.swift
-│   ├── PermissionOracle.swift
-│   ├── (Kanata client/IPC implementation)
-│   └── ...
-├── Managers/           # Coordinators (being refactored)
-│   └── KanataManager.swift  # Main coordinator
-├── UI/                 # SwiftUI views
-│   ├── ContentView.swift
-│   ├── ViewModels/
-│   └── Components/
-├── InstallationWizard/ # Setup wizard
-│   ├── Core/           # Wizard logic
-│   └── UI/             # Wizard views
-└── Utilities/          # Helpers
-    ├── Logger.swift
-    └── Notifications.swift
+Sources/
+├── KeyPathApp/                 # App entry point and Info.plist
+├── KeyPathAppKit/              # Most of the app
+│   ├── Infrastructure/Config/  # Config generation and parsing
+│   ├── Managers/               # RuntimeCoordinator, lifecycle, reload
+│   ├── Services/               # Business logic (SessionRuntime, Networking, ...)
+│   └── UI/                     # SwiftUI views and view models
+├── KeyPathCore/                # Shared types, errors, logging, paths
+├── KeyPathPermissions/         # PermissionOracle
+├── KeyPathRulesCore/           # Rule and collection model
+├── KeyPathInstallationWizard/  # Setup wizard and InstallerEngine
+├── KeyPathWizardCore/          # Wizard types shared with the app
+├── KeyPathCLI/                 # keypath-cli
+└── KeyPathInsights/            # Activity Insights plugin
 
-Tests/KeyPathTests/     # Test files
+Tests/KeyPathTests/             # Main test target
 ```
 
 ## Code Style
 
 - **Swift 6 concurrency:** Use `async/await`, actors, and `@MainActor`
 - **Error handling:** Use `KeyPathError` for all domain errors
-- **Naming:** Clear, descriptive names (`isKarabinerDriverInstalled`, not `checkDriver`)
+- **Naming:** Clear, descriptive names (`isRuntimeReady`, not `checkRuntime`)
 - **Comments:** Explain *why*, not *what* (code should be self-documenting)
 - **Logging:** Use emojis for visibility: 🚀 (start), ✅ (success), ❌ (error), ⚠️ (warning)
 
@@ -333,14 +327,7 @@ python3 Scripts/check-accessibility.py
 git commit -m "feat: add new feature"
 ```
 
-### Documentation:
-
-See [ACCESSIBILITY_COVERAGE.md](ACCESSIBILITY_COVERAGE.md) for:
-- Complete identifier reference
-- Examples for each screen
-- Peekaboo automation examples
-
-**Note:** Pre-commit hook currently warns but doesn't block commits. This allows gradual adoption. We plan to make it blocking once all existing elements are covered.
+**Note:** Pre-commit hook currently warns but doesn't block commits.
 
 ## Pull Request Process
 
@@ -354,30 +341,16 @@ See [ACCESSIBILITY_COVERAGE.md](ACCESSIBILITY_COVERAGE.md) for:
 ## Getting Help
 
 - **Issues:** Check [GitHub Issues](https://github.com/malpern/KeyPath/issues)
-- **Documentation:** See [CLAUDE.md](CLAUDE.md) for detailed architecture
+- **Documentation:** See [AGENTS.md](AGENTS.md) for architecture and workflow, and [docs/adr/](docs/adr/README.md) for design decisions
 - **Ask:** Create an issue with the `question` label
 
 ## Important Notes
 
-### ⚠️ Current Known Issues
-- **KanataManager:** 2,828 lines (being refactored to ~800 lines)
-- **Build Issue:** Karabiner extraction causing emit-module error (under investigation)
-
-### 🧩 Open Work (tracked as issues/TODOs)
-- Privileged helper/XPC path: implement `helperInstallBundledKanata()` (currently falls back to sudo)
-- Wizard operations factory: move Core factory to UI layer to avoid Core→UI references
-- Wizard critical surfacing: show a blocking issue when the bundled kanata binary is missing
-- UI help bubble: switch Core→UI call to a notification-based implementation
-- Update `requiredDriverVersionMajor` to 6 in VHIDDeviceManager.swift when kanata v1.10 is released
-
-### ✅ Recently Completed
-- ADR-012 wiring: driver version Fix button connected, mismatch dialog shows, downloads v5.0.0
-
 ### 🚫 Don't Do These
 1. **Don't check permissions directly** - Use `PermissionOracle` only
-2. **Don't modify KanataManager** - It's being refactored; put logic in services instead
-3. **Don't skip tests** - They prevent regressions
-4. **Don't use sudo in tests** - Use `TestEnvironment.forceTestMode`
+2. **Don't add privileged paths** - No `sudo`, `launchctl`, LaunchDaemon or privileged-helper code; install and repair go through `InstallerEngine`
+3. **Don't start, stop or reload Kanata yourself** - Use `ServiceLifecycleCoordinator` and `ConfigReloadCoordinator`
+4. **Don't skip tests** - They prevent regressions
 
 ## What Makes a Good Contribution?
 
@@ -393,15 +366,6 @@ See [ACCESSIBILITY_COVERAGE.md](ACCESSIBILITY_COVERAGE.md) for:
 - Breaking changes without migration path
 - Features that complicate the UI
 - Code without tests
-
-## Roadmap
-
-We're currently working on:
-1. **Simplifying KanataManager** (2,828 → ~800 lines)
-2. **Fixing build issues** (Karabiner service extraction)
-3. **Improving documentation**
-
-See [OVERENGINEERED.md](docs/OVERENGINEERED.md) for detailed roadmap.
 
 ---
 

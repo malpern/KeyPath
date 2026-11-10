@@ -186,7 +186,7 @@ python3 Scripts/check-accessibility.py
 ## Best Practices
 
 1. **Add identifiers immediately** when creating new UI elements
-2. **Use consistent naming** (see ACCESSIBILITY_COVERAGE.md)
+2. **Use consistent naming** (`[screen]-[element-type]-[description]`, see CONTRIBUTING.md)
 3. **Test with Peekaboo** to verify identifiers work
 4. **Don't skip the check** - fix issues before committing
 

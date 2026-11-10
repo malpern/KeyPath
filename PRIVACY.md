@@ -1,15 +1,25 @@
 # Privacy Policy
 
-**Last Updated:** December 2024
+**Last Updated:** November 2026
 
-KeyPath is designed with privacy as a core principle. This document explains exactly what data KeyPath accesses, stores, and transmits.
+This document explains what data KeyPath accesses, stores and transmits. It
+describes current builds, which run the remapping engine in your signed-in user
+session. KeyPath 1.0.1 and earlier worked differently; see
+[Earlier versions](#earlier-versions).
+
+The user-facing version of this page, with diagrams, is
+[Privacy & Permissions](https://malpern.github.io/KeyPath/guides/privacy/).
 
 ## Summary
 
-- **No analytics or telemetry** — KeyPath contains no tracking SDKs
-- **No crash reporting** — Errors are logged locally only
-- **No keystroke logging** — Key events are processed for remapping, not recorded
-- **Local-first design** — Your configuration and data stay on your Mac
+- **No analytics, telemetry or crash reporting.** KeyPath contains no tracking
+  SDKs and uploads no usage data.
+- **Keyboard data stays on your Mac.** Key events are processed locally for
+  remapping. Local diagnostic logs can contain key names; nothing uploads them.
+- **One permission.** Accessibility (shown as **Device Control and Data
+  Access** on macOS 27). No Input Monitoring, no Full Disk Access.
+- **No root.** KeyPath does not install a privileged helper, a system service
+  or a keyboard driver.
 
 ---
 
@@ -17,107 +27,136 @@ KeyPath is designed with privacy as a core principle. This document explains exa
 
 ### Keyboard Input
 
-KeyPath requires **Input Monitoring** permission to function as a keyboard remapper. This is a macOS system requirement for any app that modifies keyboard behavior.
+KeyPath needs **Accessibility** permission to read and remap keys.
 
 **What happens to your keystrokes:**
-- Keystrokes are intercepted by the Kanata engine running as a system service
-- Keys are remapped according to your configuration and passed to the system
+- Key events are read by the Kanata engine, which KeyPath runs as an ordinary
+  process in your user session
+- Keys are remapped according to your configuration and passed on to your apps
 - No keystroke data is transmitted over the network
-- No keystroke logs are saved to disk
+- Remapping does not run in password fields and other Secure Input contexts,
+  or at the login screen
 
-**Visual keyboard display:**
-- The live keyboard visualization shows recent keypresses (up to 100 events in memory)
-- This feature can be toggled on/off
-- Data is cleared when the app closes
+**Where key names can appear on disk:**
+- Diagnostic logs in `~/Library/Logs/KeyPath/` can include key names, for
+  example while you record a shortcut. Review a log before sharing it.
+- If you turn on Activity Insights, usage statistics (shortcuts used, app
+  switches, actions) are stored encrypted. It does not store typed text.
 
-### Browser History (Optional)
+**Recent keypress view:**
+- Shows up to 100 recent key events, held in memory only
+- Cleared when the app closes
 
-If you enable the **Quick Launch** feature to suggest frequently visited websites, KeyPath can scan your browser history.
+### Browser History
 
-**This feature:**
-- Requires you to grant **Full Disk Access** permission
-- Reads only domain names and visit counts (not full URLs or page content)
-- Processes data locally in temporary files that are deleted after analysis
-- Never transmits browser history over the network
-
-**Supported browsers:** Safari, Chrome, Firefox, Arc, Brave, Edge, Dia
+KeyPath does not read browser history. The earlier Quick Launch suggestion
+feature that did so has been removed.
 
 ---
 
 ## Data KeyPath Stores
 
-### Configuration Files
-
 | Location | Contents |
 |----------|----------|
 | `~/.config/keypath/keypath.kbd` | Your keyboard remapping configuration |
 | `~/.config/keypath/keypath-apps.kbd` | KeyPath-generated companion config (included by `keypath.kbd`) |
-| `~/.config/keypath/RuleCollections.json` | Enabled/disabled collections state |
-| `~/.config/keypath/CustomRules.json` | Custom rules you create in the UI |
+| `~/.config/keypath/RuleCollections.json` | Which rule collections are on |
+| `~/.config/keypath/CustomRules.json` | Custom rules you create in the app |
 | `~/.config/keypath/AppKeymaps.json` | Per-app keymaps (if configured) |
-| `~/Library/Application Support/KeyPath/Favicons/` | Cached website icons for Quick Launch |
-| `~/Library/Application Support/KeyPath/ActivityLog/` | Encrypted activity logs (only if Activity Logging is enabled) |
-| `~/Library/Logs/KeyPath/keypath-debug.log` | Debug logs (rotated at 5MB, max 3 files) |
+| `~/Library/Application Support/KeyPath/` | App state, cached website icons, plugins, and encrypted Activity Insights data if you turn it on |
+| `~/Library/Caches/com.keypath.KeyPath/` | Temporary app data |
+| `~/Library/Logs/KeyPath/keypath-debug.log` | Diagnostic logs (rotated at 5 MB, 3 files kept) |
 
 ### Preferences
 
-Standard macOS preferences (`UserDefaults`) store app settings like window positions and communication protocol choices. No sensitive data is stored in preferences.
+Standard macOS preferences (`UserDefaults`) store app settings such as window
+positions and feature toggles.
 
 ### Secure Storage (Keychain)
 
-If you use the optional AI config repair feature, your Claude API key is stored in the macOS Keychain with:
-- Encryption at rest
-- Access limited to KeyPath only
-- `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` protection
+- If you add a Claude API key for the optional AI config repair feature, it is
+  stored in the macOS Keychain.
+- The encryption key for Activity Insights data is stored in the Keychain with
+  `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` protection.
 
 ---
 
 ## Network Connections
 
-KeyPath makes the following network requests:
+KeyPath makes these network requests. None of them send keystrokes, rules,
+recordings or logs.
 
-### 1. Update Checks
+### 1. Help content
 
-**Destination:** `https://raw.githubusercontent.com/malpern/KeyPath/master/appcast.xml`
+**Destination:** `https://malpern.github.io/KeyPath/offline-help/`
 
-- Checks for app updates via the Sparkle framework
-- **System profiling is disabled** — no hardware or software information is sent
-- Frequency: Once per day (configurable)
+Help guides ship inside the app. Opening a guide can check for updated guides,
+images and styles and download them in the background.
 
-### 2. QMK Keyboard Database
+### 2. App updates
 
-**Destination:** `https://api.github.com` and `https://raw.githubusercontent.com`
+Current builds do not check for or install updates automatically. **Download
+Update** opens the GitHub releases page in your browser.
 
-- Fetches keyboard layout definitions for the QMK keyboard import feature
-- Cached locally for 1 hour to minimize requests
-- Popular keyboards are bundled with the app (no network needed)
+### 3. QMK keyboard database
 
-### 3. Website Favicons
+**Destination:** `https://keyboards.qmk.fm` and `https://raw.githubusercontent.com`
 
-**Destination:** User-specified domains
+Fetches keyboard layout definitions when you use the QMK keyboard import
+feature. Popular keyboards are bundled with the app and need no network.
 
-- Downloads favicon.ico files for Quick Launch website icons
-- Only fetches from domains you've added
-- Cached locally to avoid repeated requests
+### 4. Website icons
 
-### 4. AI Config Repair (Optional, User-Initiated)
+**Destination:** the website's own domain, or Google's favicon service
+(`https://www.google.com/s2/favicons`)
 
-**Destination:** `https://api.anthropic.com/v1/messages`
+When you create a mapping that opens a website, KeyPath downloads that site's
+icon. Depending on where the icon is shown, the request goes to the site
+itself or to Google's favicon service, which receives the site's domain name.
+Icons are cached locally.
 
-This feature is **entirely optional** and only activates when:
-1. You provide your own Claude API key
-2. You explicitly click to repair a configuration error
+### 5. Plugins
 
-**What is sent:**
-- Your keyboard configuration file
-- The specific validation error
-- Key mapping context
+**Destination:** `https://github.com/malpern/KeyPath/releases`
 
-**What is NOT sent:**
-- Keystroke logs
-- Browser history
-- System information
-- Any data from other applications
+Activity Insights ships inside the app. If a plugin is not present, KeyPath
+can download it from the project's GitHub releases when you choose to install
+it.
+
+### 6. AI config repair (optional)
+
+**Destination:** `https://api.anthropic.com`
+
+Used only if you add your own Claude API key. KeyPath contacts Anthropic to
+check the key, and, when you ask it to repair a configuration error, sends:
+
+- your keyboard configuration file
+- the validation error
+
+It does not send keystrokes, logs, system information or data from other apps.
+
+---
+
+## Scripts You Choose to Run
+
+Script actions are off by default. If you turn them on and bind a key to a
+script, that script runs with your user account's normal access, including
+the network. KeyPath asks before running a script the first time. What a
+script does is up to the script; see
+[Script execution](https://malpern.github.io/KeyPath/guides/script-execution/).
+
+---
+
+## The Local Engine Connection
+
+KeyPath talks to the Kanata engine over TCP on `127.0.0.1:37001`. The
+connection never leaves your Mac.
+
+This connection is **not authenticated**. Another program running on your Mac
+could connect to it, receive key events, and send commands such as switching
+layers or triggering virtual keys. Replacing it with a channel only KeyPath
+can use is planned work
+([ADR-046](docs/adr/adr-046-session-engine-control-channel.md)).
 
 ---
 
@@ -125,21 +164,22 @@ This feature is **entirely optional** and only activates when:
 
 | Permission | Why It's Needed |
 |------------|-----------------|
-| **Input Monitoring** | Required by macOS for any keyboard remapping |
-| **Accessibility** | Required by macOS for system-level key event handling |
-| **Full Disk Access** | Only if you enable browser history scanning for Quick Launch |
-| **Network** | Update checks, keyboard database, favicon fetching |
+| **Accessibility** (Device Control and Data Access on macOS 27) | Reading and remapping keys, and app-specific behaviour |
+| **Automation** (only if prompted) | Actions you configure that control other apps, such as AppleScript actions |
+
+KeyPath does not request Input Monitoring or Full Disk Access, and does not
+read macOS's permission databases.
 
 ---
 
 ## What KeyPath Does NOT Do
 
-- **No keylogging** — Keystrokes are not recorded or transmitted
-- **No analytics** — No Firebase, Mixpanel, Amplitude, or similar SDKs
-- **No crash reporting** — No Sentry, Crashlytics, or automatic error reporting
-- **No system profiling** — Sparkle's system profiling is explicitly disabled
-- **No clipboard monitoring** — KeyPath does not access your clipboard
-- **No background data collection** — No hidden telemetry or tracking
+- **No uploaded keystrokes** — key events are never transmitted
+- **No analytics** — no Firebase, Mixpanel, Amplitude or similar SDKs
+- **No crash reporting** — no Sentry, Crashlytics or automatic error reporting
+- **No clipboard monitoring**
+- **No browser history access**
+- **No root-level components** — no privileged helper, LaunchDaemon or driver
 
 ---
 
@@ -147,35 +187,69 @@ This feature is **entirely optional** and only activates when:
 
 ### Kanata
 
-KeyPath uses [Kanata](https://github.com/jtroo/kanata) as its keyboard remapping engine. Kanata runs locally as a system service and does not make any network connections.
+KeyPath uses [Kanata](https://github.com/jtroo/kanata) as its remapping
+engine. It runs locally in your user session and makes no network connections.
+KeyPath's build of Kanata cannot run shell commands from a configuration file.
 
 ### Sparkle
 
-KeyPath uses the [Sparkle](https://sparkle-project.org/) framework for update checking. Sparkle is configured with:
-- `SUEnableSystemProfiling = false` (no system information sent)
-- EdDSA signature verification (updates are cryptographically signed)
+The [Sparkle](https://sparkle-project.org/) update framework is included in
+the app but is not active in current builds; updates are manual. Its system
+profiling is disabled.
 
 ---
 
 ## Your Control
 
-You have full control over KeyPath's behavior:
-
-- **Disable keypress visualization** — Toggle off in the app
-- **Skip browser history scanning** — Don't grant Full Disk Access
-- **Disable AI features** — Don't provide a Claude API key
-- **Disable auto-updates** — Configure in app preferences
-- **Delete all data** — Uninstall removes all local data
+- **Turn off the recent keypress view** in the app
+- **Leave Activity Insights off** — it is off until you enable it
+- **Leave AI features off** — don't add a Claude API key
+- **Delete your data** — **Settings → Repair/Remove → Uninstall KeyPath**
+  saves a backup to Downloads, removes your rules and preferences, and moves
+  the app to the Trash. Diagnostic logs remain in `~/Library/Logs/KeyPath/`
+  until you delete them. Uninstalling does not revoke the Accessibility grant;
+  remove it in System Settings. If you installed the command-line tool, its
+  link at `/usr/local/bin/keypath-cli` also stays; removing it needs an
+  administrator password (`sudo rm /usr/local/bin/keypath-cli`).
 
 ---
 
 ## Data Retention
 
-- **Keypress visualization:** Cleared when app closes (memory only)
-- **Browser history scan results:** Deleted immediately after processing
-- **Favicon cache:** Persists until manually cleared or app uninstalled
-- **Debug logs:** Automatically rotated, max 15MB total
-- **Configuration:** Persists until you delete it
+- **Recent keypress view:** memory only, cleared when the app closes
+- **Website icon cache:** kept until cleared or the app is uninstalled
+- **Diagnostic logs:** rotated automatically, 3 files of up to 5 MB each
+- **Activity Insights data:** kept until you turn the feature off and delete it
+- **Configuration:** kept until you delete it
+
+---
+
+## Earlier versions
+
+KeyPath 1.0.1 and earlier installed a root-owned system service and the
+Karabiner VirtualHID driver, and asked for Input Monitoring and, optionally,
+Full Disk Access. Current builds use none of these. Files from those versions
+may remain on a Mac that was upgraded:
+
+| Location | Contents |
+|----------|----------|
+| `/Library/LaunchDaemons/com.keypath.kanata.plist` | System service definition |
+| `/Library/KeyPath/bin/kanata` | The remapping engine binary |
+| `/var/log/com.keypath.kanata.*.log` | Service logs |
+
+Current builds do not remove these files. To remove them yourself, run in
+Terminal (each asks for an administrator password):
+
+```bash
+sudo launchctl bootout system/com.keypath.kanata
+sudo rm -f /Library/LaunchDaemons/com.keypath.kanata.plist
+sudo rm -rf /Library/KeyPath
+sudo rm -f /var/log/com.keypath.kanata.*.log
+```
+
+The first command reports an error if the service is not running; that is
+fine. A Full Disk Access or Input Monitoring grant made for an earlier version
+is not revoked automatically. You can remove it in System Settings.
 
 ---
 
@@ -190,8 +264,7 @@ KeyPath is open source. You can audit the code yourself:
 
 ## Contact
 
-If you have privacy questions or concerns:
-
+- **Security issues:** see [SECURITY.md](SECURITY.md); do not open a public issue
 - **GitHub Issues:** [github.com/malpern/KeyPath/issues](https://github.com/malpern/KeyPath/issues)
 - **Discussions:** [github.com/malpern/KeyPath/discussions](https://github.com/malpern/KeyPath/discussions)
 
@@ -199,4 +272,5 @@ If you have privacy questions or concerns:
 
 ## Changes to This Policy
 
-This privacy policy may be updated as features change. Significant changes will be noted in release notes. The "Last Updated" date at the top indicates the most recent revision.
+This policy is updated as features change. Significant changes are noted in
+release notes. The "Last Updated" date at the top shows the latest revision.

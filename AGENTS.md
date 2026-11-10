@@ -393,7 +393,6 @@ These apply to the session runtime, with `ServiceLifecycleCoordinator` as owner.
 - **Required for:** Button, Toggle, Picker, and custom interactive components
 - **Enforcement:** Pre-commit hook + CI check (currently warning only)
 - **Verification:** Run `python3 Scripts/check-accessibility.py` before committing
-- **See:** `ACCESSIBILITY_COVERAGE.md` for complete reference
 - **Rationale:** Enables automation (Computer Use, XCUITest, legacy Peekaboo) and ensures testability
 
 ## Documentation
