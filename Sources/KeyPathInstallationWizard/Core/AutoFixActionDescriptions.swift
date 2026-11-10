@@ -11,12 +11,15 @@ public enum AutoFixActionDescriptions {
         case .synchronizeConfigPaths:
             "Fix config path mismatch between KeyPath and Kanata"
         case .restartCommServer:
-            "Restart Service with Authentication"
+            "Start KeyPath's remapping engine"
         }
     }
 
     /// Get detailed error message for specific auto-fix failures
     public static func errorMessage(for action: AutoFixAction) -> String {
-        "Failed to \(describe(action).lowercased()). Check logs for details and try again."
+        let description = describe(action)
+        // Lowercase only the first letter, so names like KeyPath keep their case.
+        let phrase = description.prefix(1).lowercased() + description.dropFirst()
+        return "Failed to \(phrase). Check logs for details and try again."
     }
 }

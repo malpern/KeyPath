@@ -122,8 +122,6 @@ public extension FeatureFlags {
 
     private static let captureListenOnlyKey = "CAPTURE_LISTEN_ONLY_ENABLED"
     private static let simulatorAndVirtualKeysEnabledKey = "SIMULATOR_AND_VIRTUAL_KEYS_ENABLED"
-    private static let useJustInTimePermissionRequestsKey = "USE_JIT_PERMISSION_REQUESTS"
-    private static let allowOptionalWizardKey = "ALLOW_OPTIONAL_WIZARD"
     private static let keyboardSuppressionDebugEnabledKey = "KEYBOARD_SUPPRESSION_DEBUG_ENABLED"
     private static let uninstallForTestingKey = "UNINSTALL_FOR_TESTING"
     private static let learningTipsModeKey = "LEARNING_TIPS_MODE"
@@ -216,30 +214,6 @@ public extension FeatureFlags {
 
     static func setKeyboardStageRendererPreference(_ preference: KeyboardStageRendererPreference) {
         setStringFlag(preference.rawValue, forKey: keyboardStageRendererKey)
-    }
-
-    // MARK: - Future Implementation (not yet built)
-
-    /// Phase 2: Just-in-time permission requests (NOT YET IMPLEMENTED)
-    /// Will allow requesting permissions only when needed rather than upfront.
-    static var useJustInTimePermissionRequests: Bool {
-        // default OFF - not implemented
-        boolFlag(forKey: useJustInTimePermissionRequestsKey, default: false)
-    }
-
-    static func setUseJustInTimePermissionRequests(_ enabled: Bool) {
-        setBoolFlag(enabled, forKey: useJustInTimePermissionRequestsKey)
-    }
-
-    /// Phase 3: Optional wizard - non-blocking setup (NOT YET IMPLEMENTED)
-    /// Will allow skipping the wizard and configuring later.
-    static var allowOptionalWizard: Bool {
-        // default OFF - not implemented
-        boolFlag(forKey: allowOptionalWizardKey, default: false)
-    }
-
-    static func setAllowOptionalWizard(_ enabled: Bool) {
-        setBoolFlag(enabled, forKey: allowOptionalWizardKey)
     }
 }
 
