@@ -74,27 +74,39 @@ Accessibility permission from ADR-047.
   (the worker's main run loop), so their callbacks never run concurrently and
   the buffer needs no lock. Nothing ever blocks waiting for the other callback;
   that would deadlock on a shared run loop.
-- **Matching.** For a tap event, take the oldest unconsumed HID entry with the
-  same key and direction whose timestamp is within a window of the tap event's
-  timestamp. Consume it, so a second keyboard's matching event is left for the
-  next tap event. The window must cover both directions: the tap trailed HID by
-  up to 27 ms and ran ahead of it by up to 3.9 ms in the overlap run. Start at
-  30 ms behind and 5 ms ahead; the rerun sets the final numbers.
-- **Keys without a per-keyboard rule are not affected.** They follow today's
-  path unchanged and need no attribution.
-- **Keys with a per-keyboard rule wait for their keyboard, without blocking the
-  tap.** The worker already consumes mapped keys in the tap and feeds the engine
-  itself. For such a key it consumes the event, and if no HID entry has matched
-  yet it holds the event in order and feeds it when the HID callback supplies a
-  match, or when a deadline passes (5 ms after the tap event). Later events are
-  queued behind a held one so key order never changes. The added latency is at
-  most the deadline, and only for those keys.
+- **Clock.** Compare HID and tap times in one clock. The spike found event
+  timestamps and callback arrival times gave the same answers, but
+  `CGEvent.timestamp`'s unit is not documented. The worker checks it once at
+  start (against `mach_absolute_time` and the HID timestamp of the same press)
+  and otherwise uses arrival times.
+- **Matching.** For a tap event, the candidates are the unconsumed HID entries
+  with the same key and direction whose time is within a window of the tap
+  event's: 30 ms behind it to 5 ms ahead of it to start with, because the tap
+  trailed HID by up to 27 ms and ran ahead by up to 3.9 ms in the overlap run.
+  The rerun sets the final numbers. If every candidate comes from one keyboard,
+  the event is credited to that keyboard. If candidates come from more than one
+  keyboard, the event falls back (below). Either way the candidate closest in
+  time is consumed, which is the rule the spike measured, so a second
+  keyboard's entry is left for the next tap event.
+- **Keys wait for their keyboard without blocking the tap.** The worker already
+  consumes mapped keys in the tap and feeds the engine itself. When a key with
+  a per-keyboard rule has no matching HID entry yet, the worker holds it and
+  feeds it when the HID callback supplies a match, or when a deadline passes
+  (5 ms after the tap event).
+- **Order is kept by holding everything behind a held key.** While a key is
+  held, every later key event is also consumed and queued, including keys with
+  no rule at all. When the held key is released to the engine, the queue
+  drains in order: keys for the engine go to the engine, and keys KeyPath does
+  not map are re-posted unchanged with the output tag. So a key typed within
+  5 ms of a held per-keyboard key is delayed by up to the rest of that 5 ms.
+  When nothing is held, keys without a per-keyboard rule follow today's path
+  unchanged.
 - **Fallback rule:** an event that cannot be credited to exactly one keyboard is
   treated as coming from *no particular keyboard* and gets the default output.
-  That covers: no HID match before the deadline, two candidates within the
-  window, and an autorepeat while the same key is down on more than one
-  keyboard. The fallback is meant to make a wrong-keyboard rule rare; whether
-  it is rare enough is what the rerun measures. In the common case it is exact.
+  That covers: no HID match before the deadline, candidates from two keyboards
+  within the window, and an autorepeat while the same key is down on more than
+  one keyboard. The fallback is meant to make a wrong-keyboard rule rare;
+  whether it is rare enough is what the rerun measures.
 - Releases and repeats follow the press: a release is credited to the keyboard
   that pressed the key, so the engine never sees a press on one device and a
   release on another.
@@ -112,10 +124,21 @@ Accessibility permission from ADR-047.
   generator's `connectedDevices` list, keyed by `ConnectedDevice.hash`. A
   position changes when a keyboard is plugged in or removed, so the worker must
   not guess it. The generated config ships its device table (hash → index) to
-  the worker with the config, and the worker maps each HID device to a hash the
-  same way `DeviceSelectionCache` does. A keyboard that is not in the table
-  sends no index and gets the default output. Plugging in a keyboard that has
-  per-keyboard rules regenerates the config.
+  the worker with the config.
+- **The hash is kanata's, not KeyPath's.** `DeviceSelectionCache` only caches
+  `ConnectedDevice.hash` values that `DeviceEnumerationService` parses from
+  `kanata --list`. The worker must produce the same hash for an
+  `IOHIDDevice`, so the bridge exposes kanata's own device-hash function and the
+  worker calls it; KeyPath never reimplements it. A test compares the worker's
+  hashes with `kanata --list` for every connected keyboard.
+- A keyboard that is not in the table sends no index and gets the default
+  output. If a keyboard that has per-keyboard rules is connected but its hash is
+  not in the table, Settings shows it as "not recognised" rather than silently
+  doing nothing. Plugging in a keyboard that has per-keyboard rules regenerates
+  the config.
+- **An event with no device index must take the default branch of a
+  `(switch ((device N)) ...)`, never match index 0.** The bridge change in
+  rollout step 3 includes a test for exactly that.
 
 ### 4. UI that uses the same signal
 
@@ -129,15 +152,18 @@ last-connected behaviour from #1391. This is the only other use of the signal.
   Everyone else's setup is unchanged.
 - Added latency for people who use it: a buffer lookup per key with a
   per-keyboard rule (microseconds), plus at most the 5 ms deadline when the tap
-  runs ahead of HID. Keys without such a rule are unaffected.
+  runs ahead of HID. Any key typed while such a key is held waits too, so order
+  is kept. With the feature off, nothing changes.
 - Per-keyboard rules are best-effort in one narrow case: the same key held on
   two keyboards at once. The fallback makes that case behave as if the feature
   were off for that key press, which is safe.
 - The dormant code (`deviceOverrides`, the switch aliases, the mapper's device
   conditions) is kept and gets a working runtime, instead of being deleted.
 - A new test seam: attribution logic as a pure function over (tap event, HID
-  ring buffer) so the matching and fallback rules are unit-tested without
-  hardware. The ESP32 fixture covers the end-to-end check.
+  buffer) so the matching, ordering and fallback rules are unit-tested without
+  hardware. The first tests pin down: order across held and unmapped keys,
+  candidates from two keyboards, and an event with no device index. The ESP32
+  fixture covers the end-to-end check.
 
 ## Alternatives considered
 
@@ -160,9 +186,10 @@ last-connected behaviour from #1391. This is the only other use of the signal.
 first overlap run shows merging and 13% two-candidate matches, but its per-press
 scoring was lost. The rerun (spike README, "To finish") decides two numbers here:
 
-- the matching window (15 ms proposed above);
-- whether two-candidate matches should take the earlier candidate or fall back
-  every time. This ADR assumes fall back every time until the data says
+- the matching window (30 ms behind, 5 ms ahead, proposed above) and the 5 ms
+  hold deadline;
+- whether candidates from two keyboards should credit the closest one or fall
+  back every time. This ADR assumes fall back every time until the data says
   otherwise.
 
 ## Rollout

@@ -68,10 +68,14 @@ Limits of the tool:
 
 ## Results on the mini (2026-11-09, KBAttribution.app with Input Monitoring)
 
-| Run | Tap events | Matched to a keyboard | Ambiguous | Repeats credited | Tap minus HID (p50 / p95 / max) |
+| Run | Tap events | Matched to a keyboard | Ambiguous | Repeats given a device* | Tap minus HID (p50 / p95 / max) |
 |---|---|---|---|---|---|
 | Fixture only | 41 | 41 (100%) | 0 | 29 of 29 | 1.1 / 6.1 / 10.2 ms |
 | Fixture and a person typing on the cl80 | 923 | 923 (100%) | 0 | 152 of 152 | 1.1 / 5.4 / 9.2 ms |
+
+\* A repeat inherits the device of the last matched press. The tool does not
+check that device again, so this column counts repeats that got a device, not
+repeats proven correct.
 
 **Ground truth.** The fixture sends only arrow keys, and all 606 events credited to it
 were arrows. All 317 events credited to the cl80 came from typing: 292 other keys and 25
