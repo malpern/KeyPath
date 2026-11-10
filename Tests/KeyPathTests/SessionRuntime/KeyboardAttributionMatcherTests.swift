@@ -206,6 +206,17 @@ final class KeyboardAttributionMatcherTests: XCTestCase {
         XCTAssertEqual(matcher.attribute(tap(letterA, down: true, at: 201), nowNs: ms(201)), .keyboard(external))
     }
 
+    func testReleaseAheadOfItsHIDReleaseKeepsAnotherKeyboardsEarlyPress() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, letterA, down: true, at: 50))
+        _ = matcher.attribute(tap(letterA, down: true, at: 51), nowNs: ms(51))
+        matcher.record(hid(external, letterA, down: true, at: 99)) // reaches the tap at about 120
+        // The laptop's tap release comes before its HID release (late, at 101).
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: false, at: 100), nowNs: ms(100)), .keyboard(laptop))
+        matcher.record(hid(laptop, letterA, down: false, at: 101))
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: true, at: 120), nowNs: ms(120)), .keyboard(external))
+    }
+
     func testResetForgetsHeldKeysAndCredits() {
         var matcher = Matcher()
         matcher.record(hid(laptop, rightArrow, down: true, at: 1000))
@@ -230,6 +241,19 @@ final class KeyboardAttributionMatcherTests: XCTestCase {
         matcher.removeDevice(external)
         XCTAssertEqual(matcher.attribute(tap(rightArrow, down: true, repeat: true, at: 1500), nowNs: ms(1500)), .keyboard(laptop))
         XCTAssertFalse(matcher.unconsumed.contains { $0.device == external })
+    }
+
+    func testUnpluggingTheHoldingKeyboardKeepsReleaseWithItsPress() {
+        var matcher = Matcher()
+        matcher.record(hid(external, rightArrow, down: true, at: 1000))
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: true, at: 1001), nowNs: ms(1001)), .keyboard(external))
+        matcher.removeDevice(external)
+        // macOS still delivers the repeat and the release of the held key.
+        XCTAssertEqual(
+            matcher.attribute(tap(rightArrow, down: true, repeat: true, at: 1500), nowNs: ms(1500)),
+            .keyboard(external)
+        )
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: false, at: 1600), nowNs: ms(1600)), .keyboard(external))
     }
 
     func testRepeatWithNoPressSeenFallsBack() {

@@ -21,8 +21,9 @@ import Foundation
 ///   second keyboard's HID value that arrives after that cannot make it
 ///   ambiguous; the caller does not hold presses that already have a match.
 /// - A release clears that key's unconsumed HID presses that happened before
-///   the HID release it pairs with (or before the tap release, when that HID
-///   release has not arrived yet). They belong to presses macOS merged or that
+///   the HID release it pairs with. When that HID release has not arrived yet,
+///   it clears only the pressing keyboard's earlier presses (all keyboards' if
+///   the press fell back). They belong to presses macOS merged or that
 ///   arrived after their tap event gave up, and must not be credited to the
 ///   next press. A later keyboard's press that HID reported early is kept.
 /// - Tap events must be asked about in time order (re-asking a waiting press is
@@ -112,7 +113,9 @@ struct KeyboardAttributionMatcher {
     }
 
     /// Forgets everything, for when HID or tap events may have been lost (wake
-    /// from sleep, the tap re-enabled after macOS disabled it).
+    /// from sleep, the tap re-enabled after macOS disabled it). Keys still
+    /// physically held are forgotten too; the caller rebuilds them from
+    /// IOHIDManager's current element values if it needs repeats to stay exact.
     mutating func reset() {
         unconsumed.removeAll()
         heldBy.removeAll()
@@ -150,11 +153,10 @@ struct KeyboardAttributionMatcher {
 
         if !event.isDown {
             // A release follows its press, whatever HID value it pairs with.
-            let cutoff = consumeClosest(of: candidates, to: event.timeNs)?.timeNs ?? event.timeNs
-            unconsumed.removeAll { $0.usage == event.usage && $0.isDown && $0.timeNs < cutoff }
-            guard let credit = pressCredit.removeValue(forKey: event.usage) else {
-                return .fallback(.noMatch)
-            }
+            let pairedRelease = consumeClosest(of: candidates, to: event.timeNs)
+            let credit = pressCredit.removeValue(forKey: event.usage)
+            clearStalePresses(of: event.usage, pairedRelease: pairedRelease, credit: credit, releaseTimeNs: event.timeNs)
+            guard let credit else { return .fallback(.noMatch) }
             return credit.map(Decision.keyboard) ?? .fallback(.pressNotCredited)
         }
 
@@ -172,6 +174,23 @@ struct KeyboardAttributionMatcher {
         }
         pressCredit[event.usage] = device
         return .keyboard(device)
+    }
+
+    /// Drops HID presses of `usage` that can no longer get a tap event of their
+    /// own. With the HID release in hand, that is every press before it. Without
+    /// it, only the pressing keyboard's earlier presses are known to be stale,
+    /// unless the press fell back, when its own late HID value could be any
+    /// keyboard's.
+    private mutating func clearStalePresses(
+        of usage: UInt32, pairedRelease: HIDValue?, credit: UInt64??, releaseTimeNs: UInt64
+    ) {
+        if let pairedRelease {
+            unconsumed.removeAll { $0.usage == usage && $0.isDown && $0.timeNs < pairedRelease.timeNs }
+        } else if case let .some(.some(device)) = credit {
+            unconsumed.removeAll { $0.usage == usage && $0.isDown && $0.device == device && $0.timeNs < releaseTimeNs }
+        } else {
+            unconsumed.removeAll { $0.usage == usage && $0.isDown && $0.timeNs < releaseTimeNs }
+        }
     }
 
     private func repeatDecision(for usage: UInt32) -> Decision {
