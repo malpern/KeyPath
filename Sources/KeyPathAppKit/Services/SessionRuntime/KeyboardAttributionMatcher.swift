@@ -1,7 +1,7 @@
 import Foundation
 
 /// Credits each key event from the session tap to one physical keyboard
-/// ([ADR-048](../../../../docs/adr/adr-048-opt-in-per-keyboard-rules.md)).
+/// (ADR-048, opt-in per-keyboard rules).
 ///
 /// The session tap merges every keyboard into one stream. IOHIDManager names
 /// the keyboard but arrives separately, about 1 ms earlier, sometimes later.
@@ -17,6 +17,12 @@ import Foundation
 ///   same key within the window comes from that keyboard. Candidates from more
 ///   than one keyboard fall back. Either way the candidate closest in time is
 ///   consumed, leaving the others for later tap events.
+/// - A press is decided with the candidates present when it is asked about. A
+///   second keyboard's HID value that arrives after that cannot make it
+///   ambiguous; the caller does not hold presses that already have a match.
+/// - A release clears that key's other unconsumed HID values up to the release
+///   time. They belong to presses macOS merged or that arrived after their tap
+///   event gave up, and must not be credited to the next press.
 /// - With no candidate yet, the answer is `.wait` until the window's look-ahead
 ///   has passed, then `.fallback(.noMatch)`.
 /// - A release is credited to whatever its press was credited to, so the engine
@@ -99,9 +105,19 @@ struct KeyboardAttributionMatcher {
         }
     }
 
+    /// Forgets a keyboard that was removed, including keys it still held.
+    mutating func removeDevice(_ device: UInt64) {
+        unconsumed.removeAll { $0.device == device }
+        for usage in Array(heldBy.keys) {
+            heldBy[usage]?.remove(device)
+            if heldBy[usage]?.isEmpty == true { heldBy[usage] = nil }
+        }
+    }
+
     mutating func attribute(_ event: TapEvent, nowNs: UInt64) -> Decision {
         let earliest = event.timeNs > configuration.lookBehindNs ? event.timeNs - configuration.lookBehindNs : 0
-        let latest = event.timeNs + configuration.lookAheadNs
+        let (sum, overflow) = event.timeNs.addingReportingOverflow(configuration.lookAheadNs)
+        let latest = overflow ? UInt64.max : sum
         // Tap events arrive in time order, so nothing older can match again.
         unconsumed.removeAll { $0.timeNs < earliest }
 
@@ -118,6 +134,7 @@ struct KeyboardAttributionMatcher {
         if !event.isDown {
             // A release follows its press, whatever HID value it pairs with.
             consumeClosest(of: candidates, to: event.timeNs)
+            unconsumed.removeAll { $0.usage == event.usage && $0.timeNs <= event.timeNs }
             guard let credit = pressCredit.removeValue(forKey: event.usage) else {
                 return .fallback(.noMatch)
             }

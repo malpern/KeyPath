@@ -149,6 +149,69 @@ final class KeyboardAttributionMatcherTests: XCTestCase {
         )
     }
 
+    // MARK: - Stale candidates
+
+    func testLateHIDOfAPressThatGaveUpIsNotCreditedToTheNextPress() {
+        var matcher = Matcher()
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: true, at: 0), nowNs: ms(5)), .fallback(.noMatch))
+        matcher.record(hid(laptop, letterA, down: true, at: 6)) // arrived after its tap gave up
+        XCTAssertEqual(matcher.attribute(tap(letterA, down: false, at: 10), nowNs: ms(10)), .fallback(.pressNotCredited))
+        // The external keyboard's press; its HID value has not arrived yet.
+        let next = tap(letterA, down: true, at: 20)
+        XCTAssertEqual(matcher.attribute(next, nowNs: ms(20)), .wait)
+        matcher.record(hid(external, letterA, down: true, at: 21))
+        XCTAssertEqual(matcher.attribute(next, nowNs: ms(21)), .keyboard(external))
+    }
+
+    func testMergedPressDoesNotOutliveItsReleaseAndClaimTheNextPress() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, rightArrow, down: true, at: 600))
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: true, at: 601), nowNs: ms(601)), .keyboard(laptop))
+        matcher.record(hid(external, rightArrow, down: true, at: 620)) // merged by macOS: no tap press
+        matcher.record(hid(external, rightArrow, down: false, at: 640))
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: false, at: 641), nowNs: ms(641)), .keyboard(laptop))
+        // A laptop press whose HID value is still on its way.
+        let next = tap(rightArrow, down: true, at: 645)
+        XCTAssertEqual(matcher.attribute(next, nowNs: ms(645)), .wait)
+        matcher.record(hid(laptop, rightArrow, down: true, at: 646))
+        XCTAssertEqual(matcher.attribute(next, nowNs: ms(646)), .keyboard(laptop))
+    }
+
+    func testAmbiguousLeftoverIsClearedByTheRelease() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, rightArrow, down: true, at: 300))
+        matcher.record(hid(external, rightArrow, down: true, at: 302))
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: true, at: 302.5), nowNs: ms(302.5)), .fallback(.ambiguous))
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: false, at: 310), nowNs: ms(310)), .fallback(.pressNotCredited))
+        XCTAssertTrue(matcher.unconsumed.isEmpty)
+    }
+
+    // MARK: - Device removal
+
+    func testRemovedKeyboardNoLongerBlocksRepeats() {
+        var matcher = Matcher()
+        matcher.record(hid(laptop, rightArrow, down: true, at: 1000))
+        _ = matcher.attribute(tap(rightArrow, down: true, at: 1001), nowNs: ms(1001))
+        matcher.record(hid(external, rightArrow, down: true, at: 1200)) // unplugged while held
+        matcher.removeDevice(external)
+        XCTAssertEqual(matcher.attribute(tap(rightArrow, down: true, repeat: true, at: 1500), nowNs: ms(1500)), .keyboard(laptop))
+        XCTAssertFalse(matcher.unconsumed.contains { $0.device == external })
+    }
+
+    func testRepeatWithNoPressSeenFallsBack() {
+        var matcher = Matcher()
+        XCTAssertEqual(
+            matcher.attribute(tap(letterA, down: true, repeat: true, at: 100), nowNs: ms(100)),
+            .fallback(.noMatch)
+        )
+    }
+
+    func testLookAheadSaturatesInsteadOfOverflowing() {
+        var matcher = Matcher()
+        let event = Matcher.TapEvent(usage: letterA, isDown: true, isRepeat: false, timeNs: UInt64.max - 1)
+        XCTAssertEqual(matcher.attribute(event, nowNs: UInt64.max - 1), .wait)
+    }
+
     // MARK: - Bounds
 
     func testUnconsumedValuesAreCappedOldestFirst() {
