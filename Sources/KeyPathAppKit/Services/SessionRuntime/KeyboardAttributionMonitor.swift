@@ -128,6 +128,10 @@ final class KeyboardAttributionMonitor {
     private var log = KeyboardAttributionLog()
     private var manager: IOHIDManager?
     private var tapClock: KeyboardAttributionTapClock?
+    /// Registry IDs, read once per keyboard when it is matched. An unplugged
+    /// keyboard may no longer report its ID, and the lookup is IOKit work that
+    /// does not belong on every key.
+    private var registryIDs: [ObjectIdentifier: UInt64] = [:]
     private var lastSummaryNs: UInt64
     private var lastSummaryCounts = KeyboardAttributionLog.Counts()
     private nonisolated static let timebase: (numer: UInt64, denom: UInt64) = {
@@ -170,11 +174,16 @@ final class KeyboardAttributionMonitor {
                 Unmanaged<KeyboardAttributionMonitor>.fromOpaque(context).takeUnretainedValue().receive(value)
             }
         }, context)
+        IOHIDManagerRegisterDeviceMatchingCallback(manager, { context, _, _, device in
+            guard let context else { return }
+            MainActor.assumeIsolated {
+                _ = Unmanaged<KeyboardAttributionMonitor>.fromOpaque(context).takeUnretainedValue().registryID(of: device)
+            }
+        }, context)
         IOHIDManagerRegisterDeviceRemovalCallback(manager, { context, _, _, device in
             guard let context else { return }
             MainActor.assumeIsolated {
-                Unmanaged<KeyboardAttributionMonitor>.fromOpaque(context).takeUnretainedValue()
-                    .log.removeDevice(KeyboardAttributionMonitor.registryID(device))
+                Unmanaged<KeyboardAttributionMonitor>.fromOpaque(context).takeUnretainedValue().remove(device)
             }
         }, context)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
@@ -191,8 +200,8 @@ final class KeyboardAttributionMonitor {
         let usage = IOHIDElementGetUsage(element)
         // Page 7 keys and modifiers; 0–3 are "no event" and error codes.
         guard IOHIDElementGetUsagePage(element) == UInt32(kHIDPage_KeyboardOrKeypad), usage >= 4, usage <= 0xE7 else { return }
-        let device = IOHIDElementGetDevice(element)
-        log.record(.init(device: Self.registryID(device), usage: usage,
+        guard let device = registryID(of: IOHIDElementGetDevice(element)) else { return }
+        log.record(.init(device: device, usage: usage,
                          isDown: IOHIDValueGetIntegerValue(value) != 0,
                          timeNs: Self.ticksToNs(IOHIDValueGetTimeStamp(value))),
                    nowNs: Self.nowNs())
@@ -264,14 +273,25 @@ final class KeyboardAttributionMonitor {
     /// cleared before it can be freed, not just unscheduled.
     private static func detach(_ manager: IOHIDManager) {
         IOHIDManagerRegisterInputValueCallback(manager, nil, nil)
+        IOHIDManagerRegisterDeviceMatchingCallback(manager, nil, nil)
         IOHIDManagerRegisterDeviceRemovalCallback(manager, nil, nil)
         IOHIDManagerUnscheduleFromRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
     }
 
-    private nonisolated static func registryID(_ device: IOHIDDevice) -> UInt64 {
+    /// The keyboard's registry ID, cached; nil if IOKit cannot say, in which
+    /// case its values are not recorded rather than filed under a made-up ID.
+    private func registryID(of device: IOHIDDevice) -> UInt64? {
+        let key = ObjectIdentifier(device)
+        if let id = registryIDs[key] { return id }
         var id: UInt64 = 0
-        _ = IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(device), &id)
+        guard IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(device), &id) == KERN_SUCCESS else { return nil }
+        registryIDs[key] = id
         return id
+    }
+
+    private func remove(_ device: IOHIDDevice) {
+        guard let id = registryIDs.removeValue(forKey: ObjectIdentifier(device)) else { return }
+        log.removeDevice(id)
     }
 
     private nonisolated static func ticksToNs(_ ticks: UInt64) -> UInt64 {
