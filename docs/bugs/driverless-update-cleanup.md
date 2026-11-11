@@ -8,10 +8,7 @@ Nine focused tests cover cleanup ordering/refusal/retry, suspended aborts, repla
 
 ## Remaining release gate
 
-**Update (2026-11-11):** the update-on-quit and Caps recovery gate below has
-been met on notarized builds; see "Caps Lock gate" further down.
-
-Sparkle does not promise to call shouldPostponeRelaunchForUpdate for every installation, including some termination-time paths. This change validates the postponed continuation, not universal update cleanup. Test and resolve update-on-quit with preserved configuration and Caps recovery before release. Normal app Quit must remain usable during retained uncertainty; do not cancel every Quit and impede system reboot. No signed live updater acceptance or production release is claimed here.
+Sparkle does not promise to call shouldPostponeRelaunchForUpdate for every installation, including some termination-time paths. This change validated the postponed continuation, not universal update cleanup. Update-on-quit with preserved configuration and Caps recovery has since been tested and passed on notarized builds (2026-11-11; see "Caps Lock gate" below). Normal app Quit must remain usable during retained uncertainty; do not cancel every Quit and impede system reboot. No signed live updater acceptance or production release is claimed here.
 
 ## Graceful app termination
 
@@ -199,8 +196,8 @@ configuration. The worker's retirement on both paths (`stopped`,
 
 ### Caps Lock gate (2026-11-11, Mac mini, macOS 27.3)
 
-Lab builds 1000 and 1001 were built from master plus the phase 4 engine check
-(#1416), Developer ID-signed, **notarized and stapled** (Gatekeeper: "Notarized
+Lab builds 1000 and 1001 were built from #1416's head (`f3d4880dc`, master plus
+the phase 4 engine check) with #1418's fix applied, Developer ID-signed, **notarized and stapled** (Gatekeeper: "Notarized
 Developer ID"). The feed was signed with the release EdDSA key. Caps Lock Remap
 was on, so the engine mapped Caps Lock to F18 on four keyboards. A sampler
 recorded the app, the worker and the number of Caps mappings every 0.1 s. The
