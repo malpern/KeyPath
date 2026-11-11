@@ -334,7 +334,8 @@ public struct ConfigFacade: Sendable {
     public func tcpCheckHealth() async -> Bool {
         switch Self.engineAccess {
         case .direct: return await engineClient().checkServerStatus()
-        case .viaApp: return await (try? askApp(.status))?.state == .running
+        // The engine must answer, not only the app report "running".
+        case .viaApp: return (try? await askApp(.layer))?.layer != nil
         }
     }
 

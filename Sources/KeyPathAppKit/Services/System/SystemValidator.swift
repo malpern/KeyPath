@@ -178,15 +178,20 @@ public class SystemValidator {
     private func captureSessionSnapshot(progressCallback: @escaping @Sendable (Double) -> Void) async -> SystemSnapshot {
         let permissions = await systemStateProvider.currentPermissionSnapshot()
         let running: Bool
-        var socketPath = EngineControlEndpoint.socketPath
+        let responding: Bool
         if let kanataManager {
             let report = kanataManager.serviceLifecycleCoordinator.currentSessionReport()
             running = report?.state == .running && report?.tapActive == true
-            socketPath = report?.controlSocketPath
+            responding = running
+                ? await systemStateProvider.isEngineSocketResponding(path: report?.controlSocketPath, timeoutMs: 300)
+                : false
         } else {
+            // Outside the app (the CLI) the engine refuses every connection: it
+            // admits only the app that launched it (ADR-046). The app's own
+            // answer, which already checks its socket, is the evidence.
             running = await appSessionReady?() ?? false
+            responding = running
         }
-        let responding = running ? await systemStateProvider.isEngineSocketResponding(path: socketPath, timeoutMs: 300) : false
         let host = KanataRuntimeHost.current()
         let payload = FileManager.default.fileExists(atPath: host.bridgeLibraryPath)
             && FileManager.default.fileExists(atPath: Bundle.main.executablePath ?? "")

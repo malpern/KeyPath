@@ -61,6 +61,42 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertTrue(result.logs.first?.contains("KeyPath-Uninstall-Backup-") == true)
     }
 
+    /// Application Support holds sockets (the CLI's runtime.sock, a stale
+    /// engine socket). They are not settings and cannot be copied; the backup
+    /// must skip them rather than fail the uninstall.
+    func testBackupSkipsSocketsInsteadOfFailing() async throws {
+        let control = root.appendingPathComponent("Library/Application Support/KeyPath/control")
+        try FileManager.default.createDirectory(at: control, withIntermediateDirectories: true)
+        // The fixture path is longer than sun_path allows; bind by relative name.
+        let previous = FileManager.default.currentDirectoryPath
+        XCTAssertTrue(FileManager.default.changeCurrentDirectoryPath(control.path))
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        var address = sockaddr_un()
+        address.sun_family = sa_family_t(AF_UNIX)
+        withUnsafeMutableBytes(of: &address.sun_path) { raw in
+            let name = Array("runtime.sock".utf8)
+            raw.copyBytes(from: name)
+            raw[name.count] = 0
+        }
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+        }
+        FileManager.default.changeCurrentDirectoryPath(previous)
+        defer { close(fd) }
+        XCTAssertEqual(bound, 0)
+
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: { XCTFail("Unexpected failure") }, trash: { url in
+                                                          let backup = try XCTUnwrap(self.backups().first)
+                                                          let saved = backup.appendingPathComponent("1-KeyPath")
+                                                          XCTAssertEqual(try String(contentsOf: saved.appendingPathComponent("rules.json"), encoding: .utf8), "saved rules")
+                                                          XCTAssertFalse(FileManager.default.fileExists(atPath: saved.appendingPathComponent("control/runtime.sock").path))
+                                                          try FileManager.default.removeItem(at: url)
+                                                      })
+        let result = await coordinator.performUninstall(deleteConfig: true)
+        XCTAssertTrue(result.success, result.failureReason ?? "")
+    }
+
     func testLoginItemRemovalFailurePreservesAppAndSettings() async throws {
         var resumed = false
         let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
