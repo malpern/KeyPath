@@ -171,6 +171,14 @@ jobs:
         kanata --version
         kanata-simulator --version
 
+    - name: Rust tests (host bridge and engine control server)
+      # ADR-046: the engine-control peer check, its owner tests and the session
+      # command policy must run on every PR, not only build.
+      run: |
+        set -o pipefail
+        (cd Rust/KeyPathKanataHostBridge && cargo test --features passthru-output-spike 2>&1 | tail -40)
+        (cd External/kanata && cargo test --lib control_tests 2>&1 | tail -20)
+
     - name: Prepare persistent SwiftPM scratch
       # Persistent per runner on the mini: runner.workspace (_work/KeyPath)
       # survives between jobs, while runner.temp is wiped after every job and

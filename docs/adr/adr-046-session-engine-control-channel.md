@@ -272,6 +272,39 @@ on the uid. So phase 1's identity check is implementable as written, with no
 fallback. `NWEndpoint.unix(path:)` is in the macOS 27 SDK, so phase 3 should
 need no POSIX fallback either; that was read from the SDK, not exercised.
 
+### Implementation notes (2026-11-10)
+
+Phases 1 and 2 are built (fork `keypath/unix-control`, KeyPath PR 2). Two
+choices differ from the plan's wording:
+
+- **The worker binds the socket, not the bridge.** `EngineControlSocket.open`
+  (KeyPathCore) chooses the path, creates and checks the 0700 directory,
+  removes sockets left by dead workers, binds, and makes the socket 0600 (the
+  0700 directory covers the moment between; the process-wide umask is not
+  touched). The worker
+  hands the listening descriptor to the bridge, which serves it with
+  `TcpServer::start_unix`. Path rules and errors live in one place, and a bind
+  failure ends the worker with `engine-control-socket-unavailable: <cause>`.
+- **Each worker names its socket after its own PID** (`e-<pid>.sock`). A worker
+  that is still shutting down removes only its own socket, never the one the
+  next worker just created. The path is in the report (`controlSocketPath`).
+
+A worker launched without `--session-owner-pidversion` refuses to start
+(`missing-session-owner`) rather than run an engine socket nobody can be
+checked against. An old app still running beside a newly replaced bundle hits
+this until it relaunches; updates and deploys relaunch it.
+
+The owner watch is `SessionOwnerExitSource` (a dispatch process source, so
+kqueue `NOTE_EXIT`); it closes the engine socket and retires the worker. The
+session policy refuses `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` on
+both listeners, caps each kind of client (TCP, Unix) at 16 separately, so
+loopback TCP clients cannot lock the owner out, and drops a client after a 2 s
+stalled write.
+
+Checked live on the mini with this build: the socket is created 0600 in the
+0700 directory; a same-user process connects and is closed with 0 bytes; the
+second account (`clawd`) gets `EACCES`; a sandboxed app gets `EPERM`.
+
 ## Migration
 
 1. **Phase 1, fork (`malpern/kanata`, a new branch merged into `keypath/bundled` by

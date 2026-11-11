@@ -183,6 +183,12 @@ struct PassthruRuntime {
     output_rx: Receiver<kanata_state_machine::oskbd::InputEvent>,
     processing_tx: parking_lot::Mutex<Option<SyncSender<kanata_state_machine::oskbd::KeyEvent>>>,
     tcp_server_address: Option<kanata_state_machine::SocketAddrWrapper>,
+    /// A bound, listening Unix-domain socket for engine control, owned here
+    /// until start() hands it to the server.
+    control_listener: parking_lot::Mutex<Option<std::os::fd::OwnedFd>>,
+    /// The one process allowed on the control socket: PID and PID version.
+    control_owner: (i32, u32),
+    control_handle: parking_lot::Mutex<Option<kanata_state_machine::tcp_server::ControlHandle>>,
     started: AtomicBool,
 }
 
@@ -283,9 +289,23 @@ pub extern "C" fn keypath_kanata_bridge_destroy_runtime(runtime: *mut c_void) {
 pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
     config_path: *const c_char,
     tcp_port: u16,
+    control_fd: i32,
+    control_owner_pid: i32,
+    control_owner_pid_version: u32,
     error_buffer: *mut c_char,
     error_buffer_len: usize,
 ) -> *mut c_void {
+    use std::os::fd::{FromRawFd, OwnedFd};
+    // Take ownership of the descriptor first, so every early return closes it.
+    let control_listener = (control_fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(control_fd) });
+    if control_listener.is_some() && control_owner_pid <= 0 {
+        write_error(
+            error_buffer,
+            error_buffer_len,
+            "engine control socket needs the owning app's PID",
+        );
+        return std::ptr::null_mut();
+    }
     let path = match parse_config_path(config_path, error_buffer, error_buffer_len) {
         Some(path) => path,
         None => return std::ptr::null_mut(),
@@ -318,6 +338,9 @@ pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
                 output_rx: rx_kout,
                 processing_tx: parking_lot::Mutex::new(None),
                 tcp_server_address,
+                control_listener: parking_lot::Mutex::new(control_listener),
+                control_owner: (control_owner_pid, control_owner_pid_version),
+                control_handle: parking_lot::Mutex::new(None),
                 started: AtomicBool::new(false),
             }))
             .cast()
@@ -334,9 +357,15 @@ pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
 pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
     _config_path: *const c_char,
     _tcp_port: u16,
+    control_fd: i32,
+    _control_owner_pid: i32,
+    _control_owner_pid_version: u32,
     error_buffer: *mut c_char,
     error_buffer_len: usize,
 ) -> *mut c_void {
+    if control_fd >= 0 {
+        drop(unsafe { <std::os::fd::OwnedFd as std::os::fd::FromRawFd>::from_raw_fd(control_fd) });
+    }
     write_error(
         error_buffer,
         error_buffer_len,
@@ -360,6 +389,36 @@ pub extern "C" fn keypath_kanata_bridge_destroy_passthru_runtime(runtime: *mut c
 #[cfg(not(feature = "passthru-output-spike"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn keypath_kanata_bridge_destroy_passthru_runtime(_runtime: *mut c_void) {}
+
+/// Stops accepting engine-control connections, removes the socket file and
+/// closes the open ones. Called when the owning app exits.
+#[cfg(feature = "passthru-output-spike")]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_passthru_close_control(runtime: *mut c_void) {
+    if runtime.is_null() {
+        return;
+    }
+    let runtime = unsafe { &*(runtime.cast::<PassthruRuntime>()) };
+    // Never handed to the server (the worker stopped before start): remove
+    // the socket file here, since no ControlHandle exists to do it.
+    if let Some(fd) = runtime.control_listener.lock().take() {
+        let listener = std::os::unix::net::UnixListener::from(fd);
+        if let Some(path) = listener
+            .local_addr()
+            .ok()
+            .and_then(|addr| addr.as_pathname().map(Path::to_path_buf))
+        {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+    if let Some(handle) = runtime.control_handle.lock().as_ref() {
+        handle.close();
+    }
+}
+
+#[cfg(not(feature = "passthru-output-spike"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn keypath_kanata_bridge_passthru_close_control(_runtime: *mut c_void) {}
 
 #[cfg(feature = "passthru-output-spike")]
 #[unsafe(no_mangle)]
@@ -478,16 +537,53 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
     }
 
     let (tx, rx) = std::sync::mpsc::sync_channel(100);
-    let (ntx, has_tcp_server) = if let Some(address) = runtime.tcp_server_address.clone() {
-        let socket_addr = *address.get_ref();
-
-        let mut server = kanata_state_machine::TcpServer::new(socket_addr, tx.clone());
-        server.start(runtime.runtime.clone());
+    let tcp_address = runtime
+        .tcp_server_address
+        .as_ref()
+        .map(|address| *address.get_ref());
+    // Bind TCP once and keep the listener, before touching the control socket:
+    // a failure is reported, not a panic, and leaves no socket file behind.
+    let tcp_listener = match tcp_address.map(std::net::TcpListener::bind).transpose() {
+        Ok(listener) => listener,
+        Err(error) => {
+            keypath_kanata_bridge_passthru_close_control((runtime as *const PassthruRuntime).cast_mut().cast());
+            write_error(
+                error_buffer,
+                error_buffer_len,
+                &format!(
+                    "tcp server port {} unavailable: {error}",
+                    tcp_address.map_or(0, |address| address.port())
+                ),
+            );
+            return false;
+        }
+    };
+    let control_listener = runtime.control_listener.lock().take();
+    let ntx = if tcp_listener.is_some() || control_listener.is_some() {
+        // One server and one notification set for both listeners.
+        let mut server = kanata_state_machine::TcpServer::new(
+            tcp_address.unwrap_or_else(|| ([127, 0, 0, 1], 0).into()),
+            tx.clone(),
+        )
+        .with_policy(kanata_state_machine::tcp_server::ServerPolicy::session());
+        if let Some(listener) = tcp_listener {
+            server.start_tcp(listener, runtime.runtime.clone());
+        }
+        if let Some(fd) = control_listener {
+            let listener = std::os::unix::net::UnixListener::from(fd);
+            let (pid, pid_version) = runtime.control_owner;
+            let check = kanata_state_machine::tcp_server::PeerCheck::new(
+                unsafe { libc::getuid() },
+                Some((pid, pid_version)),
+            );
+            let handle = server.start_unix(listener, check, runtime.runtime.clone());
+            *runtime.control_handle.lock() = Some(handle);
+        }
         let (ntx, nrx) = std::sync::mpsc::sync_channel(100);
         kanata_state_machine::Kanata::start_notification_loop(nrx, server.connections);
-        (Some(ntx), true)
+        Some(ntx)
     } else {
-        (None, false)
+        None
     };
 
     // Assign processing_tx BEFORE starting the processing loop so the channel
@@ -499,7 +595,6 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
     // and can instantiate the pqrs client in the user-session host process.
     kanata_state_machine::Kanata::start_processing_loop(runtime.runtime.clone(), rx, ntx, true);
     runtime.started.store(true, Ordering::Release);
-    let _ = has_tcp_server;
     write_error(error_buffer, error_buffer_len, "");
     true
 }
@@ -654,8 +749,8 @@ pub extern "C" fn keypath_kanata_bridge_run_runtime(
 
     let (server, ntx, nrx) = if let Some(address) = args.tcp_server_address.clone() {
         let socket_addr = *address.get_ref();
-        match std::net::TcpListener::bind(socket_addr) {
-            Ok(listener) => drop(listener),
+        let listener = match std::net::TcpListener::bind(socket_addr) {
+            Ok(listener) => listener,
             Err(error) => {
                 write_error(
                     error_buffer,
@@ -664,10 +759,10 @@ pub extern "C" fn keypath_kanata_bridge_run_runtime(
                 );
                 return false;
             }
-        }
+        };
 
         let mut server = kanata_state_machine::TcpServer::new(socket_addr, tx.clone());
-        server.start(kanata_arc.clone());
+        server.start_tcp(listener, kanata_arc.clone());
         let (ntx, nrx) = std::sync::mpsc::sync_channel(100);
         (Some(server), Some(ntx), Some(nrx))
     } else {
@@ -856,6 +951,229 @@ mod tests {
             .into_owned()
     }
 
+    /// A started runtime whose engine control is a Unix socket this test bound.
+    struct ControlFixture {
+        handle: *mut c_void,
+        socket: PathBuf,
+        dir: PathBuf,
+    }
+
+    impl ControlFixture {
+        fn start(owner: (i32, u32)) -> Self {
+            use std::os::fd::IntoRawFd;
+            let dir = std::env::temp_dir().join(format!(
+                "kp-ctl-{}-{}",
+                std::process::id(),
+                CONTROL_FIXTURE_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&dir).unwrap();
+            let socket = dir.join("e.sock");
+            let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+            let cfg = passthru_cfg_path();
+            let mut error = vec![0 as c_char; 512];
+            let handle = keypath_kanata_bridge_create_passthru_runtime(
+                cfg.as_ptr(),
+                0,
+                listener.into_raw_fd(),
+                owner.0,
+                owner.1,
+                error.as_mut_ptr(),
+                error.len(),
+            );
+            assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+            assert!(
+                keypath_kanata_bridge_start_passthru_runtime(
+                    handle,
+                    error.as_mut_ptr(),
+                    error.len()
+                ),
+                "{}",
+                read_error_buffer(&error)
+            );
+            Self {
+                handle,
+                socket,
+                dir,
+            }
+        }
+
+        fn connect(&self) -> std::os::unix::net::UnixStream {
+            let stream = std::os::unix::net::UnixStream::connect(&self.socket).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            stream
+        }
+    }
+
+    impl Drop for ControlFixture {
+        fn drop(&mut self) {
+            keypath_kanata_bridge_passthru_close_control(self.handle);
+            keypath_kanata_bridge_destroy_passthru_runtime(self.handle);
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    static CONTROL_FIXTURE_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    /// This process's PID and PID version, as a peer would present them.
+    fn this_process() -> (i32, u32) {
+        let (a, _b) = std::os::unix::net::UnixStream::pair().unwrap();
+        let peer = kanata_state_machine::tcp_server::read_peer_identity(&a).unwrap();
+        (peer.pid, peer.pid_version)
+    }
+
+    fn read_line(stream: &std::os::unix::net::UnixStream) -> std::io::Result<String> {
+        use std::io::BufRead;
+        let mut line = String::new();
+        std::io::BufReader::new(stream).read_line(&mut line)?;
+        Ok(line)
+    }
+
+    #[test]
+    fn control_socket_serves_its_owner_and_refuses_session_restricted_commands() {
+        use std::io::Write;
+        let fixture = ControlFixture::start(this_process());
+        let mut stream = fixture.connect();
+        assert!(read_line(&stream).unwrap().contains("LayerChange"));
+
+        writeln!(stream, "{{\"Hello\":{{}}}}").unwrap();
+        let hello = read_line(&stream).unwrap();
+        assert!(
+            hello.contains("HelloOk") && hello.contains("key-input"),
+            "{hello}"
+        );
+        assert!(!hello.contains("set-mouse"), "{hello}");
+
+        writeln!(stream, "{{\"SetMouse\":{{\"x\":1,\"y\":1}}}}").unwrap();
+        let refused = read_line(&stream).unwrap();
+        assert!(refused.contains("not available"), "{refused}");
+        writeln!(stream, "{{\"ReloadFile\":{{\"path\":\"/tmp/x.kbd\"}}}}").unwrap();
+        let refused = read_line(&stream).unwrap();
+        assert!(refused.contains("not available"), "{refused}");
+    }
+
+    /// A process with the owner's PID number but another PID version (the
+    /// owner exited and the PID was reused) is closed before any byte.
+    #[test]
+    fn control_socket_refuses_a_reused_owner_pid_before_sending_anything() {
+        use std::io::Read;
+        let (pid, version) = this_process();
+        let fixture = ControlFixture::start((pid, version.wrapping_add(1)));
+        let mut stream = fixture.connect();
+        let mut buffer = [0u8; 64];
+        // Ok(0) is end of file: closed, not merely silent until the timeout.
+        assert_eq!(
+            stream.read(&mut buffer).expect("closed, not timed out"),
+            0,
+            "refused peer received data"
+        );
+    }
+
+    #[test]
+    fn closing_control_removes_the_socket_and_drops_open_clients() {
+        use std::io::Read;
+        let fixture = ControlFixture::start(this_process());
+        let mut stream = fixture.connect();
+        assert!(read_line(&stream).unwrap().contains("LayerChange"));
+
+        keypath_kanata_bridge_passthru_close_control(fixture.handle);
+
+        assert!(!fixture.socket.exists(), "socket path still present");
+        assert!(std::os::unix::net::UnixStream::connect(&fixture.socket).is_err());
+        let mut rest = Vec::new();
+        stream
+            .read_to_end(&mut rest)
+            .expect("dropped: end of file, not a timeout");
+        assert!(!String::from_utf8_lossy(&rest).contains("KeyInput"));
+    }
+
+    /// The worker can stop between create and start; closing then must still
+    /// remove the socket file.
+    #[test]
+    fn closing_control_before_start_removes_the_socket() {
+        use std::os::fd::IntoRawFd;
+        let dir = std::env::temp_dir().join(format!("kp-unstarted-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("e.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let cfg = passthru_cfg_path();
+        let mut error = vec![0 as c_char; 512];
+        let (pid, version) = this_process();
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg.as_ptr(),
+            0,
+            listener.into_raw_fd(),
+            pid,
+            version,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        keypath_kanata_bridge_passthru_close_control(handle);
+        assert!(!socket.exists());
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A TCP port that cannot be bound fails start and removes the control
+    /// socket file instead of leaving it behind.
+    #[test]
+    fn tcp_bind_failure_reports_and_removes_the_control_socket() {
+        use std::os::fd::IntoRawFd;
+        let busy = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = busy.local_addr().unwrap().port();
+        let dir = std::env::temp_dir().join(format!("kp-tcpbusy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("e.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let cfg = passthru_cfg_path();
+        let mut error = vec![0 as c_char; 512];
+        let (pid, version) = this_process();
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg.as_ptr(),
+            port,
+            listener.into_raw_fd(),
+            pid,
+            version,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        assert!(!keypath_kanata_bridge_start_passthru_runtime(
+            handle,
+            error.as_mut_ptr(),
+            error.len()
+        ));
+        assert!(read_error_buffer(&error).contains("unavailable"));
+        assert!(!socket.exists(), "control socket left behind");
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        drop(busy);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn control_socket_without_an_owner_is_rejected() {
+        use std::os::fd::IntoRawFd;
+        let dir = std::env::temp_dir().join(format!("kp-noowner-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let listener = std::os::unix::net::UnixListener::bind(dir.join("e.sock")).unwrap();
+        let cfg = passthru_cfg_path();
+        let mut error = vec![0 as c_char; 512];
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg.as_ptr(),
+            0,
+            listener.into_raw_fd(),
+            0,
+            0,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(handle.is_null());
+        assert!(read_error_buffer(&error).contains("owning app"));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn passthru_virtual_switch_follows_tcp_app_context_without_event_loop() {
         use kanata_keyberon::layout::State;
@@ -880,6 +1198,9 @@ mod tests {
         let handle = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
             port,
+            -1,
+            0,
+            0,
             error.as_mut_ptr(),
             error.len(),
         );
@@ -996,6 +1317,9 @@ mod tests {
         let handle = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
             0,
+            -1,
+            0,
+            0,
             error.as_mut_ptr(),
             error.len(),
         );
@@ -1090,6 +1414,9 @@ mod tests {
             let handle = keypath_kanata_bridge_create_passthru_runtime(
                 cfg_path.as_ptr(),
                 0,
+                -1,
+                0,
+                0,
                 error.as_mut_ptr(),
                 error.len(),
             );
@@ -1162,6 +1489,9 @@ mod tests {
         );
         let handle = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
+            0,
+            -1,
+            0,
             0,
             error.as_mut_ptr(),
             error.len(),
@@ -1251,6 +1581,9 @@ mod tests {
         let handle = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
             0,
+            -1,
+            0,
+            0,
             error.as_mut_ptr(),
             error.len(),
         );
@@ -1323,6 +1656,9 @@ mod tests {
         );
         let handle = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
+            0,
+            -1,
+            0,
             0,
             error.as_mut_ptr(),
             error.len(),
@@ -1418,6 +1754,9 @@ mod tests {
             let handle = keypath_kanata_bridge_create_passthru_runtime(
                 cfg_path.as_ptr(),
                 0,
+                -1,
+                0,
+                0,
                 error.as_mut_ptr(),
                 error.len(),
             );
@@ -1462,6 +1801,9 @@ mod tests {
         let runtime = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
             0,
+            -1,
+            0,
+            0,
             error_buffer.as_mut_ptr(),
             error_buffer.len(),
         );
@@ -1505,6 +1847,9 @@ mod tests {
 
         let runtime = keypath_kanata_bridge_create_passthru_runtime(
             cfg_path.as_ptr(),
+            0,
+            -1,
+            0,
             0,
             error_buffer.as_mut_ptr(),
             error_buffer.len(),
