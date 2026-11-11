@@ -2,6 +2,14 @@
 
 > **Note (2026-10-31):** The core app no longer has root access or a LaunchDaemon
 > (ADR-045). The case for separating these features is otherwise unchanged.
+>
+> **Note (2026-11-10):** Insights shipped as a plugin bundle inside the app
+> (`Contents/PlugIns/Insights.bundle`), signed with it, rather than as a
+> separate companion app. The privacy guide describes it that way. KeyPath no
+> longer downloads plugins or loads them from
+> `~/Library/Application Support/KeyPath/Plugins/`; only bundles inside its own
+> signed app load (project review 2026-11-09, O6). Activity logging stays
+> opt-in and local.
 
 ## Status
 

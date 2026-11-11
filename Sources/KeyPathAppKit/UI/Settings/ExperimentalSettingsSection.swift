@@ -55,11 +55,6 @@ struct ExperimentalSettingsSection: View {
                     }
                 }
             }
-            ForEach(PluginManager.shared.availablePlugins) { entry in
-                SettingsCard {
-                    PluginCatalogCard(entry: entry)
-                }
-            }
 
             // Per-app overlay suppression
             SettingsCard {
