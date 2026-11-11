@@ -16,6 +16,9 @@ const BRIDGE_VERSION: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes(
 #[cfg(target_os = "macos")]
 mod session_config;
 
+#[cfg(target_os = "macos")]
+mod peer_signature;
+
 /// Whether the driverless session can emit the Kanata key `key_name` as an
 /// output: 1 yes, 0 no, -1 unknown key name or bad arguments. Uses exactly the
 /// rule session validation applies, so Swift never keeps its own copy of it.
@@ -188,6 +191,9 @@ struct PassthruRuntime {
     control_listener: parking_lot::Mutex<Option<std::os::fd::OwnedFd>>,
     /// The one process allowed on the control socket: PID and PID version.
     control_owner: (i32, u32),
+    /// The code requirement every control peer must satisfy: this process's
+    /// own designated requirement (ADR-046 phase 4).
+    control_requirement: Option<String>,
     control_handle: parking_lot::Mutex<Option<kanata_state_machine::tcp_server::ControlHandle>>,
     started: AtomicBool,
 }
@@ -306,6 +312,22 @@ pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
         );
         return std::ptr::null_mut();
     }
+    // No socket without the signature check: fail here, closing the socket.
+    let control_requirement = if control_listener.is_some() {
+        match peer_signature::own_designated_requirement() {
+            Ok(requirement) => Some(requirement),
+            Err(error) => {
+                write_error(
+                    error_buffer,
+                    error_buffer_len,
+                    &format!("engine control socket needs a signed app: {error}"),
+                );
+                return std::ptr::null_mut();
+            }
+        }
+    } else {
+        None
+    };
     let path = match parse_config_path(config_path, error_buffer, error_buffer_len) {
         Some(path) => path,
         None => return std::ptr::null_mut(),
@@ -340,6 +362,7 @@ pub extern "C" fn keypath_kanata_bridge_create_passthru_runtime(
                 tcp_server_address,
                 control_listener: parking_lot::Mutex::new(control_listener),
                 control_owner: (control_owner_pid, control_owner_pid_version),
+                control_requirement,
                 control_handle: parking_lot::Mutex::new(None),
                 started: AtomicBool::new(false),
             }))
@@ -575,10 +598,15 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
         if let Some(fd) = control_listener {
             let listener = std::os::unix::net::UnixListener::from(fd);
             let (pid, pid_version) = runtime.control_owner;
-            let check = kanata_state_machine::tcp_server::PeerCheck::new(
+            let mut check = kanata_state_machine::tcp_server::PeerCheck::new(
                 unsafe { libc::getuid() },
                 Some((pid, pid_version)),
             );
+            if let Some(requirement) = runtime.control_requirement.clone() {
+                check = check.with_extra_check(Arc::new(move |peer| {
+                    peer_signature::check_peer(&peer.audit_token, &requirement)
+                }));
+            }
             let handle = server.start_unix(listener, check, runtime.runtime.clone());
             *runtime.control_handle.lock() = Some(handle);
         }
@@ -964,6 +992,11 @@ mod tests {
 
     impl ControlFixture {
         fn start(owner: (i32, u32)) -> Self {
+            Self::start_requiring(owner, None)
+        }
+
+        /// `requirement` replaces this process's own designated requirement.
+        fn start_requiring(owner: (i32, u32), requirement: Option<&str>) -> Self {
             use std::os::fd::IntoRawFd;
             let dir = std::env::temp_dir().join(format!(
                 "kp-ctl-{}-{}",
@@ -985,6 +1018,11 @@ mod tests {
                 error.len(),
             );
             assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+            let runtime = unsafe { &mut *handle.cast::<PassthruRuntime>() };
+            assert!(runtime.control_requirement.is_some(), "the signature check is always on");
+            if let Some(requirement) = requirement {
+                runtime.control_requirement = Some(requirement.to_string());
+            }
             assert!(
                 keypath_kanata_bridge_start_passthru_runtime(
                     handle,
@@ -1072,6 +1110,20 @@ mod tests {
             0,
             "refused peer received data"
         );
+    }
+
+    /// ADR-046 phase 4: the right process, but code that does not satisfy the
+    /// app's signature, is closed before any byte.
+    #[test]
+    fn control_socket_refuses_the_owner_process_when_its_code_does_not_match() {
+        use std::io::Read;
+        let fixture = ControlFixture::start_requiring(
+            this_process(),
+            Some(r#"identifier "com.example.not-keypath" and anchor apple generic"#),
+        );
+        let mut stream = fixture.connect();
+        let mut buffer = [0u8; 64];
+        assert_eq!(stream.read(&mut buffer).expect("closed, not timed out"), 0);
     }
 
     #[test]

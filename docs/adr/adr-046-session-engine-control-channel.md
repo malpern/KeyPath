@@ -322,6 +322,22 @@ now checks the socket: 0600 in a 0700 directory, held by the worker (`lsof
 The lab probe, the release smoke test and the macOS 27 QA script ask through
 `keypath-cli`.
 
+**Phase 4 (signature check) is built, and it gates the release** (decided
+2026-11-11). Every control peer's running code must satisfy the worker's own
+designated requirement: the bridge reads it with `SecCodeCopySelf` and
+`SecCodeCopyDesignatedRequirement` when it creates the runtime, and checks each
+peer with `SecCodeCopyGuestWithAttributes` (the audit token) and
+`SecCodeCheckValidity`. The worker and the app are the same signed executable,
+so this holds for Developer ID, Apple Development and ad-hoc builds alike, with
+no override: an ad-hoc build's requirement is its code hash. If the requirement
+cannot be read (an unsigned binary), creating the runtime fails rather than
+running an unchecked socket. The fork only adds a generic hook
+(`PeerCheck::with_extra_check`, and the audit token in `PeerIdentity`); the
+check itself is `Rust/KeyPathKanataHostBridge/src/peer_signature.rs`. Checked
+live on the mini: the installed app (team `X2RKZ5TG99`) is admitted, and the
+bridge test with a requirement for other code refuses the owner process before
+any byte.
+
 Two defects surfaced only on a live kill of the app, and both are fixed in the
 fork with tests:
 
