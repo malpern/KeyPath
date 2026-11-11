@@ -14,6 +14,8 @@ import KeyPathPermissions
 public final class SessionRuntimeWorker {
     enum CapsInventoryFailure: Error { case unavailable }
     private static let outputTag: Int64 = 0x4B50_5345_5353_494F
+    /// The periodic keyboard check and the restore at exit never overlap.
+    private nonisolated static let capsFleet = SessionCapsFleetSerializer()
     private let reportURL: URL
     private let nonce: String
     private let ownerPID: Int32
@@ -914,7 +916,7 @@ public final class SessionRuntimeWorker {
         let previous = Set(capsFleetRecords.map(\.device.registryEntryID))
         let retryAfter = capsFleetRetryAfter
         let usage = SessionCapsRuntimeSupport.preferredIntermediate()
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        Self.capsFleet.check { [weak self] in
             let digest = try? SessionCapsRuntimeSupport.configSHA256(configPath)
             let result: Result<(records: [SessionCapsMappingPolicy.Record], failures: [UInt64: String],
                                 eligible: Int, withheld: Int, departed: Set<UInt64>,
@@ -1288,13 +1290,16 @@ public final class SessionRuntimeWorker {
             if let owner = capsOwner, let directory = capsDirectory {
                 do {
                     try Self.performHIDWork {
-                        try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
+                        try Self.capsFleet.restoreAtExit {
+                            try SessionCapsRuntimeSupport.recoverPending(directory: directory, expectedOwner: owner)
+                        }
                     }
                     capsRecord = nil
                     capsIntermediateUsage = nil
                     capsOwner = nil
                     capsDirectory = nil
                 } catch {
+                    AppLogger.shared.warn("🛑 [SessionWorker] Caps restore at exit failed: \(error)")
                     terminalState = .failed
                     terminalReason = "managed-caps-restoration-pending"
                 }
