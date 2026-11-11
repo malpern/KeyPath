@@ -117,12 +117,22 @@ public final class UpdateService: NSObject {
 
     @ObservationIgnored private var stopRuntime: (@MainActor () async -> Bool)?
     @ObservationIgnored private var setUpdatePreparation: (@MainActor (Bool) -> Void)?
-    @ObservationIgnored private var pendingInstallHandler: SparkleInstallHandler?
+    /// Observed: a paused install keeps Check for Updates enabled (see below).
+    private var pendingInstallHandler: SparkleInstallHandler?
     @ObservationIgnored private var pendingInstallVersion: String?
     @ObservationIgnored private var isPreparingInstallation = false
     public private(set) var preparationError: String?
 
-    public private(set) var canCheckForUpdates = false
+    /// What Sparkle reports. It is false while an update session is running,
+    /// which includes an install paused because runtime cleanup failed.
+    private var sparkleCanCheck = false
+
+    /// Check for Updates also retries a paused install, so it stays enabled
+    /// while one is waiting even though Sparkle reports a session in progress.
+    public var canCheckForUpdates: Bool {
+        sparkleCanCheck || pendingInstallHandler != nil
+    }
+
     public private(set) var lastUpdateCheckDate: Date?
     public private(set) var automaticallyChecksForUpdates = true
     public private(set) var automaticallyDownloadsUpdates = true
@@ -153,7 +163,7 @@ public final class UpdateService: NSObject {
         // Do not construct Sparkle: even a manual check can resume an installer
         // staged by an earlier process, independently of automatic preferences.
         if usesManualDownloads {
-            canCheckForUpdates = true
+            sparkleCanCheck = true
             automaticallyChecksForUpdates = false
             automaticallyDownloadsUpdates = false
             allowsAutomaticUpdates = false
@@ -178,10 +188,10 @@ public final class UpdateService: NSObject {
         if let updater = updaterController?.updater {
             // Clear legacy feed URL overrides from UserDefaults in case older builds used setFeedURL.
             updater.clearFeedURLFromUserDefaults()
-            canCheckForUpdates = updater.canCheckForUpdates
+            sparkleCanCheck = updater.canCheckForUpdates
             canCheckObservation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] updater, _ in
                 let canCheck = updater.canCheckForUpdates
-                Task { @MainActor in self?.canCheckForUpdates = canCheck }
+                Task { @MainActor in self?.sparkleCanCheck = canCheck }
             }
             lastUpdateCheckDate = updater.lastUpdateCheckDate
             automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
@@ -453,7 +463,6 @@ extension UpdateService {
         if !prepared, pendingInstallHandler === handler {
             let reason = "Update paused because keyboard cleanup could not be verified. Resolve the runtime issue in Settings, then choose Check for Updates to retry."
             preparationError = reason
-            canCheckForUpdates = true
             AppLogger.shared.error("⚠️ [UpdateService] \(reason)")
             UserNotificationService.shared.notifyConfigEvent("Update paused", body: reason, key: "update.runtime-cleanup")
         }

@@ -53,6 +53,27 @@ final class UpdateServiceDecisionTests: XCTestCase {
     }
 
     @MainActor
+    func testPausedInstallKeepsCheckForUpdatesEnabledAndRetriesOnce() async {
+        let service = UpdateService.testService()
+        var cleanupSucceeds = false
+        var installs = 0
+        service.configureRuntimeStop { cleanupSucceeds }
+        // Sparkle reports a session in progress (canCheck false) while it waits.
+        await service.postponeInstallation(version: "9.9", install: { installs += 1 })
+        XCTAssertEqual(installs, 0, "cleanup failed, so nothing installs")
+        XCTAssertNotNil(service.preparationError)
+        XCTAssertTrue(service.canCheckForUpdates, "the retry button must stay enabled")
+
+        cleanupSucceeds = true
+        service.checkForUpdates()
+        for _ in 0 ..< 20 where installs == 0 {
+            await Task.yield()
+        }
+        XCTAssertEqual(installs, 1)
+        XCTAssertFalse(service.canCheckForUpdates, "no paused install remains, and Sparkle has not reported yet")
+    }
+
+    @MainActor
     func testUpdateContinuationWaitsForSuccessfulRuntimeCleanup() async {
         var phases: [String] = []
         let result = await UpdateService.continueAfterRuntimeCleanup(stop: {
