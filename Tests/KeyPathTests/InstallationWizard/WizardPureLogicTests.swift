@@ -397,7 +397,7 @@ final class WizardPureLogicTests: XCTestCase {
         }
     }
 
-    // MARK: - InstallerEngine.actions(for:context:): Repair Actions
+    // MARK: - Repair actions (InstallerEngine.actions)
 
     /// Executable plans start the runtime only when session readiness is missing.
     func test_sessionPlansOnlyStartWhenRuntimeReadinessIsMissing() {
@@ -438,7 +438,6 @@ final class WizardPureLogicTests: XCTestCase {
     func test_inspectionAndUninstallNeverPlanRuntimeMutations() {
         let context = makeContext(services: .empty, components: .empty)
         XCTAssertEqual(InstallerEngine.actions(for: .inspectOnly, context: context), [])
-        XCTAssertEqual(InstallerEngine.actions(for: .uninstall, context: context), [])
         XCTAssertEqual(InstallerEngine.actions(for: .uninstall, context: context), [])
     }
 

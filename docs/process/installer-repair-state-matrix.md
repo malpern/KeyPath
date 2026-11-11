@@ -212,7 +212,7 @@ the result as user action required and name the approval surface.
   wizard adapters must not be restored. `WizardPureLogicTests` pins projection
   and classification behavior, while
   `SnapshotConsumerLintTests.testInstallerEnginePreservesMatrixEvidenceThroughSystemSnapshotBridge`
-  prevents duplicate recapture.
+  and `InstallerEngineLintTests` prevent duplicate recapture or planning paths.
 
 ## Related References
 
