@@ -57,7 +57,7 @@ backend switch with them (ADR-047); see git history for them.
 | State | Typical Evidence | Planner Should | Success Postcondition | Test Requirement |
 |-------|------------------|----------------|-----------------------|------------------|
 | Session runtime stopped or not ready | Current tap/process/TCP or bundled payload evidence is missing | Start/recover through the session lifecycle owner; request Accessibility only if needed | Current tap active, process live, TCP responding and bundled payload present; otherwise explicit failure or user action | Session golden fixture, plus unknown-capture and missing-payload rejection |
-| Session tap active and TCP responding | Current independently verified tap, process, TCP and bundled payload | Nothing to install or repair | Runtime ready | Session ready golden fixture |
+| Session tap active and engine responding | Current independently verified tap, process, engine socket and bundled payload | Nothing to install or repair | Runtime ready | Session ready golden fixture |
 
 ## Uninstall
 

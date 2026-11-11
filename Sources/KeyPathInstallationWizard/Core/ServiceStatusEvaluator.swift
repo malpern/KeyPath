@@ -25,7 +25,7 @@ public enum ServiceStatusEvaluator {
     ) -> ServiceProcessStatus {
         let currentIssues = issues.filter { issue in
             !(runtimeStatus.isRunning && systemState == .serviceNotRunning
-                && issue.identifier == .daemon && issue.autoFixAction == .restartCommServer)
+                && issue.identifier == .daemon && issue.autoFixAction == .startSessionRuntime)
         }
         return evaluate(
             kanataIsRunning: runtimeStatus.isRunning,

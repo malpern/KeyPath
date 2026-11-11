@@ -45,7 +45,7 @@ public enum SystemInspector {
         return (.serviceNotRunning, [WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
             title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
-            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+            autoFixAction: .startSessionRuntime, userAction: "Start the keyboard service"
         )])
     }
 
@@ -56,7 +56,7 @@ public enum SystemInspector {
             identifier: .daemon, severity: .error, category: .daemon,
             title: "Check keyboard access",
             description: "Keyboard access has not been verified by the session runtime. Start or retry the keyboard service to check access.",
-            autoFixAction: .restartCommServer, userAction: "Start or retry the keyboard service"
+            autoFixAction: .startSessionRuntime, userAction: "Start or retry the keyboard service"
         )])
     }
 }

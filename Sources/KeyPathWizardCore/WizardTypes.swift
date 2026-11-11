@@ -151,10 +151,8 @@ public enum ComponentRequirement: Equatable, Sendable {
 
 /// Actions that can be automatically fixed by the wizard
 public enum AutoFixAction: Equatable, Sendable {
-    /// Start the user-session runtime (the name predates the session runtime).
-    case restartCommServer
-    /// Confirm KeyPath's configuration file is where the runtime reads it.
-    case synchronizeConfigPaths
+    /// Start the user-session runtime.
+    case startSessionRuntime
 }
 
 /// Structured identifier for wizard issues to enable type-safe navigation

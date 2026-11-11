@@ -9,7 +9,7 @@ final class ServiceStatusEvaluatorBlockingIssueTests: XCTestCase {
     func testDaemonError_serviceStatusIsFailed_notRunning() {
         let issue = WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
-            title: "Start driverless remapping", description: "", autoFixAction: .restartCommServer, userAction: nil
+            title: "Start driverless remapping", description: "", autoFixAction: .startSessionRuntime, userAction: nil
         )
         let status = ServiceStatusEvaluator.evaluate(
             kanataIsRunning: true,

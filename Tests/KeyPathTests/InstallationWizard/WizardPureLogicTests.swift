@@ -186,7 +186,7 @@ final class WizardPureLogicTests: XCTestCase {
                 context: makeContext(services: stoppedWithStaleDiagnostic),
                 assessment: .sessionRuntimeStopped,
                 matrixActions: [.restartOrRecoverKanataRuntime],
-                autoFixActions: [.restartCommServer]
+                autoFixActions: [.startSessionRuntime]
             ),
         ]
 
@@ -377,7 +377,6 @@ final class WizardPureLogicTests: XCTestCase {
     func test_recipeIDs_areUniqueStrings() {
         let allIDs = [
             InstallerRecipeID.startSessionRuntime,
-            InstallerRecipeID.synchronizeConfigPaths,
             InstallerRecipeID.verifyPostconditions,
         ]
         let uniqueIDs = Set(allIDs)
@@ -387,7 +386,6 @@ final class WizardPureLogicTests: XCTestCase {
     func test_recipeIDs_areKebabCase() {
         let allIDs = [
             InstallerRecipeID.startSessionRuntime,
-            InstallerRecipeID.synchronizeConfigPaths,
             InstallerRecipeID.verifyPostconditions,
         ]
         for id in allIDs {
@@ -412,7 +410,7 @@ final class WizardPureLogicTests: XCTestCase {
                 kanataInputCaptureReady: inputReady
             )
             let context = makeContext(services: health, components: .empty)
-            let expected: [AutoFixAction] = running && responding && inputReady ? [] : [.restartCommServer]
+            let expected: [AutoFixAction] = running && responding && inputReady ? [] : [.startSessionRuntime]
             for intent in [InstallIntent.install, .repair] {
                 XCTAssertEqual(InstallerEngine.actions(for: intent, context: context), expected)
             }
