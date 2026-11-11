@@ -171,6 +171,7 @@ struct SessionCapsMappingFleet {
                     try lease.restore(expectedOwner: owner, bootSessionUUID: bootSessionUUID)
                 }
             } catch {
+                AppLogger.shared.warn("[SessionCaps] Recovering keyboard \(id) failed: \(error)")
                 if firstFailure == nil { firstFailure = error }
             }
         }

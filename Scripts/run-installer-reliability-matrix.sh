@@ -56,7 +56,6 @@ run_lane() {
 
     start_seconds="$(date +%s)"
     set +e
-    KEYPATH_USE_INSTALLER_ENGINE=1 \
     SKIP_EVENT_TAP_TESTS=1 \
     SWIFT_TEST=1 \
     CI_ENVIRONMENT="${CI_ENVIRONMENT:-false}" \
@@ -117,7 +116,6 @@ run_diagnostics_snapshot() {
     echo
     echo "==> [diagnostic] Capturing inspect snapshot"
     set +e
-    KEYPATH_USE_INSTALLER_ENGINE=1 \
     SKIP_EVENT_TAP_TESTS=1 \
     SWIFT_TEST=1 \
     CI_ENVIRONMENT="${CI_ENVIRONMENT:-false}" \
