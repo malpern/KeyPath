@@ -49,5 +49,18 @@ one serial queue:
 
 Both failure paths now log the error.
 
+Two consequences:
+
+- **Exit can now wait for a check.** The wait is bounded, because each
+  `hidutil` call has a 2-second limit, but a check covering several keyboards
+  can take a few seconds. That time comes before the worker's terminal report
+  and its power acknowledgement. Before the fix the restore failed at once; a
+  short delay that restores Caps is the better trade.
+- **Checks run at `.userInitiated` priority** instead of the global `.utility`
+  queue, because the restore at exit shares their queue.
+
+The serializer's tests cover the ordering. Only the live runs on the mini cover
+the worker's real lease locks.
+
 Verified on the mini: 8 of 8 `kill -9` runs restored Caps (state `stopped`),
 against 3 failures in 5 before.
