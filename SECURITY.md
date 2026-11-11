@@ -58,8 +58,8 @@ are treated as high priority.
 The engine's control channel is a Unix-domain socket that admits only the app
 that launched the session worker (uid, PID and PID version on every
 connection; [ADR-046](docs/adr/adr-046-session-engine-control-channel.md)).
-It replaced an unauthenticated port on `127.0.0.1:37001`. One known
-limitation is public: the engine does not yet check the connecting process's
-code signature, so a same-user process that injects code into KeyPath, or
-impersonates it, is not stopped by the channel itself. Any way to reach the
-engine from another process is worth reporting.
+It replaced an unauthenticated port on `127.0.0.1:37001`. The engine also
+checks the connecting process's code signature: its running code must satisfy
+KeyPath's own designated requirement, so code injected into KeyPath, or a
+program posing as it, is refused. Any way to reach the engine from another
+process is worth reporting.
