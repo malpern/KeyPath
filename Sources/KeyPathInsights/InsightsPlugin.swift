@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Plugin entry point for KeyPath Insights.
 ///
-/// Loaded dynamically by the host app via `NSPrincipalClass`.
+/// Linked into KeyPath and registered by `PluginManager` at startup.
 /// Provides activity logging settings UI and forwards action events
 /// to `ActivityLogger` for usage analytics.
 @objc(InsightsPlugin)

@@ -9,8 +9,7 @@ for relative_path in \
     "Contents/MacOS/keypath-cli" \
     "Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
     "Contents/Library/KeyPath/kanata-simulator" \
-    "Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" \
-    "Contents/PlugIns/Insights.bundle/Contents/MacOS/libKeyPathInsights"; do
+    "Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata"; do
     executable="$APP_PATH/$relative_path"
     if [[ ! -f "$executable" ]]; then
         echo "Missing Apple Silicon release component: $relative_path" >&2
