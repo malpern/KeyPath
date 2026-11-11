@@ -95,24 +95,6 @@ public class KeyboardCapture {
     func startCapture(callback: @escaping (String) -> Void) {
         guard !isCapturing else { return }
 
-        if FeatureFlags.useJustInTimePermissionRequests {
-            let keyboardCapture = self
-            Task { @MainActor [weak keyboardCapture] in
-                guard let keyboardCapture else { return }
-                await PermissionGate.shared.checkAndRequestPermissions(
-                    for: .keyCapture,
-                    onGranted: { [weak keyboardCapture] in
-                        guard let keyboardCapture else { return }
-                        keyboardCapture.startCaptureAfterPermissions(callback: callback)
-                    },
-                    onDenied: {
-                        callback("⚠️ \(AccessibilityPermissionPresentation.current.name) permission required")
-                    }
-                )
-            }
-            return
-        }
-
         captureCallback = callback
         isCapturing = true
         isContinuous = false
@@ -144,20 +126,6 @@ public class KeyboardCapture {
             }
             return
         }
-
-        // Use TCP-based capture when Kanata is running, otherwise CGEvent
-        if fastProbeKanataRunning() {
-            setupTcpCapture()
-        } else {
-            currentTapLocation = .cgSessionEventTap
-            setupEventTap(at: currentTapLocation)
-        }
-    }
-
-    private func startCaptureAfterPermissions(callback: @escaping (String) -> Void) {
-        captureCallback = callback
-        isCapturing = true
-        isContinuous = false
 
         // Use TCP-based capture when Kanata is running, otherwise CGEvent
         if fastProbeKanataRunning() {

@@ -12,7 +12,6 @@ struct StatusSettingsTabView: View {
     @State private var autoDetectController = AutoDetectKeyboardController.shared
 
     @State var wizardInitialPage: WizardPage? // nil = don't show wizard
-    @State private var showSetupBanner = false
     @State var permissionSnapshot: PermissionOracle.Snapshot?
     @State var systemContext: SystemContext?
     @State var wizardSystemState: WizardSystemState = .initializing
@@ -75,14 +74,6 @@ struct StatusSettingsTabView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if FeatureFlags.allowOptionalWizard, showSetupBanner {
-                    SetupBanner {
-                        wizardInitialPage = .summary
-                    }
-                    .padding(.horizontal, SettingsDesign.pageInset)
-                    .padding(.top, 20)
-                }
-
                 // System Status Hero Section: centred against the status list so
                 // the summary stays balanced as rows are added or removed.
                 HStack(alignment: .center, spacing: 40) {
@@ -404,7 +395,6 @@ struct StatusSettingsTabView: View {
         systemContext = context
         wizardSystemState = controller.lastAdaptedState
         wizardIssues = controller.issues
-        showSetupBanner = !(context.permissions.isSystemReady && context.services.isHealthy)
         duplicateAppCopies = duplicates
         capsManaged = kanataManager.underlyingManager.serviceLifecycleCoordinator.sessionManagedCapsActive
         Task { await launchAtLogin.refresh() }

@@ -16,8 +16,8 @@ public final class PermissionRequestService {
     // MARK: - Startup guard
 
     /// Reference-counted depth tracking for wizard context. Permission requests are only
-    /// allowed when depth > 0. Multiple callers (WizardWindowController, SettingsView sheet,
-    /// PermissionGate) can push/pop without clobbering each other.
+    /// allowed when depth > 0. Multiple callers (WizardWindowController, the SettingsView
+    /// sheet) can push/pop without clobbering each other.
     private var _contextDepth = 0
 
     /// True when at least one caller has entered a wizard/permission context.
