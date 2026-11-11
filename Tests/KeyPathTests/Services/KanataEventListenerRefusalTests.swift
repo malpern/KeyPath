@@ -36,11 +36,12 @@ final class KanataEventListenerRefusalTests: XCTestCase {
         }
         XCTAssertEqual(listen(fd, 16), 0)
         let accepted = Counter()
+        let refusedThree = expectation(description: "three refused connections")
         Thread.detachNewThread {
             while true {
                 let client = accept(fd, nil, nil)
                 guard client >= 0 else { return }
-                accepted.increment()
+                if accepted.increment() == 3 { refusedThree.fulfill() }
                 shutdown(client, SHUT_RDWR)
                 close(client)
             }
@@ -51,10 +52,7 @@ final class KanataEventListenerRefusalTests: XCTestCase {
         defer { EngineControlEndpoint.publish(saved) }
         let listener = KanataEventListener()
         await listener.start(endpoint: .session, onLayerChange: { _ in })
-        let deadline = Date().addingTimeInterval(6)
-        while accepted.value < 3, Date() < deadline {
-            try await Task.sleep(for: .milliseconds(50))
-        }
+        await fulfillment(of: [refusedThree], timeout: 10)
         await listener.stop()
         close(fd)
         XCTAssertGreaterThanOrEqual(accepted.value, 3, "the listener kept reconnecting after refusals")
@@ -68,7 +66,12 @@ private final class Counter: @unchecked Sendable {
         lock.withLock { count }
     }
 
-    func increment() {
-        lock.withLock { count += 1 }
+    /// Returns the new count.
+    @discardableResult
+    func increment() -> Int {
+        lock.withLock {
+            count += 1
+            return count
+        }
     }
 }
