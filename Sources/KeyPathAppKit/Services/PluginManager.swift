@@ -3,22 +3,13 @@ import KeyPathCore
 import KeyPathPluginKit
 import SwiftUI
 
-/// Entry in the plugin catalog describing an available (not yet installed) plugin.
-@MainActor
-public struct PluginCatalogEntry: Identifiable, Sendable {
-    public let id: String
-    public let displayName: String
-    public let description: String
-    public let downloadURL: URL
-    public let estimatedSize: String
-}
-
-/// Discovers, loads, and manages KeyPath plugin bundles at runtime.
+/// Loads the plugins that ship inside KeyPath.app and forwards events to them.
 ///
-/// Plugins are `.bundle` files whose `NSPrincipalClass` conforms to `KeyPathPlugin`.
-/// Two search paths are scanned:
-/// 1. `~/Library/Application Support/KeyPath/Plugins/` (user-installed)
-/// 2. `Contents/PlugIns/` inside the app bundle (bundled for dev)
+/// Plugins are `.bundle` files in the app's `Contents/PlugIns/` whose
+/// `NSPrincipalClass` conforms to `KeyPathPlugin`; today that is Insights. They
+/// are built and signed with the app. KeyPath no longer downloads plugins or
+/// loads them from a user directory (project review 2026-11-09, O6): code it
+/// runs comes only from its own signed bundle.
 @Observable
 @MainActor
 public final class PluginManager {
@@ -31,157 +22,96 @@ public final class PluginManager {
     /// Currently loaded and active plugins
     public private(set) var plugins: [any KeyPathPlugin] = []
 
-    /// Known plugins available for download
-    public private(set) var availablePlugins: [PluginCatalogEntry] = []
-
-    /// Whether a plugin install is in progress
-    public private(set) var isInstalling = false
-
-    /// Current install progress message
-    public private(set) var installProgressMessage: String?
-
-    /// Download progress in 0...1 while downloading, or nil when indeterminate
-    /// (download not started, server didn't report a size, or unzip/install phase).
-    public private(set) var installProgress: Double?
-
-    /// Human-readable reason the last install failed, or nil. Cleared when a new
-    /// install starts or one succeeds. User-initiated cancellation does not set it.
-    public private(set) var installError: String?
-
     // MARK: - Private
 
     private var loadedBundlePaths: Set<String> = []
 
-    /// The in-flight install task, used for cancellation.
-    private var installTask: Task<Void, Never>?
-
     #if DEBUG
-        var testPluginsDirectory: URL?
-        var testDownload: ((URL) async throws -> URL)?
         var testPluginInstance: ((URL) throws -> NSObject)?
     #endif
 
-    private var userPluginsDirectory: URL {
-        #if DEBUG
-            if let testPluginsDirectory { return testPluginsDirectory }
-        #endif
-        guard let appSupport = Foundation.FileManager().urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Application Support directory unavailable")
-        }
-        return appSupport.appendingPathComponent("KeyPath/Plugins", isDirectory: true)
-    }
-
-    init() {
-        // Hardcoded catalog — just Insights for now
-        availablePlugins = [
-            PluginCatalogEntry(
-                id: "com.keypath.insights",
-                displayName: "Activity Insights",
-                description: "Tracks keyboard usage patterns, shortcuts, and app switches.",
-                downloadURL: URL(string: "https://github.com/malpern/KeyPath/releases/latest/download/Insights.bundle.zip")!,
-                estimatedSize: "~2 MB"
-            ),
-        ]
-    }
+    init() {}
 
     // MARK: - Discovery & Loading
 
-    /// Scans plugin directories and loads all discovered bundles.
+    /// Loads every plugin bundle in the app's `Contents/PlugIns/`.
     public func discoverAndLoadPlugins() {
-        AppLogger.shared.info("🔌 [PluginManager] Discovering plugins...")
-
-        var searchPaths: [URL] = [userPluginsDirectory]
-
-        // Also scan app bundle's PlugIns directory
-        if let builtInPlugIns = Bundle.main.builtInPlugInsURL {
-            searchPaths.append(builtInPlugIns)
+        Self.removeLegacyDownloadedPlugins()
+        guard let builtInPlugIns = Bundle.main.builtInPlugInsURL,
+              FileManager.default.fileExists(atPath: builtInPlugIns.path)
+        else {
+            AppLogger.shared.debug("🔌 [PluginManager] No built-in plugins directory")
+            return
         }
-
-        for searchPath in searchPaths {
-            guard Foundation.FileManager().fileExists(atPath: searchPath.path) else {
-                AppLogger.shared.debug("🔌 [PluginManager] Plugin path does not exist: \(searchPath.path)")
-                continue
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: builtInPlugIns, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+            )
+            for bundleURL in contents where bundleURL.pathExtension == "bundle" {
+                loadPlugin(from: bundleURL)
             }
-
-            do {
-                let contents = try Foundation.FileManager().contentsOfDirectory(
-                    at: searchPath,
-                    includingPropertiesForKeys: nil,
-                    options: [.skipsHiddenFiles]
-                )
-
-                for bundleURL in contents where bundleURL.pathExtension == "bundle" {
-                    loadPlugin(from: bundleURL)
-                }
-            } catch {
-                AppLogger.shared.error("🔌 [PluginManager] Failed to scan \(searchPath.path): \(error)")
-            }
+        } catch {
+            AppLogger.shared.error("🔌 [PluginManager] Failed to scan \(builtInPlugIns.path): \(error)")
         }
-
-        // Remove catalog entries for plugins that are already loaded
-        let loadedIdentifiers = Set(plugins.map { type(of: $0).identifier })
-        availablePlugins = availablePlugins.filter { !loadedIdentifiers.contains($0.id) }
-
         AppLogger.shared.info("🔌 [PluginManager] Loaded \(plugins.count) plugin(s)")
     }
 
     /// Load a single plugin bundle from a URL.
     @discardableResult
-    public func loadPlugin(from bundleURL: URL) -> Bool {
+    func loadPlugin(from bundleURL: URL) -> Bool {
         let path = bundleURL.path
         guard !loadedBundlePaths.contains(path) else {
             AppLogger.shared.debug("🔌 [PluginManager] Already loaded: \(bundleURL.lastPathComponent)")
             return true
         }
-
-        let instance: NSObject
-        do {
-            instance = try pluginInstance(from: bundleURL)
-        } catch {
-            AppLogger.shared.error("🔌 [PluginManager] Failed to load plugin: \(error)")
+        guard let instance = pluginInstance(from: bundleURL) else {
+            AppLogger.shared.error("🔌 [PluginManager] Failed to load plugin: \(bundleURL.lastPathComponent)")
             return false
         }
-
         guard let plugin = instance as? any KeyPathPlugin else {
             AppLogger.shared.error(
                 "🔌 [PluginManager] NSPrincipalClass does not conform to KeyPathPlugin: \(bundleURL.lastPathComponent)"
             )
             return false
         }
-
         plugins.append(plugin)
         loadedBundlePaths.insert(path)
-
-        let identifier = type(of: plugin).identifier
-        let displayName = type(of: plugin).displayName
-        AppLogger.shared.info("🔌 [PluginManager] Loaded plugin: \(displayName) (\(identifier))")
-
+        AppLogger.shared.info("🔌 [PluginManager] Loaded plugin: \(type(of: plugin).displayName) (\(type(of: plugin).identifier))")
         // Activate synchronously (plugin dispatches async work internally)
         plugin.activate()
-        AppLogger.shared.info("🔌 [PluginManager] Activated plugin: \(displayName)")
-
-        // Remove from available catalog
-        availablePlugins.removeAll { $0.id == identifier }
         return true
     }
 
-    private func pluginInstance(from bundleURL: URL) throws -> NSObject {
+    private func pluginInstance(from bundleURL: URL) -> NSObject? {
         #if DEBUG
-            if let testPluginInstance { return try testPluginInstance(bundleURL) }
+            if let testPluginInstance { return try? testPluginInstance(bundleURL) }
         #endif
-        guard let bundle = Bundle(url: bundleURL), bundle.load(),
-              let principalClass = bundle.principalClass as? NSObject.Type
-        else {
-            throw InstallError(userMessage: "The plugin bundle could not be loaded.")
+        guard let bundle = Bundle(url: bundleURL) else { return nil }
+        do {
+            try bundle.loadAndReturnError()
+        } catch {
+            // dyld and code-signing refusals say why here, not in a bare false.
+            AppLogger.shared.error("🔌 [PluginManager] \(bundleURL.lastPathComponent): \(error.localizedDescription)")
+            return nil
         }
+        guard let principalClass = bundle.principalClass as? NSObject.Type else { return nil }
         return principalClass.init()
     }
 
-    private func downloadPlugin(from url: URL, downloader: PluginDownloader) async throws -> URL {
-        #if DEBUG
-            if let testDownload { return try await testDownload(url) }
-        #endif
-        return try await downloader.download(from: url)
+    /// Where 1.0.1 and earlier installed downloaded plugins. It held only the
+    /// downloaded code (activity data lives in `KeyPath/ActivityLog`), and
+    /// nothing loads from it now, so stale copies are removed.
+    static func removeLegacyDownloadedPlugins(
+        directory: URL? = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("KeyPath/Plugins", isDirectory: true)
+    ) {
+        guard let directory, FileManager.default.fileExists(atPath: directory.path) else { return }
+        do {
+            try FileManager.default.removeItem(at: directory)
+            AppLogger.shared.info("🔌 [PluginManager] Removed legacy downloaded plugins at \(directory.path)")
+        } catch {
+            AppLogger.shared.warn("🔌 [PluginManager] Could not remove legacy plugins directory: \(error)")
+        }
     }
 
     // MARK: - Action Broadcasting
@@ -218,252 +148,5 @@ public final class PluginManager {
                 }
             }
         }
-    }
-
-    // MARK: - Install / Remove
-
-    /// Error thrown during install with a user-facing message.
-    private struct InstallError: Error {
-        let userMessage: String
-    }
-
-    /// Starts a (cancellable) download + install of a plugin bundle. Fire-and-forget:
-    /// progress, completion, and any error are reflected on the observable state
-    /// (`isInstalling`, `installProgress`, `installProgressMessage`, `installError`).
-    /// Ignored if an install is already running.
-    public func beginInstall(from url: URL) {
-        guard installTask == nil else {
-            AppLogger.shared.warn("🔌 [PluginManager] Install already in progress; ignoring request")
-            return
-        }
-
-        installError = nil
-        installProgress = nil
-        isInstalling = true
-        installProgressMessage = "Downloading\u{2026}"
-
-        installTask = Task { [self] in
-            _ = await performInstall(from: url)
-            isInstalling = false
-            installProgressMessage = nil
-            installProgress = nil
-            installTask = nil
-        }
-    }
-
-    /// Cancels an in-flight install. The download is aborted and partial files
-    /// are cleaned up; no error message is shown for user-initiated cancellation.
-    public func cancelInstall() {
-        guard installTask != nil else { return }
-        AppLogger.shared.info("🔌 [PluginManager] Cancelling in-flight install")
-        installProgressMessage = "Cancelling\u{2026}"
-        installTask?.cancel()
-    }
-
-    /// Backwards-compatible one-shot install. Returns true on success. Prefer
-    /// `beginInstall(from:)` for UI use so the install can be cancelled.
-    @discardableResult
-    public func installPlugin(from url: URL) async -> Bool {
-        isInstalling = true
-        installError = nil
-        installProgress = nil
-        installProgressMessage = "Downloading\u{2026}"
-        defer {
-            isInstalling = false
-            installProgressMessage = nil
-            installProgress = nil
-        }
-        return await performInstall(from: url)
-    }
-
-    /// Runs the full download → unzip → install pipeline, updating observable
-    /// state. Sets `installError` with a specific message on failure; leaves it
-    /// nil on success or user cancellation.
-    private func performInstall(from url: URL) async -> Bool {
-        do {
-            // Download with progress + cancellation support.
-            let downloader = PluginDownloader { [weak self] progress in
-                Task { @MainActor in self?.installProgress = progress }
-            }
-            let tempFileURL: URL
-            do {
-                tempFileURL = try await downloadPlugin(from: url, downloader: downloader)
-            } catch let urlError as URLError where urlError.code == .cancelled {
-                throw CancellationError()
-            } catch let urlError as URLError {
-                throw InstallError(userMessage: networkMessage(for: urlError))
-            }
-
-            defer { try? Foundation.FileManager().removeItem(at: tempFileURL) }
-            try Task.checkCancellation()
-            installProgressMessage = "Installing\u{2026}"
-            installProgress = nil
-
-            // Ensure plugins directory exists
-            try Foundation.FileManager().createDirectory(at: userPluginsDirectory, withIntermediateDirectories: true)
-
-            // Unzip
-            let unzipDir = Foundation.FileManager().temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try Foundation.FileManager().createDirectory(at: unzipDir, withIntermediateDirectories: true)
-
-            defer { try? Foundation.FileManager().removeItem(at: unzipDir) }
-
-            let result = try await SubprocessRunner.shared.run("/usr/bin/ditto", args: ["-xk", tempFileURL.path, unzipDir.path])
-            guard result.exitCode == 0 else {
-                AppLogger.shared.error("🔌 [PluginManager] Unzip failed with status \(result.exitCode)")
-                try? Foundation.FileManager().removeItem(at: tempFileURL)
-                throw InstallError(userMessage: "The download couldn't be unpacked — it may be corrupted. Try again.")
-            }
-
-            try Task.checkCancellation()
-
-            // Find the .bundle in unzipped contents
-            let unzippedContents = try Foundation.FileManager().contentsOfDirectory(
-                at: unzipDir,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
-
-            guard let bundleSource = unzippedContents.first(where: { $0.pathExtension == "bundle" }) else {
-                AppLogger.shared.error("🔌 [PluginManager] No .bundle found in downloaded archive")
-                try? Foundation.FileManager().removeItem(at: tempFileURL)
-                try? Foundation.FileManager().removeItem(at: unzipDir)
-                throw InstallError(userMessage: "The download didn't contain a valid plugin.")
-            }
-
-            let destination = userPluginsDirectory.appendingPathComponent(bundleSource.lastPathComponent)
-
-            // A loaded bundle cannot be replaced safely in this process.
-            guard !loadedBundlePaths.contains(destination.path) else {
-                throw InstallError(userMessage: "This plugin is already loaded. Restart KeyPath before replacing it.")
-            }
-            try Task.checkCancellation()
-
-            // Keep an unloaded previous installation until the replacement activates.
-            // The backup lives beside the destination, outside temporary extraction
-            // cleanup, so a failed restoration cannot erase the recovery copy.
-            let fileManager = Foundation.FileManager()
-            let backup = userPluginsDirectory.appendingPathComponent(".plugin-backup-" + UUID().uuidString)
-            let hadPrevious = fileManager.fileExists(atPath: destination.path)
-            if hadPrevious {
-                try fileManager.moveItem(at: destination, to: backup)
-            }
-            var movedReplacement = false
-            do {
-                try fileManager.moveItem(at: bundleSource, to: destination)
-                movedReplacement = true
-                guard loadPlugin(from: destination) else {
-                    throw InstallError(userMessage: "The plugin could not be activated. Check that it is compatible with this version of KeyPath.")
-                }
-            } catch {
-                let installationError = error
-                do {
-                    if movedReplacement {
-                        try fileManager.removeItem(at: destination)
-                    }
-                    if hadPrevious {
-                        try fileManager.moveItem(at: backup, to: destination)
-                    }
-                } catch {
-                    // Leave the backup intact and identify it instead of reporting
-                    // that the previous installation was restored.
-                    let recovery = hadPrevious ? " The previous plugin is preserved at \(backup.path)." : ""
-                    throw InstallError(userMessage: "Plugin installation failed and cleanup could not finish." + recovery + " \(error.localizedDescription)")
-                }
-                throw installationError
-            }
-            if hadPrevious {
-                do { try fileManager.removeItem(at: backup) }
-                catch {
-                    // Activation succeeded; leftover backup cleanup is not an
-                    // activation failure and must not trigger another activation.
-                    AppLogger.shared.warn("🔌 [PluginManager] Installed plugin; could not remove backup at \(backup.path): \(error)")
-                }
-            }
-
-            AppLogger.shared.info("🔌 [PluginManager] Plugin installed from: \(url.lastPathComponent)")
-            return true
-        } catch is CancellationError {
-            AppLogger.shared.info("🔌 [PluginManager] Install cancelled by user")
-        } catch let error as InstallError {
-            AppLogger.shared.error("🔌 [PluginManager] Install failed: \(error.userMessage)")
-            installError = error.userMessage
-        } catch {
-            AppLogger.shared.error("🔌 [PluginManager] Install failed: \(error)")
-            installError = "Installation failed: \(error.localizedDescription)"
-        }
-        return false
-    }
-
-    /// Maps a `URLError` to a concise, user-facing reason.
-    private func networkMessage(for error: URLError) -> String {
-        switch error.code {
-        case .notConnectedToInternet:
-            "No internet connection. Check your network and try again."
-        case .timedOut:
-            "The download timed out. Check your connection and try again."
-        case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
-            "Couldn't reach the download server. Try again later."
-        case .fileDoesNotExist, .badURL, .resourceUnavailable:
-            "The plugin download is unavailable. Try again later."
-        default:
-            "Download failed: \(error.localizedDescription)"
-        }
-    }
-
-    /// Removes a plugin by its identifier: deactivates, deletes bundle from disk.
-    public func removePlugin(identifier: String) -> Bool {
-        guard let index = plugins.firstIndex(where: { type(of: $0).identifier == identifier }) else {
-            AppLogger.shared.warn("🔌 [PluginManager] Cannot remove unknown plugin: \(identifier)")
-            return false
-        }
-
-        let plugin = plugins[index]
-        let displayName = type(of: plugin).displayName
-
-        // Deactivate
-        plugin.deactivate?()
-
-        plugins.remove(at: index)
-
-        // Find and delete the bundle file
-        let bundlePath = loadedBundlePaths.first { path in
-            if let bundle = Bundle(path: path),
-               let cls = bundle.principalClass as? NSObject.Type,
-               let check = cls.init() as? any KeyPathPlugin,
-               type(of: check).identifier == identifier
-            {
-                return true
-            }
-            return false
-        }
-
-        if let path = bundlePath {
-            loadedBundlePaths.remove(path)
-            do {
-                try Foundation.FileManager().removeItem(atPath: path)
-                AppLogger.shared.info("🔌 [PluginManager] Deleted bundle: \(path)")
-            } catch {
-                AppLogger.shared.error("🔌 [PluginManager] Failed to delete bundle: \(error)")
-            }
-        }
-
-        // Re-add to catalog
-        let catalogEntry = PluginCatalogEntry(
-            id: identifier,
-            displayName: displayName,
-            description: "Tracks keyboard usage patterns, shortcuts, and app switches.",
-            downloadURL: URL(string: "https://github.com/malpern/KeyPath/releases/latest/download/Insights.bundle.zip")!,
-            estimatedSize: "~2 MB"
-        )
-        availablePlugins.append(catalogEntry)
-
-        AppLogger.shared.info("🔌 [PluginManager] Removed plugin: \(displayName)")
-        return true
-    }
-
-    /// Check if a specific plugin is loaded by identifier.
-    public func isPluginLoaded(identifier: String) -> Bool {
-        plugins.contains { type(of: $0).identifier == identifier }
     }
 }

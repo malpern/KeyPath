@@ -5,120 +5,54 @@ import KeyPathPluginKit
 
 @MainActor
 final class PluginManagerTests: KeyPathTestCase {
-    private var root: URL!
     private var manager: PluginManager!
+    private let bundleURL = URL(fileURLWithPath: "/nonexistent/Fixture.bundle")
 
     override func setUp() async throws {
         try await super.setUp()
-        root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         manager = PluginManager()
-        manager.testPluginsDirectory = root.appendingPathComponent("Installed")
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: root)
         manager = nil
         try await super.tearDown()
     }
 
-    private func archive() throws -> URL {
-        let source = root.appendingPathComponent(UUID().uuidString)
-        let bundle = source.appendingPathComponent("Fixture.bundle")
-        try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
-        try Data("invalid bundle fixture".utf8).write(to: bundle.appendingPathComponent("fixture"))
-        let zip = root.appendingPathComponent(UUID().uuidString + ".zip")
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        process.arguments = ["-c", "-k", "--keepParent", bundle.path, zip.path]
-        try process.run()
-        process.waitUntilExit()
-        XCTAssertEqual(process.terminationStatus, 0)
-        return zip
-    }
-
-    func testInvalidBundleDoesNotReportInstalled() async throws {
-        let zip = try archive()
-        manager.testDownload = { _ in zip }
-        let result = await manager.installPlugin(from: URL(string: "https://example.invalid/plugin.zip")!)
-        XCTAssertFalse(result)
-        XCTAssertNotNil(manager.installError)
+    func testUnloadableBundleIsNotLoaded() {
+        manager.testPluginInstance = { _ in throw CocoaError(.fileReadCorruptFile) }
+        XCTAssertFalse(manager.loadPlugin(from: bundleURL))
         XCTAssertTrue(manager.plugins.isEmpty)
-        XCTAssertTrue(manager.availablePlugins.contains { $0.id == "com.keypath.insights" })
-        XCTAssertFalse(manager.isInstalling)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: zip.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("Installed/Fixture.bundle").path))
     }
 
-    func testNonPluginPrincipalDoesNotReportInstalled() async throws {
-        let zip = try archive()
-        manager.testDownload = { _ in zip }
+    func testNonPluginPrincipalIsNotLoaded() {
         manager.testPluginInstance = { _ in NSObject() }
-        let result = await manager.installPlugin(from: URL(string: "https://example.invalid/plugin.zip")!)
-        XCTAssertFalse(result)
-        XCTAssertNotNil(manager.installError)
+        XCTAssertFalse(manager.loadPlugin(from: bundleURL))
         XCTAssertTrue(manager.plugins.isEmpty)
     }
 
-    func testValidPluginActivatesOnce() async throws {
-        let zip = try archive()
+    func testValidPluginActivatesOnce() {
         let plugin = FixturePlugin()
-        manager.testDownload = { _ in zip }
         manager.testPluginInstance = { _ in plugin }
-        let result = await manager.installPlugin(from: URL(string: "https://example.invalid/plugin.zip")!)
-        XCTAssertTrue(result)
-        XCTAssertNil(manager.installError)
+        XCTAssertTrue(manager.loadPlugin(from: bundleURL))
+        XCTAssertTrue(manager.loadPlugin(from: bundleURL), "a second load of the same bundle is a no-op")
         XCTAssertEqual(manager.plugins.count, 1)
         XCTAssertEqual(plugin.activationCount, 1)
-        manager.loadPlugin(from: root.appendingPathComponent("Installed/Fixture.bundle"))
-        XCTAssertEqual(plugin.activationCount, 1)
-        XCTAssertFalse(manager.availablePlugins.contains { $0.id == "com.keypath.insights" })
     }
 
-    func testCancelledDownloadDoesNotReportSuccessOrError() async {
-        manager.testDownload = { _ in throw CancellationError() }
-        let result = await manager.installPlugin(from: URL(string: "https://example.invalid/plugin.zip")!)
-        XCTAssertFalse(result)
-        XCTAssertNil(manager.installError)
-        XCTAssertTrue(manager.plugins.isEmpty)
-        XCTAssertFalse(manager.isInstalling)
-    }
+    func testLegacyDownloadedPluginsAreRemoved() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let legacy = root.appendingPathComponent("KeyPath/Plugins", isDirectory: true)
+        let activityLog = root.appendingPathComponent("KeyPath/ActivityLog", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: legacy.appendingPathComponent("Insights.bundle"),
+                                                withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: activityLog, withIntermediateDirectories: true)
 
-    func testFailedReplacementRestoresPreviousUnloadedBundle() async throws {
-        let previous = root.appendingPathComponent("Installed/Fixture.bundle")
-        try FileManager.default.createDirectory(at: previous, withIntermediateDirectories: true)
-        let original = Data("previous plugin bytes".utf8)
-        try original.write(to: previous.appendingPathComponent("previous"))
-        let zip = try archive()
-        manager.testDownload = { _ in zip }
-        manager.testPluginInstance = { _ in NSObject() }
+        PluginManager.removeLegacyDownloadedPlugins(directory: legacy)
 
-        let result = await manager.installPlugin(from: URL(string: "https://example.invalid/plugin.zip")!)
-
-        XCTAssertFalse(result)
-        XCTAssertNotNil(manager.installError)
-        XCTAssertTrue(manager.plugins.isEmpty)
-        XCTAssertEqual(try Data(contentsOf: previous.appendingPathComponent("previous")), original)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: previous.appendingPathComponent("fixture").path))
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: previous.deletingLastPathComponent().path), ["Fixture.bundle"])
-    }
-
-    func testSuccessfulReplacementRemovesBackup() async throws {
-        let previous = root.appendingPathComponent("Installed/Fixture.bundle")
-        try FileManager.default.createDirectory(at: previous, withIntermediateDirectories: true)
-        try Data("previous".utf8).write(to: previous.appendingPathComponent("previous"))
-        let zip = try archive()
-        let plugin = FixturePlugin()
-        manager.testDownload = { _ in zip }
-        manager.testPluginInstance = { _ in plugin }
-
-        let result = await manager.installPlugin(from: URL(string: "https://example.invalid/plugin.zip")!)
-
-        XCTAssertTrue(result)
-        XCTAssertEqual(plugin.activationCount, 1)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: previous.appendingPathComponent("previous").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: previous.appendingPathComponent("fixture").path))
-        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: previous.deletingLastPathComponent().path), ["Fixture.bundle"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: activityLog.path), "activity data is not touched")
+        PluginManager.removeLegacyDownloadedPlugins(directory: legacy) // absent: no-op
     }
 
     private final class FixturePlugin: NSObject, KeyPathPlugin {
