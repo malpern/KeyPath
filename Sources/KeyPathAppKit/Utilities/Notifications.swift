@@ -1,11 +1,7 @@
 import Foundation
 
 extension Notification.Name {
-    // Startup coordination
-    static let kp_startupWarm = Notification.Name("KeyPath.Startup.Warm")
-    static let kp_startupValidate = Notification.Name("KeyPath.Startup.Validate")
-    static let kp_startupAutoLaunch = Notification.Name("KeyPath.Startup.AutoLaunch")
-    static let kp_startupEmergencyMonitor = Notification.Name("KeyPath.Startup.EmergencyMonitor")
+    /// Startup coordination
     static let kp_startupRevalidate = Notification.Name("KeyPath.Startup.Revalidate")
 
     // App navigation
@@ -33,14 +29,6 @@ extension Notification.Name {
     static let openApp = Notification.Name("KeyPath.Action.OpenApp")
     static let resetToSafeConfig = Notification.Name("KeyPath.Action.ResetToSafeConfig")
 
-    /// SMAppService
-    static let smAppServiceApprovalRequired = Notification.Name(
-        "KeyPath.SMAppService.ApprovalRequired"
-    )
-
-    /// Kanata service health
-    static let kanataCrashLoopDetected = Notification.Name("KeyPath.Kanata.CrashLoopDetected")
-
     /// Rule collections
     static let ruleCollectionsChanged = Notification.Name("KeyPath.RuleCollections.Changed")
 
@@ -63,19 +51,11 @@ extension Notification.Name {
     /// userInfo: keyCode (UInt16), inputKey (String), outputKey (String), optional shiftedOutputKey (String), layer (String)
     static let mapperDrawerKeySelected = Notification.Name("KeyPath.Mapper.DrawerKeySelected")
 
-    /// Uninstall flow
-    static let keyPathUninstallCompleted = Notification.Name("KeyPath.Uninstall.Completed")
-
     /// Diagnostics
     static let verboseLoggingChanged = Notification.Name("KeyPath.Diagnostics.VerboseLoggingChanged")
 
     /// Config-affecting preference changed (e.g., nav trigger mode) - triggers config regeneration
     static let configAffectingPreferenceChanged = Notification.Name("KeyPath.Preferences.ConfigAffectingChanged")
-
-    /// Device selection changed (user toggled keyboards in Devices tab) - triggers config regeneration
-    static let deviceSelectionChanged = Notification.Name("KeyPath.Devices.SelectionChanged")
-    /// Device selection apply completed. userInfo["success"] = Bool
-    static let deviceSelectionApplyCompleted = Notification.Name("KeyPath.Devices.ApplyCompleted")
 
     /// Launcher: select and edit a specific key in LauncherCollectionView. userInfo["key"] = String
     static let launcherSelectKey = Notification.Name("KeyPath.Launcher.SelectKey")

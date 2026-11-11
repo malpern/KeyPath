@@ -6,7 +6,6 @@ import SwiftUI
 
 @MainActor
 protocol RecordingCapture: AnyObject {
-    func setEventRouter(_ router: EventRouter?, kanataManager: RuntimeCoordinator?)
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void)
     func stopCapture()
 }
@@ -17,10 +16,6 @@ final class KeyboardCaptureAdapter: RecordingCapture {
 
     init() {
         capture = KeyboardCapture()
-    }
-
-    func setEventRouter(_ router: EventRouter?, kanataManager: RuntimeCoordinator?) {
-        capture.setEventRouter(router, kanataManager: kanataManager)
     }
 
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
@@ -376,7 +371,6 @@ final class RecordingCoordinator {
                 }
 
                 self.logFocusState(prefix: "[Coordinator:Input]")
-                capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
                 let coordinator = self
 
@@ -521,7 +515,6 @@ final class RecordingCoordinator {
                 }
 
                 self.logFocusState(prefix: "[Coordinator:Output]")
-                capture.setEventRouter(nil, kanataManager: self.kanataManager)
                 let mode: CaptureMode = self.isSequenceMode ? .sequence : .chord
                 let coordinator = self
 

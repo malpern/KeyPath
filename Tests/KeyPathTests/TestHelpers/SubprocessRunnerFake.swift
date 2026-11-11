@@ -105,24 +105,6 @@ actor SubprocessRunnerFake: SubprocessRunning {
                     return []
                 }
             },
-            launchctlPrint: { target in
-                do {
-                    let result = try await self.launchctl("print", [target])
-                    return LaunchctlPrintEvidence(
-                        target: target,
-                        exitCode: result.exitCode,
-                        stdout: result.stdout,
-                        stderr: result.stderr
-                    )
-                } catch {
-                    return LaunchctlPrintEvidence(
-                        target: target,
-                        exitCode: nil,
-                        stdout: "",
-                        stderr: String(describing: error)
-                    )
-                }
-            },
             processIDsSynchronously: processIDsSynchronously,
             isProcessAlive: isProcessAlive,
             probeTCPPort: probeTCPPort
@@ -229,24 +211,6 @@ extension SubprocessRunning {
                         }
                 } catch {
                     return []
-                }
-            },
-            launchctlPrint: { target in
-                do {
-                    let result = try await self.launchctl("print", [target])
-                    return LaunchctlPrintEvidence(
-                        target: target,
-                        exitCode: result.exitCode,
-                        stdout: result.stdout,
-                        stderr: result.stderr
-                    )
-                } catch {
-                    return LaunchctlPrintEvidence(
-                        target: target,
-                        exitCode: nil,
-                        stdout: "",
-                        stderr: String(describing: error)
-                    )
                 }
             },
             processIDsSynchronously: processIDsSynchronously,

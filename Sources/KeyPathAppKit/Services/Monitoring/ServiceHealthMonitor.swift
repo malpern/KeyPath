@@ -29,22 +29,6 @@ struct ServiceHealthStatus: Sendable {
     }
 }
 
-/// Tracks restart attempts and cooldown state
-struct RestartCooldownState: Sendable {
-    let canRestart: Bool
-    let remainingCooldown: TimeInterval
-    let attemptsSinceLastSuccess: Int
-    let isInGracePeriod: Bool
-}
-
-/// Recovery action recommendation based on health status
-enum ServiceRecoveryAction: Sendable {
-    case none
-    case simpleRestart
-    case killAndRestart
-    case giveUp(reason: String)
-}
-
 // MARK: - Grab Recovery Decision
 
 /// Outcome of a kanata input-grab-failure event: attempt a bounded recovery, or give
@@ -66,28 +50,17 @@ struct ProcessHealthStatus: Sendable {
 
 // MARK: - Implementation
 
-/// Monitors service health and manages restart cooldowns and recovery strategies
+/// Checks that the engine is running and answering, and bounds recovery from
+/// input-grab failures.
 @MainActor
 final class ServiceHealthMonitor {
-    // MARK: - Dependencies
-
-    private let processDetector: KanataProcessDetector
-
     // MARK: - Configuration Constants
 
-    private let minRestartInterval: TimeInterval = 2.0 // Base minimum time between restarts
-    private let maxRestartInterval: TimeInterval = 30.0 // Maximum backoff interval
-    private let backoffMultiplier: Double = 2.0 // Exponential backoff multiplier
-    private let tcpServerGracePeriod: TimeInterval = 10.0 // Time to wait for TCP server to start
-    private let maxStartAttempts = 5 // Max auto-start attempts before giving up (increased for backoff)
-    private let maxRetryAttempts = 3 // Max retry attempts after fixes
     private let maxTCPHealthCheckRetries = 3 // Retries for TCP health checks
     private let tcpRetryDelay: TimeInterval = 0.5 // Delay between TCP retry attempts
 
     // MARK: - State Tracking
 
-    private var lastStartAttempt: Date?
-    private var lastServiceStart: Date? // Tracks when service was last started (for grace period)
     // Grab-failure recovery guard (#625): bound auto-restarts so a deterministic kanata
     // crash (e.g. #631) doesn't restart forever. Attempts reset on grab-success or after
     // a quiet window (a fresh failure episode gets a fresh budget).
@@ -95,9 +68,6 @@ final class ServiceHealthMonitor {
     private let grabRecoveryEpisodeWindow: TimeInterval = 300 // 5 min
     private var grabRecoveryAttempts = 0
     private var lastGrabRecoveryAt: Date?
-    private var startAttemptCount = 0
-    private var retryAttemptCount = 0
-    private var lastHealthCheckResult: ServiceHealthStatus?
 
     /// FIX #2: Shared TCP client for health checks to avoid creating new connections repeatedly
     private var healthCheckClient: KanataTCPClient?
@@ -107,25 +77,9 @@ final class ServiceHealthMonitor {
     private var heartbeatObserver: NSObjectProtocol?
     private let heartbeatFreshnessThreshold: TimeInterval = 5.0
 
-    // MARK: - Crash Loop Detection
-
-    /// Tracks recent PID observations for crash loop detection
-    private var recentPIDObservations: [(pid: Int, timestamp: Date)] = []
-
-    /// Time window for crash loop detection (multiple PID changes within this window = crash loop).
-    /// Must be >= 3x launchd ThrottleInterval (10s) to catch 3 crashes at 0s, 10s, 20s.
-    private let crashLoopWindowSeconds: TimeInterval = 45.0
-
-    /// Minimum PID changes within window to declare a crash loop
-    private let crashLoopThreshold = 3
-
-    /// Callback triggered when crash loop is detected
-    var onCrashLoopDetected: (() async -> Void)?
-
     // MARK: - Initialization
 
-    init(processDetector: KanataProcessDetector) {
-        self.processDetector = processDetector
+    init() {
         heartbeatObserver = NotificationCenter.default.addObserver(
             forName: .kanataTcpHeartbeat, object: nil, queue: NotificationObserverManager.mainOperationQueue
         ) { [weak self] _ in
@@ -133,7 +87,7 @@ final class ServiceHealthMonitor {
                 self?.lastHeartbeatTime = Date()
             }
         }
-        AppLogger.shared.info("[HealthMonitor] Initialized with process lifecycle manager")
+        AppLogger.shared.info("[HealthMonitor] Initialized")
     }
 
     // MARK: - Health Checking
@@ -154,46 +108,15 @@ final class ServiceHealthMonitor {
             "[HealthMonitor] Process running with PID: \(processStatus.pid?.description ?? "unknown")"
         )
 
-        // Check if we're in TCP grace period
-        if let lastStart = lastServiceStart {
-            let timeSinceStart = Date().timeIntervalSince(lastStart)
-            if timeSinceStart < tcpServerGracePeriod {
-                AppLogger.shared.debug(
-                    "[HealthMonitor] Within TCP grace period (\(String(format: "%.1f", timeSinceStart))s < \(tcpServerGracePeriod)s)"
-                )
-                return ServiceHealthStatus.healthy()
-            }
-        }
-
         // Second check: Try TCP health check with retries
         let tcpHealthy = await performTCPHealthCheck(port: tcpPort)
 
         if tcpHealthy {
             AppLogger.shared.debug("[HealthMonitor] Service is healthy")
-            let status = ServiceHealthStatus.healthy()
-            lastHealthCheckResult = status
-            return status
-        } else {
-            // Check if we should wait for grace period
-            if let lastStart = lastServiceStart {
-                let timeSinceStart = Date().timeIntervalSince(lastStart)
-                if timeSinceStart < tcpServerGracePeriod {
-                    AppLogger.shared.debug(
-                        "[HealthMonitor] TCP check failed but within grace period - giving more time"
-                    )
-                    return ServiceHealthStatus.unhealthy(
-                        reason: "TCP check failed (in grace period)", shouldRestart: false
-                    )
-                }
-            }
-
-            AppLogger.shared.warn("[HealthMonitor] Service unhealthy - TCP check failed")
-            let status = ServiceHealthStatus.unhealthy(
-                reason: "TCP health check failed", shouldRestart: true
-            )
-            lastHealthCheckResult = status
-            return status
+            return ServiceHealthStatus.healthy()
         }
+        AppLogger.shared.warn("[HealthMonitor] Service unhealthy - TCP check failed")
+        return ServiceHealthStatus.unhealthy(reason: "TCP health check failed", shouldRestart: true)
     }
 
     /// Perform TCP health check with retry logic
@@ -258,145 +181,6 @@ final class ServiceHealthMonitor {
         return isHealthy
     }
 
-    // MARK: - Restart Cooldown Management
-
-    /// Calculate exponential backoff interval based on attempt count
-    private func calculateBackoffInterval(attemptCount: Int) -> TimeInterval {
-        let backoff = minRestartInterval * pow(backoffMultiplier, Double(attemptCount - 1))
-        return min(backoff, maxRestartInterval)
-    }
-
-    func canRestartService() async -> RestartCooldownState {
-        let now = Date()
-        var canRestart = true
-        var remainingCooldown: TimeInterval = 0
-
-        // Check restart cooldown with exponential backoff
-        if let lastAttempt = lastStartAttempt {
-            let attemptCount = max(1, startAttemptCount) // Ensure at least 1 for calculation
-            let requiredInterval = calculateBackoffInterval(attemptCount: attemptCount)
-            let timeSinceLastAttempt = now.timeIntervalSince(lastAttempt)
-
-            if timeSinceLastAttempt < requiredInterval {
-                canRestart = false
-                remainingCooldown = requiredInterval - timeSinceLastAttempt
-                AppLogger.shared.debug(
-                    "[HealthMonitor] Restart cooldown active: \(String(format: "%.1f", remainingCooldown))s remaining (attempt \(attemptCount), interval \(String(format: "%.1f", requiredInterval))s)"
-                )
-            }
-        }
-
-        // Check if we're in grace period
-        var isInGracePeriod = false
-        if let lastStart = lastServiceStart {
-            let timeSinceStart = now.timeIntervalSince(lastStart)
-            isInGracePeriod = timeSinceStart < tcpServerGracePeriod
-        }
-
-        return RestartCooldownState(
-            canRestart: canRestart,
-            remainingCooldown: remainingCooldown,
-            attemptsSinceLastSuccess: startAttemptCount,
-            isInGracePeriod: isInGracePeriod
-        )
-    }
-
-    func recordStartAttempt(timestamp: Date) async {
-        lastStartAttempt = timestamp
-        lastServiceStart = timestamp
-        startAttemptCount += 1
-
-        let backoffInterval = calculateBackoffInterval(attemptCount: startAttemptCount)
-        AppLogger.shared.info(
-            "[HealthMonitor] Recorded start attempt #\(startAttemptCount) (next backoff: \(String(format: "%.1f", backoffInterval))s)"
-        )
-    }
-
-    func recordStartSuccess() async {
-        let previousAttempts = startAttemptCount
-        startAttemptCount = 0
-        retryAttemptCount = 0
-        // Clear crash loop observations: a successful start means the new PID is intentional,
-        // not a crash. Without this, 3 user-initiated restarts within the window would
-        // falsely trigger crash loop detection.
-        recentPIDObservations.removeAll()
-        AppLogger.shared.info(
-            "[HealthMonitor] Recorded start success - reset counters and crash loop state (was at \(previousAttempts) attempts)"
-        )
-    }
-
-    func recordStartFailure() async {
-        let backoffInterval = calculateBackoffInterval(attemptCount: startAttemptCount)
-        AppLogger.shared.warnUnlessQuietTest(
-            "[HealthMonitor] Recorded start failure (attempt \(startAttemptCount), next backoff: \(String(format: "%.1f", backoffInterval))s)"
-        )
-    }
-
-    // MARK: - Crash Loop Detection
-
-    /// Record a PID observation and check for crash loop.
-    ///
-    /// A crash loop is detected when we see multiple different PIDs within a short time window,
-    /// indicating the service is repeatedly crashing and restarting.
-    ///
-    /// - Parameter pid: The observed PID (nil if process not running)
-    /// - Returns: true if a crash loop was detected
-    func recordPIDObservation(_ pid: Int?) async -> Bool {
-        let now = Date()
-
-        // Remove observations outside the window
-        recentPIDObservations.removeAll { now.timeIntervalSince($0.timestamp) > crashLoopWindowSeconds }
-
-        // Add current observation if we have a PID
-        if let pid {
-            // Check if this is a NEW PID (different from the most recent)
-            let isNewPID = recentPIDObservations.last.map { $0.pid != pid } ?? true
-
-            if isNewPID {
-                recentPIDObservations.append((pid: pid, timestamp: now))
-                AppLogger.shared.debug(
-                    "[HealthMonitor] New PID observed: \(pid) (total in window: \(recentPIDObservations.count))"
-                )
-            }
-        }
-
-        // Check for crash loop: multiple different PIDs in the window
-        let uniquePIDs = Set(recentPIDObservations.map(\.pid))
-        let isCrashLoop = uniquePIDs.count >= crashLoopThreshold
-
-        if isCrashLoop {
-            AppLogger.shared.errorUnlessQuietTest(
-                "[HealthMonitor] CRASH LOOP DETECTED: \(uniquePIDs.count) different PIDs in \(crashLoopWindowSeconds)s window"
-            )
-            AppLogger.shared.errorUnlessQuietTest(
-                "[HealthMonitor] PIDs observed: \(uniquePIDs.sorted())"
-            )
-
-            // Trigger callback if set
-            if let callback = onCrashLoopDetected {
-                await callback()
-            }
-        }
-
-        return isCrashLoop
-    }
-
-    /// Check if we're currently in a crash loop state
-    var isInCrashLoop: Bool {
-        let now = Date()
-        let recentObservations = recentPIDObservations.filter {
-            now.timeIntervalSince($0.timestamp) <= crashLoopWindowSeconds
-        }
-        let uniquePIDs = Set(recentObservations.map(\.pid))
-        return uniquePIDs.count >= crashLoopThreshold
-    }
-
-    /// Clear crash loop detection state (e.g., after successful recovery)
-    func clearCrashLoopState() async {
-        recentPIDObservations.removeAll()
-        AppLogger.shared.info("[HealthMonitor] Cleared crash loop detection state")
-    }
-
     func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {
         decideGrabRecovery(now: Date())
     }
@@ -429,67 +213,5 @@ final class ServiceHealthMonitor {
             grabRecoveryAttempts = 0
             lastGrabRecoveryAt = nil
         }
-    }
-
-    // MARK: - Recovery Strategy
-
-    func determineRecoveryAction(healthStatus: ServiceHealthStatus) async -> ServiceRecoveryAction {
-        // If healthy, no action needed
-        guard !healthStatus.isHealthy || healthStatus.shouldRestart else {
-            return .none
-        }
-
-        // Check if we've exceeded max attempts
-        if startAttemptCount >= maxStartAttempts {
-            AppLogger.shared.errorUnlessQuietTest(
-                "[HealthMonitor] Max start attempts (\(maxStartAttempts)) reached - giving up"
-            )
-            return .giveUp(reason: "Failed to start after \(maxStartAttempts) attempts")
-        }
-
-        if retryAttemptCount >= maxRetryAttempts {
-            AppLogger.shared.errorUnlessQuietTest(
-                "[HealthMonitor] Max retry attempts (\(maxRetryAttempts)) reached - giving up"
-            )
-            return .giveUp(reason: "Failed to recover after \(maxRetryAttempts) retry attempts")
-        }
-
-        // Check process conflicts
-        let conflicts = await processDetector.detectConflicts()
-        if conflicts.hasConflicts {
-            AppLogger.shared.warn(
-                "[HealthMonitor] Process conflicts detected - recommend kill and restart"
-            )
-            return .killAndRestart
-        }
-
-        // Default to simple restart
-        AppLogger.shared.debug("[HealthMonitor] Recommend simple restart")
-        return .simpleRestart
-    }
-
-    func resetMonitoringState() async {
-        lastStartAttempt = nil
-        lastServiceStart = nil
-        startAttemptCount = 0
-        retryAttemptCount = 0
-        lastHealthCheckResult = nil
-        recentPIDObservations.removeAll()
-
-        // Clean up heartbeat observer
-        if let observer = heartbeatObserver {
-            NotificationCenter.default.removeObserver(observer)
-            heartbeatObserver = nil
-        }
-        lastHeartbeatTime = nil
-
-        // FIX #2: Clean up shared health check client
-        if let client = healthCheckClient {
-            await client.cancelInflightAndCloseConnection()
-            healthCheckClient = nil
-            AppLogger.shared.debug("[HealthMonitor] Closed shared TCP health check client")
-        }
-
-        AppLogger.shared.info("[HealthMonitor] Reset all monitoring state (including crash loop detection)")
     }
 }
