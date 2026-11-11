@@ -98,6 +98,8 @@ expect_no_forbidden_payloads() {
     for path in "$root"/Contents/Library/HelperTools "$root"/Contents/Library/LaunchDaemons; do
         if [[ -e "$path" ]]; then fail "forbidden privileged packaging directory exists: $path"; found=1; fi
     done
+    # Insights is linked into the app; nothing loads plugin bundles any more.
+    if [[ -e "$root/Contents/PlugIns" ]]; then fail "forbidden plugin bundle directory exists: $root/Contents/PlugIns"; found=1; fi
     while IFS= read -r -d '' path; do fail "forbidden packaged driver/helper asset exists: $path"; found=1; done < <(
         find "$root/Contents" \( -name 'KeyPathHelper' -o -name 'com.keypath.helper.plist' -o -name 'com.keypath.kanata.plist' -o -name 'Karabiner-DriverKit-VirtualHIDDevice-*.pkg' -o -name 'uninstall.sh' -o -name 'kanata-launcher' \) -print0
     )

@@ -27,7 +27,11 @@ public final class PluginManager {
 
     /// Registers the plugins compiled into KeyPath, once.
     public func registerBuiltInPlugins() {
-        Self.removeLegacyDownloadedPlugins()
+        registerBuiltInPlugins(legacyPluginsDirectory: Self.defaultLegacyPluginsDirectory)
+    }
+
+    func registerBuiltInPlugins(legacyPluginsDirectory: URL?) {
+        Self.removeLegacyDownloadedPlugins(directory: legacyPluginsDirectory)
         register(InsightsPlugin())
         AppLogger.shared.info("🔌 [PluginManager] Registered \(plugins.count) built-in plugin(s)")
     }
@@ -46,10 +50,12 @@ public final class PluginManager {
     /// Where 1.0.1 and earlier installed downloaded plugins. It held only the
     /// downloaded code (activity data lives in `KeyPath/ActivityLog`), and
     /// nothing loads from it now, so stale copies are removed.
-    static func removeLegacyDownloadedPlugins(
-        directory: URL? = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+    static var defaultLegacyPluginsDirectory: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appendingPathComponent("KeyPath/Plugins", isDirectory: true)
-    ) {
+    }
+
+    static func removeLegacyDownloadedPlugins(directory: URL? = defaultLegacyPluginsDirectory) {
         guard let directory, FileManager.default.fileExists(atPath: directory.path) else { return }
         do {
             try FileManager.default.removeItem(at: directory)

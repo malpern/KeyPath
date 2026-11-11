@@ -26,8 +26,19 @@ final class PluginManagerTests: KeyPathTestCase {
         XCTAssertEqual(plugin.activationCount, 1)
     }
 
-    func testInsightsIsTheBuiltInPlugin() {
+    func testBuiltInRegistrationAddsInsightsOnceAndClearsLegacyPlugins() throws {
+        let legacy = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: legacy) }
+        try FileManager.default.createDirectory(at: legacy.appendingPathComponent("Insights.bundle"),
+                                                withIntermediateDirectories: true)
+
+        manager.registerBuiltInPlugins(legacyPluginsDirectory: legacy)
+        manager.registerBuiltInPlugins(legacyPluginsDirectory: legacy)
+
+        XCTAssertEqual(manager.plugins.map { type(of: $0).identifier }, [InsightsPlugin.identifier])
         XCTAssertEqual(InsightsPlugin.identifier, "com.keypath.insights")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
     }
 
     func testLegacyDownloadedPluginsAreRemoved() throws {

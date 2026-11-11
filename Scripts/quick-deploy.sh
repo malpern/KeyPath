@@ -476,7 +476,6 @@ for executable in "${RPATH_EXECUTABLES[@]}"; do
     fi
 done
 
-
 # Re-sign with entitlements (prefer Developer ID, then Apple Development, which
 # keeps permission grants across deploys on a machine without Developer ID).
 # NOTE: "Kanata Engine.app" and inner binaries are signed here WITHOUT entitlements
