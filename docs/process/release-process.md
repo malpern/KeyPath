@@ -285,13 +285,21 @@ source files, or logs.
 Existing users get update notifications from `appcast.xml`. Release notes linked
 from the appcast should remain readable in dark mode.
 
-**Before the first release with the updater on (since 2026-11-10):** rerun
-update scenarios 1, 2 and 4 from `docs/bugs/driverless-update-cleanup.md` on
-notarized builds with a managed Caps Lock rule active, and confirm Caps Lock is
-plain Caps Lock after each. The lab run that re-enabled updates covered
-everything else but had no Caps rule. To ship without updates instead, set
+**Before the first release with the updater on:** the Caps Lock gate is met.
+Update scenarios 1, 2 and 4 passed on notarized builds with a managed Caps Lock
+rule active (2026-11-11, after the fix in #1418; results in
+`docs/bugs/driverless-update-cleanup.md`). The builds included #1416, which was
+still open. Rerun them if #1416 changes before it merges, or if the update path,
+the worker's shutdown or the Caps mapping code changes before the release. To ship without updates instead, set
 `KPUpdatesManualDownloads` to true in `Sources/KeyPathApp/Info.plist`; that
 affects only builds released afterwards.
+
+**In the release notes of the first release with the engine socket (ADR-046):**
+say that the engine's local port is gone, in these words or close to them:
+"KeyPath no longer opens a network port for its engine (`localhost:37001`). Only
+the KeyPath app can talk to the engine now. If a script or tool of yours talked
+to that port, use `keypath://` links or the `keypath` command-line tool." Check
+the notes for it before publishing.
 
 ## Local Artifact Cleanup
 

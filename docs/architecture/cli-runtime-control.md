@@ -62,5 +62,13 @@ runs the same handler with no result, for Shortcuts, Raycast and Hammerspoon.
   the app is in the Trash.
 - There is no separate install: the CLI ships inside the app, so first run is `setup`.
 
+- Engine commands (`layer current`, `layer list`, `layer switch`, `service reload`,
+  the HRM statistics): the engine admits only the app that launched it (ADR-046),
+  so the CLI sends runtime-control requests (`layer`, `layers`, `changeLayer`,
+  `reload`, `hrmStats`, `resetHrmStats`) and the app answers on its own
+  connection. Reload goes through `ConfigReloadCoordinator`. Inside the app (App
+  Intents), `ConfigFacade` talks to the engine directly
+  (`ConfigFacade.engineAccess = .direct`).
+
 `Scripts/verify-installed-app.sh` remains the release-grade check because it verifies
-process ownership and the TCP listener independently of the app's own report.
+process ownership and the engine socket independently of the app's own report.

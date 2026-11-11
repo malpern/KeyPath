@@ -1,9 +1,9 @@
 # ADR-046: Session Engine Control Channel
 
-**Status:** Proposed
-**Date:** 2026-11-04
-**Supersedes (when accepted):** [ADR-013](adr-013-tcp-without-auth.md)
-**Tracking:** [#1354](https://github.com/malpern/KeyPath/issues/1354) (release-blocker)
+**Status:** Accepted. Phases 1–3 shipped (#1412, #1413, fork malpern/kanata#31); phase 4, the signature check, gates the release (fork malpern/kanata#32).
+**Date:** 2026-11-04 (accepted 2026-11-11)
+**Supersedes:** [ADR-013](adr-013-tcp-without-auth.md)
+**Tracking:** [#1354](https://github.com/malpern/KeyPath/issues/1354) (closed by #1413)
 
 ## Context
 
@@ -321,6 +321,32 @@ now checks the socket: 0600 in a 0700 directory, held by the worker (`lsof
 -U`), no TCP listener, and the verifier's own connection refused with 0 bytes.
 The lab probe, the release smoke test and the macOS 27 QA script ask through
 `keypath-cli`.
+
+**Phase 4 (signature check) is built, and it gates the release** (decided
+2026-11-11). Every control peer's running code must satisfy the worker's own
+designated requirement: the bridge reads it with `SecCodeCopySelf` and
+`SecCodeCopyDesignatedRequirement` when it creates the runtime, and checks each
+peer with `SecCodeCopyGuestWithAttributes` (the audit token) and
+`SecCodeCheckValidity`. The worker and the app are the same signed executable,
+so this holds for Developer ID, Apple Development and ad-hoc builds alike, with
+no override: an ad-hoc build's requirement is its code hash. If the requirement
+cannot be read (an unsigned binary), creating the runtime fails rather than
+running an unchecked socket. The fork only adds a generic hook
+(`PeerCheck::with_extra_check`, and the audit token in `PeerIdentity`); the
+check itself is `Rust/KeyPathKanataHostBridge/src/peer_signature.rs`. The
+requirement is parsed once when the runtime starts. One known edge, checked
+live on the mini: `SecCodeCheckValidity` also validates the peer's bundle on
+disk, so once the bundle is replaced, a still-running app is refused new engine
+connections until it relaunches, whatever identity signed it. Every real
+replacement path quits the app first (Sparkle installs on quit or relaunch,
+`quick-deploy.sh` restarts it, Finder will not replace an open app), so the
+check keeps its default, strongest validation; the flags that would skip the
+on-disk check are rejected for running code. A refused connection also exposed
+a crash in the app's event listener (a continuation resumed twice when Network
+reported `.failed` after `.ready`); it now resumes exactly once. Checked
+live on the mini: the installed app (team `X2RKZ5TG99`) is admitted, and the
+bridge test with a requirement for other code refuses the owner process before
+any byte.
 
 Two defects surfaced only on a live kill of the app, and both are fixed in the
 fork with tests:

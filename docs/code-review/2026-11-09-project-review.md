@@ -12,6 +12,72 @@ need a running system to confirm, are marked *unconfirmed*. `External/kanata`
 was not checked out, so statements about the engine's TCP command set come from
 ADR-046 and the Swift client, not the fork's source.
 
+## Status (updated 2026-11-11)
+
+**Overall:** about 55% of the review is done by item count. The top-ranked quick fixes and the deletion pass have shipped. A few small items remain (P4, P5, the CLI link in O8). Most of what is left is the large refactors (O2–O5) and the product decisions. Lines that describe open work are as of 2026-11-11.
+
+Key: ✅ done · 🟡 partly done or waiting on a gate · ⬜ not started · 🔒 tracked privately
+
+### Top recommendations
+
+| # | Item | Status | Where |
+|---|---|---|---|
+| 1 | ADR-046 (S1) | 🟡 Phases 1–3 and docs shipped: the engine uses a private Unix socket that admits only the app's own PID, and the TCP port is gone. Phase 4, the code-signature check, is in open PR #1416, which also updates ADR-046 to make it a release gate. Until it merges, ADR-046 on master still says phase 4 is not scheduled. | #1412, #1413, #1414, #1416 |
+| — | Other security findings | 🔒 Tracked privately | — |
+| 2 | Public docs | ✅ Fixed on master and republished to the website, including `getting-started/` and `migration/` | #1394, #1402 |
+| 3 | `BehaviorStatePicker` + 15 MB of PNGs | ✅ Deleted | #1398 |
+| 4 | Deletion pass (~34k lines) | ✅ Done | #1395, #1397, #1398, #1399, #1406 |
+| 5 | Update story | 🟡 Sparkle is re-enabled and passed four update scenarios. One release gate is left: rerun scenarios 1, 2 and 4 on notarized builds with a managed Caps Lock rule active (in progress) | #1409 |
+| 6 | Installer collapse (O1) | 🟡 Step 1 merged. Step 2 is written but not yet in a PR | #1410 |
+| 7 | `NSAppleEventsUsageDescription` | ✅ Added. Not yet confirmed on a clean VM | #1404 |
+
+### By section
+
+| Item | Status | Notes |
+|---|---|---|
+| **O1** Installer planner | 🟡 | See row 6 |
+| **O2** Four copies of UI state | ⬜ | Large, medium risk |
+| **O3** Forwarding layers on the rule path | ⬜ | Falls out of O2 |
+| **O4** Wizard module boundary | ⬜ | After O1 |
+| **O5** Events, health polling, stacked caches | ⬜ | Dead `EventRouter` chain removed in #1406; the typed event hub, polling and caches remain |
+| **O6** Plugin system | ✅ | Downloads removed (#1407); Insights linked into the app (#1411) |
+| **O7** Metal stage, onboarding, packs, CLI split | ⬜ | Product decisions not made |
+| **O8** Unimplemented flags, wording, public-docs lint | ✅ | #1405 |
+| **O8** Leftover `/usr/local/bin/keypath-cli` link on uninstall | 🟡 | Documented, not fixed |
+| **O8** `TestEnvironment` in production, singletons vs `ServiceContainer`, retiring finished lint tests | ⬜ | |
+| **B1** Dead view and images | ✅ | #1398 |
+| **B2** Scripts | ✅ | #1395 |
+| **B3** Dead Swift | ✅ | #1398, #1406. The function-level Periphery pass has not run |
+| **B4** Tests for removed behaviour | 🟡 | Dead tests removed. Refreshing two stale snapshot references is written but not yet in a PR. `Tests/Experiments` is kept, because two scripts compile it |
+| **B5** Binary assets | 🟡 | Unused assets deleted (#1397). Not done: recompressing `images/help` (60 MB), removing its duplicates in app resources, rendering Metal snapshots at a smaller scale |
+| **B6** Root and package stragglers | 🟡 | Root files deleted (#1395). Not done: folding `KeyPathSystemProbes` into `KeyPathCore`, the nine unused library products, the wizard's unused screenshot |
+| **B7** Docs | 🟡 | Public pages fixed and published; `docs/archive` deleted (#1399). `KEYPATH_USE_INSTALLER_ENGINE` removed from `AGENTS.md`, the wizard smoke checklist and the reliability-matrix script (this change). Not done: rewrite `runtime-architecture.html` (marked out of date), recapture the macOS 27 Accessibility screenshot |
+| **P1** Sparkle | 🟡 | See row 5 |
+| **P2** Apple Events usage string | ✅ | #1404 |
+| **P3** Blocking subprocesses | ✅ | #1404: `SecCodeCopySelf` instead of `codesign`, and pipes drained before waiting. `ps` is kept for the wizard's migration page |
+| **P4** Shell-outs with API replacements | ⬜ | `mdfind`, `defaults`, `chflags`, `open -t`, `/bin/kill` |
+| **P5** `os.Logger` in `AppLogger` | ⬜ | |
+| **P6** Concurrency leftovers | ⬜ | `@unchecked Sendable`, `NSLock` → `Mutex`, `asyncAfter`, default main-actor isolation |
+| **P7** Liquid Glass | ✅ | System glass in `AppGlassBackground` (#1408). Checked on screen over busy and plain backgrounds, light and dark |
+| **P7** Other idioms | ⬜ | 668 `.foregroundColor`, 20 `activate(ignoringOtherApps:)`, 6 `lockFocus()`, `NSViewRepresentable` wrappers, plain `Window` scenes |
+| **P8** Localization | ⬜ | Decision needed |
+| **P9** Test isolation | ⬜ | |
+
+### Also done since the review (not in its list)
+
+- ADR-048 keyboard attribution: spike, matcher and the log-only matcher in the session worker (#1392, #1393, #1396, #1400, #1401)
+- The CLI's engine commands are answered by the app (#1388, #1413); tests for that path are in open PR #1415
+
+### Next, in order
+
+1. Merge #1415, then #1416 (the phase 4 release gate)
+2. Finish the Caps Lock gate for Sparkle (P1)
+3. Open PRs for the snapshot refresh, then installer step 2
+4. Run the clean-VM install test (also confirms P2)
+5. The large refactors: O2/O3, then O4, then O5
+
+---
+
 ## Summary
 
 The core is in good shape. The session runtime, the journaled config write, the
@@ -60,7 +126,9 @@ Some exposure is inherent to any remapper: an unsandboxed process that holds
 Accessibility and sees every key, and a user-editable config that defines
 macros. The findings below are the parts that can be fixed.
 
-### S1. Engine control port has no authentication — High (tracked: #1354, ADR-046 "Proposed")
+### S1. Engine control port has no authentication — High (tracked: #1354, ADR-046)
+
+> **Since this review:** ADR-046 is Accepted and phases 1–3 have shipped. The TCP port is gone; see Status above. The text below describes the code as reviewed.
 
 `127.0.0.1:37001` is fixed and unauthenticated. The code's own comment at
 `Sources/KeyPathAppKit/Services/Networking/KanataTCPClient.swift:59-71` says

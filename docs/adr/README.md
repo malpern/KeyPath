@@ -10,7 +10,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-006](adr-006-apple-api-priority.md) | Apple API Priority in Permission Checks | Partly superseded by ADR-044 |
 | [ADR-008](adr-008-validation-refactor.md) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](adr-009-service-extraction-mvvm.md) | Service Extraction & MVVM Pattern | Accepted |
-| [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Under review; proposed to be superseded by ADR-046 |
+| [ADR-013](adr-013-tcp-without-auth.md) | TCP Communication Without Authentication | Superseded by ADR-046 |
 | [ADR-014](adr-014-xpc-signature-mismatch.md) | XPC Signature Mismatch Prevention | Accepted (see ADR-045 note) |
 | [ADR-015](adr-015-installer-engine.md) | InstallerEngine Façade | Accepted (see ADR-045 note) |
 | [ADR-016](adr-016-tcc-database-reading.md) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
@@ -43,7 +43,7 @@ This directory contains Architecture Decision Records (ADRs) documenting signifi
 | [ADR-043](adr-043-opportunistic-manager-consolidation.md) | Opportunistic Manager Consolidation | Accepted |
 | [ADR-044](adr-044-remove-full-disk-access.md) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-045](adr-045-retire-privileged-runtime-stack.md) | Retire the Privileged Runtime Stack | Accepted |
-| [ADR-046](adr-046-session-engine-control-channel.md) | Session Engine Control Channel | Proposed |
+| [ADR-046](adr-046-session-engine-control-channel.md) | Session Engine Control Channel | Accepted |
 | [ADR-047](adr-047-pre-release-cleanup.md) | Pre-Release Cleanup Before the First Session-Runtime Release | Accepted |
 | [ADR-048](adr-048-opt-in-per-keyboard-rules.md) | Opt-In Per-Keyboard Rules | Proposed |
 

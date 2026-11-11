@@ -20,7 +20,7 @@ KeyPath.app (SwiftUI, unprivileged)
 Session runtime worker (a second copy of the app, same user)
   - CGEvent tap and synthetic output
   - Kanata engine through the Rust host bridge
-  - TCP server on 127.0.0.1:37001
+  - engine control socket (Unix-domain, admits only the launching app; ADR-046)
 ```
 
 ## Core Components
@@ -52,7 +52,7 @@ The **ConfigurationService** manages the config file:
 
 - Generates Kanata config from UI state
 - Preserves user custom sections
-- Hot-reloads changes via TCP
+- Hot-reloads changes through the engine socket
 
 **Key Principle:** JSON stores are source of truth. Config file is generated output.
 
@@ -90,14 +90,23 @@ KeyPath runs Kanata in a user-session worker with no root daemon or driver:
 The earlier LaunchDaemon design is retired. See
 [ADR-045](../adr/adr-045-retire-privileged-runtime-stack.md).
 
-### TCP Communication
+### Engine Communication
 
-KeyPath communicates with Kanata via TCP (port 37001):
+KeyPath talks to Kanata with Kanata's JSON control protocol over a Unix-domain
+socket the session worker creates, `e-<worker pid>.sock`, in a 0700 directory
+(`~/Library/Application Support/KeyPath/control`, or a per-user temporary
+directory when that path is too long). The engine admits only the app that
+launched the worker: it checks the peer's uid, PID and PID version on every
+connection ([ADR-046](../adr/adr-046-session-engine-control-channel.md)).
+There is no TCP port. The app reads the socket path from the worker's report.
 
-- Config validation
 - Hot reload
 - Layer state queries
 - Virtual key control
+- Key, layer and tap-hold events
+
+The CLI cannot connect to the engine, so its engine commands are runtime-control
+requests the app answers ([cli-runtime-control.md](cli-runtime-control.md)).
 
 ## External Integration
 
@@ -133,7 +142,7 @@ See [distributed-notifications.md](distributed-notifications.md), [app-intents.m
 
 KeyPath **never** parses Kanata config files. Instead:
 
-- Uses TCP to query state
+- Queries state from the engine over its socket
 - Uses simulator for static analysis
 - Lets Kanata validate syntax
 
