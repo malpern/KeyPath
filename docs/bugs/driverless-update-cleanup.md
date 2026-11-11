@@ -160,7 +160,9 @@ byte-identical, and Caps Lock behaving as plain Caps Lock (no stuck remap).
 4. **Interactive.** Check for Updates → Install and Relaunch; expect the
    runtime stopped before install and ready again after relaunch.
 
-`release.sh` refuses to run while either lab variable is set.
+Lab builds also need `KEYPATH_LAB_BUILD=1`; without it `build-and-sign.sh`
+refuses the lab variables, so one left exported cannot reach a release
+candidate or a deploy. `release.sh` refuses them outright.
 
 ### Qualification results (2026-11-10, Mac mini, macOS 27.3)
 
@@ -190,8 +192,12 @@ meaning; see below), and no KeyPath key mapping was left behind.
 **Not covered here:** Caps Lock recovery. The mini had no managed Caps rule, so
 no mapping existed to restore; adding one would have changed the user's
 configuration. The worker's retirement on both paths (`stopped`,
-`owner-exited`) is the same code that restores Caps, but a run with a managed
-Caps rule active is still worth doing before release.
+`owner-exited`) is the same code that restores Caps.
+
+**Remaining release gate.** Master now builds with the updater on; nothing
+reaches users until the next release. Before that release, rerun scenarios 1,
+2 and 4 on **notarized** builds with a **managed Caps Lock rule active**, and
+check that Caps Lock is plain Caps Lock after each one.
 
 **Side finding:** every launch rewrites `RuleCollections.json` with
 `enabledKeys` in a different order (a serialized `Set`) and rotates a new

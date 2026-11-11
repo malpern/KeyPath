@@ -111,6 +111,8 @@ public final class UpdateService: NSObject {
     private static let downloadURL = URL(string: "https://github.com/malpern/KeyPath/releases/latest")!
 
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
+    /// Sparkle turns `canCheckForUpdates` off while a check or install runs.
+    @ObservationIgnored private var canCheckObservation: NSKeyValueObservation?
     @ObservationIgnored private let channelDefaultsKey = "keypath.update.channel"
 
     @ObservationIgnored private var stopRuntime: (@MainActor () async -> Bool)?
@@ -177,6 +179,10 @@ public final class UpdateService: NSObject {
             // Clear legacy feed URL overrides from UserDefaults in case older builds used setFeedURL.
             updater.clearFeedURLFromUserDefaults()
             canCheckForUpdates = updater.canCheckForUpdates
+            canCheckObservation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] updater, _ in
+                let canCheck = updater.canCheckForUpdates
+                Task { @MainActor in self?.canCheckForUpdates = canCheck }
+            }
             lastUpdateCheckDate = updater.lastUpdateCheckDate
             automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
             automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates

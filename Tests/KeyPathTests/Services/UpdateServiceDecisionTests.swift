@@ -10,6 +10,28 @@ final class UpdateServiceDecisionTests: XCTestCase {
         XCTAssertTrue(UpdateService.manualDownloads(infoDictionary: ["KPUpdatesManualDownloads": true]))
     }
 
+    @MainActor
+    func testKillSwitchNeverStartsSparkleOrAutomaticUpdates() {
+        let service = UpdateService.testService()
+        service.manualDownloadsForTesting = true
+        service.initialize()
+        service.setAutomaticChecks(enabled: true)
+        service.setAutomaticDownloads(enabled: true)
+        XCTAssertNil(service.updater)
+        XCTAssertTrue(service.canCheckForUpdates)
+        XCTAssertFalse(service.automaticallyChecksForUpdates)
+        XCTAssertFalse(service.automaticallyDownloadsUpdates)
+        XCTAssertFalse(service.allowsAutomaticUpdates)
+
+        var opened: [URL] = []
+        var cleanupCalls = 0
+        service.configureRuntimeStop { cleanupCalls += 1; return true }
+        service.openDownloadPage = { opened.append($0); return true }
+        service.checkForUpdates()
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://github.com/malpern/KeyPath/releases/latest"])
+        XCTAssertEqual(cleanupCalls, 0)
+    }
+
     func testShippedInfoPlistLeavesTheUpdaterOn() throws {
         let plist = try XCTUnwrap(NSDictionary(contentsOf: LintScanner.path("Sources/KeyPathApp/Info.plist")) as? [String: Any])
         XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: plist))
