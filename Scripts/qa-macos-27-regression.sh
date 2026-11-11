@@ -35,7 +35,8 @@ else
 fi
 
 pgrep -fl "$APP_PATH/Contents/MacOS/KeyPath" > "$OUTPUT_ROOT/keypath-process.txt" || true
-nc -vz 127.0.0.1 37001 > "$OUTPUT_ROOT/tcp-readiness.txt" 2>&1
+# The engine answers only its app (ADR-046); ask through the CLI.
+"$APP_PATH/Contents/MacOS/keypath-cli" layer current --json > "$OUTPUT_ROOT/engine-readiness.txt" 2>&1 || true
 
 mkdir -p "$OUTPUT_ROOT/logs"
 cp "$HOME/Library/Logs/KeyPath/keypath-debug.log" "$OUTPUT_ROOT/logs/" 2>/dev/null || true

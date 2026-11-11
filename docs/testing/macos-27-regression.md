@@ -23,7 +23,7 @@ TCC databases directly.
 | SMAppService/runtime jobs | `kanata-launchd.txt`, `vhid-*-launchd.txt` |
 | XPC and bundle signing | `codesign.txt` |
 | Distribution trust | `gatekeeper.txt`, `stapler.txt` |
-| Keyboard runtime | process files, `tcp-readiness.txt`, logs |
+| Keyboard runtime | process files, `engine-readiness.txt`, logs |
 
 ## Operator matrix
 

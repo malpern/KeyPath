@@ -178,13 +178,15 @@ public class SystemValidator {
     private func captureSessionSnapshot(progressCallback: @escaping @Sendable (Double) -> Void) async -> SystemSnapshot {
         let permissions = await systemStateProvider.currentPermissionSnapshot()
         let running: Bool
+        var socketPath = EngineControlEndpoint.socketPath
         if let kanataManager {
             let report = kanataManager.serviceLifecycleCoordinator.currentSessionReport()
             running = report?.state == .running && report?.tapActive == true
+            socketPath = report?.controlSocketPath
         } else {
             running = await appSessionReady?() ?? false
         }
-        let responding = running ? await systemStateProvider.isTCPPortResponding(port: 37001, timeoutMs: 300) : false
+        let responding = running ? await systemStateProvider.isEngineSocketResponding(path: socketPath, timeoutMs: 300) : false
         let host = KanataRuntimeHost.current()
         let payload = FileManager.default.fileExists(atPath: host.bridgeLibraryPath)
             && FileManager.default.fileExists(atPath: Bundle.main.executablePath ?? "")

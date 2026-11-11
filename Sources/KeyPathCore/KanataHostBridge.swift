@@ -438,7 +438,6 @@ public enum KanataHostBridge {
     public static func createPassthruRuntime(
         runtimeHost: KanataRuntimeHost,
         configPath: String,
-        tcpPort: UInt16,
         control: EngineControlSocket.Listener? = nil,
         controlOwner: (pid: Int32, pidVersion: UInt32) = (0, 0),
         fileManager: FileManager = .default
@@ -484,7 +483,8 @@ public enum KanataHostBridge {
         let controlFD = pendingControlFD
         pendingControlFD = -1
         let runtimeHandle = configPath.withCString { configCString in
-            createRuntime(configCString, tcpPort, controlFD, controlOwner.pid, controlOwner.pidVersion,
+            // No TCP port: the engine is reached only through `control` (ADR-046).
+            createRuntime(configCString, 0, controlFD, controlOwner.pid, controlOwner.pidVersion,
                           &errorBuffer, errorBuffer.count)
         }
 

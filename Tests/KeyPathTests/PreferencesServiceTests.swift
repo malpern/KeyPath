@@ -13,37 +13,12 @@ final class PreferencesServiceTests: XCTestCase {
         XCTAssertTrue(UserDefaults.standard.bool(forKey: key))
     }
 
-    // MARK: - Port Validation
-
-    func testIsValidPort_AcceptsUserPorts() {
-        let prefs = PreferencesService()
-        XCTAssertTrue(prefs.isValidPort(1024))
-        XCTAssertTrue(prefs.isValidPort(5829))
-        XCTAssertTrue(prefs.isValidPort(65535))
-    }
-
-    func testIsValidPort_RejectsSystemPorts() {
-        let prefs = PreferencesService()
-        XCTAssertFalse(prefs.isValidPort(0))
-        XCTAssertFalse(prefs.isValidPort(80))
-        XCTAssertFalse(prefs.isValidPort(443))
-        XCTAssertFalse(prefs.isValidPort(1023))
-    }
-
-    func testIsValidPort_RejectsOutOfRange() {
-        let prefs = PreferencesService()
-        XCTAssertFalse(prefs.isValidPort(-1))
-        XCTAssertFalse(prefs.isValidPort(65536))
-        XCTAssertFalse(prefs.isValidPort(100_000))
-    }
-
     // MARK: - Communication Config Description
 
-    func testCommunicationConfigDescription_ContainsTCPAndPort() {
-        let prefs = PreferencesService()
-        let desc = prefs.communicationConfigDescription
-        XCTAssertTrue(desc.contains("TCP"))
-        XCTAssertTrue(desc.contains("\(prefs.tcpServerPort)"))
+    func testCommunicationConfigDescriptionNamesTheOwnerCheckedSocket() {
+        let desc = PreferencesService().communicationConfigDescription
+        XCTAssertTrue(desc.contains("Unix-domain socket"))
+        XCTAssertFalse(desc.contains("37001"))
     }
 
     // MARK: - Context HUD Hold Delay
@@ -86,7 +61,6 @@ final class PreferencesServiceTests: XCTestCase {
         let prefs = PreferencesService()
         prefs.resetCommunicationSettings()
         XCTAssertEqual(prefs.communicationProtocol, .tcp)
-        XCTAssertEqual(prefs.tcpServerPort, 37001)
     }
 
     // MARK: - Enum Display Names

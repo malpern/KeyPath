@@ -236,7 +236,7 @@ extension KanataTCPClient {
 
     /// Check if TCP server is available
     func checkServerStatus() async -> Bool {
-        AppLogger.shared.debug("🌐 [TCP] Checking server status for \(host):\(port)")
+        AppLogger.shared.debug("🌐 [TCP] Checking server status for \(endpoint)")
 
         do {
             // Use RequestCurrentLayerName as a simple ping
@@ -266,7 +266,7 @@ extension KanataTCPClient {
         let startTime = Date()
         let requestId = generateRequestId()
         AppLogger.shared.log(
-            "⏱️ [TCP] t=0ms: Starting reload request_id=\(requestId) (port=\(port), clientTimeout=\(String(format: "%.1f", timeout))s, timeoutMs=\(timeoutMs))"
+            "⏱️ [TCP] t=0ms: Starting reload request_id=\(requestId) (endpoint=\(endpoint), clientTimeout=\(String(format: "%.1f", timeout))s, timeoutMs=\(timeoutMs))"
         )
 
         do {

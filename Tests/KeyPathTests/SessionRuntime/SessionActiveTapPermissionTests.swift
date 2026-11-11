@@ -43,7 +43,7 @@ struct SessionActiveTapPermissionTests {
         let report = SessionRuntimeReport(
             nonce: "inert", pid: 42, uid: 502, state: .capabilities,
             accessibility: true, effectiveInputAccess: false, tapActive: false,
-            tcpPort: 0, inputCount: 0, outputCount: 0,
+            inputCount: 0, outputCount: 0,
             inputAccessSource: "current-process.apple-api.listen-and-post-event"
         )
         let encoded = try JSONEncoder().encode(report)

@@ -4,9 +4,7 @@ set -euo pipefail
 APP_PATH="${APP_PATH:-/Applications/KeyPath.app}"
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 VERIFY_PYTHON="${KEYPATH_VERIFY_PYTHON:-python3}"
-TCP_HOST="${KEYPATH_TCP_HOST:-127.0.0.1}"
-TCP_PORT="${KEYPATH_TCP_PORT:-37001}"
-TCP_TIMEOUT_SECONDS="${KEYPATH_TCP_TIMEOUT_SECONDS:-20}"
+RUNTIME_TIMEOUT_SECONDS="${KEYPATH_RUNTIME_TIMEOUT_SECONDS:-${KEYPATH_TCP_TIMEOUT_SECONDS:-20}}"
 REQUIRE_NOTARIZED="${REQUIRE_NOTARIZED:-1}"
 REQUIRE_STAPLED="${REQUIRE_STAPLED:-1}"
 CHECK_RUNTIME="${CHECK_RUNTIME:-1}"
@@ -116,15 +114,11 @@ fi
 print_section "Bundled CLI"
 "$CLI_PATH" --version
 
-print_section "Driverless Session and TCP Readiness"
-if [[ "$TCP_HOST" != "127.0.0.1" ]]; then
-    echo "❌ Driverless runtime verification requires its loopback endpoint (127.0.0.1)" >&2
-    exit 1
-fi
+print_section "Driverless Session and Engine Socket"
 if ! command -v "$VERIFY_PYTHON" >/dev/null 2>&1; then
     echo "❌ Python 3 is required for owned-session verification; set KEYPATH_VERIFY_PYTHON" >&2
     exit 1
 fi
 "$VERIFY_PYTHON" "$SCRIPT_DIR/verify-session-runtime.py" \
-    --app "$APP_PATH" --port "$TCP_PORT" --timeout "$TCP_TIMEOUT_SECONDS"
+    --app "$APP_PATH" --timeout "$RUNTIME_TIMEOUT_SECONDS"
 echo "✅ Installed KeyPath passed requested trust checks and owned-session runtime verification."

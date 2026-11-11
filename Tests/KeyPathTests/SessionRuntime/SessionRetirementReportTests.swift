@@ -6,7 +6,7 @@ final class SessionRetirementReportTests: XCTestCase {
     private func report(failure: String?, retirement: String? = nil) -> SessionRuntimeReport {
         SessionRuntimeReport(nonce: "owned-launch", pid: 123, uid: 502, state: .failed,
                              accessibility: true, effectiveInputAccess: true, tapActive: false,
-                             tcpPort: 37001, inputCount: 0, outputCount: 0, failure: failure,
+                             inputCount: 0, outputCount: 0, failure: failure,
                              retirementReason: retirement)
     }
 

@@ -562,7 +562,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         func report(_ failure: String) -> SessionRuntimeReport {
             SessionRuntimeReport(nonce: "owned", pid: 123, uid: 502, state: .failed,
                                  accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                 tcpPort: 37001, inputCount: 0, outputCount: 0, failure: failure)
+                                 inputCount: 0, outputCount: 0, failure: failure)
         }
         let held = report("managed-caps-activation-refused: physicalKeysHeld")
         XCTAssertTrue(ServiceLifecycleCoordinator.canRetryWakeStartup(held, nonce: "owned", pid: 123, uid: 502, cleanedUp: true))
@@ -578,7 +578,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         func report(_ state: SessionRuntimeReport.State, reason: String) -> SessionRuntimeReport {
             SessionRuntimeReport(nonce: "owned", pid: 123, uid: 502, state: state,
                                  accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                 tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                 inputCount: 0, outputCount: 0,
                                  failure: state == .failed ? "managed-caps-restoration-pending" : reason,
                                  retirementReason: reason)
         }
@@ -639,7 +639,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         let retired = Date()
         let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
                                           accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                          tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                          inputCount: 0, outputCount: 0,
                                           failure: "system-will-sleep")
         coordinator.testSessionWakeReady = { true }
         coordinator.testSessionWakeWait = { [self] in
@@ -660,7 +660,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
             _ = await coordinator.startKanata()
             let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
                                               accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                              tcpPort: 37001, inputCount: 0, outputCount: 0, failure: reason)
+                                              inputCount: 0, outputCount: 0, failure: reason)
             var ready = false
             coordinator.testSessionWakeReady = { ready }
             coordinator.testSessionWakeWait = { XCTAssertEqual(starts, 1); ready = true }
@@ -680,7 +680,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         _ = await coordinator.startKanata()
         let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
                                           accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                          tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                          inputCount: 0, outputCount: 0,
                                           failure: "managed-caps-activation-refused: physicalKeysHeld")
         var ready = false
         coordinator.testSessionWakeReady = { ready }
@@ -710,7 +710,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         _ = await coordinator.startKanata()
         let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .secureInput,
                                           accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                          tcpPort: 37001, inputCount: 0, outputCount: 0)
+                                          inputCount: 0, outputCount: 0)
         var ready = false
         coordinator.testSessionWakeReady = { ready }
         coordinator.testSessionWakeWait = { [self] in
@@ -733,7 +733,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         _ = await coordinator.startKanata()
         let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .secureInput,
                                           accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                          tcpPort: 37001, inputCount: 0, outputCount: 0)
+                                          inputCount: 0, outputCount: 0)
         let generation = coordinator.sessionIntentGeneration
         XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
                                                                       generation: generation, cleanedUp: false))
@@ -751,7 +751,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         _ = await coordinator.startKanata()
         let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
                                           accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                          tcpPort: 37001, inputCount: 0, outputCount: 0,
+                                          inputCount: 0, outputCount: 0,
                                           failure: "managed-caps-activation-refused: physicalKeysHeld")
         coordinator.testSessionWakeReady = { false }
         coordinator.testSessionWakeWait = { [self] in coordinator.setTerminationPreparationActive(true) }
@@ -768,7 +768,7 @@ final class SessionLifecycleInterleavingTests: KeyPathTestCase {
         _ = await coordinator.startKanata()
         let report = SessionRuntimeReport(nonce: "owned", pid: 123, uid: getuid(), state: .failed,
                                           accessibility: true, effectiveInputAccess: true, tapActive: false,
-                                          tcpPort: 37001, inputCount: 0, outputCount: 0, failure: "system-will-sleep")
+                                          inputCount: 0, outputCount: 0, failure: "system-will-sleep")
         XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "owned", pid: 123,
                                                                       generation: coordinator.sessionIntentGeneration, cleanedUp: false))
         XCTAssertFalse(coordinator.scheduleInterruptedStartupRecovery(report, nonce: "other", pid: 123,

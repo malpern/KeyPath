@@ -48,15 +48,16 @@ extension KanataTCPClient {
             }
         }
 
+        // No running worker: fail now. Never fall back to another endpoint.
+        guard let target = endpoint.resolve() else {
+            throw KeyPathError.communication(.connectionFailed(reason: "engine is not running"))
+        }
+
         // Create new connection
         isConnecting = true
 
-        AppLogger.shared.log("🔌 [TCP] Creating new connection to \(host):\(port)")
-        let newConnection = NWConnection(
-            host: NWEndpoint.Host(host),
-            port: NWEndpoint.Port(integerLiteral: UInt16(port)),
-            using: .tcp
-        )
+        AppLogger.shared.log("🔌 [TCP] Creating new connection to \(endpoint)")
+        let newConnection = NWConnection(to: target, using: .tcp)
 
         connection = newConnection
 

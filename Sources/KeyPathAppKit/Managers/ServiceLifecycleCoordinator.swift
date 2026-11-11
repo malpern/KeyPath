@@ -199,7 +199,7 @@ final class ServiceLifecycleCoordinator {
                 return KanataRuntimeReadiness(isRunning: false, isResponding: false, inputCaptureReady: false)
             }
             let running = report.state == .running && report.tapActive
-            let responding = running ? await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300) : false
+            let responding = running ? await SystemStateProvider.shared.isEngineSocketResponding(path: report.controlSocketPath, timeoutMs: 300) : false
             return KanataRuntimeReadiness(isRunning: running, isResponding: responding, inputCaptureReady: running)
         }
         Task { [weak self] in

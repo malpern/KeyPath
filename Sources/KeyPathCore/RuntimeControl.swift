@@ -18,17 +18,45 @@ public enum RuntimeControl {
         /// The app's own uninstall (backup, restore the keyboard, remove data,
         /// move the app to the Trash). Refused unless `confirmed` is true.
         case uninstall
+        /// Engine commands the app forwards on its own connection. Only the app
+        /// may connect to the engine (ADR-046), so the CLI asks the app.
+        /// `reload` goes through the app's reload coordinator.
+        case reload
+        /// The current layer, read from the engine (`layer` in the response).
+        case layer
+        /// Layer names (`layers` in the response).
+        case layers
+        /// Switch to the layer named in `argument`.
+        case changeLayer
+        /// Home-row-mod statistics (`hrmStats` in the response), and their reset.
+        case hrmStats, resetHrmStats
+    }
+
+    /// Home-row-mod decision counts, as the engine reports them.
+    public struct HrmStatsSummary: Codable, Sendable, Equatable {
+        public let totalDecisions: Int
+        public let tapCount: Int
+        public let holdCount: Int
+
+        public init(totalDecisions: Int, tapCount: Int, holdCount: Int) {
+            self.totalDecisions = totalDecisions
+            self.tapCount = tapCount
+            self.holdCount = holdCount
+        }
     }
 
     public struct Request: Codable, Sendable, Equatable {
         public let operation: Operation
         public let reason: String?
         public let confirmed: Bool?
+        /// changeLayer: the layer name.
+        public let argument: String?
 
-        public init(operation: Operation, reason: String? = nil, confirmed: Bool? = nil) {
+        public init(operation: Operation, reason: String? = nil, confirmed: Bool? = nil, argument: String? = nil) {
             self.operation = operation
             self.reason = reason
             self.confirmed = confirmed
+            self.argument = argument
         }
     }
 
@@ -84,7 +112,7 @@ public enum RuntimeControl {
         public let failure: String?
         /// The app's most recent user-facing error, if any.
         public let lastError: String?
-        public let layer: String?
+        public var layer: String?
         public let appPID: Int32
         public let appVersion: String
         /// doctor/repair: whether the whole system is ready, and what is not.
@@ -94,6 +122,10 @@ public enum RuntimeControl {
         public var message: String?
         /// doctor: the admission engine's verdicts on the rules now on.
         public var admission: [AdmissionFinding]?
+        /// layers: the engine's layer names.
+        public var layers: [String]?
+        /// hrmStats: the engine's home-row-mod counts.
+        public var hrmStats: HrmStatsSummary?
 
         public init(ok: Bool, operation: Operation, state: State, workerPID: Int?, failure: String?,
                     lastError: String?, layer: String?, appPID: Int32, appVersion: String,

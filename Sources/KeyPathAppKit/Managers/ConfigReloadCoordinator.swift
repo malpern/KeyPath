@@ -14,7 +14,7 @@ final class ConfigReloadCoordinator {
 
     private let engineClient: EngineClient
     private let reloadSafetyMonitor: ReloadSafetyMonitor
-    private let healthStatusProvider: @MainActor @Sendable (Int) async -> ServiceHealthStatus
+    private let healthStatusProvider: @MainActor @Sendable () async -> ServiceHealthStatus
     private let isRuntimeTransitioning: @MainActor @Sendable () -> Bool
     private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
     private let transitionRetryMaximumPolls: Int
@@ -47,7 +47,7 @@ final class ConfigReloadCoordinator {
     init(
         engineClient: EngineClient,
         reloadSafetyMonitor: ReloadSafetyMonitor,
-        healthStatusProvider: @escaping @MainActor @Sendable (Int) async -> ServiceHealthStatus,
+        healthStatusProvider: @escaping @MainActor @Sendable () async -> ServiceHealthStatus,
         isRuntimeTransitioning: @escaping @MainActor @Sendable () -> Bool = { false },
         tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
@@ -100,7 +100,7 @@ final class ConfigReloadCoordinator {
         var expectedIntent = runtimeIntentGeneration()
         let wasTransitioningBeforeHealth = isRuntimeTransitioning()
         // Skip reloads if Kanata service isn't healthy yet
-        var healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+        var healthStatus = await healthStatusProvider()
         guard expectedIntent == runtimeIntentGeneration() else { return changedRuntimeIntent() }
         // Explicit onboarding Apply/Try Again may recover a stopped session. File
         // watchers and ordinary reloads must never undo a user's manual Stop.
@@ -112,7 +112,7 @@ final class ConfigReloadCoordinator {
             }
             let started = await startRuntimeForExplicitApply()
             expectedIntent = runtimeIntentGeneration()
-            healthStatus = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+            healthStatus = await healthStatusProvider()
             guard started, healthStatus.isHealthy, !Task.isCancelled,
                   expectedIntent == runtimeIntentGeneration()
             else {
@@ -336,7 +336,7 @@ final class ConfigReloadCoordinator {
     private func retryReloadIfRuntimeReady() async -> TransitionRetryAttempt {
         guard !isRuntimeTransitioning() else { return .pending }
 
-        let health = await healthStatusProvider(PreferencesService.shared.tcpServerPort)
+        let health = await healthStatusProvider()
         guard health.isHealthy else { return .pending }
 
         AppLogger.shared.log("🔁 [Reload] Retrying config reload after runtime transition")

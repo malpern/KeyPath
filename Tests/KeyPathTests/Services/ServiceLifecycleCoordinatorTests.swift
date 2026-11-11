@@ -303,7 +303,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     func testInvalidRestartPreservesOwnedRunningTapUntilExplicitStop() async {
         let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
                                           accessibility: true, effectiveInputAccess: true, tapActive: true,
-                                          tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+                                          inputCount: 1, outputCount: 1, timestamp: Date())
         coordinator.testSessionCurrentReport = { report }
         var validations = 0, stops = 0
         coordinator.testSessionConfigurationValidation = { validations += 1; return .invalid(reason: "edited config unsupported") }
@@ -323,7 +323,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
     func testRejectedStartAndRestartTransferRetainedTapSupervisionToLatestIntent() async {
         let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
                                           accessibility: true, effectiveInputAccess: true, tapActive: true,
-                                          tcpPort: 37001, inputCount: 1, outputCount: 1, timestamp: Date())
+                                          inputCount: 1, outputCount: 1, timestamp: Date())
         coordinator.testSessionCurrentReport = { report }
         coordinator.testSessionConfigurationValidation = { .valid }
         coordinator.testSessionRunningReadiness = { true }
@@ -396,7 +396,7 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
                 ownedReport = SessionRuntimeReport(
                     nonce: "owned-after-probe-start", pid: 100, uid: 501, state: .running,
                     accessibility: true, effectiveInputAccess: true, tapActive: true,
-                    tcpPort: 37001, inputCount: 0, outputCount: 0, timestamp: Date()
+                    inputCount: 0, outputCount: 0, timestamp: Date()
                 )
                 return probeResult
             }

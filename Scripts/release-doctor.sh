@@ -335,8 +335,8 @@ fi
 
 print_section "Installed Runtime"
 if "${KEYPATH_VERIFY_PYTHON:-python3}" "$SCRIPT_DIR/verify-session-runtime.py" \
-    --app "${APP_PATH:-/Applications/KeyPath.app}" --port "${KEYPATH_TCP_PORT:-37001}" --timeout 0; then
-    pass "Installed KeyPath has an exact owned driverless session and TCP readiness"
+    --app "${APP_PATH:-/Applications/KeyPath.app}" --timeout 0; then
+    pass "Installed KeyPath has an exact owned driverless session and a private, owner-checked engine socket"
 else
     warn "Installed driverless session is not verified; signed deployment must pass verify-installed-app.sh with runtime checks enabled"
 fi

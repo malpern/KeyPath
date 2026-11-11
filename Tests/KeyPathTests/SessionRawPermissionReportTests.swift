@@ -13,7 +13,7 @@ final class SessionRawPermissionReportTests: XCTestCase {
     private func report(_ raw: SessionRuntimeReport.RawPermissions? = nil) -> SessionRuntimeReport {
         SessionRuntimeReport(nonce: "test", pid: 123, uid: 502, state: .capabilities,
                              accessibility: false, effectiveInputAccess: false, tapActive: false,
-                             tcpPort: 0, inputCount: 0, outputCount: 0, rawPermissions: raw)
+                             inputCount: 0, outputCount: 0, rawPermissions: raw)
     }
 
     func testUnknownAndErrorAreNotEvidenceOfDenial() throws {

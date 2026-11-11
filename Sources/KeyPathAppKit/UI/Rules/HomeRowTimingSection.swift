@@ -414,7 +414,7 @@ struct HomeRowTimingSection: View {
         .onAppear {
             showPerFinger = hasAnyPerKeyOffsets
             if showsHrmInsights {
-                hrmObservability.startMonitoring(port: services.preferences.tcpServerPort)
+                hrmObservability.startMonitoring()
             }
         }
     }

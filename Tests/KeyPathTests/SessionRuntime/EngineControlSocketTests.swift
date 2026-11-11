@@ -67,6 +67,23 @@ final class EngineControlSocketTests: XCTestCase {
         XCTAssertTrue(listener.path.hasSuffix("/e-4242.sock"))
     }
 
+    /// The bound address reads back as exactly the path: no trailing NULs,
+    /// which the engine would carry into its close() and fail to remove.
+    func testBoundAddressIsExactlyThePath() throws {
+        let listener = try EngineControlSocket.open(pid: 4343, primary: root.appendingPathComponent("c"), fallback: nil)
+        defer { close(listener.fd) }
+        var address = sockaddr_un()
+        var length = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let result = withUnsafeMutablePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(listener.fd, $0, &length) }
+        }
+        XCTAssertEqual(result, 0)
+        let pathOffset = MemoryLayout<sockaddr_un>.offset(of: \sockaddr_un.sun_path) ?? 2
+        let bytes = withUnsafeBytes(of: address.sun_path) { Array($0.prefix(Int(length) - pathOffset)) }
+        XCTAssertEqual(bytes.last, 0, "one terminating NUL")
+        XCTAssertEqual(String(decoding: bytes.dropLast(), as: UTF8.self), listener.path)
+    }
+
     func testStaleSocketsOfDeadWorkersAreRemovedAndOthersKept() throws {
         let directory = root.appendingPathComponent("c")
         let dead = try EngineControlSocket.open(pid: 111, primary: directory, fallback: nil)
@@ -91,7 +108,7 @@ final class EngineControlSocketTests: XCTestCase {
     func testLaunchArgumentsCarryTheOwnersPIDVersion() {
         let arguments = ServiceLifecycleCoordinator.sessionLaunchArguments(
             capabilitiesOnly: false, reportPath: "/tmp/r", nonce: UUID().uuidString,
-            ownerPID: 77, ownerPIDVersion: 9, port: 37001, configPath: "/tmp/c.kbd"
+            ownerPID: 77, ownerPIDVersion: 9, configPath: "/tmp/c.kbd"
         )
         let index = arguments.firstIndex(of: "--session-owner-pidversion")
         XCTAssertEqual(index.map { arguments[$0 + 1] }, "9")

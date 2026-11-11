@@ -39,12 +39,9 @@ final class DiagnosticsManager {
         diagnostics.removeAll()
     }
 
-    func checkHealth(tcpPort: Int) async -> ServiceHealthStatus {
+    func checkHealth() async -> ServiceHealthStatus {
         let processStatus = await processStatusProvider()
-        return await healthMonitor.checkServiceHealth(
-            processStatus: processStatus,
-            tcpPort: tcpPort
-        )
+        return await healthMonitor.checkServiceHealth(processStatus: processStatus)
     }
 
     func recordGrabFailureAndDecideRecovery() async -> GrabRecoveryDecision {

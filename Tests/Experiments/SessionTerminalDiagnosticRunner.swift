@@ -68,7 +68,7 @@ enum SessionTerminalDiagnosticRunner {
         SessionRuntimeReport(
             nonce: nonce, pid: 202, uid: 502, state: state,
             accessibility: true, effectiveInputAccess: true, tapActive: false,
-            tcpPort: 37001, inputCount: inputCount, outputCount: outputCount,
+            inputCount: inputCount, outputCount: outputCount,
             timestamp: now.addingTimeInterval(-age), failure: failure, heldOutputUsages: held
         )
     }
