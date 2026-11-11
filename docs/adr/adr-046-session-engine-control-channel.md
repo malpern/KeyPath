@@ -272,6 +272,31 @@ on the uid. So phase 1's identity check is implementable as written, with no
 fallback. `NWEndpoint.unix(path:)` is in the macOS 27 SDK, so phase 3 should
 need no POSIX fallback either; that was read from the SDK, not exercised.
 
+### Implementation notes (2026-11-10)
+
+Phases 1 and 2 are built (fork `keypath/unix-control`, KeyPath PR 2). Two
+choices differ from the plan's wording:
+
+- **The worker binds the socket, not the bridge.** `EngineControlSocket.open`
+  (KeyPathCore) chooses the path, creates and checks the 0700 directory,
+  removes sockets left by dead workers, and binds under umask 0177. The worker
+  hands the listening descriptor to the bridge, which serves it with
+  `TcpServer::start_unix`. Path rules and errors live in one place, and a bind
+  failure ends the worker with `engine-control-socket-unavailable: <cause>`.
+- **Each worker names its socket after its own PID** (`e-<pid>.sock`). A worker
+  that is still shutting down removes only its own socket, never the one the
+  next worker just created. The path is in the report (`controlSocketPath`).
+
+The owner watch is `SessionOwnerExitSource` (a dispatch process source, so
+kqueue `NOTE_EXIT`); it closes the engine socket and retires the worker. The
+session policy refuses `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` on
+both listeners, caps connections at 8 and drops a client after a 2 s stalled
+write.
+
+Checked live on the mini with this build: the socket is created 0600 in the
+0700 directory; a same-user process connects and is closed with 0 bytes; the
+second account (`clawd`) gets `EACCES`; a sandboxed app gets `EPERM`.
+
 ## Migration
 
 1. **Phase 1, fork (`malpern/kanata`, a new branch merged into `keypath/bundled` by

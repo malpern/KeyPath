@@ -24,7 +24,11 @@ bool keypath_kanata_bridge_wait_until_output_ready(unsigned long long timeout_mi
 bool keypath_kanata_bridge_emit_key(unsigned int usage_page, unsigned int usage, bool is_key_down, char *error_buffer, size_t error_buffer_len);
 size_t keypath_kanata_bridge_runtime_layer_count(const void *runtime);
 void keypath_kanata_bridge_destroy_runtime(void *runtime);
-void *keypath_kanata_bridge_create_passthru_runtime(const char *config_path, unsigned short tcp_port, char *error_buffer, size_t error_buffer_len);
+/// control_fd: a bound, listening Unix-domain socket the bridge takes ownership of, or -1.
+/// Only the process with control_owner_pid and control_owner_pid_version may connect to it.
+void *keypath_kanata_bridge_create_passthru_runtime(const char *config_path, unsigned short tcp_port, int control_fd, int control_owner_pid, unsigned int control_owner_pid_version, char *error_buffer, size_t error_buffer_len);
+/// Stops accepting on the control socket, removes its file and closes its connections.
+void keypath_kanata_bridge_passthru_close_control(void *runtime);
 size_t keypath_kanata_bridge_passthru_runtime_layer_count(const void *runtime);
 bool keypath_kanata_bridge_start_passthru_runtime(void *runtime, char *error_buffer, size_t error_buffer_len);
 bool keypath_kanata_bridge_passthru_send_input(void *runtime, unsigned long long value, unsigned int page, unsigned int code, char *error_buffer, size_t error_buffer_len);

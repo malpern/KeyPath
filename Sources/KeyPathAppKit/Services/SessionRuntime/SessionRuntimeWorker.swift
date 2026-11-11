@@ -17,7 +17,12 @@ public final class SessionRuntimeWorker {
     private let reportURL: URL
     private let nonce: String
     private let ownerPID: Int32
+    /// The owner's PID version: with the PID, it names the one process the
+    /// engine control socket admits (ADR-046).
+    private let ownerPIDVersion: UInt32?
     private let port: UInt16
+    private var controlSocketPath: String?
+    private var ownerExitSource: SessionOwnerExitSource?
     private let capabilities: PermissionOracle.ProcessCapabilities
     private let rawPermissions: SessionRuntimeReport.RawPermissions?
     private var runtime: KanataHostBridgePassthruRuntimeHandle?
@@ -77,13 +82,14 @@ public final class SessionRuntimeWorker {
     #endif
 
     private init(
-        reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
+        reportURL: URL, nonce: String, ownerPID: Int32, ownerPIDVersion: UInt32? = nil, port: UInt16,
         capabilities: PermissionOracle.ProcessCapabilities,
         rawPermissions: SessionRuntimeReport.RawPermissions? = nil
     ) {
         self.reportURL = reportURL
         self.nonce = nonce
         self.ownerPID = ownerPID
+        self.ownerPIDVersion = ownerPIDVersion
         self.port = port
         self.capabilities = capabilities
         self.rawPermissions = rawPermissions
@@ -133,6 +139,7 @@ public final class SessionRuntimeWorker {
         let worker = SessionRuntimeWorker(
             reportURL: URL(fileURLWithPath: path), nonce: nonce,
             ownerPID: ownerPID,
+            ownerPIDVersion: argument("--session-owner-pidversion").flatMap(UInt32.init),
             port: argument("--session-port").flatMap(UInt16.init) ?? 0,
             capabilities: capabilities
         )
@@ -240,11 +247,35 @@ public final class SessionRuntimeWorker {
                 tapTimeoutInitialization = .unexpectedFailure
             }
         #endif
+        // The engine admits only the app that launched this worker (ADR-046).
+        guard ownerPID > 0, let ownerPIDVersion else { finish(.failed, reason: "missing-session-owner") }
+        let control: EngineControlSocket.Listener
+        do {
+            control = try EngineControlSocket.open()
+        } catch {
+            finish(.failed, reason: "engine-control-socket-unavailable: \(error)")
+        }
+        controlSocketPath = control.path
         writeReport(.starting)
-        let (_, handle) = KanataHostBridge.createPassthruRuntime(
-            runtimeHost: .current(), configPath: configPath, tcpPort: port
+        let (created, handle) = KanataHostBridge.createPassthruRuntime(
+            runtimeHost: .current(), configPath: configPath, tcpPort: port,
+            control: control, controlOwner: (ownerPID, ownerPIDVersion)
         )
-        guard let handle else { finish(.failed, reason: "runtime-creation-failed") }
+        guard let handle else {
+            if case let .failed(reason) = created {
+                AppLogger.shared.warn("⚠️ [SessionWorker] Runtime creation failed: \(reason)")
+            }
+            finish(.failed, reason: "runtime-creation-failed")
+        }
+        // Close the control socket the moment the owner exits, then retire as
+        // the polling watch would. Both paths are idempotent.
+        ownerExitSource = SessionOwnerExitSource.watch(pid: ownerPID) { [weak self] in
+            handle.closeControl()
+            CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
+                MainActor.assumeIsolated { self?.retire(reason: "owner-exited") }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
         guard handle.hasSessionInputMap else { finish(.failed, reason: "runtime-input-map-unavailable") }
         runtime = handle
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
@@ -1176,7 +1207,8 @@ public final class SessionRuntimeWorker {
             experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic,
             managedCapsGeneration: capsRecord?.owner.generation, capsCoverage: capsFleetCoverage,
             rawPermissions: rawPermissions,
-            retirementReason: retirementReason
+            retirementReason: retirementReason,
+            controlSocketPath: controlSocketPath
         )
         do {
             try JSONEncoder().encode(report).write(to: reportURL, options: .atomic)
@@ -1224,6 +1256,9 @@ public final class SessionRuntimeWorker {
         finished = true
         // The orderly path owns shutdown from here; no hard exit may cut it off.
         SessionShutdownFallback.shared.shutdownBegins()
+        // No new engine-control connections, and the socket file is removed.
+        ownerExitSource?.cancel()
+        runtime?.closeControl()
         // Before the flush below, so its final totals reach the log.
         attribution?.stop()
         attribution = nil

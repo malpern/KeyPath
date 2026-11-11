@@ -321,6 +321,9 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let rawPermissions: RawPermissions?
     public let tapActive: Bool
     public let tcpPort: UInt16
+    /// The engine's Unix-domain control socket (ADR-046). Clients take the
+    /// path from here, never from an assumed directory.
+    public let controlSocketPath: String?
     public let inputCount: UInt64
     public let outputCount: UInt64
     public let timestamp: Date
@@ -342,8 +345,10 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil,
         managedCapsGeneration: String? = nil, capsCoverage: CapsCoverage? = nil,
         rawPermissions: RawPermissions? = nil,
-        retirementReason: String? = nil
+        retirementReason: String? = nil,
+        controlSocketPath: String? = nil
     ) {
+        self.controlSocketPath = controlSocketPath
         self.nonce = nonce
         self.pid = pid
         self.uid = uid

@@ -17,6 +17,7 @@ passthru-output-spike = [
 ]
 
 [dependencies]
+libc = "0.2"
 kanata_state_machine = { package = "kanata", path = "../../External/kanata", features = ["tcp_server"] }
 kanata-parser = { path = "../../External/kanata/parser" }
 kanata-keyberon = { path = "../../External/kanata/keyberon" }

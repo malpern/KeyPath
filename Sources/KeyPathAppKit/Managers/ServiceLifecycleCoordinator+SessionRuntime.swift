@@ -77,12 +77,17 @@ extension ServiceLifecycleCoordinator {
     /// The worker's argv. Uninstall's sweep recognizes workers by these flags,
     /// so a test pins them to SessionWorkerProcess.parse.
     nonisolated static func sessionLaunchArguments(
-        capabilitiesOnly: Bool, reportPath: String, nonce: String, ownerPID: Int32, port: Int, configPath: String
+        capabilitiesOnly: Bool, reportPath: String, nonce: String, ownerPID: Int32,
+        ownerPIDVersion: UInt32?, port: Int, configPath: String
     ) -> [String] {
-        [
+        // The PID version names this exact app process; the engine admits only it (ADR-046).
+        let ownerVersion = ownerPIDVersion.map { ["--session-owner-pidversion", String($0)] } ?? []
+        return [
             capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
             "--session-report", reportPath, "--session-nonce", nonce,
-            "--session-owner", String(ownerPID), "--session-port", String(port),
+            "--session-owner", String(ownerPID)
+        ] + ownerVersion + [
+            "--session-port", String(port),
             "--session-config", configPath
         ]
     }
@@ -820,6 +825,7 @@ extension ServiceLifecycleCoordinator {
         configuration.addsToRecentItems = false
         configuration.arguments = Self.sessionLaunchArguments(
             capabilitiesOnly: capabilitiesOnly, reportPath: url.path, nonce: nonce, ownerPID: getpid(),
+            ownerPIDVersion: EngineControlSocket.currentPIDVersion(),
             port: KeyPathConstants.Networking.defaultTCPPort, configPath: KeyPathConstants.Config.mainConfigPath
         )
         sessionCapsIntermediate = nil
