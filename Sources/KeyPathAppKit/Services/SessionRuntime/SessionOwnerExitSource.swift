@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import KeyPathCore
 import os
 
 /// Tells the worker the moment its owning app exits (kqueue `NOTE_EXIT`), so
@@ -27,7 +28,7 @@ final class SessionOwnerExitSource: @unchecked Sendable {
         watch.source.resume()
         // Registered first, so an exit after this check is delivered by the
         // source; one before it is caught here.
-        if pid <= 0 || (kill(pid, 0) != 0 && errno == ESRCH) {
+        if pid <= 0 || !SystemStateProvider.isProcessAlive(pid: pid) {
             queue.async { [weak watch] in watch?.fire() }
         }
         return watch
