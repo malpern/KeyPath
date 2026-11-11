@@ -5,15 +5,14 @@ public extension SystemStateResult {
     @MainActor
     static func projecting(_ context: SystemContext) -> SystemStateResult {
         let (wizardState, wizardIssues) = SystemInspector.inspect(context: context)
-        let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
 
         return SystemStateResult(
             state: wizardState,
             issues: wizardIssues,
-            autoFixActions: decision.autoFixActions,
+            autoFixActions: InstallerEngine.actions(for: .repair, context: context),
             detectionTimestamp: context.timestamp,
-            stateMatrixRow: decision.assessment.rawValue,
-            stateMatrixPlan: decision.matrixActions.map(\.rawValue),
+            stateMatrixRow: context.installerStateMatrixRow.rawValue,
+            stateMatrixPlan: context.installerStateMatrixPlan.map(\.rawValue),
             captureStatus: context.captureStatus,
             permissions: context.captureStatus.isComplete ? context.permissions : nil
         )

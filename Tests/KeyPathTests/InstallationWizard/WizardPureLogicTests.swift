@@ -6,7 +6,7 @@ import KeyPathCore
 @preconcurrency import XCTest
 
 /// Unit tests for the wizard's pure logic types: SystemInspector, WizardRouter,
-/// InstallerRecipeID, and InstallerDecisionPipeline.
+/// InstallerRecipeID, and InstallerEngine.actions(for:context:).
 /// These complement the golden tests by covering edge cases and gap scenarios.
 ///
 /// Naming convention: test_<scenario>_<expectedBehavior>
@@ -191,13 +191,12 @@ final class WizardPureLogicTests: XCTestCase {
         ]
 
         for fixture in fixtures {
-            let decision = InstallerDecisionPipeline.decide(
-                for: fixture.intent,
-                context: fixture.context
+            XCTAssertEqual(fixture.context.installerStateMatrixRow, fixture.assessment, fixture.name)
+            XCTAssertEqual(fixture.context.installerStateMatrixPlan, fixture.matrixActions, fixture.name)
+            XCTAssertEqual(
+                InstallerEngine.actions(for: fixture.intent, context: fixture.context),
+                fixture.autoFixActions, fixture.name
             )
-            XCTAssertEqual(decision.assessment, fixture.assessment, fixture.name)
-            XCTAssertEqual(decision.matrixActions, fixture.matrixActions, fixture.name)
-            XCTAssertEqual(decision.autoFixActions, fixture.autoFixActions, fixture.name)
         }
     }
 
@@ -398,7 +397,7 @@ final class WizardPureLogicTests: XCTestCase {
         }
     }
 
-    // MARK: - InstallerDecisionPipeline: Repair Actions
+    // MARK: - InstallerEngine.actions(for:context:): Repair Actions
 
     /// Executable plans start the runtime only when session readiness is missing.
     func test_sessionPlansOnlyStartWhenRuntimeReadinessIsMissing() {
@@ -415,7 +414,7 @@ final class WizardPureLogicTests: XCTestCase {
             let context = makeContext(services: health, components: .empty)
             let expected: [AutoFixAction] = running && responding && inputReady ? [] : [.restartCommServer]
             for intent in [InstallIntent.install, .repair] {
-                XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: intent, context: context), expected)
+                XCTAssertEqual(InstallerEngine.actions(for: intent, context: context), expected)
             }
         }
     }
@@ -431,16 +430,16 @@ final class WizardPureLogicTests: XCTestCase {
                 conflicts: ConflictStatus(conflicts: [.kanataProcessRunning(pid: 1, command: "historical")], canAutoResolve: canAutoResolve),
                 components: .empty
             )
-            XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [])
-            XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [])
+            XCTAssertEqual(InstallerEngine.actions(for: .install, context: context), [])
+            XCTAssertEqual(InstallerEngine.actions(for: .repair, context: context), [])
         }
     }
 
     func test_inspectionAndUninstallNeverPlanRuntimeMutations() {
         let context = makeContext(services: .empty, components: .empty)
-        XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: .inspectOnly, context: context), [])
-        XCTAssertEqual(InstallerDecisionPipeline.determineUninstallActions(context: context), [])
-        XCTAssertEqual(InstallerDecisionPipeline.determineActions(for: .uninstall, context: context), [])
+        XCTAssertEqual(InstallerEngine.actions(for: .inspectOnly, context: context), [])
+        XCTAssertEqual(InstallerEngine.actions(for: .uninstall, context: context), [])
+        XCTAssertEqual(InstallerEngine.actions(for: .uninstall, context: context), [])
     }
 
     // MARK: - Timeout Issue Handling

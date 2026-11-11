@@ -13,10 +13,8 @@ final class SessionReadyAssessmentTests: KeyPathTestCase {
             kanataTCPResponding: true,
             componentsInstalled: true
         ).build()
-        let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
-
-        XCTAssertEqual(decision.assessment, .sessionRuntimeReady)
-        XCTAssertTrue(decision.matrixActions.isEmpty)
-        XCTAssertTrue(decision.autoFixActions.isEmpty)
+        XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeReady)
+        XCTAssertTrue(context.installerStateMatrixPlan.isEmpty)
+        XCTAssertTrue(InstallerEngine.actions(for: .repair, context: context).isEmpty)
     }
 }

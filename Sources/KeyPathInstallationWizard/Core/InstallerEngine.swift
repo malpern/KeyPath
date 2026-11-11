@@ -105,16 +105,18 @@ public final class InstallerEngine {
     /// is marked `.blocked` with the missing requirement.
     public func makePlan(for intent: InstallIntent, context: SystemContext) async -> InstallPlan {
         AppLogger.shared.log("📋 [InstallerEngine] Starting makePlan(for: \(intent), context:)")
-        let decision = InstallerDecisionPipeline.decide(for: intent, context: context)
-        let stateMatrixRow = decision.assessment.rawValue
-        let stateMatrixPlan = decision.matrixActions.map(\.rawValue)
+        let stateMatrixRow = context.installerStateMatrixRow.rawValue
+        let stateMatrixPlan = context.installerStateMatrixPlan.map(\.rawValue)
         let baseMetadata = PlanMetadata(
             stateMatrixRow: stateMatrixRow,
             stateMatrixPlan: stateMatrixPlan
         )
 
-        // Phase 3: Check requirements from the captured context only.
-        if let blockingRequirement = checkRequirements(for: intent, context: context) {
+        // Uninstall never runs through a plan; SessionUninstallCoordinator owns it.
+        if intent == .uninstall {
+            let blockingRequirement = Requirement(
+                name: "System uninstall is unavailable in the driverless build", status: .blocked
+            )
             AppLogger.shared.log(
                 "⚠️ [InstallerEngine] Plan blocked by requirement: \(blockingRequirement.name)"
             )
@@ -128,18 +130,8 @@ public final class InstallerEngine {
             )
         }
 
-        // Determine actions needed based on intent and context
-        let actions = decision.autoFixActions
-        AppLogger.shared.log(
-            "📋 [InstallerEngine] Determined \(actions.count) actions for intent: \(intent)"
-        )
-
-        // Generate recipes from actions
-        let recipes = generateRecipes(from: actions, context: context)
-        AppLogger.shared.log("📋 [InstallerEngine] Generated \(recipes.count) recipes")
-
-        // Order recipes respecting dependencies
-        let orderedRecipes = orderRecipes(recipes)
+        let orderedRecipes = Self.actions(for: intent, context: context).map(recipeForAction)
+        AppLogger.shared.log("📋 [InstallerEngine] \(orderedRecipes.count) recipe(s) for intent: \(intent)")
 
         let plan = InstallPlan(
             sourceSnapshotID: context.snapshotID,
@@ -148,7 +140,6 @@ public final class InstallerEngine {
             intent: intent,
             blockedBy: nil,
             metadata: PlanMetadata(
-                promptsNeeded: actions.contains { actionNeedsPrompt($0) },
                 stateMatrixRow: stateMatrixRow,
                 stateMatrixPlan: stateMatrixPlan
             ),
@@ -173,36 +164,6 @@ public final class InstallerEngine {
         return Dictionary(uniqueKeysWithValues: postconditions.map { postcondition in
             (postcondition, sessionPostconditionSatisfied(postcondition, by: context))
         })
-    }
-
-    // MARK: - Requirement Checking
-
-    /// Check if requirements are met for the given intent
-    /// Returns: Blocking requirement if any, nil if all requirements met
-    private func checkRequirements(for intent: InstallIntent, context _: SystemContext) -> Requirement? {
-        if intent == .uninstall {
-            return Requirement(name: "System uninstall is unavailable in the driverless build", status: .blocked)
-        }
-        return nil
-    }
-
-    // MARK: - Action Determination
-
-    // Note: Action determination logic is in InstallerEngine+Recipes.swift
-
-    // MARK: - Recipe Generation
-
-    // Note: Recipe generation logic is in InstallerEngine+Recipes.swift
-
-    // MARK: - Recipe Ordering
-
-    // Note: Recipe ordering logic is in InstallerEngine+Recipes.swift
-
-    // MARK: - Helper Methods
-
-    /// Check if an action needs user prompts
-    private func actionNeedsPrompt(_: AutoFixAction) -> Bool {
-        false
     }
 
     /// Execute the planned operations
@@ -491,9 +452,7 @@ public final class InstallerEngine {
         }
 
         let completionState: InstallerCompletionState = if success {
-            if finalContext.map(requiresManualApproval) == true {
-                .awaitingApproval
-            } else if firstFailure != nil {
+            if firstFailure != nil {
                 .verifiedAfterOperationError
             } else if plan.recipes.isEmpty, plan.intent != .inspectOnly {
                 .verifiedNoOp
@@ -537,10 +496,6 @@ public final class InstallerEngine {
             "✅ [InstallerEngine] execute() complete - success: \(success), recipes executed: \(executedRecipes.count)"
         )
         return report
-    }
-
-    private func requiresManualApproval(_: SystemContext) -> Bool {
-        false // Session readiness never depends on privileged service approval.
     }
 
     private func verifyNoOpPlan(
@@ -704,14 +659,14 @@ public final class InstallerEngine {
         let basePlan = await makePlan(for: .repair, context: context)
 
         // Filter recipes to only include ones matching the action
-        let actionRecipeID = recipeIDForAction(action)
+        let actionRecipeID = Self.recipeID(for: action)
         let filteredRecipes = basePlan.recipes.filter { $0.id == actionRecipeID }
 
         // If the repair plan does not include the action, generate its recipe directly.
         let finalRecipes: [ServiceRecipe]
         if filteredRecipes.isEmpty {
             AppLogger.shared.log("🔧 [InstallerEngine] Generating direct recipe for action: \(action)")
-            finalRecipes = [recipeForAction(action, context: context)]
+            finalRecipes = [recipeForAction(action)]
         } else {
             finalRecipes = filteredRecipes
         }
@@ -742,6 +697,40 @@ public final class InstallerEngine {
             "✅ [InstallerEngine] runSingleAction(\(action)) complete - success: \(report.success)"
         )
         return report
+    }
+}
+
+// MARK: - Actions and recipes
+
+public extension InstallerEngine {
+    /// What install and repair do for the session runtime: start it when it is
+    /// not ready. Uninstall and inspection never plan an action here.
+    nonisolated static func actions(for intent: InstallIntent, context: SystemContext) -> [AutoFixAction] {
+        switch intent {
+        case .install, .repair:
+            context.services.kanataRuntimeReadiness.isReady ? [] : [.restartCommServer]
+        case .uninstall, .inspectOnly:
+            []
+        }
+    }
+
+    nonisolated static func recipeID(for action: AutoFixAction) -> String {
+        switch action {
+        case .restartCommServer: InstallerRecipeID.startSessionRuntime
+        case .synchronizeConfigPaths: InstallerRecipeID.synchronizeConfigPaths
+        }
+    }
+
+    func recipeForAction(_ action: AutoFixAction) -> ServiceRecipe {
+        switch action {
+        case .restartCommServer:
+            ServiceRecipe(
+                id: InstallerRecipeID.startSessionRuntime, type: .installComponent,
+                expectedPostconditions: [.runtimeReadyOrApprovalPending]
+            )
+        case .synchronizeConfigPaths:
+            ServiceRecipe(id: InstallerRecipeID.synchronizeConfigPaths, type: .checkRequirement)
+        }
     }
 }
 
