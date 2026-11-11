@@ -322,7 +322,8 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let tapActive: Bool
     public let tcpPort: UInt16
     /// The engine's Unix-domain control socket (ADR-046). Clients take the
-    /// path from here, never from an assumed directory.
+    /// path from here, never from an assumed directory, and only from a
+    /// report of a running worker; terminal reports leave it nil.
     public let controlSocketPath: String?
     public let inputCount: UInt64
     public let outputCount: UInt64

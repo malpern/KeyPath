@@ -265,6 +265,9 @@ public final class SessionRuntimeWorker {
             if case let .failed(reason) = created {
                 AppLogger.shared.warn("⚠️ [SessionWorker] Runtime creation failed: \(reason)")
             }
+            // The bridge closed the descriptor; the file is ours to remove.
+            unlink(control.path)
+            controlSocketPath = nil
             finish(.failed, reason: "runtime-creation-failed")
         }
         // Close the control socket the moment the owner exits, then retire as
@@ -1260,6 +1263,8 @@ public final class SessionRuntimeWorker {
         // No new engine-control connections, and the socket file is removed.
         ownerExitSource?.cancel()
         runtime?.closeControl()
+        // The terminal report must not name a socket that no longer exists.
+        controlSocketPath = nil
         // Before the flush below, so its final totals reach the log.
         attribution?.stop()
         attribution = nil
