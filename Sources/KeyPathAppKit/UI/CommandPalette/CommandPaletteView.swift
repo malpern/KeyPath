@@ -38,7 +38,7 @@ struct CommandPaletteView: View {
             hintBar
         }
         .frame(width: 440, height: 360)
-        .background(VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow))
+        .background(VisualEffectRepresentable(material: .hudWindow, blending: .behindWindow, emphasized: false))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.3), radius: 20, y: 8)
         .onAppear {
@@ -270,25 +270,5 @@ private struct CommandPaletteRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("command-palette-row-\(item.id)")
-    }
-}
-
-// MARK: - Visual Effect Blur
-
-private struct VisualEffectBlur: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-
-    func makeNSView(context _: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context _: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
     }
 }
