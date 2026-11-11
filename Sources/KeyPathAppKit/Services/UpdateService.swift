@@ -189,8 +189,8 @@ public final class UpdateService: NSObject {
             // Clear legacy feed URL overrides from UserDefaults in case older builds used setFeedURL.
             updater.clearFeedURLFromUserDefaults()
             sparkleCanCheck = updater.canCheckForUpdates
-            canCheckObservation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] updater, _ in
-                let canCheck = updater.canCheckForUpdates
+            canCheckObservation = updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
+                let canCheck = change.newValue ?? false
                 Task { @MainActor in self?.sparkleCanCheck = canCheck }
             }
             lastUpdateCheckDate = updater.lastUpdateCheckDate
