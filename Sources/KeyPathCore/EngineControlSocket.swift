@@ -134,6 +134,7 @@ public enum EngineControlSocket {
         guard bound == 0, chmod(path, 0o600) == 0, listen(fd, 8) == 0 else {
             let error = errno
             close(fd)
+            if bound == 0 { unlink(path) }
             throw SetupError.socket("bind/listen failed: \(String(cString: strerror(error)))")
         }
         return fd

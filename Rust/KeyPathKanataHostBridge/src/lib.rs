@@ -537,31 +537,37 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
     }
 
     let (tx, rx) = std::sync::mpsc::sync_channel(100);
+    let tcp_address = runtime
+        .tcp_server_address
+        .as_ref()
+        .map(|address| *address.get_ref());
+    // Bind TCP once and keep the listener, before touching the control socket:
+    // a failure is reported, not a panic, and leaves no socket file behind.
+    let tcp_listener = match tcp_address.map(std::net::TcpListener::bind).transpose() {
+        Ok(listener) => listener,
+        Err(error) => {
+            keypath_kanata_bridge_passthru_close_control((runtime as *const PassthruRuntime).cast_mut().cast());
+            write_error(
+                error_buffer,
+                error_buffer_len,
+                &format!(
+                    "tcp server port {} unavailable: {error}",
+                    tcp_address.map_or(0, |address| address.port())
+                ),
+            );
+            return false;
+        }
+    };
     let control_listener = runtime.control_listener.lock().take();
-    let ntx = if runtime.tcp_server_address.is_some() || control_listener.is_some() {
+    let ntx = if tcp_listener.is_some() || control_listener.is_some() {
         // One server and one notification set for both listeners.
-        let tcp_address = runtime
-            .tcp_server_address
-            .as_ref()
-            .map(|address| *address.get_ref());
         let mut server = kanata_state_machine::TcpServer::new(
             tcp_address.unwrap_or_else(|| ([127, 0, 0, 1], 0).into()),
             tx.clone(),
         )
         .with_policy(kanata_state_machine::tcp_server::ServerPolicy::session());
-        if let Some(address) = tcp_address {
-            // Bind once and keep the listener: a failure is reported, not a panic.
-            match std::net::TcpListener::bind(address) {
-                Ok(listener) => server.start_tcp(listener, runtime.runtime.clone()),
-                Err(error) => {
-                    write_error(
-                        error_buffer,
-                        error_buffer_len,
-                        &format!("tcp server port {} unavailable: {error}", address.port()),
-                    );
-                    return false;
-                }
-            }
+        if let Some(listener) = tcp_listener {
+            server.start_tcp(listener, runtime.runtime.clone());
         }
         if let Some(fd) = control_listener {
             let listener = std::os::unix::net::UnixListener::from(fd);
@@ -1107,6 +1113,42 @@ mod tests {
         keypath_kanata_bridge_passthru_close_control(handle);
         assert!(!socket.exists());
         keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A TCP port that cannot be bound fails start and removes the control
+    /// socket file instead of leaving it behind.
+    #[test]
+    fn tcp_bind_failure_reports_and_removes_the_control_socket() {
+        use std::os::fd::IntoRawFd;
+        let busy = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = busy.local_addr().unwrap().port();
+        let dir = std::env::temp_dir().join(format!("kp-tcpbusy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("e.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let cfg = passthru_cfg_path();
+        let mut error = vec![0 as c_char; 512];
+        let (pid, version) = this_process();
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg.as_ptr(),
+            port,
+            listener.into_raw_fd(),
+            pid,
+            version,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        assert!(!keypath_kanata_bridge_start_passthru_runtime(
+            handle,
+            error.as_mut_ptr(),
+            error.len()
+        ));
+        assert!(read_error_buffer(&error).contains("unavailable"));
+        assert!(!socket.exists(), "control socket left behind");
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        drop(busy);
         std::fs::remove_dir_all(dir).unwrap();
     }
 

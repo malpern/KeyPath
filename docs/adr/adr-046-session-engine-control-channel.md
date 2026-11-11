@@ -279,7 +279,9 @@ choices differ from the plan's wording:
 
 - **The worker binds the socket, not the bridge.** `EngineControlSocket.open`
   (KeyPathCore) chooses the path, creates and checks the 0700 directory,
-  removes sockets left by dead workers, and binds under umask 0177. The worker
+  removes sockets left by dead workers, binds, and makes the socket 0600 (the
+  0700 directory covers the moment between; the process-wide umask is not
+  touched). The worker
   hands the listening descriptor to the bridge, which serves it with
   `TcpServer::start_unix`. Path rules and errors live in one place, and a bind
   failure ends the worker with `engine-control-socket-unavailable: <cause>`.
@@ -295,8 +297,9 @@ this until it relaunches; updates and deploys relaunch it.
 The owner watch is `SessionOwnerExitSource` (a dispatch process source, so
 kqueue `NOTE_EXIT`); it closes the engine socket and retires the worker. The
 session policy refuses `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` on
-both listeners, caps connections at 8 and drops a client after a 2 s stalled
-write.
+both listeners, caps each kind of client (TCP, Unix) at 16 separately, so
+loopback TCP clients cannot lock the owner out, and drops a client after a 2 s
+stalled write.
 
 Checked live on the mini with this build: the socket is created 0600 in the
 0700 directory; a same-user process connects and is closed with 0 bytes; the

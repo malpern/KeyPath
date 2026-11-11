@@ -276,8 +276,9 @@ public final class SessionRuntimeWorker {
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())
         }
-        guard handle.hasSessionInputMap else { finish(.failed, reason: "runtime-input-map-unavailable") }
+        // Held before any further check, so finish() can close its control socket.
         runtime = handle
+        guard handle.hasSessionInputMap else { finish(.failed, reason: "runtime-input-map-unavailable") }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             startupTapDiagnostics = .init(
                 rawTapCallbackCount: 0,
