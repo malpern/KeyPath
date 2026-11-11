@@ -602,9 +602,22 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
                 unsafe { libc::getuid() },
                 Some((pid, pid_version)),
             );
-            if let Some(requirement) = runtime.control_requirement.clone() {
+            if let Some(text) = runtime.control_requirement.as_deref() {
+                // Parsed once; checked on every accept.
+                let requirement = match peer_signature::Requirement::parse(text) {
+                    Ok(requirement) => Arc::new(requirement),
+                    Err(error) => {
+                        drop(control_slot);
+                        write_error(
+                            error_buffer,
+                            error_buffer_len,
+                            &format!("engine control socket: {error}"),
+                        );
+                        return false;
+                    }
+                };
                 check = check.with_extra_check(Arc::new(move |peer| {
-                    peer_signature::check_peer(&peer.audit_token, &requirement)
+                    requirement.check(&peer.audit_token)
                 }));
             }
             let handle = server.start_unix(listener, check, runtime.runtime.clone());

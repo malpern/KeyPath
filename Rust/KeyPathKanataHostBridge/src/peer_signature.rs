@@ -17,7 +17,6 @@ type OSStatus = i32;
 type SecCodeRef = *const c_void;
 type SecRequirementRef = *const c_void;
 const K_SEC_CS_DEFAULT_FLAGS: u32 = 0;
-
 #[link(name = "Security", kind = "framework")]
 unsafe extern "C" {
     static kSecGuestAttributeAudit: CFStringRef;
@@ -91,47 +90,68 @@ pub fn own_designated_requirement() -> Result<String, String> {
     }
 }
 
-/// Checks that the process named by `audit_token` runs valid code that
-/// satisfies `requirement`.
-pub fn check_peer(audit_token: &[u32; 8], requirement: &str) -> Result<(), String> {
-    unsafe {
-        let mut parsed: SecRequirementRef = std::ptr::null();
-        let status = SecRequirementCreateWithString(
-            CFString::new(requirement).as_concrete_TypeRef(),
-            K_SEC_CS_DEFAULT_FLAGS,
-            &mut parsed,
-        );
-        let parsed = Owned(parsed);
-        if status != 0 {
-            return Err(format!("invalid code requirement ({status})"));
-        }
-        let token_bytes: Vec<u8> = audit_token
-            .iter()
-            .flat_map(|word| word.to_ne_bytes())
-            .collect();
-        let key = CFString::wrap_under_get_rule(kSecGuestAttributeAudit);
-        let attributes = CFDictionary::<CFString, CFType>::from_CFType_pairs(&[(
-            key,
-            CFData::from_buffer(&token_bytes).as_CFType(),
-        )]);
-        let mut guest: SecCodeRef = std::ptr::null();
-        let status = SecCodeCopyGuestWithAttributes(
-            std::ptr::null(),
-            attributes.as_concrete_TypeRef().cast(),
-            K_SEC_CS_DEFAULT_FLAGS,
-            &mut guest,
-        );
-        let guest = Owned(guest);
-        if status != 0 {
-            return Err(format!("peer code not found ({status})"));
-        }
-        match SecCodeCheckValidity(guest.0, K_SEC_CS_DEFAULT_FLAGS, parsed.0) {
-            0 => Ok(()),
-            status => Err(format!(
-                "peer code does not satisfy this app's signature ({status})"
-            )),
+/// A parsed code requirement, parsed once and checked on every connection.
+pub struct Requirement(Owned);
+
+// A SecRequirement is an immutable CF object; reading it from several threads is safe.
+unsafe impl Send for Requirement {}
+unsafe impl Sync for Requirement {}
+
+impl Requirement {
+    pub fn parse(text: &str) -> Result<Self, String> {
+        unsafe {
+            let mut parsed: SecRequirementRef = std::ptr::null();
+            let status = SecRequirementCreateWithString(
+                CFString::new(text).as_concrete_TypeRef(),
+                K_SEC_CS_DEFAULT_FLAGS,
+                &mut parsed,
+            );
+            let parsed = Owned(parsed);
+            if status != 0 {
+                return Err(format!("invalid code requirement ({status})"));
+            }
+            Ok(Self(parsed))
         }
     }
+
+    /// Checks that the process named by `audit_token` runs valid code that
+    /// satisfies this requirement.
+    pub fn check(&self, audit_token: &[u32; 8]) -> Result<(), String> {
+        unsafe {
+            let token_bytes: Vec<u8> = audit_token
+                .iter()
+                .flat_map(|word| word.to_ne_bytes())
+                .collect();
+            let key = CFString::wrap_under_get_rule(kSecGuestAttributeAudit);
+            let attributes = CFDictionary::<CFString, CFType>::from_CFType_pairs(&[(
+                key,
+                CFData::from_buffer(&token_bytes).as_CFType(),
+            )]);
+            let mut guest: SecCodeRef = std::ptr::null();
+            let status = SecCodeCopyGuestWithAttributes(
+                std::ptr::null(),
+                attributes.as_concrete_TypeRef().cast(),
+                K_SEC_CS_DEFAULT_FLAGS,
+                &mut guest,
+            );
+            let guest = Owned(guest);
+            if status != 0 {
+                return Err(format!("peer code not found ({status})"));
+            }
+            match SecCodeCheckValidity(guest.0, K_SEC_CS_DEFAULT_FLAGS, self.0.0) {
+                0 => Ok(()),
+                status => Err(format!(
+                    "peer code does not satisfy this app's signature ({status})"
+                )),
+            }
+        }
+    }
+}
+
+/// Parses `requirement` and checks one peer against it.
+#[cfg(test)]
+pub fn check_peer(audit_token: &[u32; 8], requirement: &str) -> Result<(), String> {
+    Requirement::parse(requirement)?.check(audit_token)
 }
 
 #[cfg(test)]

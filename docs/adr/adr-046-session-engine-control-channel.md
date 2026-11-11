@@ -1,6 +1,6 @@
 # ADR-046: Session Engine Control Channel
 
-**Status:** Accepted. Phases 1–3 shipped (#1412, #1413, fork malpern/kanata#31); the phase 4 signature check is not yet scheduled.
+**Status:** Accepted. Phases 1–3 shipped (#1412, #1413, fork malpern/kanata#31); phase 4, the signature check, gates the release (fork malpern/kanata#32).
 **Date:** 2026-11-04 (accepted 2026-11-11)
 **Supersedes:** [ADR-013](adr-013-tcp-without-auth.md)
 **Tracking:** [#1354](https://github.com/malpern/KeyPath/issues/1354) (closed by #1413)
@@ -333,7 +333,17 @@ no override: an ad-hoc build's requirement is its code hash. If the requirement
 cannot be read (an unsigned binary), creating the runtime fails rather than
 running an unchecked socket. The fork only adds a generic hook
 (`PeerCheck::with_extra_check`, and the audit token in `PeerIdentity`); the
-check itself is `Rust/KeyPathKanataHostBridge/src/peer_signature.rs`. Checked
+check itself is `Rust/KeyPathKanataHostBridge/src/peer_signature.rs`. The
+requirement is parsed once when the runtime starts. One known edge, checked
+live on the mini: `SecCodeCheckValidity` also validates the peer's bundle on
+disk, so once the bundle is replaced, a still-running app is refused new engine
+connections until it relaunches, whatever identity signed it. Every real
+replacement path quits the app first (Sparkle installs on quit or relaunch,
+`quick-deploy.sh` restarts it, Finder will not replace an open app), so the
+check keeps its default, strongest validation; the flags that would skip the
+on-disk check are rejected for running code. A refused connection also exposed
+a crash in the app's event listener (a continuation resumed twice when Network
+reported `.failed` after `.ready`); it now resumes exactly once. Checked
 live on the mini: the installed app (team `X2RKZ5TG99`) is admitted, and the
 bridge test with a requirement for other code refuses the owner process before
 any byte.
