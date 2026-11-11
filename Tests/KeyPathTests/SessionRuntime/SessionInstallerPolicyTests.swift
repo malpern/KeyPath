@@ -53,16 +53,16 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
         XCTAssertFalse(SystemContext(snapshot: self.snapshot(running: false)).isReady)
         XCTAssertFalse(SystemContext.empty.isReady)
         XCTAssertEqual(SystemInspector.inspect(context: context).0, .active)
-        XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [])
+        XCTAssertEqual(InstallerEngine.actions(for: .install, context: context), [])
         XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeReady)
     }
 
     func testSessionSetupAndRepairNeverPlanPrivilegedInstallation() {
         let context = SystemContext(snapshot: snapshot(running: false))
-        XCTAssertEqual(InstallerDecisionPipeline.determineInstallActions(context: context), [.restartCommServer])
-        XCTAssertEqual(InstallerDecisionPipeline.determineRepairActions(context: context), [.restartCommServer])
+        XCTAssertEqual(InstallerEngine.actions(for: .install, context: context), [.restartCommServer])
+        XCTAssertEqual(InstallerEngine.actions(for: .repair, context: context), [.restartCommServer])
         XCTAssertEqual(context.installerStateMatrixRow, .sessionRuntimeStopped)
-        let recipe = InstallerEngine().recipeForAction(.restartCommServer, context: context)
+        let recipe = InstallerEngine().recipeForAction(.restartCommServer)
         XCTAssertEqual(recipe.id, "start-session-runtime")
         XCTAssertEqual(recipe.expectedPostconditions, [.runtimeReadyOrApprovalPending])
     }

@@ -546,9 +546,8 @@ class MainAppStateController {
         // Update published state
         lastValidatedSystemContext = context
         lastAdaptedState = adapted.state
-        let decision = InstallerDecisionPipeline.decide(for: .repair, context: context)
-        lastInstallerStateMatrixRow = decision.assessment
-        lastInstallerStateMatrixPlan = decision.matrixActions
+        lastInstallerStateMatrixRow = context.installerStateMatrixRow
+        lastInstallerStateMatrixPlan = context.installerStateMatrixPlan
         issues = adapted.issues
         lastValidationDate = Date()
         lastValidationTime = Date() // Track for cooldown optimization
