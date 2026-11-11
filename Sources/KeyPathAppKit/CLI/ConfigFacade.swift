@@ -314,6 +314,9 @@ public struct ConfigFacade: Sendable {
 
     public nonisolated(unsafe) static var engineAccess: EngineAccess = .viaApp
 
+    /// The app's runtime-control socket. Tests point it at a fake app.
+    nonisolated(unsafe) static var appControlSocketPath = RuntimeControl.socketURL.path
+
     /// Engine requests answered by the app. A missing app, or one that cannot
     /// answer, reads as "not available".
     private func askApp(_ operation: RuntimeControl.Operation, argument: String? = nil) async throws
@@ -324,7 +327,10 @@ public struct ConfigFacade: Sendable {
         // the runtime is in transition; give it room so a slow success is not
         // reported as a failure.
         let timeout: TimeInterval = operation == .reload ? 30 : 10
-        let response = try await Task.detached { try RuntimeControl.send(request, timeout: timeout) }.value
+        let path = Self.appControlSocketPath
+        let response = try await Task.detached {
+            try RuntimeControl.send(request, timeout: timeout, socketPath: path)
+        }.value
         guard response.ok else {
             throw Self.error(response.lastError ?? response.failure ?? "KeyPath could not reach the remapping engine")
         }
