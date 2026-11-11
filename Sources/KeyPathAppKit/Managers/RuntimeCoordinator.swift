@@ -294,8 +294,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configReloadCoordinator = ConfigReloadCoordinator(
             engineClient: self.engineClient,
             reloadSafetyMonitor: reloadSafetyMonitor,
-            healthStatusProvider: { [diagnosticsManager] tcpPort in
-                await diagnosticsManager.checkHealth(tcpPort: tcpPort)
+            healthStatusProvider: { [diagnosticsManager] in
+                await diagnosticsManager.checkHealth()
             },
             isRuntimeTransitioning: { [serviceLifecycleCoordinator] in
                 serviceLifecycleCoordinator.isRuntimeTransitionInProgress
@@ -493,9 +493,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 } catch {
                     self.lastError = error.localizedDescription
                 }
-                ruleCollectionsManager.startEventMonitoring(port: PreferencesService.shared.tcpServerPort)
+                ruleCollectionsManager.startEventMonitoring()
             }
-            HrmObservabilityService.shared.startMonitoring(port: PreferencesService.shared.tcpServerPort)
+            HrmObservabilityService.shared.startMonitoring()
             _ = KeystrokeHistoryService.shared
         } else {
             // #922: bootstrap() performs real disk I/O (config load/save), TCP reload
@@ -543,8 +543,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Fetch layer names reported by Kanata over TCP.
     /// Falls back to empty list if the service is unavailable.
     func fetchLayerNamesFromKanata() async -> [String] {
-        let port = PreferencesService.shared.tcpServerPort
-        let client = KanataTCPClient(port: port, timeout: 3.0)
+        let client = KanataTCPClient(timeout: 3.0)
 
         let serverUp = await client.checkServerStatus()
         guard serverUp else {
@@ -566,8 +565,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// Switch to a different layer via Kanata TCP command.
     /// Returns true if the layer was changed successfully.
     func changeLayer(_ layerName: String) async -> Bool {
-        let port = PreferencesService.shared.tcpServerPort
-        let client = KanataTCPClient(port: port, timeout: 3.0)
+        let client = KanataTCPClient(timeout: 3.0)
 
         let serverUp = await client.checkServerStatus()
         guard serverUp else {

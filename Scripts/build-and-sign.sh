@@ -7,6 +7,11 @@
 
 set -euo pipefail
 
+if [[ -n "${KEYPATH_LAB_SPARKLE_FEED_URL:-}${KEYPATH_LAB_BUNDLE_VERSION:-}" && "${KEYPATH_LAB_BUILD:-0}" != "1" ]]; then
+    echo "❌ KEYPATH_LAB_SPARKLE_FEED_URL / KEYPATH_LAB_BUNDLE_VERSION are set without KEYPATH_LAB_BUILD=1; unset them or mark this a lab build." >&2
+    exit 1
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
@@ -184,9 +189,9 @@ MACOS="${CONTENTS}/MacOS"
 	mkdir -p "$FRAMEWORKS"
 	mkdir -p "$CONTENTS/Library/KeyPath"
 
-	# Build only the distributable app components: the app, the CLI, and the
-	# Insights plugin.
-	for product in KeyPath keypath-cli KeyPathInsights; do
+	# Build only the distributable app components: the app (with Insights linked
+	# in) and the CLI.
+	for product in KeyPath keypath-cli; do
 	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product "$product"
 	done
 
@@ -230,6 +235,7 @@ MACOS="${CONTENTS}/MacOS"
 	# stays in sync across releases (the source plist uses placeholder values).
 	_MAIN_VER=$(defaults read "$SCRIPT_DIR/../Sources/KeyPathApp/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0")
 	_MAIN_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$SCRIPT_DIR/../Sources/KeyPathApp/Info.plist" 2>/dev/null || echo "1")
+	_MAIN_BUILD="${KEYPATH_LAB_BUNDLE_VERSION:-$_MAIN_BUILD}" # lab builds: keep the engine in step with the app
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
@@ -260,31 +266,11 @@ MACOS="${CONTENTS}/MacOS"
 	    fi
 	done
 
-	# Assemble Insights plugin bundle
-	echo "🔌 Assembling Insights.bundle..."
-	PLUGINS_DIR="$CONTENTS/PlugIns"
-	INSIGHTS_BUNDLE="$PLUGINS_DIR/Insights.bundle"
-	INSIGHTS_CONTENTS="$INSIGHTS_BUNDLE/Contents"
-	INSIGHTS_MACOS="$INSIGHTS_CONTENTS/MacOS"
-	mkdir -p "$INSIGHTS_MACOS"
-
-	INSIGHTS_DYLIB="$BUILD_DIR/libKeyPathInsights.dylib"
-	if [ -f "$INSIGHTS_DYLIB" ]; then
-	    ditto "$INSIGHTS_DYLIB" "$INSIGHTS_MACOS/libKeyPathInsights"
-	    ditto "Sources/KeyPathInsights/Info.plist" "$INSIGHTS_CONTENTS/Info.plist"
-	    echo "✅ Assembled Insights.bundle"
-	else
-	    echo "❌ ERROR: libKeyPathInsights.dylib not found at $INSIGHTS_DYLIB" >&2
-	    exit 1
-	fi
-
 		verify_embedded_artifacts() {
 	    local missing=0
 	    for path in \
 	        "$MACOS/keypath-cli" \
 	        "$FRAMEWORKS/Sparkle.framework" \
-	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
-	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
 	        "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
 	        "$CONTENTS/Library/KeyPath/kanata-simulator" \
 	        "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" \
@@ -307,6 +293,18 @@ echo "✅ Driverless runtime artifacts verified"
 
 # Copy main app Info.plist
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
+# Lab builds only: point the updater at a private test feed and stamp a build
+# number, so one lab build can update to the next. They take effect only with
+# KEYPATH_LAB_BUILD=1, so a variable left exported in a shell cannot reach a
+# release candidate or a deploy; release.sh refuses them outright.
+if [[ -n "${KEYPATH_LAB_SPARKLE_FEED_URL:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :SUFeedURL $KEYPATH_LAB_SPARKLE_FEED_URL" "$CONTENTS/Info.plist"
+    echo "🧪 Lab build: SUFeedURL -> $KEYPATH_LAB_SPARKLE_FEED_URL"
+fi
+if [[ -n "${KEYPATH_LAB_BUNDLE_VERSION:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $KEYPATH_LAB_BUNDLE_VERSION" "$CONTENTS/Info.plist"
+    echo "🧪 Lab build: CFBundleVersion -> $KEYPATH_LAB_BUNDLE_VERSION"
+fi
 
 # Copy bundled app resources (icons, sounds, and UI assets).
 python3 "$SCRIPT_DIR/build-offline-help.py" --output "$RESOURCES/OfflineHelp"
@@ -409,9 +407,6 @@ else
         --force --options=runtime \
         --identifier "com.keypath.KeyPath.CLI" \
         --sign "$SIGNING_IDENTITY"
-
-    # Sign Insights plugin bundle
-    kp_sign "$INSIGHTS_BUNDLE" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
 
     # Sign embedded Sparkle framework (contains nested helper apps; deep signing is simplest)
     kp_sign "$FRAMEWORKS/Sparkle.framework" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"

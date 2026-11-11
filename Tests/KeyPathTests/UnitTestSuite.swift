@@ -99,7 +99,6 @@ final class UnitTestSuite: XCTestCase {
 
         // Test that service initializes with defaults (TCP only)
         XCTAssertEqual(service.communicationProtocol, .tcp)
-        XCTAssertTrue(service.isValidPort(service.tcpServerPort))
     }
 
     // MARK: - Sound Manager Tests

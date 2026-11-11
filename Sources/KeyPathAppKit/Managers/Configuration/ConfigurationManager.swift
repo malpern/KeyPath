@@ -21,11 +21,6 @@ final class ConfigurationManager {
     func buildKanataArguments(checkOnly: Bool = false) -> [String] {
         var arguments = ["--cfg", configPath]
 
-        // Add TCP port argument
-        let tcpPort = PreferencesService.shared.tcpServerPort
-        arguments.append(contentsOf: ["--port", "\(tcpPort)"])
-        AppLogger.shared.log("📡 [ConfigManager] TCP server enabled on port \(tcpPort)")
-
         if checkOnly {
             arguments.append("--check")
         } else {

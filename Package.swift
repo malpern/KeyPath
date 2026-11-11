@@ -60,11 +60,6 @@ let package = Package(
         .executable(
             name: "keypath-cli",
             targets: ["KeyPathCLIMain"]
-        ),
-        .library(
-            name: "KeyPathInsights",
-            type: .dynamic,
-            targets: ["KeyPathInsights"]
         )
     ],
     dependencies: [
@@ -175,6 +170,7 @@ let package = Package(
                 "KeyPathWizardCore",
                 "KeyPathInstallationWizard",
                 "KeyPathPluginKit",
+                "KeyPathInsights",
                 "KeyPathCLISupport",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
@@ -268,7 +264,7 @@ let package = Package(
                 .swiftLanguageMode(.v6)
             ]
         ),
-        // KeyPath Insights plugin bundle (activity logging, analytics)
+        // KeyPath Insights (opt-in local activity logging), linked into the app.
         .target(
             name: "KeyPathInsights",
             dependencies: [
@@ -276,9 +272,6 @@ let package = Package(
                 "KeyPathPluginKit"
             ],
             path: "Sources/KeyPathInsights",
-            exclude: [
-                "Info.plist"
-            ],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

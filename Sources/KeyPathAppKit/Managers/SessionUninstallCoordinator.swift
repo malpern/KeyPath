@@ -9,6 +9,18 @@ enum SessionWorkerSweepResult: Equatable, Sendable {
     case unverified
 }
 
+/// Skips sockets when backing up settings. Application Support holds live
+/// endpoints (the CLI's `runtime.sock`, and an engine socket a killed worker
+/// left behind) that are not settings, and `FileManager` cannot copy them:
+/// one socket failed the whole backup, so uninstall refused.
+private final class SocketSkippingCopyDelegate: NSObject, FileManagerDelegate {
+    nonisolated func fileManager(_: FileManager, shouldCopyItemAt source: URL, to _: URL) -> Bool {
+        var info = stat()
+        guard lstat(source.path, &info) == 0 else { return true }
+        return info.st_mode & S_IFMT != S_IFSOCK
+    }
+}
+
 /// Removes only the current user's driverless installation. No privileged cleanup.
 @MainActor
 final class SessionUninstallCoordinator: WizardUninstalling {
@@ -43,6 +55,13 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         self.trash = trash
         self.removeLoginItem = removeLoginItem
         self.stopSessionWorkers = stopSessionWorkers
+    }
+
+    nonisolated static func copySkippingSockets(from source: URL, to destination: URL) throws {
+        let copier = FileManager()
+        let delegate = SocketSkippingCopyDelegate()
+        copier.delegate = delegate
+        try withExtendedLifetime(delegate) { try copier.copyItem(at: source, to: destination) }
     }
 
     func performUninstall(deleteConfig: Bool) async -> WizardUninstallResult {
@@ -93,7 +112,8 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             for (index, path) in paths.enumerated() {
                 let source = home.appendingPathComponent(path)
                 if files.fileExists(atPath: source.path) {
-                    try files.copyItem(at: source.resolvingSymlinksInPath(), to: backup.appendingPathComponent("\(index)-\(source.lastPathComponent)"))
+                    try Self.copySkippingSockets(from: source.resolvingSymlinksInPath(),
+                                                 to: backup.appendingPathComponent("\(index)-\(source.lastPathComponent)"))
                 }
             }
             let preferences = defaults.persistentDomain(forName: domain) ?? [:]

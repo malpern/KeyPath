@@ -1,38 +1,47 @@
 #!/usr/bin/env python3
+"""Require a real engine answer for the current layer.
+
+The engine no longer listens on TCP (ADR-046): only the app that launched the
+session worker may connect to it. So this asks the installed CLI, which asks the
+app, which asks the engine. The name is kept for the lab scenarios that call it;
+the printed JSON keeps its old shape: {"CurrentLayerName":{"name":...}}.
+"""
 import argparse
 import json
-import socket
-import sys
+import subprocess
+
+
+def first_json_object(text: str):
+    """The CLI can print log lines before its JSON; decode the first object."""
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(text):
+        if character == "{" and (index == 0 or text[index - 1] == "\n"):
+            try:
+                value, _ = decoder.raw_decode(text, index)
+                return value
+            except json.JSONDecodeError:
+                continue
+    return None
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Require a real Kanata TCP protocol response")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=37001)
-    parser.add_argument("--timeout", type=float, default=2.0)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--cli", default="/Applications/KeyPath.app/Contents/MacOS/keypath-cli")
+    parser.add_argument("--timeout", type=float, default=10.0)
     args = parser.parse_args()
-    request_id = "keypath-lab-readiness"
-    request = {"RequestCurrentLayerName": {"request_id": request_id}}
     try:
-        with socket.create_connection((args.host, args.port), timeout=args.timeout) as connection:
-            connection.settimeout(args.timeout)
-            connection.sendall(json.dumps(request, separators=(",", ":")).encode() + b"\n")
-            response = connection.makefile("rb").readline(65537)
-    except (OSError, TimeoutError) as error:
-        raise SystemExit(f"kanata TCP probe failed: {error}") from error
-    if not response or len(response) > 65536:
-        raise SystemExit("kanata TCP probe failed: no bounded line response")
-    try:
-        payload = json.loads(response)
-    except json.JSONDecodeError as error:
-        raise SystemExit(f"kanata TCP probe failed: invalid JSON response: {error}") from error
-    current = payload.get("CurrentLayerName")
-    change = payload.get("LayerChange")
-    current_valid = isinstance(current, dict) and isinstance(current.get("name"), str)
-    change_valid = isinstance(change, dict) and isinstance(change.get("new"), str)
-    if not current_valid and not change_valid:
-        raise SystemExit("kanata TCP probe failed: layer response missing")
-    print(json.dumps(payload, separators=(",", ":")))
+        result = subprocess.run([args.cli, "layer", "current", "--json"], capture_output=True,
+                                text=True, timeout=args.timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise SystemExit(f"kanata layer probe failed: {error}") from error
+    if result.returncode != 0:
+        raise SystemExit(f"kanata layer probe failed: keypath-cli exited {result.returncode}")
+    payload = first_json_object(result.stdout)
+    data = payload.get("data") if isinstance(payload, dict) else None
+    layer = data.get("layer") if isinstance(data, dict) else None
+    if not isinstance(layer, str) or not layer:
+        raise SystemExit("kanata layer probe failed: layer response missing")
+    print(json.dumps({"CurrentLayerName": {"name": layer}}, separators=(",", ":")))
 
 
 if __name__ == "__main__":

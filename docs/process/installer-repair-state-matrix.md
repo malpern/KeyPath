@@ -114,8 +114,9 @@ the result as user action required and name the approval surface.
 
 ## Where To Put Enforcement
 
-- Planner routing belongs in `InstallerDecisionPipeline` and pure wizard logic
-  tests.
+- Planning is `InstallerEngine.actions(for:context:)`: install and repair start
+  the session runtime when it is not ready, and nothing else. The readiness rule
+  is `SystemContext.installerStateMatrixRow`. Pure wizard logic tests pin both.
 - There is no privileged command routing: the retired router, helper, and
   daemon managers were deleted in ADR-047 step 2e. Session runtime start, stop,
   and restart belong to `ServiceLifecycleCoordinator`.
@@ -211,8 +212,7 @@ the result as user action required and name the approval surface.
   wizard adapters must not be restored. `WizardPureLogicTests` pins projection
   and classification behavior, while
   `SnapshotConsumerLintTests.testInstallerEnginePreservesMatrixEvidenceThroughSystemSnapshotBridge`
-  and `InstallerDecisionPipelineLintTests` prevent duplicate recapture or
-  planning paths.
+  and `InstallerEngineLintTests` prevent duplicate recapture or planning paths.
 
 ## Related References
 

@@ -291,8 +291,7 @@ struct VirtualKeysInspectorView: View {
     }
 
     private func loadVirtualKeysFromTCP() async -> [String]? {
-        let port = services.preferences.tcpServerPort
-        let client = KanataTCPClient(port: port, timeout: 3.0)
+        let client = KanataTCPClient(timeout: 3.0)
         defer { Task { await client.cancelInflightAndCloseConnection() } }
 
         guard await client.checkServerStatus() else { return nil }
@@ -326,8 +325,7 @@ struct VirtualKeysInspectorView: View {
         testingKey = key.name
         testResult = nil
 
-        let port = services.preferences.tcpServerPort
-        let client = KanataTCPClient(port: port, timeout: 3.0)
+        let client = KanataTCPClient(timeout: 3.0)
 
         // First check if Kanata is running
         let serverUp = await client.checkServerStatus()

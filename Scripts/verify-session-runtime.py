@@ -63,7 +63,7 @@ def discover(executable, uid):
     return processes
 
 
-def owned_launch(processes, executable, uid, port):
+def owned_launch(processes, executable, uid):
     parents = [(pid, identity) for pid, identity in processes.items()
                if identity[:2] == (uid, executable)
                and not any(flag in identity[2] for flag in ('--session-runtime', '--session-capabilities'))]
@@ -84,7 +84,9 @@ def owned_launch(processes, executable, uid, port):
         return args[index + 1]
 
     require(argument('--session-owner') == str(parent_pid), 'worker belongs to another parent')
-    require(argument('--session-port') == str(port), 'worker TCP port mismatch')
+    version = argument('--session-owner-pidversion')
+    require(version.isdigit() and 0 < int(version) <= 2**32 - 1, 'invalid owner PID version')
+    require('--session-port' not in args, 'worker was given a TCP port')
     require(bool(argument('--session-config')), 'worker config path unavailable')
     nonce = argument('--session-nonce')
     require(str(uuid.UUID(nonce)).lower() == nonce.lower(), 'invalid session nonce')
@@ -136,10 +138,15 @@ def unique_fields(pairs):
     return fields
 
 
-def validate_report(report, nonce, pid, uid, port, now):
+def validate_report(report, nonce, pid, uid, now):
     require(isinstance(report, dict), 'report is not an object')
     require(report.get('nonce') == nonce, 'report nonce mismatch')
-    for key, expected, limit in [('pid', pid, 2**31 - 1), ('uid', uid, 2**32 - 1), ('tcpPort', port, 65535)]:
+    require('tcpPort' not in report, 'report names a TCP port')
+    socket_path = report.get('controlSocketPath')
+    require(isinstance(socket_path, str) and os.path.isabs(socket_path)
+            and os.path.basename(socket_path) == 'e-%d.sock' % pid,
+            'report does not name this worker\'s engine socket')
+    for key, expected, limit in [('pid', pid, 2**31 - 1), ('uid', uid, 2**32 - 1)]:
         require(type(report.get(key)) is int and 0 < report[key] <= limit
                 and report[key] == expected, 'report ' + key + ' mismatch')
     require(report.get('state') == 'running', 'session is not running')
@@ -156,42 +163,56 @@ def validate_report(report, nonce, pid, uid, port, now):
     require(type(timestamp) in (int, float) and math.isfinite(timestamp), 'invalid report timestamp')
     age = now - (timestamp + SWIFT_REFERENCE_DATE)
     require(-1 <= age <= 2, 'report is stale or future-dated')
+    return socket_path
 
 
-def verify(executable, uid, port):
-    launch = owned_launch(discover(executable, uid), executable, uid, port)
+def check_engine_socket(path, worker_pid, uid):
+    """ADR-046: a private socket held by the worker, no TCP listener, and a
+    peer check that refuses this verifier (it is not the owning app)."""
+    directory = os.stat(os.path.dirname(path), follow_symlinks=False)
+    require(stat.S_ISDIR(directory.st_mode) and directory.st_uid == uid
+            and stat.S_IMODE(directory.st_mode) == 0o700, 'engine socket directory is not private and owned')
+    metadata = os.stat(path, follow_symlinks=False)
+    require(stat.S_ISSOCK(metadata.st_mode) and metadata.st_uid == uid
+            and stat.S_IMODE(metadata.st_mode) == 0o600, 'engine socket is not private and owned')
+    held = subprocess.check_output(['/usr/sbin/lsof', '-a', '-p', str(worker_pid), '-U', '-Fn'],
+                                   text=True, timeout=2).splitlines()
+    require('n' + path in held, 'engine socket is not held by the session worker')
+    tcp = subprocess.run(['/usr/sbin/lsof', '-nP', '-a', '-p', str(worker_pid), '-iTCP', '-sTCP:LISTEN', '-Fn'],
+                         capture_output=True, text=True, timeout=2)
+    require(not [line for line in tcp.stdout.splitlines() if line.startswith('n')],
+            'session worker listens on TCP')
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+        probe.settimeout(1)
+        probe.connect(path)
+        require(probe.recv(4096) == b'', 'engine admitted a process that is not its owner')
+
+
+def verify(executable, uid):
+    launch = owned_launch(discover(executable, uid), executable, uid)
     parent_pid, parent, worker_pid, worker, nonce, report_path = launch
-    validate_report(read_report(report_path, uid), nonce, worker_pid, uid, port, time.time())
-    # A connect alone could pass against a foreign or legacy listener.
-    listeners = subprocess.check_output(['/usr/sbin/lsof', '-nP', '-a', '-p', str(worker_pid),
-                                          '-i4TCP:' + str(port), '-sTCP:LISTEN', '-Fpn'],
-                                         text=True, timeout=2).splitlines()
-    require('p' + str(worker_pid) in listeners and 'n127.0.0.1:' + str(port) in listeners,
-            'loopback TCP listener is not owned by the session worker')
-    with socket.create_connection(('127.0.0.1', port), timeout=0.3):
-        pass
+    socket_path = validate_report(read_report(report_path, uid), nonce, worker_pid, uid, time.time())
+    check_engine_socket(socket_path, worker_pid, uid)
     require(process_identity(parent_pid) == parent and process_identity(worker_pid) == worker,
             'session processes changed during verification')
-    validate_report(read_report(report_path, uid), nonce, worker_pid, uid, port, time.time())
-    return parent_pid, worker_pid
+    validate_report(read_report(report_path, uid), nonce, worker_pid, uid, time.time())
+    return parent_pid, worker_pid, socket_path
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', default='/Applications/KeyPath.app')
-    parser.add_argument('--port', type=int, default=37001)
     parser.add_argument('--timeout', type=float, default=20)
     args = parser.parse_args()
     require(sys.platform == 'darwin', 'session verification requires macOS')
-    require(0 < args.port <= 65535 and math.isfinite(args.timeout) and 0 <= args.timeout <= 300,
-            'invalid TCP port or timeout')
+    require(math.isfinite(args.timeout) and 0 <= args.timeout <= 300, 'invalid timeout')
     executable = str(Path(args.app).resolve() / 'Contents/MacOS/KeyPath')
     deadline = time.monotonic() + args.timeout
     while True:
         try:
-            parent, worker = verify(executable, os.getuid(), args.port)
-            print('✅ Owned driverless session ready: parentPID=%d workerPID=%d TCP=127.0.0.1:%d'
-                  % (parent, worker, args.port))
+            parent, worker, socket_path = verify(executable, os.getuid())
+            print('✅ Owned driverless session ready: parentPID=%d workerPID=%d socket=%s'
+                  % (parent, worker, socket_path))
             return 0
         except (ValueError, OSError, subprocess.SubprocessError) as error:
             if time.monotonic() >= deadline:

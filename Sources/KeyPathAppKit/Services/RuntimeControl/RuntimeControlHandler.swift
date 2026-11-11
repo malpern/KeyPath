@@ -36,7 +36,53 @@ enum RuntimeControlHandler {
             return await repair(manager: manager, reason: reason)
         case .uninstall:
             return await uninstall(confirmed: request.confirmed == true, manager: manager)
+        case .reload, .layer, .layers, .changeLayer, .hrmStats, .resetHrmStats:
+            return await engine(request, manager: manager)
         }
+    }
+
+    /// Engine commands for the CLI, sent on the app's own connection: the
+    /// engine admits only this process (ADR-046). Reload goes through the
+    /// reload coordinator, like every other reload.
+    static func engine(_ request: RuntimeControl.Request, manager: RuntimeCoordinator) async -> RuntimeControl.Response {
+        let status = await manager.currentRuntimeStatusInternal()
+        var answer = response(ok: true, operation: request.operation, status: status, lastError: nil)
+        let client = KanataTCPClient(timeout: 3.0)
+        defer { Task { await client.cancelInflightAndCloseConnection() } }
+        do {
+            switch request.operation {
+            case .reload:
+                let result = await manager.triggerConfigReload()
+                answer = await response(ok: result.isSuccess, operation: .reload,
+                                        status: manager.currentRuntimeStatusInternal(),
+                                        lastError: result.isSuccess ? nil : result.errorMessage)
+            case .layer:
+                answer.layer = try await client.requestCurrentLayerName()
+            case .layers:
+                answer.layers = try await client.requestLayerNames()
+            case .changeLayer:
+                guard let name = request.argument, !name.isEmpty else {
+                    return response(ok: false, operation: .changeLayer, status: status, lastError: "No layer name given")
+                }
+                switch await client.changeLayer(name) {
+                case .success: break
+                case let .error(message), let .networkError(message):
+                    return response(ok: false, operation: .changeLayer, status: status, lastError: message)
+                }
+            case .hrmStats:
+                let stats = try await client.requestHrmStats()
+                answer.hrmStats = .init(totalDecisions: stats.decisionsTotal, tapCount: stats.tapCount,
+                                        holdCount: stats.holdCount)
+            case .resetHrmStats:
+                try await client.resetHrmStats()
+            default:
+                break
+            }
+        } catch {
+            return response(ok: false, operation: request.operation, status: status,
+                            lastError: "The remapping engine did not answer: \(error.localizedDescription)")
+        }
+        return answer
     }
 
     /// The same inspection `keypath system inspect` and the About window use, run

@@ -140,7 +140,7 @@ struct ConfigReloadCoordinatorTests {
         let coordinator = ConfigReloadCoordinator(
             engineClient: engine,
             reloadSafetyMonitor: safetyMonitor,
-            healthStatusProvider: { _ in
+            healthStatusProvider: {
                 if let healthStatusOverride { return await healthStatusOverride() }
                 return healthStatus.value
             },
@@ -170,7 +170,7 @@ struct ConfigReloadCoordinatorTests {
         let health = MutableHealthStatus(.unhealthy(reason: "Keyboard disconnected"))
         let sut = ConfigReloadCoordinator(
             engineClient: MockEngineClient(), reloadSafetyMonitor: ReloadSafetyMonitor(),
-            healthStatusProvider: { _ in health.value },
+            healthStatusProvider: { health.value },
             tcpReloadOverride: { state.tcpReloadCount += 1; return .success(response: "applied") },
             startRuntimeForExplicitApply: { state.restartCount += 1; health.value = .healthy(); return true }
         )

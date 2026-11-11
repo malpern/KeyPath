@@ -10,7 +10,7 @@ struct TapTimeoutReportSchemaTests {
         let report = SessionRuntimeReport(
             nonce: "inert", pid: 10, uid: 502, state: .running,
             accessibility: true, effectiveInputAccess: true, tapActive: true,
-            tcpPort: 37001, inputCount: 0, outputCount: 0,
+            inputCount: 0, outputCount: 0,
             experimentalTapTimeout: diagnostic
         )
         let encoded = try JSONEncoder().encode(report)
@@ -20,7 +20,7 @@ struct TapTimeoutReportSchemaTests {
         let oldReport = SessionRuntimeReport(
             nonce: "old", pid: 11, uid: 502, state: .running,
             accessibility: true, effectiveInputAccess: true, tapActive: true,
-            tcpPort: 37001, inputCount: 0, outputCount: 0
+            inputCount: 0, outputCount: 0
         )
         let oldData = try JSONEncoder().encode(oldReport)
         let decodedOld = try JSONDecoder().decode(SessionRuntimeReport.self, from: oldData)

@@ -118,3 +118,88 @@ nonpersistent fixture checks passed. Earlier failed offscreen menu delivery and
 first-run helper refusal remain separate failures. No manual replacement,
 notarization, legacy staged-installer cancellation, or broad keyboard acceptance
 is claimed by this run.
+
+## Re-enabling Sparkle (2026-11-10)
+
+Micah chose full Sparkle over a version notice (project review P1). The code
+change is small because the cleanup above already exists: `usesManualDownloads`
+now reads `KPUpdatesManualDownloads` from Info.plist (absent = updater on), so
+a release can turn the updater off again without a code change. Settings →
+General gets the Updates section back (automatic checks, automatic install on
+Quit, channel, Check for Updates).
+
+Why the remaining gaps are covered by design, which the lab must confirm:
+
+- **Install on Quit** (automatic driver, or an installer staged by an earlier
+  process): graceful Quit already defers until `stopKanata` has released held
+  output and restored Caps, and Sparkle installs only after the app exits.
+- **Process death** (crash, `kill -9`, or a forced quit during an update): the
+  session worker watches its owner and retires on its own run loop, releasing
+  output and restoring Caps, within one tick of the owner's death.
+- **Interactive install** (Install and Relaunch): the postponed-relaunch hook
+  stops the runtime first, as before.
+
+### Lab qualification (must pass before a release turns updates on)
+
+Two Developer ID-signed, notarized builds from the same commit, N
+(`KEYPATH_LAB_BUNDLE_VERSION=1000`) and N+1 (`1001`), both built with
+`KEYPATH_LAB_SPARKLE_FEED_URL=http://127.0.0.1:8765/appcast.xml`. The guest
+serves N+1's EdDSA-signed archive and a lab appcast from that address. A
+managed-lane lease pre-grants Accessibility so the runtime runs, with a Caps
+Lock rule active. For each scenario, after it ends: the installed
+`CFBundleVersion`, one session worker (or none while quit), the user config
+byte-identical, and Caps Lock behaving as plain Caps Lock (no stuck remap).
+
+1. **Automatic install on Quit.** N checks (force with
+   `defaults write com.keypath.KeyPath SULastCheckTime -date 2000-01-01`),
+   downloads and stages silently; graceful Quit; expect 1001 installed.
+2. **Staged by an earlier process.** As 1, but `kill -9` the app after staging;
+   launch again, then Quit gracefully; expect 1001 and no stuck Caps.
+3. **Death during install.** `kill -9` during the installer run; expect either
+   build intact (never a half-replaced bundle) and Caps restored.
+4. **Interactive.** Check for Updates → Install and Relaunch; expect the
+   runtime stopped before install and ready again after relaunch.
+
+Lab builds also need `KEYPATH_LAB_BUILD=1`; without it `build-and-sign.sh`
+refuses the lab variables, so one left exported cannot reach a release
+candidate or a deploy. `release.sh` refuses them outright.
+
+### Qualification results (2026-11-10, Mac mini, macOS 27.3)
+
+The lab VM could not run these: on the macOS 27 Parallels base the console
+login never established a desktop session (`console-login` postcondition
+failed twice after `reset-guest-password`), and the Accessibility consent path
+is not yet qualified on macOS 27. They ran instead on the mini, where KeyPath
+already held Accessibility (the lab builds carry the same Developer ID, so the
+grant applied), with its app, configuration and preferences backed up first and
+restored afterwards.
+
+Lab builds 1000 and 1001 from `024e2dbd7`, Developer ID-signed, **not notarized**
+(Sparkle's path verifies the EdDSA signature and same-team code signature and
+clears quarantine; it does not go through Gatekeeper). Feed served at
+`http://127.0.0.1:8765/`, generated and verified with the release EdDSA key.
+
+| # | Scenario | Result |
+|---|---|---|
+| 1 | Automatic: N checked 1 s after launch, downloaded, staged; graceful Quit | **Pass.** Worker finished `state=stopped` before termination; 1001 installed within 1 s; signature valid; no processes left; 1001 relaunched with the runtime ready |
+| 2 | Staged, then `kill -9` of the app | **Pass.** Worker retired 0.5 s later (`reason=owner-exited`); Sparkle installed 1001 within 1 s of the death |
+| 3 | Installer killed (a) as the app exited, (b) the moment Quit was sent | **Pass.** (a) the swap had completed: 1001, valid. (b) 1000 remained, complete and valid, and relaunched with the runtime ready. The bundle was never half-replaced |
+| 4 | Interactive: Install Update → Install and Relaunch | **Pass.** `Stopping owned runtime before update` → worker `state=stopped` → install → 1001 launched → runtime ready, all within 1.6 s |
+
+After every scenario the user configuration was unchanged (compared by
+meaning; see below), and no KeyPath key mapping was left behind.
+
+**Not covered here:** Caps Lock recovery. The mini had no managed Caps rule, so
+no mapping existed to restore; adding one would have changed the user's
+configuration. The worker's retirement on both paths (`stopped`,
+`owner-exited`) is the same code that restores Caps.
+
+**Remaining release gate.** Master now builds with the updater on; nothing
+reaches users until the next release. Before that release, rerun scenarios 1,
+2 and 4 on **notarized** builds with a **managed Caps Lock rule active**, and
+check that Caps Lock is plain Caps Lock after each one.
+
+**Side finding:** every launch rewrites `RuleCollections.json` with
+`enabledKeys` in a different order (a serialized `Set`) and rotates a new
+`.backups/` copy, although nothing changed. Harmless, but it churns the config
+directory and makes byte-level comparisons useless.

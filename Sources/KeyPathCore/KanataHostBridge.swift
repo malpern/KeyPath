@@ -106,6 +106,7 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
     }
 
     fileprivate typealias DestroyPassthruRuntimeFunction = @convention(c) (UnsafeMutableRawPointer?) -> Void
+    fileprivate typealias CloseControlFunction = @convention(c) (UnsafeMutableRawPointer?) -> Void
     fileprivate typealias StartPassthruRuntimeFunction = @convention(c) (
         UnsafeMutableRawPointer?,
         UnsafeMutablePointer<CChar>?,
@@ -134,6 +135,7 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
     private let startRuntime: StartPassthruRuntimeFunction
     private let tryReceiveOutputFunction: TryReceivePassthruOutputFunction
     private let sendInputFunction: SendPassthruInputFunction
+    private let closeControlFunction: CloseControlFunction
 
     fileprivate init(
         bridgeHandle: UnsafeMutableRawPointer,
@@ -142,8 +144,10 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
         startRuntime: @escaping StartPassthruRuntimeFunction,
         tryReceiveOutputFunction: @escaping TryReceivePassthruOutputFunction,
         sendInputFunction: @escaping SendPassthruInputFunction,
+        closeControlFunction: @escaping CloseControlFunction,
         inputMappedFunction: InputMappedFunction? = nil
     ) {
+        self.closeControlFunction = closeControlFunction
         self.bridgeHandle = bridgeHandle
         self.runtimeHandle = runtimeHandle
         self.destroyRuntime = destroyRuntime
@@ -156,6 +160,12 @@ public final class KanataHostBridgePassthruRuntimeHandle: @unchecked Sendable {
     deinit {
         destroyRuntime(runtimeHandle)
         dlclose(bridgeHandle)
+    }
+
+    /// Stops accepting engine-control connections, removes the socket file
+    /// and closes open ones. Safe from any thread, and more than once.
+    public func closeControl() {
+        closeControlFunction(runtimeHandle)
     }
 
     public func start() -> Result<Void, KanataHostBridgePassthruStartError> {
@@ -245,6 +255,9 @@ public enum KanataHostBridge {
     private typealias CreatePassthruRuntimeFunction = @convention(c) (
         UnsafePointer<CChar>?,
         UInt16,
+        Int32,
+        Int32,
+        UInt32,
         UnsafeMutablePointer<CChar>?,
         Int
     ) -> UnsafeMutableRawPointer?
@@ -425,12 +438,16 @@ public enum KanataHostBridge {
     public static func createPassthruRuntime(
         runtimeHost: KanataRuntimeHost,
         configPath: String,
-        tcpPort: UInt16,
+        control: EngineControlSocket.Listener? = nil,
+        controlOwner: (pid: Int32, pidVersion: UInt32) = (0, 0),
         fileManager: FileManager = .default
     ) -> (
         result: KanataHostBridgePassthruRuntimeResult,
         handle: KanataHostBridgePassthruRuntimeHandle?
     ) {
+        // The bridge owns the control descriptor once called; until then, this does.
+        var pendingControlFD = control?.fd ?? -1
+        defer { if pendingControlFD >= 0 { close(pendingControlFD) } }
         guard let bridgeHandle = openBridge(runtimeHost: runtimeHost, fileManager: fileManager) else {
             return (
                 .unavailable(reason: unavailableReason(runtimeHost: runtimeHost, fileManager: fileManager)),
@@ -443,7 +460,9 @@ public enum KanataHostBridge {
               let startSymbol = dlsym(bridgeHandle, "keypath_kanata_bridge_start_passthru_runtime"),
               let sendInputSymbol = dlsym(bridgeHandle, "keypath_kanata_bridge_passthru_send_input"),
               let tryReceiveSymbol = dlsym(bridgeHandle, "keypath_kanata_bridge_passthru_try_recv_output"),
-              let destroySymbol = dlsym(bridgeHandle, "keypath_kanata_bridge_destroy_passthru_runtime")
+              let destroySymbol = dlsym(bridgeHandle, "keypath_kanata_bridge_destroy_passthru_runtime"),
+              // Also marks a bridge whose create takes the control socket arguments.
+              let closeControlSymbol = dlsym(bridgeHandle, "keypath_kanata_bridge_passthru_close_control")
         else {
             let error = dlerror().map { String(cString: $0) } ?? "missing passthru runtime symbols"
             dlclose(bridgeHandle)
@@ -456,10 +475,17 @@ public enum KanataHostBridge {
         let sendInput = unsafeBitCast(sendInputSymbol, to: SendPassthruInputFunction.self)
         let tryReceiveOutput = unsafeBitCast(tryReceiveSymbol, to: TryReceivePassthruOutputFunction.self)
         let destroyRuntime = unsafeBitCast(destroySymbol, to: DestroyPassthruRuntimeFunction.self)
+        let closeControl = unsafeBitCast(
+            closeControlSymbol, to: KanataHostBridgePassthruRuntimeHandle.CloseControlFunction.self
+        )
 
         var errorBuffer = [CChar](repeating: 0, count: 2048)
+        let controlFD = pendingControlFD
+        pendingControlFD = -1
         let runtimeHandle = configPath.withCString { configCString in
-            createRuntime(configCString, tcpPort, &errorBuffer, errorBuffer.count)
+            // No TCP port: the engine is reached only through `control` (ADR-046).
+            createRuntime(configCString, 0, controlFD, controlOwner.pid, controlOwner.pidVersion,
+                          &errorBuffer, errorBuffer.count)
         }
 
         guard let runtimeHandle else {
@@ -475,6 +501,7 @@ public enum KanataHostBridge {
             startRuntime: startRuntime,
             tryReceiveOutputFunction: tryReceiveOutput,
             sendInputFunction: sendInput,
+            closeControlFunction: closeControl,
             inputMappedFunction: dlsym(bridgeHandle, "keypath_kanata_bridge_passthru_is_input_mapped")
                 .map { unsafeBitCast($0, to: KanataHostBridgePassthruRuntimeHandle.InputMappedFunction.self) }
         )

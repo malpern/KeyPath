@@ -402,12 +402,9 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("🎹 [ActionDispatcher] FakeKey: \(keyName) action=\(action.rawValue)")
 
-        // Get TCP port from preferences
-        let port = PreferencesService.shared.tcpServerPort
-
         fakeKeyTask?.cancel()
         fakeKeyTask = Task {
-            let client = KanataTCPClient(port: port, timeout: 3.0)
+            let client = KanataTCPClient(timeout: 3.0)
 
             // Quick check if server is reachable
             let serverUp = await client.checkServerStatus()

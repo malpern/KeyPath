@@ -732,6 +732,7 @@ dependencies = [
  "kanata-keyberon",
  "kanata-parser",
  "karabiner-driverkit",
+ "libc",
  "parking_lot",
 ]
 

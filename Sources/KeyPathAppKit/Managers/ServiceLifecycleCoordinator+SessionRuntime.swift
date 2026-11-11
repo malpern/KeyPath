@@ -12,7 +12,14 @@ extension ServiceLifecycleCoordinator {
               let url = sessionReportURL, let nonce = sessionNonce,
               let report = Self.readSessionReport(url),
               report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
-        else { return nil }
+        else {
+            // One late report write must not cut every client off; clear the
+            // path only when the worker itself is gone.
+            if sessionApplication.map(\.isTerminated) ?? true { EngineControlEndpoint.publish(nil) }
+            return nil
+        }
+        // Clients reach the engine only through the socket this worker reports (ADR-046).
+        EngineControlEndpoint.publish(report.controlSocketPath)
         return report
     }
 
@@ -77,12 +84,16 @@ extension ServiceLifecycleCoordinator {
     /// The worker's argv. Uninstall's sweep recognizes workers by these flags,
     /// so a test pins them to SessionWorkerProcess.parse.
     nonisolated static func sessionLaunchArguments(
-        capabilitiesOnly: Bool, reportPath: String, nonce: String, ownerPID: Int32, port: Int, configPath: String
+        capabilitiesOnly: Bool, reportPath: String, nonce: String, ownerPID: Int32,
+        ownerPIDVersion: UInt32?, configPath: String
     ) -> [String] {
-        [
+        // The PID version names this exact app process; the engine admits only it (ADR-046).
+        let ownerVersion = ownerPIDVersion.map { ["--session-owner-pidversion", String($0)] } ?? []
+        return [
             capabilitiesOnly ? "--session-capabilities" : "--session-runtime",
             "--session-report", reportPath, "--session-nonce", nonce,
-            "--session-owner", String(ownerPID), "--session-port", String(port),
+            "--session-owner", String(ownerPID)
+        ] + ownerVersion + [
             "--session-config", configPath
         ]
     }
@@ -116,7 +127,7 @@ extension ServiceLifecycleCoordinator {
             }
         #endif
         if let report = currentSessionReport(), report.state == .running, report.tapActive {
-            let responding = await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300)
+            let responding = await SystemStateProvider.shared.isEngineSocketResponding(path: report.controlSocketPath, timeoutMs: 300)
             return await adoptRunningSession(generation: generation, responding: responding)
         }
         guard await stopSessionRuntime(), sessionStartIsCurrent(generation) else { return false }
@@ -148,7 +159,7 @@ extension ServiceLifecycleCoordinator {
                 }
                 if let report = currentSessionReport() {
                     if report.state == .running, report.tapActive,
-                       await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300)
+                       await SystemStateProvider.shared.isEngineSocketResponding(path: report.controlSocketPath, timeoutMs: 300)
                     {
                         guard sessionStartIsCurrent(generation) else {
                             _ = await stopSessionRuntime()
@@ -820,7 +831,8 @@ extension ServiceLifecycleCoordinator {
         configuration.addsToRecentItems = false
         configuration.arguments = Self.sessionLaunchArguments(
             capabilitiesOnly: capabilitiesOnly, reportPath: url.path, nonce: nonce, ownerPID: getpid(),
-            port: KeyPathConstants.Networking.defaultTCPPort, configPath: KeyPathConstants.Config.mainConfigPath
+            ownerPIDVersion: EngineControlSocket.currentPIDVersion(),
+            configPath: KeyPathConstants.Config.mainConfigPath
         )
         sessionCapsIntermediate = nil
         if !capabilitiesOnly {

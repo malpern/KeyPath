@@ -83,7 +83,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
             let loaded = PreferencesService()
 
-            XCTAssertEqual(loaded.tcpServerPort, 37001)
             XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 45678)
             XCTAssertFalse(loaded.notificationsEnabled)
             XCTAssertFalse(loaded.applyMappingsDuringRecording)
@@ -118,7 +117,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
             let prefs = PreferencesService()
 
-            XCTAssertEqual(prefs.tcpServerPort, 37001)
             XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), 80)
             XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
             XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.ContextHUD.HoldDelayCustomMs"), 100)
@@ -210,13 +208,13 @@ final class PreferencesServicePersistenceTests: XCTestCase {
             prefs.verboseKanataLogging = true
 
             let verboseArgs = manager.buildKanataArguments(checkOnly: false)
-            XCTAssertEqual(verboseArgs.portArgumentValue, "37001")
+            XCTAssertNil(verboseArgs.portArgumentValue, "KeyPath no longer gives kanata a TCP port (ADR-046)")
             XCTAssertTrue(verboseArgs.contains("--trace"))
             XCTAssertTrue(verboseArgs.contains("--log-layer-changes"))
 
             prefs.verboseKanataLogging = false
             let normalArgs = manager.buildKanataArguments(checkOnly: false)
-            XCTAssertEqual(normalArgs.portArgumentValue, "37001")
+            XCTAssertNil(normalArgs.portArgumentValue)
             XCTAssertFalse(normalArgs.contains("--trace"))
             XCTAssertTrue(normalArgs.contains("--log-layer-changes"))
         }
@@ -293,28 +291,19 @@ final class PreferencesServicePersistenceTests: XCTestCase {
         XCTAssertEqual(prefs.contextHUDHoldDelayCustomMs, 100)
     }
 
-    // MARK: - TCP Port Validation
+    // MARK: - Engine Endpoint
 
-    func testTcpServerPort_PersistedValuesCannotRedirectSessionClients() {
+    /// A port left in UserDefaults by an older build cannot redirect the
+    /// engine clients: they reach the worker's socket only (ADR-046).
+    func testStoredPortValuesCannotRedirectEngineClients() {
         withPreservedDefaults(keys: ["KeyPath.TCP.ServerPort"]) {
-            for storedPort in [-1, 0, 80, 1024, 8123, 37001, 45678, 54141, 65535, 65536] {
+            for storedPort in [80, 37001, 45678, 54141] {
                 UserDefaults.standard.set(storedPort, forKey: "KeyPath.TCP.ServerPort")
-                let prefs = PreferencesService()
-                XCTAssertEqual(prefs.tcpServerPort, 37001, "Stored port \(storedPort) must not redirect clients")
-                XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), storedPort)
-                prefs.resetCommunicationSettings()
-                XCTAssertEqual(prefs.tcpServerPort, 37001)
+                _ = PreferencesService()
                 XCTAssertEqual(UserDefaults.standard.integer(forKey: "KeyPath.TCP.ServerPort"), storedPort)
             }
         }
-    }
-
-    func testTcpServerPort_BoundaryValues() {
-        let prefs = PreferencesService()
-        XCTAssertTrue(prefs.isValidPort(1024))
-        XCTAssertTrue(prefs.isValidPort(65535))
-        XCTAssertFalse(prefs.isValidPort(1023))
-        XCTAssertFalse(prefs.isValidPort(65536))
+        XCTAssertEqual(KanataTCPClient().endpoint, .session)
     }
 
     // MARK: - Retired Preference Cleanup
@@ -545,7 +534,6 @@ final class PreferencesServicePersistenceTests: XCTestCase {
     func testDefaultValues_AreReasonable() {
         let prefs = PreferencesService()
         XCTAssertEqual(prefs.communicationProtocol, .tcp)
-        XCTAssertTrue(prefs.isValidPort(prefs.tcpServerPort))
         XCTAssertTrue(prefs.notificationsEnabled)
         XCTAssertTrue(prefs.isSequenceMode)
     }
@@ -581,14 +569,10 @@ final class PreferencesServicePersistenceTests: XCTestCase {
 
     // MARK: - Reset Behavior
 
-    func testResetCommunicationSettings_RestoresProtocolAndPort() {
+    func testResetCommunicationSettings_RestoresProtocol() {
         let prefs = PreferencesService()
-        let defaultPort = 37001
-
         prefs.resetCommunicationSettings()
-
         XCTAssertEqual(prefs.communicationProtocol, .tcp)
-        XCTAssertEqual(prefs.tcpServerPort, defaultPort)
     }
 
     // MARK: - Config Description
@@ -596,8 +580,7 @@ final class PreferencesServicePersistenceTests: XCTestCase {
     func testCommunicationConfigDescription_Format() {
         let prefs = PreferencesService()
         let desc = prefs.communicationConfigDescription
-        XCTAssertTrue(desc.contains("TCP"), "Should mention protocol")
-        XCTAssertTrue(desc.contains("\(prefs.tcpServerPort)"), "Should include port")
+        XCTAssertTrue(desc.contains("Unix-domain socket"), "Should name the transport")
     }
 
     // MARK: - NeovimTerminalCategory Tests

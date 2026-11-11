@@ -350,12 +350,12 @@ public struct KanataTapDanceResolution: Sendable {
     public let observedAt: Date
 }
 
-/// Monitors Kanata's TCP server for events.
+/// Monitors the engine's event stream over its control socket (ADR-046).
 /// Handles `LayerChange`, `CurrentLayerName`, `MessagePush`, and `KeyInput` messages.
 actor KanataEventListener {
     private var listenTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
-    private var port: Int?
+    private var endpoint: KanataEngineEndpoint?
     private var layerHandler: (@Sendable (String) async -> Void)?
     private var actionURIHandler: (@Sendable (KeyPathActionURI) async -> Void)?
     private var unknownMessageHandler: (@Sendable (String) async -> Void)?
@@ -379,7 +379,7 @@ actor KanataEventListener {
 
     /// Start listening for Kanata events
     /// - Parameters:
-    ///   - port: TCP port where Kanata server is running
+    ///   - endpoint: the running worker's engine socket; `.tcp` only for tests' mock servers
     ///   - onLayerChange: Called when layer changes (LayerChange or CurrentLayerName)
     ///   - onActionURI: Called when a `keypath://` URI is received via push-msg
     ///   - onUnknownMessage: Called for non-keypath:// messages (for debugging/errors)
@@ -393,7 +393,7 @@ actor KanataEventListener {
     ///   - onCapabilitiesUpdated: Called when HelloOk capabilities are received
     ///   - onGrabStatus: Called when an authoritative `InputGrab` status is received (#625)
     func start(
-        port: Int,
+        endpoint: KanataEngineEndpoint = .session,
         onLayerChange: @escaping @Sendable (String) async -> Void,
         onActionURI: (@Sendable (KeyPathActionURI) async -> Void)? = nil,
         onUnknownMessage: (@Sendable (String) async -> Void)? = nil,
@@ -407,9 +407,9 @@ actor KanataEventListener {
         onCapabilitiesUpdated: (@Sendable ([String]) async -> Void)? = nil,
         onGrabStatus: (@Sendable (_ active: Bool, _ reason: String?) async -> Void)? = nil
     ) async {
-        if self.port == port, listenTask != nil { return }
+        if self.endpoint == endpoint, listenTask != nil { return }
         await stop()
-        self.port = port
+        self.endpoint = endpoint
         // Set handlers AFTER stop() to avoid them being cleared
         layerHandler = onLayerChange
         actionURIHandler = onActionURI
@@ -423,7 +423,7 @@ actor KanataEventListener {
         hrmTraceHandler = onHrmTrace
         capabilitiesUpdatedHandler = onCapabilitiesUpdated
         grabStatusHandler = onGrabStatus
-        AppLogger.shared.log("🌐 [EventListener] Starting event listener on port \(port)")
+        AppLogger.shared.log("🌐 [EventListener] Starting event listener on \(endpoint)")
         listenTask = Task(priority: .background) { [weak self] in
             guard let self else { return }
             await listenLoop()
@@ -436,7 +436,7 @@ actor KanataEventListener {
         listenTask = nil
         pollTask?.cancel()
         pollTask = nil
-        port = nil
+        endpoint = nil
         layerHandler = nil
         actionURIHandler = nil
         unknownMessageHandler = nil
@@ -457,10 +457,10 @@ actor KanataEventListener {
     }
 
     private func listenLoop() async {
-        guard let port else { return }
+        guard let endpoint else { return }
         while !Task.isCancelled {
             do {
-                try await connectAndStream(port: port)
+                try await connectAndStream(endpoint: endpoint)
             } catch {
                 AppLogger.shared.log("🌐 [EventListener] Stream ended: \(error.localizedDescription), reconnecting in 1s...")
                 try? await Task.sleep(for: .seconds(1))
@@ -468,12 +468,12 @@ actor KanataEventListener {
         }
     }
 
-    private func connectAndStream(port: Int) async throws {
-        let connection = NWConnection(
-            host: NWEndpoint.Host("127.0.0.1"),
-            port: NWEndpoint.Port(integerLiteral: UInt16(port)),
-            using: .tcp
-        )
+    private func connectAndStream(endpoint: KanataEngineEndpoint) async throws {
+        // Resolved per attempt: a restarted worker listens on a new socket.
+        guard let target = endpoint.resolve() else {
+            throw KeyPathError.communication(.connectionFailed(reason: "engine is not running"))
+        }
+        let connection = NWConnection(to: target, using: .tcp)
 
         // Bug 1 fix: ensure cleanup on both normal and error exits
         sessionCounter += 1

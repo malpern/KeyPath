@@ -1,23 +1,19 @@
 import Foundation
 @preconcurrency import XCTest
 
-final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
-    func testDeprecatedActionDeterminerFacadeIsDeleted() throws {
+/// Guards on the installer engine and its callers (formerly
+/// InstallerDecisionPipelineLintTests; the pipeline was folded into the engine).
+final class InstallerEngineLintTests: KeyPathTestCase {
+    func testRetiredPlanningLayersStayDeleted() {
         let root = repositoryRoot()
-        XCTAssertFalse(
-            FileManager.default.fileExists(
-                atPath: root.appendingPathComponent(
-                    "Sources/KeyPathInstallationWizard/Core/ActionDeterminer.swift"
-                ).path
+        for retired in ["ActionDeterminer.swift", "InstallerDecisionPipeline.swift", "InstallerEngine+Recipes.swift"] {
+            XCTAssertFalse(
+                FileManager.default.fileExists(
+                    atPath: root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/\(retired)").path
+                ),
+                "\(retired) was folded into InstallerEngine; planning has one place"
             )
-        )
-        let pipeline = try String(
-            contentsOf: root.appendingPathComponent(
-                "Sources/KeyPathInstallationWizard/Core/InstallerDecisionPipeline.swift"
-            ),
-            encoding: .utf8
-        )
-        XCTAssertFalse(pipeline.contains("enum ActionDeterminer"))
+        }
     }
 
     func testEarlyInstallerExitsPreserveCorrelationEvidence() throws {
@@ -42,7 +38,6 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         let root = repositoryRoot()
         let consumers = [
             root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine.swift"),
-            root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/InstallerEngine+Recipes.swift"),
             root.appendingPathComponent("Sources/KeyPathInstallationWizard/Core/SystemStateResult+SystemContext.swift"),
         ]
         var violations: [String] = []
@@ -59,8 +54,8 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             """
-            Production planning must consume InstallerDecisionPipeline so the
-            matrix assessment and executable plan share one captured context:
+            Production planning must go through InstallerEngine.actions(for:context:)
+            so the matrix assessment and executable plan share one captured context:
             \(violations.joined(separator: "\n"))
             """
         )
@@ -132,14 +127,21 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
         let source = try String(contentsOf: file, encoding: .utf8)
         guard let planningStart = source.range(of: "public func makePlan("),
               let planningEnd = source.range(
-                  of: "// MARK: - Action Determination",
+                  of: "/// Execute the planned operations",
                   range: planningStart.lowerBound ..< source.endIndex
               )
         else {
             return XCTFail("Could not locate the InstallerEngine planning section")
         }
 
-        let planningSource = source[planningStart.lowerBound ..< planningEnd.lowerBound]
+        var planningSource = String(source[planningStart.lowerBound ..< planningEnd.lowerBound])
+        // The intent-to-action mapping is part of planning too.
+        guard let actionsStart = source.range(of: "// MARK: - Actions and recipes"),
+              let actionsEnd = source.range(of: "// MARK: - Installer Errors")
+        else {
+            return XCTFail("Could not locate the InstallerEngine actions section")
+        }
+        planningSource += source[actionsStart.lowerBound ..< actionsEnd.lowerBound]
         let forbiddenReads = [
             "FileManager",
             "SystemRequirements",
@@ -222,7 +224,7 @@ final class InstallerDecisionPipelineLintTests: KeyPathTestCase {
 
 private func repositoryRoot(file: StaticString = #filePath) -> URL {
     URL(fileURLWithPath: "\(file)")
-        .deletingLastPathComponent() // InstallerDecisionPipelineLintTests.swift
+        .deletingLastPathComponent() // InstallerEngineLintTests.swift
         .deletingLastPathComponent() // Lint
         .deletingLastPathComponent() // KeyPathTests
         .deletingLastPathComponent() // Tests

@@ -23,6 +23,12 @@ public actor SystemStateProvider {
         probes.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 
+    /// Whether the session worker's engine answers on its control socket (ADR-046).
+    public func isEngineSocketResponding(path: String?, timeoutMs: Int = 300) async -> Bool {
+        guard let path else { return false }
+        return await Task.detached { EngineControlSocket.isResponding(path: path, timeoutMs: timeoutMs) }.value
+    }
+
     public func processIDs(matching pattern: String) async -> [pid_t] {
         let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPattern.isEmpty else { return [] }

@@ -96,6 +96,9 @@ enum CompositionRoot {
         // probes and session workers never serve it).
         if !isOneShotProbeMode {
             RuntimeControlServer.shared.start(handler: RuntimeControlHandler.make(for: manager))
+            // This process launches the worker, so the engine admits it (ADR-046);
+            // in-app facade calls (App Intents) talk to the engine directly.
+            ConfigFacade.engineAccess = .direct
         }
 
         // Schedule deferred startup services
@@ -125,8 +128,8 @@ enum CompositionRoot {
             UpdateService.shared.initialize()
             AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
 
-            // Discover and load plugin bundles
-            PluginManager.shared.discoverAndLoadPlugins()
+            // Register built-in plugins (Insights)
+            PluginManager.shared.registerBuiltInPlugins()
 
             // Fetch Kanata version for About panel
             await BuildInfo.fetchKanataVersion()

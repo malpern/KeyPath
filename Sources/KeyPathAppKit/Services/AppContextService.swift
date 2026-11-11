@@ -67,11 +67,9 @@ public final class AppContextService {
 
     // MARK: - Lifecycle
 
-    /// Start monitoring app changes and signaling Kanata.
-    ///
-    /// - Parameter tcpPort: The TCP port to use for connecting to Kanata.
-    ///                      Pass nil to use the default port from preferences.
-    public func start(tcpPort: Int? = nil) async {
+    /// Start monitoring app changes and signaling the engine over the
+    /// worker's control socket.
+    public func start() async {
         guard !isMonitoring else {
             AppLogger.shared.log("⚠️ [AppContextService] Already monitoring, ignoring start()")
             return
@@ -79,9 +77,7 @@ public final class AppContextService {
 
         AppLogger.shared.log("🚀 [AppContextService] Starting app context monitoring")
 
-        // Initialize TCP client
-        let port = tcpPort ?? preferences.tcpServerPort
-        tcpClient = KanataTCPClient(port: port)
+        tcpClient = KanataTCPClient()
 
         // Load mappings from store
         await reloadMappings()
@@ -239,12 +235,6 @@ public final class AppContextService {
         /// For testing: simulate an app activation
         func simulateAppActivation(bundleIdentifier: String?) async {
             await handleAppActivation(bundleIdentifier: bundleIdentifier)
-        }
-
-        /// For testing: set TCP port after initialization
-        func setTCPPort(_ port: Int) async {
-            await tcpClient?.cancelInflightAndCloseConnection()
-            tcpClient = KanataTCPClient(port: port)
         }
     }
 #endif

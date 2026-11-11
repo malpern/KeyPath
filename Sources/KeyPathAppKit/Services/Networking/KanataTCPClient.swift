@@ -48,30 +48,20 @@ final class CompletionFlag: @unchecked Sendable {
     }
 }
 
-/// TCP client for communicating with Kanata's local TCP server
+/// Client for the engine's JSON control protocol.
 ///
 /// Design principles:
-/// - Localhost IPC, not distributed networking
-/// - Persistent TCP connection for reliability
+/// - Local IPC, not distributed networking
+/// - Persistent connection for reliability
 /// - Simple timeout mechanism
 /// - Connection pooling for efficiency
 ///
-/// **SECURITY NOTE (ADR-013, under review in ADR-046 / #1354):**
-/// The engine's TCP server has no authentication, and loopback TCP is not
-/// scoped to a user or to the App Sandbox. From reading the source (not yet
-/// confirmed on a live install), any local process, including other
-/// users' processes and sandboxed apps with the network-client entitlement,
-/// can connect to the engine port (default 37001) and:
-/// - receive every `KeyInput` event (a keystroke stream) and the config text
-/// - press virtual keys (`ActOnFakeKey`), change layers, move the mouse
-/// - load any readable file as the config (`ReloadFile`)
-/// Virtual keys bound to `push-msg` reach `ActionDispatcher` through
-/// `KanataEventListener`. ADR-046 proposes moving this channel to an
-/// owner-checked Unix socket.
-/// TODO(#1354): revise this note after the lab-VM check and again when ADR-046 lands.
+/// **Security (ADR-046):** production clients reach the engine only through
+/// the running worker's Unix-domain socket, which admits only this app (uid,
+/// PID and PID version). The worker opens no TCP port. The type keeps its
+/// name; the protocol is the same JSON it always spoke.
 actor KanataTCPClient {
-    let host: String
-    let port: Int
+    nonisolated let endpoint: KanataEngineEndpoint
     let timeout: TimeInterval
     let retryBackoffSeconds: TimeInterval = 0.5
 
@@ -133,12 +123,19 @@ actor KanataTCPClient {
         TestEnvironment.isRunningTests ? 0.1 : 5.0
     }
 
+    /// A client of the running worker's engine socket (ADR-046).
+    init(timeout: TimeInterval? = nil) {
+        endpoint = .session
+        self.timeout = timeout ?? Self.defaultTimeout
+    }
+
+    /// A client of a TCP server: tests' mock servers only. Production code
+    /// must use `init(timeout:)`; `EngineTransportLintTests` enforces it.
     init(
         host: String = "127.0.0.1", port: Int, timeout: TimeInterval? = nil,
         reuseConnection _: Bool = true
     ) {
-        self.host = host
-        self.port = port
+        endpoint = .tcp(host: host, port: port)
         self.timeout = timeout ?? Self.defaultTimeout
     }
 

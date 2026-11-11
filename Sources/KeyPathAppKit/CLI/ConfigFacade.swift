@@ -302,55 +302,101 @@ public struct ConfigFacade: Sendable {
         )
     }
 
-    // MARK: - TCP
+    // MARK: - Engine
 
-    func tcpClient() async -> KanataTCPClient {
-        let port = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        return KanataTCPClient(port: port)
+    /// How this process reaches the engine. Only the app that launched the
+    /// worker may connect to it (ADR-046): the app sets `.direct` at startup;
+    /// the CLI and anything else asks the app over runtime control.
+    public enum EngineAccess: Sendable {
+        case direct
+        case viaApp
+    }
+
+    public nonisolated(unsafe) static var engineAccess: EngineAccess = .viaApp
+
+    /// Engine requests answered by the app. A missing app, or one that cannot
+    /// answer, reads as "not available".
+    private func askApp(_ operation: RuntimeControl.Operation, argument: String? = nil) async throws
+        -> RuntimeControl.Response
+    {
+        let request = RuntimeControl.Request(operation: operation, argument: argument)
+        // A reload waits on the app's reload coordinator, which can retry while
+        // the runtime is in transition; give it room so a slow success is not
+        // reported as a failure.
+        let timeout: TimeInterval = operation == .reload ? 30 : 10
+        let response = try await Task.detached { try RuntimeControl.send(request, timeout: timeout) }.value
+        guard response.ok else {
+            throw Self.error(response.lastError ?? response.failure ?? "KeyPath could not reach the remapping engine")
+        }
+        return response
+    }
+
+    func engineClient() -> KanataTCPClient {
+        KanataTCPClient()
     }
 
     public func tcpCheckHealth() async -> Bool {
-        let client = await tcpClient()
-        return await client.checkServerStatus()
+        switch Self.engineAccess {
+        case .direct: await engineClient().checkServerStatus()
+        // The engine must answer, not only the app report "running".
+        case .viaApp: await (try? askApp(.layer))?.layer != nil
+        }
     }
 
     public func tcpGetCurrentLayer() async throws -> String {
-        let client = await tcpClient()
-        return try await client.requestCurrentLayerName()
+        switch Self.engineAccess {
+        case .direct: return try await engineClient().requestCurrentLayerName()
+        case .viaApp:
+            guard let layer = try await askApp(.layer).layer else { throw Self.error("No current layer reported") }
+            return layer
+        }
     }
 
     public func tcpGetLayers() async throws -> [String] {
-        let client = await tcpClient()
-        return try await client.requestLayerNames()
+        switch Self.engineAccess {
+        case .direct: try await engineClient().requestLayerNames()
+        case .viaApp: try await askApp(.layers).layers ?? []
+        }
     }
 
     public func tcpReload() async -> Bool {
-        let client = await tcpClient()
-        let result = await client.reloadConfig()
-        if case .success = result { return true }
-        return false
+        switch Self.engineAccess {
+        case .direct:
+            if case .success = await engineClient().reloadConfig() { return true }
+            return false
+        case .viaApp: return await (try? askApp(.reload)) != nil
+        }
     }
 
     public func tcpGetHrmStats() async throws -> CLIHrmStats {
-        let client = await tcpClient()
-        let stats = try await client.requestHrmStats()
-        return CLIHrmStats(
-            totalDecisions: stats.decisionsTotal,
-            tapCount: stats.tapCount,
-            holdCount: stats.holdCount
-        )
+        switch Self.engineAccess {
+        case .direct:
+            let stats = try await engineClient().requestHrmStats()
+            return CLIHrmStats(
+                totalDecisions: stats.decisionsTotal,
+                tapCount: stats.tapCount,
+                holdCount: stats.holdCount
+            )
+        case .viaApp:
+            guard let stats = try await askApp(.hrmStats).hrmStats else { throw Self.error("No HRM statistics reported") }
+            return CLIHrmStats(totalDecisions: stats.totalDecisions, tapCount: stats.tapCount, holdCount: stats.holdCount)
+        }
     }
 
     public func tcpResetHrmStats() async throws {
-        let client = await tcpClient()
-        try await client.resetHrmStats()
+        switch Self.engineAccess {
+        case .direct: try await engineClient().resetHrmStats()
+        case .viaApp: _ = try await askApp(.resetHrmStats)
+        }
     }
 
     public func tcpChangeLayer(_ layerName: String) async -> Bool {
-        let client = await tcpClient()
-        let result = await client.changeLayer(layerName)
-        if case .success = result { return true }
-        return false
+        switch Self.engineAccess {
+        case .direct:
+            if case .success = await engineClient().changeLayer(layerName) { return true }
+            return false
+        case .viaApp: return await (try? askApp(.changeLayer, argument: layerName)) != nil
+        }
     }
 
     private func defaultBackupURL() throws -> URL {

@@ -208,11 +208,13 @@ final class SessionWorkerSweepTests: XCTestCase {
         for probe in [true, false] {
             let arguments = ServiceLifecycleCoordinator.sessionLaunchArguments(
                 capabilitiesOnly: probe, reportPath: "/tmp/r/report.json", nonce: UUID().uuidString,
-                ownerPID: 30378, port: 37001, configPath: "/Users/me/.config/keypath/keypath.kbd"
+                ownerPID: 30378, ownerPIDVersion: 12, configPath: "/Users/me/.config/keypath/keypath.kbd"
             )
             let worker = SessionWorkerProcess.parse(pid: 1, arguments: [Self.trashedExecutable] + arguments)
             XCTAssertEqual(worker?.mode, probe ? .capabilities : .runtime)
             XCTAssertEqual(worker?.ownerPID, 30378)
+            let version = arguments.firstIndex(of: "--session-owner-pidversion").map { arguments[$0 + 1] }
+            XCTAssertEqual(version, "12")
         }
     }
 

@@ -54,7 +54,7 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         defer { WizardDependencies.runtimeCoordinator = previous }
         let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         let engine = InstallerEngine(systemValidator: StubSystemValidator(context: context))
-        let permitted = engine.recipeForAction(.restartCommServer, context: context)
+        let permitted = engine.recipeForAction(.restartCommServer)
         let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-recipe", type: .installComponent)],
                                status: .ready, intent: .repair)
         let report = await engine.execute(plan: plan)
@@ -71,7 +71,7 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         WizardDependencies.runtimeCoordinator = runtime
         defer { WizardDependencies.runtimeCoordinator = previous }
         let engine = InstallerEngine()
-        let recipe = engine.recipeForAction(.restartCommServer, context: .empty)
+        let recipe = engine.recipeForAction(.restartCommServer)
         for intent in [InstallIntent.inspectOnly, .uninstall] {
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: intent)
             let report = await engine.execute(plan: plan)
@@ -91,7 +91,7 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
         let stopped = SystemContextBuilder.cleanInstall()
         for final in [ready, stopped] {
             let engine = InstallerEngine(systemValidator: StubSystemValidator(context: final))
-            let recipe = engine.recipeForAction(.restartCommServer, context: final)
+            let recipe = engine.recipeForAction(.restartCommServer)
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: .repair)
             let report = await engine.execute(plan: plan)
             XCTAssertEqual(report.success, final.services.kanataRuntimeReadiness.isReady)

@@ -285,8 +285,7 @@ final class SessionCapsUnplugRecoveryTests: XCTestCase {
 
     func testSnapshotAttachesTheSessionWorkerReport() {
         let report = SessionRuntimeReport(nonce: "n", pid: 4242, uid: 501, state: .failed, accessibility: true,
-                                          effectiveInputAccess: true, tapActive: false, tcpPort: 37001,
-                                          inputCount: 7, outputCount: 5, failure: "output-queue-overrun",
+                                          effectiveInputAccess: true, tapActive: false, inputCount: 7, outputCount: 5, failure: "output-queue-overrun",
                                           heldOutputUsages: [4, 225])
         let lines = StuckKeyRecoveryService.runtimeEvidenceLines((report, false))
         XCTAssertTrue(lines.contains("=== Session Worker ==="))

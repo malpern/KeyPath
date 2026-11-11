@@ -1,12 +1,12 @@
 import AppKit
 @testable import KeyPathAppKit
+import KeyPathInsights
 import KeyPathPluginKit
 @preconcurrency import XCTest
 
 @MainActor
 final class PluginManagerTests: KeyPathTestCase {
     private var manager: PluginManager!
-    private let bundleURL = URL(fileURLWithPath: "/nonexistent/Fixture.bundle")
 
     override func setUp() async throws {
         try await super.setUp()
@@ -18,25 +18,27 @@ final class PluginManagerTests: KeyPathTestCase {
         try await super.tearDown()
     }
 
-    func testUnloadableBundleIsNotLoaded() {
-        manager.testPluginInstance = { _ in throw CocoaError(.fileReadCorruptFile) }
-        XCTAssertFalse(manager.loadPlugin(from: bundleURL))
-        XCTAssertTrue(manager.plugins.isEmpty)
-    }
-
-    func testNonPluginPrincipalIsNotLoaded() {
-        manager.testPluginInstance = { _ in NSObject() }
-        XCTAssertFalse(manager.loadPlugin(from: bundleURL))
-        XCTAssertTrue(manager.plugins.isEmpty)
-    }
-
-    func testValidPluginActivatesOnce() {
+    func testPluginActivatesOnceAndDuplicatesAreIgnored() {
         let plugin = FixturePlugin()
-        manager.testPluginInstance = { _ in plugin }
-        XCTAssertTrue(manager.loadPlugin(from: bundleURL))
-        XCTAssertTrue(manager.loadPlugin(from: bundleURL), "a second load of the same bundle is a no-op")
+        XCTAssertTrue(manager.register(plugin))
+        XCTAssertFalse(manager.register(FixturePlugin()), "same identifier: ignored")
         XCTAssertEqual(manager.plugins.count, 1)
         XCTAssertEqual(plugin.activationCount, 1)
+    }
+
+    func testBuiltInRegistrationAddsInsightsOnceAndClearsLegacyPlugins() throws {
+        let legacy = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: legacy) }
+        try FileManager.default.createDirectory(at: legacy.appendingPathComponent("Insights.bundle"),
+                                                withIntermediateDirectories: true)
+
+        manager.registerBuiltInPlugins(legacyPluginsDirectory: legacy)
+        manager.registerBuiltInPlugins(legacyPluginsDirectory: legacy)
+
+        XCTAssertEqual(manager.plugins.map { type(of: $0).identifier }, [InsightsPlugin.identifier])
+        XCTAssertEqual(InsightsPlugin.identifier, "com.keypath.insights")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
     }
 
     func testLegacyDownloadedPluginsAreRemoved() throws {

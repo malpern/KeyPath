@@ -11,7 +11,7 @@ struct SessionTapDiagnosticsReportTests {
         SessionRuntimeReport(
             nonce: "inert", pid: 42, uid: 502, state: .running,
             accessibility: true, effectiveInputAccess: true, tapActive: true,
-            tcpPort: 37001, inputCount: 0, outputCount: 0,
+            inputCount: 0, outputCount: 0,
             experimentalTapDiagnostics: diagnostics
         )
     }
@@ -181,7 +181,7 @@ struct SessionTapDiagnosticsReportTests {
             SessionRuntimeReport(
                 nonce: nonce, pid: 202, uid: 502, state: state,
                 accessibility: true, effectiveInputAccess: true, tapActive: false,
-                tcpPort: 37001, inputCount: inputCount, outputCount: outputCount,
+                inputCount: inputCount, outputCount: outputCount,
                 timestamp: now.addingTimeInterval(-age), failure: failure,
                 heldOutputUsages: held, inputAccessSource: "current-process.apple-api.modifying-tap-post-event",
                 experimentalTapDiagnostics: diagnostics
