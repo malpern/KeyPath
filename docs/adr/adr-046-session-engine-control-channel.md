@@ -1,9 +1,9 @@
 # ADR-046: Session Engine Control Channel
 
-**Status:** Proposed
-**Date:** 2026-11-04
-**Supersedes (when accepted):** [ADR-013](adr-013-tcp-without-auth.md)
-**Tracking:** [#1354](https://github.com/malpern/KeyPath/issues/1354) (release-blocker)
+**Status:** Accepted. Phases 1–3 shipped (#1412, #1413, fork malpern/kanata#31); the phase 4 signature check is not yet scheduled.
+**Date:** 2026-11-04 (accepted 2026-11-11)
+**Supersedes:** [ADR-013](adr-013-tcp-without-auth.md)
+**Tracking:** [#1354](https://github.com/malpern/KeyPath/issues/1354) (closed by #1413)
 
 ## Context
 

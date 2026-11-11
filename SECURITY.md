@@ -55,7 +55,11 @@ Reports involving:
 
 are treated as high priority.
 
-One known limitation is public: the engine's local control port
-(`127.0.0.1:37001`) is not authenticated. The planned replacement is described
-in [ADR-046](docs/adr/adr-046-session-engine-control-channel.md). New ways to
-reach or abuse that port are still worth reporting.
+The engine's control channel is a Unix-domain socket that admits only the app
+that launched the session worker (uid, PID and PID version on every
+connection; [ADR-046](docs/adr/adr-046-session-engine-control-channel.md)).
+It replaced an unauthenticated port on `127.0.0.1:37001`. One known
+limitation is public: the engine does not yet check the connecting process's
+code signature, so a same-user process that injects code into KeyPath, or
+impersonates it, is not stopped by the channel itself. Any way to reach the
+engine from another process is worth reporting.
