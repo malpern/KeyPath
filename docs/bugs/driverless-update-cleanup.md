@@ -8,7 +8,7 @@ Nine focused tests cover cleanup ordering/refusal/retry, suspended aborts, repla
 
 ## Remaining release gate
 
-Sparkle does not promise to call shouldPostponeRelaunchForUpdate for every installation, including some termination-time paths. This change validates the postponed continuation, not universal update cleanup. Test and resolve update-on-quit with preserved configuration and Caps recovery before release. Normal app Quit must remain usable during retained uncertainty; do not cancel every Quit and impede system reboot. No signed live updater acceptance or production release is claimed here.
+Sparkle does not promise to call shouldPostponeRelaunchForUpdate for every installation, including some termination-time paths. This change validated the postponed continuation, not universal update cleanup. Update-on-quit with preserved configuration and Caps recovery has since been tested and passed on notarized builds (2026-11-11; see "Caps Lock gate" below). Normal app Quit must remain usable during retained uncertainty; do not cancel every Quit and impede system reboot. No signed live updater acceptance or production release is claimed here.
 
 ## Graceful app termination
 
@@ -194,10 +194,40 @@ no mapping existed to restore; adding one would have changed the user's
 configuration. The worker's retirement on both paths (`stopped`,
 `owner-exited`) is the same code that restores Caps.
 
-**Remaining release gate.** Master now builds with the updater on; nothing
-reaches users until the next release. Before that release, rerun scenarios 1,
-2 and 4 on **notarized** builds with a **managed Caps Lock rule active**, and
-check that Caps Lock is plain Caps Lock after each one.
+### Caps Lock gate (2026-11-11, Mac mini, macOS 27.3)
+
+Lab builds 1000 and 1001 were built from #1416's head (`f3d4880dc`, master plus
+the phase 4 engine check) with #1418's fix applied, Developer ID-signed, **notarized and stapled** (Gatekeeper: "Notarized
+Developer ID"). The feed was signed with the release EdDSA key. Caps Lock Remap
+was on, so the engine mapped Caps Lock to F18 on four keyboards. A sampler
+recorded the app, the worker and the number of Caps mappings every 0.1 s. The
+mini's app, config, app data and preferences were backed up first and restored
+afterwards.
+
+**The first run found a bug.** Scenario 1 passed, but in scenario 2 Caps Lock
+stayed mapped to F18 after the app was killed. It reproduced without any update
+(3 of 5 plain `kill -9` runs): the worker's exit restore ran beside its own
+keyboard check and failed `busy`. Fixed in #1418; see
+`caps-stuck-after-app-killed.md`.
+
+**Rerun with the fix:**
+
+| # | Scenario | Result |
+|---|---|---|
+| 1 | Automatic: staged, then Quit from the menu | **Pass.** The worker removed all four Caps mappings while the app was still quitting; 1001 installed, notarized; relaunched with the engine running and Caps remapped |
+| 2 | Staged, then `kill -9` of the app | **Pass.** The worker restored Caps about 4 s after the kill and retired `stopped` / `owner-exited`; Sparkle installed 1001 |
+| 4 | Check for Updates → Install and Relaunch | **Pass.** `Stopping owned runtime before update`; Caps restored before the app exited; 1001 relaunched with the engine running |
+
+After every scenario, Caps Lock was plain Caps Lock (no mapping left) while
+KeyPath was not running.
+
+**The Caps Lock gate is met.** A release with updates on still needs the phase
+4 engine check (#1416) merged first, because ADR-046 makes it a release gate.
+
+Quitting KeyPath with AppleScript (`tell application "KeyPath" to quit`) from an
+agent shell timed out after 120 s, apparently waiting on a TCC Automation
+prompt. The menu's Quit worked every time. Lab scripts should not rely on
+AppleScript to quit KeyPath.
 
 **Side finding:** every launch rewrites `RuleCollections.json` with
 `enabledKeys` in a different order (a serialized `Set`) and rotates a new
