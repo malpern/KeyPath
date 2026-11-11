@@ -399,7 +399,18 @@ pub extern "C" fn keypath_kanata_bridge_passthru_close_control(runtime: *mut c_v
         return;
     }
     let runtime = unsafe { &*(runtime.cast::<PassthruRuntime>()) };
-    drop(runtime.control_listener.lock().take());
+    // Never handed to the server (the worker stopped before start): remove
+    // the socket file here, since no ControlHandle exists to do it.
+    if let Some(fd) = runtime.control_listener.lock().take() {
+        let listener = std::os::unix::net::UnixListener::from(fd);
+        if let Some(path) = listener
+            .local_addr()
+            .ok()
+            .and_then(|addr| addr.as_pathname().map(Path::to_path_buf))
+        {
+            let _ = std::fs::remove_file(path);
+        }
+    }
     if let Some(handle) = runtime.control_handle.lock().as_ref() {
         handle.close();
     }
@@ -1045,8 +1056,9 @@ mod tests {
         let fixture = ControlFixture::start((pid, version.wrapping_add(1)));
         let mut stream = fixture.connect();
         let mut buffer = [0u8; 64];
+        // Ok(0) is end of file: closed, not merely silent until the timeout.
         assert_eq!(
-            stream.read(&mut buffer).unwrap_or(0),
+            stream.read(&mut buffer).expect("closed, not timed out"),
             0,
             "refused peer received data"
         );
@@ -1064,8 +1076,38 @@ mod tests {
         assert!(!fixture.socket.exists(), "socket path still present");
         assert!(std::os::unix::net::UnixStream::connect(&fixture.socket).is_err());
         let mut rest = Vec::new();
-        let _ = stream.read_to_end(&mut rest);
+        stream
+            .read_to_end(&mut rest)
+            .expect("dropped: end of file, not a timeout");
         assert!(!String::from_utf8_lossy(&rest).contains("KeyInput"));
+    }
+
+    /// The worker can stop between create and start; closing then must still
+    /// remove the socket file.
+    #[test]
+    fn closing_control_before_start_removes_the_socket() {
+        use std::os::fd::IntoRawFd;
+        let dir = std::env::temp_dir().join(format!("kp-unstarted-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let socket = dir.join("e.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+        let cfg = passthru_cfg_path();
+        let mut error = vec![0 as c_char; 512];
+        let (pid, version) = this_process();
+        let handle = keypath_kanata_bridge_create_passthru_runtime(
+            cfg.as_ptr(),
+            0,
+            listener.into_raw_fd(),
+            pid,
+            version,
+            error.as_mut_ptr(),
+            error.len(),
+        );
+        assert!(!handle.is_null(), "{}", read_error_buffer(&error));
+        keypath_kanata_bridge_passthru_close_control(handle);
+        assert!(!socket.exists());
+        keypath_kanata_bridge_destroy_passthru_runtime(handle);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

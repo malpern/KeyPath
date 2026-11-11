@@ -287,6 +287,11 @@ choices differ from the plan's wording:
   that is still shutting down removes only its own socket, never the one the
   next worker just created. The path is in the report (`controlSocketPath`).
 
+A worker launched without `--session-owner-pidversion` refuses to start
+(`missing-session-owner`) rather than run an engine socket nobody can be
+checked against. An old app still running beside a newly replaced bundle hits
+this until it relaunches; updates and deploys relaunch it.
+
 The owner watch is `SessionOwnerExitSource` (a dispatch process source, so
 kqueue `NOTE_EXIT`); it closes the engine socket and retires the worker. The
 session policy refuses `ReloadFile`, `ReloadNext/Prev/Num` and `SetMouse` on

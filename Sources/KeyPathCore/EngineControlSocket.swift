@@ -110,7 +110,9 @@ public enum EngineControlSocket {
     }
 
     /// Binds and listens at `path`, replacing a stale socket file there. The
-    /// socket is created 0600 and is not inherited by child processes.
+    /// socket is made 0600 and is not inherited by child processes. Until the
+    /// chmod, the 0700 directory is what keeps others out; the umask is not
+    /// changed, because it is process-wide.
     public static func bind(path: String) throws -> Int32 {
         var info = stat()
         if lstat(path, &info) == 0 {
@@ -124,14 +126,12 @@ public enum EngineControlSocket {
             close(fd)
             throw SetupError.pathTooLong
         }
-        let previousMask = umask(0o177)
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        umask(previousMask)
-        guard bound == 0, listen(fd, 8) == 0 else {
+        guard bound == 0, chmod(path, 0o600) == 0, listen(fd, 8) == 0 else {
             let error = errno
             close(fd)
             throw SetupError.socket("bind/listen failed: \(String(cString: strerror(error)))")
