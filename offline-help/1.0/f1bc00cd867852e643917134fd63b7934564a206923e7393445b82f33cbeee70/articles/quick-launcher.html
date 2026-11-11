@@ -1,0 +1,104 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Launch Anything Instantly</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-quick-launcher.png" alt="Guide illustration" /></p>
+<h1 id="launch-anything-with-one-keystroke">Launch Anything With One Keystroke</h1>
+<p>You're in the middle of typing and need to jump to Safari, or open a URL, or fire up Terminal. Normally that means reaching for the Dock, Spotlight, or a launcher app — breaking your flow. With the Quick Launcher, you hold one key and press a letter. App opens instantly. Hands never leave the keyboard.</p>
+<hr />
+<h2 id="what-you-get">What You Get</h2>
+<p>Enable the <strong>Quick Launcher</strong> pack and you get a dedicated launcher layer on your keyboard:</p>
+<ul>
+<li><strong>Hold Hyper + press a letter</strong> → launch the assigned app, URL, folder, or script</li>
+<li><strong>Visual overlay</strong> → the keyboard overlay shows app icons on mapped keys so you always know what's where</li>
+<li><strong>Instant dismiss</strong> → release Hyper and you're back to typing</li>
+</ul>
+<p>Default mappings ship ready to use: <strong>S</strong> = Safari, <strong>T</strong> = Terminal, <strong>F</strong> = Finder, <strong>G</strong> = GitHub. Customize from there.</p>
+<hr />
+<h2 id="enabling-it">Enabling It</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Quick Launcher</strong> in the Productivity section</li>
+<li>Toggle it <strong>on</strong></li>
+</ol>
+<p>Hyper combines Control, Option, Command, and Shift into one modifier. Apps rarely use all four together, so Hyper creates clean shortcuts that are unlikely to conflict. <strong>Caps Lock Remap</strong> provides Hyper by default when you hold Caps Lock. If you haven't set up a Hyper key yet, KeyPath can offer to enable Caps Lock Remap when you turn on Quick Launcher. You can accept that one-click fix or continue and choose a different Hyper key later.</p>
+<p>Hyper is different from Leader: Hyper acts like a modifier you hold or tap, while your Leader key starts KeyPath layers and sequences. Quick Launcher can use either Hyper or a Leader → L sequence; choose the activation mode in its settings.</p>
+<p>See <strong><a href="help://conflict-resolution">Make Rules Work Together</a></strong> for an explanation of requirement warnings and each available action.</p>
+<hr />
+<h2 id="how-it-works">How It Works</h2>
+<ol type="1">
+<li><strong>Hold the Hyper key</strong> (default: hold Caps Lock)</li>
+<li>The overlay switches to show your launcher mappings — each key displays the icon of its assigned app or action</li>
+<li><strong>Press a letter</strong> to launch that app/URL/folder</li>
+<li>Release Hyper — you're back to normal typing</li>
+</ol>
+<p>Unmapped keys appear dimmed. The overlay disappears automatically after you launch something.</p>
+<hr />
+<h2 id="configuring-your-launcher">Configuring Your Launcher</h2>
+<h3 id="adding-a-mapping">Adding a mapping</h3>
+<ol type="1">
+<li>In the Quick Launcher pack detail view, click any empty key on the keyboard visualization</li>
+<li>Choose what to assign:
+<ul>
+<li><strong>App</strong> — pick from installed applications</li>
+<li><strong>URL</strong> — enter a web address (opens in default browser)</li>
+<li><strong>Folder</strong> — pick a folder to open in Finder</li>
+<li><strong>Script</strong> — select a script to execute</li>
+</ul></li>
+<li>The key now shows the app icon on the overlay</li>
+</ol>
+<h3 id="removing-or-changing-a-mapping">Removing or changing a mapping</h3>
+<p>Click any mapped key in the visualization to reassign or clear it.</p>
+<h3 id="activation-modes">Activation modes</h3>
+<p>The Quick Launcher supports three trigger styles:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>How it works</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hyper Hold</strong> (default)</td>
+<td>Hold Hyper key, press a letter, release Hyper</td>
+</tr>
+<tr>
+<td><strong>Hyper Tap</strong></td>
+<td>Tap Hyper to toggle the launcher layer on/off, then press a letter</td>
+</tr>
+<tr>
+<td><strong>Leader → L</strong></td>
+<td>Press your Leader key, then L, then press a letter</td>
+</tr>
+</tbody>
+</table>
+<p>Change the activation mode in the pack settings.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li>Keys are suggested in home-row-first order for ergonomics — start with the home row and work outward</li>
+<li>You can map any letter (a–z), number (0–9), or punctuation key</li>
+<li>Add websites by entering their URLs manually; KeyPath does not read browser history</li>
+<li>Quick Launcher works alongside all other KeyPath features — your home row mods, app-specific rules, and tap-hold keys all coexist</li>
+</ul>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="nothing-happens-when-i-press-hyper--a-key">Nothing happens when I press Hyper + a key</h3>
+<ol type="1">
+<li>Verify the Quick Launcher pack is enabled (check the Rules tab)</li>
+<li>Verify your Hyper key is working — the overlay should show "✦" on Caps Lock when held</li>
+<li>Check that the key you're pressing has a mapping assigned</li>
+</ol>
+<h3 id="the-overlay-doesnt-appear">The overlay doesn't appear</h3>
+<ol type="1">
+<li>Make sure the overlay isn't hidden (check the menu bar icon)</li>
+<li>Check that KeyPath's service is running (green indicator in the overlay header)</li>
+</ol>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://action-uri">Launching Apps &amp; Workflows</a></strong> — The full action URI system for power users (scripts, window tiling, deep links)</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on the Hyper key and layers</li>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See the Quick Launcher as part of a complete keyboard workflow</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — Fine-tune the Hyper key's tap vs. hold behavior</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>

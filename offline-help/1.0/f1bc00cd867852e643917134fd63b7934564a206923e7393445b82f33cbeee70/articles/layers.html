@@ -1,0 +1,158 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Layers</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-layers.png" alt="Guide illustration" /></p>
+<h1 id="layers">Layers</h1>
+<p>You already know that a single key can do two things — tap for one action, hold for another. Layers take that idea and apply it to your <em>entire keyboard</em>.</p>
+<p>Hold a trigger key and every key on your keyboard changes what it does. Release the trigger and everything goes back to normal. It's like having multiple keyboards stacked on top of each other, and you switch between them instantly.</p>
+<p>You've actually been using layers your whole life. Every time you hold Shift, you're on a different "layer" — one where A types a, and another where A types A. KeyPath just lets you create as many of these as you want.</p>
+<hr />
+<h2 id="youre-already-using-one">You're already using one</h2>
+<p>If you followed the <a href="help://remapping">Remapping guide</a> and have Home Row Arrows installed, you've been using a layer without thinking about it:</p>
+<pre><code>  Base layer (normal):              Home Arrows layer (hold F):
+  ┌───┬───┬───┬───┬───┐            ┌───┬───┬───┬───┬───┐
+  │ Y │ U │ I │ O │ P │            │   │PgU│ ↑ │PgD│   │
+  ├───┼───┼───┼───┼───┤            ├───┼───┼───┼───┼───┤
+  │ H │ J │ K │ L │ ; │            │Hom│ ← │ ↓ │ → │End│
+  └───┴───┴───┴───┴───┘            └───┴───┴───┴───┴───┘</code></pre>
+<p>Hold F → you're on the arrows layer. Release F → you're back on base. That's all a layer is.</p>
+<hr />
+<h2 id="how-layers-work">How layers work</h2>
+<p>Every layer is a complete keyboard layout. When you activate a layer, KeyPath looks up what each key should do on <em>that</em> layer. Keys you haven't assigned on the layer fall through to the base layer — so your whole keyboard doesn't go blank, only the keys you've defined change.</p>
+<pre><code>  ┌─────────────────────────────────────────┐
+  │  Layer: home-arrows                      │
+  │  Only 8 keys defined — everything else   │
+  │  falls through to base layer             │
+  └─────────────────────────────────────────┘
+                    ▲
+                    │ hold F
+                    │
+  ┌─────────────────────────────────────────┐
+  │  Layer: base                             │
+  │  Your normal keyboard — all keys active  │
+  └─────────────────────────────────────────┘</code></pre>
+<p>This means you can define a layer with just the keys you care about. Letters you don't remap still type normally.</p>
+<hr />
+<h2 id="the-layers-that-ship-with-keypath">The layers that ship with KeyPath</h2>
+<p>KeyPath includes several layer packs you can install from the Pack Gallery. Each one gives you a purpose-built layer activated by a trigger key.</p>
+<h3 id="hold-activated-layers-direct-from-base">Hold-activated layers (direct from base)</h3>
+<p>These activate by holding a single key on the base layer:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Trigger</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Home Row Arrows</strong></td>
+<td>Hold F</td>
+<td>Arrow keys, Home/End, Page Up/Down on IJKL</td>
+</tr>
+</tbody>
+</table>
+<h3 id="leader-activated-layers-hold-space-then-a-key">Leader-activated layers (hold Space, then a key)</h3>
+<p>These use a two-step activation: hold Space (the Leader key) to enter the navigation layer, then press another key to enter a specific sub-layer. This keeps the base layer clean — Space activates one hub, and from there you branch out.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Activation</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vim Navigation</strong></td>
+<td>Hold Space</td>
+<td>Arrows on HJKL, copy/paste, undo, find</td>
+</tr>
+<tr>
+<td><strong>Numpad</strong></td>
+<td>Space + ;</td>
+<td>Right hand becomes a number pad</td>
+</tr>
+<tr>
+<td><strong>Symbol</strong></td>
+<td>Space + S</td>
+<td>Programming symbols under home row</td>
+</tr>
+<tr>
+<td><strong>Function</strong></td>
+<td>Space + F</td>
+<td>F-keys on right hand, media on left</td>
+</tr>
+<tr>
+<td><strong>Window Snapping</strong></td>
+<td>Space + W</td>
+<td>Tile windows to halves, corners, screens</td>
+</tr>
+<tr>
+<td><strong>Mission Control</strong></td>
+<td>Space + M</td>
+<td>Expose, desktops, notification center</td>
+</tr>
+</tbody>
+</table>
+<h3 id="installing-a-layer-pack">Installing a layer pack</h3>
+<ol type="1">
+<li>Open the <strong>Pack Gallery</strong></li>
+<li>Find the layer pack you want (e.g., Numpad)</li>
+<li>Click <strong>Install</strong></li>
+</ol>
+<p>The layer is immediately available. Hold the trigger keys to activate it.</p>
+<p>See the <a href="help://packs">Packs &amp; Layers catalog</a> for details on every available layer.</p>
+<hr />
+<h2 id="the-overlay-shows-you-where-you-are">The overlay shows you where you are</h2>
+<p>The keyboard overlay updates in real time as you switch layers. When you hold a trigger key, the overlay shows the current layer's key assignments — so you always know what each key does right now.</p>
+<p>This is especially useful when you're learning a new layer. Keep the overlay visible and glance at it while you build muscle memory.</p>
+<hr />
+<h2 id="understanding-the-leader-key">Understanding the Leader key</h2>
+<p>Most layer packs use Space as the "Leader" — the gateway to all your layers. Here's why:</p>
+<ul>
+<li><strong>Space is the biggest key on your keyboard.</strong> Easy to hold with either thumb.</li>
+<li><strong>Tap Space and it types a space.</strong> Normal typing isn't affected.</li>
+<li><strong>Hold Space and you enter the navigation hub.</strong> From there, press another key to reach a specific layer.</li>
+</ul>
+<pre><code>  Tap Space → types a space (normal)
+
+  Hold Space → navigation layer (arrows, copy, paste, undo)
+  Hold Space + ; → numpad layer
+  Hold Space + S → symbol layer
+  Hold Space + F → function/media layer
+  Hold Space + W → window snapping layer
+  Hold Space + M → mission control layer</code></pre>
+<p>This two-step design means you only "use up" one key (Space) on the base layer, but you get access to six or more layers through it.</p>
+<p>If you'd rather use a different key as your Leader, install the <a href="help://packs">Leader Key</a> pack — you can switch to Caps Lock, Tab, or Backtick.</p>
+<hr />
+<h2 id="when-layers-depend-on-each-other">When layers depend on each other</h2>
+<p>A key that opens the Function layer is useful only when something supplies Function-layer actions. KeyPath checks these relationships when you turn rules on, edit them, or turn them off. If a change would leave a layer key with nothing useful behind it, KeyPath identifies the affected keys and offers a safe choice.</p>
+<p>See <strong><a href="help://conflict-resolution">Make Rules Work Together</a></strong> for each warning and what its buttons do.</p>
+<hr />
+<h2 id="creating-your-own-layer">Creating your own layer</h2>
+<p>The layer packs cover the most common use cases, but you can create custom layers too.</p>
+<h3 id="from-the-command-line">From the command line</h3>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a layer</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer create media</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Add keys to it</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule add j <span class="at">--action</span> <span class="st">&#39;{&quot;keystroke&quot;:{&quot;key&quot;:&quot;vold&quot;}}&#39;</span> <span class="at">--layer</span> media</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule add k <span class="at">--action</span> <span class="st">&#39;{&quot;keystroke&quot;:{&quot;key&quot;:&quot;volu&quot;}}&#39;</span> <span class="at">--layer</span> media</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> rule add l <span class="at">--action</span> <span class="st">&#39;{&quot;keystroke&quot;:{&quot;key&quot;:&quot;pp&quot;}}&#39;</span> <span class="at">--layer</span> media</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># List your layers</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> layer list</span></code></pre></div>
+<h3 id="what-makes-a-good-custom-layer">What makes a good custom layer?</h3>
+<p>The best layers share a few traits:</p>
+<ul>
+<li><strong>One clear purpose</strong> — "this layer is for window management" not "this layer has some stuff on it"</li>
+<li><strong>Muscle memory mapping</strong> — put related actions on keys that make spatial sense (arrows in a cluster, not scattered)</li>
+<li><strong>Few keys defined</strong> — only assign the keys you need. Everything else falls through to base, so you can still type normally</li>
+</ul>
+<hr />
+<h2 id="whats-next">What's next?</h2>
+<p>You now understand the three fundamentals: <a href="help://remapping">remapping</a> a key, giving one key <a href="help://tap-hold">two jobs</a>, and switching between entire <a href="#">layers</a>. Everything else in KeyPath is a specific application of these ideas.</p>
+<p><strong><a href="help://home-row-mods">Home Row Mods</a></strong> — The most popular advanced technique. Your home row keys become modifiers when held — every shortcut stays under your fingers.</p>
+<p><strong><a href="help://packs">Packs &amp; Layers</a></strong> — Browse the full catalog of installable layer packs.</p>
+<p><strong><a href="help://vim-navigation">Vim Navigation</a></strong> — The foundation layer pack. Hold Space for arrows, editing, and more.</p>
+<p><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Chords, tap-dance, sequences, Hyper key — the techniques that build on top of layers.</p>
+</body></html>

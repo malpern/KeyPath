@@ -17,7 +17,7 @@
     "articles/general-settings.html": "e2c186e9eca26662309c9793bc3ac34233822aea01ec95be528b2b54c8a509cc",
     "articles/hammerspoon.html": "2d7780edbe98485527db6ceb442c32bff0a42f8e60bde442daa590b915f98b84",
     "articles/home-row-mods.html": "19ef54d33cb0bd97ad201032296c2ecacc6e94d57c101a8d342fbd27181bb891",
-    "articles/installation-wizard.html": "19d93d6faea599e404d306f979a5fd7ee3dc6d2f526fd7be7d1478a3dcc411dc",
+    "articles/installation-wizard.html": "c70e2122a6edaa0460f469ad07b0f551e0f3679bafef865f732a169ec2dfad19",
     "articles/kanata-users.html": "7bdf1ccd85f0ccf81c8e3236f13d4353d6329864551103817b91c18c9e9a05b9",
     "articles/karabiner-users.html": "5341d2650282c522a300a93dd962178ec04ca8495f70386b1542b749903321bc",
     "articles/key-repeat-control.html": "99d090bf25eea444d650215723bcd7dd369780ed82a84fe1429665042ccfeb1d",
@@ -28,7 +28,7 @@
     "articles/neovim-terminal.html": "2a57b4d8029d8945b5fa81e34619e625af9dd0ca90f9c3aa6df675e44150cb7b",
     "articles/numpad-layer.html": "7378250cf44b58e7603391e43483aac02fbcecab9795f7938f940d3c861a63ed",
     "articles/packs.html": "3560c0676d0c5cf3066834ba65edf6cab9f42d88091a4588226dc3b54f56da06",
-    "articles/privacy.html": "78c709acc1e1f8cb8f46b5e8d5ab6363c8e14532fb20e84f3ca85bf1f780e2b2",
+    "articles/privacy.html": "b0e25c87721411a4a5fc7f1ca76bd41991cc8d9c144d1c0ff76a037a61bc5394",
     "articles/qmk-import.html": "70b3b5c6f0b27179d9bb60284039ee11ffc8534d53bf1c0a2a271ab4c8b21ffb",
     "articles/quick-launcher.html": "f0d91808bcad5d02c56641b4f6af0ece58944a08101aad00f2550b6b0246b9ac",
     "articles/remapping.html": "c042f4b3e4bfd56e08365adc1f54a287635a9811de9030654b5b10ccf643d87c",
@@ -109,6 +109,6 @@
     "assets/tap-hold-custom-rules-tab.png": "9de856eb0ab25a0096d4c55ad8a9e132ca5f2a23488d07e6baf5a47ee9952311",
     "assets/tap-hold-rule-editor.png": "1073378bf5534306b2c54f8fb7850c0f6e16c2313ca9e393105995b1d2ed9b1a"
   },
-  "revision": "892751d3c8c6c78b41e4e59ba4780bb7e7e69dd5e3fa6f70ece34e3dbd7f1b34",
+  "revision": "f1bc00cd867852e643917134fd63b7934564a206923e7393445b82f33cbeee70",
   "schema": 1
 }

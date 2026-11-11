@@ -1,0 +1,111 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>A Numpad Under Your Hand</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-numpad-layer.png" alt="Guide illustration" /></p>
+<h1 id="a-numpad-under-your-right-hand">A Numpad Under Your Right Hand</h1>
+<p>Entering numbers means reaching for the number row — awkward at best, or stretching to a physical numpad that most keyboards don't even have. The Numpad layer turns your right hand into a numpad and your left hand into operators. All from the home row.</p>
+<hr />
+<h2 id="what-you-get">What You Get</h2>
+<p>Enable the <strong>Numpad</strong> pack and you gain a full numpad layer:</p>
+<p><strong>Right hand — numbers:</strong> | U | I | O | |---|---|---| | 7 | 8 | 9 |</p>
+<table>
+<thead>
+<tr>
+<th>J</th>
+<th>K</th>
+<th>L</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td>5</td>
+<td>6</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>M</th>
+<th>,</th>
+<th>.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>N</th>
+<th>/</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Left hand — operators:</strong> | Key | Output | |-----|--------| | F | + | | D | − | | S | × | | A | ÷ | | G | Enter ⏎ |</p>
+<hr />
+<h2 id="enabling-it">Enabling It</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Numpad</strong> in the Layers section</li>
+<li>Toggle it <strong>on</strong></li>
+</ol>
+<p>Requires <strong>Vim Navigation</strong> (or another Leader pack) to be enabled — the numpad layer is accessed through the Leader key.</p>
+<hr />
+<h2 id="how-to-activate">How to Activate</h2>
+<p>The numpad uses <strong>two-step activation</strong>:</p>
+<ol type="1">
+<li><strong>Hold your Leader key</strong> (Space by default) — enters the navigation layer</li>
+<li><strong>While holding Leader, press ;</strong> (semicolon) — enters the numpad layer</li>
+<li><strong>Press number/operator keys</strong> — types digits and operators</li>
+<li><strong>Release Leader</strong> — back to normal typing</li>
+</ol>
+<p>The overlay shows the numpad layout highlighted when you're in the layer.</p>
+<hr />
+<h2 id="use-cases">Use Cases</h2>
+<ul>
+<li><strong>Spreadsheets</strong> — Enter columns of numbers without leaving the home row</li>
+<li><strong>CSS/code</strong> — Type pixel values, hex codes, port numbers</li>
+<li><strong>Calculators</strong> — The operator keys (+ − × ÷) are on your left hand, numbers on right</li>
+<li><strong>IP addresses and phone numbers</strong> — Rapid numeric entry</li>
+<li><strong>Data entry</strong> — Faster than hunting keys on the number row</li>
+</ul>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li>The layout matches a standard numpad: 7-8-9 on top, 1-2-3 on bottom, 0 on the bottom-left</li>
+<li><strong>G = Enter</strong> means you can submit calculator entries or spreadsheet cells without reaching</li>
+<li>Practice the two-step activation: Leader → ; becomes muscle memory quickly</li>
+<li>The semicolon activator was chosen because it's on the home row and rarely conflicts with navigation</li>
+</ul>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="nothing-happens-when-i-press-leader--">Nothing happens when I press Leader → ;</h3>
+<ol type="1">
+<li>Make sure the Numpad pack is <strong>enabled</strong> in the Rules tab</li>
+<li>Verify <strong>Vim Navigation</strong> is also enabled (it provides the Leader layer)</li>
+<li>You must <em>hold</em> Leader the entire time — don't release it between pressing ;</li>
+</ol>
+<h3 id="i-get-semicolons-instead-of-activating-the-layer">I get semicolons instead of activating the layer</h3>
+<p>You're releasing Leader too early. Hold Leader continuously, then press ; while still holding.</p>
+<h3 id="numbers-dont-appear-in-my-app">Numbers don't appear in my app</h3>
+<p>Some apps (rare) intercept numpad keycodes differently from regular number keys. If a specific app misbehaves, check if it has a "numpad input" mode.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://vim-navigation">Navigate Text Like a Keyboard Ninja</a></strong> — The foundation layer (required for numpad)</li>
+<li><strong><a href="help://leader-key">Choose Your Leader Key</a></strong> — Change which key starts the activation sequence</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers and two-step activation</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>

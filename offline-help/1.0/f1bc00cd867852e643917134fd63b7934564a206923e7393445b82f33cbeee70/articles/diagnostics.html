@@ -1,0 +1,74 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Diagnostics &amp; Insights</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-diagnostics.png" alt="Guide illustration" /></p>
+<h1 id="diagnostics--insights">Diagnostics &amp; Insights</h1>
+<p>KeyPath includes tools for understanding what's happening under the hood — how your tap-hold keys are resolving, what keys you're pressing, and a way to test changes before committing. These are power-user features; you don't need them for everyday use, but they're invaluable when you're tuning timing or debugging a tricky remap.</p>
+<hr />
+<h2 id="hrm-analytics">HRM Analytics</h2>
+<p>Home row mods are the most timing-sensitive feature in KeyPath. The HRM Analytics panel shows you how Kanata is resolving your tap-hold decisions in real time:</p>
+<ul>
+<li><strong>Tap vs hold ratio</strong> — what percentage of your home row key presses resolve as taps (letters) vs holds (modifiers)</li>
+<li><strong>Decision timing</strong> — how long each decision takes and what triggered it (timeout, opposite-hand press, or release)</li>
+<li><strong>Misfire rate</strong> — how often you get an unintended hold when you meant to tap</li>
+</ul>
+<pre><code>  ┌─────────────────────────────────────────────────┐
+  │  HRM Analytics                                   │
+  │                                                  │
+  │  Decisions: 1,247     Tap: 89%    Hold: 11%     │
+  │                                                  │
+  │  Avg decision time: 142ms                        │
+  │  Misfires (estimated): 2.1%                      │
+  │                                                  │
+  │  Recent:                                         │
+  │  F → tap (98ms, released before timeout)         │
+  │  D → hold (210ms, opposite-hand J pressed)       │
+  │  A → tap (112ms, released before timeout)        │
+  └─────────────────────────────────────────────────┘</code></pre>
+<p>Use this data to tune your hold timing. If your misfire rate is high, increase the hold timeout. If holds feel sluggish, decrease it. The analytics take the guesswork out of timing adjustments.</p>
+<p>HRM Analytics are shown in KeyPath.app; <code>keypath status</code> reports only whether remapping is running.</p>
+<hr />
+<h2 id="activity-insights">Activity Insights</h2>
+<p>Activity Insights gives you a bird's-eye view of your keyboard usage over time:</p>
+<ul>
+<li>Which layers you use most</li>
+<li>How many layer switches per hour</li>
+<li>Peak typing periods</li>
+<li>Most-used actions on each layer</li>
+</ul>
+<p>This helps you identify which packs are earning their keep and which you might remove. If a layer never gets activated, maybe it's not worth the key it's bound to.</p>
+<hr />
+<h2 id="keystroke-history">Keystroke History</h2>
+<p>A live timeline of every keypress, tap-hold decision, and layer change. Install the <strong>Keystroke History</strong> pack from the Pack Gallery to enable it.</p>
+<pre><code>  ┌─────────────────────────────────────────────────┐
+  │  Keystroke History                               │
+  │                                                  │
+  │  10:32:01  F pressed                             │
+  │  10:32:01  Layer → home-arrows                   │
+  │  10:32:01  J pressed → Left Arrow               │
+  │  10:32:01  K pressed → Down Arrow                │
+  │  10:32:02  F released                            │
+  │  10:32:02  Layer → base                          │
+  │  10:32:02  H pressed → h                         │
+  │  10:32:02  E pressed → e                         │
+  └─────────────────────────────────────────────────┘</code></pre>
+<p>The history shows exactly what Kanata sees and does — useful for debugging why a key isn't doing what you expect. You can see the raw key events, the tap-hold decisions, and the layer transitions in chronological order.</p>
+<p>The Keystroke History pack is display-only — it doesn't change any key behavior, just observes and logs.</p>
+<hr />
+<h2 id="simulator">Simulator</h2>
+<p>The simulator lets you test key sequences against your current config without actually pressing keys. Type a sequence, and KeyPath shows you what Kanata would output:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">keypath</span> simulate <span class="st">&quot;caps h&quot;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Output: esc left  (caps=escape via remap, h=left via nav layer)</span></span></code></pre></div>
+<p>This is useful for:</p>
+<ul>
+<li><strong>Verifying a new remap</strong> before committing to it</li>
+<li><strong>Testing layer interactions</strong> — "what happens if I press caps, then hold space, then press j?"</li>
+<li><strong>Debugging</strong> — "why is this key doing the wrong thing?"</li>
+</ul>
+<p>The simulator uses Kanata's static analysis — it doesn't need the service running. It reads your config file and simulates the key processing pipeline.</p>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://home-row-mods">Home Row Mods</a></strong> — The feature HRM Analytics is built for</li>
+<li><strong><a href="help://packs">Packs &amp; Layers</a></strong> — Keystroke History is available as a pack</li>
+<li><strong><a href="help://cli">Command Line</a></strong> — CLI access to analytics and simulation</li>
+<li><strong><a href="help://layers">Layers</a></strong> — Understanding layer transitions in the history</li>
+</ul>
+</body></html>

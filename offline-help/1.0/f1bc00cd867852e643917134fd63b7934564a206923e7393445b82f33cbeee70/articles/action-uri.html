@@ -1,0 +1,198 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Launching Apps &amp; Workflows</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-action-uri.png" alt="Guide illustration" /></p>
+<h1 id="launching-apps--workflows">Launching Apps &amp; Workflows</h1>
+<p>Switching between apps usually means reaching for the Dock, opening Spotlight, or hunting through windows. KeyPath lets you skip all of that — press a key combination and your app, URL, or folder opens instantly. No mouse, no searching, no waiting.</p>
+<hr />
+<h2 id="what-you-can-launch">What you can launch</h2>
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>Example</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>App</strong></td>
+<td>Safari, Terminal, Messages</td>
+<td>Opens the app (or brings it to front if already running)</td>
+</tr>
+<tr>
+<td><strong>URL</strong></td>
+<td>github.com, google.com</td>
+<td>Opens in your default browser</td>
+</tr>
+<tr>
+<td><strong>Folder</strong></td>
+<td>~/Documents, ~/Desktop</td>
+<td>Opens in Finder</td>
+</tr>
+<tr>
+<td><strong>Script</strong></td>
+<td>backup.sh, deploy.py</td>
+<td>Runs the script (with <a href="help://privacy">safety protections</a>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="setting-up-your-first-launcher">Setting up your first launcher</h2>
+<p>The fastest way to start launching apps from your keyboard:</p>
+<ol type="1">
+<li>Open KeyPath — the keyboard overlay appears on screen</li>
+<li>Click the <strong>gear icon</strong> on the overlay to open the inspector panel</li>
+<li>Switch to the <strong>Launchers</strong> tab (bolt icon)</li>
+<li>Click <strong>Add Shortcut</strong> and choose what to bind:
+<ul>
+<li>Pick an app from the app picker</li>
+<li>Paste a URL</li>
+<li>Browse to a folder</li>
+</ul></li>
+<li>Click a key on the keyboard overlay to assign it</li>
+<li>Done — hold Caps Lock (Hyper) + press that key to launch</li>
+</ol>
+<p><img class="help-img" src="../assets/action-uri-overlay-header.png" alt="Screenshot" /> Screenshot — Overlay header bar with inspector controls:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────────┐
+  │  ·:·:·:·:·:·:·  (drag texture)     ● Base  ☰  👁       │
+  │                                     ↑       ↑  ↑       │
+  │                              layer pill  drawer  hide   │
+  └─────────────────────────────────────────────────────────┘</code></pre>
+<p><img class="help-img" src="../assets/action-uri-inspector-toolbar.png" alt="Screenshot" /> Screenshot — Inspector panel toolbar (tap the gear to toggle settings tabs):</p>
+<pre><code>  ┌─────────────────────────────────────────────────────────┐
+  │                                                         │
+  │     [ Custom Rules ]  [ Key Mapper ]  [ ⚡Launchers ]   │
+  │                                        ^^^^^^^^^^^      │
+  │                          ⚙ ← gear toggles settings      │
+  │                                                         │
+  │     [ Keymap ]  [ Layout ]  [ Keycaps ]  [ Sounds ]     │
+  │       (hidden until gear is tapped)                     │
+  └─────────────────────────────────────────────────────────┘</code></pre>
+<p><img class="help-img" src="../assets/action-uri-launchers-tab.png" alt="Screenshot" /> Screenshot — Launchers tab with shortcut list:</p>
+<pre><code>  ┌─────────────────────────────────────────────────────────┐
+  │  Launchers                                              │
+  │                                                         │
+  │  ┌─────────────────────────────────────────────────┐    │
+  │  │  🧭  [ S ]  Safari                              │    │
+  │  │  💻  [ T ]  Terminal                             │    │
+  │  │  💬  [ M ]  Messages                             │    │
+  │  │  📁  [ F ]  Finder                               │    │
+  │  │  🌐  [ 1 ]  github.com                           │    │
+  │  └─────────────────────────────────────────────────┘    │
+  │                                                         │
+  │  [ + Add Shortcut ]                [ ··· ]              │
+  └─────────────────────────────────────────────────────────┘</code></pre>
+<p>When you assign a launcher, the overlay keyboard shows app icons on bound keys:</p>
+<pre><code>  ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+  │   │   │   │   │   │   │   │   │   │   │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │ 📅│ 🧭│ 💻│ 📁│   │   │   │ 💬│   │   │
+  │Cal│Saf│Trm│Fnd│   │   │   │Msg│   │   │
+  ├───┼───┼───┼───┼───┼───┼───┼───┼───┼───┤
+  │   │   │   │   │   │   │   │   │   │   │
+  └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘
+  Bound keys show their app icon on the overlay</code></pre>
+<hr />
+<h2 id="the-launcher-drawer">The launcher drawer</h2>
+<p>Click the drawer button (☰) on the overlay header to open the launcher drawer. It shows all your bindings at a glance, organized by type.</p>
+<p><img class="help-img" src="../assets/action-uri-launcher-drawer.png" alt="Screenshot" /> Screenshot — Launcher drawer (slides out from overlay):</p>
+<pre><code>  ┌──────────────────────────┐
+  │  Launchers            12 │ ← total count
+  │                          │
+  │  APPS                  5 │
+  │  ┌──────────────────────┐│
+  │  │ 🧭 [ S ] Safari     ││
+  │  │ 💻 [ T ] Terminal    ││
+  │  │ 💬 [ M ] Messages    ││
+  │  │ 📝 [ V ] VS Code     ││
+  │  │ 📅 [ C ] Calendar    ││
+  │  └──────────────────────┘│
+  │                          │
+  │  WEBSITES              3 │
+  │  ┌──────────────────────┐│
+  │  │ 🌐 [ 1 ] github.com ││
+  │  │ 🌐 [ 2 ] google.com ││
+  │  │ 🌐 [ 3 ] dashboard  ││
+  │  └──────────────────────┘│
+  │                          │
+  │  FOLDERS               2 │
+  │  ┌──────────────────────┐│
+  │  │ 📁 [ D ] Documents   ││
+  │  │ 📁 [ K ] Desktop     ││
+  │  └──────────────────────┘│
+  │                          │
+  │  [ + Add ]     [ ··· ]   │
+  └──────────────────────────┘</code></pre>
+<p>Each row shows the key badge, the app/URL icon, and the target name. Click any row to highlight the corresponding key on the overlay. Right-click for edit and delete options.</p>
+<hr />
+<h2 id="choosing-an-activation-mode">Choosing an activation mode</h2>
+<p>KeyPath offers two ways to trigger your launcher bindings. You can change this in the Launchers tab settings.</p>
+<p><img class="help-img" src="../assets/action-uri-activation-mode.png" alt="Screenshot" /> Screenshot — Activation mode picker (in Launchers tab settings):</p>
+<pre><code>  ┌─────────────────────────────────────────────┐
+  │  Activation                                 │
+  │                                             │
+  │  ┌───────────┐ ┌───────────┐ ┌───────────┐ │
+  │  │   Hold    │ │   Tap     │ │  Leader   │ │
+  │  │  (Hyper)  │ │  Toggle   │ │    → L    │ │
+  │  └───────────┘ └───────────┘ └───────────┘ │
+  │   ^^^^^^^^^^                                │
+  │   selected                                  │
+  └─────────────────────────────────────────────┘</code></pre>
+<h3 id="hold-to-activate-default">Hold to activate (default)</h3>
+<p>Hold Caps Lock (Hyper) and press a letter. The launcher layer is active only while you hold the key — release and you're back to normal typing.</p>
+<pre><code>  Hold Caps Lock ──→ press S ──→ Safari opens
+                     press T ──→ Terminal opens
+  Release Caps Lock ──→ back to normal</code></pre>
+<h3 id="tap-to-toggle">Tap to toggle</h3>
+<p>Tap Caps Lock once to enter launcher mode. All your launcher keys light up on the overlay. Press a letter to launch, and you automatically return to normal mode.</p>
+<h3 id="leader-sequence">Leader sequence</h3>
+<p>Tap the leader key, then type <code>L</code> to activate the launcher layer. This keeps Caps Lock free for other uses.</p>
+<p><strong>To change modes:</strong> Open the inspector panel, go to the <strong>Launchers</strong> tab, and click the settings button (☰) to access the activation mode picker.</p>
+<hr />
+<h2 id="adding-your-own-shortcuts">Adding your own shortcuts</h2>
+<p>Add apps and enter website URLs manually in the launcher inspector. Existing saved shortcuts remain available. KeyPath does not scan browser history or suggest sites from it.</p>
+<hr />
+<h2 id="pre-built-starter-sets">Pre-built starter sets</h2>
+<p>Don't want to configure from scratch? KeyPath includes pre-built launcher collections:</p>
+<ul>
+<li><strong>Quick Launcher</strong> — Popular apps pre-assigned to mnemonic keys (S = Safari, T = Terminal, etc.)</li>
+<li><strong>URL Shortcuts</strong> — Common websites on the number row</li>
+</ul>
+<p>Enable these in the <strong>Rules</strong> tab to get started immediately, then customize from there.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ol type="1">
+<li><strong>Use mnemonic keys</strong> — S for Safari, T for Terminal, M for Messages. You'll build muscle memory fast.</li>
+<li><strong>Put URLs on the number row</strong> — 1 for GitHub, 2 for Google, 3 for your dashboard. Letters for apps, numbers for sites.</li>
+<li><strong>Test before committing</strong> — Try the binding after saving to verify it works.</li>
+<li><strong>Check the overlay</strong> — When you hold Caps Lock, bound keys show their app icons on the overlay. Unbound keys stay normal.</li>
+</ol>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="app-not-launching">App not launching</h3>
+<ol type="1">
+<li>Make sure KeyPath is running (green status indicator in the menu bar)</li>
+<li>Verify the binding in the Launchers panel by trying the shortcut</li>
+<li>If the app name doesn't resolve, try the full path (e.g., <code>/Applications/Safari.app</code>)</li>
+<li>Check <strong>File → View Logs</strong> for error messages</li>
+</ol>
+<h3 id="bindings-not-saving">Bindings not saving</h3>
+<ol type="1">
+<li>Make sure the Caps Lock remap rule is enabled (it provides the Hyper key that activates the launcher layer)</li>
+<li>Check that you've clicked <strong>Save</strong> after making changes</li>
+</ol>
+<hr />
+<h2 id="related-guides">Related guides</h2>
+<ul>
+<li><strong><a href="help://use-cases">What You Can Build</a></strong> — See app launching in context with window tiling, shortcuts, and more</li>
+<li><strong><a href="help://window-management">Windows &amp; App Shortcuts</a></strong> — App-specific keymaps and window snapping</li>
+<li><strong><a href="help://tap-hold">One Key, Multiple Actions</a></strong> — How the Hyper key's tap-hold behavior works</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers and modifiers</li>
+<li><strong><a href="help://action-uri-reference">Action URI Reference</a></strong> — Technical deep link reference for integrating with Raycast, Alfred, and scripts</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong> — See all available guides</li>
+</ul>
+<h2 id="external-resources">External resources</h2>
+<ul>
+<li><strong><a href="https://github.com/jtroo/kanata/blob/main/docs/config.adoc">Kanata configuration reference</a></strong> — For power users who want to edit configs directly</li>
+<li><strong><a href="https://www.raycast.com/">Raycast</a></strong> — Pairs well with KeyPath for app launching</li>
+<li><strong><a href="https://www.alfredapp.com/">Alfred</a></strong> — Another launcher that integrates with KeyPath</li>
+</ul>
+</body></html>

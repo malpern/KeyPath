@@ -1,0 +1,102 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: data:; style-src file: 'unsafe-inline'; font-src file:; base-uri 'none'; form-action 'none'"><title>Programming Symbols Instantly</title><link rel="stylesheet" href="../assets/help-theme.css"></head><body><p><img class="help-img" src="../assets/header-symbol-layer.png" alt="Guide illustration" /></p>
+<h1 id="programming-symbols-at-your-fingertips">Programming Symbols at Your Fingertips</h1>
+<p>Brackets, pipes, tildes, angle brackets — the symbols you type hundreds of times a day in code are scattered across the keyboard behind Shift reaches and awkward pinky stretches. The Symbol layer puts them all under your home row, organized by how you actually use them.</p>
+<hr />
+<h2 id="what-you-get">What You Get</h2>
+<p>Enable the <strong>Symbol</strong> pack and you gain a dedicated symbol layer with three preset layouts to choose from:</p>
+<ul>
+<li><strong>Mirrored</strong> (default) — Shifted number-row symbols in the same positions, plus operators and brackets on the home row</li>
+<li><strong>Paired Brackets</strong> — Opening brackets on the left hand, closing on the right. Visual symmetry.</li>
+<li><strong>Programmer</strong> — Common coding bigrams (→, !=, &lt;=) as comfortable rolls</li>
+</ul>
+<p>Each preset maps 20–29 keys. Pick the one that matches how you think about symbols.</p>
+<hr />
+<h2 id="enabling-it">Enabling It</h2>
+<ol type="1">
+<li>Open KeyPath and click the gear icon to open the inspector panel</li>
+<li>Go to the <strong>Rules</strong> tab</li>
+<li>Find <strong>Symbol</strong> in the Layers section</li>
+<li>Toggle it <strong>on</strong></li>
+<li>Choose a preset from the layout picker</li>
+</ol>
+<p>Requires <strong>Vim Navigation</strong> (or another Leader pack) to be enabled.</p>
+<hr />
+<h2 id="how-to-activate">How to Activate</h2>
+<p>Two-step activation:</p>
+<ol type="1">
+<li><strong>Hold your Leader key</strong> (Space by default) — enters the navigation layer</li>
+<li><strong>While holding Leader, press S</strong> — enters the symbol layer</li>
+<li><strong>Press symbol keys</strong> — types brackets, operators, etc.</li>
+<li><strong>Release Leader</strong> — back to normal typing</li>
+</ol>
+<p>The <strong>S</strong> activator was chosen as a mnemonic for "Symbols."</p>
+<hr />
+<h2 id="the-presets">The Presets</h2>
+<h3 id="mirrored-default">Mirrored (default)</h3>
+<p>Easiest to learn — shifted symbols stay in their number-row positions:</p>
+<p><strong>Top row:</strong> ! @ # $ % ^ &amp; * ( ) <strong>Home row:</strong> ~ ` - = + [ ] { } | <strong>Bottom row:</strong> \ _ / ? ' " : &lt; &gt;</p>
+<p>The mental model: "my keyboard, but everything is shifted."</p>
+<h3 id="paired-brackets">Paired Brackets</h3>
+<p>Designed for code where brackets come in matched pairs:</p>
+<p><strong>Left hand (opening):</strong> { ( [ &lt; - | + _ /<br />
+<strong>Right hand (closing):</strong> % ^ &amp; * ` = &gt; ] ) }</p>
+<p>The mental model: "left hand opens, right hand closes."</p>
+<h3 id="programmer">Programmer</h3>
+<p>Optimized for typing common code patterns:</p>
+<p><strong>Home row:</strong> { ( [ &lt; = - &gt; ] ) }</p>
+<p>The <code>&lt;</code>, <code>=</code>, <code>-</code>, <code>&gt;</code> cluster on F-G-H-J lets you roll common bigrams like <code>-&gt;</code>, <code>=&gt;</code>, <code>&lt;=</code>, and <code>!=</code> as comfortable finger rolls.</p>
+<hr />
+<h2 id="choosing-a-preset">Choosing a Preset</h2>
+<table>
+<thead>
+<tr>
+<th>If you…</th>
+<th>Try…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Want the easiest learning curve</td>
+<td>Mirrored</td>
+</tr>
+<tr>
+<td>Write lots of nested brackets (JSON, Lisp, HTML)</td>
+<td>Paired Brackets</td>
+</tr>
+<tr>
+<td>Write Go, Rust, TypeScript, or arrow-heavy code</td>
+<td>Programmer</td>
+</tr>
+</tbody>
+</table>
+<p>You can switch presets any time — the change takes effect immediately.</p>
+<hr />
+<h2 id="tips">Tips</h2>
+<ul>
+<li><strong>Start with Mirrored</strong> if you're unsure. It's the most intuitive because symbols stay where you expect them.</li>
+<li>The symbol layer works alongside Home Row Mods — you can hold Shift (via D key) to get uppercase variants while in the symbol layer</li>
+<li><strong>Practice in a scratchpad</strong> — open TextEdit and type some code constructs using the layer. Muscle memory develops in a few days.</li>
+<li>Two-step activation (Leader → S) sounds complex but becomes as automatic as Shift+key</li>
+</ul>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="wrong-symbols-appear">Wrong symbols appear</h3>
+<p>Check which preset is selected. Each preset has a very different layout. Look at the overlay to see the current mapping.</p>
+<h3 id="leader--s-doesnt-activate-the-layer">Leader → S doesn't activate the layer</h3>
+<ol type="1">
+<li>Make sure the Symbol pack is <strong>enabled</strong></li>
+<li>Verify <strong>Vim Navigation</strong> is enabled (provides the Leader layer)</li>
+<li>Hold Leader the entire time — don't release between steps</li>
+</ol>
+<h3 id="i-want-to-customize-individual-key-assignments">I want to customize individual key assignments</h3>
+<p>The current version uses preset layouts. Custom per-key symbol mapping is planned for a future update.</p>
+<hr />
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="help://vim-navigation">Navigate Text Like a Keyboard Ninja</a></strong> — The foundation layer (required for symbols)</li>
+<li><strong><a href="help://leader-key">Choose Your Leader Key</a></strong> — Change which key starts the activation</li>
+<li><strong><a href="help://auto-shift">Symbols Without Shift</a></strong> — An alternative approach: hold symbol keys longer for shifted variants</li>
+<li><strong><a href="help://concepts">Keyboard Concepts</a></strong> — Background on layers and presets</li>
+<li><strong><a href="https://malpern.github.io/KeyPath/docs">Back to Docs</a></strong></li>
+</ul>
+</body></html>
