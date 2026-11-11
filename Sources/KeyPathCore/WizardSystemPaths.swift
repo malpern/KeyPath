@@ -42,28 +42,6 @@ public enum WizardSystemPaths {
 
     // MARK: - Binary Paths
 
-    /// Deprecated: use `bundledKanataPath` instead. Now returns the bundled path.
-    @available(*, deprecated, renamed: "bundledKanataPath")
-    public static var kanataSystemInstallPath: String {
-        currentRuntimeHost().bundledCorePath
-    }
-
-    /// Standard kanata binary location - used for both homebrew and experimental versions
-    /// Using a single standard location simplifies permission management
-    public static var kanataStandardLocation: String {
-        remapSystemPath("/usr/local/bin/kanata")
-    }
-
-    /// Primary kanata binary location (ARM Macs with Homebrew)
-    public static var kanataBinaryARM: String {
-        remapSystemPath("/opt/homebrew/bin/kanata")
-    }
-
-    /// Default kanata binary path for most operations (same as standard)
-    public static var kanataBinaryDefault: String {
-        remapSystemPath("/usr/local/bin/kanata")
-    }
-
     #if DEBUG
         private nonisolated(unsafe) static var bundledKanataPathOverride: String?
 
@@ -98,11 +76,6 @@ public enum WizardSystemPaths {
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata-simulator"
     }
 
-    /// Checks if the bundled simulator binary exists
-    public static var bundledSimulatorExists: Bool {
-        FileManager.default.fileExists(atPath: bundledSimulatorPath)
-    }
-
     /// Path to the Kanata Engine.app bundle wrapping the kanata binary.
     /// Reveal this in Finder when the user needs to add kanata to System Settings.
     public static var kanataEngineBundlePath: String {
@@ -132,11 +105,6 @@ public enum WizardSystemPaths {
         KanataRuntimeHost.current(bundlePath: Bundle.main.bundlePath)
     }
 
-    /// Homebrew binary path
-    public static var brewBinary: String {
-        remapSystemPath("/opt/homebrew/bin/brew")
-    }
-
     // MARK: - Configuration Paths
 
     /// User configuration file path following industry standard ~/.config/ pattern
@@ -154,16 +122,7 @@ public enum WizardSystemPaths {
         remapSystemPath("/usr/local/etc/kanata")
     }
 
-    /// Legacy system configuration file path (no longer used)
-    public static var systemConfigPath: String {
-        remapSystemPath("/usr/local/etc/kanata/keypath.kbd")
-    }
-
     // MARK: - Karabiner Paths
-
-    /// Karabiner-Elements VirtualHIDDevice path
-    public static let karabinerVHIDDevice =
-        "/Applications/Karabiner-Elements.app/Contents/Library/bin/karabiner_grabber"
 
     /// Karabiner-Elements user configuration file
     public static var karabinerConfigPath: String {
@@ -177,17 +136,9 @@ public enum WizardSystemPaths {
 
     // MARK: - System Preference URLs
 
-    /// Privacy & Security settings URL
-    public static let privacySecuritySettings =
-        "x-apple.systempreferences:com.apple.preference.security"
-
     /// Accessibility settings URL
     public static let accessibilitySettings =
         "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-
-    /// Login Items settings URL (macOS 13+)
-    public static let loginItemsSettings =
-        "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
 
     // MARK: - Helper Methods
 
@@ -195,70 +146,6 @@ public enum WizardSystemPaths {
     /// Kept for migration-period fallback, consistent with PermissionOracle.
     public static var legacySystemBinaryPath: String {
         remapSystemPath("/Library/KeyPath/bin/kanata")
-    }
-
-    /// Returns the bundled kanata binary path if it exists, falling back to
-    /// the legacy system path for migration-period consistency with PermissionOracle.
-    public static func detectKanataBinaryPath() -> String? {
-        if FileManager.default.fileExists(atPath: bundledKanataPath) {
-            return bundledKanataPath
-        }
-
-        // Legacy fallback: pre-bundled installations used /Library/KeyPath/bin/kanata
-        if FileManager.default.fileExists(atPath: legacySystemBinaryPath) {
-            AppLogger.shared.warn(
-                "⚠️ [WizardSystemPaths] Using legacy kanata path \(legacySystemBinaryPath) — migrate to bundled binary"
-            )
-            return legacySystemBinaryPath
-        }
-
-        return nil
-    }
-
-    // MARK: - Bundled Driver Paths
-
-    /// The bundled VHID driver version - single source of truth
-    /// Update this when bundling a new driver version
-    public static let bundledVHIDDriverVersion = "8.0.0"
-
-    /// The bundled VHID driver major version (for compatibility checks)
-    public static var bundledVHIDDriverMajorVersion: Int {
-        Int(bundledVHIDDriverVersion.split(separator: ".").first ?? "0") ?? 0
-    }
-
-    /// Bundled VHID driver package filename
-    private static var bundledVHIDDriverPkgFilename: String {
-        "Karabiner-DriverKit-VirtualHIDDevice-\(bundledVHIDDriverVersion)"
-    }
-
-    /// Bundled VHID driver package path
-    /// This is the Karabiner-DriverKit-VirtualHIDDevice .pkg bundled with KeyPath
-    /// Uses Bundle.main.url(forResource:) to work with both SPM bundles and proper app bundles
-    public static var bundledVHIDDriverPkgPath: String {
-        // Try Bundle.main first (works for both SPM and app bundles)
-        if let url = Bundle.main.url(
-            forResource: bundledVHIDDriverPkgFilename,
-            withExtension: "pkg"
-        ) {
-            return url.path
-        }
-        // Fallback to expected app bundle location
-        return "\(Bundle.main.bundlePath)/Contents/Resources/\(bundledVHIDDriverPkgFilename).pkg"
-    }
-
-    /// Checks if the bundled VHID driver package exists
-    public static var bundledVHIDDriverPkgExists: Bool {
-        FileManager.default.fileExists(atPath: bundledVHIDDriverPkgPath)
-    }
-
-    /// Checks if the user config file exists
-    public static var userConfigExists: Bool {
-        FileManager.default.fileExists(atPath: userConfigPath)
-    }
-
-    /// Checks if the system config directory exists
-    public static var systemConfigDirectoryExists: Bool {
-        FileManager.default.fileExists(atPath: systemConfigDirectory)
     }
 
     // MARK: - Kanata Migration Detection
@@ -322,11 +209,6 @@ public enum WizardSystemPaths {
     /// Legacy KeyPath config path (Application Support).
     public static var keyPathConfigPath: String {
         "\(keyPathConfigDirectory)/keypath.kbd"
-    }
-
-    /// Legacy KeyPath-generated apps config file (Application Support).
-    public static var keyPathAppsConfigPath: String {
-        "\(keyPathConfigDirectory)/keypath-apps.kbd"
     }
 
     /// Creates a display path for user interfaces (uses ~ for home directory)

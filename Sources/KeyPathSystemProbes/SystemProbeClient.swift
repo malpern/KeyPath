@@ -4,7 +4,6 @@ import Foundation
 public struct SystemProbeClient: Sendable {
     private let processIDsHandler: @Sendable (String) async -> [pid_t]
     private let processMatchesHandler: @Sendable (String) async -> [SystemProcessMatch]
-    private let launchctlPrintHandler: @Sendable (String) async -> LaunchctlPrintEvidence
     private let processIDsSynchronouslyHandler: @Sendable (String) -> [pid_t]
     private let isProcessAliveHandler: @Sendable (pid_t) -> Bool
     private let probeTCPPortHandler: @Sendable (Int, Int) -> Bool
@@ -12,14 +11,12 @@ public struct SystemProbeClient: Sendable {
     public init(
         processIDs: @escaping @Sendable (String) async -> [pid_t],
         processMatches: @escaping @Sendable (String) async -> [SystemProcessMatch],
-        launchctlPrint: @escaping @Sendable (String) async -> LaunchctlPrintEvidence,
         processIDsSynchronously: @escaping @Sendable (String) -> [pid_t],
         isProcessAlive: @escaping @Sendable (pid_t) -> Bool,
         probeTCPPort: @escaping @Sendable (Int, Int) -> Bool
     ) {
         processIDsHandler = processIDs
         processMatchesHandler = processMatches
-        launchctlPrintHandler = launchctlPrint
         processIDsSynchronouslyHandler = processIDsSynchronously
         isProcessAliveHandler = isProcessAlive
         probeTCPPortHandler = probeTCPPort
@@ -31,10 +28,6 @@ public struct SystemProbeClient: Sendable {
 
     public func processMatches(matching pattern: String) async -> [SystemProcessMatch] {
         await processMatchesHandler(pattern)
-    }
-
-    public func launchctlPrint(target: String) async -> LaunchctlPrintEvidence {
-        await launchctlPrintHandler(target)
     }
 
     public func processIDsSynchronously(matching pattern: String) -> [pid_t] {
@@ -68,15 +61,6 @@ public extension SystemProbeClient {
             guard result.exitCode == 0 else { return [] }
             return parseProcessMatches(result.stdout)
         },
-        launchctlPrint: { target in
-            let result = await runProcess("/bin/launchctl", args: ["print", target], timeout: 10)
-            return LaunchctlPrintEvidence(
-                target: target,
-                exitCode: result.exitCode,
-                stdout: result.stdout,
-                stderr: result.stderr
-            )
-        },
         processIDsSynchronously: { pattern in
             let result = runProcessSynchronously("/usr/bin/pgrep", args: ["-f", pattern], timeout: 5)
             guard result.exitCode == 0 else { return [] }
@@ -100,26 +84,6 @@ public struct SystemProcessMatch: Equatable, Sendable {
     public init(pid: pid_t, command: String) {
         self.pid = pid
         self.command = command
-    }
-}
-
-public struct LaunchctlPrintEvidence: Equatable, Sendable {
-    public let target: String
-    public let exitCode: Int32?
-    public let stdout: String
-    public let stderr: String
-
-    public init(target: String, exitCode: Int32?, stdout: String, stderr: String) {
-        self.target = target
-        self.exitCode = exitCode
-        self.stdout = stdout
-        self.stderr = stderr
-    }
-
-    public var hasRunningProcessEvidence: Bool {
-        stdout.range(of: #"pid\s*=\s*\d+"#, options: .regularExpression) != nil
-            || stdout.contains("\"PID\"")
-            || stdout.contains("state = running")
     }
 }
 

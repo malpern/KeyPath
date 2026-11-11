@@ -45,45 +45,10 @@ public class KeyboardCapture {
     @ObservationIgnored var currentTapLocation: CGEventTapLocation = .cgSessionEventTap
     @ObservationIgnored var pressedModifierKeyCodes: Set<Int64> = []
 
-    /// Event router for processing captured events through the event processing chain
-    @ObservationIgnored var eventRouter: EventRouter?
-
-    /// Enable/disable event router integration (for backward compatibility)
-    /// Default: false to maintain legacy behavior and avoid CGEvent tap conflicts
-    @ObservationIgnored public var useEventRouter: Bool = false
-
-    /// Reference to RuntimeCoordinator to check if Kanata is running (to avoid tap conflicts)
-    @ObservationIgnored weak var kanataManager: RuntimeCoordinator?
-
     /// Non-blocking check for whether Kanata is running, using cached service state.
     /// Replaces the old blocking `pgrep` call that could stall the main actor.
     func fastProbeKanataRunning(timeout _: TimeInterval = 0.25) -> Bool {
         false
-    }
-
-    // MARK: - Event Router Configuration
-
-    /// Set the event router for processing captured events
-    func setEventRouter(_ router: EventRouter?, kanataManager: RuntimeCoordinator? = nil) {
-        eventRouter = router
-        self.kanataManager = kanataManager
-        AppLogger.shared.log(
-            "📋 [KeyboardCapture] Event router \(router != nil ? "enabled" : "disabled")"
-        )
-    }
-
-    /// Enable event router integration with the default router
-    public func enableEventRouter() {
-        // Note: We avoid importing defaultEventRouter here to prevent circular dependencies
-        // Instead, it should be set externally via setEventRouter()
-        useEventRouter = true
-        AppLogger.shared.log("📋 [KeyboardCapture] Event router integration enabled")
-    }
-
-    /// Disable event router integration (fallback to legacy behavior)
-    public func disableEventRouter() {
-        useEventRouter = false
-        AppLogger.shared.log("📋 [KeyboardCapture] Event router integration disabled")
     }
 
     // Emergency stop sequence detection
@@ -309,7 +274,7 @@ public class KeyboardCapture {
             return
         }
         let eventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-        let callback: CGEventTapCallBack = { tapProxy, type, event, refcon -> Unmanaged<CGEvent>? in
+        let callback: CGEventTapCallBack = { _, type, event, refcon -> Unmanaged<CGEvent>? in
             guard let refcon else { return Unmanaged.passRetained(event) }
 
             let capture = Unmanaged<KeyboardCapture>.fromOpaque(refcon).takeUnretainedValue()
@@ -319,20 +284,7 @@ public class KeyboardCapture {
                 return Unmanaged.passUnretained(event)
             }
 
-            // Process through event router if enabled
-            if capture.useEventRouter, let router = capture.eventRouter {
-                let result = router.route(
-                    event: event,
-                    location: .cgSessionEventTap,
-                    proxy: tapProxy,
-                    scope: .keyboard
-                )
-                if let processedEvent = result.processedEvent {
-                    capture.handleKeyEvent(processedEvent, type: processedEvent.type)
-                }
-            } else {
-                capture.handleKeyEvent(event, type: event.type)
-            }
+            capture.handleKeyEvent(event, type: event.type)
             // Pass the event on unless this capture suppresses it.
             return capture.suppressEvents ? nil : Unmanaged.passUnretained(event)
         }

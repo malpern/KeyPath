@@ -171,14 +171,9 @@ the result as user action required and name the approval surface.
   and `PgrepProcessDiscoveryLintTests.testProductionPgrepDiscoveryIsCentralizedInCoreProvider`
   block runtime, system-validator, Karabiner-conflict, diagnostics and
   external-Kanata detection consumers from bypassing it.
-- Read-only `launchctl print` service-state evidence belongs in
-  `KeyPathSystemProbes` and is exposed through
-  `SystemStateProvider.launchctlPrint(target:)`.
-  `SystemStateProviderLivenessTests.testLaunchctlPrintDelegatesToInjectedSubprocessRunner`
-  and `SystemStateProviderLivenessTests.testLaunchctlPrintRejectsBlankTargets`
-  pin the provider contract, and
-  `LaunchctlEvidenceLintTests.testProductionLaunchctlPrintEvidenceReadsDelegateToSystemStateProvider`
-  blocks new direct reads.
+- Nothing reads `launchctl print`: the session runtime has no launchd service.
+  The probe chain that read it was removed with its tests (project review
+  2026-11-09, B3).
 - `SMAppService.status` is read only through an `SMAppServiceStatusProvider`
   (launch at login, `SMAppService.mainApp`). `SMAppServiceStatusProviderTests`
   pin its cache/coalescing contract, and

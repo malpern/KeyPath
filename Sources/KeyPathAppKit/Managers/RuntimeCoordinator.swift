@@ -265,7 +265,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             configurationService: configurationService,
             configFileWatcher: configFileWatcher
         )
-        serviceHealthMonitor = ServiceHealthMonitor(processDetector: processDetector)
+        serviceHealthMonitor = ServiceHealthMonitor()
 
         // Initialize ConfigurationManager
         configurationManager = ConfigurationManager(configurationService: configurationService)

@@ -139,10 +139,6 @@ private final class StubRecordingCapture: RecordingCapture {
     var autoFire = true
     var onStart: (() -> Void)?
 
-    func setEventRouter(_: EventRouter?, kanataManager _: RuntimeCoordinator?) {
-        // No-op in tests
-    }
-
     func startSequenceCapture(mode: CaptureMode, callback: @escaping (KeySequence) -> Void) {
         startCalls += 1
         self.callback = callback

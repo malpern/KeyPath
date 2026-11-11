@@ -35,15 +35,6 @@ public actor SystemStateProvider {
         return await probes.processMatches(matching: trimmedPattern)
     }
 
-    public func launchctlPrint(target: String) async -> LaunchctlPrintEvidence {
-        let trimmedTarget = target.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTarget.isEmpty else {
-            return LaunchctlPrintEvidence(target: "", exitCode: nil, stdout: "", stderr: "")
-        }
-
-        return await probes.launchctlPrint(target: trimmedTarget)
-    }
-
     public nonisolated static func processIDsSynchronously(matching pattern: String) -> [pid_t] {
         let trimmedPattern = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPattern.isEmpty else { return [] }
