@@ -23,6 +23,7 @@ struct GeneralSettingsTabView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: SettingsDesign.sectionGap) {
                 LaunchAtLoginSettingsSection()
+                UpdatesSettingsSection()
                 // What appears while a layer is active (overlay, list, banner)
                 ContextHUDSettingsSection()
                 SettingsSection(title: "Keyboard Appearance") {

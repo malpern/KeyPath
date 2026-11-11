@@ -307,6 +307,17 @@ echo "✅ Driverless runtime artifacts verified"
 
 # Copy main app Info.plist
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
+# Lab builds only: point the updater at a private test feed and stamp a build
+# number, so one lab build can update to the next. Release builds never set
+# these, and release.sh refuses to run when they are set.
+if [[ -n "${KEYPATH_LAB_SPARKLE_FEED_URL:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :SUFeedURL $KEYPATH_LAB_SPARKLE_FEED_URL" "$CONTENTS/Info.plist"
+    echo "🧪 Lab build: SUFeedURL -> $KEYPATH_LAB_SPARKLE_FEED_URL"
+fi
+if [[ -n "${KEYPATH_LAB_BUNDLE_VERSION:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $KEYPATH_LAB_BUNDLE_VERSION" "$CONTENTS/Info.plist"
+    echo "🧪 Lab build: CFBundleVersion -> $KEYPATH_LAB_BUNDLE_VERSION"
+fi
 
 # Copy bundled app resources (icons, sounds, and UI assets).
 python3 "$SCRIPT_DIR/build-offline-help.py" --output "$RESOURCES/OfflineHelp"

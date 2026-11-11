@@ -71,9 +71,11 @@ final class UpdateTerminationExpectation: @unchecked Sendable {
     }
 }
 
-/// Session releases open manual downloads. The retained Sparkle integration is
-/// inactive for that backend pending qualification of previous-process installers.
-/// Runtime shutdown uses the existing admitted lifecycle owner.
+/// Sparkle updates for the session runtime. Installation waits for the owned
+/// runtime and Caps cleanup through the admitted lifecycle owner; graceful Quit
+/// does the same before Sparkle installs on termination. `KPUpdatesManualDownloads`
+/// in Info.plist turns the updater off again without a code change: the menu
+/// then opens the releases page instead.
 @Observable
 @MainActor
 public final class UpdateService: NSObject {
@@ -89,9 +91,20 @@ public final class UpdateService: NSObject {
         terminationExpectation.isExpected
     }
 
-    /// Session releases use manual replacement until updater shutdown is qualified.
+    /// True when Info.plist sets `KPUpdatesManualDownloads`; a release kill switch.
     public var usesManualDownloads: Bool {
-        true
+        #if DEBUG
+            if let manualDownloadsForTesting { return manualDownloadsForTesting }
+        #endif
+        return Self.manualDownloads(infoDictionary: Bundle.main.infoDictionary)
+    }
+
+    #if DEBUG
+        @ObservationIgnored var manualDownloadsForTesting: Bool?
+    #endif
+
+    nonisolated static func manualDownloads(infoDictionary: [String: Any]?) -> Bool {
+        infoDictionary?["KPUpdatesManualDownloads"] as? Bool ?? false
     }
 
     @ObservationIgnored var openDownloadPage: @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }

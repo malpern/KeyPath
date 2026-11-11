@@ -118,3 +118,46 @@ nonpersistent fixture checks passed. Earlier failed offscreen menu delivery and
 first-run helper refusal remain separate failures. No manual replacement,
 notarization, legacy staged-installer cancellation, or broad keyboard acceptance
 is claimed by this run.
+
+## Re-enabling Sparkle (2026-11-10)
+
+Micah chose full Sparkle over a version notice (project review P1). The code
+change is small because the cleanup above already exists: `usesManualDownloads`
+now reads `KPUpdatesManualDownloads` from Info.plist (absent = updater on), so
+a release can turn the updater off again without a code change. Settings →
+General gets the Updates section back (automatic checks, automatic install on
+Quit, channel, Check for Updates).
+
+Why the remaining gaps are covered by design, which the lab must confirm:
+
+- **Install on Quit** (automatic driver, or an installer staged by an earlier
+  process): graceful Quit already defers until `stopKanata` has released held
+  output and restored Caps, and Sparkle installs only after the app exits.
+- **Process death** (crash, `kill -9`, or a forced quit during an update): the
+  session worker watches its owner and retires on its own run loop, releasing
+  output and restoring Caps, within one tick of the owner's death.
+- **Interactive install** (Install and Relaunch): the postponed-relaunch hook
+  stops the runtime first, as before.
+
+### Lab qualification (must pass before a release turns updates on)
+
+Two Developer ID-signed, notarized builds from the same commit, N
+(`KEYPATH_LAB_BUNDLE_VERSION=1000`) and N+1 (`1001`), both built with
+`KEYPATH_LAB_SPARKLE_FEED_URL=http://127.0.0.1:8765/appcast.xml`. The guest
+serves N+1's EdDSA-signed archive and a lab appcast from that address. A
+managed-lane lease pre-grants Accessibility so the runtime runs, with a Caps
+Lock rule active. For each scenario, after it ends: the installed
+`CFBundleVersion`, one session worker (or none while quit), the user config
+byte-identical, and Caps Lock behaving as plain Caps Lock (no stuck remap).
+
+1. **Automatic install on Quit.** N checks (force with
+   `defaults write com.keypath.KeyPath SULastCheckTime -date 2000-01-01`),
+   downloads and stages silently; graceful Quit; expect 1001 installed.
+2. **Staged by an earlier process.** As 1, but `kill -9` the app after staging;
+   launch again, then Quit gracefully; expect 1001 and no stuck Caps.
+3. **Death during install.** `kill -9` during the installer run; expect either
+   build intact (never a half-replaced bundle) and Caps restored.
+4. **Interactive.** Check for Updates → Install and Relaunch; expect the
+   runtime stopped before install and ready again after relaunch.
+
+`release.sh` refuses to run while either lab variable is set.

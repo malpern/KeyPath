@@ -3,33 +3,24 @@ import Foundation
 import XCTest
 
 final class UpdateServiceDecisionTests: XCTestCase {
-    @MainActor
-    func testSessionDownloadsNeverInitializeSparkleOrEnableAutomaticUpdates() {
-        let service = UpdateService.testService()
-        service.initialize()
-        service.setAutomaticChecks(enabled: true)
-        service.setAutomaticDownloads(enabled: true)
-        XCTAssertTrue(service.usesManualDownloads)
-        XCTAssertTrue(service.canCheckForUpdates)
-        XCTAssertNil(service.updater)
-        XCTAssertFalse(service.automaticallyChecksForUpdates)
-        XCTAssertFalse(service.automaticallyDownloadsUpdates)
-        XCTAssertFalse(service.allowsAutomaticUpdates)
+    func testUpdaterIsOnUnlessInfoPlistAsksForManualDownloads() {
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: nil))
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: [:]))
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: ["KPUpdatesManualDownloads": false]))
+        XCTAssertTrue(UpdateService.manualDownloads(infoDictionary: ["KPUpdatesManualDownloads": true]))
+    }
 
-        var opened: [URL] = []
-        var cleanupCalls = 0
-        service.configureRuntimeStop { cleanupCalls += 1; return true }
-        service.openDownloadPage = { opened.append($0); return true }
-        service.checkForUpdates()
-        XCTAssertEqual(opened.map(\.absoluteString), ["https://github.com/malpern/KeyPath/releases/latest"])
-        XCTAssertEqual(cleanupCalls, 0)
-        XCTAssertFalse(service.isUpdateTerminationExpected)
-        XCTAssertNil(service.preparationError)
+    func testShippedInfoPlistLeavesTheUpdaterOn() throws {
+        let plist = try XCTUnwrap(NSDictionary(contentsOf: LintScanner.path("Sources/KeyPathApp/Info.plist")) as? [String: Any])
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: plist))
+        XCTAssertEqual(plist["SURequireSignedFeed"] as? Bool, true)
+        XCTAssertEqual(plist["SUVerifyUpdateBeforeExtraction"] as? Bool, true)
     }
 
     @MainActor
     func testFailedDownloadPageOpenReportsRecoverableError() {
         let service = UpdateService.testService()
+        service.manualDownloadsForTesting = true
         service.initialize()
         service.openDownloadPage = { _ in false }
         service.checkForUpdates()
