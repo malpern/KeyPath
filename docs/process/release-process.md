@@ -285,6 +285,14 @@ source files, or logs.
 Existing users get update notifications from `appcast.xml`. Release notes linked
 from the appcast should remain readable in dark mode.
 
+**Before the first release with the updater on (since 2026-11-10):** rerun
+update scenarios 1, 2 and 4 from `docs/bugs/driverless-update-cleanup.md` on
+notarized builds with a managed Caps Lock rule active, and confirm Caps Lock is
+plain Caps Lock after each. The lab run that re-enabled updates covered
+everything else but had no Caps rule. To ship without updates instead, set
+`KPUpdatesManualDownloads` to true in `Sources/KeyPathApp/Info.plist`; that
+affects only builds released afterwards.
+
 ## Local Artifact Cleanup
 
 Parallel worktrees and repeated SwiftPM builds can leave large generated

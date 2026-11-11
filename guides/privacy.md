@@ -17,7 +17,7 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 ## The short version
 
 - **No transmitted telemetry.** KeyPath does not upload analytics, usage metrics, or crash reports. Optional Activity Insights keeps keyboard usage statistics locally.
-- **Manual app updates.** Download Update opens the official releases page in your browser. This build does not automatically check for or install app updates.
+- **App updates.** Once a day KeyPath asks GitHub whether a new version exists, and by default installs it when you quit. The request carries no keyboard data or system profile. Turn either off in **Settings → General → Updates**.
 - **Offline Help.** Guides, styles and images are included in the app. Opening a guide can quietly check GitHub Pages for compatible Help content updates; no keyboard data or logs are sent.
 - **Local keyboard data.** Rule and macro recording captures keys you choose to record, and the recent-keypress view keeps a limited history in memory. Diagnostic logs can include key names, including in release builds. KeyPath does not upload this keyboard data or these logs.
 - **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
@@ -116,9 +116,9 @@ or download fails, the previous copy remains available. External website links
 still need internet access. Help content updates do not install a new app or run
 scripts.
 
-### Manual downloads
+### App updates
 
-Download Update opens the official GitHub releases page in your browser. Visiting that page and downloading an update require internet access. This build does not run automatic Sparkle update checks or installations.
+KeyPath uses [Sparkle](https://sparkle-project.org/) to check for new versions once a day. It fetches a list of releases from GitHub over HTTPS; the request carries no keyboard data, and Sparkle's system profiling is off. Each update is checked against KeyPath's signing key and Developer ID before it is installed. By default an update installs when you quit KeyPath, after your keyboard is released, and your rules are kept. In **Settings → General → Updates** you can turn off automatic checks or automatic installation, or check by hand.
 
 Keyboard diagnostics and optional Activity Insights stay local; KeyPath does not upload analytics, usage metrics, crash reports or keyboard logs.
 
@@ -156,7 +156,7 @@ The driverless runtime does not provide remapping in protected password-entry or
 
 ### Does KeyPath work offline?
 
-Keyboard remapping, recording, local diagnostics and the bundled Help guides work offline. Help can quietly download compatible content updates when connected. App updates remain manual; opening the releases page or external links requires internet access.
+Keyboard remapping, recording, local diagnostics and the bundled Help guides work offline. Help can quietly download compatible content updates when connected. Update checks and external links need internet access; without it, KeyPath simply finds no update.
 
 ### Is KeyPath open source?
 
@@ -188,7 +188,7 @@ Keyboard usage analytics are available in **Activity Insights**, a built-in plug
 | Runs as root | No (driverless session) | Yes (event tap daemon) | N/A (firmware) |
 | Telemetry | No uploads; optional local Insights | None | None |
 | Open source | Yes (MIT) | Yes (Public Domain) | Yes (GPL) |
-| Network access | Help content refresh; browser for manual app downloads | Optional updates | None |
+| Network access | Help content refresh; daily update check (can be turned off) | Optional updates | None |
 | Keystroke logging | Key names can appear in local diagnostics | No | No |
 
 ---
@@ -208,5 +208,5 @@ We take this seriously. If you have questions about KeyPath's privacy practices 
 - **[Kanata](https://github.com/jtroo/kanata)** — The open-source remapping engine that powers KeyPath ↗
 - **[kmonad](https://github.com/kmonad/kmonad)** — Another cross-platform keyboard remapper ↗
 - **[Karabiner VirtualHIDDevice](https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice)** — The virtual keyboard driver used by legacy KeyPath installations and Karabiner ↗
-- **[Sparkle](https://sparkle-project.org/)** — The update framework used by older KeyPath update flows ↗
+- **[Sparkle](https://sparkle-project.org/)** — The update framework KeyPath uses ↗
 - **[Apple TCC documentation](https://support.apple.com/guide/security/controlling-app-access-to-files-secddd1d86a6/web)** — How macOS manages app permissions ↗

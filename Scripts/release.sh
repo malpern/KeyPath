@@ -17,6 +17,12 @@ REPO_ROOT="${SCRIPT_DIR%/Scripts}"
 source "$SCRIPT_DIR/lib/xcode.sh"
 INFO_PLIST="$REPO_ROOT/Sources/KeyPathApp/Info.plist"
 
+# Lab-only build overrides (build-and-sign.sh) must never reach a release.
+if [[ -n "${KEYPATH_LAB_SPARKLE_FEED_URL:-}${KEYPATH_LAB_BUNDLE_VERSION:-}" ]]; then
+    echo "❌ KEYPATH_LAB_SPARKLE_FEED_URL / KEYPATH_LAB_BUNDLE_VERSION are set; unset them to release." >&2
+    exit 1
+fi
+
 DRY_RUN=false
 SKIP_NOTARIZE=false
 REFRESH_KEYBOARD_DATA=false

@@ -193,9 +193,12 @@ KeyPath's build of Kanata cannot run shell commands from a configuration file.
 
 ### Sparkle
 
-The [Sparkle](https://sparkle-project.org/) update framework is included in
-the app but is not active in current builds; updates are manual. Its system
-profiling is disabled.
+KeyPath uses the [Sparkle](https://sparkle-project.org/) update framework to
+check GitHub for new versions once a day and, by default, install them on Quit.
+Updates must carry KeyPath's EdDSA signature and Developer ID. System profiling
+is disabled, so the check sends no information about your Mac. Both automatic
+checks and automatic installation can be turned off in Settings → General →
+Updates.
 
 ---
 

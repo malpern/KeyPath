@@ -3,15 +3,22 @@ import Foundation
 import XCTest
 
 final class UpdateServiceDecisionTests: XCTestCase {
+    func testUpdaterIsOnUnlessInfoPlistAsksForManualDownloads() {
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: nil))
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: [:]))
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: ["KPUpdatesManualDownloads": false]))
+        XCTAssertTrue(UpdateService.manualDownloads(infoDictionary: ["KPUpdatesManualDownloads": true]))
+    }
+
     @MainActor
-    func testSessionDownloadsNeverInitializeSparkleOrEnableAutomaticUpdates() {
+    func testKillSwitchNeverStartsSparkleOrAutomaticUpdates() {
         let service = UpdateService.testService()
+        service.manualDownloadsForTesting = true
         service.initialize()
         service.setAutomaticChecks(enabled: true)
         service.setAutomaticDownloads(enabled: true)
-        XCTAssertTrue(service.usesManualDownloads)
-        XCTAssertTrue(service.canCheckForUpdates)
         XCTAssertNil(service.updater)
+        XCTAssertTrue(service.canCheckForUpdates)
         XCTAssertFalse(service.automaticallyChecksForUpdates)
         XCTAssertFalse(service.automaticallyDownloadsUpdates)
         XCTAssertFalse(service.allowsAutomaticUpdates)
@@ -23,13 +30,19 @@ final class UpdateServiceDecisionTests: XCTestCase {
         service.checkForUpdates()
         XCTAssertEqual(opened.map(\.absoluteString), ["https://github.com/malpern/KeyPath/releases/latest"])
         XCTAssertEqual(cleanupCalls, 0)
-        XCTAssertFalse(service.isUpdateTerminationExpected)
-        XCTAssertNil(service.preparationError)
+    }
+
+    func testShippedInfoPlistLeavesTheUpdaterOn() throws {
+        let plist = try XCTUnwrap(NSDictionary(contentsOf: LintScanner.path("Sources/KeyPathApp/Info.plist")) as? [String: Any])
+        XCTAssertFalse(UpdateService.manualDownloads(infoDictionary: plist))
+        XCTAssertEqual(plist["SURequireSignedFeed"] as? Bool, true)
+        XCTAssertEqual(plist["SUVerifyUpdateBeforeExtraction"] as? Bool, true)
     }
 
     @MainActor
     func testFailedDownloadPageOpenReportsRecoverableError() {
         let service = UpdateService.testService()
+        service.manualDownloadsForTesting = true
         service.initialize()
         service.openDownloadPage = { _ in false }
         service.checkForUpdates()
@@ -37,6 +50,28 @@ final class UpdateServiceDecisionTests: XCTestCase {
         service.openDownloadPage = { _ in true }
         service.checkForUpdates()
         XCTAssertNil(service.preparationError)
+    }
+
+    @MainActor
+    func testPausedInstallKeepsCheckForUpdatesEnabledAndRetriesOnce() async {
+        let service = UpdateService.testService()
+        final class Flag { var value = false }
+        let cleanupSucceeds = Flag()
+        var installs = 0
+        service.configureRuntimeStop { cleanupSucceeds.value }
+        // Sparkle reports a session in progress (canCheck false) while it waits.
+        await service.postponeInstallation(version: "9.9", install: { installs += 1 })
+        XCTAssertEqual(installs, 0, "cleanup failed, so nothing installs")
+        XCTAssertNotNil(service.preparationError)
+        XCTAssertTrue(service.canCheckForUpdates, "the retry button must stay enabled")
+
+        cleanupSucceeds.value = true
+        service.checkForUpdates()
+        for _ in 0 ..< 20 where installs == 0 {
+            await Task.yield()
+        }
+        XCTAssertEqual(installs, 1)
+        XCTAssertFalse(service.canCheckForUpdates, "no paused install remains, and Sparkle has not reported yet")
     }
 
     @MainActor

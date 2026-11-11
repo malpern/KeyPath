@@ -7,6 +7,11 @@
 
 set -euo pipefail
 
+if [[ -n "${KEYPATH_LAB_SPARKLE_FEED_URL:-}${KEYPATH_LAB_BUNDLE_VERSION:-}" && "${KEYPATH_LAB_BUILD:-0}" != "1" ]]; then
+    echo "❌ KEYPATH_LAB_SPARKLE_FEED_URL / KEYPATH_LAB_BUNDLE_VERSION are set without KEYPATH_LAB_BUILD=1; unset them or mark this a lab build." >&2
+    exit 1
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "$0")" >/dev/null && pwd)
 source "$SCRIPT_DIR/lib/xcode.sh"
 source "$SCRIPT_DIR/lib/signing.sh"
@@ -230,6 +235,7 @@ MACOS="${CONTENTS}/MacOS"
 	# stays in sync across releases (the source plist uses placeholder values).
 	_MAIN_VER=$(defaults read "$SCRIPT_DIR/../Sources/KeyPathApp/Info" CFBundleShortVersionString 2>/dev/null || echo "1.0")
 	_MAIN_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$SCRIPT_DIR/../Sources/KeyPathApp/Info.plist" 2>/dev/null || echo "1")
+	_MAIN_BUILD="${KEYPATH_LAB_BUNDLE_VERSION:-$_MAIN_BUILD}" # lab builds: keep the engine in step with the app
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $_MAIN_VER" "$KANATA_ENGINE_CONTENTS/Info.plist"
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $_MAIN_BUILD" "$KANATA_ENGINE_CONTENTS/Info.plist"
 
@@ -307,6 +313,18 @@ echo "✅ Driverless runtime artifacts verified"
 
 # Copy main app Info.plist
 ditto "Sources/KeyPathApp/Info.plist" "$CONTENTS/Info.plist"
+# Lab builds only: point the updater at a private test feed and stamp a build
+# number, so one lab build can update to the next. They take effect only with
+# KEYPATH_LAB_BUILD=1, so a variable left exported in a shell cannot reach a
+# release candidate or a deploy; release.sh refuses them outright.
+if [[ -n "${KEYPATH_LAB_SPARKLE_FEED_URL:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :SUFeedURL $KEYPATH_LAB_SPARKLE_FEED_URL" "$CONTENTS/Info.plist"
+    echo "🧪 Lab build: SUFeedURL -> $KEYPATH_LAB_SPARKLE_FEED_URL"
+fi
+if [[ -n "${KEYPATH_LAB_BUNDLE_VERSION:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $KEYPATH_LAB_BUNDLE_VERSION" "$CONTENTS/Info.plist"
+    echo "🧪 Lab build: CFBundleVersion -> $KEYPATH_LAB_BUNDLE_VERSION"
+fi
 
 # Copy bundled app resources (icons, sounds, and UI assets).
 python3 "$SCRIPT_DIR/build-offline-help.py" --output "$RESOURCES/OfflineHelp"
