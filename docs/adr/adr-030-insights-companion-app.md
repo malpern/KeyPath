@@ -10,6 +10,10 @@
 > `~/Library/Application Support/KeyPath/Plugins/`; only bundles inside its own
 > signed app load (project review 2026-11-09, O6). Activity logging stays
 > opt-in and local.
+>
+> **Note (2026-11-10, later):** Insights is now linked into the app rather than
+> shipped as a bundle in `Contents/PlugIns`, so there is no plugin loading at
+> all. It is still a separate module, off until the person turns it on.
 
 ## Status
 

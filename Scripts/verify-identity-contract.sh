@@ -138,7 +138,6 @@ verify_app_contract() {
     expect_file "$bridge" "Kanata host bridge"
     expect_file "$simulator" "Kanata simulator"
     expect_file "$contents/Frameworks/Sparkle.framework" "Sparkle framework"
-    expect_file "$contents/PlugIns/Insights.bundle/Contents/MacOS/libKeyPathInsights" "Insights plugin"
     expect_plist_value "$engine/Contents/Info.plist" "CFBundleIdentifier" "$KANATA_ENGINE_ID" "Kanata Engine bundle ID"
     expect_no_forbidden_payloads "$app"
     expect_codesign_identity "$app" "$APP_ID" "$APP_REQ" "KeyPath.app"

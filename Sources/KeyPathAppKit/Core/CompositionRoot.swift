@@ -125,8 +125,8 @@ enum CompositionRoot {
             UpdateService.shared.initialize()
             AppLogger.shared.info("🔄 [App] Sparkle update service initialized")
 
-            // Discover and load plugin bundles
-            PluginManager.shared.discoverAndLoadPlugins()
+            // Register built-in plugins (Insights)
+            PluginManager.shared.registerBuiltInPlugins()
 
             // Fetch Kanata version for About panel
             await BuildInfo.fetchKanataVersion()

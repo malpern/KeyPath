@@ -208,8 +208,7 @@ class SessionVerificationTests(unittest.TestCase):
         for component in ('Contents/MacOS/KeyPath',
                           'Contents/Library/KeyPath/libkeypath_kanata_host_bridge.dylib',
                           'Contents/Library/KeyPath/kanata-simulator',
-                          'Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata',
-                          'Contents/PlugIns/Insights.bundle/Contents/MacOS/libKeyPathInsights'):
+                          'Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata'):
             binary = app / component
             binary.parent.mkdir(parents=True, exist_ok=True)
             binary.touch()

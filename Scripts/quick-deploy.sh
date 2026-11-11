@@ -366,6 +366,9 @@ fi
 # (ADR-047): the session runtime ships no helper, launcher, or LaunchDaemon plist.
 rm -rf "$APP_BUNDLE/Contents/Library/HelperTools" "$APP_BUNDLE/Contents/Library/LaunchDaemons"
 rm -f "$APP_BUNDLE/Contents/Library/KeyPath/kanata-launcher"
+# Insights is linked into the app now; drop a bundle an older deploy left.
+rm -rf "$APP_BUNDLE/Contents/PlugIns/Insights.bundle"
+rmdir "$APP_BUNDLE/Contents/PlugIns" 2>/dev/null || true
 
 # Ensure "Kanata Engine.app" bundle structure exists around the kanata binary.
 # The full build creates this; quick-deploy just ensures it's present.
@@ -473,14 +476,6 @@ for executable in "${RPATH_EXECUTABLES[@]}"; do
     fi
 done
 
-# Assemble and sync Insights.bundle to PlugIns
-INSIGHTS_DYLIB="$BIN_DIR/libKeyPathInsights.dylib"
-if [[ -f "$INSIGHTS_DYLIB" ]]; then
-    INSIGHTS_BUNDLE="$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/MacOS"
-    mkdir -p "$INSIGHTS_BUNDLE"
-    cp "$INSIGHTS_DYLIB" "$INSIGHTS_BUNDLE/libKeyPathInsights"
-    cp "$PROJECT_DIR/Sources/KeyPathInsights/Info.plist" "$APP_BUNDLE/Contents/PlugIns/Insights.bundle/Contents/Info.plist"
-fi
 
 # Re-sign with entitlements (prefer Developer ID, then Apple Development, which
 # keeps permission grants across deploys on a machine without Developer ID).

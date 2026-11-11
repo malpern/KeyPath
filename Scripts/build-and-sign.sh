@@ -189,9 +189,9 @@ MACOS="${CONTENTS}/MacOS"
 	mkdir -p "$FRAMEWORKS"
 	mkdir -p "$CONTENTS/Library/KeyPath"
 
-	# Build only the distributable app components: the app, the CLI, and the
-	# Insights plugin.
-	for product in KeyPath keypath-cli KeyPathInsights; do
+	# Build only the distributable app components: the app (with Insights linked
+	# in) and the CLI.
+	for product in KeyPath keypath-cli; do
 	    swift build ${BUILD_SYSTEM_FLAGS[@]+"${BUILD_SYSTEM_FLAGS[@]}"} --arch arm64 --configuration release --product "$product"
 	done
 
@@ -266,31 +266,11 @@ MACOS="${CONTENTS}/MacOS"
 	    fi
 	done
 
-	# Assemble Insights plugin bundle
-	echo "🔌 Assembling Insights.bundle..."
-	PLUGINS_DIR="$CONTENTS/PlugIns"
-	INSIGHTS_BUNDLE="$PLUGINS_DIR/Insights.bundle"
-	INSIGHTS_CONTENTS="$INSIGHTS_BUNDLE/Contents"
-	INSIGHTS_MACOS="$INSIGHTS_CONTENTS/MacOS"
-	mkdir -p "$INSIGHTS_MACOS"
-
-	INSIGHTS_DYLIB="$BUILD_DIR/libKeyPathInsights.dylib"
-	if [ -f "$INSIGHTS_DYLIB" ]; then
-	    ditto "$INSIGHTS_DYLIB" "$INSIGHTS_MACOS/libKeyPathInsights"
-	    ditto "Sources/KeyPathInsights/Info.plist" "$INSIGHTS_CONTENTS/Info.plist"
-	    echo "✅ Assembled Insights.bundle"
-	else
-	    echo "❌ ERROR: libKeyPathInsights.dylib not found at $INSIGHTS_DYLIB" >&2
-	    exit 1
-	fi
-
 		verify_embedded_artifacts() {
 	    local missing=0
 	    for path in \
 	        "$MACOS/keypath-cli" \
 	        "$FRAMEWORKS/Sparkle.framework" \
-	        "$INSIGHTS_BUNDLE/Contents/MacOS/libKeyPathInsights" \
-	        "$INSIGHTS_BUNDLE/Contents/Info.plist" \
 	        "$CONTENTS/Library/KeyPath/libkeypath_kanata_host_bridge.dylib" \
 	        "$CONTENTS/Library/KeyPath/kanata-simulator" \
 	        "$CONTENTS/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata" \
@@ -427,9 +407,6 @@ else
         --force --options=runtime \
         --identifier "com.keypath.KeyPath.CLI" \
         --sign "$SIGNING_IDENTITY"
-
-    # Sign Insights plugin bundle
-    kp_sign "$INSIGHTS_BUNDLE" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
 
     # Sign embedded Sparkle framework (contains nested helper apps; deep signing is simplest)
     kp_sign "$FRAMEWORKS/Sparkle.framework" --force --options=runtime --deep --sign "$SIGNING_IDENTITY"
