@@ -383,7 +383,6 @@ These apply to the session runtime, with `ServiceLifecycleCoordinator` as owner.
 
 ### Testing
 - **Mock Time**: Do not use `Thread.sleep`. Use `Date` overrides or mock clocks.
-- **Environment**: Use `KEYPATH_USE_INSTALLER_ENGINE=1` (default now) for tests.
 - Use the narrowest meaningful test command during iteration; prefer
   `swift test --filter <TestClassOrMethod>` for focused changes.
 - Run full `swift test` before PR/merge when practical, but do not leave hung
