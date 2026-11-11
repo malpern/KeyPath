@@ -558,7 +558,10 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
             return false;
         }
     };
-    let control_listener = runtime.control_listener.lock().take();
+    // Held until the close handle is stored, so close_control (the owner-exit
+    // watch, on another thread) cannot run between the two and find neither.
+    let mut control_slot = runtime.control_listener.lock();
+    let control_listener = control_slot.take();
     let ntx = if tcp_listener.is_some() || control_listener.is_some() {
         // One server and one notification set for both listeners.
         let mut server = kanata_state_machine::TcpServer::new(
@@ -579,6 +582,7 @@ pub extern "C" fn keypath_kanata_bridge_start_passthru_runtime(
             let handle = server.start_unix(listener, check, runtime.runtime.clone());
             *runtime.control_handle.lock() = Some(handle);
         }
+        drop(control_slot);
         let (ntx, nrx) = std::sync::mpsc::sync_channel(100);
         kanata_state_machine::Kanata::start_notification_loop(nrx, server.connections);
         Some(ntx)

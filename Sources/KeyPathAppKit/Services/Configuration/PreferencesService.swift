@@ -677,7 +677,6 @@ final class PreferencesService: @unchecked Sendable {
 }
 
 private extension PreferencesService {
-
     static func clampedContextHUDHoldDelayCustomMs(_ delay: Int) -> Int {
         min(max(delay, 100), 2000)
     }

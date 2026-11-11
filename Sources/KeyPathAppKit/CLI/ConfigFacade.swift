@@ -312,7 +312,7 @@ public struct ConfigFacade: Sendable {
         case viaApp
     }
 
-    nonisolated(unsafe) public static var engineAccess: EngineAccess = .viaApp
+    public nonisolated(unsafe) static var engineAccess: EngineAccess = .viaApp
 
     /// Engine requests answered by the app. A missing app, or one that cannot
     /// answer, reads as "not available".
@@ -320,7 +320,11 @@ public struct ConfigFacade: Sendable {
         -> RuntimeControl.Response
     {
         let request = RuntimeControl.Request(operation: operation, argument: argument)
-        let response = try await Task.detached { try RuntimeControl.send(request, timeout: 10) }.value
+        // A reload waits on the app's reload coordinator, which can retry while
+        // the runtime is in transition; give it room so a slow success is not
+        // reported as a failure.
+        let timeout: TimeInterval = operation == .reload ? 30 : 10
+        let response = try await Task.detached { try RuntimeControl.send(request, timeout: timeout) }.value
         guard response.ok else {
             throw Self.error(response.lastError ?? response.failure ?? "KeyPath could not reach the remapping engine")
         }
@@ -333,9 +337,9 @@ public struct ConfigFacade: Sendable {
 
     public func tcpCheckHealth() async -> Bool {
         switch Self.engineAccess {
-        case .direct: return await engineClient().checkServerStatus()
+        case .direct: await engineClient().checkServerStatus()
         // The engine must answer, not only the app report "running".
-        case .viaApp: return (try? await askApp(.layer))?.layer != nil
+        case .viaApp: await (try? askApp(.layer))?.layer != nil
         }
     }
 
@@ -350,8 +354,8 @@ public struct ConfigFacade: Sendable {
 
     public func tcpGetLayers() async throws -> [String] {
         switch Self.engineAccess {
-        case .direct: return try await engineClient().requestLayerNames()
-        case .viaApp: return try await askApp(.layers).layers ?? []
+        case .direct: try await engineClient().requestLayerNames()
+        case .viaApp: try await askApp(.layers).layers ?? []
         }
     }
 
@@ -360,7 +364,7 @@ public struct ConfigFacade: Sendable {
         case .direct:
             if case .success = await engineClient().reloadConfig() { return true }
             return false
-        case .viaApp: return (try? await askApp(.reload)) != nil
+        case .viaApp: return await (try? askApp(.reload)) != nil
         }
     }
 
@@ -391,7 +395,7 @@ public struct ConfigFacade: Sendable {
         case .direct:
             if case .success = await engineClient().changeLayer(layerName) { return true }
             return false
-        case .viaApp: return (try? await askApp(.changeLayer, argument: layerName)) != nil
+        case .viaApp: return await (try? askApp(.changeLayer, argument: layerName)) != nil
         }
     }
 

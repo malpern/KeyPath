@@ -402,7 +402,6 @@ public final class ActionDispatcher {
 
         AppLogger.shared.log("🎹 [ActionDispatcher] FakeKey: \(keyName) action=\(action.rawValue)")
 
-
         fakeKeyTask?.cancel()
         fakeKeyTask = Task {
             let client = KanataTCPClient(timeout: 3.0)

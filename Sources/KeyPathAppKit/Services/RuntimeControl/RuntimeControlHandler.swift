@@ -53,9 +53,9 @@ enum RuntimeControlHandler {
             switch request.operation {
             case .reload:
                 let result = await manager.triggerConfigReload()
-                answer = response(ok: result.isSuccess, operation: .reload,
-                                  status: await manager.currentRuntimeStatusInternal(),
-                                  lastError: result.isSuccess ? nil : result.errorMessage)
+                answer = await response(ok: result.isSuccess, operation: .reload,
+                                        status: manager.currentRuntimeStatusInternal(),
+                                        lastError: result.isSuccess ? nil : result.errorMessage)
             case .layer:
                 answer.layer = try await client.requestCurrentLayerName()
             case .layers:

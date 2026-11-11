@@ -13,7 +13,9 @@ extension ServiceLifecycleCoordinator {
               let report = Self.readSessionReport(url),
               report.isCurrent(nonce: nonce, pid: application.processIdentifier, uid: getuid(), now: Date())
         else {
-            EngineControlEndpoint.publish(nil)
+            // One late report write must not cut every client off; clear the
+            // path only when the worker itself is gone.
+            if sessionApplication.map(\.isTerminated) ?? true { EngineControlEndpoint.publish(nil) }
             return nil
         }
         // Clients reach the engine only through the socket this worker reports (ADR-046).

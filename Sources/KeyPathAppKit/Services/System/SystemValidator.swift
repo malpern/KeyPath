@@ -187,10 +187,10 @@ public class SystemValidator {
                 : false
         } else {
             // Outside the app (the CLI) the engine refuses every connection: it
-            // admits only the app that launched it (ADR-046). The app's own
-            // answer, which already checks its socket, is the evidence.
+            // admits only the app that launched it (ADR-046). Ask the app to
+            // query the engine; "running" alone does not prove it answers.
             running = await appSessionReady?() ?? false
-            responding = running
+            responding = running ? await ConfigFacade().tcpCheckHealth() : false
         }
         let host = KanataRuntimeHost.current()
         let payload = FileManager.default.fileExists(atPath: host.bridgeLibraryPath)

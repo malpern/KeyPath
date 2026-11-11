@@ -236,6 +236,5 @@ public final class AppContextService {
         func simulateAppActivation(bundleIdentifier: String?) async {
             await handleAppActivation(bundleIdentifier: bundleIdentifier)
         }
-
     }
 #endif
