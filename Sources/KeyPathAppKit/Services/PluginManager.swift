@@ -36,6 +36,7 @@ public final class PluginManager {
 
     /// Loads every plugin bundle in the app's `Contents/PlugIns/`.
     public func discoverAndLoadPlugins() {
+        Self.removeLegacyDownloadedPlugins()
         guard let builtInPlugIns = Bundle.main.builtInPlugInsURL,
               FileManager.default.fileExists(atPath: builtInPlugIns.path)
         else {
@@ -85,10 +86,32 @@ public final class PluginManager {
         #if DEBUG
             if let testPluginInstance { return try? testPluginInstance(bundleURL) }
         #endif
-        guard let bundle = Bundle(url: bundleURL), bundle.load(),
-              let principalClass = bundle.principalClass as? NSObject.Type
-        else { return nil }
+        guard let bundle = Bundle(url: bundleURL) else { return nil }
+        do {
+            try bundle.loadAndReturnError()
+        } catch {
+            // dyld and code-signing refusals say why here, not in a bare false.
+            AppLogger.shared.error("🔌 [PluginManager] \(bundleURL.lastPathComponent): \(error.localizedDescription)")
+            return nil
+        }
+        guard let principalClass = bundle.principalClass as? NSObject.Type else { return nil }
         return principalClass.init()
+    }
+
+    /// Where 1.0.1 and earlier installed downloaded plugins. It held only the
+    /// downloaded code (activity data lives in `KeyPath/ActivityLog`), and
+    /// nothing loads from it now, so stale copies are removed.
+    static func removeLegacyDownloadedPlugins(
+        directory: URL? = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("KeyPath/Plugins", isDirectory: true)
+    ) {
+        guard let directory, FileManager.default.fileExists(atPath: directory.path) else { return }
+        do {
+            try FileManager.default.removeItem(at: directory)
+            AppLogger.shared.info("🔌 [PluginManager] Removed legacy downloaded plugins at \(directory.path)")
+        } catch {
+            AppLogger.shared.warn("🔌 [PluginManager] Could not remove legacy plugins directory: \(error)")
+        }
     }
 
     // MARK: - Action Broadcasting

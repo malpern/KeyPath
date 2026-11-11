@@ -39,13 +39,20 @@ final class PluginManagerTests: KeyPathTestCase {
         XCTAssertEqual(plugin.activationCount, 1)
     }
 
-    func testPluginsDirectoryIsOnlyTheAppBundle() throws {
-        // The manager no longer has a user plugins directory or a download path.
-        let source = try String(
-            contentsOf: LintScanner.path("Sources/KeyPathAppKit/Services/PluginManager.swift"), encoding: .utf8
-        )
-        XCTAssertFalse(source.contains("Application Support"))
-        XCTAssertFalse(source.contains("URLSession"))
+    func testLegacyDownloadedPluginsAreRemoved() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let legacy = root.appendingPathComponent("KeyPath/Plugins", isDirectory: true)
+        let activityLog = root.appendingPathComponent("KeyPath/ActivityLog", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: legacy.appendingPathComponent("Insights.bundle"),
+                                                withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: activityLog, withIntermediateDirectories: true)
+
+        PluginManager.removeLegacyDownloadedPlugins(directory: legacy)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: activityLog.path), "activity data is not touched")
+        PluginManager.removeLegacyDownloadedPlugins(directory: legacy) // absent: no-op
     }
 
     private final class FixturePlugin: NSObject, KeyPathPlugin {
