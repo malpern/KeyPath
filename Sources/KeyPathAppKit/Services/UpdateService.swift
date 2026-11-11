@@ -74,8 +74,8 @@ final class UpdateTerminationExpectation: @unchecked Sendable {
 /// Sparkle updates for the session runtime. Installation waits for the owned
 /// runtime and Caps cleanup through the admitted lifecycle owner; graceful Quit
 /// does the same before Sparkle installs on termination. `KPUpdatesManualDownloads`
-/// in Info.plist turns the updater off again without a code change: the menu
-/// then opens the releases page instead.
+/// in Info.plist turns the updater off for builds released afterwards without
+/// a code change: the menu then opens the releases page instead.
 @Observable
 @MainActor
 public final class UpdateService: NSObject {
