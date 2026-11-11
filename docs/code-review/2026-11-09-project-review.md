@@ -51,7 +51,7 @@ Key: ✅ done · 🟡 partly done or waiting on a gate · ⬜ not started · �
 | **B4** Tests for removed behaviour | 🟡 | Dead tests removed. Refreshing two stale snapshot references is written but not yet in a PR. `Tests/Experiments` is kept, because two scripts compile it |
 | **B5** Binary assets | 🟡 | Unused assets deleted (#1397). Not done: recompressing `images/help` (60 MB), removing its duplicates in app resources, rendering Metal snapshots at a smaller scale |
 | **B6** Root and package stragglers | 🟡 | Root files deleted (#1395). Not done: folding `KeyPathSystemProbes` into `KeyPathCore`, the nine unused library products, the wizard's unused screenshot |
-| **B7** Docs | 🟡 | Public pages fixed and published; `docs/archive` deleted (#1399). `KEYPATH_USE_INSTALLER_ENGINE` removed from `AGENTS.md` (this change). Not done: rewrite `runtime-architecture.html` (marked out of date), recapture the macOS 27 Accessibility screenshot |
+| **B7** Docs | 🟡 | Public pages fixed and published; `docs/archive` deleted (#1399). `KEYPATH_USE_INSTALLER_ENGINE` removed from `AGENTS.md`, the wizard smoke checklist and the reliability-matrix script (this change). Not done: rewrite `runtime-architecture.html` (marked out of date), recapture the macOS 27 Accessibility screenshot |
 | **P1** Sparkle | 🟡 | See row 5 |
 | **P2** Apple Events usage string | ✅ | #1404 |
 | **P3** Blocking subprocesses | ✅ | #1404: `SecCodeCopySelf` instead of `codesign`, and pipes drained before waiting. `ps` is kept for the wizard's migration page |
