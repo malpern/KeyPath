@@ -12,6 +12,72 @@ need a running system to confirm, are marked *unconfirmed*. `External/kanata`
 was not checked out, so statements about the engine's TCP command set come from
 ADR-046 and the Swift client, not the fork's source.
 
+## Status (updated 2026-11-11)
+
+**Overall:** about 55% of the review is done by item count. Every quick, low-risk item has shipped. What is left is mostly the large refactors (O2–O5) and the product decisions.
+
+Key: ✅ done · 🟡 partly done or waiting on a gate · ⬜ not started · 🔒 tracked privately
+
+### Top recommendations
+
+| # | Item | Status | Where |
+|---|---|---|---|
+| 1 | ADR-046 (S1) | 🟡 Phases 1–3 and docs shipped: the engine uses a private Unix socket that admits only the app's own PID, and the TCP port is gone. Phase 4, the code-signature check, is in PR #1416 (its CI run was cancelled by a concurrent run; rerun after #1415). It gates the next release. | #1412, #1413, #1414, #1416 |
+| — | Other security findings | 🔒 Tracked privately | — |
+| 2 | Public docs | ✅ Fixed on master and republished to the website, including `getting-started/` and `migration/` | #1394, #1402 |
+| 3 | `BehaviorStatePicker` + 15 MB of PNGs | ✅ Deleted | #1398 |
+| 4 | Deletion pass (~34k lines) | ✅ Done | #1395, #1397, #1398, #1399, #1406 |
+| 5 | Update story | 🟡 Sparkle is re-enabled and passed four update scenarios. One release gate is left: rerun scenarios 1, 2 and 4 on notarized builds with a managed Caps Lock rule active (in progress) | #1409 |
+| 6 | Installer collapse (O1) | 🟡 Step 1 merged. Step 2 is built and passed the review gate, but isn't pushed yet | #1410, branch `refactor/installer-collapse-2` |
+| 7 | `NSAppleEventsUsageDescription` | ✅ Added. Not yet confirmed on a clean VM | #1404 |
+
+### By section
+
+| Item | Status | Notes |
+|---|---|---|
+| **O1** Installer planner | 🟡 | See row 6 |
+| **O2** Four copies of UI state | ⬜ | Large, medium risk |
+| **O3** Forwarding layers on the rule path | ⬜ | Falls out of O2 |
+| **O4** Wizard module boundary | ⬜ | After O1 |
+| **O5** Events, health polling, stacked caches | ⬜ | Dead `EventRouter` chain removed in #1406; the typed event hub, polling and caches remain |
+| **O6** Plugin system | ✅ | Downloads removed (#1407); Insights linked into the app (#1411) |
+| **O7** Metal stage, onboarding, packs, CLI split | ⬜ | Product decisions not made |
+| **O8** Unimplemented flags, wording, public-docs lint | ✅ | #1405 |
+| **O8** Leftover `/usr/local/bin/keypath-cli` link on uninstall | 🟡 | Documented, not fixed |
+| **O8** `TestEnvironment` in production, singletons vs `ServiceContainer`, retiring finished lint tests | ⬜ | |
+| **B1** Dead view and images | ✅ | #1398 |
+| **B2** Scripts | ✅ | #1395 |
+| **B3** Dead Swift | ✅ | #1398, #1406. The function-level Periphery pass has not run |
+| **B4** Tests for removed behaviour | ✅ | Two stale snapshot references are refreshed on branch `test/refresh-snapshots`, not yet pushed. `Tests/Experiments` kept: two scripts compile it |
+| **B5** Binary assets | 🟡 | Unused assets deleted (#1397). Not done: recompressing `images/help` (60 MB), removing its duplicates in app resources, rendering Metal snapshots at a smaller scale |
+| **B6** Root and package stragglers | 🟡 | Root files deleted (#1395). Not done: folding `KeyPathSystemProbes` into `KeyPathCore`, the nine unused library products, the wizard's unused screenshot |
+| **B7** Docs | 🟡 | Public pages fixed and published; `docs/archive` deleted (#1399). Not done: rewrite `runtime-architecture.html` (marked out of date), recapture the macOS 27 Accessibility screenshot, remove `KEYPATH_USE_INSTALLER_ENGINE` from `AGENTS.md` |
+| **P1** Sparkle | 🟡 | See row 5 |
+| **P2** Apple Events usage string | ✅ | #1404 |
+| **P3** Blocking subprocesses | ✅ | #1404: `SecCodeCopySelf` instead of `codesign`, and pipes drained before waiting. `ps` is kept for the wizard's migration page |
+| **P4** Shell-outs with API replacements | ⬜ | `mdfind`, `defaults`, `chflags`, `open -t`, `/bin/kill` |
+| **P5** `os.Logger` in `AppLogger` | ⬜ | |
+| **P6** Concurrency leftovers | ⬜ | `@unchecked Sendable`, `NSLock` → `Mutex`, `asyncAfter`, default main-actor isolation |
+| **P7** Liquid Glass | ✅ | System glass in `AppGlassBackground` (#1408). Checked on screen over busy and plain backgrounds, light and dark |
+| **P7** Other idioms | ⬜ | 668 `.foregroundColor`, 20 `activate(ignoringOtherApps:)`, 6 `lockFocus()`, `NSViewRepresentable` wrappers, plain `Window` scenes |
+| **P8** Localization | ⬜ | Decision needed |
+| **P9** Test isolation | ⬜ | |
+
+### Also done since the review (not in its list)
+
+- ADR-048 keyboard attribution: spike, matcher and the log-only matcher in the session worker (#1392, #1393, #1396, #1400, #1401)
+- The CLI's engine commands are answered by the app (PR #1415, auto-merge on, CI running)
+
+### Next, in order
+
+1. Let #1415 finish CI and auto-merge, then rerun CI on #1416 and merge it
+2. Finish the Caps Lock gate for Sparkle (P1)
+3. Push the held branches: snapshot refresh, then installer step 2
+4. Run the clean-VM install test (also confirms P2)
+5. The large refactors: O2/O3, then O4, then O5
+
+---
+
 ## Summary
 
 The core is in good shape. The session runtime, the journaled config write, the
