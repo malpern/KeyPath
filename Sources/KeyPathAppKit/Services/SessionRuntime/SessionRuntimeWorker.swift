@@ -20,7 +20,6 @@ public final class SessionRuntimeWorker {
     /// The owner's PID version: with the PID, it names the one process the
     /// engine control socket admits (ADR-046).
     private let ownerPIDVersion: UInt32?
-    private let port: UInt16
     private var controlSocketPath: String?
     private var ownerExitSource: SessionOwnerExitSource?
     private let capabilities: PermissionOracle.ProcessCapabilities
@@ -82,7 +81,7 @@ public final class SessionRuntimeWorker {
     #endif
 
     private init(
-        reportURL: URL, nonce: String, ownerPID: Int32, ownerPIDVersion: UInt32? = nil, port: UInt16,
+        reportURL: URL, nonce: String, ownerPID: Int32, ownerPIDVersion: UInt32? = nil,
         capabilities: PermissionOracle.ProcessCapabilities,
         rawPermissions: SessionRuntimeReport.RawPermissions? = nil
     ) {
@@ -90,7 +89,6 @@ public final class SessionRuntimeWorker {
         self.nonce = nonce
         self.ownerPID = ownerPID
         self.ownerPIDVersion = ownerPIDVersion
-        self.port = port
         self.capabilities = capabilities
         self.rawPermissions = rawPermissions
     }
@@ -102,6 +100,10 @@ public final class SessionRuntimeWorker {
         guard arguments.contains("--session-runtime") || arguments.contains("--session-capabilities") else {
             return false
         }
+        // A write to a peer that has gone away (an exited app on the engine
+        // socket) must fail with EPIPE, not kill the worker before it releases
+        // keys and restores Caps Lock. The engine also sets SO_NOSIGPIPE.
+        signal(SIGPIPE, SIG_IGN)
         // Capability probes and the runtime are background processes, not a
         // second foreground KeyPath app. Keep them out of the Dock.
         await MainActor.run { _ = NSApplication.shared.setActivationPolicy(.prohibited) }
@@ -128,7 +130,6 @@ public final class SessionRuntimeWorker {
             await writeCapabilityReport(
                 reportURL: URL(fileURLWithPath: path), nonce: nonce,
                 ownerPID: ownerPID,
-                port: argument("--session-port").flatMap(UInt16.init) ?? 0,
                 snapshotProvider: {
                     await SystemStateProvider.shared.currentProcessSessionCapabilitySnapshot()
                 }
@@ -140,7 +141,6 @@ public final class SessionRuntimeWorker {
             reportURL: URL(fileURLWithPath: path), nonce: nonce,
             ownerPID: ownerPID,
             ownerPIDVersion: argument("--session-owner-pidversion").flatMap(UInt32.init),
-            port: argument("--session-port").flatMap(UInt16.init) ?? 0,
             capabilities: capabilities
         )
         guard let config = argument("--session-config") else {
@@ -184,12 +184,12 @@ public final class SessionRuntimeWorker {
     /// Capability mode samples passive APIs and writes evidence only. In particular,
     /// this path never enters start(), creates an event tap, or loads configuration.
     static func writeCapabilityReport(
-        reportURL: URL, nonce: String, ownerPID: Int32, port: UInt16,
+        reportURL: URL, nonce: String, ownerPID: Int32,
         snapshotProvider: () async -> PermissionOracle.SessionCapabilitySnapshot
     ) async {
         let snapshot = await snapshotProvider()
         let worker = SessionRuntimeWorker(
-            reportURL: reportURL, nonce: nonce, ownerPID: ownerPID, port: port,
+            reportURL: reportURL, nonce: nonce, ownerPID: ownerPID,
             capabilities: snapshot.effective, rawPermissions: snapshot.rawPermissions
         )
         worker.writeReport(.capabilities)
@@ -258,7 +258,7 @@ public final class SessionRuntimeWorker {
         controlSocketPath = control.path
         writeReport(.starting)
         let (created, handle) = KanataHostBridge.createPassthruRuntime(
-            runtimeHost: .current(), configPath: configPath, tcpPort: port,
+            runtimeHost: .current(), configPath: configPath,
             control: control, controlOwner: (ownerPID, ownerPIDVersion)
         )
         guard let handle else {
@@ -272,7 +272,8 @@ public final class SessionRuntimeWorker {
         }
         // Close the control socket the moment the owner exits, then retire as
         // the polling watch would. Both paths are idempotent.
-        ownerExitSource = SessionOwnerExitSource.watch(pid: ownerPID) { [weak self] in
+        ownerExitSource = SessionOwnerExitSource.watch(pid: ownerPID) { [weak self, ownerPID] in
+            AppLogger.shared.log("🛑 [SessionWorker] Owner \(ownerPID) exited; closing the engine socket")
             handle.closeControl()
             CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
                 MainActor.assumeIsolated { self?.retire(reason: "owner-exited") }
@@ -1206,7 +1207,7 @@ public final class SessionRuntimeWorker {
             accessibility: capabilities.accessibility.isReady,
             effectiveInputAccess: capabilities.keyAccess.isReady,
             tapActive: tap.map { CGEvent.tapIsEnabled(tap: $0) } ?? false,
-            tcpPort: port, inputCount: inputCount, outputCount: outputCount, failure: failure,
+            inputCount: inputCount, outputCount: outputCount, failure: failure,
             heldOutputUsages: outputs.heldUsages.sorted(), inputAccessSource: capabilities.source,
             experimentalTapDiagnostics: diagnostics, experimentalTapTimeout: timeoutDiagnostic,
             managedCapsGeneration: capsRecord?.owner.generation, capsCoverage: capsFleetCoverage,

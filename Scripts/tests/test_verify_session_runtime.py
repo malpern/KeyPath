@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch, MagicMock
@@ -32,12 +33,13 @@ class SessionVerificationTests(unittest.TestCase):
         self.parent = (self.uid, self.executable, (self.executable, '--headless'))
         self.worker = (self.uid, self.executable, (self.executable, '--session-runtime',
                        '--session-owner', '100', '--session-report', str(self.path),
-                       '--session-nonce', NONCE, '--session-port', '37001',
+                       '--session-nonce', NONCE, '--session-owner-pidversion', '7',
                        '--session-config', str(self.base / 'Config With Spaces.kbd')))
         self.processes = {100: self.parent, 101: self.worker}
         self.report = dict(nonce=NONCE, pid=101, uid=self.uid, state='running',
                            accessibility=True, effectiveInputAccess=True, tapActive=True,
-                           tcpPort=37001, inputCount=0, outputCount=0,
+                           controlSocketPath=str(self.base / 'control' / 'e-101.sock'),
+                           inputCount=0, outputCount=0,
                            timestamp=time.time() - runtime.SWIFT_REFERENCE_DATE, heldOutputUsages=[])
         self.write()
 
@@ -45,19 +47,16 @@ class SessionVerificationTests(unittest.TestCase):
         self.path.write_text(json.dumps(self.report))
         self.path.chmod(0o600)
 
-    def verify(self, listener='p101\nn127.0.0.1:37001\n', identity=None, connect=None):
+    def verify(self, identity=None, socket_check=None):
         with patch.object(runtime, 'discover', return_value=self.processes), \
              patch.object(runtime, 'process_identity', side_effect=identity or [self.parent, self.worker]), \
-             patch.object(runtime.subprocess, 'check_output', return_value=listener) as probe, \
-             patch.object(runtime.socket, 'create_connection', side_effect=connect) as tcp:
-            tcp.return_value = MagicMock()
-            result = runtime.verify(self.executable, self.uid, 37001)
-            self.assertIn('-i4TCP:37001', probe.call_args.args[0])
-            tcp.assert_called_once_with(('127.0.0.1', 37001), timeout=0.3)
+             patch.object(runtime, 'check_engine_socket', side_effect=socket_check) as check:
+            result = runtime.verify(self.executable, self.uid)
+            check.assert_called_once_with(self.report['controlSocketPath'], 101, self.uid)
             return result
 
     def test_exact_session_ready_with_spaces_in_paths(self):
-        self.assertEqual(self.verify(), (100, 101))
+        self.assertEqual(self.verify(), (100, 101, self.report['controlSocketPath']))
 
     def test_absent_ambiguous_foreign_and_capability_processes_refused(self):
         cases = [dict(), {100: self.parent}, {101: self.worker},
@@ -68,23 +67,26 @@ class SessionVerificationTests(unittest.TestCase):
                  {100: self.parent, 101: (self.uid, self.executable, self.worker[2] + ('--session-capabilities',))}]
         for processes in cases:
             with self.subTest(processes=processes), self.assertRaises(ValueError):
-                runtime.owned_launch(processes, self.executable, self.uid, 37001)
+                runtime.owned_launch(processes, self.executable, self.uid)
 
     def test_launch_owner_nonce_port_and_report_binding(self):
-        for old, new in [('100', '999'), (NONCE, 'not-a-uuid'), ('37001', '37002'),
+        for old, new in [('100', '999'), (NONCE, 'not-a-uuid'), ('7', 'x'), ('7', '0'),
                          (str(self.path), str(self.base / 'report.json'))]:
             args = tuple(new if value == old else value for value in self.worker[2])
             with self.subTest(value=old), self.assertRaises(ValueError):
                 runtime.owned_launch({100: self.parent, 101: (self.uid, self.executable, args)},
-                                     self.executable, self.uid, 37001)
-        for extra in [('--session-owner', '100'), ('--session-nonce', NONCE), ('--session-runtime',)]:
+                                     self.executable, self.uid)
+        for extra in [('--session-owner', '100'), ('--session-nonce', NONCE), ('--session-runtime',),
+                      ('--session-port', '37001')]:
             with self.subTest(extra=extra), self.assertRaises(ValueError):
                 runtime.owned_launch({100: self.parent, 101: (self.uid, self.executable, self.worker[2] + extra)},
-                                     self.executable, self.uid, 37001)
+                                     self.executable, self.uid)
 
     def test_stale_failed_false_or_malformed_report_refused(self):
         cases = [('nonce', 'another-nonce'), ('pid', 999), ('uid', self.uid + 1),
-                 ('pid', True), ('tcpPort', 37002), ('state', 'secureInput'),
+                 ('pid', True), ('tcpPort', 37001), ('controlSocketPath', None),
+                 ('controlSocketPath', 'e-101.sock'), ('controlSocketPath', '/tmp/e-102.sock'),
+                 ('state', 'secureInput'),
                  ('state', 'starting'), ('state', 'failed'), ('tapActive', False),
                  ('tapActive', 1), ('accessibility', False), ('effectiveInputAccess', False),
                  ('failure', 'failure'), ('inputCount', -1), ('outputCount', True),
@@ -95,29 +97,29 @@ class SessionVerificationTests(unittest.TestCase):
         for key, value in cases:
             report = dict(self.report, **{key: value})
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
-                runtime.validate_report(report, NONCE, 101, self.uid, 37001, time.time())
+                runtime.validate_report(report, NONCE, 101, self.uid, time.time())
         for key in self.report:
             report = dict(self.report)
             del report[key]
             with self.subTest(missing=key), self.assertRaises(ValueError):
-                runtime.validate_report(report, NONCE, 101, self.uid, 37001, time.time())
+                runtime.validate_report(report, NONCE, 101, self.uid, time.time())
 
     def test_canonical_report_age_boundaries(self):
         now = time.time()
         for age in (-1, 0, 2):
             runtime.validate_report(dict(self.report, timestamp=now - runtime.SWIFT_REFERENCE_DATE - age),
-                                    NONCE, 101, self.uid, 37001, now)
+                                    NONCE, 101, self.uid, now)
 
     def test_report_numeric_widths_and_non_root_ownership(self):
-        for key, overflow in [('pid', 2**31), ('uid', 2**32), ('tcpPort', 65536),
+        for key, overflow in [('pid', 2**31), ('uid', 2**32),
                               ('inputCount', 2**64), ('outputCount', 2**64),
                               ('heldOutputUsages', [2**32])]:
             values = dict(self.report, **{key: overflow})
             with self.subTest(key=key), self.assertRaises(ValueError):
-                runtime.validate_report(values, NONCE, values['pid'], values['uid'], values['tcpPort'], time.time())
+                runtime.validate_report(values, NONCE, values['pid'], values['uid'], time.time())
         with self.assertRaises(ValueError):
             runtime.owned_launch({100: (0, self.executable, self.parent[2]),
-                                 101: (0, self.executable, self.worker[2])}, self.executable, 0, 37001)
+                                 101: (0, self.executable, self.worker[2])}, self.executable, 0)
 
     def test_main_fails_without_evidence_or_invalid_timeout_and_prints_no_success(self):
         for failure in (ValueError('no owned session'), OSError('process query refused')):
@@ -173,24 +175,71 @@ class SessionVerificationTests(unittest.TestCase):
         with self.assertRaises(OSError):
             runtime.read_report(self.path, self.uid)
 
-    def test_foreign_listener_dead_tcp_or_changed_process_refused(self):
-        for listener in ('p999\nn127.0.0.1:37001\n', 'p101\nn192.168.1.2:37001\n', 'p101\nn*:37001\n', ''):
-            with self.subTest(listener=listener), self.assertRaises(ValueError):
-                self.verify(listener=listener)
-        with self.assertRaises(OSError):
-            self.verify(connect=ConnectionRefusedError())
+    def test_failed_socket_check_or_changed_process_refused(self):
+        with self.assertRaises(ValueError):
+            self.verify(socket_check=ValueError('engine admitted a process that is not its owner'))
         with self.assertRaises(ValueError):
             self.verify(identity=[self.parent, (self.uid, self.executable, ('replaced',))])
         with self.assertRaises(ProcessLookupError):
             self.verify(identity=[self.parent, ProcessLookupError()])
 
-    def test_report_rechecked_after_tcp(self):
+    def test_report_rechecked_after_socket_check(self):
         def change_report(*args, **kwargs):
             self.report['state'] = 'stopped'
             self.write()
-            return MagicMock()
         with self.assertRaises(ValueError):
-            self.verify(connect=change_report)
+            self.verify(socket_check=change_report)
+
+    def engine_socket(self, behaviour):
+        """A real listening socket at the report's path; `behaviour` serves one client."""
+        directory = Path(self.report['controlSocketPath']).parent
+        directory.mkdir(mode=0o700, exist_ok=True)
+        directory.chmod(0o700)
+        path = str(directory / 'e-101.sock')
+        listener = runtime.socket.socket(runtime.socket.AF_UNIX, runtime.socket.SOCK_STREAM)
+        listener.bind(path)
+        os.chmod(path, 0o600)
+        listener.listen(1)
+
+        def serve():
+            connection, _ = listener.accept()
+            with connection:
+                behaviour(connection)
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        self.addCleanup(listener.close)
+        return path
+
+    def check(self, path, held=None, tcp=''):
+        held = 'p101\nf3\nn' + path + '\n' if held is None else held
+        with patch.object(runtime.subprocess, 'check_output', return_value=held), \
+             patch.object(runtime.subprocess, 'run', return_value=MagicMock(stdout=tcp)):
+            runtime.check_engine_socket(path, 101, self.uid)
+
+    def test_engine_socket_that_refuses_the_verifier_passes(self):
+        self.check(self.engine_socket(lambda connection: None))
+
+    def test_engine_that_admits_the_verifier_fails(self):
+        path = self.engine_socket(lambda connection: connection.sendall(b'{"LayerChange":{"new":"base"}}\n'))
+        with self.assertRaises(ValueError):
+            self.check(path)
+
+    def test_tcp_listener_or_foreign_socket_holder_fails(self):
+        path = self.engine_socket(lambda connection: None)
+        with self.assertRaises(ValueError):
+            self.check(path, tcp='p101\nf9\nn127.0.0.1:37001\n')
+        with self.assertRaises(ValueError):
+            self.check(path, held='p101\nf3\nn/elsewhere/e-101.sock\n')
+
+    def test_engine_socket_permissions_must_be_private(self):
+        path = self.engine_socket(lambda connection: None)
+        os.chmod(path, 0o666)
+        with self.assertRaises(ValueError):
+            self.check(path)
+        os.chmod(path, 0o600)
+        os.chmod(os.path.dirname(path), 0o755)
+        with self.assertRaises(ValueError):
+            self.check(path)
 
     def test_shell_retains_trust_and_delegates_runtime_failures(self):
         app = self.base / 'KeyPath App.app'
@@ -247,7 +296,8 @@ class SessionVerificationTests(unittest.TestCase):
             self.assertIn('codesign --verify --strict --verbose=2', calls)
             self.assertIn('spctl -a -vvv -t install', calls)
             self.assertIn('xcrun stapler validate', calls)
-            self.assertIn('--app ' + str(app) + ' --port 37001 --timeout 20', calls)
+            self.assertIn('--app ' + str(app) + ' --timeout 20', calls)
+            self.assertNotIn('--port', calls)
             self.assertNotIn('launchctl', calls)
             log.unlink()
         result = subprocess.run(['/bin/bash', str(script)], env=dict(environment, CHECK_RUNTIME='0', FIXTURE_RUNTIME_EXIT='1'),

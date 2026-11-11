@@ -103,7 +103,7 @@ final class HrmObservabilityService {
     @ObservationIgnored private let observers = NotificationObserverManager()
     @ObservationIgnored private let notificationCenter: NotificationCenter
     @ObservationIgnored private let now: () -> Date
-    @ObservationIgnored private var monitoringPort: Int?
+    @ObservationIgnored private var isMonitoring = false
     @ObservationIgnored private var statsPollTask: Task<Void, Never>?
     @ObservationIgnored private var calibrationTask: Task<Void, Never>?
     @ObservationIgnored private var breakdownRebuildTask: Task<Void, Never>?
@@ -166,10 +166,10 @@ final class HrmObservabilityService {
         breakdownRebuildTask?.cancel()
     }
 
-    func startMonitoring(port: Int) {
-        if monitoringPort == port, statsPollTask != nil { return }
+    func startMonitoring() {
+        if isMonitoring, statsPollTask != nil { return }
 
-        monitoringPort = port
+        isMonitoring = true
         restartStatsPolling()
     }
 
@@ -181,15 +181,15 @@ final class HrmObservabilityService {
         breakdownRebuildTask?.cancel()
         breakdownRebuildTask = nil
         statsConsecutiveFailureCount = 0
-        monitoringPort = nil
+        isMonitoring = false
         calibrationRunToken = UUID()
         calibrationState = .idle
         calibrationRemainingSeconds = 0
     }
 
     func startCalibration(durationSeconds: Int = 60) {
-        guard let port = monitoringPort else {
-            calibrationState = .failed("Kanata TCP port not configured.")
+        guard isMonitoring else {
+            calibrationState = .failed("The remapping engine is not being monitored.")
             return
         }
         guard supportsHrmStats else {
@@ -210,7 +210,7 @@ final class HrmObservabilityService {
 
         calibrationTask = Task { [weak self, runToken] in
             guard let self else { return }
-            let client = KanataTCPClient(port: port, timeout: 3.0)
+            let client = KanataTCPClient(timeout: 3.0)
             defer {
                 Task {
                     await client.cancelInflightAndCloseConnection()
@@ -260,7 +260,7 @@ final class HrmObservabilityService {
     }
 
     func refreshNow() {
-        guard monitoringPort != nil else { return }
+        guard isMonitoring else { return }
         Task { [weak self] in
             guard let self else { return }
             await refreshStats(using: nil)
@@ -461,9 +461,9 @@ final class HrmObservabilityService {
 
     private func refreshStats(using existingClient: KanataTCPClient?) async {
         guard supportsHrmStats else { return }
-        guard let port = monitoringPort else { return }
+        guard isMonitoring else { return }
 
-        let client = existingClient ?? KanataTCPClient(port: port, timeout: 2.0)
+        let client = existingClient ?? KanataTCPClient(timeout: 2.0)
         defer {
             if existingClient == nil {
                 Task {

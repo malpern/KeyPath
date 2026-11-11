@@ -100,7 +100,7 @@ final class SessionOutputStateTests: XCTestCase {
         let report = SessionRuntimeReport(
             nonce: "owned", pid: 100, uid: 501, state: .running,
             accessibility: true, effectiveInputAccess: true, tapActive: true,
-            tcpPort: 37001, inputCount: 2, outputCount: 2, timestamp: now
+            inputCount: 2, outputCount: 2, timestamp: now
         )
         XCTAssertTrue(report.isCurrent(nonce: "owned", pid: 100, uid: 501, now: now))
         XCTAssertFalse(report.isCurrent(nonce: "foreign", pid: 100, uid: 501, now: now))
@@ -116,7 +116,7 @@ final class SessionOutputStateTests: XCTestCase {
         let report = SessionRuntimeReport(
             nonce: "owned", pid: 100, uid: 501, state: .running,
             accessibility: true, effectiveInputAccess: true, tapActive: true,
-            tcpPort: 37001, inputCount: 1, outputCount: 1,
+            inputCount: 1, outputCount: 1,
             timestamp: now.addingTimeInterval(-60), heldOutputUsages: [4, 224]
         )
         XCTAssertFalse(report.isCurrent(nonce: "owned", pid: 100, uid: 501, now: now))

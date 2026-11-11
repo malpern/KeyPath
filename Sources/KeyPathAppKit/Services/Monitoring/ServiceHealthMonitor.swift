@@ -92,10 +92,7 @@ final class ServiceHealthMonitor {
 
     // MARK: - Health Checking
 
-    func checkServiceHealth(
-        processStatus: ProcessHealthStatus,
-        tcpPort: Int
-    ) async -> ServiceHealthStatus {
+    func checkServiceHealth(processStatus: ProcessHealthStatus) async -> ServiceHealthStatus {
         AppLogger.shared.debug("[HealthMonitor] Checking service health...")
 
         // First check: Verify process is actually running
@@ -109,7 +106,7 @@ final class ServiceHealthMonitor {
         )
 
         // Second check: Try TCP health check with retries
-        let tcpHealthy = await performTCPHealthCheck(port: tcpPort)
+        let tcpHealthy = await performTCPHealthCheck()
 
         if tcpHealthy {
             AppLogger.shared.debug("[HealthMonitor] Service is healthy")
@@ -120,7 +117,7 @@ final class ServiceHealthMonitor {
     }
 
     /// Perform TCP health check with retry logic
-    private func performTCPHealthCheck(port: Int) async -> Bool {
+    private func performTCPHealthCheck() async -> Bool {
         // Skip real TCP checks in test environment to avoid timeouts
         guard !TestEnvironment.isRunningTests else {
             AppLogger.shared.debug("[HealthMonitor] TCP health check skipped in test environment")
@@ -143,7 +140,7 @@ final class ServiceHealthMonitor {
         // This avoids creating hundreds of TCP connections over app lifetime
         if healthCheckClient == nil {
             AppLogger.shared.debug("[HealthMonitor] Creating shared TCP health check client")
-            healthCheckClient = KanataTCPClient(port: port, timeout: 3.0)
+            healthCheckClient = KanataTCPClient(timeout: 3.0)
         }
 
         guard let client = healthCheckClient else {

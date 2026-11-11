@@ -257,13 +257,15 @@ It verifies:
   `REQUIRE_APP_INTENTS_METADATA=0` to trust-check those)
 - exact installed KeyPath session parent and worker, with matching non-root UID
 - private owned worker report, bound to launch nonce/PID/UID and canonical freshness
-- TCP readiness on `127.0.0.1:37001`, with the listener owned by that worker
+- the worker's engine socket (ADR-046): 0600 in a 0700 directory, held by that
+  worker, no TCP listener, and the verifier's own connection refused (only the
+  app that launched the worker may connect)
 
 Runtime inspection requires Python 3 (override `KEYPATH_VERIFY_PYTHON` with its
 executable path) and macOS `lsof`. It is read-only and never starts or repairs a
 runtime. `keypath status` reports the app's own view of the runtime over its
 control socket (handy for scripts), but release verification still uses this
-script, which checks process ownership and the listener independently.
+script, which checks process ownership and the engine socket independently.
 
 For non-notarized local debug builds, skip distribution trust checks:
 ```bash
@@ -312,7 +314,7 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 | `RuntimeCoordinator` | Service orchestration; not an `ObservableObject` |
 | `ServiceLifecycleCoordinator` | Start, stop, and restart Kanata |
 | `ServiceHealthChecker` | Health checks and service state evidence |
-| `ConfigReloadCoordinator` | TCP-based reload after rule changes |
+| `ConfigReloadCoordinator` | Engine reload after rule changes |
 | `KanataViewModel` | UI layer with observable properties for SwiftUI |
 | `PermissionOracle` | Single source of truth for permissions |
 
@@ -358,7 +360,7 @@ These apply to the session runtime, with `ServiceLifecycleCoordinator` as owner.
   `docs/process/installer-repair-state-matrix.md` as the review checklist.
 - **Mutating installer actions must be postcondition-verified before returning success.**
   - Any action that can stop or restart Kanata must verify runtime readiness
-    (`running + TCP responding`) before reporting success.
+    (`running + engine socket responding`) before reporting success.
 - **Stale diagnostics must not outrank current runtime state.**
   - Log-derived input-capture issues only apply to a live current runtime. If
     Kanata is missing or stopped, install/start runtime services first.
@@ -371,9 +373,9 @@ These apply to the session runtime, with `ServiceLifecycleCoordinator` as owner.
   `ServiceHealthChecker`.
 - Do not start, stop, or restart Kanata except through
   `ServiceLifecycleCoordinator`.
-- Do not send TCP reloads directly; use
+- Do not send engine reloads directly; use
   `ConfigReloadCoordinator.triggerConfigReload()`.
-- Do not skip TCP reload after config changes; that causes stale config.
+- Do not skip the engine reload after config changes; that causes stale config.
 - Do not call `SMAppService.status` (launch at login) in a hot path; it is
   synchronous IPC and can block for 10-30 seconds. Use
   `SMAppServiceStatusProvider`.

@@ -146,10 +146,14 @@ final class RuntimeControlServer {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw SetupError.socket(errno) }
         var address = try RuntimeControl.makeAddress(path)
+        // The exact length, as EngineControlSocket does: the full struct leaves
+        // trailing NULs in the path a reader of the address sees.
+        let length = (MemoryLayout<sockaddr_un>.offset(of: \sockaddr_un.sun_path) ?? 2) + path.utf8.count + 1
+        address.sun_len = UInt8(length)
         let previousMask = umask(0o177)
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+                bind(fd, $0, socklen_t(length))
             }
         }
         umask(previousMask)

@@ -211,14 +211,6 @@ final class PreferencesService: @unchecked Sendable {
         }
     }
 
-    // MARK: - TCP Server Configuration
-
-    /// The driverless worker and every app/CLI client share one fixed endpoint.
-    /// Historical stored port values remain untouched and cannot redirect clients.
-    var tcpServerPort: Int {
-        KeyPathConstants.Networking.defaultTCPPort
-    }
-
     /// Whether user notifications are enabled
     var notificationsEnabled: Bool {
         didSet {
@@ -666,7 +658,7 @@ final class PreferencesService: @unchecked Sendable {
         UserDefaults.standard.set(Defaults.neovimReferenceTopicsVersion, forKey: Keys.neovimReferenceTopicsVersion)
 
         AppLogger.shared.log(
-            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), TCP port: \(tcpServerPort), Verbose logging: \(verboseKanataLogging)"
+            "🔧 [PreferencesService] Initialized - Protocol: \(communicationProtocol.rawValue), Verbose logging: \(verboseKanataLogging)"
         )
     }
 
@@ -678,22 +670,13 @@ final class PreferencesService: @unchecked Sendable {
         AppLogger.shared.log("🔧 [PreferencesService] All communication settings reset to defaults")
     }
 
-    /// Validate port is in acceptable range
-    func isValidPort(_ port: Int) -> Bool {
-        Self.isValidPort(port)
-    }
-
     /// Get current communication configuration as string for logging
     var communicationConfigDescription: String {
-        "TCP on port \(tcpServerPort) (no authentication required)"
+        "Engine control over the worker's Unix-domain socket, owner-checked (ADR-046)"
     }
 }
 
 private extension PreferencesService {
-    static func isValidPort(_ port: Int) -> Bool {
-        port >= 1024 && port <= 65535
-    }
-
     static func clampedContextHUDHoldDelayCustomMs(_ delay: Int) -> Int {
         min(max(delay, 100), 2000)
     }

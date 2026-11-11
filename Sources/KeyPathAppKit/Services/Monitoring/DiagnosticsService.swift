@@ -190,8 +190,7 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     }
 
     private func fetchTcpHello() async -> KanataTCPClient.TcpHelloOk? {
-        let tcpPort = await MainActor.run { PreferencesService.shared.tcpServerPort }
-        let client = KanataTCPClient(port: tcpPort)
+        let client = KanataTCPClient()
 
         do {
             let hello = try await client.hello()

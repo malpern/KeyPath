@@ -320,7 +320,6 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public let inputAccessSource: String?
     public let rawPermissions: RawPermissions?
     public let tapActive: Bool
-    public let tcpPort: UInt16
     /// The engine's Unix-domain control socket (ADR-046). Clients take the
     /// path from here, never from an assumed directory, and only from a
     /// report of a running worker; terminal reports leave it nil.
@@ -340,7 +339,7 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
     public init(
         nonce: String, pid: Int32, uid: UInt32, state: State,
         accessibility: Bool, effectiveInputAccess: Bool, tapActive: Bool,
-        tcpPort: UInt16, inputCount: UInt64, outputCount: UInt64,
+        inputCount: UInt64, outputCount: UInt64,
         timestamp: Date = Date(), failure: String? = nil, heldOutputUsages: [UInt32] = [],
         inputAccessSource: String? = nil, experimentalTapDiagnostics: ExperimentalTapDiagnostics? = nil,
         experimentalTapTimeout: ExperimentalTapTimeoutDiagnostic? = nil,
@@ -359,7 +358,6 @@ public struct SessionRuntimeReport: Codable, Sendable, Equatable {
         self.inputAccessSource = inputAccessSource
         self.rawPermissions = rawPermissions
         self.tapActive = tapActive
-        self.tcpPort = tcpPort
         self.inputCount = inputCount
         self.outputCount = outputCount
         self.timestamp = timestamp

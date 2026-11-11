@@ -147,9 +147,9 @@ This checks:
 - code signature
 - Gatekeeper assessment
 - stapled notarization ticket
-- KeyPath process
-- `system/com.keypath.kanata` launchd job
-- TCP readiness on `127.0.0.1:37001`
+- KeyPath session parent and worker
+- the worker's engine socket (ADR-046): private and owned, held by the worker,
+  no TCP listener, and a connection from the verifier refused before any byte
 
 For non-notarized debug builds:
 

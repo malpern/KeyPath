@@ -20,7 +20,7 @@ class ServiceHealthMonitorTests: XCTestCase {
 
     func testCheckServiceHealth_ProcessNotRunning() async {
         let status = ProcessHealthStatus(isRunning: false, pid: nil)
-        let healthStatus = await monitor.checkServiceHealth(processStatus: status, tcpPort: 37000)
+        let healthStatus = await monitor.checkServiceHealth(processStatus: status)
 
         XCTAssertFalse(healthStatus.isHealthy, "Should be unhealthy when process not running")
         XCTAssertTrue(healthStatus.shouldRestart, "Should recommend restart")
@@ -30,7 +30,7 @@ class ServiceHealthMonitorTests: XCTestCase {
     func testCheckServiceHealth_ProcessRunning() async {
         // The TCP probe is skipped under tests and reports healthy.
         let status = ProcessHealthStatus(isRunning: true, pid: 1234)
-        let healthStatus = await monitor.checkServiceHealth(processStatus: status, tcpPort: 37000)
+        let healthStatus = await monitor.checkServiceHealth(processStatus: status)
 
         XCTAssertTrue(healthStatus.isHealthy)
         XCTAssertFalse(healthStatus.shouldRestart)

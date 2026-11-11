@@ -31,8 +31,7 @@ final class KanataHostBridgeTests: XCTestCase {
 
         let result = KanataHostBridge.createPassthruRuntime(
             runtimeHost: runtimeHost,
-            configPath: "/tmp/keypath.kbd",
-            tcpPort: 37001
+            configPath: "/tmp/keypath.kbd"
         )
 
         XCTAssertEqual(

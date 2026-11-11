@@ -17,7 +17,7 @@ final class SessionCapabilityProbeTests: XCTestCase {
         let nonce = UUID().uuidString
         var reads = 0
         await SessionRuntimeWorker.writeCapabilityReport(
-            reportURL: reportURL, nonce: nonce, ownerPID: 0, port: 0,
+            reportURL: reportURL, nonce: nonce, ownerPID: 0,
             snapshotProvider: {
                 reads += 1
                 return PermissionOracle.sampleSessionCapabilities(
@@ -38,7 +38,7 @@ final class SessionCapabilityProbeTests: XCTestCase {
         XCTAssertFalse(report.tapActive)
         XCTAssertEqual(report.inputCount, 0)
         XCTAssertEqual(report.outputCount, 0)
-        XCTAssertEqual(report.tcpPort, 0)
+        XCTAssertNil(report.controlSocketPath, "a capability probe opens no engine socket")
         XCTAssertEqual(report.heldOutputUsages, [])
         XCTAssertNil(report.managedCapsGeneration)
         XCTAssertEqual(try Data(contentsOf: configuration), original)

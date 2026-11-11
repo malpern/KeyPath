@@ -11,9 +11,7 @@ CONFIG_DIR="$HOME/.config/keypath"
 CONFIG_PATH="$CONFIG_DIR/keypath.kbd"
 CONFIG_REAL_DIR="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$CONFIG_DIR")"
 KANATA_BIN="${KEYPATH_KANATA_BIN:-$APP_PATH/Contents/Library/KeyPath/Kanata Engine.app/Contents/MacOS/kanata}"
-TCP_HOST="${KEYPATH_TCP_HOST:-127.0.0.1}"
-TCP_PORT="${KEYPATH_TCP_PORT:-37001}"
-TCP_TIMEOUT_SECONDS="${KEYPATH_TCP_TIMEOUT_SECONDS:-20}"
+ENGINE_TIMEOUT_SECONDS="${KEYPATH_ENGINE_TIMEOUT_SECONDS:-${KEYPATH_TCP_TIMEOUT_SECONDS:-20}}"
 RUN_LOG_GATE="${KEYPATH_QA_RUN_LOG_GATE:-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -69,16 +67,18 @@ assert_matches() {
   fi
 }
 
-wait_for_tcp() {
-  local probe="$TMP_DIR/tcp-probe.log"
-  local deadline=$((SECONDS + TCP_TIMEOUT_SECONDS))
+# The engine answers only the app that launched it (ADR-046), so readiness is
+# asked through the CLI: it asks the app, which asks the engine.
+wait_for_engine() {
+  local probe="$TMP_DIR/engine-probe.log"
+  local deadline=$((SECONDS + ENGINE_TIMEOUT_SECONDS))
   while true; do
-    if nc -vz -w 1 "$TCP_HOST" "$TCP_PORT" >"$probe" 2>&1; then
+    if "$CLI" layer current --json --quiet >"$probe" 2>&1; then
       return 0
     fi
     if (( SECONDS >= deadline )); then
       cat "$probe" >&2 || true
-      echo "error: TCP did not become ready at ${TCP_HOST}:${TCP_PORT}" >&2
+      echo "error: the remapping engine did not answer within ${ENGINE_TIMEOUT_SECONDS}s" >&2
       exit 1
     fi
     sleep 1
@@ -96,7 +96,7 @@ apply_and_verify() {
   fi
   (cd "$CONFIG_DIR" && "$KANATA_BIN" --cfg "$(basename "$CONFIG_PATH")" --check >/dev/null)
   "$CLI" service reload --json --quiet >/dev/null
-  wait_for_tcp
+  wait_for_engine
 }
 
 write_app_specific_fixture() {
@@ -339,7 +339,7 @@ mkdir -p "$CONFIG_DIR"
 
 "$CLI" --version >/dev/null
 "$CLI" service status --json --quiet >/dev/null
-wait_for_tcp
+wait_for_engine
 
 write_app_specific_fixture
 prepare_custom_rule_fixtures

@@ -126,9 +126,14 @@ public enum EngineControlSocket {
             close(fd)
             throw SetupError.pathTooLong
         }
+        // The exact length (path plus its NUL), not the whole struct: a reader
+        // of the bound address otherwise sees trailing NULs in the path.
+        let pathOffset = MemoryLayout<sockaddr_un>.offset(of: \sockaddr_un.sun_path) ?? 2
+        let length = pathOffset + path.utf8.count + 1
+        address.sun_len = UInt8(length)
         let bound = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+                Darwin.bind(fd, $0, socklen_t(length))
             }
         }
         guard bound == 0, chmod(path, 0o600) == 0, listen(fd, 8) == 0 else {
@@ -152,6 +157,27 @@ public enum EngineControlSocket {
         try prepareDirectory(directory)
         removeStaleSockets(in: directory, isAlive: isAlive)
         return try Listener(fd: bind(path: path), path: path)
+    }
+
+    /// Whether the engine at `path` answers this process: it connects and
+    /// requires the engine's first line (a `LayerChange`) within the timeout.
+    /// The engine admits only its owner, so this also proves the peer check
+    /// passed. Blocking; call it off the main thread.
+    public static func isResponding(path: String, timeoutMs: Int = 300) -> Bool {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var noSigPipe: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
+        RuntimeControl.setTimeouts(fd, seconds: Double(max(timeoutMs, 1)) / 1000)
+        guard var address = try? RuntimeControl.makeAddress(path) else { return false }
+        let connected = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard connected == 0, let line = try? RuntimeControl.readLine(fd) else { return false }
+        return String(decoding: line, as: UTF8.self).contains("LayerChange")
     }
 
     /// This process's PID version, from its audit token. It changes when a

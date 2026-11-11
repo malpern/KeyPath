@@ -12,7 +12,7 @@ final class SessionCapabilityProbeWaitTests: XCTestCase {
     private func report() -> SessionRuntimeReport {
         SessionRuntimeReport(nonce: "probe", pid: 123, uid: 502, state: .capabilities,
                              accessibility: true, effectiveInputAccess: true, tapActive: false,
-                             tcpPort: 0, inputCount: 0, outputCount: 0)
+                             inputCount: 0, outputCount: 0)
     }
 
     func testCancelledWaitSignalsTheProbe() async {

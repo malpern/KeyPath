@@ -291,13 +291,6 @@ extension ConfigurationService {
             args.append("--check")
         }
 
-        // Add TCP port argument for actual runs (not validation checks)
-        if !checkOnly {
-            let tcpPort = PreferencesService.shared.tcpServerPort
-            args.append(contentsOf: ["--port", "\(tcpPort)"])
-            AppLogger.shared.log("📡 [ConfigService] Added TCP port argument: --port \(tcpPort)")
-        }
-
         return args
     }
 }

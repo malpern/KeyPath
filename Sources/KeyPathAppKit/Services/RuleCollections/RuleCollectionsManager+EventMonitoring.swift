@@ -6,9 +6,10 @@ import KeyPathRulesCore
 extension RuleCollectionsManager {
     // MARK: - Event Monitoring
 
-    /// Start listening for events from Kanata TCP server (layer changes, action URIs, key input)
-    func startEventMonitoring(port: Int) {
-        AppLogger.shared.log("🌐 [RuleCollectionsManager] Starting event monitoring on port \(port)")
+    /// Start listening for engine events (layer changes, action URIs, key input)
+    /// over the running worker's control socket.
+    func startEventMonitoring() {
+        AppLogger.shared.log("🌐 [RuleCollectionsManager] Starting event monitoring")
         guard !TestEnvironment.isRunningTests else {
             AppLogger.shared.log("🌐 [RuleCollectionsManager] Skipping event monitoring (test environment)")
             return
@@ -18,7 +19,6 @@ extension RuleCollectionsManager {
         eventMonitoringTask = Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
             await eventListener.start(
-                port: port,
                 onLayerChange: { [weak self] layer in
                     guard let self else { return }
                     await MainActor.run {

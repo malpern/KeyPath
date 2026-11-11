@@ -305,6 +305,41 @@ Checked live on the mini with this build: the socket is created 0600 in the
 0700 directory; a same-user process connects and is closed with 0 bytes; the
 second account (`clawd`) gets `EACCES`; a sandboxed app gets `EPERM`.
 
+**PR 3 (phase 3) is built too.** The worker starts with no TCP port, and
+`SessionRuntimeReport.tcpPort`, `--session-port`, the port preference and its
+constants are gone. `KanataTCPClient()` and `KanataEventListener.start()` reach
+`KanataEngineEndpoint.session`, the socket the current worker reports
+(`EngineControlEndpoint`, published from `currentSessionReport()`), looked up
+at every connect, with no TCP fallback; `.tcp` remains only for tests' mock
+servers, and `EngineTransportLintTests` keeps it out of `Sources`. Readiness is
+`isEngineSocketResponding`: connect and require the engine's first
+`LayerChange`. The CLI's engine commands (`reload`, `layer`, `layers`,
+`changeLayer`, `hrmStats`, `resetHrmStats`) are runtime-control requests the
+app answers on its own connection; in-app callers (App Intents) use it
+directly (`ConfigFacade.engineAccess = .direct`). `verify-session-runtime.py`
+now checks the socket: 0600 in a 0700 directory, held by the worker (`lsof
+-U`), no TCP listener, and the verifier's own connection refused with 0 bytes.
+The lab probe, the release smoke test and the macOS 27 QA script ask through
+`keypath-cli`.
+
+Two defects surfaced only on a live kill of the app, and both are fixed in the
+fork with tests:
+
+- **`SIGPIPE`.** A library inside the worker does not get Rust's binary-level
+  `SIGPIPE` ignore, so a notification write to the dead app could kill the
+  worker before it released keys or restored Caps Lock. Every client socket
+  now has `SO_NOSIGPIPE`, and the worker ignores `SIGPIPE`.
+- **Trailing NULs.** Swift bound the socket with the whole `sockaddr_un`
+  length, so the path the engine read back ended in NUL bytes and `close()`
+  could not remove the file. Swift binds with the exact length now, and the
+  engine cuts the path at the first NUL.
+
+Rechecked live on the mini with the PR 3 build: nothing listens on
+`127.0.0.1:37001`; the same-user, `clawd` and sandboxed probes get 0 bytes,
+`EACCES` and `EPERM`; the app's event stream, `keypath-cli layer current`,
+`layer list` and `service reload` work; and after `kill -9` of the app the
+socket was removed in 21 ms and the worker retired (`owner-exited`) in 40 ms.
+
 ## Migration
 
 1. **Phase 1, fork (`malpern/kanata`, a new branch merged into `keypath/bundled` by
