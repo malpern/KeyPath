@@ -37,7 +37,8 @@ def main() -> None:
     if result.returncode != 0:
         raise SystemExit(f"kanata layer probe failed: keypath-cli exited {result.returncode}")
     payload = first_json_object(result.stdout)
-    layer = (payload or {}).get("data", {}).get("layer") if isinstance(payload, dict) else None
+    data = payload.get("data") if isinstance(payload, dict) else None
+    layer = data.get("layer") if isinstance(data, dict) else None
     if not isinstance(layer, str) or not layer:
         raise SystemExit("kanata layer probe failed: layer response missing")
     print(json.dumps({"CurrentLayerName": {"name": layer}}, separators=(",", ":")))

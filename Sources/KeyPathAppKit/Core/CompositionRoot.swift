@@ -96,10 +96,10 @@ enum CompositionRoot {
         // probes and session workers never serve it).
         if !isOneShotProbeMode {
             RuntimeControlServer.shared.start(handler: RuntimeControlHandler.make(for: manager))
+            // This process launches the worker, so the engine admits it (ADR-046);
+            // in-app facade calls (App Intents) talk to the engine directly.
+            ConfigFacade.engineAccess = .direct
         }
-        // This process launched the worker, so the engine admits it (ADR-046);
-        // in-app facade calls (App Intents) talk to the engine directly.
-        ConfigFacade.engineAccess = .direct
 
         // Schedule deferred startup services
         if !isOneShotProbeMode {
