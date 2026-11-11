@@ -154,7 +154,8 @@ your account can open. The connection never leaves your Mac.
 
 Only the KeyPath app that started the engine can connect: on every
 connection the engine checks the other process's user, process ID and process
-ID version, which macOS reports for the socket itself. Other programs, other
+ID version, which macOS reports for the socket itself, and that its running
+code is signed as KeyPath. Other programs, other
 users on the Mac and sandboxed apps are refused before they receive any key
 event ([ADR-046](docs/adr/adr-046-session-engine-control-channel.md)).
 

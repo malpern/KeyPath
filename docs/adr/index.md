@@ -49,7 +49,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-043](/adr/adr-043-opportunistic-manager-consolidation) | Opportunistic Manager Consolidation | Accepted |
 | [ADR-044](/adr/adr-044-remove-full-disk-access) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-045](/adr/adr-045-retire-privileged-runtime-stack) | Retire the Privileged Runtime Stack | Accepted |
-| [ADR-046](/adr/adr-046-session-engine-control-channel) | Session Engine Control Channel | Accepted (phases 1–3 shipped) |
+| [ADR-046](/adr/adr-046-session-engine-control-channel) | Session Engine Control Channel | Accepted |
 | [ADR-047](/adr/adr-047-pre-release-cleanup) | Pre-Release Cleanup Before the First Session-Runtime Release | Accepted |
 
 ## Key Decisions Summary

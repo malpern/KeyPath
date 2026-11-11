@@ -561,24 +561,29 @@ actor KanataEventListener {
     }
 
     private func waitForReady(_ connection: NWConnection) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            // Network can deliver a state update that was already queued after
+            // the handler is cleared, e.g. .ready and then .failed when the
+            // engine closes a connection it refused. Resume exactly once: a
+            // second resume traps and takes the whole app down.
+            let once = ResumeOnce(continuation)
             connection.stateUpdateHandler = { [weak connection] state in
                 switch state {
                 case .ready:
                     connection?.stateUpdateHandler = nil
-                    continuation.resume()
+                    once.resume(with: .success(()))
                 case let .failed(error):
                     connection?.stateUpdateHandler = nil
-                    continuation.resume(throwing: error)
+                    once.resume(with: .failure(error))
                 case let .waiting(error):
                     // Server not reachable (e.g. Kanata restarting). Fail fast so
                     // listenLoop can retry after a delay instead of hanging forever.
                     connection?.stateUpdateHandler = nil
                     connection?.cancel()
-                    continuation.resume(throwing: error)
+                    once.resume(with: .failure(error))
                 case .cancelled:
                     connection?.stateUpdateHandler = nil
-                    continuation.resume(throwing: ListenerError.connectionClosed)
+                    once.resume(with: .failure(ListenerError.connectionClosed))
                 default:
                     break
                 }
@@ -1015,5 +1020,28 @@ actor KanataEventListener {
 
     enum ListenerError: Error {
         case connectionClosed
+    }
+}
+
+/// Resumes a continuation once and ignores any later attempt (a second resume
+/// traps). Network can report another state after the first one was handled.
+final class ResumeOnce<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Value, Error>?
+
+    init(_ continuation: CheckedContinuation<Value, Error>) {
+        self.continuation = continuation
+    }
+
+    /// Returns false when the continuation was already resumed.
+    @discardableResult
+    func resume(with result: Result<Value, Error>) -> Bool {
+        lock.lock()
+        let pending = continuation
+        continuation = nil
+        lock.unlock()
+        guard let pending else { return false }
+        pending.resume(with: result)
+        return true
     }
 }

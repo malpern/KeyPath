@@ -4,7 +4,7 @@ Use this quick pass after AutoFixer or routing changes to confirm UX and readine
 
 ## Pre-req
 - Clean macOS user (or fresh test account).
-- Build KeyPath debug, ensure `KEYPATH_USE_INSTALLER_ENGINE=1` (default).
+- Build KeyPath debug.
 - Feature flag `USE_UNIFIED_WIZARD_ROUTER` = true (default).
 
 ## Steps
