@@ -161,3 +161,39 @@ byte-identical, and Caps Lock behaving as plain Caps Lock (no stuck remap).
    runtime stopped before install and ready again after relaunch.
 
 `release.sh` refuses to run while either lab variable is set.
+
+### Qualification results (2026-11-10, Mac mini, macOS 27.3)
+
+The lab VM could not run these: on the macOS 27 Parallels base the console
+login never established a desktop session (`console-login` postcondition
+failed twice after `reset-guest-password`), and the Accessibility consent path
+is not yet qualified on macOS 27. They ran instead on the mini, where KeyPath
+already held Accessibility (the lab builds carry the same Developer ID, so the
+grant applied), with its app, configuration and preferences backed up first and
+restored afterwards.
+
+Lab builds 1000 and 1001 from `024e2dbd7`, Developer ID-signed, **not notarized**
+(Sparkle's path verifies the EdDSA signature and same-team code signature and
+clears quarantine; it does not go through Gatekeeper). Feed served at
+`http://127.0.0.1:8765/`, generated and verified with the release EdDSA key.
+
+| # | Scenario | Result |
+|---|---|---|
+| 1 | Automatic: N checked 1 s after launch, downloaded, staged; graceful Quit | **Pass.** Worker finished `state=stopped` before termination; 1001 installed within 1 s; signature valid; no processes left; 1001 relaunched with the runtime ready |
+| 2 | Staged, then `kill -9` of the app | **Pass.** Worker retired 0.5 s later (`reason=owner-exited`); Sparkle installed 1001 within 1 s of the death |
+| 3 | Installer killed (a) as the app exited, (b) the moment Quit was sent | **Pass.** (a) the swap had completed: 1001, valid. (b) 1000 remained, complete and valid, and relaunched with the runtime ready. The bundle was never half-replaced |
+| 4 | Interactive: Install Update → Install and Relaunch | **Pass.** `Stopping owned runtime before update` → worker `state=stopped` → install → 1001 launched → runtime ready, all within 1.6 s |
+
+After every scenario the user configuration was unchanged (compared by
+meaning; see below), and no KeyPath key mapping was left behind.
+
+**Not covered here:** Caps Lock recovery. The mini had no managed Caps rule, so
+no mapping existed to restore; adding one would have changed the user's
+configuration. The worker's retirement on both paths (`stopped`,
+`owner-exited`) is the same code that restores Caps, but a run with a managed
+Caps rule active is still worth doing before release.
+
+**Side finding:** every launch rewrites `RuleCollections.json` with
+`enabledKeys` in a different order (a serialized `Set`) and rotates a new
+`.backups/` copy, although nothing changed. Harmless, but it churns the config
+directory and makes byte-level comparisons useless.
