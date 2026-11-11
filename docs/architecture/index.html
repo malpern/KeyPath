@@ -363,9 +363,9 @@
       <text x="532" y="141" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="9" fill="#86868b" font-weight="600" letter-spacing="0.04em">ENGINE</text>
       <text x="532" y="157" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#1d1d1f" font-weight="600">kanata</text>
 
-      <!-- Arrow from Kanata back to KeyPath (TCP) -->
+      <!-- Arrow from Kanata back to KeyPath (engine socket) -->
       <path d="M452 146 Q 400 146 400 100 Q 400 48 170 48" fill="none" stroke="#d2d2d7" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
-      <text x="380" y="118" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">TCP events</text>
+      <text x="380" y="118" font-family="-apple-system, sans-serif" font-size="8" fill="#a0a1a7">engine events</text>
 
       <!-- Arrow down from KeyPath to Overlay -->
       <line x1="90" y1="76" x2="90" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
@@ -384,12 +384,12 @@
       <line x1="312" y1="76" x2="312" y2="114" stroke="#86868b" stroke-width="1.2" marker-end="url(#arr)"/>
 
       <!-- Footer -->
-      <text x="310" y="220" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">The app generates Kanata config, a session worker runs it, and TCP events flow back for visualization.</text>
+      <text x="310" y="220" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="8.5" fill="#a0a1a7">The app generates Kanata config, a session worker runs it, and engine events flow back over a private socket for visualization.</text>
     </svg>
   </div>
 
   <div class="prose">
-    <strong>The core loop is simple:</strong> the user remaps keys in the SwiftUI UI, KeyPath generates a Kanata config file, the session worker (a second copy of KeyPath.app hosting Kanata through <code>libkeypath_kanata_host_bridge.dylib</code>) picks it up via TCP reload, and key events flow back through the overlay for visualization. Nothing runs as root. The installation wizard makes sure Accessibility is granted and the runtime is ready before any of this can work.
+    <strong>The core loop is simple:</strong> the user remaps keys in the SwiftUI UI, KeyPath generates a Kanata config file, the session worker (a second copy of KeyPath.app hosting Kanata through <code>libkeypath_kanata_host_bridge.dylib</code>) picks it up via a reload over the engine socket, and key events flow back through the overlay for visualization. Nothing runs as root. The installation wizard makes sure Accessibility is granted and the runtime is ready before any of this can work.
   </div>
 </section>
 
@@ -431,7 +431,7 @@
         <span class="doc-name">Live Keyboard Overlay</span>
         <span class="doc-badge ready">Ready</span>
       </div>
-      <div class="doc-desc">The floating keyboard visualization window. Seven focused extension files, two input streams (CGEvent tap + Kanata TCP), the three-guard visibility model, and the inspector drawer. Includes screenshot and data flow diagram.</div>
+      <div class="doc-desc">The floating keyboard visualization window. Seven focused extension files, two input streams (CGEvent tap + Kanata engine events), the three-guard visibility model, and the inspector drawer. Includes screenshot and data flow diagram.</div>
     </a>
 
     <a href="overlay-rendering.html" class="doc-card">
@@ -453,7 +453,7 @@
         <span class="doc-name">Runtime & Service Lifecycle</span>
         <span class="doc-badge ready">Ready</span>
       </div>
-      <div class="doc-desc">How Kanata starts, stops, and recovers. The <code>RuntimeCoordinator</code>, <code>ServiceLifecycleCoordinator</code>, and <code>ServiceHealthChecker</code>. Health polling, TCP readiness, crash recovery, and the "installer success requires verified runtime readiness" invariant.</div>
+      <div class="doc-desc">How Kanata starts, stops, and recovers. The <code>RuntimeCoordinator</code>, <code>ServiceLifecycleCoordinator</code>, and <code>ServiceHealthChecker</code>. Health polling, engine-socket readiness, crash recovery, and the "installer success requires verified runtime readiness" invariant.</div>
     </a>
 
     <a href="permissions-architecture.html" class="doc-card">
@@ -475,7 +475,7 @@
         <span class="doc-name">Rule Collections & Config Generation</span>
         <span class="doc-badge ready">Ready</span>
       </div>
-      <div class="doc-desc">How user remappings become Kanata config. The <code>RuleCollection</code> pattern, <code>ConfigurationService</code>, custom rules vs. keymap collections, the "never parse Kanata configs" principle, and TCP-based hot reload.</div>
+      <div class="doc-desc">How user remappings become Kanata config. The <code>RuleCollection</code> pattern, <code>ConfigurationService</code>, custom rules vs. keymap collections, the "never parse Kanata configs" principle, and hot reload over the engine socket.</div>
     </a>
 
     <a href="layouts-architecture.html" class="doc-card">
