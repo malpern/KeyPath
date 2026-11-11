@@ -8,14 +8,18 @@ import KeyPathCore
 /// fake app on a socket and check what the facade asks and how it reads answers.
 final class ConfigFacadeEngineViaAppTests: XCTestCase {
     /// Serves one canned response per connection and records each request.
+    /// One per test: its answers can change, and only its own thread closes its
+    /// socket, so a stopped fake can never pick up a later fake's connections.
     private final class FakeApp: @unchecked Sendable {
+        typealias Respond = @Sendable (RuntimeControl.Request) -> RuntimeControl.Response
         let path: String
         private let fd: Int32
         private let lock = NSLock()
         private var requests: [RuntimeControl.Request] = []
-        private let respond: @Sendable (RuntimeControl.Request) -> RuntimeControl.Response
+        private var respond: Respond
+        private var stopped = false
 
-        init(respond: @escaping @Sendable (RuntimeControl.Request) -> RuntimeControl.Response) throws {
+        init(respond: @escaping Respond) throws {
             self.respond = respond
             let dir = "/tmp/kp-fa-\(UUID().uuidString.prefix(8))"
             try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
@@ -35,16 +39,25 @@ final class ConfigFacadeEngineViaAppTests: XCTestCase {
             lock.withLock { requests }
         }
 
+        func answer(with respond: @escaping Respond) {
+            lock.withLock { self.respond = respond }
+        }
+
         private func serve() {
+            defer { close(fd) }
             while true {
                 let client = accept(fd, nil, nil)
                 guard client >= 0 else { return }
                 defer { close(client) }
+                if lock.withLock({ stopped }) { return }
                 RuntimeControl.setTimeouts(client, seconds: 2)
                 guard let line = try? RuntimeControl.readLine(client),
                       let request = try? JSONDecoder().decode(RuntimeControl.Request.self, from: line)
                 else { continue }
-                lock.withLock { requests.append(request) }
+                let respond = lock.withLock { () -> Respond in
+                    requests.append(request)
+                    return self.respond
+                }
                 if var data = try? JSONEncoder().encode(respond(request)) {
                     data.append(0x0A)
                     try? RuntimeControl.writeAll(client, data)
@@ -52,8 +65,14 @@ final class ConfigFacadeEngineViaAppTests: XCTestCase {
             }
         }
 
+        /// Wakes the serving thread, which then closes the socket itself.
         func stop() {
-            close(fd)
+            let first = lock.withLock { () -> Bool in
+                defer { stopped = true }
+                return !stopped
+            }
+            guard first else { return }
+            _ = try? RuntimeControl.send(.init(operation: .status), timeout: 1, socketPath: path)
             try? FileManager.default.removeItem(atPath: (path as NSString).deletingLastPathComponent)
         }
     }
@@ -122,13 +141,12 @@ final class ConfigFacadeEngineViaAppTests: XCTestCase {
     }
 
     func testReloadIsAskedOfTheAppAndFailsWhenItSaysSo() async throws {
-        let okApp = try useFakeApp { _ in Self.answer(.reload) }
+        let app = try useFakeApp { _ in Self.answer(.reload) }
         let reloaded = await ConfigFacade().tcpReload()
         XCTAssertTrue(reloaded)
-        XCTAssertEqual(okApp.received.map(\.operation), [.reload])
-        okApp.stop()
+        XCTAssertEqual(app.received.map(\.operation), [.reload])
 
-        _ = try useFakeApp { _ in Self.answer(.reload, ok: false, error: "config invalid") }
+        app.answer { _ in Self.answer(.reload, ok: false, error: "config invalid") }
         let failed = await ConfigFacade().tcpReload()
         XCTAssertFalse(failed)
     }
@@ -146,12 +164,11 @@ final class ConfigFacadeEngineViaAppTests: XCTestCase {
 
     /// Health means the engine answered through the app, not just "running".
     func testHealthNeedsAnEngineAnswer() async throws {
-        _ = try useFakeApp { _ in Self.answer(.layer, layer: "base") }
+        let app = try useFakeApp { _ in Self.answer(.layer, layer: "base") }
         let healthy = await ConfigFacade().tcpCheckHealth()
         XCTAssertTrue(healthy)
-        fake?.stop()
 
-        _ = try useFakeApp { _ in Self.answer(.layer, layer: nil) }
+        app.answer { _ in Self.answer(.layer, layer: nil) }
         let unhealthy = await ConfigFacade().tcpCheckHealth()
         XCTAssertFalse(unhealthy)
     }
