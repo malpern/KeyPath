@@ -6,6 +6,14 @@ description: How KeyPath receives context from external tools for dynamic contex
 
 # Context Integration Architecture
 
+> **Withdrawn (2026-11-11).** This design, never implemented, had tmux, vim and
+> shell hooks send `ContextUpdate` JSON to the engine's TCP port. That port is
+> gone: the engine now admits only the KeyPath app
+> ([ADR-046](../adr/adr-046-session-engine-control-channel.md)), which is exactly
+> what forbids third-party processes feeding it directly. If this is revived,
+> context has to go through the app (a `keypath://` URL or a runtime-control
+> request), which can validate what it forwards.
+
 This document outlines how KeyPath can receive context from external tools (tmux, shell, vim, etc.) to provide dynamic contextual keyboard help.
 
 ## Problem Statement
