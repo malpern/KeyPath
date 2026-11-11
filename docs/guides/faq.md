@@ -53,7 +53,7 @@ This removes all components including services, binaries, and configuration file
 
 ### Can I edit the config file directly?
 
-Yes! KeyPath preserves your custom configuration. If you edit `~/.config/keypath/keypath.kbd` directly, KeyPath will detect changes and hot-reload them via TCP.
+Yes! KeyPath preserves your custom configuration. If you edit `~/.config/keypath/keypath.kbd` directly, KeyPath will detect changes and hot-reload them.
 
 **Note:** Sections marked with `;; === KEYPATH MANAGED ===` may be overwritten when you save from the UI. Your custom sections are always preserved.
 
@@ -71,15 +71,12 @@ See the [Migration Guide](/migration/kanata-users) for complete instructions. Th
 
 Yes, but with caution. KeyPath generates `keypath-apps.kbd` in `~/.config/keypath/`. If your symlink points elsewhere, the include may fail. It's safer to copy your config or use KeyPath's migration wizard.
 
-### What TCP port does KeyPath use?
+### Does KeyPath use a network port?
 
-Default port is `37001`. You can configure a custom port in your `defcfg`:
-
-```lisp
-(defcfg
-  tcp-server-port 37001
-)
-```
+No. KeyPath talks to its Kanata engine over a private connection (a Unix-domain
+socket) that only the KeyPath app can open. Earlier builds used `localhost:37001`;
+that port is gone. To script KeyPath, use `keypath://` links or the `keypath`
+command-line tool.
 
 ## Troubleshooting
 
@@ -145,7 +142,7 @@ See [CONTRIBUTING.md]({{ site.github_url }}/blob/main/CONTRIBUTING.md) for detai
 
 ### Why doesn't KeyPath parse config files?
 
-KeyPath follows [ADR-023](/adr/adr-023-no-config-parsing): Kanata is the source of truth. Parsing would create a shadow implementation that can drift. Instead, KeyPath uses TCP and the simulator to understand config state.
+KeyPath follows [ADR-023](/adr/adr-023-no-config-parsing): Kanata is the source of truth. Parsing would create a shadow implementation that can drift. Instead, KeyPath asks the running engine and the simulator to understand config state.
 
 ### How does the two-file model work?
 

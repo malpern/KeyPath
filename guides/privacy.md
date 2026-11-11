@@ -124,27 +124,28 @@ Keyboard diagnostics and optional Activity Insights stay local; KeyPath does not
 
 ---
 
-## What about the Kanata TCP connection?
+## How does KeyPath talk to the Kanata engine?
 
-KeyPath communicates with the Kanata engine over a local TCP connection on `localhost:37001`. This is how it sends configuration reloads and layer switches, and receives key and layer events.
+KeyPath talks to the Kanata engine through a private connection that exists only on your Mac. This is how it sends configuration reloads and layer switches, and receives key and layer events.
 
 ```
-  ┌──────────────┐  localhost:37001  ┌──────────────┐
-  │  KeyPath.app │ ←──────────────→  │    Kanata    │
-  │  (your user) │    TCP (JSON)     │ (your user)  │
-  └──────────────┘                   └──────────────┘
+  ┌──────────────┐   private socket   ┌──────────────┐
+  │  KeyPath.app │ ←────────────────→ │    Kanata    │
+  │  (your user) │                    │ (your user)  │
+  └──────────────┘                    └──────────────┘
         │
         ├── "Reload config"
         ├── "Switch to layer X"
         └── Receive key and layer events
 
-  This connection NEVER leaves your Mac.
-  It's 127.0.0.1 (localhost) only.
+  Only the KeyPath app that started Kanata can connect.
+  Other apps, other accounts on this Mac, and sandboxed
+  apps are turned away before they receive anything.
 ```
 
-This connection is **localhost-only** — it never touches the network.
+The connection never touches the network: it is a socket file in a folder only your account can open. When something connects, macOS tells Kanata exactly which process it is, and Kanata accepts only the KeyPath app that started it.
 
-The connection does not use authentication, which is how Kanata's TCP server works upstream. In practice, this means any process on your Mac could send commands to Kanata. The risk is low — if malware has code execution on your Mac, it can already do far worse than remap your keys — but we mention it for completeness.
+Earlier builds used a local network port (`localhost:37001`) that any program on your Mac could connect to. That port is gone. If you had a script that talked to it, use [`keypath://` links]({{ '/guides/action-uri/' | relative_url }}) or the [`keypath` command-line tool]({{ '/guides/cli/' | relative_url }}) instead.
 
 ---
 

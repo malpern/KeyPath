@@ -9,7 +9,7 @@
 > [ADR-046](adr-046-session-engine-control-channel.md); tracked in
 > [#1354](https://github.com/malpern/KeyPath/issues/1354).
 
-**Status:** Under review; proposed to be superseded by [ADR-046](adr-046-session-engine-control-channel.md)
+**Status:** Superseded by [ADR-046](adr-046-session-engine-control-channel.md) (2026-11-11). The engine no longer opens a TCP port.
 **Date:** 2024
 
 ## Context

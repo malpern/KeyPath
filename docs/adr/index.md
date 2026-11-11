@@ -16,7 +16,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-006](/adr/adr-006-apple-api-priority) | Apple API Priority in Permission Checks | Partly superseded by ADR-044 |
 | [ADR-008](/adr/adr-008-validation-refactor) | Stateless Validation via SystemValidator | Accepted |
 | [ADR-009](/adr/adr-009-service-extraction-mvvm) | Service Extraction & MVVM Pattern | Accepted |
-| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Under review; proposed to be superseded by ADR-046 |
+| [ADR-013](/adr/adr-013-tcp-without-auth) | TCP Communication Without Authentication | Superseded by ADR-046 |
 | [ADR-014](/adr/adr-014-xpc-signature-mismatch) | XPC Signature Mismatch Prevention | Accepted (see ADR-045 note) |
 | [ADR-015](/adr/adr-015-installer-engine) | InstallerEngine Façade | Accepted (see ADR-045 note) |
 | [ADR-016](/adr/adr-016-tcc-database-reading) | TCC Database Reading for Sequential Permission Flow | Superseded by ADR-044 |
@@ -49,7 +49,7 @@ This section documents significant architectural decisions in KeyPath. Each ADR 
 | [ADR-043](/adr/adr-043-opportunistic-manager-consolidation) | Opportunistic Manager Consolidation | Accepted |
 | [ADR-044](/adr/adr-044-remove-full-disk-access) | Remove Full Disk Access and browser-history suggestions | Accepted |
 | [ADR-045](/adr/adr-045-retire-privileged-runtime-stack) | Retire the Privileged Runtime Stack | Accepted |
-| [ADR-046](/adr/adr-046-session-engine-control-channel) | Session Engine Control Channel | Proposed |
+| [ADR-046](/adr/adr-046-session-engine-control-channel) | Session Engine Control Channel | Accepted |
 | [ADR-047](/adr/adr-047-pre-release-cleanup) | Pre-Release Cleanup Before the First Session-Runtime Release | Accepted |
 
 ## Key Decisions Summary

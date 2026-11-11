@@ -728,6 +728,7 @@ dependencies = [
 name = "keypath-kanata-host-bridge"
 version = "0.1.0"
 dependencies = [
+ "core-foundation",
  "kanata",
  "kanata-keyberon",
  "kanata-parser",

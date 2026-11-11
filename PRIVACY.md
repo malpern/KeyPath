@@ -149,14 +149,17 @@ script does is up to the script; see
 
 ## The Local Engine Connection
 
-KeyPath talks to the Kanata engine over TCP on `127.0.0.1:37001`. The
-connection never leaves your Mac.
+KeyPath talks to the Kanata engine over a Unix-domain socket in a folder only
+your account can open. The connection never leaves your Mac.
 
-This connection is **not authenticated**. Another program running on your Mac
-could connect to it, receive key events, and send commands such as switching
-layers or triggering virtual keys. Replacing it with a channel only KeyPath
-can use is planned work
-([ADR-046](docs/adr/adr-046-session-engine-control-channel.md)).
+Only the KeyPath app that started the engine can connect: on every
+connection the engine checks the other process's user, process ID and process
+ID version, which macOS reports for the socket itself, and that its running
+code is signed as KeyPath. Other programs, other
+users on the Mac and sandboxed apps are refused before they receive any key
+event ([ADR-046](docs/adr/adr-046-session-engine-control-channel.md)).
+
+Earlier builds used an unauthenticated port on `127.0.0.1:37001`. It is gone.
 
 ---
 
