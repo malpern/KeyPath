@@ -343,38 +343,6 @@ public struct ComponentCheckResult {
     }
 }
 
-/// Result of config path mismatch detection
-public struct ConfigPathMismatchResult {
-    public let mismatches: [ConfigPathMismatch]
-    public let canAutoResolve: Bool
-
-    public init(mismatches: [ConfigPathMismatch], canAutoResolve: Bool) {
-        self.mismatches = mismatches
-        self.canAutoResolve = canAutoResolve
-    }
-
-    public var hasMismatches: Bool {
-        !mismatches.isEmpty
-    }
-}
-
-/// Represents a config path mismatch between Kanata process and KeyPath expectations
-public struct ConfigPathMismatch {
-    public let processPID: pid_t
-    public let processCommand: String
-    public let actualConfigPath: String
-    public let expectedConfigPath: String
-
-    public init(
-        processPID: pid_t, processCommand: String, actualConfigPath: String, expectedConfigPath: String
-    ) {
-        self.processPID = processPID
-        self.processCommand = processCommand
-        self.actualConfigPath = actualConfigPath
-        self.expectedConfigPath = expectedConfigPath
-    }
-}
-
 // MARK: - Constants
 
 public enum WizardConstants {

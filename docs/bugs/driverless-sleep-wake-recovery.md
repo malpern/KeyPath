@@ -28,7 +28,7 @@ Three failures were reproduced on the Air on 2026-10-17:
 - Record wake source and changing readiness gates, never key identities or content.
 
 Affected installer/repair matrix rows: **Session runtime stopped or not ready**
-and **Session tap active and TCP responding**. Readiness still requires current
+and **Session tap active and engine responding** (named "…and TCP responding" when this was written). Readiness still requires current
 owned process, tap and TCP evidence; a saved rule or overlay is not proof.
 
 ## Validation and release evidence
