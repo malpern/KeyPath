@@ -17,7 +17,7 @@ extension RuleCollectionsManager {
                 )
                 preferencesService.reloadLeaderKeyPreference(from: preferencesService.persistenceDefaults)
             } catch {
-                onError?("Could not recover the previous rule edit: \(error.localizedDescription)")
+                onError?(String(localized: "Could not recover the previous rule edit: \(error.localizedDescription)"))
                 return
             }
             // Restore keymap state first (before loading collections)
@@ -122,14 +122,16 @@ extension RuleCollectionsManager {
     // MARK: - Config Recovery Notification
 
     private func notifyConfigRecovery(_ result: RuleCollectionStore.LoadResult) {
-        let backupNote = result.backupPath != nil ? " Your previous config was backed up." : ""
+        let backedUp = result.backupPath != nil
 
         if result.wasFullReset {
-            let body = "All rule configurations were reset to defaults.\(backupNote)"
+            let body = backedUp
+                ? String(localized: "All rule configurations were reset to defaults. Your previous config was backed up.")
+                : String(localized: "All rule configurations were reset to defaults.")
             AppLogger.shared.log("⚠️ [Bootstrap] Full config reset. Backup: \(result.backupPath ?? "none")")
             Task { @MainActor in
                 UserNotificationService.shared.notifyConfigEvent(
-                    "Configuration Reset",
+                    String(localized: "Configuration Reset"),
                     body: body,
                     key: "config.reset.full"
                 )
@@ -138,12 +140,14 @@ extension RuleCollectionsManager {
             let names = result.failedCollectionNames
             let summary = names.count <= 3
                 ? names.joined(separator: ", ")
-                : "\(names.prefix(3).joined(separator: ", ")) and \(names.count - 3) more"
-            let body = "\(summary) reset to defaults after an update.\(backupNote)"
+                : String(localized: "\(names.prefix(3).joined(separator: ", ")) and \(names.count - 3) more")
+            let body = backedUp
+                ? String(localized: "\(summary) reset to defaults after an update. Your previous config was backed up.")
+                : String(localized: "\(summary) reset to defaults after an update.")
             AppLogger.shared.log("⚠️ [Bootstrap] Partial config recovery: \(names.joined(separator: ", "))")
             Task { @MainActor in
                 UserNotificationService.shared.notifyConfigEvent(
-                    "\(names.count) Rule\(names.count == 1 ? "" : "s") Reset",
+                    names.count == 1 ? String(localized: "1 Rule Reset") : String(localized: "\(names.count) Rules Reset"),
                     body: body,
                     key: "config.reset.partial"
                 )

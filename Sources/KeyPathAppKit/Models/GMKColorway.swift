@@ -15,10 +15,10 @@ enum LegendStyle: String, Codable, CaseIterable, Identifiable, Equatable {
 
     var displayName: String {
         switch self {
-        case .standard: "Standard"
-        case .dots: "Dots"
-        case .iconMods: "Icon Mods"
-        case .blank: "Blank"
+        case .standard: String(localized: "Standard")
+        case .dots: String(localized: "Dots")
+        case .iconMods: String(localized: "Icon Mods")
+        case .blank: String(localized: "Blank")
         }
     }
 }

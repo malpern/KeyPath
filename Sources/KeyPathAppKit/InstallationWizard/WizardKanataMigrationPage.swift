@@ -50,10 +50,10 @@ struct WizardKanataMigrationPage: View {
                 WizardHeroSection(
                     icon: "keyboard",
                     iconColor: .blue,
-                    title: "Welcome, Kanata user!",
+                    title: String(localized: "Welcome, Kanata user!"),
                     subtitle: detectedConfig != nil
-                        ? "We detected your config"
-                        : "No existing Kanata config detected"
+                        ? String(localized: "We detected your config")
+                        : String(localized: "No existing Kanata config detected")
                 )
                 .scaleEffect(heroScale)
                 .opacity(heroOpacity)
@@ -145,9 +145,9 @@ struct WizardKanataMigrationPage: View {
 
                 // Reassurance checkmarks with staggered animation
                 VStack(alignment: .leading, spacing: 12) {
-                    reassuranceRow(text: "Your mappings stay exactly as they are", index: 0)
-                    reassuranceRow(text: "We just add one line for KeyPath features", index: 1)
-                    reassuranceRow(text: "You can undo anytime", index: 2)
+                    reassuranceRow(text: String(localized: "Your mappings stay exactly as they are"), index: 0)
+                    reassuranceRow(text: String(localized: "We just add one line for KeyPath features"), index: 1)
+                    reassuranceRow(text: String(localized: "You can undo anytime"), index: 2)
                 }
                 .padding(.horizontal, WizardDesign.Spacing.pageVertical)
                 .padding(.top, WizardDesign.Spacing.elementGap)

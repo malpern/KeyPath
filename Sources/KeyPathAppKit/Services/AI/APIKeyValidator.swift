@@ -36,13 +36,13 @@ public actor APIKeyValidator {
         public var errorDescription: String? {
             switch self {
             case .invalidKey:
-                "Invalid API key. Please check your key and try again."
+                String(localized: "Invalid API key. Please check your key and try again.")
             case let .networkError(message):
-                "Network error: \(message)"
+                String(localized: "Network error: \(message)")
             case let .apiError(statusCode, message):
-                "API error (\(statusCode)): \(message)"
+                String(localized: "API error (\(statusCode)): \(message)")
             case .invalidResponse:
-                "Invalid response from API"
+                String(localized: "Invalid response from API")
             }
         }
     }
@@ -56,12 +56,12 @@ public actor APIKeyValidator {
         // Basic format check before making network request
         guard key.hasPrefix("sk-ant-") else {
             AppLogger.shared.log("❌ [APIKeyValidator] Key doesn't start with 'sk-ant-'")
-            return .invalid(message: "API key should start with 'sk-ant-'")
+            return .invalid(message: String(localized: "API key should start with 'sk-ant-'"))
         }
 
         guard key.count > 20 else {
             AppLogger.shared.log("❌ [APIKeyValidator] Key too short")
-            return .invalid(message: "API key appears to be incomplete")
+            return .invalid(message: String(localized: "API key appears to be incomplete"))
         }
 
         AppLogger.shared.log("🔑 [APIKeyValidator] Validating API key...")
@@ -92,7 +92,7 @@ public actor APIKeyValidator {
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 AppLogger.shared.log("❌ [APIKeyValidator] Invalid response type")
-                return .invalid(message: "Invalid response from API")
+                return .invalid(message: String(localized: "Invalid response from API"))
             }
 
             // Check status code
@@ -103,11 +103,11 @@ public actor APIKeyValidator {
 
             case 401:
                 AppLogger.shared.log("❌ [APIKeyValidator] Invalid API key (401)")
-                return .invalid(message: "Invalid API key. Please check your key and try again.", statusCode: 401)
+                return .invalid(message: String(localized: "Invalid API key. Please check your key and try again."), statusCode: 401)
 
             case 403:
                 AppLogger.shared.log("❌ [APIKeyValidator] API key lacks permissions (403)")
-                return .invalid(message: "API key doesn't have required permissions.", statusCode: 403)
+                return .invalid(message: String(localized: "API key doesn't have required permissions."), statusCode: 403)
 
             case 429:
                 // Rate limited but key is valid
@@ -115,17 +115,17 @@ public actor APIKeyValidator {
                 return .valid()
 
             default:
-                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                let errorMessage = String(data: data, encoding: .utf8) ?? String(localized: "Unknown error")
                 AppLogger.shared.log("❌ [APIKeyValidator] API error: \(httpResponse.statusCode)")
-                return .invalid(message: "API error: \(errorMessage)", statusCode: httpResponse.statusCode)
+                return .invalid(message: String(localized: "API error: \(errorMessage)"), statusCode: httpResponse.statusCode)
             }
 
         } catch let error as URLError {
             AppLogger.shared.log("❌ [APIKeyValidator] Network error: \(error.localizedDescription)")
-            return .invalid(message: "Network error: \(error.localizedDescription)")
+            return .invalid(message: String(localized: "Network error: \(error.localizedDescription)"))
         } catch {
             AppLogger.shared.log("❌ [APIKeyValidator] Unexpected error: \(error)")
-            return .invalid(message: "Unexpected error: \(error.localizedDescription)")
+            return .invalid(message: String(localized: "Unexpected error: \(error.localizedDescription)"))
         }
     }
 

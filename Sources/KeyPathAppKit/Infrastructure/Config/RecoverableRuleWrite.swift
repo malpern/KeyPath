@@ -149,9 +149,9 @@ enum RecoverableRuleWrite {
 
         var errorDescription: String? {
             if let recoveryError {
-                return "Rule files could not be saved: \(cause.localizedDescription). Recovery also failed: \(recoveryError.localizedDescription)"
+                return String(localized: "Rule files could not be saved: \(cause.localizedDescription). Recovery also failed: \(recoveryError.localizedDescription)")
             }
-            return "Rule files could not be saved; the prior files were restored: \(cause.localizedDescription)"
+            return String(localized: "Rule files could not be saved; the prior files were restored: \(cause.localizedDescription)")
         }
     }
 
@@ -163,10 +163,10 @@ enum RecoverableRuleWrite {
 
         var errorDescription: String? {
             switch self {
-            case .invalidJournal: "The pending rule-write journal does not match these rule stores."
-            case let .changedFile(role): "The \(role) file changed outside this operation. Recovery was stopped to preserve it."
-            case let .changedPreference(key): "The \(key) preference changed outside this operation. Recovery was stopped to preserve it."
-            case let .systemCall(operation, code): "Rule-write \(operation) failed (errno \(code))."
+            case .invalidJournal: String(localized: "The pending rule-write journal does not match these rule stores.")
+            case let .changedFile(role): String(localized: "The \(role) file changed outside this operation. Recovery was stopped to preserve it.")
+            case let .changedPreference(key): String(localized: "The \(key) preference changed outside this operation. Recovery was stopped to preserve it.")
+            case let .systemCall(operation, code): String(localized: "Rule-write \(operation) failed (errno \(code)).")
             }
         }
     }

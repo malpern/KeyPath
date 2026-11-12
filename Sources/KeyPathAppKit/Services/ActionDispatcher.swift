@@ -139,7 +139,7 @@ public final class ActionDispatcher {
         case "runtime":
             return handleRuntime(uri)
         default:
-            let message = "Unknown action type: \(uri.action)"
+            let message = String(localized: "Unknown action type: \(uri.action)")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction(uri.action)
@@ -152,7 +152,7 @@ public final class ActionDispatcher {
         if let uri = KeyPathActionURI(string: message) {
             return dispatch(uri)
         } else {
-            let errorMessage = "Invalid keypath:// URI: \(message)"
+            let errorMessage = String(localized: "Invalid keypath:// URI: \(message)")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(errorMessage)")
             onError?(errorMessage)
             return .unknownAction(message)
@@ -179,7 +179,7 @@ public final class ActionDispatcher {
         case "advanced", "repair", "remove", "repair-remove":
             notification = .openSettingsAdvanced
         default:
-            let message = "Unknown settings tab: \(rawTab)"
+            let message = String(localized: "Unknown settings tab: \(rawTab)")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction("settings/\(rawTab)")
@@ -257,7 +257,7 @@ public final class ActionDispatcher {
                     Task { @MainActor in
                         if let error {
                             AppLogger.shared.log("⚠️ [ActionDispatcher] Failed to launch from \(capturedPath): \(error)")
-                            self?.onError?("Failed to launch \(capturedAppIdentifier): \(error.localizedDescription)")
+                            self?.onError?(String(localized: "Failed to launch \(capturedAppIdentifier): \(error.localizedDescription)"))
                         } else if app != nil {
                             AppLogger.shared.log("✅ [ActionDispatcher] Launched \(capturedAppIdentifier) from \(capturedPath)")
                         }
@@ -268,7 +268,7 @@ public final class ActionDispatcher {
             return .success
         }
 
-        let message = "Could not find application: \(appIdentifier)"
+        let message = String(localized: "Could not find application: \(appIdentifier)")
         AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
         onError?(message)
         return .failed("launch", NSError(domain: "ActionDispatcher", code: 1, userInfo: [
@@ -297,7 +297,7 @@ public final class ActionDispatcher {
     /// Format: keypath://rule/{rule-id}[/fired|/enabled|/disabled]
     private func handleRule(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         guard let ruleId = uri.target else {
-            let message = "rule action requires rule ID: keypath://rule/{id}"
+            let message = String(localized: "rule action requires rule ID: keypath://rule/{id}")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .missingTarget("rule")
@@ -334,7 +334,7 @@ public final class ActionDispatcher {
         let urlString = uri.pathComponents.joined(separator: "/")
 
         guard !urlString.isEmpty else {
-            let message = "open action requires URL: keypath://open/{url}"
+            let message = String(localized: "open action requires URL: keypath://open/{url}")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .missingTarget("open")
@@ -347,7 +347,7 @@ public final class ActionDispatcher {
         }
 
         guard let url = URL(string: finalURLString) else {
-            let message = "Invalid URL: \(finalURLString)"
+            let message = String(localized: "Invalid URL: \(finalURLString)")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("open", NSError(domain: "ActionDispatcher", code: 2, userInfo: [
@@ -368,7 +368,7 @@ public final class ActionDispatcher {
     /// Actions: tap (default), press, release, toggle
     private func handleFakeKey(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         guard FeatureFlags.simulatorAndVirtualKeysEnabled else {
-            let message = "Virtual keys are disabled by feature flag."
+            let message = String(localized: "Virtual keys are disabled by feature flag.")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("fakekey", NSError(domain: "ActionDispatcher", code: 4, userInfo: [
@@ -410,7 +410,7 @@ public final class ActionDispatcher {
             let serverUp = await client.checkServerStatus()
             guard serverUp else {
                 await MainActor.run {
-                    let message = "Cannot trigger '\(keyName)': Kanata service is not running. Start KeyPath to enable virtual keys."
+                    let message = String(localized: "Cannot trigger '\(keyName)': Kanata service is not running. Start KeyPath to enable virtual keys.")
                     AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
                     self.onError?(message)
                 }
@@ -428,14 +428,14 @@ public final class ActionDispatcher {
                 case let .error(error):
                     // Improve error message for common cases
                     let userMessage = if error.lowercased().contains("not found") || error.lowercased().contains("unknown") {
-                        "Virtual key '\(keyName)' not found in config. Check spelling or add it to defvirtualkeys."
+                        String(localized: "Virtual key '\(keyName)' not found in config. Check spelling or add it to defvirtualkeys.")
                     } else {
-                        "FakeKey '\(keyName)' failed: \(error)"
+                        String(localized: "FakeKey '\(keyName)' failed: \(error)")
                     }
                     AppLogger.shared.log("❌ [ActionDispatcher] \(userMessage)")
                     self.onError?(userMessage)
                 case let .networkError(error):
-                    let userMessage = "Network error triggering '\(keyName)': \(error). Is Kanata running?"
+                    let userMessage = String(localized: "Network error triggering '\(keyName)': \(error). Is Kanata running?")
                     AppLogger.shared.log("❌ [ActionDispatcher] \(userMessage)")
                     self.onError?(userMessage)
                 }
@@ -460,7 +460,7 @@ public final class ActionDispatcher {
 
         switch action.lowercased() {
         case "repair-helper":
-            let message = "Helper repair is unavailable in the driverless build."
+            let message = String(localized: "Helper repair is unavailable in the driverless build.")
             onError?(message)
             return .failed("system", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message
@@ -489,7 +489,7 @@ public final class ActionDispatcher {
                     return .success
                 }
             }
-            onError?("Could not launch Mission Control")
+            onError?(String(localized: "Could not launch Mission Control"))
             return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
 
         case "spotlight":
@@ -527,7 +527,7 @@ public final class ActionDispatcher {
                 workspace.openApplication(at: appURL, configuration: NSWorkspace.OpenConfiguration()) { _, _ in }
                 return .success
             }
-            onError?("Could not launch Launchpad")
+            onError?(String(localized: "Could not launch Launchpad"))
             return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
 
         case "notification-center", "notificationcenter", "notifications":
@@ -568,7 +568,7 @@ public final class ActionDispatcher {
                 }
                 return .success
             }
-            onError?("Could not click Notification Center")
+            onError?(String(localized: "Could not click Notification Center"))
             return .failed("system", NSError(domain: "ActionDispatcher", code: 3))
 
         case "siri":
@@ -583,7 +583,7 @@ public final class ActionDispatcher {
             return .success
 
         default:
-            let message = "Unknown system action: \(action). Supported: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri, repair-helper"
+            let message = String(localized: "Unknown system action: \(action). Supported: mission-control, spotlight, dictation, dnd, launchpad, notification-center, siri, repair-helper")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction(action)
@@ -604,7 +604,7 @@ public final class ActionDispatcher {
         AppLogger.shared.log("🪟 [ActionDispatcher] Window action: \(action)")
 
         guard let position = WindowPosition(rawValue: action.lowercased()) else {
-            let message = "Unknown window action: \(action). Supported: \(WindowPosition.allValues)"
+            let message = String(localized: "Unknown window action: \(action). Supported: \(WindowPosition.allValues)")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction(action)
@@ -612,7 +612,8 @@ public final class ActionDispatcher {
 
         // Check permission first for better error message
         guard WindowManager.shared.hasAccessibilityPermission else {
-            let message = "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath)."
+            let message =
+                String(localized: "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath).")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
@@ -625,7 +626,7 @@ public final class ActionDispatcher {
         if success {
             return .success
         } else {
-            let message = "Window action '\(action)' failed. The window may not support resizing or moving."
+            let message = String(localized: "Window action '\(action)' failed. The window may not support resizing or moving.")
             onError?(message)
             return .failed("window", NSError(domain: "ActionDispatcher", code: 5, userInfo: [
                 NSLocalizedDescriptionKey: message
@@ -640,7 +641,7 @@ public final class ActionDispatcher {
             return .missingTarget("overlay")
         }
         guard let command = OverlayCommand(rawValue: raw) else {
-            let message = "Unknown overlay action: \(raw). Use toggle, show or hide."
+            let message = String(localized: "Unknown overlay action: \(raw). Use toggle, show or hide.")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction("overlay/\(raw)")
@@ -654,7 +655,7 @@ public final class ActionDispatcher {
             return .missingTarget("runtime")
         }
         guard let command = RuntimeCommand(rawValue: raw) else {
-            let message = "Unknown runtime action: \(raw). Use start, stop or restart."
+            let message = String(localized: "Unknown runtime action: \(raw). Use start, stop or restart.")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .unknownAction("runtime/\(raw)")
@@ -684,7 +685,7 @@ public final class ActionDispatcher {
         // Check if path exists
         var isDirectory: ObjCBool = false
         guard Foundation.FileManager().fileExists(atPath: expandedPath, isDirectory: &isDirectory) else {
-            let message = "Folder not found: \(expandedPath)"
+            let message = String(localized: "Folder not found: \(expandedPath)")
             AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("folder", NSError(domain: "ActionDispatcher", code: 6, userInfo: [
@@ -694,7 +695,7 @@ public final class ActionDispatcher {
 
         // Verify it's a directory
         guard isDirectory.boolValue else {
-            let message = "Path is not a folder: \(expandedPath)"
+            let message = String(localized: "Path is not a folder: \(expandedPath)")
             AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("folder", NSError(domain: "ActionDispatcher", code: 7, userInfo: [
@@ -744,14 +745,14 @@ public final class ActionDispatcher {
                     AppLogger.shared.log("🔐 [ActionDispatcher] User requested to open settings")
                 }
             } else {
-                onError?("Script execution is disabled. Enable it in Settings to run scripts.")
+                onError?(String(localized: "Script execution is disabled. Enable it in Settings to run scripts."))
             }
             return .failed("script", NSError(domain: "ActionDispatcher", code: 8, userInfo: [
-                NSLocalizedDescriptionKey: "Script execution is disabled"
+                NSLocalizedDescriptionKey: String(localized: "Script execution is disabled")
             ]))
 
         case let .fileNotFound(path):
-            let message = "Script not found: \(path)"
+            let message = String(localized: "Script not found: \(path)")
             AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("script", NSError(domain: "ActionDispatcher", code: 9, userInfo: [
@@ -759,7 +760,7 @@ public final class ActionDispatcher {
             ]))
 
         case let .notExecutable(path):
-            let message = "Script is not executable: \(path)"
+            let message = String(localized: "Script is not executable: \(path)")
             AppLogger.shared.log("❌ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("script", NSError(domain: "ActionDispatcher", code: 10, userInfo: [
@@ -779,7 +780,7 @@ public final class ActionDispatcher {
                 })
             } else {
                 // No UI handler registered, cannot show dialog
-                let message = "Script execution requires confirmation but no UI is available"
+                let message = String(localized: "Script execution requires confirmation but no UI is available")
                 onError?(message)
                 return .failed("script", NSError(domain: "ActionDispatcher", code: 11, userInfo: [
                     NSLocalizedDescriptionKey: message
@@ -800,11 +801,11 @@ public final class ActionDispatcher {
         case .allowed, .needsConfirmation:
             return true
         case .disabled:
-            onError?("Script execution is disabled. Enable it in Settings to run scripts.")
+            onError?(String(localized: "Script execution is disabled. Enable it in Settings to run scripts."))
         case let .fileNotFound(path):
-            onError?("Script not found: \(path)")
+            onError?(String(localized: "Script not found: \(path)"))
         case let .notExecutable(path):
-            onError?("Script is not executable: \(path)")
+            onError?(String(localized: "Script is not executable: \(path)"))
         }
         return false
     }
@@ -837,7 +838,7 @@ public final class ActionDispatcher {
             } catch {
                 securityService.logExecution(path: path, success: false, error: error.localizedDescription)
                 AppLogger.shared.log("❌ [ActionDispatcher] Script failed: \(path) - \(error)")
-                onError?("Script execution failed: \(error.localizedDescription)")
+                onError?(String(localized: "Script execution failed: \(error.localizedDescription)"))
             }
         }
     }
@@ -854,14 +855,14 @@ public final class ActionDispatcher {
                 script.executeAndReturnError(&executeError)
                 if let error = executeError {
                     throw NSError(domain: "AppleScript", code: 1, userInfo: [
-                        NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? "AppleScript execution failed"
+                        NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? String(localized: "AppleScript execution failed")
                     ])
                 }
                 return
             }
             if let error = errorInfo {
                 throw NSError(domain: "AppleScript", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? "Failed to load AppleScript"
+                    NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? String(localized: "Failed to load AppleScript")
                 ])
             }
         }
@@ -873,12 +874,12 @@ public final class ActionDispatcher {
             script.executeAndReturnError(&errorInfo)
             if let error = errorInfo {
                 throw NSError(domain: "AppleScript", code: 3, userInfo: [
-                    NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? "AppleScript execution failed"
+                    NSLocalizedDescriptionKey: error["NSAppleScriptErrorMessage"] as? String ?? String(localized: "AppleScript execution failed")
                 ])
             }
         } else {
             throw NSError(domain: "AppleScript", code: 4, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to create AppleScript from source"
+                NSLocalizedDescriptionKey: String(localized: "Failed to create AppleScript from source")
             ])
         }
     }
@@ -895,7 +896,7 @@ public final class ActionDispatcher {
         let result = try await SubprocessRunner.shared.run(executable, args: args, timeout: 60)
         if result.exitCode != 0 {
             throw NSError(domain: "ShellScript", code: Int(result.exitCode), userInfo: [
-                NSLocalizedDescriptionKey: "Script exited with code \(result.exitCode): \(result.stderr)"
+                NSLocalizedDescriptionKey: String(localized: "Script exited with code \(result.exitCode): \(result.stderr)")
             ])
         }
     }
@@ -916,18 +917,18 @@ public final class ActionDispatcher {
             if fm.fileExists(atPath: "/usr/local/bin/lua") { "/usr/local/bin/lua" }
             else if fm.fileExists(atPath: "/opt/homebrew/bin/lua") { "/opt/homebrew/bin/lua" }
             else { throw NSError(domain: "InterpretedScript", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Lua interpreter not found"
+                NSLocalizedDescriptionKey: String(localized: "Lua interpreter not found")
             ]) }
         default:
             throw NSError(domain: "InterpretedScript", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "Unknown script type: .\(ext)"
+                NSLocalizedDescriptionKey: String(localized: "Unknown script type: .\(ext)")
             ])
         }
 
         let result = try await SubprocessRunner.shared.run(interpreter, args: [path], timeout: 60)
         if result.exitCode != 0 {
             throw NSError(domain: "InterpretedScript", code: Int(result.exitCode), userInfo: [
-                NSLocalizedDescriptionKey: "Script exited with code \(result.exitCode): \(result.stderr)"
+                NSLocalizedDescriptionKey: String(localized: "Script exited with code \(result.exitCode): \(result.stderr)")
             ])
         }
     }

@@ -228,7 +228,7 @@ public final class ConfigurationService: FileConfigurationProviding {
     public func validate(content: String) throws -> KanataConfiguration {
         // Basic validation - ensure content is not empty
         guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw KeyPathError.configuration(.invalidFormat(reason: "Configuration content is empty"))
+            throw KeyPathError.configuration(.invalidFormat(reason: String(localized: "Configuration content is empty")))
         }
 
         // Get file modification date
@@ -679,7 +679,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             let appKeys = Set(keymaps.filter(\.mapping.isEnabled).flatMap { $0.overrides.map { $0.inputKey.lowercased() } })
             let collections = await ruleCollectionStore.loadCollectionsDetailed()
             guard !collections.wasFullReset, collections.failedCollectionNames.isEmpty else {
-                throw AppConfigError.validationFailed(errors: ["Rule collections could not be read completely; repair them before saving app-specific rules"])
+                throw AppConfigError.validationFailed(errors: [String(localized: "Rule collections could not be read completely; repair them before saving app-specific rules")])
             }
             let rules = try await customRulesStore.loadForMutation()
             let leaderKeyPreference = persistedLeaderPreference(in: PreferencesService.canonicalDefaults)
@@ -706,7 +706,9 @@ public final class ConfigurationService: FileConfigurationProviding {
                         throw AppConfigError
                             .validationFailed(
                                 errors: [
-                                    "Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."
+                                    String(
+                                        localized: "Your configuration was preserved. The visual editor cannot safely reproduce \(name). App-specific editing requires an explicit conversion with a backup first."
+                                    )
                                 ]
                             )
                     }
@@ -721,7 +723,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             // Validate the exact new include with the new main config before either
             // replaces its committed file. The engine receives the normal include.
             guard appKeys.isEmpty || configuration.content.contains("(include keypath-apps.kbd)") else {
-                throw AppConfigError.validationFailed(errors: ["Generated app-specific include is missing; no files were changed"])
+                throw AppConfigError.validationFailed(errors: [String(localized: "Generated app-specific include is missing; no files were changed")])
             }
             let validationContent = configuration.content.replacingOccurrences(of: "(include keypath-apps.kbd)", with: appContent)
             let validation = await validateConfiguration(validationContent)
@@ -788,7 +790,7 @@ public final class ConfigurationService: FileConfigurationProviding {
             guard needsRecoveredRuntimeRefresh, !needsRecoveredDeviceRuntimeRestart, let reloadHandler else { return nil }
             let result = await Task { @MainActor in await reloadHandler() }.value
             guard result.disposition == .applied || result.disposition == .pending else {
-                throw KeyPathError.configuration(.loadFailed(reason: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")"))
+                throw KeyPathError.configuration(.loadFailed(reason: String(localized: "Recovered files could not be applied: \(result.errorMessage ?? "keyboard service rejected recovery")")))
             }
             needsRecoveredRuntimeRefresh = false
             return result
@@ -805,7 +807,7 @@ public final class ConfigurationService: FileConfigurationProviding {
         try await operationGate.withOperation(using: mutationPermit) { @MainActor [self] _ in
             guard needsRecoveredDeviceRuntimeRestart else { return false }
             guard await restartHandler() else {
-                throw KeyPathError.configuration(.loadFailed(reason: "Recovered device targeting could not be restarted"))
+                throw KeyPathError.configuration(.loadFailed(reason: String(localized: "Recovered device targeting could not be restarted")))
             }
             needsRecoveredDeviceRuntimeRestart = false
             needsRecoveredRuntimeRefresh = false
@@ -892,7 +894,11 @@ public final class ConfigurationService: FileConfigurationProviding {
         )
         guard matchesGlobalManagedContent(existing, expected: expected.content) else {
             throw AppConfigError
-                .validationFailed(errors: ["Your configuration was preserved. The visual editor cannot safely reproduce keypath.kbd. Convert it explicitly with a backup before editing global rules."])
+                .validationFailed(
+                    errors: [
+                        String(localized: "Your configuration was preserved. The visual editor cannot safely reproduce keypath.kbd. Convert it explicitly with a backup before editing global rules.")
+                    ]
+                )
         }
     }
 
@@ -1462,14 +1468,14 @@ extension ConfigurationService {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             AppLogger.shared.errorUnlessQuietTest("🛑 [ConfigService] BLOCKED: Attempted to write empty content to \(path)")
-            throw KeyPathError.configuration(.invalidFormat(reason: "Cannot write empty configuration"))
+            throw KeyPathError.configuration(.invalidFormat(reason: String(localized: "Cannot write empty configuration")))
         }
 
         // Additional safety: config files must have minimum required structure
         if path.hasSuffix(".kbd") {
             guard trimmed.contains("defsrc") || trimmed.contains("deflayer") else {
                 AppLogger.shared.errorUnlessQuietTest("🛑 [ConfigService] BLOCKED: Config missing required defsrc/deflayer: \(path)")
-                throw KeyPathError.configuration(.invalidFormat(reason: "Configuration missing required defsrc or deflayer block"))
+                throw KeyPathError.configuration(.invalidFormat(reason: String(localized: "Configuration missing required defsrc or deflayer block")))
             }
         }
 

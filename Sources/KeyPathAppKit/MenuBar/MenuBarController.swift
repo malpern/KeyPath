@@ -39,10 +39,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // MARK: - Feature IDs (in display order: approachable → nerdy)
 
     private static let featureCollections: [(id: UUID, name: String)] = [
-        (RuleCollectionIdentifier.launcher, "Quick Launcher"),
-        (RuleCollectionIdentifier.windowSnapping, "Window Management"),
-        (RuleCollectionIdentifier.vimNavigation, "Vim Motions"),
-        (RuleCollectionIdentifier.homeRowMods, "Home Row Mods")
+        (RuleCollectionIdentifier.launcher, String(localized: "Quick Launcher")),
+        (RuleCollectionIdentifier.windowSnapping, String(localized: "Window Management")),
+        (RuleCollectionIdentifier.vimNavigation, String(localized: "Vim Motions")),
+        (RuleCollectionIdentifier.homeRowMods, String(localized: "Home Row Mods"))
     ]
 
     // MARK: - Initialization
@@ -143,10 +143,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Update tooltip based on state
         if appStateController?.menuBarSystemHealthy == false {
-            button.toolTip = "KeyPath - Needs Setup"
+            button.toolTip = String(localized: "KeyPath - Needs Setup")
             button.alphaValue = 0.5 // Dim when unhealthy
         } else {
-            button.toolTip = "KeyPath - Running"
+            button.toolTip = String(localized: "KeyPath - Running")
             button.alphaValue = 1.0
         }
     }
@@ -188,7 +188,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func buildHealthyMenu() {
         // Status header
         let statusMenuItem = NSMenuItem(
-            title: "KeyPath Running",
+            title: String(localized: "KeyPath Running"),
             action: #selector(handleStatusClick),
             keyEquivalent: ""
         )
@@ -198,7 +198,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Show Keyboard Overlay (with keyboard icon and shortcut)
         let overlayItem = NSMenuItem(
-            title: "Show Keyboard Overlay",
+            title: String(localized: "Show Keyboard Overlay"),
             action: #selector(handleShowOverlay),
             keyEquivalent: "k"
         )
@@ -233,15 +233,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     /// "While a Layer Is Active" submenu: the same choice as Settings → General.
     private func layerDisplayMenuItem() -> NSMenuItem {
-        let item = NSMenuItem(title: "While a Layer Is Active", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: String(localized: "While a Layer Is Active"), action: nil, keyEquivalent: "")
         item.image = NSImage(systemSymbolName: "square.3.layers.3d", accessibilityDescription: nil)
-        let submenu = NSMenu(title: "While a Layer Is Active")
+        let submenu = NSMenu(title: String(localized: "While a Layer Is Active"))
         let current = PreferencesService.shared.contextHUDDisplayMode
         let choices: [(ContextHUDDisplayMode, String)] = [
-            (.overlayOnly, "Show Keyboard Overlay"),
-            (.hudOnly, "Show Shortcut List"),
-            (.both, "Show Both"),
-            (.none, "Show Nothing")
+            (.overlayOnly, String(localized: "Show Keyboard Overlay")),
+            (.hudOnly, String(localized: "Show Shortcut List")),
+            (.both, String(localized: "Show Both")),
+            (.none, String(localized: "Show Nothing"))
         ]
         for (mode, title) in choices {
             let choice = NSMenuItem(title: title, action: #selector(handleLayerDisplayChoice), keyEquivalent: "")
@@ -266,7 +266,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func buildUnhealthyMenu(issues: [WizardIssue]) {
         // Status header (warning state)
         let statusMenuItem = NSMenuItem(
-            title: "KeyPath Needs Setup",
+            title: String(localized: "KeyPath Needs Setup"),
             action: nil,
             keyEquivalent: ""
         )
@@ -278,7 +278,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Fix it CTA
         let fixItem = NSMenuItem(
-            title: "Fix it",
+            title: String(localized: "Fix it"),
             action: #selector(handleFixIt),
             keyEquivalent: ""
         )
@@ -313,7 +313,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Settings
         let settingsItem = NSMenuItem(
-            title: "Settings...",
+            title: String(localized: "Settings..."),
             action: #selector(handleSettings),
             keyEquivalent: ","
         )
@@ -323,7 +323,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Quit
         let quitItem = NSMenuItem(
-            title: "Quit KeyPath",
+            title: String(localized: "Quit KeyPath"),
             action: #selector(handleQuit),
             keyEquivalent: "q"
         )
@@ -369,7 +369,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if let keymap, !keymap.overrides.isEmpty {
             // Header for app-specific mappings
             let headerItem = NSMenuItem(
-                title: "\(appName) Mappings",
+                title: String(localized: "\(appName) Mappings"),
                 action: nil,
                 keyEquivalent: ""
             )
@@ -396,7 +396,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             if keymap.overrides.count > 5 {
                 let remaining = Array(keymap.overrides.dropFirst(5))
                 let moreItem = NSMenuItem(
-                    title: "  \(remaining.count) more\u{2026}",
+                    title: String(localized: "  \(remaining.count) more\u{2026}"),
                     action: nil,
                     keyEquivalent: ""
                 )
@@ -420,7 +420,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // "Add [App] rule..." action
         let createItem = NSMenuItem(
-            title: "Add \(appName) rule...",
+            title: String(localized: "Add \(appName) rule..."),
             action: #selector(handleCreateAppMapping),
             keyEquivalent: ""
         )

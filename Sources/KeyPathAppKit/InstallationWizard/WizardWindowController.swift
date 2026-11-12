@@ -97,7 +97,7 @@ final class WizardWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "KeyPath Setup"
+        window.title = String(localized: "KeyPath Setup")
 
         // Allow flexible height but fixed width
         let minContentSize = NSSize(width: 700, height: 400)

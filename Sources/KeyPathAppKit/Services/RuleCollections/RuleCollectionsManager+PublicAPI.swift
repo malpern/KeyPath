@@ -24,7 +24,7 @@ extension RuleCollectionsManager {
             let affectedLayers = Set([existing.targetLayer.displayName, proposed.targetLayer.displayName]).sorted()
             let conflict = conflictInfo(for: proposed)
             let conflictDescription = conflict.map {
-                "Conflicts with \($0.displayName) on \($0.keys.sorted().joined(separator: ", "))"
+                String(localized: "Conflicts with \($0.displayName) on \($0.keys.sorted().joined(separator: ", "))")
             }
 
             return CatalogUpdatePreview(
@@ -69,7 +69,7 @@ extension RuleCollectionsManager {
     func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
         guard !ids.isEmpty else {
             return CatalogUpdateApplicationResult(
-                saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: ["No catalog updates were selected."]))),
+                saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "No catalog updates were selected.")]))),
                 backupPath: nil,
                 appliedCollectionIDs: []
             )
@@ -81,7 +81,7 @@ extension RuleCollectionsManager {
                 let previews = catalogUpdatePreviews().filter { ids.contains($0.id) }
                 guard previews.count == ids.count else {
                     return CatalogUpdateApplicationResult(
-                        saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: ["One or more catalog updates are no longer available."]))),
+                        saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "One or more catalog updates are no longer available.")]))),
                         backupPath: nil,
                         appliedCollectionIDs: []
                     )
@@ -89,7 +89,9 @@ extension RuleCollectionsManager {
                 guard previews.allSatisfy(\.canApply) else {
                     return CatalogUpdateApplicationResult(
                         saveResult: .failure(KeyPathError
-                            .configuration(.validationFailed(errors: ["Catalog updates with pack ownership or mapping conflicts must be kept or resolved outside this update flow."]))),
+                            .configuration(
+                                .validationFailed(errors: [String(localized: "Catalog updates with pack ownership or mapping conflicts must be kept or resolved outside this update flow.")])
+                            )),
                         backupPath: nil,
                         appliedCollectionIDs: []
                     )
@@ -98,7 +100,9 @@ extension RuleCollectionsManager {
                 if let conflict = combinedCatalogUpdateConflict(in: previews) {
                     return CatalogUpdateApplicationResult(
                         saveResult: .failure(KeyPathError.configuration(.validationFailed(errors: [
-                            "Selected catalog updates conflict with \(conflict.displayName) on \(conflict.keys.sorted().joined(separator: ", ")). Keep Mine or apply a smaller, conflict-free selection."
+                            String(
+                                localized: "Selected catalog updates conflict with \(conflict.displayName) on \(conflict.keys.sorted().joined(separator: ", ")). Keep Mine or apply a smaller, conflict-free selection."
+                            )
                         ]))),
                         backupPath: nil,
                         appliedCollectionIDs: []
@@ -205,7 +209,7 @@ extension RuleCollectionsManager {
                         AppLogger.shared.log(
                             "🔒 [RuleCollections] Toggle blocked: collection \(id) is managed by pack '\(owner.packName)'"
                         )
-                        return .failure(KeyPathError.configuration(.validationFailed(errors: ["Collection is managed by \(owner.packName); change it through that pack."])))
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "Collection is managed by \(owner.packName); change it through that pack.")])))
                     }
                 }
 
@@ -214,7 +218,7 @@ extension RuleCollectionsManager {
                 let catalogMatch = RuleCollectionCatalog().defaultCollections().first { $0.id == id }
                 AppLogger.shared.log("🔀 [RuleCollections] catalogMatch=\(catalogMatch?.name ?? "nil")")
                 guard var candidate = ruleCollections.first(where: { $0.id == id }) ?? catalogMatch else {
-                    return .failure(KeyPathError.configuration(.validationFailed(errors: ["No matching collection was found."])))
+                    return .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "No matching collection was found.")])))
                 }
                 candidate.isEnabled = isEnabled
                 if let configurationOverride {
@@ -226,7 +230,7 @@ extension RuleCollectionsManager {
                         id: candidate.id,
                         name: candidate.name
                     ) else {
-                        return .failure(KeyPathError.configuration(.validationFailed(errors: ["Disabling \(candidate.name) was declined."])))
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "Disabling \(candidate.name) was declined.")])))
                     }
                 }
 
@@ -259,7 +263,7 @@ extension RuleCollectionsManager {
                         operation: .enable,
                         disablingCollectionIDs: additionalCollectionIDsToDisable
                     ) else {
-                        return .failure(KeyPathError.configuration(.validationFailed(errors: ["Required collections were not enabled; \(candidate.name) was left unchanged."])))
+                        return .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "Required collections were not enabled; \(candidate.name) was left unchanged.")])))
                     }
                     prerequisiteProviderIDs = confirmedProviderIDs
 
@@ -284,14 +288,15 @@ extension RuleCollectionsManager {
                             )
 
                             guard let choice = await onConflictResolution?(context) else {
-                                return .failure(KeyPathError.configuration(.validationFailed(errors: ["The mapping conflict was not resolved; \(candidate.name) was left unchanged."])))
+                                return .failure(KeyPathError
+                                    .configuration(.validationFailed(errors: [String(localized: "The mapping conflict was not resolved; \(candidate.name) was left unchanged.")])))
                             }
 
                             switch choice {
                             case .keepNew:
                                 await disableConflicting(conflict.source, regenerate: false)
                             case .keepExisting:
-                                return .failure(KeyPathError.configuration(.validationFailed(errors: ["The existing mapping was kept; \(candidate.name) was not enabled."])))
+                                return .failure(KeyPathError.configuration(.validationFailed(errors: [String(localized: "The existing mapping was kept; \(candidate.name) was not enabled.")])))
                             }
                         }
                     }
@@ -480,7 +485,7 @@ extension RuleCollectionsManager {
             let collection = RuleCollection(
                 id: UUID(),
                 name: sanitizedName.capitalized,
-                summary: "Custom layer: \(sanitizedName)",
+                summary: String(localized: "Custom layer: \(sanitizedName)"),
                 category: .custom,
                 mappings: [],
                 isEnabled: true,
@@ -800,7 +805,7 @@ extension RuleCollectionsManager {
             syncLeaderKeyPreference(key: newKey, enabled: true)
             dedupeRuleCollectionsInPlace()
             refreshLayerIndicatorState()
-            await commitRuleMutation(snapshot: snapshot, failureContext: "Leader Key",
+            await commitRuleMutation(snapshot: snapshot, failureContext: String(localized: "Leader Key"),
                                      leaderPreferenceBefore: leaderPreferenceSnapshot, mutationPermit: permit)
         }
     }
@@ -1104,7 +1109,7 @@ extension RuleCollectionsManager {
         guard Set(providerIDs).isSubset(of: permitted),
               missing.allSatisfy({ !Set($0.availableProviderCollectionIDs).isDisjoint(with: providerIDs) })
         else {
-            return reject("Choose a supporting rule for each requirement.")
+            return reject(String(localized: "Choose a supporting rule for each requirement."))
         }
         for index in ruleCollections.indices where disablingIDs.contains(ruleCollections[index].id) {
             ruleCollections[index].isEnabled = false
@@ -1114,12 +1119,14 @@ extension RuleCollectionsManager {
         let graph = RuleCollectionDependencyGraphAdapter().build(collections: ruleCollections, customRules: customRules)
         for id in selected {
             for requirement in graph.requirements(for: id) where graph.activeProviders(for: requirement.capability).isEmpty {
-                return reject("This option needs another supporting rule. Choose a different activation method.")
+                return reject(String(localized: "This option needs another supporting rule. Choose a different activation method."))
             }
             guard let collection = ruleCollections.first(where: { $0.id == id }) else { continue }
             if let conflict = conflictInfo(for: collection) {
                 return reject(
-                    "\(collection.name) conflicts with \(conflict.displayName) on \(conflict.keys.sorted().joined(separator: ", ")). Choose another activation method to keep your existing shortcuts."
+                    String(
+                        localized: "\(collection.name) conflicts with \(conflict.displayName) on \(conflict.keys.sorted().joined(separator: ", ")). Choose another activation method to keep your existing shortcuts."
+                    )
                 )
             }
         }

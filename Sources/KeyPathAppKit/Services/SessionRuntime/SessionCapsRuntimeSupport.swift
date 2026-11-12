@@ -212,8 +212,11 @@ enum SessionCapsRuntimeSupport {
             }) {
                 chosen = next
             } else if preferredValid {
-                return Admission(result: .invalid(reason: "every key KeyPath can reserve for Caps Lock (F13\u{2013}F20) is already in use by your rules, another app, or a keyboard shortcut"),
-                                 managedCaps: false, intermediateUsage: preferred)
+                return Admission(
+                    result: .invalid(reason: String(localized: "every key KeyPath can reserve for Caps Lock (F13\u{2013}F20) is already in use by your rules, another app, or a keyboard shortcut")),
+                    managedCaps: false,
+                    intermediateUsage: preferred
+                )
             }
         }
         let canManage = (allKeyboardIntermediate(environment: environment) != nil

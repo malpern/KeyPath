@@ -93,7 +93,7 @@ enum AppNotificationWiring {
                     _ = await delegate.viewModel?.createDefaultUserConfigIfMissing()
                 }
                 await MainAppStateController.shared.revalidate()
-                UserNotificationService.shared.notifyRecoverySucceeded("Configuration reset to safe defaults.")
+                UserNotificationService.shared.notifyRecoverySucceeded(String(localized: "Configuration reset to safe defaults."))
             }
         }
     }

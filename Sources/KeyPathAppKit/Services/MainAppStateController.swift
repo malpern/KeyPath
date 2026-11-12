@@ -387,15 +387,15 @@ class MainAppStateController {
 
         var title: String {
             switch self {
-            case .configuration: "Configuration cannot run in driverless mode"
-            case .recovery: "Keyboard recovery requires attention"
+            case .configuration: String(localized: "Configuration cannot run in driverless mode")
+            case .recovery: String(localized: "Keyboard recovery requires attention")
             }
         }
 
         var userAction: String {
             switch self {
-            case .configuration: "Edit the configuration and retry. Existing rules were preserved."
-            case .recovery: "The recovery record was preserved. Do not clear it to force a restart."
+            case .configuration: String(localized: "Edit the configuration and retry. Existing rules were preserved.")
+            case .recovery: String(localized: "The recovery record was preserved. Do not clear it to force a restart.")
             }
         }
     }
@@ -826,20 +826,20 @@ class MainAppStateController {
     /// Get tooltip text for status indicator
     var statusTooltip: String {
         guard let state = validationState else {
-            return "System status not yet checked"
+            return String(localized: "System status not yet checked")
         }
         switch state {
         case .checking:
-            return "Checking system status..."
+            return String(localized: "Checking system status...")
         case .success:
-            return "System is ready - all checks passed"
+            return String(localized: "System is ready - all checks passed")
         case let .failed(blockingCount, totalCount):
             if blockingCount == 1 {
-                return "1 blocking issue found (click to fix)"
+                return String(localized: "1 blocking issue found (click to fix)")
             } else if blockingCount > 1 {
-                return "\(blockingCount) blocking issues found (click to fix)"
+                return String(localized: "\(blockingCount) blocking issues found (click to fix)")
             } else {
-                return "\(totalCount) minor issues found (click to review)"
+                return String(localized: "\(totalCount) minor issues found (click to review)")
             }
         }
     }
@@ -863,11 +863,11 @@ class MainAppStateController {
         }
         switch state {
         case .checking:
-            return "Checking..."
+            return String(localized: "Checking...")
         case .success:
-            return "Ready"
+            return String(localized: "Ready")
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? "Issues Found" : "Warnings"
+            return blockingCount > 0 ? String(localized: "Issues Found") : String(localized: "Warnings")
         }
     }
 
@@ -881,13 +881,13 @@ class MainAppStateController {
         let criticalIssues = issues.filter { $0.severity == .critical || $0.severity == .error }
 
         guard !criticalIssues.isEmpty else {
-            return "System is healthy"
+            return String(localized: "System is healthy")
         }
 
         if criticalIssues.count == 1 {
-            return "1 critical issue detected"
+            return String(localized: "1 critical issue detected")
         } else {
-            return "\(criticalIssues.count) critical issues detected"
+            return String(localized: "\(criticalIssues.count) critical issues detected")
         }
     }
 

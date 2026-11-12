@@ -58,7 +58,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
                 domain: "ClaudeAPI", code: 1,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "AI repair requires an API key. Add one in Settings → General → AI Configuration."
+                        String(localized: "AI repair requires an API key. Add one in Settings → General → AI Configuration.")
                 ]
             )
         }
@@ -72,7 +72,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
         case .cancelled:
             throw NSError(
                 domain: "ClaudeAPI", code: 4,
-                userInfo: [NSLocalizedDescriptionKey: "Authentication cancelled"]
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "Authentication cancelled")]
             )
         case let .failed(errorMessage):
             // Fail-closed: an unexpected auth error must not bypass the consent gate
@@ -80,7 +80,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
             AppLogger.shared.log("⚠️ [ConfigRepair] Auth failed: \(errorMessage), aborting")
             throw NSError(
                 domain: "ClaudeAPI", code: 5,
-                userInfo: [NSLocalizedDescriptionKey: "Authentication failed: \(errorMessage)"]
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "Authentication failed: \(errorMessage)")]
             )
         case .authenticated, .notRequired:
             break
@@ -109,17 +109,17 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
-                domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid response"]
+                domain: "ClaudeAPI", code: 2, userInfo: [NSLocalizedDescriptionKey: String(localized: "Invalid response")]
             )
         }
 
         guard 200 ... 299 ~= httpResponse.statusCode else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+            let errorMessage = String(data: data, encoding: .utf8) ?? String(localized: "Unknown error")
             throw NSError(
                 domain: "ClaudeAPI", code: httpResponse.statusCode,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        "API request failed (\(httpResponse.statusCode)): \(errorMessage)"
+                        String(localized: "API request failed (\(httpResponse.statusCode)): \(errorMessage)")
                 ]
             )
         }
@@ -131,7 +131,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
         else {
             throw NSError(
                 domain: "ClaudeAPI", code: 3,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to parse Claude API response"]
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "Failed to parse Claude API response")]
             )
         }
 

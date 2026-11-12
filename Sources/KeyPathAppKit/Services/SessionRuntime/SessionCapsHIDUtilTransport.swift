@@ -509,7 +509,7 @@ public enum SessionCapsHIDUtilTransport {
             if !trimmed.isEmpty, trimmed.utf8.count <= 256 { names[id] = trimmed }
         }
         let base = devices.map { device in
-            device.appleBuiltIn == true ? "Built-in keyboard" : names[device.registryEntryID] ?? "Keyboard"
+            device.appleBuiltIn == true ? String(localized: "Built-in keyboard") : names[device.registryEntryID] ?? String(localized: "Keyboard")
         }
         // Two identical keyboards share a product name; number them in list order.
         var seen: [String: Int] = [:]

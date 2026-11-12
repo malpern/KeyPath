@@ -240,7 +240,7 @@ final class ServiceLifecycleCoordinator {
                 return try await commitCapsSelection(generation: generation, commit: commit)
             }
         } catch {
-            onError?("Caps Lock setup could not be changed safely. Existing selection and recovery records were preserved.")
+            onError?(String(localized: "Caps Lock setup could not be changed safely. Existing selection and recovery records were preserved."))
             return false
         }
     }
@@ -355,7 +355,7 @@ final class ServiceLifecycleCoordinator {
     private func readSessionConfigurationAdmission() -> KanataHostBridgeValidationResult {
         let path = KeyPathConstants.Config.mainConfigPath
         guard FileManager.default.fileExists(atPath: path) else {
-            return .unavailable(reason: "User configuration is not available yet")
+            return .unavailable(reason: String(localized: "User configuration is not available yet"))
         }
         return SessionCapsRuntimeSupport.validate(configPath: path, runtimeHost: .current(), requireSelection: false).result
     }
@@ -447,7 +447,11 @@ final class ServiceLifecycleCoordinator {
         if rebound {
             AppLogger.shared.info("[Session] Caps keyboard reconnected at the same port; keeping its choice")
             if sessionCapsDisconnectedName != nil || displaced != nil {
-                sessionCapsNotice = "\(name ?? "Your keyboard") was reconnected. Caps Lock rules are back on."
+                sessionCapsNotice = if let name {
+                    String(localized: "\(name) was reconnected. Caps Lock rules are back on.")
+                } else {
+                    String(localized: "Your keyboard was reconnected. Caps Lock rules are back on.")
+                }
             }
             sessionCapsDisconnectedName = nil
             SessionCapsSelectionStore.setDisplaced(nil, name: nil)

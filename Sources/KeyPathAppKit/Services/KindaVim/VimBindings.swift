@@ -71,17 +71,17 @@ struct VimHint: Identifiable, Equatable, Sendable {
 
         var displayName: String {
             switch self {
-            case .movement: "Move"
-            case .wordMotion: "Jump words"
-            case .lineMotion: "Jump line"
-            case .enterInsert: "Enter Insert"
-            case .edit: "Edit"
-            case .operators: "Operators"
-            case .findChar: "Find char"
-            case .doc: "Top / Bottom"
-            case .page: "Page"
-            case .match: "Match"
-            case .search: "Search"
+            case .movement: String(localized: "Move")
+            case .wordMotion: String(localized: "Jump words")
+            case .lineMotion: String(localized: "Jump line")
+            case .enterInsert: String(localized: "Enter Insert")
+            case .edit: String(localized: "Edit")
+            case .operators: String(localized: "Operators")
+            case .findChar: String(localized: "Find char")
+            case .doc: String(localized: "Top / Bottom")
+            case .page: String(localized: "Page")
+            case .match: String(localized: "Match")
+            case .search: String(localized: "Search")
             }
         }
 
@@ -107,146 +107,146 @@ enum VimBindings {
     static let all: [VimHint] = [
         // MARK: Movement (core, hjkl)
 
-        .init(key: "h", displayLabel: "←", actionLabel: "left",
+        .init(key: "h", displayLabel: "←", actionLabel: String(localized: "left", comment: "Vim motion: move the cursor left"),
               tier: .core, group: .movement,
               strategies: allStrategies, modes: motionModes),
-        .init(key: "j", displayLabel: "↓", actionLabel: "down",
+        .init(key: "j", displayLabel: "↓", actionLabel: String(localized: "down", comment: "Vim motion: move the cursor down"),
               tier: .core, group: .movement,
               strategies: allStrategies, modes: motionModes),
-        .init(key: "k", displayLabel: "↑", actionLabel: "up",
+        .init(key: "k", displayLabel: "↑", actionLabel: String(localized: "up", comment: "Vim motion: move the cursor up"),
               tier: .core, group: .movement,
               strategies: allStrategies, modes: motionModes),
-        .init(key: "l", displayLabel: "→", actionLabel: "right",
+        .init(key: "l", displayLabel: "→", actionLabel: String(localized: "right", comment: "Vim motion: move the cursor right"),
               tier: .core, group: .movement,
               strategies: allStrategies, modes: motionModes),
 
         // MARK: Word motion (core)
 
-        .init(key: "w", displayLabel: "w", actionLabel: "word forward",
+        .init(key: "w", displayLabel: "w", actionLabel: String(localized: "word forward"),
               tier: .core, group: .wordMotion,
               strategies: allStrategies, modes: motionModes),
-        .init(key: "b", displayLabel: "b", actionLabel: "word back",
+        .init(key: "b", displayLabel: "b", actionLabel: String(localized: "word back"),
               tier: .core, group: .wordMotion,
               strategies: allStrategies, modes: motionModes),
-        .init(key: "e", displayLabel: "e", actionLabel: "end of word",
+        .init(key: "e", displayLabel: "e", actionLabel: String(localized: "end of word"),
               tier: .core, group: .wordMotion,
               strategies: allStrategies, modes: motionModes),
 
         // MARK: Line motion (core)
 
-        .init(key: "0", displayLabel: "0", actionLabel: "line start",
+        .init(key: "0", displayLabel: "0", actionLabel: String(localized: "line start"),
               tier: .core, group: .lineMotion,
               strategies: allStrategies, modes: motionModes),
-        .init(key: "$", displayLabel: "$", actionLabel: "line end",
+        .init(key: "$", displayLabel: "$", actionLabel: String(localized: "line end"),
               tier: .core, group: .lineMotion,
               strategies: allStrategies, modes: motionModes),
 
         // MARK: Enter Insert (core: i/a/o; secondary: capitals)
 
-        .init(key: "i", displayLabel: "i", actionLabel: "insert before cursor",
+        .init(key: "i", displayLabel: "i", actionLabel: String(localized: "insert before cursor"),
               tier: .core, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "a", displayLabel: "a", actionLabel: "append after cursor",
+        .init(key: "a", displayLabel: "a", actionLabel: String(localized: "append after cursor"),
               tier: .core, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "o", displayLabel: "o", actionLabel: "open line below",
+        .init(key: "o", displayLabel: "o", actionLabel: String(localized: "open line below"),
               tier: .core, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "I", displayLabel: "I", actionLabel: "insert at line start",
+        .init(key: "I", displayLabel: "I", actionLabel: String(localized: "insert at line start"),
               tier: .secondary, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "A", displayLabel: "A", actionLabel: "append at line end",
+        .init(key: "A", displayLabel: "A", actionLabel: String(localized: "append at line end"),
               tier: .secondary, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "O", displayLabel: "O", actionLabel: "open line above",
+        .init(key: "O", displayLabel: "O", actionLabel: String(localized: "open line above"),
               tier: .secondary, group: .enterInsert,
               strategies: allStrategies, modes: [.normal, .visual]),
 
         // MARK: Edit (core: x; secondary: r/u/redo)
 
-        .init(key: "x", displayLabel: "x", actionLabel: "delete char",
+        .init(key: "x", displayLabel: "x", actionLabel: String(localized: "delete char"),
               tier: .core, group: .edit,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "r", displayLabel: "r", actionLabel: "replace char",
+        .init(key: "r", displayLabel: "r", actionLabel: String(localized: "replace char"),
               tier: .secondary, group: .edit,
               strategies: allStrategies, modes: [.normal]),
-        .init(key: "u", displayLabel: "u", actionLabel: "undo",
+        .init(key: "u", displayLabel: "u", actionLabel: String(localized: "undo"),
               tier: .secondary, group: .edit,
               strategies: allStrategies, modes: [.normal]),
-        .init(key: "ctrl-r", displayLabel: "⌃R", actionLabel: "redo",
+        .init(key: "ctrl-r", displayLabel: "⌃R", actionLabel: String(localized: "redo"),
               tier: .secondary, group: .edit,
               strategies: allStrategies, modes: [.normal]),
 
         // MARK: Operators (secondary). In op-pending we still surface
 
         // these so the user can see "press the same one twice = whole line".
-        .init(key: "d", displayLabel: "d", actionLabel: "delete (motion / dd line)",
+        .init(key: "d", displayLabel: "d", actionLabel: String(localized: "delete (motion / dd line)"),
               tier: .secondary, group: .operators,
               strategies: allStrategies, modes: [.normal, .visual, .operatorPending]),
-        .init(key: "c", displayLabel: "c", actionLabel: "change (motion / cc line)",
+        .init(key: "c", displayLabel: "c", actionLabel: String(localized: "change (motion / cc line)"),
               tier: .secondary, group: .operators,
               strategies: allStrategies, modes: [.normal, .visual, .operatorPending]),
-        .init(key: "y", displayLabel: "y", actionLabel: "yank (motion / yy line)",
+        .init(key: "y", displayLabel: "y", actionLabel: String(localized: "yank (motion / yy line)"),
               tier: .secondary, group: .operators,
               strategies: allStrategies, modes: [.normal, .visual, .operatorPending]),
 
         // MARK: Find char (secondary)
 
-        .init(key: "f", displayLabel: "f", actionLabel: "find char forward",
+        .init(key: "f", displayLabel: "f", actionLabel: String(localized: "find char forward"),
               tier: .secondary, group: .findChar,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "F", displayLabel: "F", actionLabel: "find char backward",
+        .init(key: "F", displayLabel: "F", actionLabel: String(localized: "find char backward"),
               tier: .secondary, group: .findChar,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "t", displayLabel: "t", actionLabel: "to char forward",
+        .init(key: "t", displayLabel: "t", actionLabel: String(localized: "to char forward"),
               tier: .secondary, group: .findChar,
               strategies: allStrategies, modes: [.normal, .visual]),
-        .init(key: "T", displayLabel: "T", actionLabel: "to char backward",
+        .init(key: "T", displayLabel: "T", actionLabel: String(localized: "to char backward"),
               tier: .secondary, group: .findChar,
               strategies: allStrategies, modes: [.normal, .visual]),
 
         // MARK: Top / Bottom (secondary; Accessibility-only)
 
-        .init(key: "g", displayLabel: "gg", actionLabel: "doc top",
+        .init(key: "g", displayLabel: "gg", actionLabel: String(localized: "doc top"),
               tier: .secondary, group: .doc,
               strategies: [.accessibility, .hybrid], modes: motionModes),
-        .init(key: "G", displayLabel: "G", actionLabel: "doc bottom",
+        .init(key: "G", displayLabel: "G", actionLabel: String(localized: "doc bottom"),
               tier: .secondary, group: .doc,
               strategies: [.accessibility, .hybrid], modes: motionModes),
 
         // MARK: Page (advanced — only shown with "Show all" toggle)
 
-        .init(key: "ctrl-d", displayLabel: "⌃D", actionLabel: "half page down",
+        .init(key: "ctrl-d", displayLabel: "⌃D", actionLabel: String(localized: "half page down"),
               tier: .advanced, group: .page,
               strategies: [.accessibility, .hybrid], modes: motionModes),
-        .init(key: "ctrl-u", displayLabel: "⌃U", actionLabel: "half page up",
+        .init(key: "ctrl-u", displayLabel: "⌃U", actionLabel: String(localized: "half page up"),
               tier: .advanced, group: .page,
               strategies: [.accessibility, .hybrid], modes: motionModes),
-        .init(key: "ctrl-f", displayLabel: "⌃F", actionLabel: "page down",
+        .init(key: "ctrl-f", displayLabel: "⌃F", actionLabel: String(localized: "page down"),
               tier: .advanced, group: .page,
               strategies: [.accessibility, .hybrid], modes: motionModes),
-        .init(key: "ctrl-b", displayLabel: "⌃B", actionLabel: "page up",
+        .init(key: "ctrl-b", displayLabel: "⌃B", actionLabel: String(localized: "page up"),
               tier: .advanced, group: .page,
               strategies: [.accessibility, .hybrid], modes: motionModes),
 
         // MARK: Match (advanced, Accessibility-only)
 
-        .init(key: "%", displayLabel: "%", actionLabel: "match bracket",
+        .init(key: "%", displayLabel: "%", actionLabel: String(localized: "match bracket"),
               tier: .advanced, group: .match,
               strategies: [.accessibility, .hybrid], modes: motionModes),
 
         // MARK: Search (advanced)
 
-        .init(key: "/", displayLabel: "/", actionLabel: "search forward",
+        .init(key: "/", displayLabel: "/", actionLabel: String(localized: "search forward"),
               tier: .advanced, group: .search,
               strategies: [.accessibility, .hybrid], modes: [.normal, .visual]),
-        .init(key: "?", displayLabel: "?", actionLabel: "search backward",
+        .init(key: "?", displayLabel: "?", actionLabel: String(localized: "search backward"),
               tier: .advanced, group: .search,
               strategies: [.accessibility, .hybrid], modes: [.normal, .visual]),
-        .init(key: "n", displayLabel: "n", actionLabel: "next match",
+        .init(key: "n", displayLabel: "n", actionLabel: String(localized: "next match"),
               tier: .advanced, group: .search,
               strategies: [.accessibility, .hybrid], modes: motionModes),
-        .init(key: "N", displayLabel: "N", actionLabel: "previous match",
+        .init(key: "N", displayLabel: "N", actionLabel: String(localized: "previous match"),
               tier: .advanced, group: .search,
               strategies: [.accessibility, .hybrid], modes: motionModes),
     ]

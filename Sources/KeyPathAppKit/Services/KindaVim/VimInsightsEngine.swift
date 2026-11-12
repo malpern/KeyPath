@@ -64,8 +64,8 @@ enum VimInsightsEngine {
             // Not enough data yet; surface a single onboarding line.
             candidates.append(.init(
                 glyph: .learn,
-                title: "Get started",
-                body: "Press a few vim keys (h, j, k, l) to populate your stats. Insights will sharpen as you go.",
+                title: String(localized: "Get started"),
+                body: String(localized: "Press a few vim keys (h, j, k, l) to populate your stats. Insights will sharpen as you go."),
                 priority: 100
             ))
             return candidates
@@ -123,8 +123,8 @@ enum VimInsightsEngine {
 
         out.append(.init(
             glyph: .shame,
-            title: "Most of your cursor movement is still arrow keys",
-            body: "Arrow reliance is at \(Int(reliance))%. The whole point of vim is that h, j, k, l live on the home row — try them deliberately for a day.",
+            title: String(localized: "Most of your cursor movement is still arrow keys"),
+            body: String(localized: "Arrow reliance is at \(Int(reliance))%. The whole point of vim is that h, j, k, l live on the home row — try them deliberately for a day."),
             priority: 90
         ))
 
@@ -133,8 +133,10 @@ enum VimInsightsEngine {
         {
             out.append(.init(
                 glyph: .learn,
-                title: "Try `w` for word jumps",
-                body: "You've internalised hjkl. The next motion to add is `w` (jump to next word) and `b` (jump back). They're how vim users skip across a line without holding `l`.",
+                title: String(localized: "Try `w` for word jumps"),
+                body: String(
+                    localized: "You've internalised hjkl. The next motion to add is `w` (jump to next word) and `b` (jump back). They're how vim users skip across a line without holding `l`."
+                ),
                 priority: 70
             ))
         }
@@ -151,8 +153,8 @@ enum VimInsightsEngine {
         if reliance > 20 {
             out.append(.init(
                 glyph: .optimize,
-                title: "You're still reaching for arrows \(Int(reliance))% of the time",
-                body: "Most of those could be `h` and `l`. Force yourself to use them for a few days — it stops feeling forced fast.",
+                title: String(localized: "You're still reaching for arrows \(Int(reliance))% of the time"),
+                body: String(localized: "Most of those could be `h` and `l`. Force yourself to use them for a few days — it stops feeling forced fast."),
                 priority: 80
             ))
         }
@@ -163,8 +165,8 @@ enum VimInsightsEngine {
         {
             out.append(.init(
                 glyph: .learn,
-                title: "Try `b` (word back)",
-                body: "Pairs with `w` you already use. Together they replace double-clicking and arrow-spamming for word-level navigation.",
+                title: String(localized: "Try `b` (word back)"),
+                body: String(localized: "Pairs with `w` you already use. Together they replace double-clicking and arrow-spamming for word-level navigation."),
                 priority: 75
             ))
         }
@@ -173,8 +175,8 @@ enum VimInsightsEngine {
         {
             out.append(.init(
                 glyph: .learn,
-                title: "Try `0` (start of line)",
-                body: "Jumps to the first column instantly. Pairs with `$` (end of line) to replace Home/End.",
+                title: String(localized: "Try `0` (start of line)"),
+                body: String(localized: "Jumps to the first column instantly. Pairs with `$` (end of line) to replace Home/End."),
                 priority: 70
             ))
         }
@@ -183,8 +185,8 @@ enum VimInsightsEngine {
         {
             out.append(.init(
                 glyph: .learn,
-                title: "Try `$` (end of line)",
-                body: "Jumps to the last character on the line. Pairs with `0` (start of line) to replace Home/End.",
+                title: String(localized: "Try `$` (end of line)"),
+                body: String(localized: "Jumps to the last character on the line. Pairs with `0` (start of line) to replace Home/End."),
                 priority: 70
             ))
         }
@@ -193,8 +195,8 @@ enum VimInsightsEngine {
         {
             out.append(.init(
                 glyph: .learn,
-                title: "Try `a` (append after cursor)",
-                body: "You're using `i` to enter insert before the cursor. `a` enters insert just after — saves a `→` press whenever you're inserting at the end of a word.",
+                title: String(localized: "Try `a` (append after cursor)"),
+                body: String(localized: "You're using `i` to enter insert before the cursor. `a` enters insert just after — saves a `→` press whenever you're inserting at the end of a word."),
                 priority: 65
             ))
         }
@@ -206,8 +208,8 @@ enum VimInsightsEngine {
         if totalDwell > 600, insertSeconds / totalDwell > 0.7 {
             out.append(.init(
                 glyph: .optimize,
-                title: "You're in insert mode \(Int(insertSeconds * 100 / totalDwell))% of the time",
-                body: "Most of vim's power lives in normal mode. Pop back out (Esc) more often — even between sentences — and your editing speed compounds.",
+                title: String(localized: "You're in insert mode \(Int(insertSeconds * 100 / totalDwell))% of the time"),
+                body: String(localized: "Most of vim's power lives in normal mode. Pop back out (Esc) more often — even between sentences — and your editing speed compounds."),
                 priority: 60
             ))
         }
@@ -227,8 +229,10 @@ enum VimInsightsEngine {
         if usesOperators {
             out.append(.init(
                 glyph: .learn,
-                title: "Text objects are the next leap",
-                body: "You're using operators like `d`, `c`, `y`. The next step is text objects — `daw` deletes a whole word including its space, `ci\"` changes everything inside the next quote pair. Ten new combinations, one mental model.",
+                title: String(localized: "Text objects are the next leap"),
+                body: String(
+                    localized: "You're using operators like `d`, `c`, `y`. The next step is text objects — `daw` deletes a whole word including its space, `ci\"` changes everything inside the next quote pair. Ten new combinations, one mental model."
+                ),
                 priority: 70
             ))
         }
@@ -239,8 +243,8 @@ enum VimInsightsEngine {
         if jCount > 200, bracketJumps < 10 {
             out.append(.init(
                 glyph: .optimize,
-                title: "Try `}` and `{` for paragraph jumps",
-                body: "You press `j` a lot. `}` jumps to the next paragraph break, `{` to the previous — much faster than holding `j` for long scrolls.",
+                title: String(localized: "Try `}` and `{` for paragraph jumps"),
+                body: String(localized: "You press `j` a lot. `}` jumps to the next paragraph break, `{` to the previous — much faster than holding `j` for long scrolls."),
                 priority: 65
             ))
         }
@@ -254,8 +258,10 @@ enum VimInsightsEngine {
             if rate > 30 {
                 out.append(.init(
                     glyph: .optimize,
-                    title: "You're cancelling \(Int(rate))% of operator sequences",
-                    body: "After pressing `d`, `c`, or `y`, you're often pressing Esc instead of finishing with a motion. Slow down for a beat — the next press is just a normal motion (`w`, `}`, `i\"`, etc.) and the operator applies it.",
+                    title: String(localized: "You're cancelling \(Int(rate))% of operator sequences"),
+                    body: String(
+                        localized: "After pressing `d`, `c`, or `y`, you're often pressing Esc instead of finishing with a motion. Slow down for a beat — the next press is just a normal motion (`w`, `}`, `i\"`, etc.) and the operator applies it."
+                    ),
                     priority: 55
                 ))
             }
@@ -275,8 +281,10 @@ enum VimInsightsEngine {
         if totalSamples > 20, Double(kbSamples) / Double(totalSamples) > 0.3 {
             out.append(.init(
                 glyph: .optimize,
-                title: "You spend a lot of time in Keyboard-strategy apps",
-                body: "Apps like Slack force kindaVim into the Keyboard fallback, which drops `gg`, `G`, visual mode, and most text objects. Don't expect those to work there — they only work in Accessibility-strategy apps.",
+                title: String(localized: "You spend a lot of time in Keyboard-strategy apps"),
+                body: String(
+                    localized: "Apps like Slack force kindaVim into the Keyboard fallback, which drops `gg`, `G`, visual mode, and most text objects. Don't expect those to work there — they only work in Accessibility-strategy apps."
+                ),
                 priority: 30
             ))
         }

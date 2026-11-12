@@ -220,9 +220,9 @@ public enum CaptureMode: String, CaseIterable, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .single: "Single"
-        case .chord: "Combos"
-        case .sequence: "Sequence"
+        case .single: String(localized: "Single")
+        case .chord: String(localized: "Combos")
+        case .sequence: String(localized: "Sequence")
         }
     }
 
@@ -236,9 +236,9 @@ public enum CaptureMode: String, CaseIterable, Codable, Sendable {
 
     public var description: String {
         switch self {
-        case .single: "Capture a single key"
-        case .chord: "Capture key combinations (e.g., Cmd+S)"
-        case .sequence: "Capture key sequences (e.g., g,g)"
+        case .single: String(localized: "Capture a single key")
+        case .chord: String(localized: "Capture key combinations (e.g., Cmd+S)")
+        case .sequence: String(localized: "Capture key sequences (e.g., g,g)")
         }
     }
 }

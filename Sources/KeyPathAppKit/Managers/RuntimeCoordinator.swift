@@ -831,7 +831,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 AppLogger.shared.warn("⚠️ [Reset] TCP reload failed (\(error)), fallback restart initiated")
                 AppLogger.shared.log("📝 [Reset] TCP response: \(response)")
                 await MainActor.run {
-                    saveStatus = .failed("Reset reload failed: \(error)")
+                    saveStatus = .failed(String(localized: "Reset reload failed: \(error)"))
                 }
                 // If TCP reload fails, fall back to service restart
                 _ = await restartKanata(reason: "Default config reload fallback")
@@ -887,7 +887,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Check API key availability
         guard KeychainService.shared.hasClaudeAPIKey else {
-            throw KeyPathError.configuration(.repairFailed(reason: "No Claude API key configured. Add one in Settings → Experimental → AI Config Generation."))
+            throw KeyPathError.configuration(.repairFailed(reason: String(localized: "No Claude API key configured. Add one in Settings → Experimental → AI Config Generation.")))
         }
 
         // Get current mappings for context (helps AI understand intent)
@@ -1161,14 +1161,14 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 AppLogger.shared.info(
                     "🚨 [RuntimeCoordinator] kanata failed to grab the keyboard (reason: \(reason ?? "unknown")) — surfacing degraded state (observation \(attempt))"
                 )
-                lastError = "Keyboard remapping is not active: kanata could not capture the keyboard. Try quitting other keyboard tools, then restart KeyPath."
+                lastError = String(localized: "Keyboard remapping is not active: kanata could not capture the keyboard. Try quitting other keyboard tools, then restart KeyPath.")
                 grabGiveUpErrorActive = true
                 notifyStateChanged()
             case let .giveUp(attempts):
                 AppLogger.shared.error(
                     "❌ [RuntimeCoordinator] kanata still not grabbing the keyboard after \(attempts) observations — manual intervention / reboot may be needed"
                 )
-                lastError = "Keyboard remapping is not active: kanata could not capture the keyboard after repeated checks. Try quitting other keyboard tools, then restart KeyPath."
+                lastError = String(localized: "Keyboard remapping is not active: kanata could not capture the keyboard after repeated checks. Try quitting other keyboard tools, then restart KeyPath.")
                 grabGiveUpErrorActive = true
                 notifyStateChanged()
             }
@@ -1322,7 +1322,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         guard URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
             == URL(fileURLWithPath: configurationService.configurationPath).standardizedFileURL.resolvingSymlinksInPath()
         else {
-            return .failure(KeyPathError.configuration(.loadFailed(reason: "This editor is not connected to the requested configuration file.")))
+            return .failure(KeyPathError.configuration(.loadFailed(reason: String(localized: "This editor is not connected to the requested configuration file."))))
         }
         let result = await saveCoordinator.editConfiguration(transform: transform, runtimeDidApply: {
             await AppContextService.shared.reloadMappings(afterRuntimeReload: true)

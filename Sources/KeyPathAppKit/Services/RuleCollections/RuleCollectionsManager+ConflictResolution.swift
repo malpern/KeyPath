@@ -119,7 +119,7 @@ extension RuleCollectionsManager {
             if rollbackApplied {
                 onError?(userMessage)
             } else {
-                onError?("\(userMessage) Automatic rollback failed. Please review your configuration.")
+                onError?(String(localized: "\(userMessage) Automatic rollback failed. Please review your configuration."))
             }
 
             return rollbackApplied

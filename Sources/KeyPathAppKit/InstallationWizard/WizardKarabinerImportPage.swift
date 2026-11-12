@@ -33,8 +33,8 @@ struct WizardKarabinerImportPage: View {
             WizardHeroSection(
                 icon: "square.and.arrow.down",
                 iconColor: .purple,
-                title: "Import Karabiner Rules",
-                subtitle: "Bring your existing rules into KeyPath"
+                title: String(localized: "Import Karabiner Rules"),
+                subtitle: String(localized: "Bring your existing rules into KeyPath")
             )
             .scaleEffect(heroScale)
             .opacity(heroOpacity)
@@ -156,7 +156,9 @@ struct WizardKarabinerImportPage: View {
                 ForEach(result.collections) { collection in
                     wizardCheckboxRow(
                         title: collection.name,
-                        subtitle: "\(collection.mappings.count) mapping\(collection.mappings.count == 1 ? "" : "s")",
+                        subtitle: collection.mappings.count == 1
+                            ? String(localized: "1 mapping")
+                            : String(localized: "\(collection.mappings.count) mappings"),
                         isSelected: selectedCollectionIds.contains(collection.id)
                     ) {
                         if selectedCollectionIds.contains(collection.id) {
@@ -175,7 +177,9 @@ struct WizardKarabinerImportPage: View {
                 ForEach(result.appKeymaps) { keymap in
                     wizardCheckboxRow(
                         title: keymap.mapping.displayName,
-                        subtitle: "\(keymap.overrides.count) override\(keymap.overrides.count == 1 ? "" : "s")",
+                        subtitle: keymap.overrides.count == 1
+                            ? String(localized: "1 override")
+                            : String(localized: "\(keymap.overrides.count) overrides"),
                         isSelected: selectedAppKeymapIds.contains(keymap.id)
                     ) {
                         if selectedAppKeymapIds.contains(keymap.id) {
@@ -249,7 +253,7 @@ struct WizardKarabinerImportPage: View {
 
         let path = WizardSystemPaths.karabinerConfigPath
         guard let data = Foundation.FileManager().contents(atPath: path) else {
-            errorMessage = "Could not read Karabiner config file"
+            errorMessage = String(localized: "Could not read Karabiner config file")
             isConverting = false
             return
         }
@@ -272,7 +276,7 @@ struct WizardKarabinerImportPage: View {
 
         for collection in result.collections where selectedCollectionIds.contains(collection.id) {
             if await !(kanataManager.addRuleCollection(collection)) {
-                errors.append("Collection '\(collection.name)' was not imported.")
+                errors.append(String(localized: "Collection '\(collection.name)' was not imported."))
             }
         }
 
@@ -285,7 +289,7 @@ struct WizardKarabinerImportPage: View {
                     }
                 }
             } catch {
-                errors.append("App keymaps: \(error.localizedDescription)")
+                errors.append(String(localized: "App keymaps: \(error.localizedDescription)"))
             }
         }
 
@@ -294,12 +298,12 @@ struct WizardKarabinerImportPage: View {
             do {
                 try await KarabinerConverterService.persistLauncherMappings(result.launcherMappings)
             } catch {
-                errors.append("Launcher mappings: \(error.localizedDescription)")
+                errors.append(String(localized: "Launcher mappings: \(error.localizedDescription)"))
             }
         }
 
         if !errors.isEmpty {
-            errorMessage = "Some items failed to import: \(errors.joined(separator: "; "))"
+            errorMessage = String(localized: "Some items failed to import: \(errors.joined(separator: "; "))")
         } else {
             withAnimation {
                 importComplete = true

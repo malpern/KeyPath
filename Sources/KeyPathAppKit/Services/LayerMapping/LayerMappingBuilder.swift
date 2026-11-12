@@ -303,17 +303,17 @@ enum LayerMappingBuilder {
     static func systemActionDisplayLabel(_ action: String) -> String {
         switch action.lowercased() {
         case "dnd", "do-not-disturb", "donotdisturb", "focus":
-            "Do Not Disturb"
+            String(localized: "Do Not Disturb")
         case "spotlight":
             "Spotlight"
         case "dictation":
-            "Dictation"
+            String(localized: "Dictation")
         case "mission-control", "missioncontrol":
-            "Mission Control"
+            String(localized: "Mission Control")
         case "launchpad":
             "Launchpad"
         case "notification-center", "notificationcenter":
-            "Notification Center"
+            String(localized: "Notification Center")
         case "siri":
             "Siri"
         default:
@@ -323,14 +323,14 @@ enum LayerMappingBuilder {
 
     static func mediaKeyDisplayLabel(_ kanataKey: String) -> String? {
         switch kanataKey.lowercased() {
-        case "brup": "Brightness Up"
-        case "brdn", "brdown": "Brightness Down"
-        case "volu": "Volume Up"
-        case "vold", "voldwn": "Volume Down"
-        case "mute": "Mute"
-        case "pp": "Play/Pause"
-        case "next": "Next Track"
-        case "prev": "Previous Track"
+        case "brup": String(localized: "Brightness Up")
+        case "brdn", "brdown": String(localized: "Brightness Down")
+        case "volu": String(localized: "Volume Up")
+        case "vold", "voldwn": String(localized: "Volume Down")
+        case "mute": String(localized: "Mute")
+        case "pp": String(localized: "Play/Pause")
+        case "next": String(localized: "Next Track")
+        case "prev": String(localized: "Previous Track")
         default: nil
         }
     }

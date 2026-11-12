@@ -91,10 +91,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     timestamp: Date(),
                     severity: .critical,
                     category: .system,
-                    title: "Kanata Not Installed",
-                    description: "Kanata binary not found at \(WizardSystemPaths.kanataActiveBinary)",
+                    title: String(localized: "Kanata Not Installed"),
+                    description: String(localized: "Kanata binary not found at \(WizardSystemPaths.kanataActiveBinary)"),
                     technicalDetails: "Expected path: \(WizardSystemPaths.kanataActiveBinary)",
-                    suggestedAction: "Use KeyPath's Installation Wizard to install Kanata automatically",
+                    suggestedAction: String(localized: "Use KeyPath's Installation Wizard to install Kanata automatically"),
                     canAutoFix: false
                 )
             )
@@ -112,10 +112,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     timestamp: Date(),
                     severity: .error,
                     category: .conflict,
-                    title: "Karabiner Grabber Conflict",
-                    description: "karabiner_grabber is running and will prevent Kanata from starting",
+                    title: String(localized: "Karabiner Grabber Conflict"),
+                    description: String(localized: "karabiner_grabber is running and will prevent Kanata from starting"),
                     technicalDetails: "karabiner_grabber process detected — causes 'exclusive access and device already open' errors",
-                    suggestedAction: "Quit Karabiner-Elements or disable its key remapping",
+                    suggestedAction: String(localized: "Quit Karabiner-Elements or disable its key remapping"),
                     canAutoFix: true
                 )
             )
@@ -166,10 +166,10 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
                     timestamp: Date(),
                     severity: .error,
                     category: .conflict,
-                    title: "External Kanata Conflicts (\(conflicts.externalProcesses.count))",
-                    description: "External Kanata processes that conflict with KeyPath",
+                    title: String(localized: "External Kanata Conflicts (\(conflicts.externalProcesses.count))"),
+                    description: String(localized: "External Kanata processes that conflict with KeyPath"),
                     technicalDetails: conflictDetails,
-                    suggestedAction: "Terminate conflicting processes or let KeyPath auto-fix them",
+                    suggestedAction: String(localized: "Terminate conflicting processes or let KeyPath auto-fix them"),
                     canAutoFix: true
                 )
             )

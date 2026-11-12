@@ -108,7 +108,7 @@ public final class SimpleModsParser: Sendable {
                                 fromKey: mapping.fromKey,
                                 conflictingLine: lineNumber,
                                 conflictingFile: configPath,
-                                reason: "Duplicate mapping in same block"
+                                reason: String(localized: "Duplicate mapping in same block")
                             )
                         )
                     } else {
@@ -150,7 +150,7 @@ public final class SimpleModsParser: Sendable {
                                 fromKey: mapping.fromKey,
                                 conflictingLine: lineNumber,
                                 conflictingFile: configPath,
-                                reason: "Mapping exists outside managed block"
+                                reason: String(localized: "Mapping exists outside managed block")
                             )
                         )
                     }

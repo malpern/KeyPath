@@ -130,7 +130,7 @@ extension RuleCollectionsManager {
                                                  case let .configuration(configError) = keyPathError,
                                                  case let .validationFailed(errors) = configError
                     {
-                        "Configuration validation failed:\n\n" + errors.joined(separator: "\n")
+                        String(localized: "Configuration validation failed:\n\n\(errors.joined(separator: "\n"))")
                     } else if let keyPathError = error as? KeyPathError,
                               case let .configuration(configError) = keyPathError,
                               case let .mappingConflicts(conflicts) = configError
@@ -138,7 +138,7 @@ extension RuleCollectionsManager {
                         // Non-actionable (or cancelled) mapping conflict — explain it (#460).
                         conflicts.map(\.userExplanation).joined(separator: "\n\n")
                     } else {
-                        "Failed to save configuration: \(error.localizedDescription)"
+                        String(localized: "Failed to save configuration: \(error.localizedDescription)")
                     }
 
                     // Notify user via callback

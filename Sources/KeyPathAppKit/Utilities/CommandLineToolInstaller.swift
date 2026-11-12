@@ -12,9 +12,9 @@ enum CommandLineToolInstaller {
         var errorDescription: String? {
             switch self {
             case let .bundledToolMissing(path):
-                "The bundled command-line tool was not found at \(path)."
+                String(localized: "The bundled command-line tool was not found at \(path).")
             case let .destinationConflict(path):
-                "\(path) already exists and is not a KeyPath command-line tool link."
+                String(localized: "\(path) already exists and is not a KeyPath command-line tool link.")
             }
         }
     }
@@ -64,7 +64,7 @@ enum CommandLineToolInstaller {
         guard rename(staged, path) == 0 else {
             let reason = String(cString: strerror(errno))
             try? files.removeItem(atPath: staged)
-            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "Could not install \(path): \(reason)"])
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: String(localized: "Could not install \(path): \(reason)")])
         }
     }
 

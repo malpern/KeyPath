@@ -130,11 +130,11 @@ struct AppMenuCommands: Commands {
 
             Button("Stop KeyPath Runtime...") {
                 let alert = NSAlert()
-                alert.messageText = "Stop KeyPath Runtime?"
-                alert.informativeText = "This will stop keyboard remapping. You can restart it from the overlay or by relaunching KeyPath."
+                alert.messageText = String(localized: "Stop KeyPath Runtime?")
+                alert.informativeText = String(localized: "This will stop keyboard remapping. You can restart it from the overlay or by relaunching KeyPath.")
                 alert.alertStyle = .warning
-                alert.addButton(withTitle: "Stop")
-                alert.addButton(withTitle: "Cancel")
+                alert.addButton(withTitle: String(localized: "Stop"))
+                alert.addButton(withTitle: String(localized: "Cancel"))
                 let response = alert.runModal()
                 if response == .alertFirstButtonReturn {
                     Task { @MainActor in
@@ -207,12 +207,12 @@ struct AppMenuCommands: Commands {
 
     private func showAboutPanel() {
         let info = BuildInfo.current()
-        var detailLines = ["Keys that do more.", "", "Build \(info.build) \u{2022} \(info.git) \u{2022} \(info.date)"]
+        var detailLines = [String(localized: "Keys that do more."), "", String(localized: "Build \(info.build) \u{2022} \(info.git) \u{2022} \(info.date)")]
         if let kanataVersion = info.kanataVersion {
             detailLines.append("Kanata \(kanataVersion)")
         }
         if UpdateService.shared.usesManualDownloads {
-            detailLines.append("\nDownload updates from the KeyPath menu. Quit KeyPath before replacing the app.")
+            detailLines.append(String(localized: "\nDownload updates from the KeyPath menu. Quit KeyPath before replacing the app."))
         }
         let details = detailLines.joined(separator: "\n")
         NSApplication.shared.orderFrontStandardAboutPanel(
@@ -223,7 +223,7 @@ struct AppMenuCommands: Commands {
                 ),
                 NSApplication.AboutPanelOptionKey.applicationName: "KeyPath",
                 NSApplication.AboutPanelOptionKey.applicationVersion: info.version,
-                NSApplication.AboutPanelOptionKey.version: "Build \(info.build)"
+                NSApplication.AboutPanelOptionKey.version: String(localized: "Build \(info.build)")
             ]
         )
     }
@@ -240,47 +240,47 @@ struct AppMenuCommands: Commands {
     private func installCommandLineTool() {
         if !CommandLineToolInstaller.canReplaceExistingDestination() {
             let alert = NSAlert()
-            alert.messageText = "Command Line Tool Already Exists"
-            alert.informativeText = """
+            alert.messageText = String(localized: "Command Line Tool Already Exists")
+            alert.informativeText = String(localized: """
             \(CommandLineToolInstaller.linkPath()) already exists and is not a KeyPath command-line tool link.
 
             Remove or rename the existing file before installing KeyPath's command-line tool.
-            """
+            """)
             alert.alertStyle = .warning
             alert.runModal()
             return
         }
 
         let alert = NSAlert()
-        alert.messageText = "Install Command Line Tool?"
-        alert.informativeText = """
+        alert.messageText = String(localized: "Install Command Line Tool?")
+        alert.informativeText = String(localized: """
         This installs a terminal command at:
         \(CommandLineToolInstaller.linkPath())
 
         The command points to the signed CLI inside KeyPath.app. No administrator password is needed. Opening KeyPath.app remains the primary way to launch KeyPath.
-        """
+        """)
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Install")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: String(localized: "Install"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         Task { @MainActor in
             do {
                 try CommandLineToolInstaller.install()
                 let success = NSAlert()
-                success.messageText = "Command Line Tool Installed"
-                success.informativeText = """
+                success.messageText = String(localized: "Command Line Tool Installed")
+                success.informativeText = String(localized: """
                 Try it in Terminal:
                 ~/.local/bin/keypath-cli system inspect
 
                 To type just keypath-cli, add this line to ~/.zshrc (or ~/.bash_profile for bash), then open a new Terminal window:
                 \(CommandLineToolInstaller.pathExportLine)
-                """
+                """)
                 success.alertStyle = .informational
                 success.runModal()
             } catch {
                 let failure = NSAlert()
-                failure.messageText = "Command Line Tool Install Failed"
+                failure.messageText = String(localized: "Command Line Tool Install Failed")
                 failure.informativeText = error.localizedDescription
                 failure.alertStyle = .critical
                 failure.runModal()

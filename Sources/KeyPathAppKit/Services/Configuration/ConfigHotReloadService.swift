@@ -26,7 +26,7 @@ final class ConfigHotReloadService {
         let pendingReload: Bool
 
         static func success(content: String) -> ReloadResult {
-            ReloadResult(success: true, message: "Configuration reloaded", newContent: content, pendingReload: false)
+            ReloadResult(success: true, message: String(localized: "Configuration reloaded"), newContent: content, pendingReload: false)
         }
 
         static func failure(_ message: String) -> ReloadResult {
@@ -34,7 +34,7 @@ final class ConfigHotReloadService {
         }
 
         static func pendingReload(content: String) -> ReloadResult {
-            ReloadResult(success: false, message: "Config saved, will apply when service starts", newContent: content, pendingReload: true)
+            ReloadResult(success: false, message: String(localized: "Config saved, will apply when service starts"), newContent: content, pendingReload: true)
         }
 
         static func pendingReload(content: String, message: String) -> ReloadResult {
@@ -138,7 +138,7 @@ final class ConfigHotReloadService {
         // Check file exists
         guard Foundation.FileManager().fileExists(atPath: configPath) else {
             AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] Config file no longer exists: \(configPath)")
-            let result = ReloadResult.failure("Config file was deleted")
+            let result = ReloadResult.failure(String(localized: "Config file was deleted"))
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
             return result
@@ -153,7 +153,7 @@ final class ConfigHotReloadService {
             )
         } catch {
             AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] Failed to read external config: \(error)")
-            let result = ReloadResult.failure("Failed to read config: \(error.localizedDescription)")
+            let result = ReloadResult.failure(String(localized: "Failed to read config: \(error.localizedDescription)"))
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
             return result
@@ -162,7 +162,7 @@ final class ConfigHotReloadService {
         // Validate configuration
         guard let configService = configurationService else {
             AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] ConfigurationService not configured")
-            let result = ReloadResult.failure("Service not configured")
+            let result = ReloadResult.failure(String(localized: "Service not configured"))
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
             return result
@@ -170,11 +170,11 @@ final class ConfigHotReloadService {
 
         let validationResult = await configService.validateConfiguration(configContent)
         if !validationResult.isValid {
-            let errorMsg = validationResult.errors.first ?? "Unknown validation error"
+            let errorMsg = validationResult.errors.first ?? String(localized: "Unknown validation error")
             AppLogger.shared.errorUnlessQuietTest(
                 "❌ [ConfigHotReload] Validation failed: \(validationResult.errors.joined(separator: ", "))"
             )
-            let result = ReloadResult.failure("Invalid config: \(errorMsg)")
+            let result = ReloadResult.failure(String(localized: "Invalid config: \(errorMsg)"))
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
             return result
@@ -183,7 +183,7 @@ final class ConfigHotReloadService {
         // Trigger hot reload via TCP
         guard let handler = reloadHandler else {
             AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] Reload handler not configured")
-            let result = ReloadResult.failure("Reload handler not configured")
+            let result = ReloadResult.failure(String(localized: "Reload handler not configured"))
             callbacks.onFailure?(result.message)
             scheduleStatusReset()
             return result
@@ -199,7 +199,7 @@ final class ConfigHotReloadService {
             return .success(content: configContent)
 
         case .pending:
-            let message = reloadOutcome.message ?? "Config saved, will apply when service starts"
+            let message = reloadOutcome.message ?? String(localized: "Config saved, will apply when service starts")
             AppLogger.shared.info("ℹ️ [ConfigHotReload] Reload pending: \(message)")
             callbacks.onReset?()
             return .pendingReload(content: configContent, message: message)
@@ -218,7 +218,7 @@ final class ConfigHotReloadService {
                 return .pendingReload(content: configContent)
             }
 
-            let message = reloadOutcome.message ?? "Hot reload failed"
+            let message = reloadOutcome.message ?? String(localized: "Hot reload failed")
             AppLogger.shared.errorUnlessQuietTest("❌ [ConfigHotReload] \(message)")
             let result = ReloadResult.failure(message)
             callbacks.onFailure?(result.message)
@@ -226,7 +226,7 @@ final class ConfigHotReloadService {
             return result
 
         case .rejected:
-            let message = reloadOutcome.message ?? "Hot reload rejected"
+            let message = reloadOutcome.message ?? String(localized: "Hot reload rejected")
             AppLogger.shared.error("❌ [ConfigHotReload] \(message)")
             let result = ReloadResult.failure(message)
             callbacks.onFailure?(result.message)

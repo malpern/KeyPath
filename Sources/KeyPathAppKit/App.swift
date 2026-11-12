@@ -926,8 +926,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.viewModel?.emergencyStopActivated = true
 
                 UserNotificationService.shared.notifyConfigEvent(
-                    "Emergency stop activated",
-                    body: "Remapping paused. Open Settings -> Status to start the service again.",
+                    String(localized: "Emergency stop activated"),
+                    body: String(localized: "Remapping paused. Open Settings -> Status to start the service again."),
                     key: "emergency.stop.activated"
                 )
 

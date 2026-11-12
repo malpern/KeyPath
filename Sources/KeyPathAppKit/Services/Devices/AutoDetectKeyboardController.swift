@@ -54,18 +54,18 @@ final class AutoDetectKeyboardController {
         var subtitle: String {
             switch status {
             case .remembered:
-                return layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Remembered keyboard"
+                return layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? String(localized: "Remembered keyboard")
             case .suggested:
                 if let layoutId {
-                    return PhysicalLayout.find(id: layoutId)?.name ?? "Suggested layout"
+                    return PhysicalLayout.find(id: layoutId)?.name ?? String(localized: "Suggested layout")
                 }
-                return "Suggested keyboard"
+                return String(localized: "Suggested keyboard")
             case .possibleMatch:
-                return detectedKeyboardName.map { "Possible match: \($0)" } ?? "Possible match"
+                return detectedKeyboardName.map { String(localized: "Possible match: \($0)") } ?? String(localized: "Possible match")
             case .importRequired:
-                return "Import required"
+                return String(localized: "Import required")
             case .unrecognized:
-                return "Search for a layout"
+                return String(localized: "Search for a layout")
             }
         }
     }

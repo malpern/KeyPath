@@ -27,15 +27,15 @@ actor ConfigurationOperationGate {
         var errorDescription: String? {
             switch self {
             case .uninstalling:
-                "KeyPath is uninstalling; configuration changes are paused."
+                String(localized: "KeyPath is uninstalling; configuration changes are paused.")
             case .recursiveOperation:
-                "An operation callback cannot recursively save or restore through the same configuration service."
+                String(localized: "An operation callback cannot recursively save or restore through the same configuration service.")
             case .invalidPermit:
-                "The configuration operation permit is no longer active."
+                String(localized: "The configuration operation permit is no longer active.")
             case let .fileLock(operation, code):
-                "Configuration operation lock \(operation) failed (errno \(code))."
+                String(localized: "Configuration operation lock \(operation) failed (errno \(code)).")
             case .invalidLockFile:
-                "The configuration operation lock is not a regular file."
+                String(localized: "The configuration operation lock is not a regular file.")
             }
         }
     }

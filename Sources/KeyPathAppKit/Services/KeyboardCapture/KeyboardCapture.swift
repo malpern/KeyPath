@@ -70,7 +70,7 @@ public class KeyboardCapture {
             // Notify that we need permissions - this should trigger the wizard
             isCapturing = false
             captureCallback = nil
-            callback("⚠️ \(AccessibilityPermissionPresentation.current.name) permission required")
+            callback(String(localized: "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required"))
 
             // In unit tests, avoid posting UI-triggering notifications
             if !TestEnvironment.isRunningTests {
@@ -115,7 +115,7 @@ public class KeyboardCapture {
             isCapturing = false
             isContinuous = false
             captureCallback = nil
-            callback("⚠️ \(AccessibilityPermissionPresentation.current.name) permission required")
+            callback(String(localized: "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required"))
 
             if !TestEnvironment.isRunningTests {
                 // Trigger the wizard to help user fix permissions
@@ -328,13 +328,13 @@ public class KeyboardCapture {
             // Already on @MainActor; call callbacks directly
             if let cb = sequenceCallback {
                 let kp = KeyPress(
-                    baseKey: "⚠️ Couldn't start recording", modifiers: [], timestamp: Date(), keyCode: -1
+                    baseKey: String(localized: "⚠️ Couldn't start recording"), modifiers: [], timestamp: Date(), keyCode: -1
                 )
                 let seq = KeySequence(keys: [kp], captureMode: .single)
                 cb(seq)
                 sequenceCallback = nil
             } else if let cb = captureCallback {
-                cb("⚠️ Couldn't start recording")
+                cb(String(localized: "⚠️ Couldn't start recording"))
                 captureCallback = nil
             }
             return

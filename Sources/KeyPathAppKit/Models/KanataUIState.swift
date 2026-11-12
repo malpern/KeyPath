@@ -13,10 +13,10 @@ enum SaveStatus: Equatable, Sendable {
     var message: String {
         switch self {
         case .idle: ""
-        case .saving: "Saving..."
-        case .validating: "Validating..."
-        case .success: "✅ Done"
-        case let .failed(error): "❌ Config Invalid: \(error)"
+        case .saving: String(localized: "Saving...")
+        case .validating: String(localized: "Validating...")
+        case .success: String(localized: "✅ Done")
+        case let .failed(error): String(localized: "❌ Config Invalid: \(error)")
         }
     }
 

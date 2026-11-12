@@ -109,8 +109,8 @@ struct LogicalKeymap: Identifiable {
         // (punctuation toggle is irrelevant for system keymap — all keys are labeled)
         return LogicalKeymap(
             id: systemId,
-            name: "System",
-            description: "Uses your Mac's current input source (\(provider.inputSourceName)).",
+            name: String(localized: "System"),
+            description: String(localized: "Uses your Mac's current input source (\(provider.inputSourceName))."),
             learnMoreURL: URL(string: "https://support.apple.com/guide/mac-help/change-input-sources-mchlp1406/mac")!,
             iconFilename: "QWERTY", // Fallback icon; UI uses globe SF Symbol instead
             coreLabels: labels,
@@ -122,7 +122,7 @@ struct LogicalKeymap: Identifiable {
     static let qwertyUS: LogicalKeymap = .init(
         id: "qwerty-us",
         name: "QWERTY",
-        description: "The standard US layout used on most keyboards.",
+        description: String(localized: "The standard US layout used on most keyboards."),
         learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/QWERTY")!,
         iconFilename: "QWERTY",
         coreLabels: buildCoreMap(
@@ -153,7 +153,7 @@ struct LogicalKeymap: Identifiable {
     static let azerty: LogicalKeymap = .init(
         id: "azerty",
         name: "AZERTY",
-        description: "The standard French keyboard layout used in France and Belgium.",
+        description: String(localized: "The standard French keyboard layout used in France and Belgium."),
         learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/AZERTY")!,
         iconFilename: "AZERTY",
         coreLabels: buildCoreMap(
@@ -169,7 +169,7 @@ struct LogicalKeymap: Identifiable {
     static let qwertz: LogicalKeymap = .init(
         id: "qwertz",
         name: "QWERTZ",
-        description: "The standard German keyboard layout, also used in Central Europe.",
+        description: String(localized: "The standard German keyboard layout, also used in Central Europe."),
         learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/QWERTZ")!,
         iconFilename: "QWERTZ",
         coreLabels: buildCoreMap(
@@ -183,7 +183,7 @@ struct LogicalKeymap: Identifiable {
     static let colemak: LogicalKeymap = .init(
         id: "colemak",
         name: "Colemak",
-        description: "Popular ergonomic layout that keeps many QWERTY shortcuts intact.",
+        description: String(localized: "Popular ergonomic layout that keeps many QWERTY shortcuts intact."),
         learnMoreURL: URL(string: "https://colemak.com/")!,
         iconFilename: "Colemak",
         coreLabels: buildCoreMap(
@@ -197,7 +197,7 @@ struct LogicalKeymap: Identifiable {
     static let colemakDH: LogicalKeymap = .init(
         id: "colemak-dh",
         name: "Colemak-DH",
-        description: "Modern ergonomic layout; DH mod reduces lateral reaches while keeping many QWERTY shortcuts.",
+        description: String(localized: "Modern ergonomic layout; DH mod reduces lateral reaches while keeping many QWERTY shortcuts."),
         learnMoreURL: URL(string: "https://colemakmods.github.io/mod-dh/")!,
         iconFilename: "Colemak-DH",
         coreLabels: buildCoreMap(
@@ -211,7 +211,7 @@ struct LogicalKeymap: Identifiable {
     static let workman: LogicalKeymap = .init(
         id: "workman",
         name: "Workman",
-        description: "Ergonomic layout optimized for finger travel and comfortable inward rolls.",
+        description: String(localized: "Ergonomic layout optimized for finger travel and comfortable inward rolls."),
         learnMoreURL: URL(string: "https://workmanlayout.org/")!,
         iconFilename: "Workman",
         coreLabels: buildCoreMap(
@@ -225,7 +225,7 @@ struct LogicalKeymap: Identifiable {
     static let dvorak: LogicalKeymap = .init(
         id: "dvorak",
         name: "Dvorak",
-        description: "Classic alternative layout that emphasizes home row usage and hand alternation.",
+        description: String(localized: "Classic alternative layout that emphasizes home row usage and hand alternation."),
         learnMoreURL: URL(string: "https://en.wikipedia.org/wiki/Dvorak_keyboard_layout")!,
         iconFilename: "Dvorak",
         coreLabels: buildCoreMap(
@@ -247,7 +247,7 @@ struct LogicalKeymap: Identifiable {
     static let graphite: LogicalKeymap = .init(
         id: "graphite",
         name: "Graphite",
-        description: "Ergonomic layout optimized for finger travel with 65% home row usage and balanced hand distribution.",
+        description: String(localized: "Ergonomic layout optimized for finger travel with 65% home row usage and balanced hand distribution."),
         learnMoreURL: URL(string: "https://github.com/joa/graphite")!,
         iconFilename: "Graphite",
         coreLabels: buildCoreMap(

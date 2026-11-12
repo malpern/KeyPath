@@ -31,21 +31,21 @@ public enum KanataHrmDecisionReason: String, Codable, Sendable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .priorIdle: "Prior Idle"
-        case .releaseBeforeTimeout: "Release Before Timeout"
-        case .sameHandRoll: "Same-Hand Roll"
-        case .customTapKeys: "Custom Tap Keys"
-        case .customReleaseTrigger: "Custom Release Trigger"
-        case .customTap: "Custom Tap"
-        case .oppositeHand: "Opposite Hand"
-        case .otherKeyPress: "Other Key Press"
-        case .permissiveHold: "Permissive Hold"
-        case .timeout: "Timeout"
-        case .releaseAfterTimeout: "Release After Timeout"
-        case .customHold: "Custom Hold"
-        case .customNoOp: "Custom NoOp"
-        case .neutralKey: "Neutral Key"
-        case .unknownHand: "Unknown Hand"
+        case .priorIdle: String(localized: "Prior Idle")
+        case .releaseBeforeTimeout: String(localized: "Release Before Timeout")
+        case .sameHandRoll: String(localized: "Same-Hand Roll")
+        case .customTapKeys: String(localized: "Custom Tap Keys")
+        case .customReleaseTrigger: String(localized: "Custom Release Trigger")
+        case .customTap: String(localized: "Custom Tap")
+        case .oppositeHand: String(localized: "Opposite Hand")
+        case .otherKeyPress: String(localized: "Other Key Press")
+        case .permissiveHold: String(localized: "Permissive Hold")
+        case .timeout: String(localized: "Timeout")
+        case .releaseAfterTimeout: String(localized: "Release After Timeout")
+        case .customHold: String(localized: "Custom Hold")
+        case .customNoOp: String(localized: "Custom NoOp")
+        case .neutralKey: String(localized: "Neutral Key")
+        case .unknownHand: String(localized: "Unknown Hand")
         }
     }
 }

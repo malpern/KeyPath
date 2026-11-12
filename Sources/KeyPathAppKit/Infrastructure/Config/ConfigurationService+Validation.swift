@@ -34,7 +34,7 @@ extension ConfigurationService {
 
         let binaryPath = WizardSystemPaths.kanataActiveBinary
         guard Foundation.FileManager().isExecutableFile(atPath: binaryPath) else {
-            let message = "Kanata binary missing at \(binaryPath)"
+            let message = String(localized: "Kanata binary missing at \(binaryPath)")
             AppLogger.shared.log("❌ [ConfigService] File validation skipped: \(message)")
             return (false, [message])
         }
@@ -60,7 +60,7 @@ extension ConfigurationService {
                 }
 
                 if errors.isEmpty {
-                    errors.append("Configuration validation failed (exit code: \(result.exitCode))")
+                    errors.append(String(localized: "Configuration validation failed (exit code: \(result.exitCode))"))
                 }
 
                 AppLogger.shared.log("❌ [ConfigService] File validation failed: \(errors)")
@@ -71,10 +71,10 @@ extension ConfigurationService {
         } catch {
             AppLogger.shared.log("❌ [ConfigService] File validation error: \(error)")
             notifyValidationFailure(
-                ["Failed to validate configuration file: \(error.localizedDescription)"],
+                [String(localized: "Failed to validate configuration file: \(error.localizedDescription)")],
                 context: "file"
             )
-            return (false, ["Failed to validate configuration file: \(error.localizedDescription)"])
+            return (false, [String(localized: "Failed to validate configuration file: \(error.localizedDescription)")])
         }
     }
 
@@ -87,7 +87,7 @@ extension ConfigurationService {
         AppLogger.shared.log("🔍 [Validation] Config size: \(config.count) characters")
 
         guard !config.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return (false, ["Configuration content is empty"])
+            return (false, [String(localized: "Configuration content is empty")])
         }
         do {
             try await requireSessionEligibleConfiguration(config)
@@ -177,7 +177,7 @@ extension ConfigurationService {
             AppLogger.shared.log("🔧 [Validation-CLI] Using kanata binary: \(kanataBinary)")
 
             guard Foundation.FileManager().isExecutableFile(atPath: kanataBinary) else {
-                let message = "Kanata binary missing at \(kanataBinary)"
+                let message = String(localized: "Kanata binary missing at \(kanataBinary)")
                 AppLogger.shared.log("❌ [Validation-CLI] \(message)")
                 if TestEnvironment.isTestMode {
                     AppLogger.shared.log("🧪 [Validation-CLI] Skipping CLI validation in tests")
@@ -251,10 +251,10 @@ extension ConfigurationService {
             AppLogger.shared.log("❌ [Validation-CLI] Validation process failed: \(error)")
             AppLogger.shared.log("❌ [Validation-CLI] Error type: \(type(of: error))")
             notifyValidationFailure(
-                ["Validation failed: \(error.localizedDescription)"],
+                [String(localized: "Validation failed: \(error.localizedDescription)")],
                 context: "cli"
             )
-            return (false, ["Validation failed: \(error.localizedDescription)"])
+            return (false, [String(localized: "Validation failed: \(error.localizedDescription)")])
         }
     }
 
@@ -262,7 +262,7 @@ extension ConfigurationService {
         isValid: Bool, errors: [String]
     ) {
         guard !config.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return (false, ["Configuration content is empty"])
+            return (false, [String(localized: "Configuration content is empty")])
         }
 
         do {

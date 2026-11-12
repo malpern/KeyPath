@@ -74,17 +74,17 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         guard let center else { return }
 
         let openWizard = UNNotificationAction(
-            identifier: Action.openWizard.rawValue, title: "Open Wizard", options: [.foreground]
+            identifier: Action.openWizard.rawValue, title: String(localized: "Open Wizard"), options: [.foreground]
         )
         let retryStart = UNNotificationAction(
-            identifier: Action.retryStart.rawValue, title: "Start Service", options: []
+            identifier: Action.retryStart.rawValue, title: String(localized: "Start Service"), options: []
         )
         let openAX = UNNotificationAction(
             identifier: Action.openAccessibility.rawValue, title: AccessibilityPermissionPresentation.current.openTitle,
             options: [.foreground]
         )
         let openApp = UNNotificationAction(
-            identifier: Action.openApp.rawValue, title: "Open KeyPath", options: [.foreground]
+            identifier: Action.openApp.rawValue, title: String(localized: "Open KeyPath"), options: [.foreground]
         )
 
         let serviceFailure = UNNotificationCategory(
@@ -169,7 +169,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     func notifyLaunchFailure(_ status: LaunchFailureStatus) {
         let body = status.shortMessage
         sendNotification(
-            title: "Kanata Launch Failed",
+            title: String(localized: "Kanata Launch Failed"),
             body: body,
             category: .serviceFailure,
             key: "service.failure.\(body)",
@@ -188,7 +188,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         )
         let summary = AccessibilityPermissionPresentation.current.name
         sendNotification(
-            title: "Permission Required",
+            title: String(localized: "Permission Required"),
             body: blocking,
             category: .permission,
             key: "perm.\(summary)",
@@ -196,9 +196,9 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
         )
     }
 
-    func notifyRecoverySucceeded(_ message: String = "All set") {
+    func notifyRecoverySucceeded(_ message: String = String(localized: "All set")) {
         sendNotification(
-            title: "KeyPath Ready",
+            title: String(localized: "KeyPath Ready"),
             body: message,
             category: .recovery,
             key: "recovery.success",
@@ -220,7 +220,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
     /// Notify user of an action URI error (e.g., failed deep link)
     func notifyActionError(_ message: String) {
         sendNotification(
-            title: "Action Failed",
+            title: String(localized: "Action Failed"),
             body: message,
             category: .info,
             key: "action.error",

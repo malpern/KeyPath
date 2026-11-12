@@ -32,7 +32,7 @@ struct ConnectedDevice: Codable, Identifiable, Hashable, Sendable {
     /// Falls back to the device hash when the product key is empty.
     var displayName: String {
         let formatted = DeviceDisplayNameFormatter.format(productKey)
-        return formatted.isEmpty ? "Device \(hash.suffix(8))" : formatted
+        return formatted.isEmpty ? String(localized: "Device \(hash.suffix(8))") : formatted
     }
 
     /// Formatted vendor:product hex string, e.g. "05ac:0342"

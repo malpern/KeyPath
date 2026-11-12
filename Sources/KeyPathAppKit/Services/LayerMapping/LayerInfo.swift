@@ -46,35 +46,35 @@ enum LayerInfo {
 
         switch lower {
         case "base":
-            return "Base"
+            return String(localized: "Base")
         case "nav":
-            return "Nav"
+            return String(localized: "Nav")
         case "navigation":
-            return "Navigation"
+            return String(localized: "Navigation")
         case "vim":
             return "Vim"
         case "window", "window-mgmt":
-            return "Window"
+            return String(localized: "Window")
         case "numpad":
-            return "Numpad"
+            return String(localized: "Numpad")
         case "num":
-            return "Num"
+            return String(localized: "Num")
         case "sym", "symbol":
-            return "Symbol"
+            return String(localized: "Symbol")
         case "fun":
-            return "Fun"
+            return String(localized: "Fun")
         case "sys1":
-            return "System 1"
+            return String(localized: "System 1")
         case "sys2":
-            return "System 2"
+            return String(localized: "System 2")
         case "launcher":
-            return "Launcher"
+            return String(localized: "Launcher")
         case "quick launcher":
-            return "Quick Launcher"
+            return String(localized: "Quick Launcher")
         case "fn", "function":
-            return "Function"
+            return String(localized: "Function")
         case "media":
-            return "Media"
+            return String(localized: "Media")
         default:
             // Capitalize first letter for unknown layers
             return layerName.prefix(1).uppercased() + layerName.dropFirst()
