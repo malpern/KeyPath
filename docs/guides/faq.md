@@ -126,8 +126,6 @@ The build script builds, signs, notarizes, deploys to `~/Applications`, and rest
 swift test
 ```
 
-For tests requiring sudo: `KEYPATH_USE_SUDO=1 swift test`
-
 ### How do I contribute?
 
 1. Fork the repository
