@@ -31,6 +31,11 @@ ps aux | grep -i karabiner | grep -v grep
 
 # Monitor real-time logs
 tail -f ~/Library/Logs/KeyPath/keypath-debug.log
+
+# The same lines in the unified log, filterable by level and source file
+# (category). The text is private there; the log file above has it in full.
+log stream --predicate 'subsystem == "com.keypath.KeyPath"' --level debug
+log show --last 10m --predicate 'subsystem == "com.keypath.KeyPath" AND category == "ServiceLifecycleCoordinator"'
 ```
 
 ---

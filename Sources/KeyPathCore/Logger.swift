@@ -1,4 +1,6 @@
 import Foundation
+import os
+import Synchronization
 
 /// Log severity levels for AppLogger
 public enum AppLogLevel: Int, CaseIterable, Sendable {
@@ -202,6 +204,10 @@ public final class AppLogger {
             Swift.print(logMessage)
         }
 
+        // The unified log too, so Console can filter by subsystem, category (the
+        // source file) and level. The file log above stays the diagnostics record.
+        Self.writeToSystemLog(message, level: level, category: (fileName as NSString).deletingPathExtension)
+
         // Write immediately for debugging (no buffering)
         bufferQueue.async {
             self.writeLogMessageDirectly(logMessage)
@@ -255,6 +261,30 @@ public final class AppLogger {
         _ message: String, file: String = #file, function: String = #function, line: Int = #line
     ) {
         log(message, level: .error, file: file, function: function, line: line)
+    }
+
+    // MARK: - System log
+
+    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+    private static let systemLoggers = Mutex<[String: os.Logger]>([:])
+
+    /// The text is private at every level: lines at any level can carry key codes,
+    /// app names or pieces of the user's config. Console still shows the level,
+    /// category (source file), time and process; the text needs a logging profile.
+    /// The file log keeps the full text for diagnostics.
+    static func writeToSystemLog(_ message: String, level: AppLogLevel, category: String) {
+        let logger = systemLoggers.withLock { loggers in
+            if let existing = loggers[category] { return existing }
+            let created = os.Logger(subsystem: subsystem, category: category)
+            loggers[category] = created
+            return created
+        }
+        switch level {
+        case .trace, .debug: logger.debug("\(message, privacy: .private)")
+        case .info: logger.info("\(message, privacy: .private)")
+        case .warn: logger.warning("\(message, privacy: .private)")
+        case .error: logger.error("\(message, privacy: .private)")
+        }
     }
 
     // MARK: - Private Helpers
